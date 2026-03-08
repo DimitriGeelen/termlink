@@ -4,7 +4,7 @@ name: "CLI commands: register, list, ping, status"
 description: >
   CLI commands: register, list, ping, status
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T16:44:18Z
-last_update: 2026-03-08T16:44:18Z
-date_finished: null
+last_update: 2026-03-08T16:58:28Z
+date_finished: 2026-03-08T16:58:28Z
 ---
 
 # T-017: CLI commands: register, list, ping, status
@@ -25,13 +25,13 @@ CLI subcommands for TermLink: `register` (start a session), `list` (show session
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink register` starts a session with optional `--name` flag
-- [ ] `termlink list` shows all registered sessions with state
-- [ ] `termlink ping <target>` connects to session socket, sends termlink.ping
-- [ ] `termlink status <target>` connects to session socket, sends query.status
-- [ ] `--help` works for all subcommands
-- [ ] `cargo test --workspace` passes
-- [ ] `cargo build --workspace` produces working binary
+- [x] `termlink register` starts a session with optional `--name` flag
+- [x] `termlink list` shows all registered sessions with state
+- [x] `termlink ping <target>` connects to session socket, sends termlink.ping
+- [x] `termlink status <target>` connects to session socket, sends query.status
+- [x] `--help` works for all subcommands
+- [x] `cargo test --workspace` passes
+- [x] `cargo build --workspace` produces working binary
 
 ## Verification
 
@@ -56,3 +56,6 @@ PATH="$HOME/.cargo/bin:$PATH" cargo run -- --help
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-017-cli-commands-register-list-ping-status.md
 - **Context:** Initial task creation
+
+### 2026-03-08T16:58:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

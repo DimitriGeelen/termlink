@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-018: Hub message routing between sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T17:07:28Z
+# ============================================================================
+
+task_id: T-018
+task_name: "Hub message routing between sessions"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T16:58:38Z
+completed: 2026-03-08T17:07:24Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T18:04:32+01:00
+last_commit: 2026-03-08T18:07:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Hub message routing and CLI send/discover commands. Fix test compilation — add Path/Registration imports to hub tests
+
+# Key outcomes
+outcomes:
+  - "Router that resolves target session and forwards JSON-RPC requests via socket"
+  - "`session.discover` method returns list of registered sessions"
+  - "Hub accepts connections and routes messages between sessions"
+  - "Error handling for unknown targets, dead sessions, forward failures"
+  - "Tests for routing, discovery, and error cases"
+  - "`cargo test --workspace` passes"
+  - "`termlink send` CLI command to send messages through direct session connections"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix test compilation — add Path/Registration imports to hub tests"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-018-hub-message-routing-between-sessions.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T18:04:32"
+    action: "T-018: Hub message routing and CLI send/discover commands"
+  - time: "2026-03-08T18:07:21"
+    action: "T-018: Fix test compilation — add Path/Registration imports to hub tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 4
+  lines_added: 368
+  lines_removed: 6
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-018-hub-message-routing-between-sessions.md
+generated_by: context-agent-hybrid

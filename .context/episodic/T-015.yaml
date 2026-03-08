@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-015: Session registration and Unix socket listener
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T16:26:28Z
+# ============================================================================
+
+task_id: T-015
+task_name: "Session registration and Unix socket listener"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T16:00:31Z
+completed: 2026-03-08T16:26:26Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T17:26:14+01:00
+last_commit: 2026-03-08T17:26:14+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session registration, Unix socket listener, liveness detection, session listing
+
+# Key outcomes
+outcomes:
+  - "Registration struct with serde JSON serialization matching T-006 format"
+  - "`register()` creates runtime dir, binds Unix socket, writes atomic JSON registration"
+  - "`deregister()` removes socket + JSON files cleanly"
+  - "`is_alive()` performs PID-based liveness check"
+  - "`list_sessions()` scans directory, parses registrations, filters stale entries"
+  - "All new code has tests"
+  - "`cargo test --workspace` passes with no failures"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-015-session-registration-and-unix-socket-lis.md"
+  - "crates/termlink-session/src/identity.rs"
+  - "crates/termlink-session/src/lib.rs"
+  - "crates/termlink-session/src/liveness.rs"
+  - "crates/termlink-session/src/manager.rs"
+  - "crates/termlink-session/src/registration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T17:26:14"
+    action: "T-015: Session registration, Unix socket listener, liveness detection, session listing"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 6
+  lines_added: 837
+  lines_removed: 5
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-015-session-registration-and-unix-socket-lis.md
+generated_by: context-agent-hybrid
