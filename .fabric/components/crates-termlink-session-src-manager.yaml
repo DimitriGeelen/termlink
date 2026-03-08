@@ -5,7 +5,7 @@ subsystem: session
 location: crates/termlink-session/src/manager.rs
 tags: [session-management, discovery, query]
 
-purpose: "Session manager — register/deregister, list/find sessions, query by ID/name/tag/role/capability, name conflict detection"
+purpose: "Session manager — register/deregister, list/find sessions, query by ID/name/tag/role/capability, name conflict detection, stale session cleanup"
 
 depends_on:
   - target: crates/termlink-session/src/identity.rs
