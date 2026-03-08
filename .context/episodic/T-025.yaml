@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-025: CLI output subcommand — convenience wrapper for query.output
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T19:32:28Z
+# ============================================================================
+
+task_id: T-025
+task_name: "CLI output subcommand — convenience wrapper for query.output"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T19:30:33Z
+completed: 2026-03-08T19:32:26Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T20:32:22+01:00
+last_commit: 2026-03-08T20:32:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI output subcommand — read terminal output from PTY sessions
+
+# Key outcomes
+outcomes:
+  - "`Output` variant added to CLI Command enum with `target`, `--lines`, `--bytes` args"
+  - "`cmd_output` function sends `query.output` and prints raw output"
+  - "Builds and all 102 tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-025-cli-output-subcommand--convenience-wrapp.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T20:32:22"
+    action: "T-025: CLI output subcommand — read terminal output from PTY sessions"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 94
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-025-cli-output-subcommand--convenience-wrapp.md
+generated_by: context-agent-hybrid

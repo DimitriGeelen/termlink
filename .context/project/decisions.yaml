@@ -164,3 +164,10 @@ decisions:
     date: 2026-03-08
     task: T-022
     rationale: "Auto-captured from task file on completion"
+
+  - id: D-003
+    decision: "Use `Client::call` directly with original request id instead of `rpc_call` (which hardcodes `"cli-1"`)"
+    scope: project
+    date: 2026-03-08
+    task: T-024
+    rationale: "Auto-captured from task file on completion"

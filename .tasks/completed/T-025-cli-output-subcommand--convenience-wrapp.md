@@ -4,7 +4,7 @@ name: "CLI output subcommand — convenience wrapper for query.output"
 description: >
   CLI output subcommand — convenience wrapper for query.output
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T19:30:33Z
-last_update: 2026-03-08T19:30:33Z
-date_finished: null
+last_update: 2026-03-08T19:32:26Z
+date_finished: 2026-03-08T19:32:26Z
 ---
 
 # T-025: CLI output subcommand — convenience wrapper for query.output
@@ -51,3 +51,6 @@ Add `termlink output <target>` CLI subcommand as a convenience wrapper for `quer
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-025-cli-output-subcommand--convenience-wrapp.md
 - **Context:** Initial task creation
+
+### 2026-03-08T19:32:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

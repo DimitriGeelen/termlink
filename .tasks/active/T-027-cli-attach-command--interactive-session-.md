@@ -4,16 +4,16 @@ name: "CLI attach command — interactive session with output streaming and inpu
 description: >
   CLI attach command — interactive session with output streaming and input injection
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T19:45:06Z
-last_update: 2026-03-08T19:45:06Z
-date_finished: null
+last_update: 2026-03-08T19:47:23Z
+date_finished: 2026-03-08T19:47:23Z
 ---
 
 # T-027: CLI attach command — interactive session with output streaming and input injection
@@ -71,3 +71,6 @@ Interactive attach mode: `termlink attach <target>` shows live terminal output a
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-027-cli-attach-command--interactive-session-.md
 - **Context:** Initial task creation
+
+### 2026-03-08T19:47:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "CLI signal subcommand — send signals to session child processes"
 description: >
   CLI signal subcommand — send signals to session child processes
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T19:54:35Z
-last_update: 2026-03-08T19:54:35Z
-date_finished: null
+last_update: 2026-03-08T19:57:07Z
+date_finished: 2026-03-08T19:57:07Z
 ---
 
 # T-028: CLI signal subcommand — send signals to session child processes
@@ -52,3 +52,6 @@ Add `termlink signal <target> <signal>` to send signals to session processes. Ac
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-028-cli-signal-subcommand--send-signals-to-s.md
 - **Context:** Initial task creation
+
+### 2026-03-08T19:57:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

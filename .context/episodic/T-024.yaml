@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-024: Hub server — Unix socket listener for hub routing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T19:30:27Z
+# ============================================================================
+
+task_id: T-024
+task_name: "Hub server — Unix socket listener for hub routing"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T19:13:02Z
+completed: 2026-03-08T19:30:21Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T20:19:01+01:00
+last_commit: 2026-03-08T20:19:01+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Hub server — Unix socket listener, discover + forward routing, 102 tests
+
+# Key outcomes
+outcomes:
+  - "`hub::server` module with `run` function that binds `hub.sock` and accepts connections"
+  - "Hub connection handler routes requests through `router::route`"
+  - "`hub_socket_path()` function returns `runtime_dir()/hub.sock`"
+  - "CLI `hub` subcommand starts the hub server"
+  - "Tests: hub serves `session.discover`, hub forwards to target session, malformed JSON returns parse error"
+  - "All existing tests still pass (102 total)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/handovers/LATEST.md"
+  - ".context/handovers/S-2026-0308-1955.md"
+  - ".tasks/active/T-024-hub-server--unix-socket-listener-for-hub.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T20:19:01"
+    action: "T-024: Hub server — Unix socket listener, discover + forward routing, 102 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 7
+  lines_added: 513
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-024-hub-server--unix-socket-listener-for-hub.md
+generated_by: context-agent-hybrid

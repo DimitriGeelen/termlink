@@ -4,7 +4,7 @@ name: "Data plane — async frame codec and streaming server"
 description: >
   Data plane — async frame codec and streaming server
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T19:58:14Z
-last_update: 2026-03-08T19:58:14Z
-date_finished: null
+last_update: 2026-03-08T20:19:55Z
+date_finished: 2026-03-08T20:19:55Z
 ---
 
 # T-029: Data plane — async frame codec and streaming server
@@ -57,3 +57,6 @@ Build the data plane infrastructure: async frame codec (FrameReader/FrameWriter)
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-029-data-plane--async-frame-codec-and-stream.md
 - **Context:** Initial task creation
+
+### 2026-03-08T20:19:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

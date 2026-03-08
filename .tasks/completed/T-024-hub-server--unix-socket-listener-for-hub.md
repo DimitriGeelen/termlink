@@ -4,7 +4,7 @@ name: "Hub server — Unix socket listener for hub routing"
 description: >
   Hub server — Unix socket listener for hub routing
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T19:13:02Z
-last_update: 2026-03-08T19:13:02Z
-date_finished: null
+last_update: 2026-03-08T19:30:21Z
+date_finished: 2026-03-08T19:30:21Z
 ---
 
 # T-024: Hub server — Unix socket listener for hub routing
@@ -34,8 +34,8 @@ The hub crate has routing logic (`router.rs`) but no listener. This task adds a 
 
 ## Verification
 
-cd /Users/dimidev32/001-projects/010-termlink && cargo test --workspace 2>&1 | tail -1
-cd /Users/dimidev32/001-projects/010-termlink && cargo build 2>&1 | tail -1
+export PATH="$HOME/.cargo/bin:$PATH" && cd /Users/dimidev32/001-projects/010-termlink && cargo test --workspace 2>&1 | tail -1
+export PATH="$HOME/.cargo/bin:$PATH" && cd /Users/dimidev32/001-projects/010-termlink && cargo build 2>&1 | tail -1
 
 ## Decisions
 
@@ -59,3 +59,6 @@ cd /Users/dimidev32/001-projects/010-termlink && cargo build 2>&1 | tail -1
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-024-hub-server--unix-socket-listener-for-hub.md
 - **Context:** Initial task creation
+
+### 2026-03-08T19:30:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

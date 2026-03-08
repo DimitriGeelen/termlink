@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-029: Data plane — async frame codec and streaming server
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T20:20:02Z
+# ============================================================================
+
+task_id: T-029
+task_name: "Data plane — async frame codec and streaming server"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T19:58:14Z
+completed: 2026-03-08T20:19:55Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T21:11:37+01:00
+last_commit: 2026-03-08T21:11:37+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Data plane — async frame codec and streaming server, 110 tests
+
+# Key outcomes
+outcomes:
+  - "`codec` module with `FrameReader<R>` and `FrameWriter<W>` for async frame I/O"
+  - "`FrameWriter` auto-increments sequence numbers"
+  - "`data_server` module with `run()` function binding `{control}.data` socket"
+  - "Output broadcast: PTY output forwarded as Output frames to connected clients"
+  - "Input handling: Input frames written to PTY master"
+  - "Resize handling: Resize frames trigger PTY resize"
+  - "Ping/Pong keepalive support"
+  - "PTY `read_loop_with_broadcast` variant for data plane integration"
+  - "8 new tests (4 codec + 4 data server), 110 total passing"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-029-data-plane--async-frame-codec-and-stream.md"
+  - "crates/termlink-session/src/codec.rs"
+  - "crates/termlink-session/src/data_server.rs"
+  - "crates/termlink-session/src/lib.rs"
+  - "crates/termlink-session/src/pty.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T21:11:37"
+    action: "T-029: Data plane — async frame codec and streaming server, 110 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 5
+  lines_added: 635
+  lines_removed: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-029-data-plane--async-frame-codec-and-stream.md
+generated_by: context-agent-hybrid
