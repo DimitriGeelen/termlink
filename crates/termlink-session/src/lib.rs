@@ -7,6 +7,8 @@ pub mod manager;
 pub mod client;
 pub mod executor;
 pub mod handler;
+pub mod pty;
+pub mod scrollback;
 pub mod server;
 
 pub use identity::SessionId;
