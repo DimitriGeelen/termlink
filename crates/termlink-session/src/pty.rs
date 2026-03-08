@@ -141,6 +141,17 @@ impl PtySession {
     /// This should be spawned as a task. Returns when the child process exits
     /// or the PTY master is closed.
     pub async fn read_loop(&self) -> Result<(), PtyError> {
+        self.read_loop_with_broadcast(None).await
+    }
+
+    /// Run the PTY read loop with an optional broadcast channel for data plane streaming.
+    ///
+    /// Output is always written to the scrollback buffer. If a broadcast sender is provided,
+    /// output chunks are also sent to data plane clients.
+    pub async fn read_loop_with_broadcast(
+        &self,
+        broadcast_tx: Option<tokio::sync::broadcast::Sender<Vec<u8>>>,
+    ) -> Result<(), PtyError> {
         let mut buf = [0u8; 4096];
 
         loop {
@@ -163,8 +174,13 @@ impl PtySession {
             }) {
                 Ok(Ok(0)) => return Ok(()),
                 Ok(Ok(n)) => {
+                    let chunk = &buf[..n];
                     let mut scrollback = self.scrollback.lock().await;
-                    scrollback.append(&buf[..n]);
+                    scrollback.append(chunk);
+                    // Broadcast to data plane clients (if any)
+                    if let Some(ref tx) = broadcast_tx {
+                        let _ = tx.send(chunk.to_vec());
+                    }
                 }
                 Ok(Err(e)) => {
                     // EIO is expected when child exits
