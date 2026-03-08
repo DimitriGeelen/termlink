@@ -4,16 +4,16 @@ name: "CLI watch command — real-time event polling"
 description: >
   CLI watch command — real-time event polling
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: claude-code
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T21:12:40Z
-last_update: 2026-03-08T21:12:40Z
-date_finished: null
+last_update: 2026-03-08T21:14:19Z
+date_finished: 2026-03-08T21:14:19Z
 ---
 
 # T-038: CLI watch command — real-time event polling
@@ -62,3 +62,6 @@ grep -q "cmd_watch" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-038-cli-watch-command--real-time-event-polli.md
 - **Context:** Initial task creation
+
+### 2026-03-08T21:14:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

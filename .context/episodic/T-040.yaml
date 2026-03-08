@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-040: Session tags — tag-based organization and group operations
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T21:29:46Z
+# ============================================================================
+
+task_id: T-040
+task_name: "Session tags — tag-based organization and group operations"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T21:21:14Z
+completed: 2026-03-08T21:29:45Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T22:29:38+01:00
+last_commit: 2026-03-08T22:29:38+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session tags — tag-based organization with runtime updates
+
+# Key outcomes
+outcomes:
+  - "`tags: Vec<String>` added to Registration and SessionConfig"
+  - "`session.update` RPC method with set/add/remove tags, display_name, roles"
+  - "`find_by_tag` manager function"
+  - "Tags displayed in `list`, `status`, and `discover` CLI output"
+  - "`--tags` flag on `register` command"
+  - "`tag` CLI subcommand for runtime tagging"
+  - "Write-lock path in server for mutable handlers (`dispatch_mut`)"
+  - "3 new handler tests (set_tags, add_remove_tags, update_display_name)"
+  - "All 134 tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-040-session-tags--tag-based-organization-and.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - "crates/termlink-session/src/handler.rs"
+  - "crates/termlink-session/src/manager.rs"
+  - "crates/termlink-session/src/registration.rs"
+  - "crates/termlink-session/src/server.rs"
+  - "crates/termlink-session/tests/integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T22:29:38"
+    action: "T-040: Session tags — tag-based organization with runtime updates"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 8
+  lines_added: 342
+  lines_removed: 7
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-040-session-tags--tag-based-organization-and.md
+generated_by: context-agent-hybrid
