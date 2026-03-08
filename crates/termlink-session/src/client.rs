@@ -96,6 +96,7 @@ pub fn unwrap_result(resp: RpcResponse) -> Result<serde_json::Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::handler::SessionContext;
     use crate::identity::SessionId;
     use crate::lifecycle::SessionState;
     use crate::registration::{Registration, SessionConfig};
@@ -128,7 +129,8 @@ mod tests {
             socket_path.clone(),
         );
         reg.state = SessionState::Ready;
-        let shared = Arc::new(RwLock::new(reg));
+        let ctx = SessionContext::new(reg);
+        let shared = Arc::new(RwLock::new(ctx));
 
         let shared_clone = shared.clone();
         let handle = tokio::spawn(async move {
@@ -161,7 +163,8 @@ mod tests {
             socket_path.clone(),
         );
         reg.state = SessionState::Ready;
-        let shared = Arc::new(RwLock::new(reg));
+        let ctx = SessionContext::new(reg);
+        let shared = Arc::new(RwLock::new(ctx));
 
         let shared_clone = shared.clone();
         let handle = tokio::spawn(async move {

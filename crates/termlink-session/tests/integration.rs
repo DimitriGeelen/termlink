@@ -11,6 +11,7 @@ use serde_json::json;
 use tokio::sync::RwLock;
 
 use termlink_session::client::{self, Client};
+use termlink_session::handler::SessionContext;
 use termlink_session::manager::{self, Session};
 use termlink_session::registration::{Registration, SessionConfig};
 use termlink_session::server;
@@ -41,7 +42,8 @@ async fn start_session(
         .unwrap();
 
     let reg = session.registration.clone();
-    let shared = Arc::new(RwLock::new(session.registration));
+    let ctx = SessionContext::new(session.registration);
+    let shared = Arc::new(RwLock::new(ctx));
     let listener = session.listener;
 
     let handle = tokio::spawn(async move {

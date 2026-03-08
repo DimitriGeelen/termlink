@@ -5,7 +5,9 @@ use clap::{Parser, Subcommand};
 use tokio::sync::RwLock;
 
 use termlink_session::client;
+use termlink_session::handler::SessionContext;
 use termlink_session::manager;
+use termlink_session::pty::PtySession;
 use termlink_session::registration::SessionConfig;
 use termlink_session::server;
 
@@ -31,6 +33,10 @@ enum Command {
         /// Roles this session provides (comma-separated)
         #[arg(short, long, value_delimiter = ',')]
         roles: Vec<String>,
+
+        /// Start a PTY-backed session (full bidirectional I/O)
+        #[arg(long)]
+        shell: bool,
     },
 
     /// List all registered sessions
@@ -98,7 +104,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Register { name, roles } => cmd_register(name, roles).await,
+        Command::Register { name, roles, shell } => cmd_register(name, roles, shell).await,
         Command::List { all } => cmd_list(all),
         Command::Ping { target } => cmd_ping(&target).await,
         Command::Status { target } => cmd_status(&target).await,
@@ -110,7 +116,7 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn cmd_register(name: Option<String>, roles: Vec<String>) -> Result<()> {
+async fn cmd_register(name: Option<String>, roles: Vec<String>, shell: bool) -> Result<()> {
     let config = SessionConfig {
         display_name: name,
         roles,
@@ -125,10 +131,28 @@ async fn cmd_register(name: Option<String>, roles: Vec<String>) -> Result<()> {
     println!("  ID:      {}", session.id());
     println!("  Name:    {}", session.display_name());
     println!("  Socket:  {}", session.registration.socket.display());
+
+    // Set up session context (with or without PTY)
+    let pty_session = if shell {
+        let pty = PtySession::spawn(None, 1024 * 1024)
+            .context("Failed to spawn PTY session")?;
+        println!("  PTY:     yes (shell: {})",
+            std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into()));
+        Some(Arc::new(pty))
+    } else {
+        println!("  PTY:     no (use --shell for bidirectional I/O)");
+        None
+    };
+
     println!();
     println!("Listening for connections... (Ctrl+C to stop)");
 
-    let shared = Arc::new(RwLock::new(session.registration.clone()));
+    let ctx = if let Some(ref pty) = pty_session {
+        SessionContext::with_pty(session.registration.clone(), pty.clone())
+    } else {
+        SessionContext::new(session.registration.clone())
+    };
+    let shared = Arc::new(RwLock::new(ctx));
 
     // Handle Ctrl+C for graceful shutdown
     let session_id = session.id().clone();
@@ -137,11 +161,31 @@ async fn cmd_register(name: Option<String>, roles: Vec<String>) -> Result<()> {
     let reg_for_cleanup = session.registration;
 
     let shared_clone = shared.clone();
+
+    // If PTY, run the read loop in a background task
+    let pty_handle = if let Some(ref pty) = pty_session {
+        let pty_clone = pty.clone();
+        Some(tokio::spawn(async move {
+            let _ = pty_clone.read_loop().await;
+        }))
+    } else {
+        None
+    };
+
     tokio::select! {
         _ = server::run_accept_loop(listener, shared_clone) => {}
         _ = tokio::signal::ctrl_c() => {
             println!();
             println!("Shutting down...");
+
+            // Kill PTY child if running
+            if let Some(ref pty) = pty_session {
+                let _ = pty.signal(libc::SIGTERM);
+            }
+            if let Some(h) = pty_handle {
+                h.abort();
+            }
+
             // Clean up registration files
             let json_path = termlink_session::Registration::json_path(&sessions_dir, &session_id);
             let _ = std::fs::remove_file(&reg_for_cleanup.socket);

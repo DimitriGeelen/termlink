@@ -6,17 +6,16 @@ use tokio::sync::RwLock;
 
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
 
-use crate::handler;
-use crate::registration::Registration;
+use crate::handler::{self, SessionContext};
 
 /// Shared session state accessible by connection handlers.
-pub type SharedRegistration = Arc<RwLock<Registration>>;
+pub type SharedSession = Arc<RwLock<SessionContext>>;
 
 /// Handle a single client connection on the control plane socket.
 ///
 /// Reads newline-delimited JSON-RPC requests, dispatches them, and writes
 /// newline-delimited JSON-RPC responses.
-pub async fn handle_connection(stream: UnixStream, registration: SharedRegistration) {
+pub async fn handle_connection(stream: UnixStream, session: SharedSession) {
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
 
@@ -29,8 +28,8 @@ pub async fn handle_connection(stream: UnixStream, registration: SharedRegistrat
         // Parse JSON-RPC request
         let response = match serde_json::from_str::<Request>(&line) {
             Ok(req) => {
-                let reg = registration.read().await;
-                handler::dispatch(&req, &reg).await
+                let ctx = session.read().await;
+                handler::dispatch(&req, &ctx).await
             }
             Err(e) => {
                 tracing::warn!(error = %e, "Failed to parse JSON-RPC request");
@@ -65,14 +64,14 @@ pub async fn handle_connection(stream: UnixStream, registration: SharedRegistrat
 /// It runs until the listener is dropped or an unrecoverable error occurs.
 pub async fn run_accept_loop(
     listener: tokio::net::UnixListener,
-    registration: SharedRegistration,
+    session: SharedSession,
 ) {
     loop {
         match listener.accept().await {
             Ok((stream, _addr)) => {
-                let reg = registration.clone();
+                let sess = session.clone();
                 tokio::spawn(async move {
-                    handle_connection(stream, reg).await;
+                    handle_connection(stream, sess).await;
                 });
             }
             Err(e) => {
@@ -88,7 +87,7 @@ mod tests {
     use super::*;
     use crate::identity::SessionId;
     use crate::lifecycle::SessionState;
-    use crate::registration::SessionConfig;
+    use crate::registration::{Registration, SessionConfig};
     use serde_json::json;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -102,7 +101,7 @@ mod tests {
         PathBuf::from(format!("/tmp/tl-srv-{}-{}.sock", std::process::id(), n))
     }
 
-    fn test_registration(socket: PathBuf) -> Registration {
+    fn test_session(socket: PathBuf) -> SessionContext {
         let id = SessionId::generate();
         let mut reg = Registration::new(
             id,
@@ -114,7 +113,7 @@ mod tests {
             socket,
         );
         reg.state = SessionState::Ready;
-        reg
+        SessionContext::new(reg)
     }
 
     #[tokio::test]
@@ -123,8 +122,8 @@ mod tests {
         let _ = std::fs::remove_file(&socket_path);
 
         let listener = UnixListener::bind(&socket_path).unwrap();
-        let reg = test_registration(socket_path.clone());
-        let shared = Arc::new(RwLock::new(reg));
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
 
         // Spawn accept loop
         let shared_clone = shared.clone();
@@ -172,8 +171,8 @@ mod tests {
         let _ = std::fs::remove_file(&socket_path);
 
         let listener = UnixListener::bind(&socket_path).unwrap();
-        let reg = test_registration(socket_path.clone());
-        let shared = Arc::new(RwLock::new(reg));
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
 
         let shared_clone = shared.clone();
         let handle = tokio::spawn(async move {
@@ -221,8 +220,8 @@ mod tests {
         let _ = std::fs::remove_file(&socket_path);
 
         let listener = UnixListener::bind(&socket_path).unwrap();
-        let reg = test_registration(socket_path.clone());
-        let shared = Arc::new(RwLock::new(reg));
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
 
         let shared_clone = shared.clone();
         let handle = tokio::spawn(async move {
@@ -251,8 +250,8 @@ mod tests {
         let _ = std::fs::remove_file(&socket_path);
 
         let listener = UnixListener::bind(&socket_path).unwrap();
-        let reg = test_registration(socket_path.clone());
-        let shared = Arc::new(RwLock::new(reg));
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
 
         let shared_clone = shared.clone();
         let handle = tokio::spawn(async move {

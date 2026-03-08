@@ -117,6 +117,7 @@ mod tests {
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
+    use termlink_session::handler::SessionContext;
     use termlink_session::registration::SessionConfig;
     use termlink_session::Registration;
     use termlink_session::server;
@@ -147,7 +148,8 @@ mod tests {
             .unwrap();
 
         let reg = session.registration.clone();
-        let shared = Arc::new(RwLock::new(session.registration));
+        let ctx = SessionContext::new(session.registration);
+        let shared = Arc::new(RwLock::new(ctx));
         let listener = session.listener;
 
         let handle = tokio::spawn(async move {
