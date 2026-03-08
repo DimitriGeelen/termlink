@@ -112,12 +112,13 @@ pub fn resolve_target(target: &str) -> Result<std::path::PathBuf, String> {
 mod tests {
     use super::*;
     use serde_json::json;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
     use termlink_session::registration::SessionConfig;
+    use termlink_session::Registration;
     use termlink_session::server;
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
