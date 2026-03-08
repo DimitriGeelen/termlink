@@ -349,10 +349,16 @@ async fn cmd_register(
     println!();
     println!("Listening for connections... (Ctrl+C to stop)");
 
+    let json_path = termlink_session::registration::Registration::json_path(
+        &termlink_session::discovery::sessions_dir(),
+        session.id(),
+    );
     let ctx = if let Some(ref pty) = pty_session {
         SessionContext::with_pty(session.registration.clone(), pty.clone())
+            .with_registration_path(json_path)
     } else {
         SessionContext::new(session.registration.clone())
+            .with_registration_path(json_path)
     };
     let shared = Arc::new(RwLock::new(ctx));
 

@@ -17,6 +17,8 @@ use crate::scrollback::ScrollbackBuffer;
 /// Session context passed to handlers, containing registration and optional PTY state.
 pub struct SessionContext {
     pub registration: Registration,
+    /// Path to the on-disk registration JSON file (for persistence after updates).
+    pub registration_path: Option<std::path::PathBuf>,
     /// Scrollback buffer from PTY session (None for non-PTY sessions).
     pub scrollback: Option<Arc<Mutex<ScrollbackBuffer>>>,
     /// PTY session for input injection (None for non-PTY sessions).
@@ -30,6 +32,7 @@ impl SessionContext {
     pub fn new(registration: Registration) -> Self {
         Self {
             registration,
+            registration_path: None,
             scrollback: None,
             pty: None,
             events: Arc::new(Mutex::new(EventBus::new())),
@@ -44,16 +47,29 @@ impl SessionContext {
         let scrollback = Some(pty.scrollback());
         Self {
             registration,
+            registration_path: None,
             scrollback,
             pty: Some(pty),
             events: Arc::new(Mutex::new(EventBus::new())),
         }
+    }
+
+    /// Set the path to the on-disk registration JSON file for persistence.
+    pub fn with_registration_path(mut self, path: std::path::PathBuf) -> Self {
+        self.registration_path = Some(path);
+        self
     }
 }
 
 impl From<Registration> for SessionContext {
     fn from(reg: Registration) -> Self {
         Self::new(reg)
+    }
+}
+
+impl From<(Registration, std::path::PathBuf)> for SessionContext {
+    fn from((reg, path): (Registration, std::path::PathBuf)) -> Self {
+        Self::new(reg).with_registration_path(path)
     }
 }
 
@@ -161,6 +177,21 @@ fn handle_session_update(
             .filter_map(|r| r.as_str().map(String::from))
             .collect();
         changed.push("roles");
+    }
+
+    // Persist to disk if path is configured
+    if !changed.is_empty() {
+        if let Some(ref path) = ctx.registration_path {
+            if let Err(e) = ctx.registration.write_atomic(path) {
+                tracing::error!(error = %e, "Failed to persist registration after session.update");
+                return ErrorResponse::new(
+                    id,
+                    control::error_code::INJECTION_FAILED,
+                    &format!("Update applied in-memory but disk persistence failed: {e}"),
+                )
+                .into();
+            }
+        }
     }
 
     Response::success(
@@ -665,6 +696,7 @@ mod tests {
         sb.append(data);
         SessionContext {
             registration: reg,
+            registration_path: None,
             scrollback: Some(Arc::new(Mutex::new(sb))),
             pty: None,
             events: Arc::new(Mutex::new(EventBus::new())),
@@ -1082,6 +1114,44 @@ mod tests {
         } else {
             panic!("Expected success");
         }
+    }
+
+    #[tokio::test]
+    async fn session_update_persists_to_disk() {
+        let dir = std::env::temp_dir().join(format!("tl-persist-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let reg = test_registration();
+        let json_path = dir.join("test-persist.json");
+        reg.write_atomic(&json_path).unwrap();
+
+        let mut ctx = SessionContext::new(reg).with_registration_path(json_path.clone());
+
+        // Update tags via session.update
+        let req = Request::new(
+            "session.update",
+            json!("p-1"),
+            json!({"tags": ["persisted", "test"]}),
+        );
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        assert!(matches!(resp, RpcResponse::Success(_)));
+
+        // Read back from disk
+        let on_disk = Registration::read_from(&json_path).unwrap();
+        assert_eq!(on_disk.tags, vec!["persisted", "test"]);
+
+        // Update display_name
+        let req = Request::new(
+            "session.update",
+            json!("p-2"),
+            json!({"display_name": "disk-name"}),
+        );
+        dispatch_mut(&req, &mut ctx).await.unwrap();
+
+        let on_disk = Registration::read_from(&json_path).unwrap();
+        assert_eq!(on_disk.display_name, "disk-name");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
