@@ -4,15 +4,15 @@ name: "IT-004: Output capture — bidirectional communication"
 description: >
   Solve the half-duplex problem: how to capture command output after input injection
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:41Z
-last_update: 2026-03-08T14:19:41Z
+last_update: 2026-03-08T18:21:38Z
 date_finished: null
 ---
 
@@ -20,68 +20,84 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+After injecting keystrokes via `command.inject`, there's no way to read what the terminal produced. TermLink is a blind remote control without output capture. Need to solve: how to capture terminal output for `query.output` (snapshots) and `data.stream` (live streaming).
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- PTY creation is well-supported on macOS and Linux (POSIX standard)
+- Raw byte passthrough is sufficient (no terminal emulation needed for v0.1)
+- Two session modes can coexist: PTY-backed (full bidirectional) and lightweight (execute-only)
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Research output capture mechanisms (PTY, script, pipes) — 15 min
+2. Design PTY architecture and scrollback buffer — 15 min
+3. Analyze integration with existing command.execute — 10 min
+4. Go/no-go decision
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- PTY: `openpty()` / `posix_openpt()` — POSIX, works macOS + Linux
+- Rust options: `nix` crate (low-level) or raw `libc`
+- macOS: no epoll, use kqueue (tokio handles)
+- No terminal emulation required — raw byte passthrough
+- Resize: SIGWINCH + `ioctl(TIOCSWINSZ)`
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** PTY ownership model, scrollback buffer, query.output, data.stream interface, command.inject → PTY write
+**OUT:** Terminal state machine, subscriber backpressure (T-009), distributed streaming (T-011), interactive programs (T-010), security (T-008)
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- PTY creation supported on target platforms — YES
+- Architecture integrates without major rewrites — YES (additive)
+- Reasonable complexity for v0.1 — YES (~300-500 lines core)
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Requires terminal emulation — NO, raw bytes sufficient
+- Breaks existing functionality — NO, purely additive
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     For inception tasks, verification is often not needed (decisions, not code).
--->
+# Research artifact exists
+test -f docs/reports/T-007-output-capture-bidirectional.md
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-03-08 — Output capture mechanism
+- **Chose:** PTY master/slave ownership model
+- **Why:** Only mechanism that provides both input injection AND output capture; same approach as tmux/screen
+- **Rejected:** script(1) (no real-time, no input), pipe tapping (no PTY output, breaks interactive)
+
+### 2026-03-08 — Session architecture
+- **Chose:** Two session modes — PTY-backed (full bidirectional) and lightweight (execute-only)
+- **Why:** Not all sessions need PTY overhead; command.execute is orthogonal and already works
+- **Rejected:** Single mode forcing PTY on all sessions (unnecessary overhead for simple use cases)
+
+### 2026-03-08 — Scrollback buffer design
+- **Chose:** Byte-oriented ring buffer (VecDeque<u8>, default 1 MiB)
+- **Why:** Preserves ANSI sequences, binary-safe, simple, configurable
+- **Rejected:** Line-oriented buffer (breaks with raw terminal output), parsed screen state (unnecessary complexity)
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**GO** — PTY-backed sessions with scrollback buffer and output streaming. See `docs/reports/T-007-output-capture-bidirectional.md` for full analysis.
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-08T18:21:38Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-03-08T18:21:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
