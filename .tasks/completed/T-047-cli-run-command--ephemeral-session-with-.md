@@ -4,7 +4,7 @@ name: "CLI run command — ephemeral session with command execution and auto-cle
 description: >
   CLI run command — ephemeral session with command execution and auto-cleanup
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T22:55:28Z
-last_update: 2026-03-08T22:55:28Z
-date_finished: null
+last_update: 2026-03-08T23:00:38Z
+date_finished: 2026-03-08T23:00:38Z
 ---
 
 # T-047: CLI run command — ephemeral session with command execution and auto-cleanup
@@ -55,3 +55,6 @@ One-liner for automation: `termlink run --name builder make build`. Registers ep
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-047-cli-run-command--ephemeral-session-with-.md
 - **Context:** Initial task creation
+
+### 2026-03-08T23:00:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

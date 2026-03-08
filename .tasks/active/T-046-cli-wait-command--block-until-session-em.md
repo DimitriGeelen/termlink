@@ -4,16 +4,16 @@ name: "CLI wait command — block until session emits matching event"
 description: >
   CLI wait command — block until session emits matching event
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T22:51:26Z
-last_update: 2026-03-08T22:51:26Z
-date_finished: null
+last_update: 2026-03-08T22:54:04Z
+date_finished: 2026-03-08T22:54:04Z
 ---
 
 # T-046: CLI wait command — block until session emits matching event
@@ -63,3 +63,6 @@ Enables shell scripting with TermLink events: `termlink wait my-session --topic 
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-046-cli-wait-command--block-until-session-em.md
 - **Context:** Initial task creation
+
+### 2026-03-08T22:54:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "CLI topics command — list event topics from sessions"
 description: >
   CLI topics command — list event topics from sessions
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T23:05:21Z
-last_update: 2026-03-08T23:05:21Z
-date_finished: null
+last_update: 2026-03-08T23:13:53Z
+date_finished: 2026-03-08T23:13:53Z
 ---
 
 # T-049: CLI topics command — list event topics from sessions
@@ -53,3 +53,6 @@ Debug tool: see what event topics exist across sessions, useful for understandin
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-049-cli-topics-command--list-event-topics-fr.md
 - **Context:** Initial task creation
+
+### 2026-03-08T23:13:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

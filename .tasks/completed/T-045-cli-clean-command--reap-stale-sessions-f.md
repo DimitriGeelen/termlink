@@ -4,7 +4,7 @@ name: "CLI clean command — reap stale sessions from runtime directory"
 description: >
   CLI clean command — reap stale sessions from runtime directory
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T22:33:35Z
-last_update: 2026-03-08T22:33:35Z
-date_finished: null
+last_update: 2026-03-08T22:37:18Z
+date_finished: 2026-03-08T22:37:18Z
 ---
 
 # T-045: CLI clean command — reap stale sessions from runtime directory
@@ -54,3 +54,6 @@ Sessions that crash or exit without deregistering leave orphaned socket+JSON fil
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-045-cli-clean-command--reap-stale-sessions-f.md
 - **Context:** Initial task creation
+
+### 2026-03-08T22:37:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

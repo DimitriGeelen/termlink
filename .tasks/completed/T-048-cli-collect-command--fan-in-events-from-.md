@@ -4,7 +4,7 @@ name: "CLI collect command — fan-in events from multiple sessions via hub"
 description: >
   CLI collect command — fan-in events from multiple sessions via hub
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T23:00:53Z
-last_update: 2026-03-08T23:00:53Z
-date_finished: null
+last_update: 2026-03-08T23:04:55Z
+date_finished: 2026-03-08T23:04:55Z
 ---
 
 # T-048: CLI collect command — fan-in events from multiple sessions via hub
@@ -55,3 +55,6 @@ CLI interface for the hub's `event.collect` RPC — fan-in events from all (or t
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-048-cli-collect-command--fan-in-events-from-.md
 - **Context:** Initial task creation
+
+### 2026-03-08T23:04:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

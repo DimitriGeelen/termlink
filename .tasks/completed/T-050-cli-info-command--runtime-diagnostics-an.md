@@ -4,7 +4,7 @@ name: "CLI info command — runtime diagnostics and system overview"
 description: >
   CLI info command — runtime diagnostics and system overview
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T23:15:38Z
-last_update: 2026-03-08T23:15:38Z
-date_finished: null
+last_update: 2026-03-08T23:17:45Z
+date_finished: 2026-03-08T23:17:45Z
 ---
 
 # T-050: CLI info command — runtime diagnostics and system overview
@@ -53,3 +53,6 @@ Quick health check for the TermLink system — shows runtime paths, hub status, 
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-050-cli-info-command--runtime-diagnostics-an.md
 - **Context:** Initial task creation
+
+### 2026-03-08T23:17:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
