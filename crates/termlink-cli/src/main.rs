@@ -257,6 +257,25 @@ enum Command {
         name: Option<String>,
     },
 
+    /// Collect events from multiple sessions via hub (fan-in)
+    Collect {
+        /// Target specific sessions (omit for all)
+        #[arg(long, value_delimiter = ',')]
+        targets: Vec<String>,
+
+        /// Filter by event topic
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Poll interval in milliseconds (default: 500)
+        #[arg(long, default_value = "500")]
+        interval: u64,
+
+        /// Exit after receiving N events (0 = continuous)
+        #[arg(long, default_value = "0")]
+        count: u64,
+    },
+
     /// Run a command in an ephemeral session (register, execute, deregister)
     Run {
         /// Display name for the ephemeral session
@@ -352,6 +371,9 @@ async fn main() -> Result<()> {
         }
         Command::Discover { tag, role, cap, name } => {
             cmd_discover(tag, role, cap, name)
+        }
+        Command::Collect { targets, topic, interval, count } => {
+            cmd_collect(targets, topic.as_deref(), interval, count).await
         }
         Command::Run { name, tags, timeout, command } => {
             cmd_run(name, tags, timeout, command).await
@@ -1537,6 +1559,105 @@ async fn cmd_watch(
                                 cursors.insert(sid.to_string(), Some(next.saturating_sub(1)));
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn cmd_collect(
+    targets: Vec<String>,
+    topic_filter: Option<&str>,
+    interval_ms: u64,
+    max_count: u64,
+) -> Result<()> {
+    let hub_socket = termlink_hub::server::hub_socket_path();
+    if !hub_socket.exists() {
+        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+    }
+
+    eprintln!("Collecting events via hub. Press Ctrl+C to stop.");
+    if let Some(t) = topic_filter {
+        eprintln!("  Topic filter: {}", t);
+    }
+    if !targets.is_empty() {
+        eprintln!("  Targets: {}", targets.join(", "));
+    }
+    eprintln!();
+
+    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    let mut cursors = serde_json::json!({});
+    let mut total_received: u64 = 0;
+
+    loop {
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                eprintln!();
+                eprintln!("Stopped. {} event(s) collected.", total_received);
+                break;
+            }
+            _ = tokio::time::sleep(poll_interval) => {
+                let mut params = serde_json::json!({});
+                if !targets.is_empty() {
+                    params["targets"] = serde_json::json!(targets);
+                }
+                if let Some(t) = topic_filter {
+                    params["topic"] = serde_json::json!(t);
+                }
+                if !cursors.as_object().unwrap_or(&serde_json::Map::new()).is_empty() {
+                    params["since"] = cursors.clone();
+                }
+
+                let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("Hub connection error: {}. Retrying...", e);
+                        continue;
+                    }
+                };
+
+                if let Ok(result) = client::unwrap_result(resp) {
+                    if let Some(events) = result["events"].as_array() {
+                        for event in events {
+                            let session_name = event["session_name"].as_str().unwrap_or("?");
+                            let seq = event["seq"].as_u64().unwrap_or(0);
+                            let topic = event["topic"].as_str().unwrap_or("?");
+                            let payload = &event["payload"];
+                            let ts = event["timestamp"].as_u64().unwrap_or(0);
+
+                            if payload.is_null()
+                                || (payload.is_object()
+                                    && payload.as_object().unwrap().is_empty())
+                            {
+                                println!("[{session_name}#{seq}] {topic} (t={ts})");
+                            } else {
+                                println!(
+                                    "[{session_name}#{seq}] {topic}: {} (t={ts})",
+                                    serde_json::to_string(payload).unwrap_or_default()
+                                );
+                            }
+
+                            total_received += 1;
+                        }
+                    }
+
+                    // Update cursors from response
+                    if let Some(new_cursors) = result.get("cursors") {
+                        if let Some(obj) = new_cursors.as_object() {
+                            for (k, v) in obj {
+                                cursors[k] = v.clone();
+                            }
+                        }
+                    }
+
+                    // Check count limit
+                    if max_count > 0 && total_received >= max_count {
+                        eprintln!();
+                        eprintln!("{} event(s) collected (limit reached).", total_received);
+                        break;
                     }
                 }
             }
