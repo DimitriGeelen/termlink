@@ -102,6 +102,23 @@ enum Command {
         bytes: Option<u64>,
     },
 
+    /// Inject keystrokes into a PTY-backed session
+    Inject {
+        /// Session ID or display name
+        target: String,
+
+        /// Text to inject (e.g., "ls -la")
+        text: String,
+
+        /// Append Enter key after text
+        #[arg(long, short = 'e')]
+        enter: bool,
+
+        /// Send a named key instead of text (e.g., Escape, Tab, Up, Down)
+        #[arg(long, short)]
+        key: Option<String>,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 
@@ -130,6 +147,9 @@ async fn main() -> Result<()> {
             cmd_exec(&target, &command, cwd.as_deref(), timeout).await
         }
         Command::Output { target, lines, bytes } => cmd_output(&target, lines, bytes).await,
+        Command::Inject { target, text, enter, key } => {
+            cmd_inject(&target, &text, enter, key.as_deref()).await
+        }
         Command::Discover => cmd_discover(),
         Command::Hub => cmd_hub().await,
     }
@@ -425,6 +445,40 @@ async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>) -> Result<()> 
         }
         Err(e) => {
             anyhow::bail!("Output query failed: {}", e);
+        }
+    }
+}
+
+async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let mut keys = Vec::new();
+
+    if let Some(key_name) = key {
+        keys.push(serde_json::json!({ "type": "key", "value": key_name }));
+    } else {
+        keys.push(serde_json::json!({ "type": "text", "value": text }));
+    }
+
+    if enter {
+        keys.push(serde_json::json!({ "type": "key", "value": "Enter" }));
+    }
+
+    let params = serde_json::json!({ "keys": keys });
+
+    let resp = client::rpc_call(&reg.socket, "command.inject", params)
+        .await
+        .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            let bytes = result["bytes_written"].as_u64().unwrap_or(0);
+            println!("Injected {bytes} bytes");
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Inject failed: {}", e);
         }
     }
 }
