@@ -26,6 +26,8 @@ pub struct Registration {
     #[serde(default)]
     pub roles: Vec<String>,
     #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
     pub metadata: SessionMetadata,
 }
 
@@ -50,6 +52,7 @@ pub struct SessionConfig {
     pub display_name: Option<String>,
     pub capabilities: Vec<String>,
     pub roles: Vec<String>,
+    pub tags: Vec<String>,
 }
 
 impl Default for SessionConfig {
@@ -62,6 +65,7 @@ impl Default for SessionConfig {
                 "query".into(),
             ],
             roles: vec![],
+            tags: vec![],
         }
     }
 }
@@ -89,6 +93,7 @@ impl Registration {
             state: SessionState::Initializing,
             capabilities: config.capabilities,
             roles: config.roles,
+            tags: config.tags,
             metadata: SessionMetadata {
                 shell: std::env::var("SHELL").ok(),
                 term: std::env::var("TERM").ok(),

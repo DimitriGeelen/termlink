@@ -313,6 +313,7 @@ async fn start_pty_session(
             "stream".into(),
         ],
         roles: vec![],
+        tags: vec![],
     };
     let session = Session::register_in(config, sessions_dir)
         .await

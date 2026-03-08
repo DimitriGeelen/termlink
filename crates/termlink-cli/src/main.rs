@@ -38,6 +38,10 @@ enum Command {
         #[arg(short, long, value_delimiter = ',')]
         roles: Vec<String>,
 
+        /// Tags for this session (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        tags: Vec<String>,
+
         /// Start a PTY-backed session (full bidirectional I/O)
         #[arg(long)]
         shell: bool,
@@ -216,6 +220,24 @@ enum Command {
         topic: Option<String>,
     },
 
+    /// Update session tags, name, or roles at runtime
+    Tag {
+        /// Session ID or display name
+        target: String,
+
+        /// Set tags (replaces all existing)
+        #[arg(long, value_delimiter = ',')]
+        set: Vec<String>,
+
+        /// Add tags
+        #[arg(long, value_delimiter = ',')]
+        add: Vec<String>,
+
+        /// Remove tags
+        #[arg(long, value_delimiter = ',')]
+        remove: Vec<String>,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 
@@ -235,7 +257,9 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Register { name, roles, shell } => cmd_register(name, roles, shell).await,
+        Command::Register { name, roles, tags, shell } => {
+            cmd_register(name, roles, tags, shell).await
+        }
         Command::List { all } => cmd_list(all),
         Command::Ping { target } => cmd_ping(&target).await,
         Command::Status { target } => cmd_status(&target).await,
@@ -260,6 +284,9 @@ async fn main() -> Result<()> {
         }
         Command::Resize { target, cols, rows } => cmd_resize(&target, cols, rows).await,
         Command::Stream { target } => cmd_stream(&target).await,
+        Command::Tag { target, set, add, remove } => {
+            cmd_tag(&target, set, add, remove).await
+        }
         Command::Watch { targets, interval, topic } => {
             cmd_watch(targets, interval, topic.as_deref()).await
         }
@@ -268,10 +295,16 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn cmd_register(name: Option<String>, roles: Vec<String>, shell: bool) -> Result<()> {
+async fn cmd_register(
+    name: Option<String>,
+    roles: Vec<String>,
+    tags: Vec<String>,
+    shell: bool,
+) -> Result<()> {
     let mut config = SessionConfig {
         display_name: name,
         roles,
+        tags,
         ..Default::default()
     };
 
@@ -410,18 +443,24 @@ fn cmd_list(include_stale: bool) -> Result<()> {
     }
 
     println!(
-        "{:<14} {:<16} {:<14} {:<8}",
+        "{:<14} {:<16} {:<14} {:<8} TAGS",
         "ID", "NAME", "STATE", "PID"
     );
-    println!("{}", "-".repeat(54));
+    println!("{}", "-".repeat(64));
 
     for session in &sessions {
+        let tags = if session.tags.is_empty() {
+            String::new()
+        } else {
+            session.tags.join(",")
+        };
         println!(
-            "{:<14} {:<16} {:<14} {:<8}",
+            "{:<14} {:<16} {:<14} {:<8} {}",
             session.id.as_str(),
             truncate(&session.display_name, 15),
             session.state,
             session.pid,
+            tags,
         );
     }
 
@@ -473,6 +512,18 @@ async fn cmd_status(target: &str) -> Result<()> {
             if let Some(caps) = result.get("capabilities").and_then(|c| c.as_array()) {
                 let cap_strs: Vec<&str> = caps.iter().filter_map(|c| c.as_str()).collect();
                 println!("  Capabilities: {}", cap_strs.join(", "));
+            }
+            if let Some(tags) = result.get("tags").and_then(|t| t.as_array()) {
+                if !tags.is_empty() {
+                    let tag_strs: Vec<&str> = tags.iter().filter_map(|t| t.as_str()).collect();
+                    println!("  Tags:        {}", tag_strs.join(", "));
+                }
+            }
+            if let Some(roles) = result.get("roles").and_then(|r| r.as_array()) {
+                if !roles.is_empty() {
+                    let role_strs: Vec<&str> = roles.iter().filter_map(|r| r.as_str()).collect();
+                    println!("  Roles:       {}", role_strs.join(", "));
+                }
             }
             if let Some(meta) = result.get("metadata") {
                 if let Some(shell) = meta.get("shell").and_then(|s| s.as_str()) {
@@ -1187,6 +1238,54 @@ async fn stream_loop(stream: tokio::net::UnixStream) -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn cmd_tag(
+    target: &str,
+    set: Vec<String>,
+    add: Vec<String>,
+    remove: Vec<String>,
+) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let mut params = serde_json::json!({});
+    if !set.is_empty() {
+        params["tags"] = serde_json::json!(set);
+    }
+    if !add.is_empty() {
+        params["add_tags"] = serde_json::json!(add);
+    }
+    if !remove.is_empty() {
+        params["remove_tags"] = serde_json::json!(remove);
+    }
+
+    let resp = client::rpc_call(&reg.socket, "session.update", params)
+        .await
+        .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            let tags = result["tags"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|t| t.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default();
+            println!(
+                "Updated {}: tags=[{}]",
+                result["display_name"].as_str().unwrap_or(target),
+                tags,
+            );
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Tag update failed: {}", e);
+        }
+    }
 }
 
 async fn cmd_watch(

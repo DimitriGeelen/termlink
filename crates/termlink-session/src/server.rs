@@ -28,8 +28,14 @@ pub async fn handle_connection(stream: UnixStream, session: SharedSession) {
         // Parse JSON-RPC request
         let response = match serde_json::from_str::<Request>(&line) {
             Ok(req) => {
-                let ctx = session.read().await;
-                handler::dispatch(&req, &ctx).await
+                // Use write lock for methods that mutate session state
+                if handler::needs_write(&req) {
+                    let mut ctx = session.write().await;
+                    handler::dispatch_mut(&req, &mut ctx).await
+                } else {
+                    let ctx = session.read().await;
+                    handler::dispatch(&req, &ctx).await
+                }
             }
             Err(e) => {
                 tracing::warn!(error = %e, "Failed to parse JSON-RPC request");
@@ -109,6 +115,7 @@ mod tests {
                 display_name: Some("server-test".into()),
                 capabilities: vec!["inject".into(), "query".into()],
                 roles: vec![],
+                tags: vec![],
             },
             socket,
         );

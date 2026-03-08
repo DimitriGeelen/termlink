@@ -6,6 +6,7 @@ pub mod method {
     pub const SESSION_DEREGISTER: &str = "session.deregister";
     pub const SESSION_DISCOVER: &str = "session.discover";
     pub const SESSION_HEARTBEAT: &str = "session.heartbeat";
+    pub const SESSION_UPDATE: &str = "session.update";
     pub const COMMAND_EXECUTE: &str = "command.execute";
     pub const COMMAND_INJECT: &str = "command.inject";
     pub const COMMAND_SIGNAL: &str = "command.signal";

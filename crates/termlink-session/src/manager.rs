@@ -232,6 +232,15 @@ pub fn find_by_capability(cap: &str) -> Result<Vec<Registration>, SessionError> 
         .collect())
 }
 
+/// Find sessions with a specific tag.
+pub fn find_by_tag(tag: &str) -> Result<Vec<Registration>, SessionError> {
+    let sessions = list_sessions(false)?;
+    Ok(sessions
+        .into_iter()
+        .filter(|r| r.tags.iter().any(|t| t == tag))
+        .collect())
+}
+
 /// Find sessions with a specific role.
 pub fn find_by_role(role: &str) -> Result<Vec<Registration>, SessionError> {
     let sessions = list_sessions(false)?;

@@ -57,6 +57,27 @@ impl From<Registration> for SessionContext {
     }
 }
 
+/// Check if a request requires mutable (write) access to session context.
+pub fn needs_write(req: &Request) -> bool {
+    matches!(req.method.as_str(), control::method::SESSION_UPDATE)
+}
+
+/// Dispatch a mutable request (requires write lock on session context).
+pub async fn dispatch_mut(req: &Request, ctx: &mut SessionContext) -> Option<RpcResponse> {
+    if req.is_notification() {
+        return None;
+    }
+    let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+    let response = match req.method.as_str() {
+        control::method::SESSION_UPDATE => handle_session_update(id, &req.params, ctx),
+        _ => {
+            // Fall through to immutable dispatch for anything else
+            return dispatch(req, ctx).await;
+        }
+    };
+    Some(response)
+}
+
 /// Dispatch a JSON-RPC request to the appropriate handler.
 ///
 /// Returns `None` for notifications (no response expected).
@@ -91,6 +112,69 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
     Some(response)
 }
 
+/// Handle `session.update` — update session tags, display_name, or roles at runtime.
+fn handle_session_update(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &mut SessionContext,
+) -> RpcResponse {
+    let mut changed = Vec::new();
+
+    if let Some(tags) = params.get("tags").and_then(|t| t.as_array()) {
+        ctx.registration.tags = tags
+            .iter()
+            .filter_map(|t| t.as_str().map(String::from))
+            .collect();
+        changed.push("tags");
+    }
+
+    if let Some(add_tags) = params.get("add_tags").and_then(|t| t.as_array()) {
+        for tag in add_tags.iter().filter_map(|t| t.as_str()) {
+            if !ctx.registration.tags.contains(&tag.to_string()) {
+                ctx.registration.tags.push(tag.to_string());
+            }
+        }
+        if !add_tags.is_empty() {
+            changed.push("tags");
+        }
+    }
+
+    if let Some(remove_tags) = params.get("remove_tags").and_then(|t| t.as_array()) {
+        let to_remove: Vec<String> = remove_tags
+            .iter()
+            .filter_map(|t| t.as_str().map(String::from))
+            .collect();
+        ctx.registration.tags.retain(|t| !to_remove.contains(t));
+        if !to_remove.is_empty() {
+            changed.push("tags");
+        }
+    }
+
+    if let Some(name) = params.get("display_name").and_then(|n| n.as_str()) {
+        ctx.registration.display_name = name.to_string();
+        changed.push("display_name");
+    }
+
+    if let Some(roles) = params.get("roles").and_then(|r| r.as_array()) {
+        ctx.registration.roles = roles
+            .iter()
+            .filter_map(|r| r.as_str().map(String::from))
+            .collect();
+        changed.push("roles");
+    }
+
+    Response::success(
+        id,
+        json!({
+            "updated": changed,
+            "tags": ctx.registration.tags,
+            "display_name": ctx.registration.display_name,
+            "roles": ctx.registration.roles,
+        }),
+    )
+    .into()
+}
+
 fn handle_ping(id: serde_json::Value, reg: &Registration) -> RpcResponse {
     Response::success(
         id,
@@ -113,6 +197,8 @@ fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> RpcRespon
         "created_at": reg.created_at,
         "heartbeat_at": reg.heartbeat_at,
         "capabilities": reg.capabilities,
+        "roles": reg.roles,
+        "tags": reg.tags,
         "metadata": reg.metadata,
     });
 
@@ -563,6 +649,7 @@ mod tests {
                 display_name: Some("test-session".into()),
                 capabilities: vec!["inject".into(), "command".into(), "query".into()],
                 roles: vec!["coder".into()],
+                tags: vec![],
             },
             PathBuf::from("/tmp/test.sock"),
         )
@@ -948,5 +1035,70 @@ mod tests {
         } else {
             panic!("Expected success");
         }
+    }
+
+    #[tokio::test]
+    async fn session_update_set_tags() {
+        let mut ctx = test_ctx();
+        assert!(ctx.registration.tags.is_empty());
+
+        let req = Request::new(
+            "session.update",
+            json!("u-1"),
+            json!({"tags": ["web", "prod"]}),
+        );
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            let tags = resp.result["tags"].as_array().unwrap();
+            assert_eq!(tags.len(), 2);
+            assert!(tags.contains(&json!("web")));
+            assert!(tags.contains(&json!("prod")));
+        } else {
+            panic!("Expected success");
+        }
+        assert_eq!(ctx.registration.tags, vec!["web", "prod"]);
+    }
+
+    #[tokio::test]
+    async fn session_update_add_remove_tags() {
+        let mut ctx = test_ctx();
+        ctx.registration.tags = vec!["a".into(), "b".into(), "c".into()];
+
+        let req = Request::new(
+            "session.update",
+            json!("u-2"),
+            json!({"add_tags": ["d"], "remove_tags": ["b"]}),
+        );
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            let tags = resp.result["tags"].as_array().unwrap();
+            assert_eq!(tags.len(), 3);
+            assert!(tags.contains(&json!("a")));
+            assert!(tags.contains(&json!("c")));
+            assert!(tags.contains(&json!("d")));
+            assert!(!tags.contains(&json!("b")));
+        } else {
+            panic!("Expected success");
+        }
+    }
+
+    #[tokio::test]
+    async fn session_update_display_name() {
+        let mut ctx = test_ctx();
+        let req = Request::new(
+            "session.update",
+            json!("u-3"),
+            json!({"display_name": "new-name"}),
+        );
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["display_name"], "new-name");
+        } else {
+            panic!("Expected success");
+        }
+        assert_eq!(ctx.registration.display_name, "new-name");
     }
 }
