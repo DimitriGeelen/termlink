@@ -1,4 +1,57 @@
-use anyhow::Result;
+use std::sync::Arc;
+
+use anyhow::{Context, Result};
+use clap::{Parser, Subcommand};
+use tokio::sync::RwLock;
+
+use termlink_session::client;
+use termlink_session::manager;
+use termlink_session::registration::SessionConfig;
+use termlink_session::server;
+
+#[derive(Parser)]
+#[command(
+    name = "termlink",
+    about = "Cross-terminal session communication",
+    version
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Register a new session and start listening for connections
+    Register {
+        /// Display name for this session
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Roles this session provides (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        roles: Vec<String>,
+    },
+
+    /// List all registered sessions
+    List {
+        /// Include stale/dead sessions
+        #[arg(long)]
+        all: bool,
+    },
+
+    /// Ping a session to verify it's alive
+    Ping {
+        /// Session ID or display name
+        target: String,
+    },
+
+    /// Query a session's status
+    Status {
+        /// Session ID or display name
+        target: String,
+    },
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -9,15 +62,152 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    tracing::info!("TermLink v{}", env!("CARGO_PKG_VERSION"));
-    tracing::info!(
-        "Runtime dir: {}",
-        termlink_session::discovery::runtime_dir().display()
-    );
+    let cli = Cli::parse();
 
-    // CLI command dispatch will be implemented in subsequent tasks.
-    println!("termlink — cross-terminal session communication");
-    println!("Use --help for usage information.");
+    match cli.command {
+        Command::Register { name, roles } => cmd_register(name, roles).await,
+        Command::List { all } => cmd_list(all),
+        Command::Ping { target } => cmd_ping(&target).await,
+        Command::Status { target } => cmd_status(&target).await,
+    }
+}
+
+async fn cmd_register(name: Option<String>, roles: Vec<String>) -> Result<()> {
+    let config = SessionConfig {
+        display_name: name,
+        roles,
+        ..Default::default()
+    };
+
+    let session = termlink_session::Session::register(config)
+        .await
+        .context("Failed to register session")?;
+
+    println!("Session registered:");
+    println!("  ID:      {}", session.id());
+    println!("  Name:    {}", session.display_name());
+    println!("  Socket:  {}", session.registration.socket.display());
+    println!();
+    println!("Listening for connections... (Ctrl+C to stop)");
+
+    let shared = Arc::new(RwLock::new(session.registration.clone()));
+
+    // Handle Ctrl+C for graceful shutdown
+    let session_id = session.id().clone();
+    let sessions_dir = termlink_session::discovery::sessions_dir();
+    let listener = session.listener;
+    let reg_for_cleanup = session.registration;
+
+    let shared_clone = shared.clone();
+    tokio::select! {
+        _ = server::run_accept_loop(listener, shared_clone) => {}
+        _ = tokio::signal::ctrl_c() => {
+            println!();
+            println!("Shutting down...");
+            // Clean up registration files
+            let json_path = termlink_session::Registration::json_path(&sessions_dir, &session_id);
+            let _ = std::fs::remove_file(&reg_for_cleanup.socket);
+            let _ = std::fs::remove_file(&json_path);
+            println!("Session {} deregistered.", session_id);
+        }
+    }
 
     Ok(())
+}
+
+fn cmd_list(include_stale: bool) -> Result<()> {
+    let sessions = manager::list_sessions(include_stale)
+        .context("Failed to list sessions")?;
+
+    if sessions.is_empty() {
+        println!("No active sessions.");
+        return Ok(());
+    }
+
+    println!(
+        "{:<14} {:<16} {:<14} {:<8}",
+        "ID", "NAME", "STATE", "PID"
+    );
+    println!("{}", "-".repeat(54));
+
+    for session in &sessions {
+        println!(
+            "{:<14} {:<16} {:<14} {:<8}",
+            session.id.as_str(),
+            truncate(&session.display_name, 15),
+            session.state,
+            session.pid,
+        );
+    }
+
+    println!();
+    println!("{} session(s)", sessions.len());
+    Ok(())
+}
+
+async fn cmd_ping(target: &str) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let resp = client::rpc_call(&reg.socket, "termlink.ping", serde_json::json!({}))
+        .await
+        .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            println!(
+                "PONG from {} ({}) — state: {}",
+                result["id"].as_str().unwrap_or("?"),
+                result["display_name"].as_str().unwrap_or("?"),
+                result["state"].as_str().unwrap_or("?"),
+            );
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Ping failed: {}", e);
+        }
+    }
+}
+
+async fn cmd_status(target: &str) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let resp = client::rpc_call(&reg.socket, "query.status", serde_json::json!({}))
+        .await
+        .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            println!("Session: {}", result["id"].as_str().unwrap_or("?"));
+            println!("  Name:        {}", result["display_name"].as_str().unwrap_or("?"));
+            println!("  State:       {}", result["state"].as_str().unwrap_or("?"));
+            println!("  PID:         {}", result["pid"]);
+            println!("  Created:     {}", result["created_at"].as_str().unwrap_or("?"));
+            println!("  Heartbeat:   {}", result["heartbeat_at"].as_str().unwrap_or("?"));
+            if let Some(meta) = result.get("metadata") {
+                if let Some(shell) = meta.get("shell").and_then(|s| s.as_str()) {
+                    println!("  Shell:       {}", shell);
+                }
+                if let Some(term) = meta.get("term").and_then(|s| s.as_str()) {
+                    println!("  Terminal:    {}", term);
+                }
+                if let Some(cwd) = meta.get("cwd").and_then(|s| s.as_str()) {
+                    println!("  CWD:         {}", cwd);
+                }
+            }
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Status query failed: {}", e);
+        }
+    }
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}…", &s[..max - 1])
+    }
 }

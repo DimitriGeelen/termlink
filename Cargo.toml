@@ -39,6 +39,9 @@ bytes = "1"
 # Bit flags
 bitflags = "2"
 
+# CLI
+clap = { version = "4", features = ["derive"] }
+
 # Platform
 libc = "0.2"
 

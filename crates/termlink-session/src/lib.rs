@@ -4,6 +4,7 @@ pub mod lifecycle;
 pub mod liveness;
 pub mod registration;
 pub mod manager;
+pub mod client;
 pub mod handler;
 pub mod server;
 
