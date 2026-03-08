@@ -88,6 +88,20 @@ enum Command {
         timeout: u64,
     },
 
+    /// Read terminal output from a PTY-backed session
+    Output {
+        /// Session ID or display name
+        target: String,
+
+        /// Number of lines to read (default: 50)
+        #[arg(short, long, default_value = "50")]
+        lines: u64,
+
+        /// Read by bytes instead of lines
+        #[arg(short, long)]
+        bytes: Option<u64>,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 
@@ -115,6 +129,7 @@ async fn main() -> Result<()> {
         Command::Exec { target, command, cwd, timeout } => {
             cmd_exec(&target, &command, cwd.as_deref(), timeout).await
         }
+        Command::Output { target, lines, bytes } => cmd_output(&target, lines, bytes).await,
         Command::Discover => cmd_discover(),
         Command::Hub => cmd_hub().await,
     }
@@ -386,6 +401,32 @@ fn cmd_discover() -> Result<()> {
     println!();
     println!("{} session(s) discovered", sessions.len());
     Ok(())
+}
+
+async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let params = if let Some(b) = bytes {
+        serde_json::json!({ "bytes": b })
+    } else {
+        serde_json::json!({ "lines": lines })
+    };
+
+    let resp = client::rpc_call(&reg.socket, "query.output", params)
+        .await
+        .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            let output = result["output"].as_str().unwrap_or("");
+            print!("{output}");
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Output query failed: {}", e);
+        }
+    }
 }
 
 async fn cmd_hub() -> Result<()> {
