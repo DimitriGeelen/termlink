@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-035: Control plane resize — command.resize RPC method and CLI command
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T20:54:22Z
+# ============================================================================
+
+task_id: T-035
+task_name: "Control plane resize — command.resize RPC method and CLI command"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T20:52:00Z
+completed: 2026-03-08T20:54:19Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T21:54:14+01:00
+last_commit: 2026-03-08T21:54:14+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Control plane resize — command.resize RPC method and CLI command
+
+# Key outcomes
+outcomes:
+  - "`COMMAND_RESIZE` constant added to protocol"
+  - "`handle_command_resize` handler validates cols/rows, calls pty.resize()"
+  - "Returns error for non-PTY sessions (CAPABILITY_NOT_SUPPORTED)"
+  - "Returns error for missing/invalid params (INVALID_PARAMS)"
+  - "`termlink resize <target> <cols> <rows>` CLI command"
+  - "2 new handler tests (no_pty, missing_params)"
+  - "All 116 tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-035-control-plane-resize--commandresize-rpc-.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - "crates/termlink-session/src/handler.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T21:54:14"
+    action: "T-035: Control plane resize — command.resize RPC method and CLI command"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 185
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-035-control-plane-resize--commandresize-rpc-.md
+generated_by: context-agent-hybrid

@@ -4,7 +4,7 @@ name: "Stream enhancements — terminal resize forwarding and scrollback catch-u
 description: >
   Stream enhancements — terminal resize forwarding and scrollback catch-up
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T20:34:47Z
-last_update: 2026-03-08T20:34:47Z
-date_finished: null
+last_update: 2026-03-08T20:36:27Z
+date_finished: 2026-03-08T20:36:27Z
 ---
 
 # T-032: Stream enhancements — terminal resize forwarding and scrollback catch-up
@@ -53,3 +53,6 @@ Make `termlink stream` production-quality: forward terminal resize (SIGWINCH →
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-032-stream-enhancements--terminal-resize-for.md
 - **Context:** Initial task creation
+
+### 2026-03-08T20:36:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

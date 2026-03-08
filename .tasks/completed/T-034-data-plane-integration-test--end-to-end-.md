@@ -4,7 +4,7 @@ name: "Data plane integration test — end-to-end register, stream, verify"
 description: >
   Data plane integration test — end-to-end register, stream, verify
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T20:40:46Z
-last_update: 2026-03-08T20:40:46Z
-date_finished: null
+last_update: 2026-03-08T20:42:46Z
+date_finished: 2026-03-08T20:42:46Z
 ---
 
 # T-034: Data plane integration test — end-to-end register, stream, verify
@@ -52,3 +52,6 @@ End-to-end integration tests for the data plane: register session with PTY + dat
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-034-data-plane-integration-test--end-to-end-.md
 - **Context:** Initial task creation
+
+### 2026-03-08T20:42:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

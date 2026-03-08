@@ -4,16 +4,16 @@ name: "CLI stream subcommand — real-time data plane attach via binary frames"
 description: >
   CLI stream subcommand — real-time data plane attach via binary frames
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T20:31:15Z
-last_update: 2026-03-08T20:31:15Z
-date_finished: null
+last_update: 2026-03-08T20:33:11Z
+date_finished: 2026-03-08T20:33:11Z
 ---
 
 # T-031: CLI stream subcommand — real-time data plane attach via binary frames
@@ -67,3 +67,6 @@ Real-time data plane attach via binary frames. Unlike the polling-based `attach`
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-031-cli-stream-subcommand--real-time-data-pl.md
 - **Context:** Initial task creation
+
+### 2026-03-08T20:33:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Wire data plane into session lifecycle — shell sessions auto-start data
 description: >
   Wire data plane into session lifecycle — shell sessions auto-start data server
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T20:29:18Z
-last_update: 2026-03-08T20:29:18Z
-date_finished: null
+last_update: 2026-03-08T20:31:06Z
+date_finished: 2026-03-08T20:31:06Z
 ---
 
 # T-030: Wire data plane into session lifecycle — shell sessions auto-start data server
@@ -52,3 +52,6 @@ Wire the data plane (T-029) into the session lifecycle so `termlink register --s
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-030-wire-data-plane-into-session-lifecycle--.md
 - **Context:** Initial task creation
+
+### 2026-03-08T20:31:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Control plane resize — command.resize RPC method and CLI command"
 description: >
   Control plane resize — command.resize RPC method and CLI command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T20:52:00Z
-last_update: 2026-03-08T20:52:00Z
-date_finished: null
+last_update: 2026-03-08T20:54:19Z
+date_finished: 2026-03-08T20:54:19Z
 ---
 
 # T-035: Control plane resize — command.resize RPC method and CLI command
@@ -54,3 +54,6 @@ Control plane resize: `command.resize` RPC method and `termlink resize` CLI comm
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-035-control-plane-resize--commandresize-rpc-.md
 - **Context:** Initial task creation
+
+### 2026-03-08T20:54:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

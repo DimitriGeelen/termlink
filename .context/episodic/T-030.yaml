@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-030: Wire data plane into session lifecycle — shell sessions auto-start data server
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T20:31:09Z
+# ============================================================================
+
+task_id: T-030
+task_name: "Wire data plane into session lifecycle — shell sessions auto-start data server"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T20:29:18Z
+completed: 2026-03-08T20:31:06Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T21:31:00+01:00
+last_commit: 2026-03-08T21:31:00+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Wire data plane into session lifecycle — shell sessions auto-start data server
+
+# Key outcomes
+outcomes:
+  - "`cmd_register --shell` creates broadcast channel and starts data server"
+  - "PTY read loop uses `read_loop_with_broadcast(Some(tx))` instead of `read_loop()`"
+  - "Data socket path printed during registration"
+  - "Data socket cleaned up on Ctrl+C shutdown"
+  - "All existing tests pass (110+)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-030-wire-data-plane-into-session-lifecycle--.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T21:31:00"
+    action: "T-030: Wire data plane into session lifecycle — shell sessions auto-start data server"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 93
+  lines_removed: 4
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-030-wire-data-plane-into-session-lifecycle--.md
+generated_by: context-agent-hybrid

@@ -4,7 +4,7 @@ name: "Session event system — publish/subscribe for cross-session messaging"
 description: >
   Session event system — publish/subscribe for cross-session messaging
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T20:54:29Z
-last_update: 2026-03-08T20:54:29Z
-date_finished: null
+last_update: 2026-03-08T20:59:37Z
+date_finished: 2026-03-08T20:59:37Z
 ---
 
 # T-036: Session event system — publish/subscribe for cross-session messaging
@@ -57,3 +57,6 @@ Session-level event bus for structured cross-session messaging. Each session mai
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-036-session-event-system--publishsubscribe-f.md
 - **Context:** Initial task creation
+
+### 2026-03-08T20:59:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

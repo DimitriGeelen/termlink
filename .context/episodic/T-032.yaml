@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-032: Stream enhancements — terminal resize forwarding and scrollback catch-up
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T20:36:29Z
+# ============================================================================
+
+task_id: T-032
+task_name: "Stream enhancements — terminal resize forwarding and scrollback catch-up"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T20:34:47Z
+completed: 2026-03-08T20:36:27Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T21:36:19+01:00
+last_commit: 2026-03-08T21:36:19+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Stream enhancements — SIGWINCH resize forwarding and scrollback catch-up
+
+# Key outcomes
+outcomes:
+  - "SIGWINCH handler sends Resize frame with current terminal dimensions"
+  - "Initial scrollback fetched via control plane on connect and printed before streaming"
+  - "Resize payload uses big-endian u16 for cols/rows (matches data_server expectation)"
+  - "All existing tests pass (110+)"
+  - "Builds without warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-032-stream-enhancements--terminal-resize-for.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T21:36:19"
+    action: "T-032: Stream enhancements — SIGWINCH resize forwarding and scrollback catch-up"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 114
+  lines_removed: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-032-stream-enhancements--terminal-resize-for.md
+generated_by: context-agent-hybrid
