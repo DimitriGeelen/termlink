@@ -257,6 +257,12 @@ enum Command {
         name: Option<String>,
     },
 
+    /// List event topics from one or all sessions
+    Topics {
+        /// Session ID or display name (omit for all sessions)
+        target: Option<String>,
+    },
+
     /// Collect events from multiple sessions via hub (fan-in)
     Collect {
         /// Target specific sessions (omit for all)
@@ -372,6 +378,7 @@ async fn main() -> Result<()> {
         Command::Discover { tag, role, cap, name } => {
             cmd_discover(tag, role, cap, name)
         }
+        Command::Topics { target } => cmd_topics(target.as_deref()).await,
         Command::Collect { targets, topic, interval, count } => {
             cmd_collect(targets, topic.as_deref(), interval, count).await
         }
@@ -1565,6 +1572,64 @@ async fn cmd_watch(
         }
     }
 
+    Ok(())
+}
+
+async fn cmd_topics(target: Option<&str>) -> Result<()> {
+    use std::collections::BTreeMap;
+
+    let registrations = if let Some(t) = target {
+        vec![manager::find_session(t).context(format!("Session '{}' not found", t))?]
+    } else {
+        manager::list_sessions(false).context("Failed to list sessions")?
+    };
+
+    if registrations.is_empty() {
+        println!("No active sessions.");
+        return Ok(());
+    }
+
+    let mut session_topics: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+    for reg in &registrations {
+        match client::rpc_call(&reg.socket, "event.topics", serde_json::json!({})).await {
+            Ok(resp) => {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    if let Some(topics) = result["topics"].as_array() {
+                        let topic_list: Vec<String> = topics
+                            .iter()
+                            .filter_map(|t| t.as_str().map(String::from))
+                            .collect();
+                        if !topic_list.is_empty() {
+                            session_topics
+                                .insert(reg.display_name.clone(), topic_list);
+                        }
+                    }
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+
+    if session_topics.is_empty() {
+        println!("No event topics found.");
+        return Ok(());
+    }
+
+    for (name, topics) in &session_topics {
+        println!("{}:", name);
+        for topic in topics {
+            println!("  {}", topic);
+        }
+    }
+
+    let total: usize = session_topics.values().map(|v| v.len()).sum();
+    println!();
+    println!(
+        "{} topic(s) across {} session(s)",
+        total,
+        session_topics.len()
+    );
     Ok(())
 }
 
