@@ -4,7 +4,7 @@ name: "IT-004: Output capture — bidirectional communication"
 description: >
   Solve the half-duplex problem: how to capture command output after input injection
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:41Z
-last_update: 2026-03-08T18:21:38Z
-date_finished: null
+last_update: 2026-03-08T18:23:41Z
+date_finished: 2026-03-08T18:23:41Z
 ---
 
 # T-007: IT-004: Output capture — bidirectional communication
@@ -72,24 +72,18 @@ test -f docs/reports/T-007-output-capture-bidirectional.md
 
 ## Decisions
 
-### 2026-03-08 — Output capture mechanism
-- **Chose:** PTY master/slave ownership model
-- **Why:** Only mechanism that provides both input injection AND output capture; same approach as tmux/screen
-- **Rejected:** script(1) (no real-time, no input), pipe tapping (no PTY output, breaks interactive)
+**Decision**: GO
 
-### 2026-03-08 — Session architecture
-- **Chose:** Two session modes — PTY-backed (full bidirectional) and lightweight (execute-only)
-- **Why:** Not all sessions need PTY overhead; command.execute is orthogonal and already works
-- **Rejected:** Single mode forcing PTY on all sessions (unnecessary overhead for simple use cases)
+**Rationale**: PTY ownership is well-supported (POSIX), additive to existing code, ~300-500 lines core. Raw byte passthrough avoids terminal emulation complexity.
 
-### 2026-03-08 — Scrollback buffer design
-- **Chose:** Byte-oriented ring buffer (VecDeque<u8>, default 1 MiB)
-- **Why:** Preserves ANSI sequences, binary-safe, simple, configurable
-- **Rejected:** Line-oriented buffer (breaks with raw terminal output), parsed screen state (unnecessary complexity)
-
+**Date**: 2026-03-08T18:23:41Z
 ## Decision
 
-**GO** — PTY-backed sessions with scrollback buffer and output streaming. See `docs/reports/T-007-output-capture-bidirectional.md` for full analysis.
+**Decision**: GO
+
+**Rationale**: PTY ownership is well-supported (POSIX), additive to existing code, ~300-500 lines core. Raw byte passthrough avoids terminal emulation complexity.
+
+**Date**: 2026-03-08T18:23:41Z
 
 ## Updates
 
@@ -101,3 +95,12 @@ test -f docs/reports/T-007-output-capture-bidirectional.md
 
 ### 2026-03-08T18:21:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-08T18:23:41Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** PTY ownership is well-supported (POSIX), additive to existing code, ~300-500 lines core. Raw byte passthrough avoids terminal emulation complexity.
+
+### 2026-03-08T18:23:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
