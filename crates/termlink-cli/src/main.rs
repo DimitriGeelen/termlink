@@ -51,6 +51,22 @@ enum Command {
         /// Session ID or display name
         target: String,
     },
+
+    /// Send a JSON-RPC method call to a session
+    Send {
+        /// Session ID or display name
+        target: String,
+
+        /// JSON-RPC method name (e.g., query.capabilities)
+        method: String,
+
+        /// JSON params (optional, defaults to {})
+        #[arg(short, long, default_value = "{}")]
+        params: String,
+    },
+
+    /// Discover all sessions (via hub discovery protocol)
+    Discover,
 }
 
 #[tokio::main]
@@ -69,6 +85,8 @@ async fn main() -> Result<()> {
         Command::List { all } => cmd_list(all),
         Command::Ping { target } => cmd_ping(&target).await,
         Command::Status { target } => cmd_status(&target).await,
+        Command::Send { target, method, params } => cmd_send(&target, &method, &params).await,
+        Command::Discover => cmd_discover(),
     }
 }
 
@@ -202,6 +220,64 @@ async fn cmd_status(target: &str) -> Result<()> {
             anyhow::bail!("Status query failed: {}", e);
         }
     }
+}
+
+async fn cmd_send(target: &str, method: &str, params_str: &str) -> Result<()> {
+    let params: serde_json::Value =
+        serde_json::from_str(params_str).context("Invalid JSON params")?;
+
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let resp = client::rpc_call(&reg.socket, method, params)
+        .await
+        .context("Failed to connect to session")?;
+
+    match resp {
+        termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+            println!("{}", serde_json::to_string_pretty(&r.result)?);
+        }
+        termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+            eprintln!("Error {}: {}", e.error.code, e.error.message);
+            if let Some(data) = &e.error.data {
+                eprintln!("{}", serde_json::to_string_pretty(data)?);
+            }
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn cmd_discover() -> Result<()> {
+    let sessions = manager::list_sessions(false)
+        .context("Failed to discover sessions")?;
+
+    if sessions.is_empty() {
+        println!("No sessions discovered.");
+        return Ok(());
+    }
+
+    println!(
+        "{:<14} {:<16} {:<14} {:<20} ROLES",
+        "ID", "NAME", "STATE", "CAPABILITIES"
+    );
+    println!("{}", "-".repeat(70));
+
+    for session in &sessions {
+        println!(
+            "{:<14} {:<16} {:<14} {:<20} {}",
+            session.id.as_str(),
+            truncate(&session.display_name, 15),
+            session.state,
+            session.capabilities.join(","),
+            session.roles.join(","),
+        );
+    }
+
+    println!();
+    println!("{} session(s) discovered", sessions.len());
+    Ok(())
 }
 
 fn truncate(s: &str, max: usize) -> String {
