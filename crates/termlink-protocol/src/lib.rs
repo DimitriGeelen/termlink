@@ -1,6 +1,7 @@
 pub mod control;
 pub mod data;
 pub mod error;
+pub mod jsonrpc;
 
 pub use error::ProtocolError;
 
