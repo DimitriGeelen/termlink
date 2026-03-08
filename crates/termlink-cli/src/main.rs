@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 use tokio::sync::RwLock;
 
 use termlink_session::client;
+use termlink_session::data_server;
 use termlink_session::handler::SessionContext;
 use termlink_session::manager;
 use termlink_session::pty::PtySession;
@@ -220,14 +221,42 @@ async fn cmd_register(name: Option<String>, roles: Vec<String>, shell: bool) -> 
     let listener = session.listener;
     let reg_for_cleanup = session.registration;
 
+    // Compute data socket path before moving reg
+    let data_socket_path = if shell {
+        Some(data_server::data_socket_path(&reg_for_cleanup.socket))
+    } else {
+        None
+    };
+
     let shared_clone = shared.clone();
 
-    // If PTY, run the read loop in a background task
+    // If PTY, create broadcast channel and run read loop with broadcasting
     let pty_handle = if let Some(ref pty) = pty_session {
         let pty_clone = pty.clone();
-        Some(tokio::spawn(async move {
-            let _ = pty_clone.read_loop().await;
-        }))
+        if let Some(ref data_path) = data_socket_path {
+            // Shell mode: broadcast PTY output to data plane clients
+            let (tx, rx) = tokio::sync::broadcast::channel::<Vec<u8>>(256);
+            let data_pty = pty.clone();
+            let data_path = data_path.clone();
+            println!("  Data:    {}", data_path.display());
+
+            // Start data plane server
+            tokio::spawn(async move {
+                if let Err(e) = data_server::run(&data_path, data_pty, rx).await {
+                    tracing::error!(error = %e, "Data plane server error");
+                }
+            });
+
+            // PTY read loop with broadcast
+            Some(tokio::spawn(async move {
+                let _ = pty_clone.read_loop_with_broadcast(Some(tx)).await;
+            }))
+        } else {
+            // No data plane — plain read loop
+            Some(tokio::spawn(async move {
+                let _ = pty_clone.read_loop().await;
+            }))
+        }
     } else {
         None
     };
@@ -250,6 +279,12 @@ async fn cmd_register(name: Option<String>, roles: Vec<String>, shell: bool) -> 
             let json_path = termlink_session::Registration::json_path(&sessions_dir, &session_id);
             let _ = std::fs::remove_file(&reg_for_cleanup.socket);
             let _ = std::fs::remove_file(&json_path);
+
+            // Clean up data socket if present
+            if let Some(ref data_path) = data_socket_path {
+                let _ = std::fs::remove_file(data_path);
+            }
+
             println!("Session {} deregistered.", session_id);
         }
     }
