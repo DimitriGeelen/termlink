@@ -129,6 +129,15 @@ enum Command {
         poll_ms: u64,
     },
 
+    /// Send a signal to a session's process (e.g., SIGTERM, SIGINT)
+    Signal {
+        /// Session ID or display name
+        target: String,
+
+        /// Signal name or number (e.g., TERM, INT, KILL, HUP, 15)
+        signal: String,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 
@@ -161,6 +170,7 @@ async fn main() -> Result<()> {
             cmd_inject(&target, &text, enter, key.as_deref()).await
         }
         Command::Attach { target, poll_ms } => cmd_attach(&target, poll_ms).await,
+        Command::Signal { target, signal } => cmd_signal(&target, &signal).await,
         Command::Discover => cmd_discover(),
         Command::Hub => cmd_hub().await,
     }
@@ -491,6 +501,60 @@ async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) ->
         Err(e) => {
             anyhow::bail!("Inject failed: {}", e);
         }
+    }
+}
+
+async fn cmd_signal(target: &str, signal: &str) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let sig_num = parse_signal(signal)
+        .context(format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal))?;
+
+    let resp = client::rpc_call(
+        &reg.socket,
+        "command.signal",
+        serde_json::json!({ "signal": sig_num }),
+    )
+    .await
+    .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            println!(
+                "Signal {} sent to PID {}",
+                result["signal"].as_i64().unwrap_or(sig_num as i64),
+                result["pid"].as_u64().unwrap_or(0),
+            );
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Signal failed: {}", e);
+        }
+    }
+}
+
+fn parse_signal(s: &str) -> Option<i32> {
+    // Try as number first
+    if let Ok(n) = s.parse::<i32>() {
+        return Some(n);
+    }
+
+    // Named signals (case-insensitive, with or without SIG prefix)
+    let name = s.to_uppercase();
+    let name = name.strip_prefix("SIG").unwrap_or(&name);
+
+    match name {
+        "TERM" => Some(libc::SIGTERM),
+        "INT" => Some(libc::SIGINT),
+        "KILL" => Some(libc::SIGKILL),
+        "HUP" => Some(libc::SIGHUP),
+        "USR1" => Some(libc::SIGUSR1),
+        "USR2" => Some(libc::SIGUSR2),
+        "STOP" => Some(libc::SIGSTOP),
+        "CONT" => Some(libc::SIGCONT),
+        "QUIT" => Some(libc::SIGQUIT),
+        _ => None,
     }
 }
 
