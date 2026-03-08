@@ -238,8 +238,24 @@ enum Command {
         remove: Vec<String>,
     },
 
-    /// Discover all sessions (via hub discovery protocol)
-    Discover,
+    /// Discover sessions by tag, role, capability, or name pattern
+    Discover {
+        /// Filter by tag (comma-separated, AND logic)
+        #[arg(long, value_delimiter = ',')]
+        tag: Vec<String>,
+
+        /// Filter by role (comma-separated, AND logic)
+        #[arg(long, value_delimiter = ',')]
+        role: Vec<String>,
+
+        /// Filter by capability (comma-separated, AND logic)
+        #[arg(long, value_delimiter = ',')]
+        cap: Vec<String>,
+
+        /// Filter by display name (substring match)
+        #[arg(long)]
+        name: Option<String>,
+    },
 
     /// Start the hub server (routes requests between sessions)
     Hub,
@@ -290,7 +306,9 @@ async fn main() -> Result<()> {
         Command::Watch { targets, interval, topic } => {
             cmd_watch(targets, interval, topic.as_deref()).await
         }
-        Command::Discover => cmd_discover(),
+        Command::Discover { tag, role, cap, name } => {
+            cmd_discover(tag, role, cap, name)
+        }
         Command::Hub => cmd_hub().await,
     }
 }
@@ -620,34 +638,62 @@ async fn cmd_send(target: &str, method: &str, params_str: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_discover() -> Result<()> {
+fn cmd_discover(
+    tags: Vec<String>,
+    roles: Vec<String>,
+    caps: Vec<String>,
+    name: Option<String>,
+) -> Result<()> {
     let sessions = manager::list_sessions(false)
         .context("Failed to discover sessions")?;
 
-    if sessions.is_empty() {
-        println!("No sessions discovered.");
+    let has_filters = !tags.is_empty() || !roles.is_empty() || !caps.is_empty() || name.is_some();
+
+    let filtered: Vec<_> = sessions
+        .into_iter()
+        .filter(|s| {
+            // All specified tags must be present
+            tags.iter().all(|t| s.tags.contains(t))
+                // All specified roles must be present
+                && roles.iter().all(|r| s.roles.contains(r))
+                // All specified capabilities must be present
+                && caps.iter().all(|c| s.capabilities.contains(c))
+                // Name substring match (case-insensitive)
+                && name.as_ref().map_or(true, |n| {
+                    s.display_name.to_lowercase().contains(&n.to_lowercase())
+                })
+        })
+        .collect();
+
+    if filtered.is_empty() {
+        if has_filters {
+            println!("No sessions match the specified filters.");
+        } else {
+            println!("No sessions discovered.");
+        }
         return Ok(());
     }
 
     println!(
-        "{:<14} {:<16} {:<14} {:<20} ROLES",
-        "ID", "NAME", "STATE", "CAPABILITIES"
+        "{:<14} {:<16} {:<14} {:<20} {:<16} TAGS",
+        "ID", "NAME", "STATE", "CAPABILITIES", "ROLES"
     );
-    println!("{}", "-".repeat(70));
+    println!("{}", "-".repeat(90));
 
-    for session in &sessions {
+    for session in &filtered {
         println!(
-            "{:<14} {:<16} {:<14} {:<20} {}",
+            "{:<14} {:<16} {:<14} {:<20} {:<16} {}",
             session.id.as_str(),
             truncate(&session.display_name, 15),
             session.state,
-            session.capabilities.join(","),
-            session.roles.join(","),
+            truncate(&session.capabilities.join(","), 19),
+            truncate(&session.roles.join(","), 15),
+            session.tags.join(","),
         );
     }
 
     println!();
-    println!("{} session(s) discovered", sessions.len());
+    println!("{} session(s) discovered", filtered.len());
     Ok(())
 }
 

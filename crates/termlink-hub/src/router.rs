@@ -19,7 +19,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
 
     let response = match req.method.as_str() {
-        control::method::SESSION_DISCOVER => handle_discover(id).await,
+        control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
         _ => forward_to_target(req, id).await,
@@ -28,12 +28,43 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
     Some(response)
 }
 
-/// Handle `session.discover` — list all registered sessions.
-async fn handle_discover(id: serde_json::Value) -> RpcResponse {
+/// Handle `session.discover` — list/filter registered sessions.
+///
+/// Optional params: { tags?: [string], roles?: [string], capabilities?: [string], name?: string }
+/// All filters use AND logic. Omitted filters match everything.
+async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
     match manager::list_sessions(false) {
         Ok(sessions) => {
+            let tag_filter: Vec<String> = params
+                .get("tags")
+                .and_then(|t| t.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+
+            let role_filter: Vec<String> = params
+                .get("roles")
+                .and_then(|t| t.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+
+            let cap_filter: Vec<String> = params
+                .get("capabilities")
+                .and_then(|t| t.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+
+            let name_filter = params.get("name").and_then(|n| n.as_str());
+
             let entries: Vec<serde_json::Value> = sessions
                 .iter()
+                .filter(|s| {
+                    tag_filter.iter().all(|t| s.tags.contains(t))
+                        && role_filter.iter().all(|r| s.roles.contains(r))
+                        && cap_filter.iter().all(|c| s.capabilities.contains(c))
+                        && name_filter.map_or(true, |n| {
+                            s.display_name.to_lowercase().contains(&n.to_lowercase())
+                        })
+                })
                 .map(|s| {
                     json!({
                         "id": s.id.as_str(),
@@ -41,6 +72,7 @@ async fn handle_discover(id: serde_json::Value) -> RpcResponse {
                         "state": s.state,
                         "capabilities": s.capabilities,
                         "roles": s.roles,
+                        "tags": s.tags,
                         "pid": s.pid,
                     })
                 })
@@ -348,7 +380,9 @@ mod tests {
             .unwrap();
 
         let reg = session.registration.clone();
-        let ctx = SessionContext::new(session.registration);
+        let json_path = Registration::json_path(sessions_dir, session.id());
+        let ctx = SessionContext::new(session.registration)
+            .with_registration_path(json_path);
         let shared = Arc::new(RwLock::new(ctx));
         let listener = session.listener;
 
@@ -613,6 +647,73 @@ mod tests {
         } else {
             panic!("Expected error response");
         }
+    }
+
+    #[tokio::test]
+    async fn discover_with_filters() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        // Register sessions with different tags via session.update
+        let (h1, r1) = start_test_session(&sessions_dir, "web-prod").await;
+        let (h2, r2) = start_test_session(&sessions_dir, "api-staging").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // Tag session 1 as "prod"
+        client::rpc_call(
+            &r1.socket,
+            "session.update",
+            json!({"tags": ["prod", "web"]}),
+        ).await.unwrap();
+
+        // Tag session 2 as "staging"
+        client::rpc_call(
+            &r2.socket,
+            "session.update",
+            json!({"tags": ["staging", "api"]}),
+        ).await.unwrap();
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Discover with tag filter — only prod
+        let resp = handle_discover(json!("d-1"), &json!({"tags": ["prod"]})).await;
+
+        if let RpcResponse::Success(r) = resp {
+            let sessions = r.result["sessions"].as_array().unwrap();
+            assert_eq!(sessions.len(), 1);
+            assert_eq!(sessions[0]["display_name"], "web-prod");
+            assert!(sessions[0]["tags"].as_array().unwrap().contains(&json!("prod")));
+        } else {
+            panic!("Expected success");
+        }
+
+        // Discover with name filter
+        let resp = handle_discover(json!("d-2"), &json!({"name": "api"})).await;
+
+        if let RpcResponse::Success(r) = resp {
+            let sessions = r.result["sessions"].as_array().unwrap();
+            assert_eq!(sessions.len(), 1);
+            assert_eq!(sessions[0]["display_name"], "api-staging");
+        } else {
+            panic!("Expected success");
+        }
+
+        // Discover with no filters — gets both
+        let resp = handle_discover(json!("d-3"), &json!({})).await;
+
+        if let RpcResponse::Success(r) = resp {
+            let sessions = r.result["sessions"].as_array().unwrap();
+            assert_eq!(sessions.len(), 2);
+        } else {
+            panic!("Expected success");
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        h1.abort();
+        h2.abort();
     }
 
     #[tokio::test]
