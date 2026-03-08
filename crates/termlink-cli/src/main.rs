@@ -119,6 +119,16 @@ enum Command {
         key: Option<String>,
     },
 
+    /// Attach to a PTY session — live output and keyboard forwarding
+    Attach {
+        /// Session ID or display name
+        target: String,
+
+        /// Output poll interval in milliseconds (default: 100)
+        #[arg(long, default_value = "100")]
+        poll_ms: u64,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 
@@ -150,6 +160,7 @@ async fn main() -> Result<()> {
         Command::Inject { target, text, enter, key } => {
             cmd_inject(&target, &text, enter, key.as_deref()).await
         }
+        Command::Attach { target, poll_ms } => cmd_attach(&target, poll_ms).await,
         Command::Discover => cmd_discover(),
         Command::Hub => cmd_hub().await,
     }
@@ -481,6 +492,149 @@ async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) ->
             anyhow::bail!("Inject failed: {}", e);
         }
     }
+}
+
+async fn cmd_attach(target: &str, poll_ms: u64) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    // Verify the session has PTY output
+    let resp = client::rpc_call(&reg.socket, "query.output", serde_json::json!({ "lines": 0 }))
+        .await
+        .context("Failed to connect to session")?;
+    if let Err(e) = client::unwrap_result(resp) {
+        anyhow::bail!("{}", e);
+    }
+
+    eprintln!("Attached to {} ({}). Press Ctrl+] to detach.",
+        reg.display_name, reg.id);
+    eprintln!();
+
+    // Put terminal in raw mode
+    let stdin_fd = libc::STDIN_FILENO;
+    let orig_termios = unsafe {
+        let mut t = std::mem::zeroed::<libc::termios>();
+        if libc::tcgetattr(stdin_fd, &mut t) != 0 {
+            anyhow::bail!("Failed to get terminal attributes");
+        }
+        t
+    };
+
+    let mut raw = orig_termios;
+    unsafe { libc::cfmakeraw(&mut raw) };
+    unsafe {
+        if libc::tcsetattr(stdin_fd, libc::TCSANOW, &raw) != 0 {
+            anyhow::bail!("Failed to set raw mode");
+        }
+    }
+
+    // Restore terminal on exit
+    let result = attach_loop(&reg.socket, poll_ms).await;
+
+    unsafe {
+        libc::tcsetattr(stdin_fd, libc::TCSANOW, &orig_termios);
+    }
+
+    eprintln!();
+    eprintln!("Detached.");
+
+    result
+}
+
+/// The main attach loop — polls output and forwards stdin.
+async fn attach_loop(
+    socket: &std::path::Path,
+    poll_ms: u64,
+) -> Result<()> {
+    use tokio::io::AsyncReadExt;
+
+    let mut last_buffered: u64 = 0;
+
+    // Get initial output snapshot
+    let resp = client::rpc_call(socket, "query.output", serde_json::json!({ "lines": 100 }))
+        .await?;
+    if let Ok(result) = client::unwrap_result(resp) {
+        let output = result["output"].as_str().unwrap_or("");
+        if !output.is_empty() {
+            let stdout = std::io::stdout();
+            let mut out = stdout.lock();
+            std::io::Write::write_all(&mut out, output.as_bytes())?;
+            std::io::Write::flush(&mut out)?;
+        }
+        last_buffered = result["total_buffered"].as_u64().unwrap_or(0);
+    }
+
+    let mut stdin = tokio::io::stdin();
+    let mut stdin_buf = [0u8; 256];
+    let poll_interval = tokio::time::Duration::from_millis(poll_ms);
+
+    loop {
+        tokio::select! {
+            // Read stdin and inject into session
+            n = stdin.read(&mut stdin_buf) => {
+                let n = n.context("stdin read error")?;
+                if n == 0 {
+                    break; // EOF
+                }
+
+                // Check for detach key: Ctrl+] (0x1d)
+                if stdin_buf[..n].contains(&0x1d) {
+                    break;
+                }
+
+                // Send as text injection
+                let text = String::from_utf8_lossy(&stdin_buf[..n]);
+                let keys = vec![serde_json::json!({ "type": "text", "value": text })];
+                let params = serde_json::json!({ "keys": keys });
+
+                // Fire-and-forget — don't block on response
+                let _ = client::rpc_call(socket, "command.inject", params).await;
+            }
+
+            // Poll for new output
+            _ = tokio::time::sleep(poll_interval) => {
+                // Request more bytes than could have arrived since last poll
+                let resp = client::rpc_call(
+                    socket,
+                    "query.output",
+                    serde_json::json!({ "bytes": 8192 }),
+                ).await;
+
+                match resp {
+                    Ok(resp) => {
+                        if let Ok(result) = client::unwrap_result(resp) {
+                            let new_buffered = result["total_buffered"].as_u64().unwrap_or(0);
+
+                            if new_buffered > last_buffered {
+                                // New data arrived — show the delta
+                                let delta = (new_buffered - last_buffered) as usize;
+                                let output = result["output"].as_str().unwrap_or("");
+                                let output_bytes = output.as_bytes();
+
+                                // Take the last `delta` bytes of the output
+                                let start = output_bytes.len().saturating_sub(delta);
+                                let new_data = &output_bytes[start..];
+
+                                let stdout = std::io::stdout();
+                                let mut out = stdout.lock();
+                                std::io::Write::write_all(&mut out, new_data)?;
+                                std::io::Write::flush(&mut out)?;
+                            }
+
+                            last_buffered = new_buffered;
+                        }
+                    }
+                    Err(_) => {
+                        // Connection lost
+                        eprintln!("\r\nConnection lost.");
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 async fn cmd_hub() -> Result<()> {
