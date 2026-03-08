@@ -257,6 +257,9 @@ enum Command {
         name: Option<String>,
     },
 
+    /// Show TermLink runtime information and system status
+    Info,
+
     /// List event topics from one or all sessions
     Topics {
         /// Session ID or display name (omit for all sessions)
@@ -378,6 +381,7 @@ async fn main() -> Result<()> {
         Command::Discover { tag, role, cap, name } => {
             cmd_discover(tag, role, cap, name)
         }
+        Command::Info => cmd_info(),
         Command::Topics { target } => cmd_topics(target.as_deref()).await,
         Command::Collect { targets, topic, interval, count } => {
             cmd_collect(targets, topic.as_deref(), interval, count).await
@@ -1570,6 +1574,48 @@ async fn cmd_watch(
                 }
             }
         }
+    }
+
+    Ok(())
+}
+
+fn cmd_info() -> Result<()> {
+    let runtime_dir = termlink_session::discovery::runtime_dir();
+    let sessions_dir = termlink_session::discovery::sessions_dir();
+    let hub_socket = termlink_hub::server::hub_socket_path();
+
+    println!("TermLink Runtime");
+    println!("{}", "-".repeat(40));
+    println!("  Runtime dir:  {}", runtime_dir.display());
+    println!("  Sessions dir: {}", sessions_dir.display());
+    println!("  Hub socket:   {}", hub_socket.display());
+
+    // Check hub status
+    let hub_running = hub_socket.exists();
+    println!(
+        "  Hub:          {}",
+        if hub_running { "running" } else { "stopped" }
+    );
+
+    // Count sessions
+    let live = manager::list_sessions(false)
+        .map(|s| s.len())
+        .unwrap_or(0);
+    let all = manager::list_sessions(true)
+        .map(|s| s.len())
+        .unwrap_or(0);
+    let stale = all - live;
+
+    println!();
+    println!("Sessions");
+    println!("{}", "-".repeat(40));
+    println!("  Live:   {}", live);
+    println!("  Stale:  {}", stale);
+    println!("  Total:  {}", all);
+
+    if stale > 0 {
+        println!();
+        println!("  Tip: run 'termlink clean' to remove stale sessions");
     }
 
     Ok(())
