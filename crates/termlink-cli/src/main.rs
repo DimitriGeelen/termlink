@@ -257,6 +257,25 @@ enum Command {
         name: Option<String>,
     },
 
+    /// Run a command in an ephemeral session (register, execute, deregister)
+    Run {
+        /// Display name for the ephemeral session
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Tags for the session (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        tags: Vec<String>,
+
+        /// Timeout in seconds (default: 300)
+        #[arg(long, default_value = "300")]
+        timeout: u64,
+
+        /// Shell command to execute
+        #[arg(trailing_var_arg = true, required = true)]
+        command: Vec<String>,
+    },
+
     /// Wait for a session to emit an event matching a topic, then exit
     Wait {
         /// Session ID or display name
@@ -333,6 +352,9 @@ async fn main() -> Result<()> {
         }
         Command::Discover { tag, role, cap, name } => {
             cmd_discover(tag, role, cap, name)
+        }
+        Command::Run { name, tags, timeout, command } => {
+            cmd_run(name, tags, timeout, command).await
         }
         Command::Wait { target, topic, timeout, interval } => {
             cmd_wait(&target, &topic, timeout, interval).await
@@ -1522,6 +1544,89 @@ async fn cmd_watch(
     }
 
     Ok(())
+}
+
+async fn cmd_run(
+    name: Option<String>,
+    tags: Vec<String>,
+    timeout: u64,
+    command_parts: Vec<String>,
+) -> Result<()> {
+    use termlink_session::executor;
+
+    let command_str = command_parts.join(" ");
+
+    let config = SessionConfig {
+        display_name: name,
+        tags,
+        ..Default::default()
+    };
+
+    let session = termlink_session::Session::register(config)
+        .await
+        .context("Failed to register ephemeral session")?;
+
+    let session_id = session.id().clone();
+    let sessions_dir = termlink_session::discovery::sessions_dir();
+
+    eprintln!("Session {} ({}) registered", session.id(), session.display_name());
+    eprintln!("Running: {}", command_str);
+
+    let json_path = termlink_session::registration::Registration::json_path(
+        &sessions_dir,
+        session.id(),
+    );
+    let ctx = SessionContext::new(session.registration.clone())
+        .with_registration_path(json_path);
+    let shared = Arc::new(RwLock::new(ctx));
+    let shared_clone = shared.clone();
+
+    let listener = session.listener;
+    let reg_for_cleanup = session.registration;
+
+    // Run RPC listener in background so the session is queryable during execution
+    let rpc_handle = tokio::spawn(async move {
+        server::run_accept_loop(listener, shared_clone).await;
+    });
+
+    // Execute the command
+    let result = executor::execute(
+        &command_str,
+        None,
+        None,
+        Some(std::time::Duration::from_secs(timeout)),
+    )
+    .await;
+
+    // Abort RPC listener
+    rpc_handle.abort();
+
+    // Cleanup: deregister session
+    let json_path = termlink_session::registration::Registration::json_path(
+        &sessions_dir,
+        &session_id,
+    );
+    let _ = std::fs::remove_file(&reg_for_cleanup.socket);
+    let _ = std::fs::remove_file(&json_path);
+    eprintln!("Session {} deregistered", session_id);
+
+    match result {
+        Ok(exec_result) => {
+            if !exec_result.stdout.is_empty() {
+                print!("{}", exec_result.stdout);
+            }
+            if !exec_result.stderr.is_empty() {
+                eprint!("{}", exec_result.stderr);
+            }
+            if exec_result.exit_code != 0 {
+                std::process::exit(exec_result.exit_code);
+            }
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Command failed: {}", e);
+        }
+    }
 }
 
 async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64) -> Result<()> {
