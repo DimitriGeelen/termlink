@@ -150,3 +150,17 @@ decisions:
     origin_task: T-109
     rationale: "Formalizes write-to-disk convention. 2KB gating prevents context explosion (~97% savings in simulation)."
     directives_served: [D1, D2]
+
+  - id: D-001
+    decision: "`/usr/local/opt/fw/libexec` (Homebrew stable symlink)"
+    scope: project
+    date: 2026-03-08
+    task: T-020
+    rationale: "Auto-captured from task file on completion"
+
+  - id: D-002
+    decision: "Raw libc (`openpty`, `fork`, `exec`) — no extra dependencies"
+    scope: project
+    date: 2026-03-08
+    task: T-022
+    rationale: "Auto-captured from task file on completion"
