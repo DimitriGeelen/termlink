@@ -759,6 +759,20 @@ async fn cmd_stream(target: &str) -> Result<()> {
         );
     }
 
+    // Fetch initial scrollback via control plane before entering raw mode
+    let resp = client::rpc_call(&reg.socket, "query.output", serde_json::json!({ "lines": 100 }))
+        .await
+        .context("Failed to fetch initial scrollback")?;
+    if let Ok(result) = client::unwrap_result(resp) {
+        let output = result["output"].as_str().unwrap_or("");
+        if !output.is_empty() {
+            let stdout = std::io::stdout();
+            let mut out = stdout.lock();
+            std::io::Write::write_all(&mut out, output.as_bytes())?;
+            std::io::Write::flush(&mut out)?;
+        }
+    }
+
     let stream = tokio::net::UnixStream::connect(&data_socket)
         .await
         .context("Failed to connect to data plane")?;
@@ -800,13 +814,46 @@ async fn cmd_stream(target: &str) -> Result<()> {
     result
 }
 
-/// Real-time data plane streaming loop.
+/// Get the current terminal size (cols, rows).
+fn terminal_size() -> (u16, u16) {
+    let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
+    let ret = unsafe { libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut ws) };
+    if ret == 0 && ws.ws_col > 0 && ws.ws_row > 0 {
+        (ws.ws_col, ws.ws_row)
+    } else {
+        (80, 24) // sensible default
+    }
+}
+
+/// Encode terminal dimensions as a 4-byte Resize payload (big-endian cols + rows).
+fn resize_payload(cols: u16, rows: u16) -> [u8; 4] {
+    let mut buf = [0u8; 4];
+    buf[0..2].copy_from_slice(&cols.to_be_bytes());
+    buf[2..4].copy_from_slice(&rows.to_be_bytes());
+    buf
+}
+
+/// Real-time data plane streaming loop with SIGWINCH handling.
 async fn stream_loop(stream: tokio::net::UnixStream) -> Result<()> {
     use tokio::io::AsyncReadExt;
 
     let (read_half, write_half) = tokio::io::split(stream);
     let mut reader = FrameReader::new(read_half);
     let mut writer = FrameWriter::new(write_half);
+
+    // Send initial terminal size as Resize frame
+    let (cols, rows) = terminal_size();
+    let _ = writer.write_frame(
+        FrameType::Resize,
+        FrameFlags::empty(),
+        0,
+        &resize_payload(cols, rows),
+    ).await;
+
+    // Set up SIGWINCH handler for terminal resize
+    let mut sigwinch = tokio::signal::unix::signal(
+        tokio::signal::unix::SignalKind::window_change(),
+    ).context("Failed to register SIGWINCH handler")?;
 
     let mut stdin = tokio::io::stdin();
     let mut stdin_buf = [0u8; 256];
@@ -874,6 +921,17 @@ async fn stream_loop(stream: tokio::net::UnixStream) -> Result<()> {
                     eprintln!("\r\nData plane write error: {e}");
                     break;
                 }
+            }
+
+            // Handle terminal resize (SIGWINCH)
+            _ = sigwinch.recv() => {
+                let (cols, rows) = terminal_size();
+                let _ = writer.write_frame(
+                    FrameType::Resize,
+                    FrameFlags::empty(),
+                    0,
+                    &resize_payload(cols, rows),
+                ).await;
             }
         }
     }
