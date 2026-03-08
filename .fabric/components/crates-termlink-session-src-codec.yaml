@@ -1,0 +1,17 @@
+id: crates/termlink-session/src/codec.rs
+name: codec
+type: module
+subsystem: session
+location: crates/termlink-session/src/codec.rs
+tags: [data-plane, binary, codec]
+
+purpose: "Data plane frame codec — FrameReader/FrameWriter for async binary frame I/O over streams"
+
+depends_on:
+  - target: crates/termlink-protocol/src/data.rs
+    type: calls
+  - target: crates/termlink-protocol/src/error.rs
+    type: calls
+
+last_verified: 2026-03-08
+created_by: T-043

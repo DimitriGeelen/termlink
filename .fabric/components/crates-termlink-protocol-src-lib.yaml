@@ -1,0 +1,17 @@
+id: crates/termlink-protocol/src/lib.rs
+name: protocol-lib
+type: library
+subsystem: protocol
+location: crates/termlink-protocol/src/lib.rs
+tags: [foundation, constants]
+
+purpose: "Protocol crate root — re-exports modules, defines constants (magic bytes, versions, max payload size)"
+
+depends_on:
+  - crates/termlink-protocol/src/control.rs
+  - crates/termlink-protocol/src/data.rs
+  - crates/termlink-protocol/src/error.rs
+  - crates/termlink-protocol/src/jsonrpc.rs
+
+last_verified: 2026-03-08
+created_by: T-043

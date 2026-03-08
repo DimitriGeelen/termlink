@@ -1,0 +1,28 @@
+id: crates/termlink-session/src/lib.rs
+name: session-lib
+type: library
+subsystem: session
+location: crates/termlink-session/src/lib.rs
+tags: [foundation, re-exports]
+
+purpose: "Session crate root — re-exports all modules, pub types SessionId, SessionState, Registration, Session, SessionError"
+
+depends_on:
+  - crates/termlink-session/src/identity.rs
+  - crates/termlink-session/src/discovery.rs
+  - crates/termlink-session/src/lifecycle.rs
+  - crates/termlink-session/src/liveness.rs
+  - crates/termlink-session/src/registration.rs
+  - crates/termlink-session/src/manager.rs
+  - crates/termlink-session/src/client.rs
+  - crates/termlink-session/src/codec.rs
+  - crates/termlink-session/src/data_server.rs
+  - crates/termlink-session/src/events.rs
+  - crates/termlink-session/src/executor.rs
+  - crates/termlink-session/src/handler.rs
+  - crates/termlink-session/src/pty.rs
+  - crates/termlink-session/src/scrollback.rs
+  - crates/termlink-session/src/server.rs
+
+last_verified: 2026-03-08
+created_by: T-043

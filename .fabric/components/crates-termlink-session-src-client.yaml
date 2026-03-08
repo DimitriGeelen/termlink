@@ -1,0 +1,15 @@
+id: crates/termlink-session/src/client.rs
+name: client
+type: module
+subsystem: session
+location: crates/termlink-session/src/client.rs
+tags: [client, rpc, unix-socket]
+
+purpose: "JSON-RPC client — connects to session Unix socket, sends requests, reads responses, rpc_call() convenience function"
+
+depends_on:
+  - target: crates/termlink-protocol/src/jsonrpc.rs
+    type: calls
+
+last_verified: 2026-03-08
+created_by: T-043

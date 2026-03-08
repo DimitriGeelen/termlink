@@ -1,0 +1,19 @@
+id: crates/termlink-hub/src/server.rs
+name: hub-server
+type: module
+subsystem: hub
+location: crates/termlink-hub/src/server.rs
+tags: [server, unix-socket]
+
+purpose: "Hub server — Unix socket accept loop, reads JSON-RPC requests, routes via router, writes responses"
+
+depends_on:
+  - target: crates/termlink-hub/src/router.rs
+    type: calls
+  - target: crates/termlink-session/src/discovery.rs
+    type: calls
+  - target: crates/termlink-protocol/src/jsonrpc.rs
+    type: calls
+
+last_verified: 2026-03-08
+created_by: T-043

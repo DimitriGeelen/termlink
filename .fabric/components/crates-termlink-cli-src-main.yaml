@@ -1,0 +1,31 @@
+id: crates/termlink-cli/src/main.rs
+name: cli-main
+type: binary
+subsystem: cli
+location: crates/termlink-cli/src/main.rs
+tags: [cli, entry-point, user-facing]
+
+purpose: "CLI entry point — 20 subcommands (register, list, ping, status, send, exec, output, inject, attach, signal, events, emit, broadcast, resize, tag, watch, stream, discover, hub) with clap argument parsing"
+
+depends_on:
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+  - target: crates/termlink-session/src/codec.rs
+    type: calls
+  - target: crates/termlink-session/src/data_server.rs
+    type: calls
+  - target: crates/termlink-session/src/handler.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+  - target: crates/termlink-session/src/pty.rs
+    type: calls
+  - target: crates/termlink-session/src/registration.rs
+    type: calls
+  - target: crates/termlink-session/src/server.rs
+    type: calls
+  - target: crates/termlink-protocol/src/data.rs
+    type: calls
+
+last_verified: 2026-03-08
+created_by: T-043

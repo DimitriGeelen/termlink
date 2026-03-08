@@ -1,0 +1,15 @@
+id: crates/termlink-session/src/pty.rs
+name: pty
+type: module
+subsystem: session
+location: crates/termlink-session/src/pty.rs
+tags: [pty, terminal, bidirectional-io]
+
+purpose: "PTY session — spawn shell in pseudo-terminal, async read/write, resize, scrollback integration, child PID tracking"
+
+depends_on:
+  - target: crates/termlink-session/src/scrollback.rs
+    type: calls
+
+last_verified: 2026-03-08
+created_by: T-043

@@ -1,0 +1,13 @@
+id: crates/termlink-protocol/src/control.rs
+name: control
+type: module
+subsystem: protocol
+location: crates/termlink-protocol/src/control.rs
+tags: [control-plane, rpc-methods, types]
+
+purpose: "Control plane definitions — RPC method constants, error codes, KeyEntry, Capabilities, TerminalInfo, CommonParams"
+
+depends_on: []
+
+last_verified: 2026-03-08
+created_by: T-043

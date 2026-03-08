@@ -1,0 +1,13 @@
+id: crates/termlink-protocol/src/error.rs
+name: error
+type: module
+subsystem: protocol
+location: crates/termlink-protocol/src/error.rs
+tags: [error-handling]
+
+purpose: "Protocol error type — ProtocolError enum for frame parsing, encoding, and validation failures"
+
+depends_on: []
+
+last_verified: 2026-03-08
+created_by: T-043

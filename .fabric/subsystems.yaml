@@ -1,0 +1,56 @@
+# TermLink Subsystem Map
+# Defines the high-level architecture for fabric overview and onboarding
+
+subsystems:
+  - name: protocol
+    description: "Wire protocol definitions — JSON-RPC 2.0 control plane + binary data plane frames"
+    root: crates/termlink-protocol/src/
+    depends_on: []
+    summary: "Foundation layer: JSON-RPC, binary frames, error types, method constants"
+    components:
+      - crates/termlink-protocol/src/lib.rs
+      - crates/termlink-protocol/src/control.rs
+      - crates/termlink-protocol/src/data.rs
+      - crates/termlink-protocol/src/error.rs
+      - crates/termlink-protocol/src/jsonrpc.rs
+
+  - name: session
+    description: "Session lifecycle — identity, registration, discovery, handlers, PTY, events, data plane"
+    root: crates/termlink-session/src/
+    depends_on: [protocol]
+    summary: "Core business logic: session management, RPC handlers, PTY, events, streaming"
+    components:
+      - crates/termlink-session/src/lib.rs
+      - crates/termlink-session/src/identity.rs
+      - crates/termlink-session/src/discovery.rs
+      - crates/termlink-session/src/lifecycle.rs
+      - crates/termlink-session/src/liveness.rs
+      - crates/termlink-session/src/registration.rs
+      - crates/termlink-session/src/manager.rs
+      - crates/termlink-session/src/client.rs
+      - crates/termlink-session/src/codec.rs
+      - crates/termlink-session/src/data_server.rs
+      - crates/termlink-session/src/events.rs
+      - crates/termlink-session/src/executor.rs
+      - crates/termlink-session/src/handler.rs
+      - crates/termlink-session/src/pty.rs
+      - crates/termlink-session/src/scrollback.rs
+      - crates/termlink-session/src/server.rs
+
+  - name: hub
+    description: "Message hub — routes requests between sessions, fan-out broadcast, fan-in collection"
+    root: crates/termlink-hub/src/
+    depends_on: [protocol, session]
+    summary: "Router/broker: discovery, request forwarding, broadcast, event collection"
+    components:
+      - crates/termlink-hub/src/lib.rs
+      - crates/termlink-hub/src/router.rs
+      - crates/termlink-hub/src/server.rs
+
+  - name: cli
+    description: "User-facing CLI binary — 20 subcommands for session management and communication"
+    root: crates/termlink-cli/src/
+    depends_on: [protocol, session]
+    summary: "User entry point: 20 commands for register, query, inject, stream, discover, events"
+    components:
+      - crates/termlink-cli/src/main.rs

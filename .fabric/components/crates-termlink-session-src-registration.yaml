@@ -1,0 +1,17 @@
+id: crates/termlink-session/src/registration.rs
+name: registration
+type: module
+subsystem: session
+location: crates/termlink-session/src/registration.rs
+tags: [persistence, json, registration]
+
+purpose: "Registration JSON sidecar — Registration struct, SessionConfig, SessionMetadata, atomic write/read, heartbeat, state transitions"
+
+depends_on:
+  - target: crates/termlink-session/src/identity.rs
+    type: calls
+  - target: crates/termlink-session/src/lifecycle.rs
+    type: calls
+
+last_verified: 2026-03-08
+created_by: T-043

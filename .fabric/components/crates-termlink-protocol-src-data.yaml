@@ -1,0 +1,13 @@
+id: crates/termlink-protocol/src/data.rs
+name: data
+type: module
+subsystem: protocol
+location: crates/termlink-protocol/src/data.rs
+tags: [data-plane, binary, frames]
+
+purpose: "Data plane binary frame format — FrameHeader, FrameType, FrameFlags, encode/decode for streaming I/O"
+
+depends_on: []
+
+last_verified: 2026-03-08
+created_by: T-043

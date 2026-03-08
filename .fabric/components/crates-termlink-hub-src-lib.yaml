@@ -1,0 +1,15 @@
+id: crates/termlink-hub/src/lib.rs
+name: hub-lib
+type: library
+subsystem: hub
+location: crates/termlink-hub/src/lib.rs
+tags: [foundation, re-exports]
+
+purpose: "Hub crate root — re-exports router and server modules, test_util for shared ENV_LOCK"
+
+depends_on:
+  - crates/termlink-hub/src/router.rs
+  - crates/termlink-hub/src/server.rs
+
+last_verified: 2026-03-08
+created_by: T-043

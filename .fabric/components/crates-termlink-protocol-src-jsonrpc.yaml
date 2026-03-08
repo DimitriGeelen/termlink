@@ -1,0 +1,13 @@
+id: crates/termlink-protocol/src/jsonrpc.rs
+name: jsonrpc
+type: module
+subsystem: protocol
+location: crates/termlink-protocol/src/jsonrpc.rs
+tags: [control-plane, json-rpc, serialization]
+
+purpose: "JSON-RPC 2.0 implementation — Request, Response, ErrorResponse, RpcResponse types for control plane messaging"
+
+depends_on: []
+
+last_verified: 2026-03-08
+created_by: T-043

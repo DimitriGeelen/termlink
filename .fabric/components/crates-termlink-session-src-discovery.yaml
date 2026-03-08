@@ -1,0 +1,13 @@
+id: crates/termlink-session/src/discovery.rs
+name: discovery
+type: module
+subsystem: session
+location: crates/termlink-session/src/discovery.rs
+tags: [discovery, runtime-dir]
+
+purpose: "Runtime directory resolution — sessions_dir() using TERMLINK_RUNTIME_DIR env or XDG default"
+
+depends_on: []
+
+last_verified: 2026-03-08
+created_by: T-043
