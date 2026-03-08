@@ -4,7 +4,7 @@ name: "Rust project scaffold — Cargo workspace and crate structure"
 description: >
   Rust project scaffold — Cargo workspace and crate structure
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T15:32:13Z
-last_update: 2026-03-08T15:32:13Z
-date_finished: null
+last_update: 2026-03-08T15:41:05Z
+date_finished: 2026-03-08T15:41:05Z
 ---
 
 # T-014: Rust project scaffold — Cargo workspace and crate structure
@@ -33,8 +33,8 @@ Set up Cargo workspace with crate structure for TermLink. Based on T-013 (Rust),
 
 ## Verification
 
-cargo build 2>&1 | tail -1
-cargo test 2>&1 | tail -1
+source "$HOME/.cargo/env" && cargo build 2>&1 | tail -1
+source "$HOME/.cargo/env" && cargo test 2>&1 | tail -1
 
 ## Decisions
 
@@ -53,3 +53,6 @@ cargo test 2>&1 | tail -1
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-014-rust-project-scaffold--cargo-workspace-a.md
 - **Context:** Initial task creation
+
+### 2026-03-08T15:41:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
