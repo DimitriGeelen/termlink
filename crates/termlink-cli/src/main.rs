@@ -188,13 +188,19 @@ async fn main() -> Result<()> {
 }
 
 async fn cmd_register(name: Option<String>, roles: Vec<String>, shell: bool) -> Result<()> {
-    let config = SessionConfig {
+    let mut config = SessionConfig {
         display_name: name,
         roles,
         ..Default::default()
     };
 
-    let session = termlink_session::Session::register(config)
+    // Add data_plane capability when shell mode is enabled
+    if shell {
+        config.capabilities.push("data_plane".into());
+        config.capabilities.push("stream".into());
+    }
+
+    let mut session = termlink_session::Session::register(config)
         .await
         .context("Failed to register session")?;
 
@@ -205,6 +211,11 @@ async fn cmd_register(name: Option<String>, roles: Vec<String>, shell: bool) -> 
 
     // Set up session context (with or without PTY)
     let pty_session = if shell {
+        // Set data_socket metadata for discoverability
+        let data_path = data_server::data_socket_path(&session.registration.socket);
+        session.registration.metadata.data_socket =
+            Some(data_path.to_string_lossy().into_owned());
+
         let pty = PtySession::spawn(None, 1024 * 1024)
             .context("Failed to spawn PTY session")?;
         println!("  PTY:     yes (shell: {})",
@@ -214,6 +225,12 @@ async fn cmd_register(name: Option<String>, roles: Vec<String>, shell: bool) -> 
         println!("  PTY:     no (use --shell for bidirectional I/O)");
         None
     };
+
+    // Persist updated registration (capabilities + metadata)
+    if shell {
+        session.persist_registration()
+            .context("Failed to persist updated registration")?;
+    }
 
     println!();
     println!("Listening for connections... (Ctrl+C to stop)");
@@ -372,6 +389,10 @@ async fn cmd_status(target: &str) -> Result<()> {
             println!("  PID:         {}", result["pid"]);
             println!("  Created:     {}", result["created_at"].as_str().unwrap_or("?"));
             println!("  Heartbeat:   {}", result["heartbeat_at"].as_str().unwrap_or("?"));
+            if let Some(caps) = result.get("capabilities").and_then(|c| c.as_array()) {
+                let cap_strs: Vec<&str> = caps.iter().filter_map(|c| c.as_str()).collect();
+                println!("  Capabilities: {}", cap_strs.join(", "));
+            }
             if let Some(meta) = result.get("metadata") {
                 if let Some(shell) = meta.get("shell").and_then(|s| s.as_str()) {
                     println!("  Shell:       {}", shell);
@@ -381,6 +402,9 @@ async fn cmd_status(target: &str) -> Result<()> {
                 }
                 if let Some(cwd) = meta.get("cwd").and_then(|s| s.as_str()) {
                     println!("  CWD:         {}", cwd);
+                }
+                if let Some(ds) = meta.get("data_socket").and_then(|s| s.as_str()) {
+                    println!("  Data plane:  {}", ds);
                 }
             }
             Ok(())

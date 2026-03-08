@@ -132,6 +132,14 @@ impl Session {
     pub fn display_name(&self) -> &str {
         &self.registration.display_name
     }
+
+    /// Re-persist the registration JSON (e.g., after updating metadata).
+    pub fn persist_registration(&self) -> Result<(), SessionError> {
+        let json_path =
+            Registration::json_path(&self.sessions_dir, &self.registration.id);
+        self.registration.write_atomic(&json_path)?;
+        Ok(())
+    }
 }
 
 /// List all sessions in the default runtime directory.

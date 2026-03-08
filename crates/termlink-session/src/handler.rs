@@ -101,6 +101,7 @@ fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> RpcRespon
         "pid": reg.pid,
         "created_at": reg.created_at,
         "heartbeat_at": reg.heartbeat_at,
+        "capabilities": reg.capabilities,
         "metadata": reg.metadata,
     });
 

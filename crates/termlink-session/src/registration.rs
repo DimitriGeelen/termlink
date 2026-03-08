@@ -40,6 +40,9 @@ pub struct SessionMetadata {
     pub cwd: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub termlink_version: Option<String>,
+    /// Data plane socket path (present when session supports binary streaming).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_socket: Option<String>,
 }
 
 /// Configuration for creating a new session registration.
@@ -93,6 +96,7 @@ impl Registration {
                     .ok()
                     .map(|p| p.to_string_lossy().into_owned()),
                 termlink_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                data_socket: None,
             },
         }
     }
