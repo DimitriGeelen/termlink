@@ -187,6 +187,21 @@ enum Command {
         target: String,
     },
 
+    /// Watch events from one or more sessions in real-time
+    Watch {
+        /// Session IDs or display names (omit for all sessions)
+        #[arg(value_name = "TARGET")]
+        targets: Vec<String>,
+
+        /// Poll interval in milliseconds (default: 500)
+        #[arg(long, default_value = "500")]
+        interval: u64,
+
+        /// Filter by event topic
+        #[arg(long)]
+        topic: Option<String>,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 
@@ -228,6 +243,9 @@ async fn main() -> Result<()> {
         }
         Command::Resize { target, cols, rows } => cmd_resize(&target, cols, rows).await,
         Command::Stream { target } => cmd_stream(&target).await,
+        Command::Watch { targets, interval, topic } => {
+            cmd_watch(targets, interval, topic.as_deref()).await
+        }
         Command::Discover => cmd_discover(),
         Command::Hub => cmd_hub().await,
     }
@@ -1102,6 +1120,128 @@ async fn stream_loop(stream: tokio::net::UnixStream) -> Result<()> {
                     0,
                     &resize_payload(cols, rows),
                 ).await;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn cmd_watch(
+    targets: Vec<String>,
+    interval_ms: u64,
+    topic_filter: Option<&str>,
+) -> Result<()> {
+    use std::collections::HashMap;
+
+    // Resolve targets: if empty, watch all live sessions
+    let registrations = if targets.is_empty() {
+        let sessions = manager::list_sessions(false)
+            .context("Failed to list sessions")?;
+        if sessions.is_empty() {
+            anyhow::bail!("No active sessions to watch.");
+        }
+        sessions
+            .iter()
+            .filter_map(|s| manager::find_session(s.id.as_str()).ok())
+            .collect::<Vec<_>>()
+    } else {
+        targets
+            .iter()
+            .map(|t| manager::find_session(t).context(format!("Session '{}' not found", t)))
+            .collect::<Result<Vec<_>>>()?
+    };
+
+    if registrations.is_empty() {
+        anyhow::bail!("No reachable sessions to watch.");
+    }
+
+    let session_names: HashMap<String, String> = registrations
+        .iter()
+        .map(|r| (r.id.as_str().to_string(), r.display_name.clone()))
+        .collect();
+
+    eprintln!(
+        "Watching {} session(s): {}. Press Ctrl+C to stop.",
+        registrations.len(),
+        registrations
+            .iter()
+            .map(|r| r.display_name.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
+    );
+    eprintln!();
+
+    // Track last seen sequence per session (start with u64::MAX sentinel = get all)
+    let mut cursors: HashMap<String, Option<u64>> = registrations
+        .iter()
+        .map(|r| (r.id.as_str().to_string(), None))
+        .collect();
+
+    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+
+    loop {
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                eprintln!();
+                eprintln!("Stopped watching.");
+                break;
+            }
+            _ = tokio::time::sleep(poll_interval) => {
+                for reg in &registrations {
+                    let sid = reg.id.as_str();
+                    let name = session_names.get(sid).map(|s| s.as_str()).unwrap_or(sid);
+
+                    let mut params = serde_json::json!({});
+                    if let Some(cursor) = cursors.get(sid).and_then(|c| *c) {
+                        params["since"] = serde_json::json!(cursor);
+                    }
+                    if let Some(t) = topic_filter {
+                        params["topic"] = serde_json::json!(t);
+                    }
+
+                    let resp = match client::rpc_call(&reg.socket, "event.poll", params).await {
+                        Ok(r) => r,
+                        Err(_) => {
+                            // Session may have gone away — skip silently
+                            continue;
+                        }
+                    };
+
+                    if let Ok(result) = client::unwrap_result(resp) {
+                        if let Some(events) = result["events"].as_array() {
+                            for event in events {
+                                let seq = event["seq"].as_u64().unwrap_or(0);
+                                let topic = event["topic"].as_str().unwrap_or("?");
+                                let payload = &event["payload"];
+                                let ts = event["timestamp"].as_u64().unwrap_or(0);
+
+                                if payload.is_null()
+                                    || (payload.is_object()
+                                        && payload.as_object().unwrap().is_empty())
+                                {
+                                    println!("[{name}#{seq}] {topic} (t={ts})");
+                                } else {
+                                    println!(
+                                        "[{name}#{seq}] {topic}: {} (t={ts})",
+                                        serde_json::to_string(payload).unwrap_or_default()
+                                    );
+                                }
+
+                                // Update cursor to latest seen
+                                cursors.insert(sid.to_string(), Some(seq));
+                            }
+                        }
+                        // Also update cursor from next_seq if no events
+                        if let Some(next) = result["next_seq"].as_u64() {
+                            if cursors.get(sid).and_then(|c| *c).is_none() && next > 0 {
+                                // First poll returned events, cursor set above.
+                                // If no events, set cursor to next_seq - 1 to avoid re-fetching
+                                cursors.insert(sid.to_string(), Some(next.saturating_sub(1)));
+                            }
+                        }
+                    }
+                }
             }
         }
     }
