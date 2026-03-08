@@ -4,7 +4,7 @@ name: "End-to-end integration tests — multi-session communication"
 description: >
   End-to-end integration tests — multi-session communication
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T17:52:58Z
-last_update: 2026-03-08T17:52:58Z
-date_finished: null
+last_update: 2026-03-08T18:17:19Z
+date_finished: 2026-03-08T18:17:19Z
 ---
 
 # T-021: End-to-end integration tests — multi-session communication
@@ -42,3 +42,6 @@ PATH="$HOME/.cargo/bin:$PATH" cargo test --workspace
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-021-end-to-end-integration-tests--multi-sess.md
 - **Context:** Initial task creation
+
+### 2026-03-08T18:17:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
