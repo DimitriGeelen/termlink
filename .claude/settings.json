@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/fw/libexec/agents/context/pre-compact.sh"
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/context/pre-compact.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/fw/libexec/agents/context/post-compact-resume.sh"
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/context/post-compact-resume.sh"
           }
         ]
       },
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/fw/libexec/agents/context/post-compact-resume.sh"
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/context/post-compact-resume.sh"
           }
         ]
       }
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/local/opt/fw/libexec/agents/context/block-plan-mode.sh"
+            "command": "/usr/local/opt/agentic-fw/libexec/agents/context/block-plan-mode.sh"
           }
         ]
       },
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/fw/libexec/agents/context/check-active-task.sh"
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/context/check-active-task.sh"
           }
         ]
       },
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/fw/libexec/agents/context/check-tier0.sh"
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/context/check-tier0.sh"
           }
         ]
       },
@@ -64,7 +64,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/fw/libexec/agents/context/budget-gate.sh"
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/context/budget-gate.sh"
           }
         ]
       }
@@ -75,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/fw/libexec/agents/context/checkpoint.sh post-tool"
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/context/checkpoint.sh post-tool"
           }
         ]
       },
@@ -84,7 +84,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/local/opt/fw/libexec/agents/context/error-watchdog.sh"
+            "command": "/usr/local/opt/agentic-fw/libexec/agents/context/error-watchdog.sh"
           }
         ]
       },
@@ -93,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/local/opt/fw/libexec/agents/context/check-dispatch.sh"
+            "command": "/usr/local/opt/agentic-fw/libexec/agents/context/check-dispatch.sh"
           }
         ]
       }
