@@ -11,10 +11,15 @@ use serde_json::json;
 use tokio::sync::RwLock;
 
 use termlink_session::client::{self, Client};
+use termlink_session::codec::{FrameReader, FrameWriter};
+use termlink_session::data_server;
 use termlink_session::handler::SessionContext;
 use termlink_session::manager::{self, Session};
+use termlink_session::pty::PtySession;
 use termlink_session::registration::{Registration, SessionConfig};
 use termlink_session::server;
+
+use termlink_protocol::data::{FrameFlags, FrameType};
 
 static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -283,4 +288,256 @@ async fn find_session_by_name_across_directory() {
 
     h1.abort();
     h2.abort();
+}
+
+// ─── Data Plane Integration Tests ───────────────────────────────────
+
+/// Start a PTY-backed session with data plane server.
+/// Returns handles for cleanup, the registration, and the data socket path.
+async fn start_pty_session(
+    sessions_dir: &std::path::Path,
+    name: &str,
+) -> (
+    Vec<tokio::task::JoinHandle<()>>,
+    Registration,
+    std::path::PathBuf,
+    Arc<PtySession>,
+) {
+    let config = SessionConfig {
+        display_name: Some(name.into()),
+        capabilities: vec![
+            "inject".into(),
+            "command".into(),
+            "query".into(),
+            "data_plane".into(),
+            "stream".into(),
+        ],
+        roles: vec![],
+    };
+    let session = Session::register_in(config, sessions_dir)
+        .await
+        .unwrap();
+
+    let pty = Arc::new(PtySession::spawn(Some("/bin/sh"), 1024 * 64).unwrap());
+    let reg = session.registration.clone();
+    let data_socket = data_server::data_socket_path(&reg.socket);
+
+    // Start control plane
+    let ctx = SessionContext::with_pty(session.registration, pty.clone());
+    let shared = Arc::new(RwLock::new(ctx));
+    let listener = session.listener;
+    let ctrl_handle = tokio::spawn(async move {
+        server::run_accept_loop(listener, shared).await;
+    });
+
+    // Start data plane
+    let (tx, rx) = tokio::sync::broadcast::channel::<Vec<u8>>(256);
+    let data_pty = pty.clone();
+    let data_path = data_socket.clone();
+    let data_handle = tokio::spawn(async move {
+        let _ = data_server::run(&data_path, data_pty, rx).await;
+    });
+
+    // Start PTY read loop with broadcast
+    let read_pty = pty.clone();
+    let read_handle = tokio::spawn(async move {
+        let _ = read_pty.read_loop_with_broadcast(Some(tx)).await;
+    });
+
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+    (
+        vec![ctrl_handle, data_handle, read_handle],
+        reg,
+        data_socket,
+        pty,
+    )
+}
+
+#[tokio::test]
+async fn data_plane_stream_output() {
+    let dir = unique_dir("dp-out");
+    let (handles, reg, data_socket, pty) = start_pty_session(&dir, "streamer").await;
+
+    // Connect to data plane
+    let stream = tokio::net::UnixStream::connect(&data_socket).await.unwrap();
+    let (read_half, write_half) = tokio::io::split(stream);
+    let mut reader = FrameReader::new(read_half);
+    let _writer = FrameWriter::new(write_half);
+
+    // Give handler time to start select loop
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+    // Inject a command via control plane
+    let resp = client::rpc_call(
+        &reg.socket,
+        "command.inject",
+        json!({ "keys": [{ "type": "text", "value": "echo DATA_PLANE_TEST\n" }] }),
+    )
+    .await
+    .unwrap();
+    assert!(client::unwrap_result(resp).is_ok());
+
+    // Read frames from data plane — should see the output
+    let mut saw_marker = false;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+    while tokio::time::Instant::now() < deadline {
+        let frame = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            reader.read_frame(),
+        )
+        .await;
+
+        match frame {
+            Ok(Ok(Some(f))) if f.header.frame_type == FrameType::Output => {
+                let text = String::from_utf8_lossy(&f.payload);
+                if text.contains("DATA_PLANE_TEST") {
+                    saw_marker = true;
+                    break;
+                }
+            }
+            _ => continue,
+        }
+    }
+    assert!(saw_marker, "Expected DATA_PLANE_TEST in data plane output");
+
+    for h in handles {
+        h.abort();
+    }
+    let _ = pty.signal(libc::SIGTERM);
+    let _ = std::fs::remove_file(&data_socket);
+}
+
+#[tokio::test]
+async fn data_plane_input_and_output() {
+    let dir = unique_dir("dp-io");
+    let (handles, _reg, data_socket, pty) = start_pty_session(&dir, "bidir").await;
+
+    // Connect to data plane
+    let stream = tokio::net::UnixStream::connect(&data_socket).await.unwrap();
+    let (read_half, write_half) = tokio::io::split(stream);
+    let mut reader = FrameReader::new(read_half);
+    let mut writer = FrameWriter::new(write_half);
+
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+    // Send input via data plane (Input frame)
+    writer
+        .write_frame(
+            FrameType::Input,
+            FrameFlags::empty(),
+            0,
+            b"echo BIDIR_MARKER\n",
+        )
+        .await
+        .unwrap();
+
+    // Read frames — should see BIDIR_MARKER in output
+    let mut saw_marker = false;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+    while tokio::time::Instant::now() < deadline {
+        let frame = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            reader.read_frame(),
+        )
+        .await;
+
+        match frame {
+            Ok(Ok(Some(f))) if f.header.frame_type == FrameType::Output => {
+                let text = String::from_utf8_lossy(&f.payload);
+                if text.contains("BIDIR_MARKER") {
+                    saw_marker = true;
+                    break;
+                }
+            }
+            _ => continue,
+        }
+    }
+    assert!(saw_marker, "Expected BIDIR_MARKER in data plane output");
+
+    // Send Close frame
+    writer
+        .write_frame(FrameType::Close, FrameFlags::empty(), 0, &[])
+        .await
+        .unwrap();
+
+    for h in handles {
+        h.abort();
+    }
+    let _ = pty.signal(libc::SIGTERM);
+    let _ = std::fs::remove_file(&data_socket);
+}
+
+#[tokio::test]
+async fn data_plane_ping_pong_integration() {
+    let dir = unique_dir("dp-ping");
+    let (handles, _reg, data_socket, pty) = start_pty_session(&dir, "pinger").await;
+
+    let stream = tokio::net::UnixStream::connect(&data_socket).await.unwrap();
+    let (read_half, write_half) = tokio::io::split(stream);
+    let mut reader = FrameReader::new(read_half);
+    let mut writer = FrameWriter::new(write_half);
+
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+    // Send Ping
+    writer
+        .write_frame(FrameType::Ping, FrameFlags::empty(), 0, b"test-ping")
+        .await
+        .unwrap();
+
+    // Should get Pong back (may need to skip Output frames from shell startup)
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+    let mut got_pong = false;
+    while tokio::time::Instant::now() < deadline {
+        let frame = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            reader.read_frame(),
+        )
+        .await;
+
+        match frame {
+            Ok(Ok(Some(f))) if f.header.frame_type == FrameType::Pong => {
+                assert_eq!(f.payload, b"test-ping");
+                got_pong = true;
+                break;
+            }
+            Ok(Ok(Some(_))) => continue, // skip Output frames
+            _ => break,
+        }
+    }
+    assert!(got_pong, "Expected Pong response");
+
+    for h in handles {
+        h.abort();
+    }
+    let _ = pty.signal(libc::SIGTERM);
+    let _ = std::fs::remove_file(&data_socket);
+}
+
+#[tokio::test]
+async fn data_plane_capabilities_in_status() {
+    let dir = unique_dir("dp-caps");
+    let (handles, reg, data_socket, pty) = start_pty_session(&dir, "capable").await;
+
+    // Query status via control plane
+    let resp = client::rpc_call(&reg.socket, "query.status", json!({}))
+        .await
+        .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+
+    // Should have data_plane and stream capabilities
+    let caps = result["capabilities"].as_array().unwrap();
+    let cap_strs: Vec<&str> = caps.iter().filter_map(|c| c.as_str()).collect();
+    assert!(cap_strs.contains(&"data_plane"), "Expected data_plane capability, got: {:?}", cap_strs);
+    assert!(cap_strs.contains(&"stream"), "Expected stream capability, got: {:?}", cap_strs);
+
+    // Should have has_pty
+    assert_eq!(result["has_pty"], true);
+
+    for h in handles {
+        h.abort();
+    }
+    let _ = pty.signal(libc::SIGTERM);
+    let _ = std::fs::remove_file(&data_socket);
 }
