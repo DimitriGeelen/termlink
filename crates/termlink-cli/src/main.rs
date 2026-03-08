@@ -142,6 +142,33 @@ enum Command {
         signal: String,
     },
 
+    /// Poll events from a session's event bus
+    Events {
+        /// Session ID or display name
+        target: String,
+
+        /// Only show events after this sequence number
+        #[arg(long, default_value = "0")]
+        since: u64,
+
+        /// Filter by topic
+        #[arg(long)]
+        topic: Option<String>,
+    },
+
+    /// Emit an event to a session's event bus
+    Emit {
+        /// Session ID or display name
+        target: String,
+
+        /// Event topic (e.g., "build.complete", "test.failed")
+        topic: String,
+
+        /// JSON payload (optional, defaults to {})
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+    },
+
     /// Resize a PTY session's terminal
     Resize {
         /// Session ID or display name
@@ -193,6 +220,12 @@ async fn main() -> Result<()> {
         }
         Command::Attach { target, poll_ms } => cmd_attach(&target, poll_ms).await,
         Command::Signal { target, signal } => cmd_signal(&target, &signal).await,
+        Command::Events { target, since, topic } => {
+            cmd_events(&target, since, topic.as_deref()).await
+        }
+        Command::Emit { target, topic, payload } => {
+            cmd_emit(&target, &topic, &payload).await
+        }
         Command::Resize { target, cols, rows } => cmd_resize(&target, cols, rows).await,
         Command::Stream { target } => cmd_stream(&target).await,
         Command::Discover => cmd_discover(),
@@ -781,6 +814,79 @@ async fn attach_loop(
     }
 
     Ok(())
+}
+
+async fn cmd_events(target: &str, since: u64, topic: Option<&str>) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let mut params = serde_json::json!({ "since": since });
+    if let Some(t) = topic {
+        params["topic"] = serde_json::json!(t);
+    }
+
+    let resp = client::rpc_call(&reg.socket, "event.poll", params)
+        .await
+        .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            let events = result["events"].as_array().unwrap();
+            if events.is_empty() {
+                println!("No events (next_seq: {})", result["next_seq"]);
+                return Ok(());
+            }
+
+            for event in events {
+                let seq = event["seq"].as_u64().unwrap_or(0);
+                let topic = event["topic"].as_str().unwrap_or("?");
+                let payload = &event["payload"];
+                let ts = event["timestamp"].as_u64().unwrap_or(0);
+
+                if payload.is_null() || (payload.is_object() && payload.as_object().unwrap().is_empty()) {
+                    println!("[{seq}] {topic} (t={ts})");
+                } else {
+                    println!("[{seq}] {topic}: {} (t={ts})", serde_json::to_string(payload)?);
+                }
+            }
+            println!();
+            println!("{} event(s), next_seq: {}", result["count"], result["next_seq"]);
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Event poll failed: {}", e);
+        }
+    }
+}
+
+async fn cmd_emit(target: &str, topic: &str, payload_str: &str) -> Result<()> {
+    let payload: serde_json::Value =
+        serde_json::from_str(payload_str).context("Invalid JSON payload")?;
+
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let resp = client::rpc_call(
+        &reg.socket,
+        "event.emit",
+        serde_json::json!({ "topic": topic, "payload": payload }),
+    )
+    .await
+    .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            println!(
+                "Event emitted: {} (seq: {})",
+                result["topic"].as_str().unwrap_or("?"),
+                result["seq"].as_u64().unwrap_or(0),
+            );
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Event emit failed: {}", e);
+        }
+    }
 }
 
 async fn cmd_resize(target: &str, cols: u16, rows: u16) -> Result<()> {

@@ -13,6 +13,9 @@ pub mod method {
     pub const QUERY_STATUS: &str = "query.status";
     pub const QUERY_OUTPUT: &str = "query.output";
     pub const QUERY_CAPABILITIES: &str = "query.capabilities";
+    pub const EVENT_EMIT: &str = "event.emit";
+    pub const EVENT_POLL: &str = "event.poll";
+    pub const EVENT_TOPICS: &str = "event.topics";
     pub const EVENT_STATE_CHANGE: &str = "event.state_change";
     pub const EVENT_ERROR: &str = "event.error";
 }

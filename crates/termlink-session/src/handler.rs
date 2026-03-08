@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 use termlink_protocol::control::{self, KeyEntry};
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, Response, RpcResponse};
 
+use crate::events::EventBus;
 use crate::executor;
 use crate::pty::PtySession;
 use crate::registration::Registration;
@@ -20,6 +21,8 @@ pub struct SessionContext {
     pub scrollback: Option<Arc<Mutex<ScrollbackBuffer>>>,
     /// PTY session for input injection (None for non-PTY sessions).
     pub pty: Option<Arc<PtySession>>,
+    /// Event bus for structured cross-session messaging.
+    pub events: Arc<Mutex<EventBus>>,
 }
 
 impl SessionContext {
@@ -29,6 +32,7 @@ impl SessionContext {
             registration,
             scrollback: None,
             pty: None,
+            events: Arc::new(Mutex::new(EventBus::new())),
         }
     }
 
@@ -42,6 +46,7 @@ impl SessionContext {
             registration,
             scrollback,
             pty: Some(pty),
+            events: Arc::new(Mutex::new(EventBus::new())),
         }
     }
 }
@@ -77,6 +82,9 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         control::method::COMMAND_RESIZE => {
             handle_command_resize(id, &req.params, ctx)
         }
+        control::method::EVENT_EMIT => handle_event_emit(id, &req.params, ctx).await,
+        control::method::EVENT_POLL => handle_event_poll(id, &req.params, ctx).await,
+        control::method::EVENT_TOPICS => handle_event_topics(id, ctx).await,
         _ => ErrorResponse::method_not_found(id, &req.method).into(),
     };
 
@@ -367,6 +375,119 @@ fn handle_command_signal(
     }
 }
 
+async fn handle_event_emit(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &SessionContext,
+) -> RpcResponse {
+    let topic = match params
+        .get("topic")
+        .and_then(|t| t.as_str())
+    {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => {
+            return ErrorResponse::new(
+                id,
+                termlink_protocol::jsonrpc::standard_error::INVALID_PARAMS,
+                "Missing required param: topic (non-empty string)",
+            )
+            .into();
+        }
+    };
+
+    let payload = params
+        .get("payload")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+
+    let mut bus = ctx.events.lock().await;
+    let seq = bus.emit(topic.clone(), payload);
+
+    Response::success(
+        id,
+        json!({
+            "status": "emitted",
+            "seq": seq,
+            "topic": topic,
+        }),
+    )
+    .into()
+}
+
+async fn handle_event_poll(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &SessionContext,
+) -> RpcResponse {
+    // If "since" is not provided, return all events.
+    // If provided, return events with seq > since.
+    let since_param = params
+        .get("since")
+        .and_then(|s| s.as_u64());
+
+    let topic_filter = params
+        .get("topic")
+        .and_then(|t| t.as_str());
+
+    let bus = ctx.events.lock().await;
+
+    // Use a sentinel below any valid seq to mean "all events"
+    let since_seq = since_param.unwrap_or(u64::MAX);
+
+    let events: Vec<&crate::events::Event> = if since_seq == u64::MAX {
+        // No since param — return everything, optionally filtered by topic
+        if let Some(topic) = topic_filter {
+            bus.all_by_topic(topic)
+        } else {
+            bus.all()
+        }
+    } else if let Some(topic) = topic_filter {
+        bus.poll_topic(topic, since_seq)
+    } else {
+        bus.poll(since_seq)
+    };
+
+    let events_json: Vec<serde_json::Value> = events
+        .iter()
+        .map(|e| {
+            json!({
+                "seq": e.seq,
+                "topic": e.topic,
+                "payload": e.payload,
+                "timestamp": e.timestamp,
+            })
+        })
+        .collect();
+
+    Response::success(
+        id,
+        json!({
+            "events": events_json,
+            "count": events_json.len(),
+            "next_seq": bus.next_seq(),
+        }),
+    )
+    .into()
+}
+
+async fn handle_event_topics(
+    id: serde_json::Value,
+    ctx: &SessionContext,
+) -> RpcResponse {
+    let bus = ctx.events.lock().await;
+    let topics = bus.topics();
+
+    Response::success(
+        id,
+        json!({
+            "topics": topics,
+            "event_count": bus.len(),
+            "next_seq": bus.next_seq(),
+        }),
+    )
+    .into()
+}
+
 fn handle_command_resize(
     id: serde_json::Value,
     params: &serde_json::Value,
@@ -459,6 +580,7 @@ mod tests {
             registration: reg,
             scrollback: Some(Arc::new(Mutex::new(sb))),
             pty: None,
+            events: Arc::new(Mutex::new(EventBus::new())),
         }
     }
 
@@ -709,6 +831,122 @@ mod tests {
             assert_eq!(err.error.code, standard_error::INVALID_PARAMS);
         } else {
             panic!("Expected error for missing rows");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_emit_and_poll() {
+        let ctx = test_ctx();
+
+        // Emit an event
+        let req = Request::new("event.emit", json!("ev-1"), json!({
+            "topic": "build.start",
+            "payload": {"project": "termlink"}
+        }));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["status"], "emitted");
+            assert_eq!(resp.result["seq"], 0);
+            assert_eq!(resp.result["topic"], "build.start");
+        } else {
+            panic!("Expected success for event.emit");
+        }
+
+        // Emit another
+        let req = Request::new("event.emit", json!("ev-2"), json!({
+            "topic": "test.pass",
+            "payload": {"name": "unit_test"}
+        }));
+        dispatch(&req, &ctx).await.unwrap();
+
+        // Poll all events
+        let req = Request::new("event.poll", json!("ep-1"), json!({}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["count"], 2);
+            let events = resp.result["events"].as_array().unwrap();
+            assert_eq!(events[0]["topic"], "build.start");
+            assert_eq!(events[1]["topic"], "test.pass");
+            assert_eq!(resp.result["next_seq"], 2);
+        } else {
+            panic!("Expected success for event.poll");
+        }
+
+        // Poll since seq 0 (should only get seq 1)
+        let req = Request::new("event.poll", json!("ep-2"), json!({"since": 0}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["count"], 1);
+            let events = resp.result["events"].as_array().unwrap();
+            assert_eq!(events[0]["topic"], "test.pass");
+        } else {
+            panic!("Expected success");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_emit_missing_topic() {
+        let ctx = test_ctx();
+        let req = Request::new("event.emit", json!("ev-err"), json!({"payload": {}}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Error(err) = resp {
+            assert_eq!(err.error.code, standard_error::INVALID_PARAMS);
+        } else {
+            panic!("Expected error for missing topic");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_topics_lists_distinct() {
+        let ctx = test_ctx();
+
+        // Emit events on different topics
+        for topic in &["build.start", "test.pass", "build.done", "test.pass"] {
+            let req = Request::new("event.emit", json!("t"), json!({"topic": topic}));
+            dispatch(&req, &ctx).await.unwrap();
+        }
+
+        let req = Request::new("event.topics", json!("et-1"), json!({}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            let topics = resp.result["topics"].as_array().unwrap();
+            let topic_strs: Vec<&str> = topics.iter().filter_map(|t| t.as_str()).collect();
+            assert!(topic_strs.contains(&"build.start"));
+            assert!(topic_strs.contains(&"build.done"));
+            assert!(topic_strs.contains(&"test.pass"));
+            assert_eq!(topics.len(), 3); // distinct
+            assert_eq!(resp.result["event_count"], 4);
+        } else {
+            panic!("Expected success for event.topics");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_poll_by_topic() {
+        let ctx = test_ctx();
+
+        let req = Request::new("event.emit", json!("t"), json!({"topic": "a"}));
+        dispatch(&req, &ctx).await.unwrap();
+        let req = Request::new("event.emit", json!("t"), json!({"topic": "b"}));
+        dispatch(&req, &ctx).await.unwrap();
+        let req = Request::new("event.emit", json!("t"), json!({"topic": "a"}));
+        dispatch(&req, &ctx).await.unwrap();
+
+        // Poll only topic "a"
+        let req = Request::new("event.poll", json!("tp"), json!({"topic": "a"}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["count"], 2);
+            let events = resp.result["events"].as_array().unwrap();
+            assert!(events.iter().all(|e| e["topic"] == "a"));
+        } else {
+            panic!("Expected success");
         }
     }
 }

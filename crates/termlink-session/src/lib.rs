@@ -7,6 +7,7 @@ pub mod manager;
 pub mod client;
 pub mod codec;
 pub mod data_server;
+pub mod events;
 pub mod executor;
 pub mod handler;
 pub mod pty;
