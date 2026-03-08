@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/termlink-protocol",
+    "crates/termlink-session",
+    "crates/termlink-hub",
+    "crates/termlink-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/dimidev32/termlink"
+description = "Cross-terminal session communication — message bus with terminal endpoints"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Unique IDs (ULID)
+ulid = "1"
+
+# Byte handling
+bytes = "1"
+
+# Bit flags
+bitflags = "2"
+
+# Platform
+libc = "0.2"
+
+# Internal crates
+termlink-protocol = { path = "crates/termlink-protocol" }
+termlink-session = { path = "crates/termlink-session" }
+termlink-hub = { path = "crates/termlink-hub" }

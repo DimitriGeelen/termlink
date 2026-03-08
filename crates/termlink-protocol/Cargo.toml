@@ -1,0 +1,13 @@
+[package]
+name = "termlink-protocol"
+description = "TermLink wire protocol — control plane (JSON-RPC 2.0) and data plane (binary frames)"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+bytes = { workspace = true }
+ulid = { workspace = true }
+bitflags = { workspace = true }

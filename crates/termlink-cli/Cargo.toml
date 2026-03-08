@@ -1,0 +1,14 @@
+[package]
+name = "termlink"
+description = "TermLink CLI — cross-terminal session communication"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+termlink-protocol = { workspace = true }
+termlink-session = { workspace = true }
+termlink-hub = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

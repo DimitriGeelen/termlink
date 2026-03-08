@@ -1,0 +1,14 @@
+[package]
+name = "termlink-session"
+description = "TermLink session identity, discovery, registration, and lifecycle"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+termlink-protocol = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+libc = { workspace = true }
