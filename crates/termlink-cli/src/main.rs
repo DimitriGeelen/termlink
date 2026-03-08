@@ -90,6 +90,9 @@ enum Command {
 
     /// Discover all sessions (via hub discovery protocol)
     Discover,
+
+    /// Start the hub server (routes requests between sessions)
+    Hub,
 }
 
 #[tokio::main]
@@ -113,6 +116,7 @@ async fn main() -> Result<()> {
             cmd_exec(&target, &command, cwd.as_deref(), timeout).await
         }
         Command::Discover => cmd_discover(),
+        Command::Hub => cmd_hub().await,
     }
 }
 
@@ -381,6 +385,30 @@ fn cmd_discover() -> Result<()> {
 
     println!();
     println!("{} session(s) discovered", sessions.len());
+    Ok(())
+}
+
+async fn cmd_hub() -> Result<()> {
+    let socket_path = termlink_hub::server::hub_socket_path();
+
+    println!("Starting hub server...");
+    println!("  Socket: {}", socket_path.display());
+    println!();
+    println!("Listening for connections... (Ctrl+C to stop)");
+
+    let socket_clone = socket_path.clone();
+    tokio::select! {
+        result = termlink_hub::server::run(&socket_path) => {
+            result.context("Hub server error")?;
+        }
+        _ = tokio::signal::ctrl_c() => {
+            println!();
+            println!("Shutting down hub...");
+            let _ = std::fs::remove_file(&socket_clone);
+            println!("Hub stopped.");
+        }
+    }
+
     Ok(())
 }
 

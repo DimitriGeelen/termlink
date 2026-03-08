@@ -80,8 +80,12 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
         }
     };
 
-    // Forward the request via the target's socket
-    match client::rpc_call(&reg.socket, &req.method, req.params.clone()).await {
+    // Forward the request via the target's socket, preserving the original request id
+    let forward_result = async {
+        let mut c = client::Client::connect(&reg.socket).await?;
+        c.call(&req.method, id.clone(), req.params.clone()).await
+    };
+    match forward_result.await {
         Ok(resp) => resp,
         Err(e) => {
             tracing::warn!(
