@@ -4,7 +4,7 @@ name: "Wire query.output handler and command.inject to PTY sessions"
 description: >
   Wire query.output handler and command.inject to PTY sessions
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T18:48:37Z
-last_update: 2026-03-08T18:48:37Z
-date_finished: null
+last_update: 2026-03-08T18:54:58Z
+date_finished: 2026-03-08T18:54:58Z
 ---
 
 # T-023: Wire query.output handler and command.inject to PTY sessions
@@ -42,3 +42,6 @@ PATH="$HOME/.cargo/bin:$PATH" cargo test --workspace
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-023-wire-queryoutput-handler-and-commandinje.md
 - **Context:** Initial task creation
+
+### 2026-03-08T18:54:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
