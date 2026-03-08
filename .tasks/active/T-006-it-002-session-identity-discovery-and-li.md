@@ -4,7 +4,7 @@ name: "IT-002: Session identity, discovery, and lifecycle"
 description: >
   Design how sessions find each other — naming, registration, discovery, liveness
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
 horizon: next
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:34Z
-last_update: 2026-03-08T14:19:34Z
+last_update: 2026-03-08T15:18:46Z
 date_finished: null
 ---
 
@@ -20,43 +20,57 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+How do TermLink sessions find each other, and what happens when they appear/disappear? Without discovery, you need hardcoded addresses. Without lifecycle management, you get stale references and silent delivery failures. This is foundational — the message protocol (T-005) needs addressable endpoints, and every higher-level feature depends on reliable session identity.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-001: Sessions need human-readable names (not just UUIDs) for usability (D3)
+- A-002: Automatic registration on session start is preferable to explicit opt-in
+- A-003: Filesystem-based discovery (XDG_RUNTIME_DIR / /tmp) is sufficient for local operation
+- A-004: Session liveness can be determined by socket connectivity (no heartbeat needed for v1)
+- A-005: Sessions inside containers/SSH need explicit bridge configuration (not auto-discovered)
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Naming scheme** (20 min) — Human-readable names, UUIDs, role-based, composite identifiers. Prior art comparison.
+2. **Registration protocol** (20 min) — Auto vs explicit. What gets registered. Where stored.
+3. **Discovery mechanisms** (25 min) — Filesystem scanning, broker query, mDNS. Compare latency, reliability, complexity.
+4. **Lifecycle state machine** (20 min) — States, transitions, notifications.
+5. **Liveness detection** (15 min) — Socket probe, PID check, heartbeat. Trade-offs.
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- Must work without a running broker (peer-to-peer discovery fallback)
+- Must support macOS and Linux filesystem conventions
+- Session names must be filesystem-safe (used as socket filenames)
+- Discovery must complete in <100ms for interactive use
+- Must handle stale entries (process died but socket file remains)
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** Naming, registration, discovery, lifecycle states, liveness detection, stale entry cleanup.
+**OUT:** Cross-machine discovery (T-011). Security/auth for discovery (T-008). Message routing (T-005).
 
 ## Acceptance Criteria
 
 - [ ] Problem statement validated
 - [ ] Assumptions tested
 - [ ] Go/No-Go decision made
+- [ ] Session lifecycle state machine defined
+- [ ] Discovery protocol designed
+- [ ] Naming scheme decided
+- [ ] Research artifact committed to docs/reports/
 
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Discovery works without mandatory broker infrastructure
+- Lifecycle state machine covers crash, graceful shutdown, network partition
+- Naming scheme satisfies D3 (usable) without sacrificing D2 (reliable, no collisions)
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Discovery requires mandatory infrastructure violating D4 (portability)
+- No reliable stale-entry cleanup mechanism exists
 
 ## Verification
 
@@ -85,3 +99,6 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-08T15:18:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
