@@ -32,7 +32,7 @@ impl SessionId {
     }
 
     /// Create from an existing ID string (validates format).
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         if s.len() == 11
             && s.starts_with("tl-")
             && s[3..].chars().all(|c| BASE32_ALPHABET.contains(&(c as u8)))
@@ -82,14 +82,14 @@ mod tests {
 
     #[test]
     fn from_str_valid() {
-        assert!(SessionId::from_str("tl-abcd2345").is_some());
+        assert!(SessionId::parse("tl-abcd2345").is_some());
     }
 
     #[test]
     fn from_str_invalid() {
-        assert!(SessionId::from_str("bad").is_none());
-        assert!(SessionId::from_str("tl-ABCD2345").is_none()); // uppercase
-        assert!(SessionId::from_str("tl-abcd234").is_none()); // too short
+        assert!(SessionId::parse("bad").is_none());
+        assert!(SessionId::parse("tl-ABCD2345").is_none()); // uppercase
+        assert!(SessionId::parse("tl-abcd234").is_none()); // too short
     }
 
     #[test]
