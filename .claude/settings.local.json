@@ -7,7 +7,19 @@
       "Bash(fw:*)",
       "Bash(git init:*)",
       "Bash(git branch:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(./agents/task-create/create-task.sh:*)",
+      "Bash(mv 010-Ag-Framework-Brew-Test:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(cargo:*)",
+      "Bash(source:*)",
+      "Bash(export:*)",
+      "Bash(PATH=\"$HOME/.cargo/bin:$PATH\" cargo test:*)",
+      "Bash(PATH=\"$HOME/.cargo/bin:$PATH\" cargo clippy:*)",
+      "Bash(git commit:*)",
+      "Bash(PATH=\"$HOME/.cargo/bin:$PATH\" cargo build:*)",
+      "Bash(PATH=\"$HOME/.cargo/bin:$PATH\" cargo run:*)"
     ]
   }
 }

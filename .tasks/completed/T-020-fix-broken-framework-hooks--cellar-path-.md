@@ -4,7 +4,7 @@ name: "Fix broken framework hooks — Cellar path + PROJECT_ROOT"
 description: >
   Fix broken framework hooks — Cellar path + PROJECT_ROOT
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T17:38:49Z
-last_update: 2026-03-08T17:38:49Z
-date_finished: null
+last_update: 2026-03-08T17:39:43Z
+date_finished: 2026-03-08T17:39:43Z
 ---
 
 # T-020: Fix broken framework hooks — Cellar path + PROJECT_ROOT
@@ -27,8 +27,8 @@ date_finished: null
 ### Agent
 - [x] All hook paths use `/usr/local/opt/fw/libexec` (upgrade-proof symlink)
 - [x] PROJECT_ROOT updated to `010-termlink`
-- [ ] All uncommitted task housekeeping committed (T-015–T-019 completions, episodics)
-- [ ] Hooks verified working (no errors on tool use)
+- [x] All uncommitted task housekeeping committed (T-015–T-019 completions, episodics)
+- [x] Hooks verified working (no errors on tool use)
 
 ## Verification
 
@@ -52,3 +52,6 @@ python3 -c "import json; json.load(open('.claude/settings.json'))"
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-020-fix-broken-framework-hooks--cellar-path-.md
 - **Context:** Initial task creation
+
+### 2026-03-08T17:39:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
