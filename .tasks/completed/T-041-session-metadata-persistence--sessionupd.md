@@ -4,7 +4,7 @@ name: "Session metadata persistence — session.update writes changes to disk"
 description: >
   Session metadata persistence — session.update writes changes to disk
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T21:36:58Z
-last_update: 2026-03-08T21:36:58Z
-date_finished: null
+last_update: 2026-03-08T21:40:29Z
+date_finished: 2026-03-08T21:40:29Z
 ---
 
 # T-041: Session metadata persistence — session.update writes changes to disk
@@ -34,7 +34,7 @@ date_finished: null
 ## Verification
 
 /Users/dimidev32/.cargo/bin/cargo test -p termlink-session 2>&1 | tail -1
-/Users/dimidev32/.cargo/bin/cargo test -p termlink-cli 2>&1 | tail -1
+/Users/dimidev32/.cargo/bin/cargo test -p termlink 2>&1 | tail -1
 /Users/dimidev32/.cargo/bin/cargo build 2>&1 | tail -1
 
 ## Decisions
@@ -54,3 +54,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-041-session-metadata-persistence--sessionupd.md
 - **Context:** Initial task creation
+
+### 2026-03-08T21:40:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
