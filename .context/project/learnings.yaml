@@ -1,3 +1,10 @@
 # Project Learnings - Knowledge gained during development
 # Added via: fw context add-learning "description" --task T-XXX
 learnings:
+- id: L-001
+  learning: "Component fabric requires explicit initialization per project — no structural gate catches empty fabric. When starting a new project: create subsystems.yaml, register source files as cards with typed edges (target+type format), and create watch-patterns.yaml. Audit should check for drift."
+  source: P-002
+  task: T-043
+  date: 2026-03-08
+  context: Added via context agent
+  application: TBD

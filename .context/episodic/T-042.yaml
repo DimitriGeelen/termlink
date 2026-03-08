@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-042: CLI discover command — query sessions by tag, role, capability, or name pattern
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-08T21:46:50Z
+# ============================================================================
+
+task_id: T-042
+task_name: "CLI discover command — query sessions by tag, role, capability, or name pattern"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T21:42:50Z
+completed: 2026-03-08T21:46:46Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T22:46:38+01:00
+last_commit: 2026-03-08T22:46:38+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI discover command — filtered session queries by tag, role, cap, name
+
+# Key outcomes
+outcomes:
+  - "`Discover` subcommand added to CLI with `--tag`, `--role`, `--cap`, `--name` filters"
+  - "Filters compose (AND logic — all specified filters must match)"
+  - "Output shows matching sessions in tabular format with TAGS column"
+  - "Hub `session.discover` RPC accepts filter params (tags, roles, capabilities, name)"
+  - "Hub test verifies filtered discover"
+  - "All existing tests pass (98+11 session, 13 hub)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-042-cli-discover-command--query-sessions-by-.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T22:46:38"
+    action: "T-042: CLI discover command — filtered session queries by tag, role, cap, name"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 222
+  lines_removed: 18
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-042-cli-discover-command--query-sessions-by-.md
+generated_by: context-agent-hybrid
