@@ -18,6 +18,8 @@ pub mod method {
     pub const EVENT_TOPICS: &str = "event.topics";
     pub const EVENT_STATE_CHANGE: &str = "event.state_change";
     pub const EVENT_ERROR: &str = "event.error";
+    pub const EVENT_BROADCAST: &str = "event.broadcast";
+    pub const EVENT_COLLECT: &str = "event.collect";
 }
 
 /// TermLink-specific JSON-RPC error codes (in addition to standard -32700..-32603).

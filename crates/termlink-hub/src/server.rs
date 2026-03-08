@@ -107,8 +107,7 @@ mod tests {
     use termlink_session::registration::SessionConfig;
     use termlink_session::server as session_server;
 
-    // Mutex to serialize tests that modify TERMLINK_RUNTIME_DIR
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    use crate::test_util::ENV_LOCK;
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
 

@@ -156,6 +156,20 @@ enum Command {
         topic: Option<String>,
     },
 
+    /// Broadcast an event to multiple sessions via the hub
+    Broadcast {
+        /// Event topic (e.g., "deploy.start", "alert.fire")
+        topic: String,
+
+        /// JSON payload (optional, defaults to {})
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+
+        /// Target specific sessions (omit for all)
+        #[arg(long, value_delimiter = ',')]
+        targets: Vec<String>,
+    },
+
     /// Emit an event to a session's event bus
     Emit {
         /// Session ID or display name
@@ -237,6 +251,9 @@ async fn main() -> Result<()> {
         Command::Signal { target, signal } => cmd_signal(&target, &signal).await,
         Command::Events { target, since, topic } => {
             cmd_events(&target, since, topic.as_deref()).await
+        }
+        Command::Broadcast { topic, payload, targets } => {
+            cmd_broadcast(&topic, &payload, targets).await
         }
         Command::Emit { target, topic, payload } => {
             cmd_emit(&target, &topic, &payload).await
@@ -903,6 +920,51 @@ async fn cmd_emit(target: &str, topic: &str, payload_str: &str) -> Result<()> {
         }
         Err(e) => {
             anyhow::bail!("Event emit failed: {}", e);
+        }
+    }
+}
+
+async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<String>) -> Result<()> {
+    let payload: serde_json::Value =
+        serde_json::from_str(payload_str).context("Invalid JSON payload")?;
+
+    let hub_socket = termlink_hub::server::hub_socket_path();
+    if !hub_socket.exists() {
+        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+    }
+
+    let mut params = serde_json::json!({
+        "topic": topic,
+        "payload": payload,
+    });
+    if !targets.is_empty() {
+        params["targets"] = serde_json::json!(targets);
+    }
+
+    let resp = client::rpc_call(&hub_socket, "event.broadcast", params)
+        .await
+        .context("Failed to connect to hub")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            let targeted = result["targeted"].as_u64().unwrap_or(0);
+            let succeeded = result["succeeded"].as_u64().unwrap_or(0);
+            let failed = result["failed"].as_u64().unwrap_or(0);
+            println!(
+                "Broadcast '{}': {}/{} succeeded{}",
+                result["topic"].as_str().unwrap_or(topic),
+                succeeded,
+                targeted,
+                if failed > 0 {
+                    format!(" ({} failed)", failed)
+                } else {
+                    String::new()
+                },
+            );
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Broadcast failed: {}", e);
         }
     }
 }
