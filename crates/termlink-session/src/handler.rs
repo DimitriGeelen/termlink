@@ -25,6 +25,8 @@ pub struct SessionContext {
     pub pty: Option<Arc<PtySession>>,
     /// Event bus for structured cross-session messaging.
     pub events: Arc<Mutex<EventBus>>,
+    /// Key-value store for session metadata accessible via RPC.
+    pub kv: HashMap<String, serde_json::Value>,
 }
 
 impl SessionContext {
@@ -36,6 +38,7 @@ impl SessionContext {
             scrollback: None,
             pty: None,
             events: Arc::new(Mutex::new(EventBus::new())),
+            kv: HashMap::new(),
         }
     }
 
@@ -51,6 +54,7 @@ impl SessionContext {
             scrollback,
             pty: Some(pty),
             events: Arc::new(Mutex::new(EventBus::new())),
+            kv: HashMap::new(),
         }
     }
 
@@ -75,7 +79,10 @@ impl From<(Registration, std::path::PathBuf)> for SessionContext {
 
 /// Check if a request requires mutable (write) access to session context.
 pub fn needs_write(req: &Request) -> bool {
-    matches!(req.method.as_str(), control::method::SESSION_UPDATE)
+    matches!(
+        req.method.as_str(),
+        control::method::SESSION_UPDATE | control::method::KV_SET | control::method::KV_DELETE
+    )
 }
 
 /// Dispatch a mutable request (requires write lock on session context).
@@ -86,6 +93,8 @@ pub async fn dispatch_mut(req: &Request, ctx: &mut SessionContext) -> Option<Rpc
     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
     let response = match req.method.as_str() {
         control::method::SESSION_UPDATE => handle_session_update(id, &req.params, ctx),
+        control::method::KV_SET => handle_kv_set(id, &req.params, ctx),
+        control::method::KV_DELETE => handle_kv_delete(id, &req.params, ctx),
         _ => {
             // Fall through to immutable dispatch for anything else
             return dispatch(req, ctx).await;
@@ -122,6 +131,8 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         control::method::EVENT_EMIT => handle_event_emit(id, &req.params, ctx).await,
         control::method::EVENT_POLL => handle_event_poll(id, &req.params, ctx).await,
         control::method::EVENT_TOPICS => handle_event_topics(id, ctx).await,
+        control::method::KV_GET => handle_kv_get(id, &req.params, ctx),
+        control::method::KV_LIST => handle_kv_list(id, ctx),
         _ => ErrorResponse::method_not_found(id, &req.method).into(),
     };
 
@@ -605,6 +616,116 @@ async fn handle_event_topics(
     .into()
 }
 
+/// Handle `kv.set` — set a key-value pair in the session's KV store.
+fn handle_kv_set(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &mut SessionContext,
+) -> RpcResponse {
+    let key = match params.get("key").and_then(|k| k.as_str()) {
+        Some(k) => k.to_string(),
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing required field: key").into();
+        }
+    };
+
+    let value = match params.get("value") {
+        Some(v) => v.clone(),
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing required field: value").into();
+        }
+    };
+
+    let replaced = ctx.kv.insert(key.clone(), value).is_some();
+
+    Response::success(
+        id,
+        json!({
+            "key": key,
+            "replaced": replaced,
+        }),
+    )
+    .into()
+}
+
+/// Handle `kv.get` — get a value by key from the session's KV store.
+fn handle_kv_get(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &SessionContext,
+) -> RpcResponse {
+    let key = match params.get("key").and_then(|k| k.as_str()) {
+        Some(k) => k,
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing required field: key").into();
+        }
+    };
+
+    match ctx.kv.get(key) {
+        Some(value) => Response::success(
+            id,
+            json!({
+                "key": key,
+                "value": value,
+                "found": true,
+            }),
+        )
+        .into(),
+        None => Response::success(
+            id,
+            json!({
+                "key": key,
+                "value": null,
+                "found": false,
+            }),
+        )
+        .into(),
+    }
+}
+
+/// Handle `kv.list` — list all keys in the session's KV store.
+fn handle_kv_list(id: serde_json::Value, ctx: &SessionContext) -> RpcResponse {
+    let entries: Vec<serde_json::Value> = ctx
+        .kv
+        .iter()
+        .map(|(k, v)| json!({ "key": k, "value": v }))
+        .collect();
+
+    Response::success(
+        id,
+        json!({
+            "entries": entries,
+            "count": entries.len(),
+        }),
+    )
+    .into()
+}
+
+/// Handle `kv.delete` — delete a key from the session's KV store.
+fn handle_kv_delete(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &mut SessionContext,
+) -> RpcResponse {
+    let key = match params.get("key").and_then(|k| k.as_str()) {
+        Some(k) => k.to_string(),
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing required field: key").into();
+        }
+    };
+
+    let deleted = ctx.kv.remove(&key).is_some();
+
+    Response::success(
+        id,
+        json!({
+            "key": key,
+            "deleted": deleted,
+        }),
+    )
+    .into()
+}
+
 fn handle_command_resize(
     id: serde_json::Value,
     params: &serde_json::Value,
@@ -700,6 +821,7 @@ mod tests {
             scrollback: Some(Arc::new(Mutex::new(sb))),
             pty: None,
             events: Arc::new(Mutex::new(EventBus::new())),
+            kv: HashMap::new(),
         }
     }
 
@@ -1170,5 +1292,87 @@ mod tests {
             panic!("Expected success");
         }
         assert_eq!(ctx.registration.display_name, "new-name");
+    }
+
+    #[tokio::test]
+    async fn kv_set_get_list_delete() {
+        let mut ctx = test_ctx();
+
+        // Set a key
+        let req = Request::new("kv.set", json!("kv-1"), json!({"key": "color", "value": "blue"}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["key"], "color");
+            assert!(!r.result["replaced"].as_bool().unwrap());
+        } else {
+            panic!("Expected success for kv.set");
+        }
+
+        // Get the key
+        let req = Request::new("kv.get", json!("kv-2"), json!({"key": "color"}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["value"], "blue");
+            assert!(r.result["found"].as_bool().unwrap());
+        } else {
+            panic!("Expected success for kv.get");
+        }
+
+        // Get missing key
+        let req = Request::new("kv.get", json!("kv-3"), json!({"key": "missing"}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert!(!r.result["found"].as_bool().unwrap());
+        } else {
+            panic!("Expected success for kv.get (missing)");
+        }
+
+        // Set another key and list
+        let req = Request::new("kv.set", json!("kv-4"), json!({"key": "size", "value": 42}));
+        dispatch_mut(&req, &mut ctx).await.unwrap();
+
+        let req = Request::new("kv.list", json!("kv-5"), json!({}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["count"], 2);
+        } else {
+            panic!("Expected success for kv.list");
+        }
+
+        // Replace existing key
+        let req = Request::new("kv.set", json!("kv-6"), json!({"key": "color", "value": "red"}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert!(r.result["replaced"].as_bool().unwrap());
+        } else {
+            panic!("Expected success for kv.set (replace)");
+        }
+
+        // Delete
+        let req = Request::new("kv.delete", json!("kv-7"), json!({"key": "color"}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert!(r.result["deleted"].as_bool().unwrap());
+        } else {
+            panic!("Expected success for kv.delete");
+        }
+
+        // Delete non-existent
+        let req = Request::new("kv.delete", json!("kv-8"), json!({"key": "color"}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert!(!r.result["deleted"].as_bool().unwrap());
+        } else {
+            panic!("Expected success for kv.delete (not found)");
+        }
+
+        // List should now have 1 entry
+        let req = Request::new("kv.list", json!("kv-9"), json!({}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["count"], 1);
+        } else {
+            panic!("Expected success for kv.list");
+        }
     }
 }

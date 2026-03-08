@@ -257,6 +257,15 @@ enum Command {
         name: Option<String>,
     },
 
+    /// Manage key-value metadata on a session
+    Kv {
+        /// Session ID or display name
+        target: String,
+
+        #[command(subcommand)]
+        action: KvAction,
+    },
+
     /// Show TermLink runtime information and system status
     Info,
 
@@ -333,6 +342,29 @@ enum Command {
     Hub,
 }
 
+#[derive(Subcommand)]
+enum KvAction {
+    /// Set a key-value pair
+    Set {
+        /// Key name
+        key: String,
+        /// Value (JSON string, number, bool, object, or array)
+        value: String,
+    },
+    /// Get a value by key
+    Get {
+        /// Key name
+        key: String,
+    },
+    /// List all key-value pairs
+    List,
+    /// Delete a key
+    Del {
+        /// Key name
+        key: String,
+    },
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -381,6 +413,7 @@ async fn main() -> Result<()> {
         Command::Discover { tag, role, cap, name } => {
             cmd_discover(tag, role, cap, name)
         }
+        Command::Kv { target, action } => cmd_kv(&target, action).await,
         Command::Info => cmd_info(),
         Command::Topics { target } => cmd_topics(target.as_deref()).await,
         Command::Collect { targets, topic, interval, count } => {
@@ -1572,6 +1605,113 @@ async fn cmd_watch(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    match action {
+        KvAction::Set { key, value } => {
+            // Try to parse value as JSON; if that fails, treat as string
+            let json_value: serde_json::Value = serde_json::from_str(&value)
+                .unwrap_or_else(|_| serde_json::Value::String(value));
+
+            let resp = client::rpc_call(
+                &reg.socket,
+                "kv.set",
+                serde_json::json!({"key": key, "value": json_value}),
+            )
+            .await
+            .context("Failed to connect to session")?;
+
+            match client::unwrap_result(resp) {
+                Ok(result) => {
+                    let replaced = result["replaced"].as_bool().unwrap_or(false);
+                    println!(
+                        "{} {}={}",
+                        if replaced { "Updated" } else { "Set" },
+                        result["key"].as_str().unwrap_or("?"),
+                        serde_json::to_string(&json_value)?,
+                    );
+                }
+                Err(e) => anyhow::bail!("kv.set failed: {}", e),
+            }
+        }
+        KvAction::Get { key } => {
+            let resp = client::rpc_call(
+                &reg.socket,
+                "kv.get",
+                serde_json::json!({"key": key}),
+            )
+            .await
+            .context("Failed to connect to session")?;
+
+            match client::unwrap_result(resp) {
+                Ok(result) => {
+                    if result["found"].as_bool().unwrap_or(false) {
+                        println!("{}", serde_json::to_string_pretty(&result["value"])?);
+                    } else {
+                        eprintln!("Key '{}' not found", key);
+                        std::process::exit(1);
+                    }
+                }
+                Err(e) => anyhow::bail!("kv.get failed: {}", e),
+            }
+        }
+        KvAction::List => {
+            let resp = client::rpc_call(
+                &reg.socket,
+                "kv.list",
+                serde_json::json!({}),
+            )
+            .await
+            .context("Failed to connect to session")?;
+
+            match client::unwrap_result(resp) {
+                Ok(result) => {
+                    let entries = result["entries"].as_array();
+                    if let Some(entries) = entries {
+                        if entries.is_empty() {
+                            println!("No key-value pairs.");
+                        } else {
+                            for entry in entries {
+                                let key = entry["key"].as_str().unwrap_or("?");
+                                let value = &entry["value"];
+                                println!("{}={}", key, serde_json::to_string(value)?);
+                            }
+                            println!();
+                            println!("{} pair(s)", result["count"]);
+                        }
+                    }
+                }
+                Err(e) => anyhow::bail!("kv.list failed: {}", e),
+            }
+        }
+        KvAction::Del { key } => {
+            let resp = client::rpc_call(
+                &reg.socket,
+                "kv.delete",
+                serde_json::json!({"key": key}),
+            )
+            .await
+            .context("Failed to connect to session")?;
+
+            match client::unwrap_result(resp) {
+                Ok(result) => {
+                    if result["deleted"].as_bool().unwrap_or(false) {
+                        println!("Deleted '{}'", key);
+                    } else {
+                        eprintln!("Key '{}' not found", key);
+                        std::process::exit(1);
+                    }
+                }
+                Err(e) => anyhow::bail!("kv.delete failed: {}", e),
             }
         }
     }

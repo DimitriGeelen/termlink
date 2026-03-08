@@ -21,6 +21,10 @@ pub mod method {
     pub const EVENT_ERROR: &str = "event.error";
     pub const EVENT_BROADCAST: &str = "event.broadcast";
     pub const EVENT_COLLECT: &str = "event.collect";
+    pub const KV_SET: &str = "kv.set";
+    pub const KV_GET: &str = "kv.get";
+    pub const KV_LIST: &str = "kv.list";
+    pub const KV_DELETE: &str = "kv.delete";
 }
 
 /// TermLink-specific JSON-RPC error codes (in addition to standard -32700..-32603).
