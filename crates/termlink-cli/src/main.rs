@@ -5,12 +5,15 @@ use clap::{Parser, Subcommand};
 use tokio::sync::RwLock;
 
 use termlink_session::client;
+use termlink_session::codec::{FrameReader, FrameWriter};
 use termlink_session::data_server;
 use termlink_session::handler::SessionContext;
 use termlink_session::manager;
 use termlink_session::pty::PtySession;
 use termlink_session::registration::SessionConfig;
 use termlink_session::server;
+
+use termlink_protocol::data::{FrameFlags, FrameType};
 
 #[derive(Parser)]
 #[command(
@@ -139,6 +142,12 @@ enum Command {
         signal: String,
     },
 
+    /// Stream a PTY session via data plane (real-time binary frames, zero polling)
+    Stream {
+        /// Session ID or display name
+        target: String,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 
@@ -172,6 +181,7 @@ async fn main() -> Result<()> {
         }
         Command::Attach { target, poll_ms } => cmd_attach(&target, poll_ms).await,
         Command::Signal { target, signal } => cmd_signal(&target, &signal).await,
+        Command::Stream { target } => cmd_stream(&target).await,
         Command::Discover => cmd_discover(),
         Command::Hub => cmd_hub().await,
     }
@@ -728,6 +738,141 @@ async fn attach_loop(
                         eprintln!("\r\nConnection lost.");
                         break;
                     }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn cmd_stream(target: &str) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    // Connect to the data socket
+    let data_socket = data_server::data_socket_path(&reg.socket);
+    if !data_socket.exists() {
+        anyhow::bail!(
+            "No data plane for '{}'. Start with --shell to enable data plane.",
+            target
+        );
+    }
+
+    let stream = tokio::net::UnixStream::connect(&data_socket)
+        .await
+        .context("Failed to connect to data plane")?;
+
+    eprintln!(
+        "Streaming {} ({}) via data plane. Press Ctrl+] to detach.",
+        reg.display_name, reg.id
+    );
+    eprintln!();
+
+    // Put terminal in raw mode
+    let stdin_fd = libc::STDIN_FILENO;
+    let orig_termios = unsafe {
+        let mut t = std::mem::zeroed::<libc::termios>();
+        if libc::tcgetattr(stdin_fd, &mut t) != 0 {
+            anyhow::bail!("Failed to get terminal attributes");
+        }
+        t
+    };
+
+    let mut raw = orig_termios;
+    unsafe { libc::cfmakeraw(&mut raw) };
+    unsafe {
+        if libc::tcsetattr(stdin_fd, libc::TCSANOW, &raw) != 0 {
+            anyhow::bail!("Failed to set raw mode");
+        }
+    }
+
+    let result = stream_loop(stream).await;
+
+    // Restore terminal
+    unsafe {
+        libc::tcsetattr(stdin_fd, libc::TCSANOW, &orig_termios);
+    }
+
+    eprintln!();
+    eprintln!("Detached.");
+
+    result
+}
+
+/// Real-time data plane streaming loop.
+async fn stream_loop(stream: tokio::net::UnixStream) -> Result<()> {
+    use tokio::io::AsyncReadExt;
+
+    let (read_half, write_half) = tokio::io::split(stream);
+    let mut reader = FrameReader::new(read_half);
+    let mut writer = FrameWriter::new(write_half);
+
+    let mut stdin = tokio::io::stdin();
+    let mut stdin_buf = [0u8; 256];
+
+    loop {
+        tokio::select! {
+            // Read Output frames from data plane
+            frame = reader.read_frame() => {
+                match frame {
+                    Ok(Some(frame)) => {
+                        match frame.header.frame_type {
+                            FrameType::Output => {
+                                let stdout = std::io::stdout();
+                                let mut out = stdout.lock();
+                                std::io::Write::write_all(&mut out, &frame.payload)?;
+                                std::io::Write::flush(&mut out)?;
+                            }
+                            FrameType::Pong => {
+                                // Keepalive response — ignore
+                            }
+                            FrameType::Close => {
+                                eprintln!("\r\nSession closed connection.");
+                                break;
+                            }
+                            _ => {}
+                        }
+                    }
+                    Ok(None) => {
+                        eprintln!("\r\nData plane disconnected.");
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("\r\nData plane error: {e}");
+                        break;
+                    }
+                }
+            }
+
+            // Read stdin and send as Input frames
+            n = stdin.read(&mut stdin_buf) => {
+                let n = n.context("stdin read error")?;
+                if n == 0 {
+                    break;
+                }
+
+                // Check for detach key: Ctrl+] (0x1d)
+                if stdin_buf[..n].contains(&0x1d) {
+                    // Send Close frame before detaching
+                    let _ = writer.write_frame(
+                        FrameType::Close,
+                        FrameFlags::empty(),
+                        0,
+                        &[],
+                    ).await;
+                    break;
+                }
+
+                // Send as Input frame
+                if let Err(e) = writer.write_frame(
+                    FrameType::Input,
+                    FrameFlags::empty(),
+                    0,
+                    &stdin_buf[..n],
+                ).await {
+                    eprintln!("\r\nData plane write error: {e}");
+                    break;
                 }
             }
         }
