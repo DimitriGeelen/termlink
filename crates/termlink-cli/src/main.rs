@@ -65,6 +65,23 @@ enum Command {
         params: String,
     },
 
+    /// Execute a shell command on a target session
+    Exec {
+        /// Session ID or display name
+        target: String,
+
+        /// Shell command to execute
+        command: String,
+
+        /// Working directory (optional)
+        #[arg(long)]
+        cwd: Option<String>,
+
+        /// Timeout in seconds (default: 30)
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+    },
+
     /// Discover all sessions (via hub discovery protocol)
     Discover,
 }
@@ -86,6 +103,9 @@ async fn main() -> Result<()> {
         Command::Ping { target } => cmd_ping(&target).await,
         Command::Status { target } => cmd_status(&target).await,
         Command::Send { target, method, params } => cmd_send(&target, &method, &params).await,
+        Command::Exec { target, command, cwd, timeout } => {
+            cmd_exec(&target, &command, cwd.as_deref(), timeout).await
+        }
         Command::Discover => cmd_discover(),
     }
 }
@@ -218,6 +238,46 @@ async fn cmd_status(target: &str) -> Result<()> {
         }
         Err(e) => {
             anyhow::bail!("Status query failed: {}", e);
+        }
+    }
+}
+
+async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, timeout: u64) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let mut params = serde_json::json!({
+        "command": command,
+        "timeout": timeout,
+    });
+    if let Some(dir) = cwd {
+        params["cwd"] = serde_json::json!(dir);
+    }
+
+    let resp = client::rpc_call(&reg.socket, "command.execute", params)
+        .await
+        .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            let exit_code = result["exit_code"].as_i64().unwrap_or(-1);
+            let stdout = result["stdout"].as_str().unwrap_or("");
+            let stderr = result["stderr"].as_str().unwrap_or("");
+
+            if !stdout.is_empty() {
+                print!("{stdout}");
+            }
+            if !stderr.is_empty() {
+                eprint!("{stderr}");
+            }
+
+            if exit_code != 0 {
+                std::process::exit(exit_code as i32);
+            }
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Execution failed: {}", e);
         }
     }
 }

@@ -30,7 +30,7 @@ pub async fn handle_connection(stream: UnixStream, registration: SharedRegistrat
         let response = match serde_json::from_str::<Request>(&line) {
             Ok(req) => {
                 let reg = registration.read().await;
-                handler::dispatch(&req, &reg)
+                handler::dispatch(&req, &reg).await
             }
             Err(e) => {
                 tracing::warn!(error = %e, "Failed to parse JSON-RPC request");
