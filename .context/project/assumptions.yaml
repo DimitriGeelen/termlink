@@ -1,0 +1,4 @@
+# Project Assumptions - Tracked via inception workflow
+# Added via: fw assumption add "description" --task T-XXX
+# Validated via: fw assumption validate A-XXX --evidence "..."
+assumptions: []

@@ -1,0 +1,3 @@
+# Git hook bypass log
+# Entries auto-added by post-commit hook when --no-verify is detected
+bypasses: []

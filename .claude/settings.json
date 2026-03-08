@@ -1,0 +1,102 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test /usr/local/Cellar/fw/1.1.0/libexec/agents/context/pre-compact.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test /usr/local/Cellar/fw/1.1.0/libexec/agents/context/post-compact-resume.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test /usr/local/Cellar/fw/1.1.0/libexec/agents/context/post-compact-resume.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "EnterPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/Cellar/fw/1.1.0/libexec/agents/context/block-plan-mode.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test /usr/local/Cellar/fw/1.1.0/libexec/agents/context/check-active-task.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test /usr/local/Cellar/fw/1.1.0/libexec/agents/context/check-tier0.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test /usr/local/Cellar/fw/1.1.0/libexec/agents/context/budget-gate.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT_ROOT=/Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test /usr/local/Cellar/fw/1.1.0/libexec/agents/context/checkpoint.sh post-tool"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/Cellar/fw/1.1.0/libexec/agents/context/error-watchdog.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Task|TaskOutput",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/Cellar/fw/1.1.0/libexec/agents/context/check-dispatch.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
