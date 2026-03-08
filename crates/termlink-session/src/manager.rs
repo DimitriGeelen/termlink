@@ -250,6 +250,61 @@ pub fn find_by_role(role: &str) -> Result<Vec<Registration>, SessionError> {
         .collect())
 }
 
+/// A stale session that was found during cleanup.
+#[derive(Debug, Clone)]
+pub struct StaleSession {
+    pub id: String,
+    pub display_name: String,
+    pub pid: u32,
+    pub created_at: String,
+}
+
+/// Scan for stale sessions and optionally remove them.
+///
+/// Returns the list of stale sessions found. If `remove` is true,
+/// their registration artifacts (socket + JSON files) are deleted.
+pub fn clean_stale_sessions(
+    sessions_dir: &Path,
+    remove: bool,
+) -> Result<Vec<StaleSession>, SessionError> {
+    if !sessions_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut stale = Vec::new();
+
+    for entry in std::fs::read_dir(sessions_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+
+        let reg = match Registration::read_from(&path) {
+            Ok(reg) => reg,
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "Failed to read registration");
+                continue;
+            }
+        };
+
+        if !liveness::is_alive(&reg) {
+            stale.push(StaleSession {
+                id: reg.id.to_string(),
+                display_name: reg.display_name.clone(),
+                pid: reg.pid,
+                created_at: reg.created_at.clone(),
+            });
+            if remove {
+                liveness::cleanup_stale(&reg, sessions_dir);
+            }
+        }
+    }
+
+    Ok(stale)
+}
+
 /// Find a session by display name in a specific directory.
 fn find_by_display_name(
     sessions_dir: &Path,
@@ -399,5 +454,39 @@ mod tests {
         assert!(matches!(result, Err(SessionError::NameConflict(_, _))));
 
         s1.deregister().unwrap();
+    }
+
+    #[test]
+    fn clean_stale_sessions_dry_run() {
+        let dir = unique_test_dir("clean-dry");
+
+        // Create a fake stale registration (dead PID, no socket)
+        let id = crate::identity::SessionId::generate();
+        let socket_path = dir.join(format!("{id}.sock"));
+        let json_path = dir.join(format!("{id}.json"));
+        std::fs::write(&socket_path, b"fake").unwrap();
+
+        let config = SessionConfig::default();
+        let mut reg = Registration::new(id.clone(), config, socket_path.clone());
+        reg.pid = 4_000_000; // dead PID
+        reg.write_atomic(&json_path).unwrap();
+
+        // Dry run: should find but not remove
+        let stale = clean_stale_sessions(&dir, false).unwrap();
+        assert_eq!(stale.len(), 1);
+        assert_eq!(stale[0].id, id.to_string());
+        assert!(json_path.exists(), "dry run should not delete files");
+
+        // Actual run: should remove
+        let stale = clean_stale_sessions(&dir, true).unwrap();
+        assert_eq!(stale.len(), 1);
+        assert!(!json_path.exists(), "should delete JSON file");
+        assert!(!socket_path.exists(), "should delete socket file");
+
+        // Second run: nothing left
+        let stale = clean_stale_sessions(&dir, true).unwrap();
+        assert!(stale.is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

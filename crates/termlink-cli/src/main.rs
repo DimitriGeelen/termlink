@@ -257,6 +257,13 @@ enum Command {
         name: Option<String>,
     },
 
+    /// Remove stale (dead) session registrations from the runtime directory
+    Clean {
+        /// Show what would be removed without actually removing
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Start the hub server (routes requests between sessions)
     Hub,
 }
@@ -309,6 +316,7 @@ async fn main() -> Result<()> {
         Command::Discover { tag, role, cap, name } => {
             cmd_discover(tag, role, cap, name)
         }
+        Command::Clean { dry_run } => cmd_clean(dry_run),
         Command::Hub => cmd_hub().await,
     }
 }
@@ -490,6 +498,39 @@ fn cmd_list(include_stale: bool) -> Result<()> {
 
     println!();
     println!("{} session(s)", sessions.len());
+    Ok(())
+}
+
+fn cmd_clean(dry_run: bool) -> Result<()> {
+    let sessions_dir = termlink_session::discovery::sessions_dir();
+    let stale = manager::clean_stale_sessions(&sessions_dir, !dry_run)
+        .context("Failed to scan for stale sessions")?;
+
+    if stale.is_empty() {
+        println!("No stale sessions found.");
+        return Ok(());
+    }
+
+    let action = if dry_run { "Would remove" } else { "Removed" };
+
+    println!(
+        "{:<14} {:<16} {:<8} CREATED",
+        "ID", "NAME", "PID"
+    );
+    println!("{}", "-".repeat(54));
+
+    for s in &stale {
+        println!(
+            "{:<14} {:<16} {:<8} {}",
+            &s.id[..s.id.len().min(13)],
+            truncate(&s.display_name, 15),
+            s.pid,
+            &s.created_at[..s.created_at.len().min(19)],
+        );
+    }
+
+    println!();
+    println!("{} {} stale session(s).", action, stale.len());
     Ok(())
 }
 
