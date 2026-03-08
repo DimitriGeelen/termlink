@@ -257,6 +257,24 @@ enum Command {
         name: Option<String>,
     },
 
+    /// Wait for a session to emit an event matching a topic, then exit
+    Wait {
+        /// Session ID or display name
+        target: String,
+
+        /// Event topic to wait for (required)
+        #[arg(long)]
+        topic: String,
+
+        /// Timeout in seconds (0 = wait forever, default: 0)
+        #[arg(long, default_value = "0")]
+        timeout: u64,
+
+        /// Poll interval in milliseconds (default: 250)
+        #[arg(long, default_value = "250")]
+        interval: u64,
+    },
+
     /// Remove stale (dead) session registrations from the runtime directory
     Clean {
         /// Show what would be removed without actually removing
@@ -315,6 +333,9 @@ async fn main() -> Result<()> {
         }
         Command::Discover { tag, role, cap, name } => {
             cmd_discover(tag, role, cap, name)
+        }
+        Command::Wait { target, topic, timeout, interval } => {
+            cmd_wait(&target, &topic, timeout, interval).await
         }
         Command::Clean { dry_run } => cmd_clean(dry_run),
         Command::Hub => cmd_hub().await,
@@ -1501,6 +1522,79 @@ async fn cmd_watch(
     }
 
     Ok(())
+}
+
+async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    eprintln!("Waiting for event topic '{}' from {}...", topic, reg.display_name);
+
+    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    let deadline = if timeout_secs > 0 {
+        Some(tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs))
+    } else {
+        None
+    };
+
+    // Start polling from current next_seq so we only see new events
+    let mut cursor: u64 = {
+        let params = serde_json::json!({ "topic": topic, "since": 0 });
+        match client::rpc_call(&reg.socket, "event.poll", params).await {
+            Ok(resp) => {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    result["next_seq"].as_u64().unwrap_or(0)
+                } else {
+                    0
+                }
+            }
+            Err(_) => 0,
+        }
+    };
+
+    loop {
+        if let Some(dl) = deadline {
+            if tokio::time::Instant::now() >= dl {
+                anyhow::bail!("Timeout waiting for event topic '{}'", topic);
+            }
+        }
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                anyhow::bail!("Interrupted");
+            }
+            _ = tokio::time::sleep(poll_interval) => {
+                let params = serde_json::json!({ "since": cursor, "topic": topic });
+                let resp = match client::rpc_call(&reg.socket, "event.poll", params).await {
+                    Ok(r) => r,
+                    Err(_) => {
+                        anyhow::bail!("Session '{}' disconnected while waiting", target);
+                    }
+                };
+
+                if let Ok(result) = client::unwrap_result(resp) {
+                    if let Some(events) = result["events"].as_array() {
+                        if let Some(event) = events.first() {
+                            // Found matching event — print payload and exit
+                            let payload = &event["payload"];
+                            if payload.is_null()
+                                || (payload.is_object()
+                                    && payload.as_object().unwrap().is_empty())
+                            {
+                                println!("{}", topic);
+                            } else {
+                                println!("{}", serde_json::to_string(payload)?);
+                            }
+                            return Ok(());
+                        }
+                    }
+                    if let Some(next) = result["next_seq"].as_u64() {
+                        cursor = next;
+                    }
+                }
+            }
+        }
+    }
 }
 
 async fn cmd_hub() -> Result<()> {
