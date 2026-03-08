@@ -4,7 +4,7 @@ name: "IT-003: Message protocol design"
 description: >
   Design wire format, message types, envelope fields, versioning
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: next
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:33Z
-last_update: 2026-03-08T15:18:06Z
-date_finished: null
+last_update: 2026-03-08T15:27:01Z
+date_finished: 2026-03-08T15:27:01Z
 ---
 
 # T-005: IT-003: Message protocol design
@@ -52,13 +52,13 @@ What is the wire format for TermLink messages? T-003 established a message bus w
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
-- [ ] Message type catalog produced
-- [ ] Envelope format specified
-- [ ] Framing decision made with rationale
-- [ ] Research artifact committed to docs/reports/
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Go/No-Go decision made
+- [x] Message type catalog produced
+- [x] Envelope format specified
+- [x] Framing decision made with rationale
+- [x] Research artifact committed to docs/reports/
 
 ## Go/No-Go Criteria
 
@@ -81,18 +81,18 @@ What is the wire format for TermLink messages? T-003 established a message bus w
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: 14 message types across 5 categories cover all 12 use cases. JSON-RPC 2.0 control plane, 22-byte binary header with magic sync. ULID IDs, symbolic+raw key encoding, capability negotiation versioning. v0.1 spec produced.
+
+**Date**: 2026-03-08T15:27:01Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: 14 message types across 5 categories cover all 12 use cases. JSON-RPC 2.0 control plane, 22-byte binary header with magic sync. ULID IDs, symbolic+raw key encoding, capability negotiation versioning. v0.1 spec produced.
+
+**Date**: 2026-03-08T15:27:01Z
 
 ## Updates
 
@@ -101,3 +101,12 @@ What is the wire format for TermLink messages? T-003 established a message bus w
 
 ### 2026-03-08T15:18:06Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-08T15:27:01Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** 14 message types across 5 categories cover all 12 use cases. JSON-RPC 2.0 control plane, 22-byte binary header with magic sync. ULID IDs, symbolic+raw key encoding, capability negotiation versioning. v0.1 spec produced.
+
+### 2026-03-08T15:27:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

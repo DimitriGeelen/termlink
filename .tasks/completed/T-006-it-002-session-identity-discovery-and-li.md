@@ -4,7 +4,7 @@ name: "IT-002: Session identity, discovery, and lifecycle"
 description: >
   Design how sessions find each other — naming, registration, discovery, liveness
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: next
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:34Z
-last_update: 2026-03-08T15:18:46Z
-date_finished: null
+last_update: 2026-03-08T15:27:04Z
+date_finished: 2026-03-08T15:27:04Z
 ---
 
 # T-006: IT-002: Session identity, discovery, and lifecycle
@@ -53,13 +53,13 @@ How do TermLink sessions find each other, and what happens when they appear/disa
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
-- [ ] Session lifecycle state machine defined
-- [ ] Discovery protocol designed
-- [ ] Naming scheme decided
-- [ ] Research artifact committed to docs/reports/
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Go/No-Go decision made
+- [x] Session lifecycle state machine defined
+- [x] Discovery protocol designed
+- [x] Naming scheme decided
+- [x] Research artifact committed to docs/reports/
 
 ## Go/No-Go Criteria
 
@@ -82,18 +82,18 @@ How do TermLink sessions find each other, and what happens when they appear/disa
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Dual-name identity (D-Bus model: unique tl-random8 + display name). Filesystem-primary discovery with inotify/FSEvents, no broker. 5-state lifecycle, hybrid PID+socket+identity liveness, lazy-first stale cleanup.
+
+**Date**: 2026-03-08T15:27:03Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Dual-name identity (D-Bus model: unique tl-random8 + display name). Filesystem-primary discovery with inotify/FSEvents, no broker. 5-state lifecycle, hybrid PID+socket+identity liveness, lazy-first stale cleanup.
+
+**Date**: 2026-03-08T15:27:03Z
 
 ## Updates
 
@@ -102,3 +102,12 @@ How do TermLink sessions find each other, and what happens when they appear/disa
 
 ### 2026-03-08T15:18:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-08T15:27:03Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Dual-name identity (D-Bus model: unique tl-random8 + display name). Filesystem-primary discovery with inotify/FSEvents, no broker. 5-state lifecycle, hybrid PID+socket+identity liveness, lazy-first stale cleanup.
+
+### 2026-03-08T15:27:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
