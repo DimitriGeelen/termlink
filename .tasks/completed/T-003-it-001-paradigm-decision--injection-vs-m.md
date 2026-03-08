@@ -4,7 +4,7 @@ name: "IT-001: Paradigm decision — injection vs message bus vs hybrid"
 description: >
   IT-001: Paradigm decision — injection vs message bus vs hybrid
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:10:53Z
-last_update: 2026-03-08T14:10:53Z
-date_finished: null
+last_update: 2026-03-08T14:27:12Z
+date_finished: 2026-03-08T14:27:12Z
 ---
 
 # T-003: IT-001: Paradigm decision — injection vs message bus vs hybrid
@@ -44,9 +44,9 @@ date_finished: null
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -68,20 +68,32 @@ date_finished: null
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Three independent research streams converge: 75% of use cases need messaging, prior art (kitty/Zellij/Wezterm) converges on control/data plane separation, MCP maps well as control plane. Paradigm: message bus with injection adapter.
+
+**Date**: 2026-03-08T14:27:12Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Three independent research streams converge: 75% of use cases need messaging, prior art (kitty/Zellij/Wezterm) converges on control/data plane separation, MCP maps well as control plane. Paradigm: message bus with injection adapter.
+
+**Date**: 2026-03-08T14:27:12Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-08T14:26:58Z — status-update [task-update-agent]
+- **Change:** owner: agent → agent
+
+### 2026-03-08T14:27:12Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Three independent research streams converge: 75% of use cases need messaging, prior art (kitty/Zellij/Wezterm) converges on control/data plane separation, MCP maps well as control plane. Paradigm: message bus with injection adapter.
+
+### 2026-03-08T14:27:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
