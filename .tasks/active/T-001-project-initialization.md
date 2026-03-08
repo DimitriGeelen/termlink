@@ -4,16 +4,16 @@ name: "Project initialization"
 description: >
   Project initialization
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T13:57:23Z
-last_update: 2026-03-08T13:57:23Z
-date_finished: null
+last_update: 2026-03-08T13:57:51Z
+date_finished: 2026-03-08T13:57:51Z
 ---
 
 # T-001: Project initialization
@@ -26,8 +26,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Git repo initialized
+- [x] Git hooks installed
+- [x] Enforcement baseline created
+- [x] Initial commit made
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -72,3 +74,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test/.tasks/active/T-001-project-initialization.md
 - **Context:** Initial task creation
+
+### 2026-03-08T13:57:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

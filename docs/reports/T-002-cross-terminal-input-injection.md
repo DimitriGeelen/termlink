@@ -296,6 +296,265 @@ The threat model for cross-terminal input injection:
 
 **osascript is eliminated for core use.** macOS-only violates D4. Acceptable as a platform-specific convenience layer, not as architecture.
 
+## Deep Reflection
+
+### What We Actually Have vs What We Think We Have
+
+We've identified mechanisms and scored them — but we haven't questioned our own framing. The original question was about "passing information between terminal sessions via keyboard input injection." But there's a deeper tension here that the scorecard papers over:
+
+**Are we building input injection or a message bus?**
+
+These are fundamentally different things:
+
+| Aspect | Input Injection | Message Bus |
+|--------|----------------|-------------|
+| Mental model | "Type into another terminal" | "Send a message to another session" |
+| Granularity | Characters/keystrokes | Structured messages |
+| Bidirectional? | One-way (inject only) | Two-way (request/response) |
+| Acknowledgment | None (fire and forget) | Built-in (ack/nack) |
+| Target awareness | Target doesn't know it's receiving | Target is an active participant |
+| State | Stateless | Can be stateful |
+
+The tmux approach blurs this line — `send-keys` is injection, but tmux's session model gives you bus-like properties. The Unix socket approach is inherently a bus. **We need to decide which we're building**, because the architecture diverges significantly.
+
+**The honest answer:** The *interesting* use cases (agent-to-agent coordination, orchestration, distributed operation) all need a message bus. Pure input injection is a parlor trick — cool but limited. The real value is in structured, bidirectional, acknowledged communication that *happens to be able to* inject terminal input as one of its capabilities.
+
+### The Abstraction Inversion Problem
+
+There's a subtle trap in our two-layer architecture. If we build a Unix socket broker and then use tmux as the terminal integration layer, we've created an abstraction inversion:
+
+```
+Our broker (high-level, custom) → tmux (high-level, mature) → PTY (low-level, kernel)
+```
+
+We're wrapping a mature, feature-rich tool (tmux) inside our own less-mature broker. The question is: **should tmux be the broker?** tmux already has:
+- Session naming and discovery
+- Socket-based IPC
+- Multi-client support
+- Scriptable via command mode
+- SSH tunneling
+
+What tmux *doesn't* have:
+- Structured message protocol (it's keystroke-oriented)
+- Cross-machine native federation
+- Message acknowledgment
+- Message routing/pub-sub
+
+This leads to a design fork we must resolve.
+
+### The "Cooperative vs Invasive" Spectrum
+
+Our security analysis treats "cooperative" as a downside (requires opt-in). But from the framework's D1 (antifragility) perspective, cooperative IS the feature:
+
+- **Invasive injection** (TIOCSTI, PTY write): The target doesn't consent. This is powerful but inherently adversarial. It's useful for `expect`-style automation but hostile for agent-to-agent communication.
+- **Cooperative messaging** (pipes, sockets, tmux): Both sides agree to communicate. This enables contracts, protocols, versioning, and graceful degradation.
+
+**For agent-to-agent communication, cooperative is not a limitation — it's a requirement.** You want sessions that explicitly register as participants, declare their capabilities, and handle messages with intention.
+
+### What's Missing: The Hard Problems
+
+The research so far covers *transport* well but hasn't touched:
+
+1. **Session identity** — How does Session A find Session B? By name? By role? By capability?
+2. **Message semantics** — What's in a message? Raw text? JSON? A command with arguments?
+3. **Conversation state** — Is this fire-and-forget or request/response? Can messages be correlated?
+4. **Failure handling** — What happens when a message can't be delivered? Retry? Dead letter? Notify sender?
+5. **Ordering guarantees** — If A sends 3 messages to B, do they arrive in order?
+6. **Concurrency** — Two senders target the same session simultaneously. What happens?
+7. **Backpressure** — Target is busy. Does the sender block? Buffer? Drop?
+8. **The output problem** — We can inject INPUT. How do we capture OUTPUT? The PTY master can read the slave's output, but in the broker model, how does the sender get the result of a command it sent?
+9. **Interactive programs** — What happens when the target is running `vim`, `less`, `python REPL`, or `ssh`? Input injection semantics change completely per program.
+10. **Signals** — Can we send Ctrl+C (SIGINT), Ctrl+Z (SIGTSTP)? These aren't just characters — they trigger kernel signal delivery via the terminal driver's line discipline.
+
+---
+
+## Investigation Topics
+
+Each topic below is a self-contained investigation area. Ordered by dependency — earlier topics inform later ones.
+
+### IT-001: Fundamental Paradigm — Injection vs Message Bus vs Hybrid
+
+**Question:** Are we building terminal input injection, a message bus with terminal endpoints, or a hybrid?
+
+**Why it matters:** Every subsequent design decision depends on this. A message bus needs framing, routing, ack/nack. Injection needs PTY access and keystroke encoding. A hybrid needs a clean interface between the two modes.
+
+**What to investigate:**
+- Survey use cases: which need injection, which need messaging, which need both?
+- Can a message bus degrade gracefully to injection for non-cooperative targets?
+- What does the MCP (Model Context Protocol) do here? It's already a structured message bus for AI agents — could we extend it rather than building a new one?
+- How does this relate to LSP (Language Server Protocol)? Both MCP and LSP are JSON-RPC over stdio — is there a convergence point?
+
+**Expected output:** A paradigm decision document with use-case mapping.
+
+### IT-002: Session Identity, Discovery, and Lifecycle
+
+**Question:** How do sessions find each other, and what happens when they appear/disappear?
+
+**Why it matters:** Without discovery, you need hardcoded addresses. Without lifecycle management, you get stale references and silent delivery failures.
+
+**What to investigate:**
+- **Naming:** Human-readable names? UUIDs? Role-based ("the-coder", "the-tester")?
+- **Registration:** Automatic (session starts → registers) vs explicit (`fw session register --name builder`)?
+- **Discovery:** Local (filesystem: `/tmp/fw-sessions/`), LAN (mDNS/Bonjour), WAN (registry service)?
+- **Liveness:** Heartbeat? Socket liveness check? PID monitoring?
+- **Deregistration:** Automatic on process exit (socket close, PID gone) vs explicit?
+- **How tmux handles this** — tmux's `list-sessions` is already a discovery mechanism. Can we piggyback?
+- **How containers/VMs/SSH change this** — sessions inside Docker, across SSH tunnels, in devcontainers
+
+**Expected output:** Session lifecycle state machine + discovery protocol sketch.
+
+### IT-003: Message Protocol Design
+
+**Question:** What's the wire format? What message types exist? How are messages framed?
+
+**Why it matters:** This is the contract between all participants. Get it wrong and everything downstream suffers.
+
+**What to investigate:**
+- **Framing:** Length-prefixed? Newline-delimited JSON? Protobuf? MessagePack?
+- **Message types:** At minimum: `inject` (raw keystrokes), `command` (structured), `query` (request/response), `event` (notification), `control` (lifecycle)
+- **Envelope fields:** sender, target, message_id, correlation_id, timestamp, type, payload
+- **Encoding:** How to represent special keys (Enter, Ctrl+C, arrow keys) in the injection case?
+- **Versioning:** How does the protocol evolve without breaking existing sessions?
+- **Size limits:** Max message size? Chunking for large payloads?
+- **Relation to MCP:** MCP uses JSON-RPC 2.0. Could our protocol be a MCP transport or tool?
+
+**Expected output:** Protocol specification draft (v0.1).
+
+### IT-004: The Output Capture Problem
+
+**Question:** We can inject input. How do we capture the result?
+
+**Why it matters:** A command without its output is half a conversation. Agent orchestration requires knowing what happened.
+
+**What to investigate:**
+- **PTY master read:** The master side of a PTY receives all output. If we own the PTY (broker-managed), we can read it. But if we're injecting into an existing tmux session, tmux owns the master.
+- **tmux capture-pane:** Captures the visible pane content. Works but lossy — only what's on screen.
+- **tmux pipe-pane:** Streams pane output to a file/pipe. This is the real answer for tmux-based output capture.
+- **Script/typescript:** The `script` command records terminal sessions. Could sessions auto-record?
+- **Command wrapping:** Instead of injecting `ls -la`, inject `ls -la > /tmp/fw-result-$(uuid) 2>&1; echo __DONE__`. Parse the marker.
+- **Shell integration:** A shell function that wraps command execution and reports results to the broker. Like how iTerm2 shell integration tracks command boundaries.
+- **The streaming problem:** Some commands produce continuous output (logs, watches). How to handle?
+
+**Expected output:** Output capture strategy with trade-off matrix.
+
+### IT-005: Concurrency, Ordering, and Backpressure
+
+**Question:** What happens when multiple senders target one session, or one sender blasts many messages?
+
+**Why it matters:** Without concurrency control, you get interleaved commands, garbled output, and race conditions.
+
+**What to investigate:**
+- **Serialization:** Queue messages per target? Mutual exclusion (one sender at a time)?
+- **Ordering:** FIFO per sender? Global order? Causal ordering?
+- **Backpressure:** Block sender? Buffer in broker? Drop with notification?
+- **Priority:** Can urgent messages (Ctrl+C) jump the queue?
+- **The typing race:** User is typing in a terminal. An injection arrives. What happens to the user's partial input?
+- **tmux behavior:** What does tmux do when two clients send-keys simultaneously?
+- **Distributed ordering:** Across machines, global ordering requires consensus (Lamport clocks, vector clocks). How far do we go?
+
+**Expected output:** Concurrency model document.
+
+### IT-006: Security Model — Capability-Based Access
+
+**Question:** Beyond transport-level security, how do we authorize *what* a sender can do to a target?
+
+**Why it matters:** "Can connect to the socket" is not the same as "can run arbitrary commands in my terminal." We need fine-grained authorization.
+
+**What to investigate:**
+- **Capability tokens:** Target issues tokens that grant specific permissions (inject, command, query, control)
+- **Command allowlists:** Target declares what commands it accepts (`["git status", "fw *", "echo *"]`)
+- **Role-based access:** "orchestrator" can send commands, "observer" can only query
+- **Consent prompts:** Target session displays "[Session X wants to run 'rm -rf /'] Allow? [y/n]" — like mobile permission dialogs
+- **Audit logging:** Every cross-session action logged with sender, target, message, timestamp
+- **Revocation:** Can a target revoke a sender's access mid-session?
+- **The Tier 0 connection:** Our framework already has Tier 0 (destructive action approval). Cross-session injection of destructive commands should integrate with this.
+
+**Expected output:** Capability model specification.
+
+### IT-007: Interactive Program Handling
+
+**Question:** What happens when the target is running something other than a shell prompt?
+
+**Why it matters:** A terminal session isn't always at a `$` prompt. It might be in vim, a Python REPL, an SSH session, a `less` pager, or a password prompt. Each has completely different input semantics.
+
+**What to investigate:**
+- **Mode detection:** How to know what the target is running? (`$TERM_PROGRAM`, process tree inspection, shell integration hooks)
+- **Vim/Neovim:** Input means different things in normal mode vs insert mode vs command mode
+- **REPLs:** Python, Node, Ruby REPLs — they read lines, but with their own editing (readline/libedit)
+- **Password prompts:** `sudo`, `ssh` — injecting here is a security minefield
+- **Pagers:** `less`, `more` — single-character commands, not line-oriented
+- **Nested sessions:** `ssh` into remote → tmux on remote → vim inside tmux. How deep does injection go?
+- **Should we even try?** Maybe the answer is: only inject when target is at a known shell prompt. Everything else is out of scope for v1.
+
+**Expected output:** Program compatibility matrix + scope decision.
+
+### IT-008: Distributed Topology and Network Architecture
+
+**Question:** How does this work across machines, containers, and cloud instances?
+
+**Why it matters:** Local Unix sockets don't cross machine boundaries. The distributed story needs its own design.
+
+**What to investigate:**
+- **Broker federation:** Broker A and Broker B connect over TCP/TLS. Messages route across.
+- **NAT traversal:** Machines behind NAT can't accept connections. Need relay or hole-punching.
+- **Container networking:** Docker containers, Kubernetes pods — how do sockets/connections work?
+- **SSH tunneling:** `ssh -L` can forward Unix sockets. tmux over SSH is proven. Is SSH the transport for v1?
+- **Cloud instances:** EC2, GCP VMs — public IPs, security groups, IAM. How does auth work?
+- **Latency tolerance:** Local is <1ms. LAN is 1-10ms. WAN is 50-200ms. At what latency does "input injection" stop making sense?
+- **Partition tolerance:** Machine B goes offline. What happens to queued messages?
+- **Existing solutions:** How do Tailscale, WireGuard, Cloudflare Tunnel change the picture?
+- **MCP over network:** MCP currently runs over stdio. There are proposals for HTTP/SSE transport. Could our distributed layer just be MCP-over-network?
+
+**Expected output:** Network architecture document with deployment topology diagrams.
+
+### IT-009: Relationship to MCP, LSP, and Existing Protocols
+
+**Question:** Are we reinventing the wheel? Can we extend or compose existing protocols?
+
+**Why it matters:** D4 (portability) says prefer standards. If MCP or another protocol already solves 80% of this, we should build on it, not beside it.
+
+**What to investigate:**
+- **MCP (Model Context Protocol):** JSON-RPC over stdio. Designed for AI agent tool use. Already has resources, tools, prompts. Could terminal sessions be MCP resources? Could `inject` be an MCP tool?
+- **LSP (Language Server Protocol):** JSON-RPC over stdio. Similar transport. Different domain but same architectural pattern.
+- **D-Bus:** Linux IPC standard. Session bus + system bus. Has discovery, naming, introspection. Not available on macOS natively.
+- **gRPC:** Structured, typed, bidirectional streaming, built-in auth. Heavy but powerful.
+- **NATS/ZeroMQ:** Lightweight message brokers. NATS has built-in clustering. ZeroMQ is embeddable.
+- **The convergence thesis:** MCP + terminal sessions = an AI agent that can not only call tools but also operate inside real terminal environments. This might be the killer use case.
+
+**Expected output:** Protocol comparison matrix + integration recommendation.
+
+### IT-010: Agent-to-Agent Communication Patterns
+
+**Question:** If two Claude Code sessions can talk to each other, what patterns emerge?
+
+**Why it matters:** This is the highest-value application. The framework already has agent roles (coder, tester, reviewer). Cross-session communication could enable true multi-agent workflows.
+
+**What to investigate:**
+- **Delegation:** Orchestrator session assigns work to specialist sessions
+- **Reporting:** Worker sessions report progress/results back to orchestrator
+- **Peer review:** One session's output is piped to another for review
+- **Shared context:** Multiple sessions working on the same codebase — how to coordinate git operations?
+- **Conflict resolution:** Two agent sessions want to edit the same file. Who wins?
+- **The fw framework connection:** Our task system already has `owner` fields. Could tasks be "owned" by a specific session and transferred between sessions?
+- **Scaling limits:** At what point do you need a proper workflow engine (Temporal, Airflow) instead of terminal-to-terminal messaging?
+
+**Expected output:** Pattern catalog with sequence diagrams.
+
+### Investigation Priority Matrix
+
+| ID | Topic | Dependency | Risk if Skipped | Suggested Order |
+|----|-------|-----------|-----------------|:-:|
+| IT-001 | Paradigm decision | None | Architecture built on wrong foundation | **1** |
+| IT-009 | Protocol relationships | IT-001 | Reinvent the wheel | **2** |
+| IT-003 | Message protocol | IT-001, IT-009 | Incompatible implementations | **3** |
+| IT-002 | Session identity | IT-001 | No way to address messages | **4** |
+| IT-004 | Output capture | IT-001 | Half-duplex only | **5** |
+| IT-006 | Security model | IT-003 | Insecure by default | **6** |
+| IT-005 | Concurrency | IT-003 | Race conditions under load | **7** |
+| IT-007 | Interactive programs | IT-004 | Broken UX with non-shell targets | **8** |
+| IT-008 | Distributed topology | IT-003, IT-006 | Local-only forever | **9** |
+| IT-010 | Agent patterns | All above | Build without knowing the use cases (but we have intuition) | **10** |
+
 ## Dialogue Log
 
 ### 2026-03-08 — Initial exploration request
@@ -307,3 +566,11 @@ The threat model for cross-terminal input injection:
 - **Human asked:** Map mechanisms against the four constitutional directives, with special attention to usability, security, and portability/distributed operation.
 - **Key findings:** tmux and Unix sockets score top tier across all directives. TIOCSTI and osascript eliminated. Two-layer architecture recommended (Unix socket broker + tmux integration). Distributed operation viable via broker-to-broker TLS.
 - **Outcome:** Consolidated scorecard produced. Clear recommendation: Unix socket broker as primary, tmux as terminal integration layer, TLS bridge for remote.
+
+### 2026-03-08 — Deep reflection and investigation topic identification
+- **Human asked:** Deep reflect on the document, identify gaps, and detail topics for further investigation.
+- **Key insight:** The framing is wrong — we're not really building "input injection," we're building a message bus with terminal endpoints. Pure injection is a parlor trick; the value is in structured, bidirectional, acknowledged communication.
+- **Critical gap found:** The "output capture problem" — we can inject input but have no story for capturing results. Half-duplex is useless for agent orchestration.
+- **Abstraction inversion warning:** Wrapping tmux inside our broker inverts the abstraction. Need to decide: is tmux the broker, or is it one adapter among many?
+- **10 investigation topics identified:** Paradigm decision (IT-001) through agent patterns (IT-010), dependency-ordered.
+- **Outcome:** Investigation roadmap produced. IT-001 (paradigm) and IT-009 (protocol relationships) are highest priority — they determine whether we build something new or extend MCP/existing standards.
