@@ -74,6 +74,9 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         control::method::COMMAND_SIGNAL => {
             handle_command_signal(id, &req.params, &ctx.registration)
         }
+        control::method::COMMAND_RESIZE => {
+            handle_command_resize(id, &req.params, ctx)
+        }
         _ => ErrorResponse::method_not_found(id, &req.method).into(),
     };
 
@@ -364,6 +367,65 @@ fn handle_command_signal(
     }
 }
 
+fn handle_command_resize(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &SessionContext,
+) -> RpcResponse {
+    let cols = params
+        .get("cols")
+        .or_else(|| params.get("payload").and_then(|p| p.get("cols")))
+        .and_then(|v| v.as_u64());
+    let rows = params
+        .get("rows")
+        .or_else(|| params.get("payload").and_then(|p| p.get("rows")))
+        .and_then(|v| v.as_u64());
+
+    let (cols, rows) = match (cols, rows) {
+        (Some(c), Some(r)) if c > 0 && r > 0 && c <= u16::MAX as u64 && r <= u16::MAX as u64 => {
+            (c as u16, r as u16)
+        }
+        _ => {
+            return ErrorResponse::new(
+                id,
+                termlink_protocol::jsonrpc::standard_error::INVALID_PARAMS,
+                "Missing or invalid params: cols and rows (positive integers required)",
+            )
+            .into();
+        }
+    };
+
+    let pty = match &ctx.pty {
+        Some(pty) => pty,
+        None => {
+            return ErrorResponse::new(
+                id,
+                control::error_code::CAPABILITY_NOT_SUPPORTED,
+                "No PTY session — resize requires --shell mode",
+            )
+            .into();
+        }
+    };
+
+    match pty.resize(cols, rows) {
+        Ok(()) => Response::success(
+            id,
+            json!({
+                "status": "resized",
+                "cols": cols,
+                "rows": rows,
+            }),
+        )
+        .into(),
+        Err(e) => ErrorResponse::new(
+            id,
+            control::error_code::INJECTION_FAILED,
+            &format!("Resize failed: {e}"),
+        )
+        .into(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -621,6 +683,32 @@ mod tests {
             assert_eq!(resp.result["bytes_len"], 5);
         } else {
             panic!("Expected success response");
+        }
+    }
+
+    #[tokio::test]
+    async fn command_resize_no_pty_returns_error() {
+        let ctx = test_ctx();
+        let req = Request::new("command.resize", json!("rsz-1"), json!({"cols": 120, "rows": 40}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Error(err) = resp {
+            assert_eq!(err.error.code, control::error_code::CAPABILITY_NOT_SUPPORTED);
+        } else {
+            panic!("Expected error response for no PTY");
+        }
+    }
+
+    #[tokio::test]
+    async fn command_resize_missing_params() {
+        let ctx = test_ctx();
+        let req = Request::new("command.resize", json!("rsz-2"), json!({"cols": 120}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Error(err) = resp {
+            assert_eq!(err.error.code, standard_error::INVALID_PARAMS);
+        } else {
+            panic!("Expected error for missing rows");
         }
     }
 }

@@ -142,6 +142,18 @@ enum Command {
         signal: String,
     },
 
+    /// Resize a PTY session's terminal
+    Resize {
+        /// Session ID or display name
+        target: String,
+
+        /// Number of columns
+        cols: u16,
+
+        /// Number of rows
+        rows: u16,
+    },
+
     /// Stream a PTY session via data plane (real-time binary frames, zero polling)
     Stream {
         /// Session ID or display name
@@ -181,6 +193,7 @@ async fn main() -> Result<()> {
         }
         Command::Attach { target, poll_ms } => cmd_attach(&target, poll_ms).await,
         Command::Signal { target, signal } => cmd_signal(&target, &signal).await,
+        Command::Resize { target, cols, rows } => cmd_resize(&target, cols, rows).await,
         Command::Stream { target } => cmd_stream(&target).await,
         Command::Discover => cmd_discover(),
         Command::Hub => cmd_hub().await,
@@ -768,6 +781,33 @@ async fn attach_loop(
     }
 
     Ok(())
+}
+
+async fn cmd_resize(target: &str, cols: u16, rows: u16) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let resp = client::rpc_call(
+        &reg.socket,
+        "command.resize",
+        serde_json::json!({ "cols": cols, "rows": rows }),
+    )
+    .await
+    .context("Failed to connect to session")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            println!(
+                "Resized to {}x{}",
+                result["cols"].as_u64().unwrap_or(cols as u64),
+                result["rows"].as_u64().unwrap_or(rows as u64),
+            );
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Resize failed: {}", e);
+        }
+    }
 }
 
 async fn cmd_stream(target: &str) -> Result<()> {

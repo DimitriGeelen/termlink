@@ -9,6 +9,7 @@ pub mod method {
     pub const COMMAND_EXECUTE: &str = "command.execute";
     pub const COMMAND_INJECT: &str = "command.inject";
     pub const COMMAND_SIGNAL: &str = "command.signal";
+    pub const COMMAND_RESIZE: &str = "command.resize";
     pub const QUERY_STATUS: &str = "query.status";
     pub const QUERY_OUTPUT: &str = "query.output";
     pub const QUERY_CAPABILITIES: &str = "query.capabilities";
