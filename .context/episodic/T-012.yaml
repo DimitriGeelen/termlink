@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-012: IT-010: Agent-to-agent communication patterns
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T12:30:00Z
+# ============================================================================
+
+task_id: T-012
+task_name: "IT-010: Agent-to-agent communication patterns"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-08T14:19:50Z
+completed: 2026-03-09T12:01:03Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-03-09T11:54:00+01:00
+last_commit: 2026-03-09T13:01:00+01:00
+
+# Summary
+summary: |
+  Inception task exploring how TermLink enables agent-to-agent communication
+  for the Agentic Engineering Framework. Validated that existing primitives
+  (discover, emit, wait, kv) cover 70%+ of needs. Identified spawn and request
+  as the two missing commands. GO decision: build Phase 1 (3 bounded tasks).
+
+# Key outcomes
+outcomes:
+  - "Research artifact created at docs/reports/T-012-agent-to-agent-communication.md"
+  - "Context budget multiplier identified as killer feature (each specialist = fresh 200K)"
+  - "Task delegation event schema designed (task.delegate/accepted/completed/failed)"
+  - "GO decision: Phase 1 approved (spawn, request, event schema convention)"
+  - "Spawned T-059 (spawn command) and T-060 (request command)"
+
+# Challenges
+challenges:
+  # None — inception proceeded smoothly
+
+# Decisions (from task file Decisions section)
+decisions:
+  - date: "2026-03-09"
+    topic: "GO decision"
+    chose: "GO — Build Phase 1 (spawn, request, event schema)"
+    why: "70%+ coverage from existing primitives, context budget multiplier is structural, 3 bounded build tasks"
+    rejected: "Convention-only (missing spawn), Full agent framework (over-engineered)"
+
+# Artifacts
+artifacts:
+  - "docs/reports/T-012-agent-to-agent-communication.md"
+  - ".tasks/completed/T-012-it-010-agent-to-agent-communication-patt.md"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-09T11:54:00"
+    action: "T-012: GO — agent-to-agent inception complete, Phase 1 approved"
+
+# What worked well
+successes:
+  - "Deep-think approach with human dialogue produced comprehensive design"
+  - "Primitive mapping validated assumptions before building"
+  - "Phased approach kept scope bounded"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-059, T-060]
+
+# Tags for retrieval
+tags: [inception, agent-to-agent, multi-agent, delegation, communication]
+
+# Passive metrics
+metrics:
+  wall_clock_minutes: 90
+  commits: 1
+  files_changed: 2
+  lines_added: 250
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-012-it-010-agent-to-agent-communication-patt.md
+generated_by: context-agent-hybrid
