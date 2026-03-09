@@ -1,6 +1,6 @@
 # Agentic Engineering Framework - Project Configuration
 project_name: 010-Ag-Framework-Brew-Test
-framework_path: /usr/local/Cellar/fw/1.1.0/libexec
+framework_path: /usr/local/opt/agentic-fw/libexec
 version: 1.0.0
 provider: generic
 initialized_at: 2026-03-08T13:47:19Z
