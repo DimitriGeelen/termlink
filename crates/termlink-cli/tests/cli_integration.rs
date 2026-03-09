@@ -418,3 +418,60 @@ fn cli_list_multiple_sessions() {
     assert!(stdout.contains("gamma"), "Missing gamma: {}", stdout);
     assert!(output.status.success());
 }
+
+// ─── Request-Reply Tests ──────────────────────────────────────────
+
+#[test]
+fn cli_request_reply_flow() {
+    let dir = test_dir("request-reply");
+    let _guard = start_register(&dir, "worker");
+    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+
+    // Emit the reply event AFTER a delay (simulating specialist responding)
+    let dir_clone = dir.clone();
+    let _reply_thread = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(1));
+        termlink_cmd(&dir_clone)
+            .args(["emit", "worker", "task.completed", "--payload", r#"{"status":"done","result":"ok"}"#])
+            .output()
+            .expect("Failed to emit reply event");
+    });
+
+    // Run request — it will wait for the reply
+    let output = termlink_cmd(&dir)
+        .args([
+            "request", "worker",
+            "--topic", "task.delegate",
+            "--payload", r#"{"action":"test"}"#,
+            "--reply-topic", "task.completed",
+            "--timeout", "10",
+        ])
+        .output()
+        .expect("Failed to run termlink request");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Request sent"), "Expected 'Request sent' in output: {}", stdout);
+    assert!(stdout.contains("Reply received"),
+        "Expected 'Reply received' in output: {}", stdout);
+    assert!(output.status.success());
+}
+
+#[test]
+fn cli_request_timeout() {
+    let dir = test_dir("request-timeout");
+    let _guard = start_register(&dir, "silent");
+    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+
+    // Request with short timeout — no reply will come
+    let output = termlink_cmd(&dir)
+        .args([
+            "request", "silent",
+            "--topic", "task.delegate",
+            "--reply-topic", "task.completed",
+            "--timeout", "1",
+        ])
+        .output()
+        .expect("Failed to run termlink request");
+
+    assert!(!output.status.success(), "Expected non-zero exit on timeout");
+}

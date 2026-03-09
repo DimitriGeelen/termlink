@@ -338,6 +338,32 @@ enum Command {
         dry_run: bool,
     },
 
+    /// Send a request event and wait for a reply (request-reply pattern)
+    Request {
+        /// Session ID or display name
+        target: String,
+
+        /// Request topic (e.g., "task.delegate")
+        #[arg(long)]
+        topic: String,
+
+        /// JSON payload for the request
+        #[arg(long, default_value = "{}")]
+        payload: String,
+
+        /// Topic to wait for as reply (e.g., "task.completed")
+        #[arg(long)]
+        reply_topic: String,
+
+        /// Timeout in seconds (default: 300)
+        #[arg(long, default_value = "300")]
+        timeout: u64,
+
+        /// Poll interval in milliseconds (default: 250)
+        #[arg(long, default_value = "250")]
+        interval: u64,
+    },
+
     /// Spawn a command in a new terminal with TermLink session registration
     Spawn {
         /// Session display name
@@ -457,6 +483,9 @@ async fn main() -> Result<()> {
             cmd_wait(&target, &topic, timeout, interval).await
         }
         Command::Clean { dry_run } => cmd_clean(dry_run),
+        Command::Request { target, topic, payload, reply_topic, timeout, interval } => {
+            cmd_request(&target, &topic, &payload, &reply_topic, timeout, interval).await
+        }
         Command::Spawn { name, roles, tags, wait, wait_timeout, shell, command } => {
             cmd_spawn(name, roles, tags, wait, wait_timeout, shell, command).await
         }
@@ -2119,6 +2148,119 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
                 }
             }
         }
+    }
+}
+
+async fn cmd_request(
+    target: &str,
+    topic: &str,
+    payload: &str,
+    reply_topic: &str,
+    timeout: u64,
+    interval: u64,
+) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    // Generate a request ID for correlation
+    let request_id = format!("req-{}-{}", std::process::id(), std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+
+    // Parse user payload and inject request_id
+    let mut payload_json: serde_json::Value = serde_json::from_str(payload)
+        .context("Invalid JSON payload")?;
+    if let Some(obj) = payload_json.as_object_mut() {
+        obj.insert("request_id".to_string(), serde_json::json!(request_id));
+    }
+
+    // Snapshot the current next_seq BEFORE emitting — we'll poll for replies after this point
+    let cursor: Option<u64> = {
+        let params = serde_json::json!({});
+        match client::rpc_call(&reg.socket, "event.poll", params).await {
+            Ok(resp) => {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    result["next_seq"].as_u64()
+                } else { None }
+            }
+            Err(_) => None,
+        }
+    };
+
+    // Emit the request event
+    let emit_params = serde_json::json!({
+        "topic": topic,
+        "payload": payload_json,
+    });
+
+    let emit_resp = client::rpc_call(&reg.socket, "event.emit", emit_params)
+        .await
+        .context("Failed to emit request event")?;
+
+    match client::unwrap_result(emit_resp) {
+        Ok(result) => {
+            println!("Request sent: {} (seq: {}, request_id: {})",
+                topic,
+                result["seq"].as_u64().unwrap_or(0),
+                request_id);
+        }
+        Err(e) => {
+            anyhow::bail!("Failed to emit request: {}", e);
+        }
+    }
+
+    // Now poll for the reply topic
+    println!("Waiting for reply on topic '{}' (timeout: {}s)...", reply_topic, timeout);
+
+    let start = std::time::Instant::now();
+    let timeout_dur = std::time::Duration::from_secs(timeout);
+    let poll_interval = std::time::Duration::from_millis(interval);
+    let mut poll_cursor = cursor;
+
+    loop {
+        let mut params = serde_json::json!({ "topic": reply_topic });
+        if let Some(c) = poll_cursor {
+            params["since"] = serde_json::json!(c);
+        }
+
+        match client::rpc_call(&reg.socket, "event.poll", params).await {
+            Ok(resp) => {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    if let Some(events) = result["events"].as_array() {
+                        for event in events {
+                            // Check if this reply matches our request_id
+                            let event_payload = &event["payload"];
+                            let matches = event_payload
+                                .get("request_id")
+                                .and_then(|r| r.as_str())
+                                .map(|r| r == request_id)
+                                .unwrap_or(true); // If no request_id in reply, accept it
+
+                            if matches {
+                                println!("Reply received:");
+                                println!("{}", serde_json::to_string_pretty(event_payload)?);
+                                return Ok(());
+                            }
+                        }
+                    }
+
+                    // Update cursor for next poll
+                    if let Some(next) = result["next_seq"].as_u64() {
+                        poll_cursor = if next > 0 { Some(next - 1) } else { None };
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Poll error: {}", e);
+            }
+        }
+
+        if start.elapsed() > timeout_dur {
+            anyhow::bail!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout);
+        }
+
+        tokio::time::sleep(poll_interval).await;
     }
 }
 
