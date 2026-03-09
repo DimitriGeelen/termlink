@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-001: Project initialization
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T11:30:20Z
+# ============================================================================
+
+task_id: T-001
+task_name: "Project initialization"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T13:57:23Z
+completed: 2026-03-08T13:57:51Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T14:57:31+01:00
+last_commit: 2026-03-08T14:57:31+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Initial project setup with framework integration
+
+# Key outcomes
+outcomes:
+  - "Git repo initialized"
+  - "Git hooks installed"
+  - "Enforcement baseline created"
+  - "Initial commit made"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/resume.md"
+  - ".claude/settings.json"
+  - ".claude/settings.local.json"
+  - ".context/bypass-log.yaml"
+  - ".context/project/assumptions.yaml"
+  - ".context/project/decisions.yaml"
+  - ".context/project/directives.yaml"
+  - ".context/project/enforcement-baseline.sha256"
+  - ".context/project/gaps.yaml"
+  - ".context/project/learnings.yaml"
+  - ".context/project/patterns.yaml"
+  - ".context/project/practices.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.gitignore"
+  - ".framework.yaml"
+  - ".tasks/active/T-001-project-initialization.md"
+  - ".tasks/templates/default.md"
+  - ".tasks/templates/inception.md"
+  - "CLAUDE.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T14:57:31"
+    action: "T-001: Initial project setup with framework integration"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 20
+  lines_added: 1640
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-001-project-initialization.md
+generated_by: context-agent-hybrid

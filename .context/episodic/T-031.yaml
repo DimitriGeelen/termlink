@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-031: CLI stream subcommand — real-time data plane attach via binary frames
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T11:30:22Z
+# ============================================================================
+
+task_id: T-031
+task_name: "CLI stream subcommand — real-time data plane attach via binary frames"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T20:31:15Z
+completed: 2026-03-08T20:33:11Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T21:33:05+01:00
+last_commit: 2026-03-08T21:33:05+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI stream subcommand — real-time data plane attach via binary frames
+
+# Key outcomes
+outcomes:
+  - "`Stream` subcommand added to CLI with target argument"
+  - "Connects to data socket (`{control_socket}.data`) resolved from session registration"
+  - "Raw terminal mode with restore on exit"
+  - "Streams Output frames to stdout in real-time"
+  - "Forwards stdin as Input frames"
+  - "Ctrl+] (0x1d) detaches cleanly"
+  - "Sends Close frame on detach"
+  - "All existing tests pass (110+)"
+  - "Builds without warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-031-cli-stream-subcommand--real-time-data-pl.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T21:33:05"
+    action: "T-031: CLI stream subcommand — real-time data plane attach via binary frames"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 214
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-031-cli-stream-subcommand--real-time-data-pl.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-057: Generate missing episodic summaries for T-043 through T-055
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T11:30:27Z
+# ============================================================================
+
+task_id: T-057
+task_name: "Generate missing episodic summaries for T-043 through T-055"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-09T10:16:15Z
+completed: 2026-03-09T10:24:13Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-09T11:24:00+01:00
+last_commit: 2026-03-09T11:24:00+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Generate 11 missing episodic summaries, move 8 completed tasks from active/
+
+# Key outcomes
+outcomes:
+  - "Episodic summaries generated for T-043, T-044, T-045, T-047, T-048, T-049, T-050"
+  - "Episodic summaries generated for T-053, T-054, T-055, T-056"
+  - "8 work-completed tasks moved from active/ to completed/"
+  - "All episodic YAML files have [TODO] sections enriched"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-043.yaml"
+  - ".context/episodic/T-044.yaml"
+  - ".context/episodic/T-045.yaml"
+  - ".context/episodic/T-047.yaml"
+  - ".context/episodic/T-048.yaml"
+  - ".context/episodic/T-049.yaml"
+  - ".context/episodic/T-050.yaml"
+  - ".context/episodic/T-053.yaml"
+  - ".context/episodic/T-054.yaml"
+  - ".context/episodic/T-055.yaml"
+  - ".context/episodic/T-056.yaml"
+  - ".tasks/active/T-057-generate-missing-episodic-summaries-for-.md"
+  - ".tasks/completed/T-001-project-initialization.md"
+  - ".tasks/completed/T-027-cli-attach-command--interactive-session-.md"
+  - ".tasks/completed/T-031-cli-stream-subcommand--real-time-data-pl.md"
+  - ".tasks/completed/T-037-fix-broken-claude-code-hook-paths.md"
+  - ".tasks/completed/T-038-cli-watch-command--real-time-event-polli.md"
+  - ".tasks/completed/T-046-cli-wait-command--block-until-session-em.md"
+  - ".tasks/completed/T-051-update-memory-and-fabric-for-t-045-throu.md"
+  - ".tasks/completed/T-052-session-kv-store--per-session-key-value-.md"
+  - ".tasks/completed/T-056-fix-events-command-off-by-one--default-s.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-09T11:24:00"
+    action: "T-057: Generate 11 missing episodic summaries, move 8 completed tasks from active/"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 16
+  lines_added: 1023
+  lines_removed: 7
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-057-generate-missing-episodic-summaries-for-.md
+generated_by: context-agent-hybrid

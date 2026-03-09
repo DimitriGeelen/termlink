@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-038: CLI watch command — real-time event polling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T11:30:23Z
+# ============================================================================
+
+task_id: T-038
+task_name: "CLI watch command — real-time event polling"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T21:12:40Z
+completed: 2026-03-08T21:14:19Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T22:14:12+01:00
+last_commit: 2026-03-08T22:14:12+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI watch command — real-time event polling across sessions
+
+# Key outcomes
+outcomes:
+  - "Watch subcommand added to CLI with --interval, --topic, and optional target args"
+  - "Watches all sessions when no targets specified"
+  - "Delta polling with per-session sequence cursors"
+  - "All 126 tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-038-cli-watch-command--real-time-event-polli.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T22:14:12"
+    action: "T-038: CLI watch command — real-time event polling across sessions"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 204
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-038-cli-watch-command--real-time-event-polli.md
+generated_by: context-agent-hybrid
