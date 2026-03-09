@@ -1,0 +1,61 @@
+# ============================================================================
+# EPISODIC MEMORY - T-061: Task delegation event schema convention
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-09T13:52:00Z
+# ============================================================================
+
+task_id: T-061
+task_name: "Task delegation event schema convention"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-09T13:25:16Z
+completed: 2026-03-09T13:52:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-09T13:50:00+01:00
+last_commit: 2026-03-09T13:50:00+01:00
+
+# Summary
+summary: |
+  Created convention document defining 4 standard event topics for agent-to-agent
+  task delegation via TermLink: task.delegate, task.accepted, task.completed, task.failed.
+  Each topic has JSON schema with required/optional fields, lifecycle diagram, and
+  usage examples with TermLink CLI commands. Completes Phase 1 of T-012.
+
+# Key outcomes
+outcomes:
+  - "Convention doc at docs/conventions/agent-delegation-events.md"
+  - "4 event topics with JSON schemas and field tables"
+  - "Lifecycle diagram (orchestrator → specialist flow)"
+  - "Usage examples for both orchestrator and specialist sides"
+  - "5 design rules codified"
+
+# Challenges
+challenges:
+  # None — documentation task
+
+# Decisions
+decisions:
+  # No decisions — schema already designed in T-012 inception
+
+# Artifacts
+artifacts:
+  - "docs/conventions/agent-delegation-events.md"
+
+# Tags for retrieval
+tags: [convention, event-schema, agent-to-agent, delegation, documentation]
+
+# Passive metrics
+metrics:
+  wall_clock_minutes: 27
+  commits: 1
+  files_changed: 1
+  lines_added: 170
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-061-task-delegation-event-schema-convention.md
+generated_by: context-agent-hybrid
