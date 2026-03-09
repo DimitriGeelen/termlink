@@ -2014,20 +2014,28 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
         None
     };
 
-    // Start polling from current next_seq so we only see new events
-    let mut cursor: u64 = {
-        let params = serde_json::json!({ "topic": topic, "since": 0 });
+    // Get current event bus state. We want to only see events emitted AFTER
+    // the wait starts. The poll RPC uses `seq > since`, so to catch the next
+    // event at seq=N we need cursor = N-1. For an empty bus (next_seq=0),
+    // we use None to signal "no since filter" on the first poll.
+    let initial_next_seq: Option<u64> = {
+        let params = serde_json::json!({});
         match client::rpc_call(&reg.socket, "event.poll", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
-                    result["next_seq"].as_u64().unwrap_or(0)
+                    result["next_seq"].as_u64()
                 } else {
-                    0
+                    None
                 }
             }
-            Err(_) => 0,
+            Err(_) => None,
         }
     };
+    // If next_seq > 0, we can safely use next_seq - 1 as cursor (catches seq >= next_seq).
+    // If next_seq == 0, the bus is empty; use None to skip the "since" filter initially.
+    let mut cursor: Option<u64> = initial_next_seq.and_then(|n| {
+        if n > 0 { Some(n - 1) } else { None }
+    });
 
     loop {
         if let Some(dl) = deadline {
@@ -2041,7 +2049,10 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
                 anyhow::bail!("Interrupted");
             }
             _ = tokio::time::sleep(poll_interval) => {
-                let params = serde_json::json!({ "since": cursor, "topic": topic });
+                let mut params = serde_json::json!({ "topic": topic });
+                if let Some(c) = cursor {
+                    params["since"] = serde_json::json!(c);
+                }
                 let resp = match client::rpc_call(&reg.socket, "event.poll", params).await {
                     Ok(r) => r,
                     Err(_) => {
@@ -2066,7 +2077,7 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
                         }
                     }
                     if let Some(next) = result["next_seq"].as_u64() {
-                        cursor = next;
+                        cursor = if next > 0 { Some(next - 1) } else { None };
                     }
                 }
             }

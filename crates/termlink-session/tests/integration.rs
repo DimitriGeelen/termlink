@@ -542,3 +542,255 @@ async fn data_plane_capabilities_in_status() {
     let _ = pty.signal(libc::SIGTERM);
     let _ = std::fs::remove_file(&data_socket);
 }
+
+// ─── Event Bus Integration Tests ────────────────────────────────────
+
+#[tokio::test]
+async fn event_emit_and_poll() {
+    let dir = unique_dir("evt-ep");
+
+    let (handle, reg) = start_session(&dir, "emitter", vec![]).await;
+
+    // Emit an event
+    let resp = client::rpc_call(
+        &reg.socket,
+        "event.emit",
+        json!({ "topic": "build.done", "payload": { "status": "ok" } }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["topic"], "build.done");
+    assert!(result["seq"].as_u64().is_some());
+
+    // Poll for events (cursor=0 gets all)
+    let resp = client::rpc_call(
+        &reg.socket,
+        "event.poll",
+        json!({ "cursor": 0 }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    let events = result["events"].as_array().unwrap();
+    assert!(!events.is_empty());
+    assert_eq!(events[0]["topic"], "build.done");
+    assert_eq!(events[0]["payload"]["status"], "ok");
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn event_topics_lists_distinct_topics() {
+    let dir = unique_dir("evt-topics");
+
+    let (handle, reg) = start_session(&dir, "topicker", vec![]).await;
+
+    // Emit events on different topics
+    for topic in &["build.start", "build.done", "test.pass", "build.start"] {
+        client::rpc_call(
+            &reg.socket,
+            "event.emit",
+            json!({ "topic": topic, "payload": {} }),
+        )
+        .await
+        .unwrap();
+    }
+
+    // Query topics
+    let resp = client::rpc_call(&reg.socket, "event.topics", json!({}))
+        .await
+        .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    let topics = result["topics"].as_array().unwrap();
+    let topic_strs: Vec<&str> = topics.iter().filter_map(|t| t.as_str()).collect();
+    assert!(topic_strs.contains(&"build.start"));
+    assert!(topic_strs.contains(&"build.done"));
+    assert!(topic_strs.contains(&"test.pass"));
+    assert_eq!(topics.len(), 3); // distinct
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn event_poll_with_topic_filter() {
+    let dir = unique_dir("evt-filter");
+
+    let (handle, reg) = start_session(&dir, "filterer", vec![]).await;
+
+    // Emit mixed topics
+    client::rpc_call(
+        &reg.socket,
+        "event.emit",
+        json!({ "topic": "build.done", "payload": { "n": 1 } }),
+    )
+    .await
+    .unwrap();
+    client::rpc_call(
+        &reg.socket,
+        "event.emit",
+        json!({ "topic": "test.fail", "payload": { "n": 2 } }),
+    )
+    .await
+    .unwrap();
+    client::rpc_call(
+        &reg.socket,
+        "event.emit",
+        json!({ "topic": "build.done", "payload": { "n": 3 } }),
+    )
+    .await
+    .unwrap();
+
+    // Poll with topic filter
+    let resp = client::rpc_call(
+        &reg.socket,
+        "event.poll",
+        json!({ "cursor": 0, "topic": "build.done" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    let events = result["events"].as_array().unwrap();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["payload"]["n"], 1);
+    assert_eq!(events[1]["payload"]["n"], 3);
+
+    handle.abort();
+}
+
+// ─── KV Store Integration Tests ─────────────────────────────────────
+
+#[tokio::test]
+async fn kv_set_get_list_delete_cycle() {
+    let dir = unique_dir("kv-crud");
+
+    let (handle, reg) = start_session(&dir, "kvstore", vec![]).await;
+
+    // Set a key
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.set",
+        json!({ "key": "color", "value": "blue" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["key"], "color");
+    assert_eq!(result["replaced"], false);
+
+    // Get the key
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.get",
+        json!({ "key": "color" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["key"], "color");
+    assert_eq!(result["value"], "blue");
+    assert_eq!(result["found"], true);
+
+    // Set another key with JSON value
+    client::rpc_call(
+        &reg.socket,
+        "kv.set",
+        json!({ "key": "config", "value": { "debug": true, "level": 3 } }),
+    )
+    .await
+    .unwrap();
+
+    // List all
+    let resp = client::rpc_call(&reg.socket, "kv.list", json!({}))
+        .await
+        .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["count"], 2);
+    let entries = result["entries"].as_array().unwrap();
+    assert_eq!(entries.len(), 2);
+
+    // Replace a key
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.set",
+        json!({ "key": "color", "value": "red" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["replaced"], true);
+
+    // Verify replacement
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.get",
+        json!({ "key": "color" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["value"], "red");
+
+    // Delete
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.delete",
+        json!({ "key": "color" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["key"], "color");
+    assert_eq!(result["deleted"], true);
+
+    // Get deleted key
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.get",
+        json!({ "key": "color" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["found"], false);
+
+    // Delete non-existent
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.delete",
+        json!({ "key": "nonexistent" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["deleted"], false);
+
+    // Final list — should have only "config"
+    let resp = client::rpc_call(&reg.socket, "kv.list", json!({}))
+        .await
+        .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["count"], 1);
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn kv_get_nonexistent_returns_not_found() {
+    let dir = unique_dir("kv-notfound");
+
+    let (handle, reg) = start_session(&dir, "kvempty", vec![]).await;
+
+    let resp = client::rpc_call(
+        &reg.socket,
+        "kv.get",
+        json!({ "key": "missing" }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["found"], false);
+    assert!(result["value"].is_null());
+
+    handle.abort();
+}
