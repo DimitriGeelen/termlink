@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-059: CLI spawn command — start agent in new terminal with auto-registration
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T17:31:01Z
+# ============================================================================
+
+task_id: T-059
+task_name: "CLI spawn command — start agent in new terminal with auto-registration"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-09T12:01:51Z
+completed: 2026-03-09T12:12:53Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-09T13:07:02+01:00
+last_commit: 2026-03-09T13:12:53+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink spawn command — open new terminal with session auto-registration. spawn partial-complete, T-060: request complete
+
+# Key outcomes
+outcomes:
+  - "`Spawn` variant added to Command enum with name, roles, tags, wait, and command args"
+  - "`cmd_spawn` function opens new terminal via macOS AppleScript"
+  - "Spawned command is wrapped to inherit TERMLINK_RUNTIME_DIR"
+  - "`--wait` flag polls for session registration before returning"
+  - "CLI builds and all existing tests pass (13/13)"
+  - "Help text shows spawn command"
+  - "[REVIEW] `termlink spawn --name test-agent -- echo hello` opens a new terminal window"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-059-cli-spawn-command--start-agent-in-new-te.md"
+  - ".tasks/completed/T-060-cli-request-command--emit-event-and-wait.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-09T13:07:02"
+    action: "T-059: Add termlink spawn command — open new terminal with session auto-registration"
+  - time: "2026-03-09T13:12:53"
+    action: "T-059: spawn partial-complete, T-060: request complete"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 234
+  lines_removed: 7
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-059-cli-spawn-command--start-agent-in-new-te.md
+generated_by: context-agent-hybrid
