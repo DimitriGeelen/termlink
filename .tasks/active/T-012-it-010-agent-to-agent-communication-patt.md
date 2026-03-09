@@ -4,7 +4,7 @@ name: "IT-010: Agent-to-agent communication patterns"
 description: >
   Multi-agent workflows, delegation, peer review, conflict resolution, scaling limits
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
 horizon: later
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:50Z
-last_update: 2026-03-08T14:19:50Z
+last_update: 2026-03-09T10:29:06Z
 date_finished: null
 ---
 
@@ -85,3 +85,6 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-09T10:29:06Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
