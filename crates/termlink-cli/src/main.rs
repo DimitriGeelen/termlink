@@ -338,6 +338,37 @@ enum Command {
         dry_run: bool,
     },
 
+    /// Spawn a command in a new terminal with TermLink session registration
+    Spawn {
+        /// Session display name
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Roles for the spawned session (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        roles: Vec<String>,
+
+        /// Tags for the spawned session (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        tags: Vec<String>,
+
+        /// Wait for the session to register before returning
+        #[arg(long)]
+        wait: bool,
+
+        /// Timeout in seconds for --wait (default: 30)
+        #[arg(long, default_value = "30")]
+        wait_timeout: u64,
+
+        /// Start a PTY-backed shell session (no command needed)
+        #[arg(long)]
+        shell: bool,
+
+        /// Command to run in the spawned terminal (after --)
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+
     /// Start the hub server (routes requests between sessions)
     Hub,
 }
@@ -426,6 +457,9 @@ async fn main() -> Result<()> {
             cmd_wait(&target, &topic, timeout, interval).await
         }
         Command::Clean { dry_run } => cmd_clean(dry_run),
+        Command::Spawn { name, roles, tags, wait, wait_timeout, shell, command } => {
+            cmd_spawn(name, roles, tags, wait, wait_timeout, shell, command).await
+        }
         Command::Hub => cmd_hub().await,
     }
 }
@@ -2085,6 +2119,128 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
                 }
             }
         }
+    }
+}
+
+async fn cmd_spawn(
+    name: Option<String>,
+    roles: Vec<String>,
+    tags: Vec<String>,
+    wait: bool,
+    wait_timeout: u64,
+    shell: bool,
+    command: Vec<String>,
+) -> Result<()> {
+    let session_name = name.clone().unwrap_or_else(|| {
+        format!("spawn-{}", std::process::id())
+    });
+
+    // Build the termlink register command that will run in the new terminal
+    let termlink_bin = std::env::current_exe()
+        .context("Failed to determine termlink binary path")?;
+    let termlink_path = termlink_bin.to_string_lossy();
+
+    let mut register_args = vec![
+        "register".to_string(),
+        "--name".to_string(),
+        session_name.clone(),
+    ];
+    if !roles.is_empty() {
+        register_args.push("--roles".to_string());
+        register_args.push(roles.join(","));
+    }
+    if !tags.is_empty() {
+        register_args.push("--tags".to_string());
+        register_args.push(tags.join(","));
+    }
+    if shell || command.is_empty() {
+        register_args.push("--shell".to_string());
+    }
+
+    // Build the shell command to run in the new terminal
+    let shell_cmd = if command.is_empty() {
+        // Shell mode: just run termlink register --shell
+        let mut parts = vec![termlink_path.to_string()];
+        parts.extend(register_args.iter().cloned());
+
+        // Propagate TERMLINK_RUNTIME_DIR if set
+        if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
+            format!("TERMLINK_RUNTIME_DIR={} {}", shell_escape(&rd), parts.join(" "))
+        } else {
+            parts.join(" ")
+        }
+    } else {
+        // Command mode: run termlink register in background, then the user command
+        // When the user command exits, the register process is killed
+        let mut reg_parts = vec![termlink_path.to_string()];
+        reg_parts.extend(register_args.iter().cloned());
+
+        let user_cmd = command.join(" ");
+        let env_prefix = if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
+            format!("export TERMLINK_RUNTIME_DIR={}; ", shell_escape(&rd))
+        } else {
+            String::new()
+        };
+
+        // Start register in background, wait for socket, run user command, then cleanup
+        format!(
+            "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
+            reg_parts.join(" ")
+        )
+    };
+
+    // Use AppleScript to open a new Terminal.app window
+    let escaped_cmd = shell_cmd.replace('\\', "\\\\").replace('"', "\\\"");
+    let applescript = format!(
+        r#"tell application "Terminal"
+    activate
+    do script "{escaped_cmd}"
+end tell"#
+    );
+
+    let status = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&applescript)
+        .status()
+        .context("Failed to run osascript — is Terminal.app available?")?;
+
+    if !status.success() {
+        anyhow::bail!("Failed to open new terminal window");
+    }
+
+    println!("Spawned session '{}' in new terminal", session_name);
+
+    // If --wait, poll for the session to appear
+    if wait {
+        println!("Waiting for session to register (timeout: {}s)...", wait_timeout);
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(wait_timeout);
+
+        loop {
+            if manager::find_session(&session_name).is_ok() {
+                println!("Session '{}' is ready", session_name);
+                return Ok(());
+            }
+            if start.elapsed() > timeout {
+                anyhow::bail!(
+                    "Timeout waiting for session '{}' to register ({}s)",
+                    session_name,
+                    wait_timeout
+                );
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+    }
+
+    Ok(())
+}
+
+/// Escape a string for use in a shell command.
+fn shell_escape(s: &str) -> String {
+    if s.contains(|c: char| c.is_whitespace() || c == '\'' || c == '"' || c == '\\' || c == '$') {
+        format!("'{}'", s.replace('\'', "'\\''"))
+    } else {
+        s.to_string()
     }
 }
 
