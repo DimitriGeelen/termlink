@@ -1,0 +1,17 @@
+id: crates/termlink-cli/tests/interactive_integration.rs
+name: interactive_integration
+type: test
+subsystem: cli
+location: crates/termlink-cli/tests/interactive_integration.rs
+tags: [integration, interactive, tty, pty, rexpect]
+
+purpose: "Interactive TTY integration tests for attach and stream commands via rexpect. 4 tests (#[ignore]) spawn processes in pseudo-terminals to test raw mode, bidirectional I/O, and Ctrl+] detach. Run with: cargo test --ignored"
+
+depends_on:
+  - target: crates/termlink-cli/src/main.rs
+    type: tests
+  - target: crates/termlink-cli/tests/cli_integration.rs
+    type: extends
+
+last_verified: 2026-03-09
+created_by: T-055
