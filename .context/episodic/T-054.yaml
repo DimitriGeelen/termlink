@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-054: CLI integration test harness — ProcessGuard, wait_for_socket, and end-to-end test scenarios
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T10:17:44Z
+# ============================================================================
+
+task_id: T-054
+task_name: "CLI integration test harness — ProcessGuard, wait_for_socket, and end-to-end test scenarios"
+workflow_type: build
+enrichment_status: enriched
+
+# Timeline
+created: 2026-03-09T08:36:00Z
+completed: 2026-03-09T08:50:23Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-09T09:47:52+01:00
+last_commit: 2026-03-09T09:50:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI integration test harness — 18 new end-to-end tests. Complete — fabric card, task ACs verified, 156 tests passing
+
+# Key outcomes
+outcomes:
+  - "ProcessGuard RAII type kills child process on drop (even on panic)"
+  - "wait_for_socket utility polls for socket readiness with timeout"
+  - "Isolated TERMLINK_RUNTIME_DIR per test prevents cross-test interference"
+  - "Library-level integration tests: event emit/poll, topics, topic filter, KV CRUD, KV not-found (5 tests)"
+  - "CLI binary integration tests: register/list, ping, status, exec, emit/events, topics, wait+emit, wait timeout, KV CRUD, KV JSON, info, clean, multi-session (13 tests)"
+  - "All 156 tests pass (138 existing + 18 new)"
+  - "Wait command off-by-one bug fixed (Option<u64> cursor for empty bus edge case)"
+  - "Fabric card registered for cli_integration.rs"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - "Two-layer test architecture: library-level tests (extend integration.rs) + CLI binary tests (new cli_integration.rs with ProcessGuard). Rejected pure binary-only, mock-based, and assert_cmd-only approaches."
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-cli-tests-cli_integration.yaml"
+  - ".tasks/active/T-054-cli-integration-test-harness--processgua.md"
+  - ".tasks/completed/T-054-cli-integration-test-harness--processgua.md"
+  - "crates/termlink-cli/Cargo.toml"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-session/tests/integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-09T09:47:52"
+    action: "T-054: CLI integration test harness — 18 new end-to-end tests"
+  - time: "2026-03-09T09:50:41"
+    action: "T-054: Complete — fabric card, task ACs verified, 156 tests passing"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - "18 new e2e tests added (5 library-level + 13 CLI binary), bringing total to 156"
+  - "Fixed wait command off-by-one bug (Option<u64> cursor for empty bus edge case) discovered during testing"
+  - "ProcessGuard RAII pattern ensures clean child process cleanup even on panic"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [build, testing, integration-tests, cli, e2e, process-guard]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 7
+  lines_added: 767
+  lines_removed: 82
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-054-cli-integration-test-harness--processgua.md
+generated_by: context-agent-hybrid

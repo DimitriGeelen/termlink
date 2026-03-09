@@ -151,9 +151,9 @@ enum Command {
         /// Session ID or display name
         target: String,
 
-        /// Only show events after this sequence number
-        #[arg(long, default_value = "0")]
-        since: u64,
+        /// Only show events after this sequence number (omit for all)
+        #[arg(long)]
+        since: Option<u64>,
 
         /// Filter by topic
         #[arg(long)]
@@ -1104,11 +1104,14 @@ async fn attach_loop(
     Ok(())
 }
 
-async fn cmd_events(target: &str, since: u64, topic: Option<&str>) -> Result<()> {
+async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let mut params = serde_json::json!({ "since": since });
+    let mut params = serde_json::json!({});
+    if let Some(s) = since {
+        params["since"] = serde_json::json!(s);
+    }
     if let Some(t) = topic {
         params["topic"] = serde_json::json!(t);
     }

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-044: Fabric gap analysis — learning and remediation document
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T10:17:17Z
+# ============================================================================
+
+task_id: T-044
+task_name: "Fabric gap analysis — learning and remediation document"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T22:13:25Z
+completed: 2026-03-08T22:15:23Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T23:15:15+01:00
+last_commit: 2026-03-08T23:15:15+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fabric gap analysis — root cause, remediation, learning L-001
+
+# Key outcomes
+outcomes:
+  - "Root cause analysis document written at docs/reports/T-043-fabric-remediation.md"
+  - "5 root causes identified with evidence"
+  - "5 remediation recommendations (R-1 through R-5)"
+  - "Learning recorded in context fabric (L-001)"
+  - "Failure pattern recorded"
+  - "Agent memory updated with fabric maintenance rules"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-042.yaml"
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-044-fabric-gap-analysis--learning-and-remedi.md"
+  - ".tasks/completed/T-042-cli-discover-command--query-sessions-by-.md"
+  - ".tasks/completed/T-043-initialize-component-fabric--register-al.md"
+  - "docs/reports/T-043-fabric-remediation.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T23:15:15"
+    action: "T-044: Fabric gap analysis — root cause, remediation, learning L-001"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 6
+  lines_added: 403
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-044-fabric-gap-analysis--learning-and-remedi.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-055: Interactive TTY integration tests — attach and stream commands via expectrl
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T10:18:22Z
+# ============================================================================
+
+task_id: T-055
+task_name: "Interactive TTY integration tests — attach and stream commands via expectrl"
+workflow_type: build
+enrichment_status: enriched
+
+# Timeline
+created: 2026-03-09T08:55:10Z
+completed: 2026-03-09T09:42:20Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-09T10:41:13+01:00
+last_commit: 2026-03-09T10:42:44+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Interactive TTY integration tests — attach and stream via rexpect. Complete — fabric card, verification passed, 4 interactive tests
+
+# Key outcomes
+outcomes:
+  - "rexpect dev-dependency added for PTY-based process spawning"
+  - "spawn_termlink helper with proper env var isolation via spawn_command"
+  - "wait_for_data_socket utility for data plane readiness (.sock.data)"
+  - "attach_shows_output_and_detaches: connect, send command, see output, Ctrl+] detach"
+  - "attach_inject_and_see_output: bidirectional I/O through attach"
+  - "stream_shows_output_and_detaches: data plane connect, send, see output, detach"
+  - "stream_bidirectional_io: full duplex through data plane frames"
+  - "Tests marked #[ignore] (require PTY), pass with --ignored"
+  - "All 156 standard tests still pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - "rexpect 0.5 over expectrl: simpler synchronous API (send_line, exp_string, send_control), spawn_command allows env var isolation. Rejected expectrl (async overkill) and raw pty crate (too low-level)."
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-cli-tests-interactive_integration.yaml"
+  - ".tasks/active/T-055-interactive-tty-integration-tests--attac.md"
+  - ".tasks/completed/T-055-interactive-tty-integration-tests--attac.md"
+  - "crates/termlink-cli/Cargo.toml"
+  - "crates/termlink-cli/tests/interactive_integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-09T10:41:13"
+    action: "T-055: Interactive TTY integration tests — attach and stream via rexpect"
+  - time: "2026-03-09T10:42:44"
+    action: "T-055: Complete — fabric card, verification passed, 4 interactive tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - "4 interactive PTY tests covering attach and stream bidirectional I/O with Ctrl+] detach"
+  - "Tests marked #[ignore] to avoid CI issues — run explicitly with --ignored"
+  - "wait_for_data_socket helper enables reliable data plane readiness detection"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [build, testing, interactive, pty, rexpect, attach, stream]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 5
+  lines_added: 277
+  lines_removed: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-055-interactive-tty-integration-tests--attac.md
+generated_by: context-agent-hybrid

@@ -168,7 +168,7 @@ fn cli_emit_and_events() {
     let _guard = start_register(&dir, "eventer");
     wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
 
-    // Emit two events (first event is seq=0, events --since 0 shows seq > 0)
+    // Emit two events
     let output = termlink_cmd(&dir)
         .args(["emit", "eventer", "build.start"])
         .output()
@@ -183,13 +183,15 @@ fn cli_emit_and_events() {
     assert!(output.status.success(), "emit failed: {}",
         String::from_utf8_lossy(&output.stderr));
 
-    // Check events (default --since 0 shows events with seq > 0, i.e. the second event)
+    // Default events (no --since) shows ALL events including seq=0
     let output = termlink_cmd(&dir)
         .args(["events", "eventer"])
         .output()
         .expect("Failed to run termlink events");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("build.start"),
+        "Expected 'build.start' (seq=0) in events output: {}", stdout);
     assert!(stdout.contains("build.done"),
         "Expected 'build.done' in events output: {}", stdout);
     assert!(output.status.success());

@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-045: CLI clean command — reap stale sessions from runtime directory
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T10:17:28Z
+# ============================================================================
+
+task_id: T-045
+task_name: "CLI clean command — reap stale sessions from runtime directory"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T22:33:35Z
+completed: 2026-03-08T22:37:18Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T23:37:09+01:00
+last_commit: 2026-03-08T23:37:09+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI clean command — reap stale sessions from runtime directory
+
+# Key outcomes
+outcomes:
+  - "`termlink clean` subcommand scans runtime dir and removes stale sessions"
+  - "`--dry-run` flag shows what would be removed without deleting"
+  - "Output table shows ID, name, PID, created time for each stale session"
+  - "`clean_stale_sessions()` function in manager module for reuse"
+  - "Unit test for dry-run vs actual cleanup"
+  - "All existing tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-045-cli-clean-command--reap-stale-sessions-f.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-session/src/manager.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T23:37:09"
+    action: "T-045: CLI clean command — reap stale sessions from runtime directory"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 186
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-045-cli-clean-command--reap-stale-sessions-f.md
+generated_by: context-agent-hybrid

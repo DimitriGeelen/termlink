@@ -1,0 +1,101 @@
+# ============================================================================
+# EPISODIC MEMORY - T-043: Initialize component fabric — register all crates, subsystems, and component cards
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T10:17:04Z
+# ============================================================================
+
+task_id: T-043
+task_name: "Initialize component fabric — register all crates, subsystems, and component cards"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-08T22:05:09Z
+completed: 2026-03-08T22:12:25Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-08T23:12:17+01:00
+last_commit: 2026-03-08T23:12:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Initialize component fabric — 25 cards, 4 subsystems, 41 edges
+
+# Key outcomes
+outcomes:
+  - "subsystems.yaml created with 4 subsystems (protocol, session, hub, cli)"
+  - "25 component cards created with typed dependency edges (41 edges)"
+  - "`fw fabric overview` shows all subsystems with component counts"
+  - "`fw fabric blast-radius HEAD` shows named components"
+  - "`fw fabric deps` shows upstream/downstream for registered components"
+  - "`fw fabric drift` reports 0 orphaned, 0 stale"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-cli-src-main.yaml"
+  - ".fabric/components/crates-termlink-hub-src-lib.yaml"
+  - ".fabric/components/crates-termlink-hub-src-router.yaml"
+  - ".fabric/components/crates-termlink-hub-src-server.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-control.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-data.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-error.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-jsonrpc.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-lib.yaml"
+  - ".fabric/components/crates-termlink-session-src-client.yaml"
+  - ".fabric/components/crates-termlink-session-src-codec.yaml"
+  - ".fabric/components/crates-termlink-session-src-data_server.yaml"
+  - ".fabric/components/crates-termlink-session-src-discovery.yaml"
+  - ".fabric/components/crates-termlink-session-src-events.yaml"
+  - ".fabric/components/crates-termlink-session-src-executor.yaml"
+  - ".fabric/components/crates-termlink-session-src-handler.yaml"
+  - ".fabric/components/crates-termlink-session-src-identity.yaml"
+  - ".fabric/components/crates-termlink-session-src-lib.yaml"
+  - ".fabric/components/crates-termlink-session-src-lifecycle.yaml"
+  - ".fabric/components/crates-termlink-session-src-liveness.yaml"
+  - ".fabric/components/crates-termlink-session-src-manager.yaml"
+  - ".fabric/components/crates-termlink-session-src-pty.yaml"
+  - ".fabric/components/crates-termlink-session-src-registration.yaml"
+  - ".fabric/components/crates-termlink-session-src-scrollback.yaml"
+  - ".fabric/components/crates-termlink-session-src-server.yaml"
+  - ".fabric/subsystems.yaml"
+  - ".tasks/active/T-043-initialize-component-fabric--register-al.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-08T23:12:17"
+    action: "T-043: Initialize component fabric — 25 cards, 4 subsystems, 41 edges"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 27
+  lines_added: 540
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-043-initialize-component-fabric--register-al.md
+generated_by: context-agent-hybrid

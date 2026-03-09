@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-056: Fix events command off-by-one — default since=0 misses first event
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-09T10:19:09Z
+# ============================================================================
+
+task_id: T-056
+task_name: "Fix events command off-by-one — default since=0 misses first event"
+workflow_type: build
+enrichment_status: enriched
+
+# Timeline
+created: 2026-03-09T10:09:42Z
+completed: 2026-03-09T10:15:47Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-09T11:15:24+01:00
+last_commit: 2026-03-09T11:15:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix events command off-by-one — make --since optional so all events visible by default
+
+# Key outcomes
+outcomes:
+  - "`--since` is optional in CLI (no default value)"
+  - "`events` without `--since` returns all events including seq=0"
+  - "`events --since N` still works for delta polling"
+  - "CLI integration test `cli_emit_and_events` verifies seq=0 is visible"
+  - "All 13 CLI integration tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix events command off-by-one — make --since optional so all events visible by default"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - "No architectural decisions — straightforward bug fix making --since optional in CLI to match RPC handler's existing support for omitted since parameter."
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/handovers/LATEST.md"
+  - ".context/handovers/S-2026-0309-1048.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-09T11:15:24"
+    action: "T-056: Fix events command off-by-one — make --since optional so all events visible by default"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - "Root cause was clear: CLI defaulted --since to 0, but RPC uses exclusive comparison (seq > since), so seq=0 was always missed"
+  - "Fix was minimal — remove default value, let Option<u64> propagate None to RPC handler which already handles it correctly"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bugfix, cli, events, off-by-one]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 172
+  lines_removed: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-056-fix-events-command-off-by-one--default-s.md
+generated_by: context-agent-hybrid
