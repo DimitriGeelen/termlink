@@ -1,0 +1,15 @@
+id: crates/termlink-cli/tests/cli_integration.rs
+name: cli_integration
+type: test
+subsystem: cli
+location: crates/termlink-cli/tests/cli_integration.rs
+tags: [integration, e2e, cli]
+
+purpose: "End-to-end CLI binary integration tests — spawns termlink processes with ProcessGuard (RAII cleanup), wait_for_socket readiness, isolated TERMLINK_RUNTIME_DIR. 13 tests covering register/list, ping, status, exec, events, KV, wait, info, clean, multi-session."
+
+depends_on:
+  - target: crates/termlink-cli/src/main.rs
+    type: tests
+
+last_verified: 2026-03-09
+created_by: T-054
