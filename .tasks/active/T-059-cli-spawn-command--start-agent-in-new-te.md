@@ -4,16 +4,16 @@ name: "CLI spawn command — start agent in new terminal with auto-registration"
 description: >
   CLI spawn command — start agent in new terminal with auto-registration
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-09T12:01:51Z
-last_update: 2026-03-09T12:07:02Z
-date_finished: null
+last_update: 2026-03-09T12:12:07Z
+date_finished: 2026-03-09T12:12:07Z
 ---
 
 # T-059: CLI spawn command — start agent in new terminal with auto-registration
@@ -63,3 +63,6 @@ Phase 1 of T-012 agent-to-agent communication. Adds `termlink spawn` command tha
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-059-cli-spawn-command--start-agent-in-new-te.md
 - **Context:** Initial task creation
+
+### 2026-03-09T12:12:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

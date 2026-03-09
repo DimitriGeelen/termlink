@@ -4,7 +4,7 @@ name: "CLI request command — emit event and wait for reply (request-reply patt
 description: >
   CLI request command — emit event and wait for reply (request-reply pattern)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-09T12:07:16Z
-last_update: 2026-03-09T12:07:16Z
-date_finished: null
+last_update: 2026-03-09T12:12:33Z
+date_finished: 2026-03-09T12:12:33Z
 ---
 
 # T-060: CLI request command — emit event and wait for reply (request-reply pattern)
@@ -54,3 +54,6 @@ Phase 1 of T-012 agent-to-agent communication. Adds `termlink request` — a con
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-060-cli-request-command--emit-event-and-wait.md
 - **Context:** Initial task creation
+
+### 2026-03-09T12:12:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
