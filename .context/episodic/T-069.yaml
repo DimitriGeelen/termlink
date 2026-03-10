@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-069: Event schema v2 — progress, cancel, schema versioning, error codes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T17:44:59Z
+# ============================================================================
+
+task_id: T-069
+task_name: "Event schema v2 — progress, cancel, schema versioning, error codes"
+workflow_type: specification
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T08:44:41Z
+completed: 2026-03-10T17:37:23Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`task.progress` event type defined with `percent` (0-100) and `message` fields"
+  - "`task.cancelled` event type defined with `reason` and `cancelled_by` fields"
+  - "`schema_version` field added to all event payloads (start at \"1.0\")"
+  - "`error_code` enum added to `task.failed` payload (e.g., `CRASH`, `TIMEOUT`, `VALIDATION`, `UNKNOWN`)"
+  - "Event types documented in protocol crate with Rust structs (serde Serialize/Deserialize)"
+  - "Existing `task.delegate`, `task.accepted`, `task.completed`, `task.failed` events include `schema_version`"
+  - "Backward compatibility: events without `schema_version` are accepted as v1.0"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 25
+  lines_added: 1312
+  lines_removed: 9
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-069-event-schema-v2--progress-cancel-schema-.md
+generated_by: context-agent-hybrid
