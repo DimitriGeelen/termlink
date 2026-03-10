@@ -1,0 +1,15 @@
+id: crates/termlink-protocol/src/events.rs
+name: events
+type: module
+subsystem: protocol
+location: crates/termlink-protocol/src/events.rs
+tags: [events, schema, serde, delegation]
+
+purpose: "Typed event schemas for the delegation protocol — TaskDelegate, TaskAccepted, TaskProgress, TaskCompleted, TaskFailed, TaskCancelled structs with schema versioning and ErrorCode enum"
+
+depends_on:
+  - target: crates/termlink-protocol/src/lib.rs
+    type: exports-via
+
+last_verified: 2026-03-10
+created_by: T-069
