@@ -379,12 +379,13 @@ mod tests {
             .await
             .unwrap();
 
-        let reg = session.registration.clone();
-        let json_path = Registration::json_path(sessions_dir, session.id());
-        let ctx = SessionContext::new(session.registration)
+        let session_id = session.id().clone();
+        let (registration, listener, _) = session.into_parts();
+        let reg = registration.clone();
+        let json_path = Registration::json_path(sessions_dir, &session_id);
+        let ctx = SessionContext::new(registration)
             .with_registration_path(json_path);
         let shared = Arc::new(RwLock::new(ctx));
-        let listener = session.listener;
 
         let handle = tokio::spawn(async move {
             server::run_accept_loop(listener, shared).await;

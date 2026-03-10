@@ -6,13 +6,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:11:49Z
-last_update: 2026-03-10T08:11:49Z
+last_update: 2026-03-10T14:06:08Z
 date_finished: null
 ---
 
@@ -71,3 +71,6 @@ test -x tests/e2e/level5-role-specialists.sh
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-063-role-specific-persistent-specialist-agen.md
 - **Context:** Initial task creation
+
+### 2026-03-10T14:06:08Z — status-update [task-update-agent]
+- **Change:** owner: agent → human

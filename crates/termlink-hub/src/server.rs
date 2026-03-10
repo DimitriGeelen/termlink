@@ -136,10 +136,10 @@ mod tests {
             ..Default::default()
         };
         let session = Session::register_in(config, sessions_dir).await.unwrap();
-        let reg = session.registration.clone();
-        let ctx = SessionContext::new(session.registration);
+        let (registration, listener, _) = session.into_parts();
+        let reg = registration.clone();
+        let ctx = SessionContext::new(registration);
         let shared = Arc::new(RwLock::new(ctx));
-        let listener = session.listener;
 
         let handle = tokio::spawn(async move {
             session_server::run_accept_loop(listener, shared).await;

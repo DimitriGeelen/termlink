@@ -140,11 +140,16 @@ impl Registration {
     }
 
     /// Update state and write atomically.
+    ///
+    /// Returns an error if the transition is invalid (see [`SessionState::valid_transition`]).
     pub fn set_state(
         &mut self,
         state: SessionState,
         path: &std::path::Path,
     ) -> std::io::Result<()> {
+        self.state.valid_transition(state).map_err(|e| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+        })?;
         self.state = state;
         self.heartbeat_at = now_iso8601();
         self.write_atomic(path)

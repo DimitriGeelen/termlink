@@ -547,24 +547,24 @@ async fn cmd_register(
     println!();
     println!("Listening for connections... (Ctrl+C to stop)");
 
+    let session_id = session.id().clone();
+    let sessions_dir = termlink_session::discovery::sessions_dir();
     let json_path = termlink_session::registration::Registration::json_path(
-        &termlink_session::discovery::sessions_dir(),
-        session.id(),
+        &sessions_dir,
+        &session_id,
     );
+
+    let (registration, listener, _) = session.into_parts();
     let ctx = if let Some(ref pty) = pty_session {
-        SessionContext::with_pty(session.registration.clone(), pty.clone())
+        SessionContext::with_pty(registration.clone(), pty.clone())
             .with_registration_path(json_path)
     } else {
-        SessionContext::new(session.registration.clone())
+        SessionContext::new(registration.clone())
             .with_registration_path(json_path)
     };
     let shared = Arc::new(RwLock::new(ctx));
 
-    // Handle Ctrl+C for graceful shutdown
-    let session_id = session.id().clone();
-    let sessions_dir = termlink_session::discovery::sessions_dir();
-    let listener = session.listener;
-    let reg_for_cleanup = session.registration;
+    let reg_for_cleanup = registration;
 
     // Compute data socket path before moving reg
     let data_socket_path = if shell {
@@ -2012,15 +2012,15 @@ async fn cmd_run(
 
     let json_path = termlink_session::registration::Registration::json_path(
         &sessions_dir,
-        session.id(),
+        &session_id,
     );
-    let ctx = SessionContext::new(session.registration.clone())
+    let (registration, listener, _) = session.into_parts();
+    let ctx = SessionContext::new(registration.clone())
         .with_registration_path(json_path);
     let shared = Arc::new(RwLock::new(ctx));
     let shared_clone = shared.clone();
 
-    let listener = session.listener;
-    let reg_for_cleanup = session.registration;
+    let reg_for_cleanup = registration;
 
     // Run RPC listener in background so the session is queryable during execution
     let rpc_handle = tokio::spawn(async move {

@@ -46,10 +46,10 @@ async fn start_session(
         .await
         .unwrap();
 
-    let reg = session.registration.clone();
-    let ctx = SessionContext::new(session.registration);
+    let (registration, listener, _sessions_dir) = session.into_parts();
+    let reg = registration.clone();
+    let ctx = SessionContext::new(registration);
     let shared = Arc::new(RwLock::new(ctx));
-    let listener = session.listener;
 
     let handle = tokio::spawn(async move {
         server::run_accept_loop(listener, shared).await;
@@ -320,13 +320,13 @@ async fn start_pty_session(
         .unwrap();
 
     let pty = Arc::new(PtySession::spawn(Some("/bin/sh"), 1024 * 64).unwrap());
-    let reg = session.registration.clone();
+    let (registration, listener, _sessions_dir) = session.into_parts();
+    let reg = registration.clone();
     let data_socket = data_server::data_socket_path(&reg.socket);
 
     // Start control plane
-    let ctx = SessionContext::with_pty(session.registration, pty.clone());
+    let ctx = SessionContext::with_pty(registration, pty.clone());
     let shared = Arc::new(RwLock::new(ctx));
-    let listener = session.listener;
     let ctrl_handle = tokio::spawn(async move {
         server::run_accept_loop(listener, shared).await;
     });

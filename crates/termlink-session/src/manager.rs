@@ -57,7 +57,14 @@ impl Session {
         let socket_path = Registration::socket_path(sessions_dir, &id);
         let json_path = Registration::json_path(sessions_dir, &id);
 
-        // Check for display name conflicts
+        // Check for display name conflicts.
+        //
+        // TOCTOU race (T-067): There is a time-of-check-to-time-of-use gap between
+        // this uniqueness check and the JSON write below. Two concurrent register_in()
+        // calls with the same display_name can both pass this check and write, resulting
+        // in duplicate names. Mitigation path: use advisory file locking (flock) on a
+        // per-name lockfile, or accept duplicates and resolve at query time. The current
+        // single-threaded CLI usage makes this unlikely in practice.
         if let Some(ref name) = config.display_name
             && let Some(existing) = find_by_display_name(sessions_dir, name)?
         {
@@ -77,12 +84,21 @@ impl Session {
         // Bind Unix socket
         let listener = UnixListener::bind(&socket_path)?;
 
-        // Write registration (initially in Initializing state)
-        let mut registration = Registration::new(id.clone(), config, socket_path);
-        registration.write_atomic(&json_path)?;
+        // Write registration (initially in Initializing state).
+        // If the JSON write fails, clean up the socket to avoid leaking it.
+        let mut registration = Registration::new(id.clone(), config, socket_path.clone());
+        if let Err(e) = registration.write_atomic(&json_path) {
+            let _ = std::fs::remove_file(&socket_path);
+            return Err(e.into());
+        }
 
-        // Transition to Ready
-        registration.set_state(SessionState::Ready, &json_path)?;
+        // Transition to Ready.
+        // If this fails, clean up both socket and JSON.
+        if let Err(e) = registration.set_state(SessionState::Ready, &json_path) {
+            let _ = std::fs::remove_file(&socket_path);
+            let _ = std::fs::remove_file(&json_path);
+            return Err(e.into());
+        }
 
         tracing::info!(
             session_id = %id,
@@ -98,29 +114,44 @@ impl Session {
         })
     }
 
-    /// Deregister this session: remove socket and registration files.
+    /// Deregister this session: transition to Draining and clean up.
+    ///
+    /// File removal happens in `Drop`, which fires when `self` is consumed
+    /// at the end of this method.
     pub fn deregister(mut self) -> Result<(), SessionError> {
         let json_path =
             Registration::json_path(&self.sessions_dir, &self.registration.id);
 
-        // Transition to draining, then gone
+        // Transition to draining
         let _ = self
             .registration
             .set_state(SessionState::Draining, &json_path);
-
-        // Drop listener (closes socket)
-        drop(self.listener);
-
-        // Remove files
-        let _ = std::fs::remove_file(&self.registration.socket);
-        let _ = std::fs::remove_file(&json_path);
 
         tracing::info!(
             session_id = %self.registration.id,
             "Session deregistered"
         );
 
+        // `self` is dropped here — `Drop::drop` removes socket + JSON files
         Ok(())
+    }
+
+    /// Decompose the session into its parts, suppressing the `Drop` cleanup.
+    ///
+    /// Use this when you need to take ownership of individual fields (e.g.,
+    /// to pass the listener to an accept loop). The caller is responsible
+    /// for cleaning up files.
+    pub fn into_parts(self) -> (Registration, UnixListener, PathBuf) {
+        // Prevent Drop from running (which would remove files)
+        let this = std::mem::ManuallyDrop::new(self);
+        // Safety: we're reading the fields before ManuallyDrop prevents drop.
+        // Each field is moved out exactly once.
+        unsafe {
+            let registration = std::ptr::read(&this.registration);
+            let listener = std::ptr::read(&this.listener);
+            let sessions_dir = std::ptr::read(&this.sessions_dir);
+            (registration, listener, sessions_dir)
+        }
     }
 
     /// Get the session ID.
@@ -139,6 +170,23 @@ impl Session {
             Registration::json_path(&self.sessions_dir, &self.registration.id);
         self.registration.write_atomic(&json_path)?;
         Ok(())
+    }
+}
+
+impl Drop for Session {
+    /// Best-effort cleanup: remove socket and JSON registration files.
+    ///
+    /// This ensures files don't leak if `deregister()` is never called
+    /// (e.g., due to a panic or early return).
+    fn drop(&mut self) {
+        let json_path =
+            Registration::json_path(&self.sessions_dir, &self.registration.id);
+        let _ = std::fs::remove_file(&self.registration.socket);
+        let _ = std::fs::remove_file(&json_path);
+        tracing::debug!(
+            session_id = %self.registration.id,
+            "Session dropped — best-effort cleanup"
+        );
     }
 }
 
@@ -454,6 +502,27 @@ mod tests {
         assert!(matches!(result, Err(SessionError::NameConflict(_, _))));
 
         s1.deregister().unwrap();
+    }
+
+    #[tokio::test]
+    async fn drop_cleans_up_files() {
+        let sessions_dir = unique_test_dir("drop");
+
+        let session = Session::register_in(SessionConfig::default(), &sessions_dir)
+            .await
+            .unwrap();
+        let id = session.id().clone();
+        let json_path = Registration::json_path(&sessions_dir, &id);
+        let socket_path = Registration::socket_path(&sessions_dir, &id);
+
+        assert!(json_path.exists());
+        assert!(socket_path.exists());
+
+        // Drop without calling deregister()
+        drop(session);
+
+        assert!(!json_path.exists(), "Drop should remove JSON file");
+        assert!(!socket_path.exists(), "Drop should remove socket file");
     }
 
     #[test]
