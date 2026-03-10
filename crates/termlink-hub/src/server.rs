@@ -4,6 +4,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
+use termlink_session::auth::PeerCredentials;
 use termlink_session::discovery;
 
 use crate::router;
@@ -35,10 +36,35 @@ pub async fn run(socket_path: &Path) -> std::io::Result<()> {
 }
 
 /// Accept loop: spawns a task per connection.
+///
+/// Rejects connections from different UIDs (same security model as session server).
 pub async fn run_accept_loop(listener: UnixListener) {
+    let owner_uid = unsafe { libc::getuid() };
+
     loop {
         match listener.accept().await {
             Ok((stream, _addr)) => {
+                // Extract peer credentials and check UID
+                match PeerCredentials::from_tokio_stream(&stream) {
+                    Ok(creds) => {
+                        if !creds.is_same_user(owner_uid) {
+                            tracing::warn!(
+                                peer_uid = creds.uid,
+                                peer_pid = ?creds.pid,
+                                owner_uid = owner_uid,
+                                "Hub: rejected connection from different UID"
+                            );
+                            continue;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::debug!(
+                            error = %e,
+                            "Hub: could not extract peer credentials, allowing connection"
+                        );
+                    }
+                }
+
                 tokio::spawn(async move {
                     handle_connection(stream).await;
                 });

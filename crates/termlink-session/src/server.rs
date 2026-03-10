@@ -6,6 +6,7 @@ use tokio::sync::RwLock;
 
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
 
+use crate::auth::PeerCredentials;
 use crate::handler::{self, SessionContext};
 
 /// Shared session state accessible by connection handlers.
@@ -72,9 +73,44 @@ pub async fn run_accept_loop(
     listener: tokio::net::UnixListener,
     session: SharedSession,
 ) {
+    // Cache the session owner UID for auth checks
+    let owner_uid = {
+        let ctx = session.read().await;
+        ctx.registration.uid
+    };
+
     loop {
         match listener.accept().await {
             Ok((stream, _addr)) => {
+                // Extract peer credentials and check UID
+                match PeerCredentials::from_tokio_stream(&stream) {
+                    Ok(creds) => {
+                        if !creds.is_same_user(owner_uid) {
+                            tracing::warn!(
+                                peer_uid = creds.uid,
+                                peer_pid = ?creds.pid,
+                                owner_uid = owner_uid,
+                                "Rejected connection from different UID"
+                            );
+                            // Drop the stream — connection closed
+                            continue;
+                        }
+                        tracing::trace!(
+                            peer_uid = creds.uid,
+                            peer_pid = ?creds.pid,
+                            "Accepted authenticated connection"
+                        );
+                    }
+                    Err(e) => {
+                        // If credential extraction fails, allow the connection
+                        // (graceful degradation on unsupported platforms)
+                        tracing::debug!(
+                            error = %e,
+                            "Could not extract peer credentials, allowing connection"
+                        );
+                    }
+                }
+
                 let sess = session.clone();
                 tokio::spawn(async move {
                     handle_connection(stream, sess).await;
