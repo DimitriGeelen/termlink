@@ -4,7 +4,7 @@ name: "IT-006: Security model — capability-based access"
 description: >
   Design auth, consent prompts, command allowlists, Tier 0 integration
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:42Z
-last_update: 2026-03-10T08:45:03Z
+last_update: 2026-03-10T20:25:59Z
 date_finished: null
 ---
 
@@ -50,9 +50,9 @@ Any local process can connect to any TermLink session's Unix socket and execute 
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -76,18 +76,11 @@ Any local process can connect to any TermLink session's Unix socket and execute 
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
-## Decision
+**Rationale**: SO_PEERCRED/LOCAL_PEERCRED works cross-platform (<0.1ms), 4-tier permission model maps cleanly to 17 RPC methods, Phase 1 (UID check) preserves single-user UX with zero config
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Date**: 2026-03-10T20:36:01Z
 
 ## Updates
 
@@ -96,3 +89,11 @@ Any local process can connect to any TermLink session's Unix socket and execute 
 
 ### 2026-03-10T08:45:03Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-03-10T20:25:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-10T20:36:01Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** SO_PEERCRED/LOCAL_PEERCRED works cross-platform (<0.1ms), 4-tier permission model maps cleanly to 17 RPC methods, Phase 1 (UID check) preserves single-user UX with zero config
