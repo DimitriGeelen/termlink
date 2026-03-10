@@ -4,7 +4,7 @@ name: "Task delegation event schema convention"
 description: >
   Document the standard event topics and payload schemas for agent-to-agent task delegation via TermLink
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-09T13:25:16Z
-last_update: 2026-03-09T13:25:16Z
-date_finished: null
+last_update: 2026-03-09T13:52:18Z
+date_finished: 2026-03-09T13:52:18Z
 ---
 
 # T-061: Task delegation event schema convention
@@ -55,3 +55,6 @@ grep -q "request_id" docs/conventions/agent-delegation-events.md
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-061-task-delegation-event-schema-convention.md
 - **Context:** Initial task creation
+
+### 2026-03-09T13:52:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
