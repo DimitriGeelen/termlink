@@ -1,22 +1,22 @@
 ---
-id: T-008
-name: "IT-006: Security model — capability-based access"
+id: T-073
+name: "Transport abstraction — trait-based transport in protocol crate"
 description: >
-  Design auth, consent prompts, command allowlists, Tier 0 integration
+  Session crate couples to tokio and Unix sockets. Inception: trait-based transport abstraction to enable TCP, QUIC, or other transports.
 
 status: captured
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-08T14:19:42Z
-last_update: 2026-03-10T08:45:03Z
+created: 2026-03-10T08:44:51Z
+last_update: 2026-03-10T08:44:51Z
 date_finished: null
 ---
 
-# T-008: IT-006: Security model — capability-based access
+# T-073: Transport abstraction — trait-based transport in protocol crate
 
 ## Problem Statement
 
@@ -85,6 +85,3 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
-
-### 2026-03-10T08:45:03Z — status-update [task-update-agent]
-- **Change:** horizon: later → now

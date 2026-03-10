@@ -1,8 +1,8 @@
-timestamp: 2026-03-09T14:07:21Z
+timestamp: 2026-03-10T08:10:37Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (0/56)"
+    check: "D1: Episodic quality — 0% [TODO] (0/58)"
   - id: D2
     level: PASS
     check: "D2: Human review queue — no aging items"
@@ -23,11 +23,12 @@ findings:
     check: "D5: Task lifecycle — 7 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-038(2min,human) T-046(3min,human) T-027(2min,human)"
     mitigation: "Review flagged tasks for process issues"
   - id: D3
-    level: PASS
-    check: "D3: Commit velocity — insufficient data"
+    level: WARN
+    check: "D3: Commit velocity — WARN drop today=6 avg=42 ratio=0.1x"
+    mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS 79_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 26_commits_24h_no_bunching)"
   - id: D6
     level: PASS
     check: "D6: Completion velocity — normal (PASS insufficient_data)"
@@ -39,7 +40,7 @@ findings:
     check: "D9: Control drift — normal (PASS insufficient_audits)"
 
 summary:
-  pass: 11
-  warn: 1
+  pass: 10
+  warn: 2
   fail: 0
   total: 12
