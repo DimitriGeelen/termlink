@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
+use tokio::sync::watch;
 
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
 use termlink_session::auth::PeerCredentials;
@@ -15,15 +16,31 @@ pub fn hub_socket_path() -> PathBuf {
     discovery::runtime_dir().join("hub.sock")
 }
 
+/// A handle to signal the hub to shut down gracefully.
+#[derive(Clone)]
+pub struct ShutdownHandle {
+    tx: watch::Sender<bool>,
+}
+
+impl ShutdownHandle {
+    /// Signal the hub to shut down. The accept loop will stop and
+    /// active connections will be given time to complete.
+    pub fn shutdown(&self) {
+        let _ = self.tx.send(true);
+    }
+}
+
 /// Start the hub server, binding to the given socket path.
 ///
-/// The hub accepts JSON-RPC connections and routes requests via [`router::route`]:
-/// - `session.discover` is handled locally (lists all sessions)
-/// - All other methods are forwarded to the target session specified in params.target
+/// Returns a [`ShutdownHandle`] that can be used to trigger graceful shutdown.
+/// The server will:
+/// 1. Stop accepting new connections
+/// 2. Wait up to 5 seconds for active connections to complete
+/// 3. Remove pidfile and socket file
 ///
 /// Acquires a pidfile to prevent multiple hub instances. The pidfile is removed
 /// on clean shutdown. Stale pidfiles from crashed hubs are cleaned automatically.
-pub async fn run(socket_path: &Path) -> std::io::Result<()> {
+pub async fn run(socket_path: &Path) -> std::io::Result<ShutdownHandle> {
     let pidfile_path = pidfile::hub_pidfile_path();
 
     // Acquire pidfile (prevents double-start, cleans stale)
@@ -42,7 +59,47 @@ pub async fn run(socket_path: &Path) -> std::io::Result<()> {
     let listener = UnixListener::bind(socket_path)?;
     tracing::info!(path = %socket_path.display(), "Hub listening");
 
-    run_accept_loop(listener).await;
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let handle = ShutdownHandle { tx: shutdown_tx };
+
+    let socket_path_owned = socket_path.to_path_buf();
+    tokio::spawn(async move {
+        run_accept_loop(listener, shutdown_rx).await;
+
+        // Cleanup on exit
+        let _ = std::fs::remove_file(&socket_path_owned);
+        pidfile::remove(&pidfile_path);
+        tracing::info!("Hub shut down cleanly");
+    });
+
+    Ok(handle)
+}
+
+/// Start the hub server and block until shutdown.
+///
+/// This is the simple API for CLI usage — starts the server and waits
+/// for the shutdown handle to be triggered.
+pub async fn run_blocking(socket_path: &Path) -> std::io::Result<()> {
+    let pidfile_path = pidfile::hub_pidfile_path();
+
+    // Acquire pidfile (prevents double-start, cleans stale)
+    pidfile::acquire(&pidfile_path).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::AddrInUse, e.to_string())
+    })?;
+
+    // Ensure parent directory exists
+    if let Some(parent) = socket_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    // Remove stale socket file
+    let _ = std::fs::remove_file(socket_path);
+
+    let listener = UnixListener::bind(socket_path)?;
+    tracing::info!(path = %socket_path.display(), "Hub listening");
+
+    let (_shutdown_tx, shutdown_rx) = watch::channel(false);
+    run_accept_loop(listener, shutdown_rx).await;
 
     // Cleanup on exit
     pidfile::remove(&pidfile_path);
@@ -52,42 +109,69 @@ pub async fn run(socket_path: &Path) -> std::io::Result<()> {
 /// Accept loop: spawns a task per connection.
 ///
 /// Rejects connections from different UIDs (same security model as session server).
-pub async fn run_accept_loop(listener: UnixListener) {
+/// Stops accepting when the shutdown signal is received, then waits up to 5 seconds
+/// for active connections to complete.
+pub async fn run_accept_loop(listener: UnixListener, mut shutdown_rx: watch::Receiver<bool>) {
     let owner_uid = unsafe { libc::getuid() };
+    let active_connections = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
 
     loop {
-        match listener.accept().await {
-            Ok((stream, _addr)) => {
-                // Extract peer credentials and check UID
-                match PeerCredentials::from_tokio_stream(&stream) {
-                    Ok(creds) => {
-                        if !creds.is_same_user(owner_uid) {
-                            tracing::warn!(
-                                peer_uid = creds.uid,
-                                peer_pid = ?creds.pid,
-                                owner_uid = owner_uid,
-                                "Hub: rejected connection from different UID"
-                            );
-                            continue;
+        tokio::select! {
+            result = listener.accept() => {
+                match result {
+                    Ok((stream, _addr)) => {
+                        // Extract peer credentials and check UID
+                        match PeerCredentials::from_tokio_stream(&stream) {
+                            Ok(creds) => {
+                                if !creds.is_same_user(owner_uid) {
+                                    tracing::warn!(
+                                        peer_uid = creds.uid,
+                                        peer_pid = ?creds.pid,
+                                        owner_uid = owner_uid,
+                                        "Hub: rejected connection from different UID"
+                                    );
+                                    continue;
+                                }
+                            }
+                            Err(e) => {
+                                tracing::debug!(
+                                    error = %e,
+                                    "Hub: could not extract peer credentials, allowing connection"
+                                );
+                            }
                         }
+
+                        let counter = active_connections.clone();
+                        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        tokio::spawn(async move {
+                            handle_connection(stream).await;
+                            counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                        });
                     }
                     Err(e) => {
-                        tracing::debug!(
-                            error = %e,
-                            "Hub: could not extract peer credentials, allowing connection"
-                        );
+                        tracing::error!(error = %e, "Hub accept failed");
+                        break;
                     }
                 }
-
-                tokio::spawn(async move {
-                    handle_connection(stream).await;
-                });
             }
-            Err(e) => {
-                tracing::error!(error = %e, "Hub accept failed");
-                break;
+            _ = shutdown_rx.changed() => {
+                if *shutdown_rx.borrow() {
+                    tracing::info!("Hub: shutdown signal received, draining connections");
+                    break;
+                }
             }
         }
+    }
+
+    // Drain: wait up to 5 seconds for active connections to finish
+    let drain_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    while active_connections.load(std::sync::atomic::Ordering::Relaxed) > 0 {
+        if tokio::time::Instant::now() >= drain_deadline {
+            let remaining = active_connections.load(std::sync::atomic::Ordering::Relaxed);
+            tracing::warn!(remaining, "Hub: drain timeout, forcing shutdown");
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
 
@@ -191,11 +275,21 @@ mod tests {
         (handle, reg)
     }
 
+    /// Start the hub server on the given socket with a shutdown handle.
+    fn start_hub_with_shutdown(socket: PathBuf) -> (tokio::task::JoinHandle<()>, watch::Sender<bool>) {
+        let (tx, rx) = watch::channel(false);
+        let handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket);
+            let listener = UnixListener::bind(&socket).unwrap();
+            run_accept_loop(listener, rx).await;
+        });
+        (handle, tx)
+    }
+
     /// Start the hub server on the given socket, return its handle.
     fn start_hub(socket: PathBuf) -> tokio::task::JoinHandle<()> {
-        tokio::spawn(async move {
-            run(&socket).await.unwrap();
-        })
+        let (handle, _tx) = start_hub_with_shutdown(socket);
+        handle
     }
 
     /// Tests discover + forward in a single test to avoid env var races.
@@ -329,5 +423,55 @@ mod tests {
             .contains("Missing"));
 
         hub_handle.abort();
+    }
+
+    #[tokio::test]
+    async fn graceful_shutdown_stops_accept_loop() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let (hub_handle, shutdown_tx) = start_hub_with_shutdown(hub_socket.clone());
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+        // Verify hub is accepting connections
+        let stream = tokio::net::UnixStream::connect(&hub_socket).await.unwrap();
+        drop(stream);
+
+        // Signal shutdown
+        shutdown_tx.send(true).unwrap();
+
+        // Hub should stop within a reasonable time
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            hub_handle,
+        ).await;
+
+        assert!(result.is_ok(), "Hub did not shut down within 3 seconds");
+    }
+
+    #[tokio::test]
+    async fn graceful_shutdown_drains_active_connection() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let (hub_handle, shutdown_tx) = start_hub_with_shutdown(hub_socket.clone());
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+        // Connect a client that stays open
+        let stream = tokio::net::UnixStream::connect(&hub_socket).await.unwrap();
+        let (_reader, _writer) = stream.into_split();
+
+        // Signal shutdown while connection is active
+        shutdown_tx.send(true).unwrap();
+
+        // Hub should still shut down (drain timeout or client disconnect)
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(7),
+            hub_handle,
+        ).await;
+
+        assert!(result.is_ok(), "Hub did not shut down during drain");
     }
 }

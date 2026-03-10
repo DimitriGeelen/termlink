@@ -2708,20 +2708,19 @@ async fn cmd_hub_start() -> Result<()> {
     println!();
     println!("Listening for connections... (Ctrl+C to stop)");
 
-    let socket_clone = socket_path.clone();
-    let pidfile_clone = pidfile_path.clone();
-    tokio::select! {
-        result = termlink_hub::server::run(&socket_path) => {
-            result.context("Hub server error")?;
-        }
-        _ = tokio::signal::ctrl_c() => {
-            println!();
-            println!("Shutting down hub...");
-            let _ = std::fs::remove_file(&socket_clone);
-            termlink_hub::pidfile::remove(&pidfile_clone);
-            println!("Hub stopped.");
-        }
-    }
+    let handle = termlink_hub::server::run(&socket_path)
+        .await
+        .context("Hub server error")?;
+
+    // Wait for Ctrl+C, then trigger graceful shutdown
+    tokio::signal::ctrl_c().await.ok();
+    println!();
+    println!("Shutting down hub...");
+    handle.shutdown();
+
+    // Give the background task time to drain
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    println!("Hub stopped.");
 
     Ok(())
 }
