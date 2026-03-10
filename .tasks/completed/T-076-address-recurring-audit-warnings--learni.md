@@ -4,7 +4,7 @@ name: "Address recurring audit warnings — learnings, practices, historical deb
 description: >
   Address recurring audit warnings — learnings, practices, historical debt
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T13:25:18Z
-last_update: 2026-03-10T13:25:18Z
-date_finished: null
+last_update: 2026-03-10T14:04:26Z
+date_finished: 2026-03-10T14:04:26Z
 ---
 
 # T-076: Address recurring audit warnings — learnings, practices, historical debt
@@ -28,7 +28,7 @@ date_finished: null
 - [x] Bugfix learnings registered for T-064 and T-065 (L-002, L-003, L-004)
 - [x] Historical rubber-stamp ACs checked for T-027, T-031, T-038, T-046, T-052
 - [x] Episodic summaries generated for T-064, T-065, T-075
-- [ ] Audit warning count reduced from 15 to fewer than 10
+- [x] Audit warning count reduced from 15 to fewer than 10
 
 ## Verification
 
@@ -59,3 +59,6 @@ test -f .context/episodic/T-075.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-076-address-recurring-audit-warnings--learni.md
 - **Context:** Initial task creation
+
+### 2026-03-10T14:04:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
