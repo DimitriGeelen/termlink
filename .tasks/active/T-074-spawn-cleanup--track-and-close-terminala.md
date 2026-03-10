@@ -41,8 +41,17 @@ Discovered during T-063 reflection fleet: spawning 10 agents left 31 Terminal.ap
 
 ## Verification
 
-grep -q "window-ids" tests/e2e/level5-role-specialists.sh
-grep -q "window-ids" tests/e2e/level6-reflection-fleet.sh
+# Shared helpers exist with window tracking
+grep -q "window-ids" tests/e2e/e2e-helpers.sh
+grep -q "spawn_tracked" tests/e2e/e2e-helpers.sh
+grep -q "cleanup_all" tests/e2e/e2e-helpers.sh
+# All 6 tests source the helpers
+grep -q "e2e-helpers.sh" tests/e2e/level1-echo.sh
+grep -q "e2e-helpers.sh" tests/e2e/level2-file-task.sh
+grep -q "e2e-helpers.sh" tests/e2e/level3-persistent-agent.sh
+grep -q "e2e-helpers.sh" tests/e2e/level4-multi-specialist.sh
+grep -q "e2e-helpers.sh" tests/e2e/level5-role-specialists.sh
+grep -q "e2e-helpers.sh" tests/e2e/level6-reflection-fleet.sh
 
 ## Decisions
 
