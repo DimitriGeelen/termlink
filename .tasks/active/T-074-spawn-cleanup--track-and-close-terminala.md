@@ -4,7 +4,7 @@ name: "Spawn cleanup — track and close Terminal.app windows on test exit"
 description: >
   E2e tests spawn Terminal.app windows via osascript but never close them. Window IDs are returned by spawn (tab 1 of window id XXXX) but not captured. Cleanup kills processes but leaves windows. Need: capture window IDs, store in runtime dir, close only tracked windows on cleanup.
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: human
 horizon: now

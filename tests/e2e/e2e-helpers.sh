@@ -52,7 +52,10 @@ cleanup_all() {
         kill "$ORCH_PID" 2>/dev/null || true
     fi
 
-    # Close tracked Terminal.app windows (only ours)
+    # Wait for processes to die before closing windows
+    sleep 1
+
+    # Close tracked Terminal.app windows (only ours, no confirmation dialog)
     if [ -f "$WINDOW_IDS_FILE" ] && [ -s "$WINDOW_IDS_FILE" ]; then
         local closed=0
         while IFS= read -r wid; do
@@ -60,7 +63,7 @@ cleanup_all() {
                 osascript -e "
                     tell application \"Terminal\"
                         try
-                            close window id $wid
+                            close window id $wid saving no
                         end try
                     end tell
                 " 2>/dev/null || true
