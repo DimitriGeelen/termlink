@@ -4,7 +4,7 @@ name: "Capability token system — HMAC-signed scoped tokens for multi-agent"
 description: >
   Token generation, HMAC-SHA256 signing, token validation in dispatch. Enables fine-grained per-agent permissions. Depends on T-077 and T-078.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T20:44:22Z
-last_update: 2026-03-10T23:24:04Z
-date_finished: null
+last_update: 2026-03-10T23:26:53Z
+date_finished: 2026-03-10T23:26:53Z
 ---
 
 # T-079: Capability token system — HMAC-signed scoped tokens for multi-agent
@@ -44,14 +44,11 @@ Related gaps: G-001 (command injection), G-002 (no auth beyond UID check). Resea
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
+
+**Rationale**: Connection-level HMAC tokens fit existing architecture (handle_connection already takes scope param). Backward compatible: legacy connections keep Execute scope. Addresses G-001/G-002 critical gaps. ~400 lines across 3 build tasks.
+
+**Date**: 2026-03-10T23:26:53Z
 
 ## Updates
 
@@ -65,3 +62,12 @@ Related gaps: G-001 (command injection), G-002 (no auth beyond UID check). Resea
 
 ### 2026-03-10T23:24:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-10T23:26:53Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Connection-level HMAC tokens fit existing architecture (handle_connection already takes scope param). Backward compatible: legacy connections keep Execute scope. Addresses G-001/G-002 critical gaps. ~400 lines across 3 build tasks.
+
+### 2026-03-10T23:26:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

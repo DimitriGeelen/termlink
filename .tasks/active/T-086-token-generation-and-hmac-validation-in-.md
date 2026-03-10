@@ -1,22 +1,22 @@
 ---
-id: T-085
-name: "Architecture documentation — component graph and hierarchical description"
+id: T-086
+name: "Token generation and HMAC validation in auth.rs"
 description: >
-  Create detailed documentation from the component fabric, inferring functionality of each component and producing a logical, structured hierarchical description of TermLink.
+  Add Token struct, HMAC-SHA256 sign/verify, generate_secret(), token_secret in Registration. Unit tests for creation, validation, expiry, tampering. From T-079 inception.
 
-status: work-completed
+status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-10T22:33:12Z
-last_update: 2026-03-10T22:41:34Z
-date_finished: 2026-03-10T22:41:29Z
+created: 2026-03-10T23:27:00Z
+last_update: 2026-03-10T23:27:00Z
+date_finished: null
 ---
 
-# T-085: Architecture documentation — component graph and hierarchical description
+# T-086: Token generation and HMAC validation in auth.rs
 
 ## Context
 
@@ -68,10 +68,7 @@ date_finished: 2026-03-10T22:41:29Z
 
 ## Updates
 
-### 2026-03-10T22:33:12Z — task-created [task-create-agent]
+### 2026-03-10T23:27:00Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-085-architecture-documentation--component-gr.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-086-token-generation-and-hmac-validation-in-.md
 - **Context:** Initial task creation
-
-### 2026-03-10T22:41:29Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

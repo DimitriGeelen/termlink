@@ -1,3 +1,9 @@
-# Git hook bypass log
-# Entries auto-added by post-commit hook when --no-verify is detected
-bypasses: []
+bypasses:
+- timestamp: '2026-03-10T10:18:31Z'
+  tier: 0
+  risk: 'PKILL -9: Force-kills processes by name (SIGKILL)'
+  command_preview: "for wid in 7660 7662 7664; do\n    tty_name=$(osascript -e \"\
+    tell application \"Terminal\" to return tty of tab 1 of windo"
+  command_hash: d237101b55ed4a895b3575650bacc586bc6e6cc13cc6fbdb77856d96ad695a53
+  authorized_by: human
+  mechanism: fw tier0 approve

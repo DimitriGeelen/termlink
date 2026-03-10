@@ -1,22 +1,22 @@
 ---
-id: T-085
-name: "Architecture documentation — component graph and hierarchical description"
+id: T-087
+name: "Server-side token authentication — auth.token RPC method"
 description: >
-  Create detailed documentation from the component fabric, inferring functionality of each component and producing a logical, structured hierarchical description of TermLink.
+  Add auth.token RPC method, connection scope upgrade from token, default scope logic (Execute if no secret, Observe if secret). From T-079 inception.
 
-status: work-completed
+status: captured
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-10T22:33:12Z
-last_update: 2026-03-10T22:41:34Z
-date_finished: 2026-03-10T22:41:29Z
+created: 2026-03-10T23:27:02Z
+last_update: 2026-03-10T23:27:02Z
+date_finished: null
 ---
 
-# T-085: Architecture documentation — component graph and hierarchical description
+# T-087: Server-side token authentication — auth.token RPC method
 
 ## Context
 
@@ -68,10 +68,7 @@ date_finished: 2026-03-10T22:41:29Z
 
 ## Updates
 
-### 2026-03-10T22:33:12Z — task-created [task-create-agent]
+### 2026-03-10T23:27:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-085-architecture-documentation--component-gr.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-087-server-side-token-authentication--authto.md
 - **Context:** Initial task creation
-
-### 2026-03-10T22:41:29Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
