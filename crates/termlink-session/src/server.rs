@@ -6,7 +6,7 @@ use tokio::sync::RwLock;
 
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
 
-use crate::auth::PeerCredentials;
+use crate::auth::{self, PeerCredentials, PermissionScope};
 use crate::handler::{self, SessionContext};
 
 /// Shared session state accessible by connection handlers.
@@ -14,9 +14,13 @@ pub type SharedSession = Arc<RwLock<SessionContext>>;
 
 /// Handle a single client connection on the control plane socket.
 ///
-/// Reads newline-delimited JSON-RPC requests, dispatches them, and writes
-/// newline-delimited JSON-RPC responses.
-pub async fn handle_connection(stream: UnixStream, session: SharedSession) {
+/// Reads newline-delimited JSON-RPC requests, checks per-method permission scope,
+/// dispatches authorized requests, and writes newline-delimited JSON-RPC responses.
+pub async fn handle_connection(
+    stream: UnixStream,
+    session: SharedSession,
+    granted_scope: PermissionScope,
+) {
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
 
@@ -29,8 +33,28 @@ pub async fn handle_connection(stream: UnixStream, session: SharedSession) {
         // Parse JSON-RPC request
         let response = match serde_json::from_str::<Request>(&line) {
             Ok(req) => {
-                // Use write lock for methods that mutate session state
-                if handler::needs_write(&req) {
+                // Check permission scope before dispatching
+                let required = auth::method_scope(&req.method);
+                if !granted_scope.satisfies(required) {
+                    let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+                    tracing::warn!(
+                        method = %req.method,
+                        required = %required,
+                        granted = %granted_scope,
+                        "Permission denied: insufficient scope"
+                    );
+                    Some(
+                        ErrorResponse::new(
+                            id,
+                            -32603,
+                            &format!(
+                                "Permission denied: method '{}' requires '{}' scope, connection has '{}'",
+                                req.method, required, granted_scope
+                            ),
+                        )
+                        .into(),
+                    )
+                } else if handler::needs_write(&req) {
                     let mut ctx = session.write().await;
                     handler::dispatch_mut(&req, &mut ctx).await
                 } else {
@@ -111,9 +135,13 @@ pub async fn run_accept_loop(
                     }
                 }
 
+                // Same-UID connections get full access (Execute scope).
+                // Future: capability tokens (T-079) will allow scoped access.
+                let scope = PermissionScope::Execute;
+
                 let sess = session.clone();
                 tokio::spawn(async move {
-                    handle_connection(stream, sess).await;
+                    handle_connection(stream, sess, scope).await;
                 });
             }
             Err(e) => {
@@ -319,6 +347,103 @@ mod tests {
         let resp: serde_json::Value =
             serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
         assert_eq!(resp["id"], "after-notif");
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn permission_scope_denies_execute_for_observe_connection() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        // Spawn handler with Observe-only scope (not the accept loop)
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, shared_clone, PermissionScope::Observe).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Observe-scoped: ping should work (Observe tier)
+        let req = json!({"jsonrpc": "2.0", "method": "termlink.ping", "id": "p1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["id"], "p1");
+        assert!(resp["result"]["id"].is_string(), "Ping should succeed with Observe scope");
+
+        // Observe-scoped: command.execute should be denied (Execute tier)
+        let req = json!({"jsonrpc": "2.0", "method": "command.execute", "id": "e1", "params": {"command": "echo hi"}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["id"], "e1");
+        assert_eq!(resp["error"]["code"], -32603, "Execute should be denied");
+        assert!(resp["error"]["message"].as_str().unwrap().contains("Permission denied"));
+
+        // Observe-scoped: command.inject should be denied (Control tier)
+        let req = json!({"jsonrpc": "2.0", "method": "command.inject", "id": "i1", "params": {"text": "ls"}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["id"], "i1");
+        assert_eq!(resp["error"]["code"], -32603, "Inject should be denied");
+
+        // Observe-scoped: event.emit should be denied (Interact tier)
+        let req = json!({"jsonrpc": "2.0", "method": "event.emit", "id": "em1", "params": {"topic": "test", "payload": {}}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["id"], "em1");
+        assert_eq!(resp["error"]["code"], -32603, "Emit should be denied");
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn permission_scope_allows_all_for_execute_connection() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        // Spawn handler with full Execute scope
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, shared_clone, PermissionScope::Execute).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Execute scope: ping should work
+        let req = json!({"jsonrpc": "2.0", "method": "termlink.ping", "id": "p1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(resp["result"]["id"].is_string(), "Ping should work with Execute scope");
+
+        // Execute scope: event.emit should work (Interact tier, satisfied by Execute)
+        let req = json!({"jsonrpc": "2.0", "method": "event.emit", "id": "em1", "params": {"topic": "test", "payload": {}}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(resp["result"].is_object(), "Emit should work with Execute scope");
 
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
