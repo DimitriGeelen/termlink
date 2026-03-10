@@ -4,7 +4,7 @@ name: "Hub as persistent daemon — extract from CLI, supervision, pidfile"
 description: >
   Hub is a CLI subcommand with no persistence. Inception: should it be a daemon with pidfile, graceful shutdown, session supervision, auto-recovery?
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: next
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:28Z
-last_update: 2026-03-10T08:44:28Z
-date_finished: null
+last_update: 2026-03-10T22:10:08Z
+date_finished: 2026-03-10T22:10:08Z
 ---
 
 # T-066: Hub as persistent daemon — extract from CLI, supervision, pidfile
@@ -49,9 +49,9 @@ Enhancement opportunity identified by reflection fleet enhance agent. Hub is a C
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -74,20 +74,37 @@ Enhancement opportunity identified by reflection fleet enhance agent. Hub is a C
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Hub is stateless routing service — daemon extraction is ~100 lines, no protocol changes. Pidfile+SIGTERM+supervision all validated. Addresses G-004.
+
+**Date**: 2026-03-10T22:10:08Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Hub is stateless routing service — daemon extraction is ~100 lines, no protocol changes. Pidfile+SIGTERM+supervision all validated. Addresses G-004.
+
+**Date**: 2026-03-10T22:10:08Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-10T22:07:18Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-10T22:09:51Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Hub is stateless routing service — daemon extraction is ~100 lines, no protocol changes. Pidfile+SIGTERM+supervision all validated. Addresses G-004.
+
+### 2026-03-10T22:10:08Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Hub is stateless routing service — daemon extraction is ~100 lines, no protocol changes. Pidfile+SIGTERM+supervision all validated. Addresses G-004.
+
+### 2026-03-10T22:10:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

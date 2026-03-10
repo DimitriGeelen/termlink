@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-078: Per-method permission scoping — 4-tier auth in RPC dispatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T22:04:00Z
+# ============================================================================
+
+task_id: T-078
+task_name: "Per-method permission scoping — 4-tier auth in RPC dispatch"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T20:44:17Z
+completed: 2026-03-10T20:58:37Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T21:58:29+01:00
+last_commit: 2026-03-10T21:58:29+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  4-tier permission scoping — PermissionScope enum, method_scope mapping, hierarchy tests
+
+# Key outcomes
+outcomes:
+  - "`PermissionScope` enum with 4 tiers in auth.rs (observe, interact, control, execute)"
+  - "`method_scope()` function mapping all RPC methods to their required scope"
+  - "Scope hierarchy: execute > control > interact > observe (higher grants lower)"
+  - "`PeerCredentials` extended with granted scopes (default: all scopes for same-UID)"
+  - "Unit tests for method-to-scope mapping"
+  - "All existing tests pass (cargo test --workspace)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-078-per-method-permission-scoping--4-tier-au.md"
+  - "crates/termlink-session/src/auth.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T21:58:29"
+    action: "T-078: 4-tier permission scoping — PermissionScope enum, method_scope mapping, hierarchy tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 163
+  lines_removed: 34
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-078-per-method-permission-scoping--4-tier-au.md
+generated_by: context-agent-hybrid

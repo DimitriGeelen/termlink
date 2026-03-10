@@ -1,0 +1,31 @@
+id: T-008
+name: "IT-006: Security model — capability-based access"
+workflow_type: inception
+duration_days: 2
+outcome: completed
+decision: GO
+
+summary: >
+  Inception task exploring security model for TermLink Unix socket communication.
+  Analyzed 17 RPC methods for risk levels, designed 4-tier permission scoping
+  (observe/interact/control/execute), researched cross-platform socket credential
+  extraction (SO_PEERCRED on Linux, LOCAL_PEERCRED+LOCAL_PEERPID on macOS),
+  evaluated 3 capability token approaches. GO decision led to 3 build tasks:
+  T-077 (socket-credential auth), T-078 (permission scoping), T-079 (capability tokens).
+
+key_decisions:
+  - decision: "4-tier hierarchical permission model (observe/interact/control/execute)"
+    rationale: "Maps cleanly to RPC method risk levels; hierarchical satisfies() is simple"
+  - decision: "Same-UID rejection as Phase 1 security gate"
+    rationale: "Minimal overhead, blocks cross-user attacks immediately"
+  - decision: "HMAC-signed capability tokens for Phase 3 (T-079)"
+    rationale: "Stateless verification, scope-limited, supports multi-agent auth"
+
+artifacts:
+  - docs/reports/T-008-security-model-inception.md
+  - .tasks/completed/T-008-it-006-security-model--capability-based-.md
+
+patterns: []
+learnings:
+  - "Inception → GO → decompose into build tasks is an effective pattern for security features"
+  - "Research artifact first (C-001) ensures dialogue findings survive session boundaries"
