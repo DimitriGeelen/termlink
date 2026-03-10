@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Persistent specialist watcher — polls for task.delegate events and dispatches to claude -p
-# Usage: specialist-watcher.sh <termlink-binary> <runtime-dir> <claude-binary>
+# Usage: specialist-watcher.sh <termlink-binary> <runtime-dir> <claude-binary> [session-name]
 set -uo pipefail
 
 TERMLINK="$1"
 RUNTIME_DIR="$2"
 CLAUDE="$3"
+SESSION_NAME="${4:-specialist}"
 
 export TERMLINK_RUNTIME_DIR="$RUNTIME_DIR"
 unset CLAUDECODE 2>/dev/null || true
@@ -23,9 +24,9 @@ while true; do
 
     # Poll for task.delegate events after cursor
     if [ -z "$CURSOR" ]; then
-        RAW=$("$TERMLINK" events specialist --topic task.delegate 2>/dev/null || echo "")
+        RAW=$("$TERMLINK" events "$SESSION_NAME" --topic task.delegate 2>/dev/null || echo "")
     else
-        RAW=$("$TERMLINK" events specialist --topic task.delegate --since "$CURSOR" 2>/dev/null || echo "")
+        RAW=$("$TERMLINK" events "$SESSION_NAME" --topic task.delegate --since "$CURSOR" 2>/dev/null || echo "")
     fi
 
     # Skip if no new events
