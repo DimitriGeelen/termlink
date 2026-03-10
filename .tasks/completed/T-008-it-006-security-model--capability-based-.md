@@ -4,7 +4,7 @@ name: "IT-006: Security model — capability-based access"
 description: >
   Design auth, consent prompts, command allowlists, Tier 0 integration
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:42Z
-last_update: 2026-03-10T20:25:59Z
-date_finished: null
+last_update: 2026-03-10T20:36:36Z
+date_finished: 2026-03-10T20:36:36Z
 ---
 
 # T-008: IT-006: Security model — capability-based access
@@ -97,3 +97,6 @@ Any local process can connect to any TermLink session's Unix socket and execute 
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** SO_PEERCRED/LOCAL_PEERCRED works cross-platform (<0.1ms), 4-tier permission model maps cleanly to 17 RPC methods, Phase 1 (UID check) preserves single-user UX with zero config
+
+### 2026-03-10T20:36:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

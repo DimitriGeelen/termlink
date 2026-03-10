@@ -4,7 +4,7 @@ name: "Failure-mode e2e tests — crash recovery, orchestrator death, event loss
 description: >
   E2e tests for failure scenarios: specialist crash, orchestrator death mid-task, event ordering under load, graceful degradation.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: next
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:43Z
-last_update: 2026-03-10T18:06:23Z
-date_finished: null
+last_update: 2026-03-10T20:01:42Z
+date_finished: 2026-03-10T20:01:42Z
 ---
 
 # T-070: Failure-mode e2e tests — crash recovery, orchestrator death, event loss
@@ -59,3 +59,6 @@ test -x tests/e2e/level7-failure-modes.sh
 
 ### 2026-03-10T18:06:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-10T20:01:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
