@@ -34,21 +34,8 @@ REVIEW_FILE="$PROJECT_ROOT/crates/termlink-session/src/manager.rs"
 TEST_FILE="$PROJECT_ROOT/crates/termlink-cli/src/main.rs"
 DOC_FILE="$PROJECT_ROOT/crates/termlink-protocol/src/data.rs"
 
-PIDS_FILE="$RUNTIME_DIR/pids.txt"
-touch "$PIDS_FILE"
-
-cleanup() {
-    echo ""
-    echo "=== Cleanup ==="
-    while IFS= read -r pid; do
-        kill "$pid" 2>/dev/null || true
-    done < "$PIDS_FILE"
-    kill "$ORCH_PID" 2>/dev/null || true
-    TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" clean 2>/dev/null || true
-    rm -rf "$RUNTIME_DIR"
-    echo "Done."
-}
-trap cleanup EXIT
+source "$SCRIPT_DIR/e2e-helpers.sh"
+trap cleanup_all EXIT
 
 echo "============================================="
 echo "  Level 4: Multi-Specialist (3 parallel)"
@@ -76,7 +63,7 @@ echo "--- Spawn 3 specialists ---"
 
 for ROLE in reviewer tester documenter; do
     echo "  Spawning $ROLE..."
-    TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" spawn \
+    spawn_tracked \
         --name "$ROLE" --roles "$ROLE" \
         --wait --wait-timeout 15 \
         -- bash "$WATCHER" "$TERMLINK" "$RUNTIME_DIR" "$CLAUDE" "$ROLE"

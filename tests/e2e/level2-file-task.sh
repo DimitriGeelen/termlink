@@ -23,15 +23,8 @@ RESULT_MARKER="$RUNTIME_DIR/task-done.txt"
 # The file the specialist will summarize
 TARGET_FILE="$PROJECT_ROOT/crates/termlink-protocol/src/lib.rs"
 
-cleanup() {
-    echo ""
-    echo "=== Cleanup ==="
-    kill "$ORCH_PID" 2>/dev/null || true
-    TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" clean 2>/dev/null || true
-    rm -rf "$RUNTIME_DIR"
-    echo "Done."
-}
-trap cleanup EXIT
+source "$SCRIPT_DIR/e2e-helpers.sh"
+trap cleanup_all EXIT
 
 echo "=== Level 2: File Task ==="
 echo "Runtime: $RUNTIME_DIR"
@@ -76,7 +69,7 @@ PROMPT
 
 # Step 4: Spawn specialist
 echo "--- Step 3: Spawn specialist ---"
-TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" spawn \
+spawn_tracked \
     --name file-analyst \
     --roles analyst \
     --wait --wait-timeout 15 \

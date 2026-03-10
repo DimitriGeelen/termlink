@@ -4,7 +4,7 @@ name: "Spawn cleanup — track and close Terminal.app windows on test exit"
 description: >
   E2e tests spawn Terminal.app windows via osascript but never close them. Window IDs are returned by spawn (tab 1 of window id XXXX) but not captured. Cleanup kills processes but leaves windows. Need: capture window IDs, store in runtime dir, close only tracked windows on cleanup.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T09:05:49Z
-last_update: 2026-03-10T09:05:49Z
+last_update: 2026-03-10T09:18:10Z
 date_finished: null
 ---
 
@@ -25,10 +25,10 @@ Discovered during T-063 reflection fleet: spawning 10 agents left 31 Terminal.ap
 ## Acceptance Criteria
 
 ### Agent
-- [ ] E2e test cleanup functions close spawned Terminal.app windows (not all windows)
-- [ ] Window IDs captured from `termlink spawn` output and stored in `$RUNTIME_DIR/window-ids.txt`
-- [ ] Cleanup uses stored window IDs to close only tracked windows via AppleScript
-- [ ] Existing e2e tests (level4, level5, level6) updated with window cleanup
+- [x] E2e test cleanup functions close spawned Terminal.app windows (not all windows)
+- [x] Window IDs captured from `termlink spawn` output and stored in `$RUNTIME_DIR/window-ids.txt`
+- [x] Cleanup uses stored window IDs to close only tracked windows via AppleScript
+- [x] All 6 e2e tests (level1-level6) updated with shared e2e-helpers.sh
 
 ### Human
 - [ ] [RUBBER-STAMP] Run a multi-agent test, verify spawned windows close on exit, verify your own terminal stays open
@@ -61,3 +61,6 @@ grep -q "window-ids" tests/e2e/level6-reflection-fleet.sh
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-074-spawn-cleanup--track-and-close-terminala.md
 - **Context:** Initial task creation
+
+### 2026-03-10T09:18:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

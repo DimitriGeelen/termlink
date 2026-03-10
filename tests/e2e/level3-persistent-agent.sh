@@ -16,18 +16,8 @@ RUNTIME_DIR=$(mktemp -d)
 TASK1_RESULT="$RUNTIME_DIR/task1-result.md"
 TASK2_RESULT="$RUNTIME_DIR/task2-result.md"
 
-cleanup() {
-    echo ""
-    echo "=== Cleanup ==="
-    kill "$ORCH_PID" 2>/dev/null || true
-    if [ -f "$RUNTIME_DIR/watcher.pid" ]; then
-        kill "$(cat "$RUNTIME_DIR/watcher.pid")" 2>/dev/null || true
-    fi
-    TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" clean 2>/dev/null || true
-    rm -rf "$RUNTIME_DIR"
-    echo "Done."
-}
-trap cleanup EXIT
+source "$SCRIPT_DIR/e2e-helpers.sh"
+trap cleanup_all EXIT
 
 echo "=== Level 3: Persistent Agent ==="
 echo "Runtime: $RUNTIME_DIR"
@@ -50,7 +40,7 @@ echo ""
 
 # Spawn persistent specialist
 echo "--- Spawn persistent specialist ---"
-TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" spawn \
+spawn_tracked \
     --name specialist --roles analyst \
     --wait --wait-timeout 15 \
     -- bash "$WATCHER" "$TERMLINK" "$RUNTIME_DIR" "$CLAUDE"

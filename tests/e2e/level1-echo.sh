@@ -19,15 +19,8 @@ RUNTIME_DIR=$(mktemp -d)
 RESULT_FILE="$RUNTIME_DIR/echo-result.txt"
 PROMPT_FILE="$RUNTIME_DIR/specialist-prompt.txt"
 
-cleanup() {
-    echo ""
-    echo "=== Cleanup ==="
-    kill "$ORCH_PID" 2>/dev/null || true
-    TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" clean 2>/dev/null || true
-    rm -rf "$RUNTIME_DIR"
-    echo "Done."
-}
-trap cleanup EXIT
+source "$SCRIPT_DIR/e2e-helpers.sh"
+trap cleanup_all EXIT
 
 echo "=== Level 1: Echo Test ==="
 echo "Runtime: $RUNTIME_DIR"
@@ -72,7 +65,7 @@ echo "--- Step 3: Spawn specialist (claude -p) ---"
 
 # The spawned terminal gets a fresh shell without CLAUDECODE.
 # We use a prompt file to avoid quote escaping issues through AppleScript.
-TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" spawn \
+spawn_tracked \
     --name echo-specialist \
     --roles specialist \
     --wait --wait-timeout 15 \

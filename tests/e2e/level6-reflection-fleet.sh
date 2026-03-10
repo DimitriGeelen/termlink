@@ -26,24 +26,11 @@ CLAUDE="/Users/dimidev32/.local/bin/claude"
 WATCHER="$SCRIPT_DIR/specialist-watcher.sh"
 RUNTIME_DIR=$(mktemp -d)
 
-PIDS_FILE="$RUNTIME_DIR/pids.txt"
-touch "$PIDS_FILE"
-
 # 10 agent names
 AGENTS=(arch proto session cli-ux test-cov e2e-suite event-schema watcher-pat security enhance)
 
-cleanup() {
-    echo ""
-    echo "=== Cleanup ==="
-    while IFS= read -r pid; do
-        kill "$pid" 2>/dev/null || true
-    done < "$PIDS_FILE"
-    kill "$ORCH_PID" 2>/dev/null || true
-    TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" clean 2>/dev/null || true
-    rm -rf "$RUNTIME_DIR"
-    echo "Done."
-}
-trap cleanup EXIT
+source "$SCRIPT_DIR/e2e-helpers.sh"
+trap cleanup_all EXIT
 
 echo "============================================="
 echo "  Level 6: Reflection Fleet (10 agents)"
@@ -70,7 +57,7 @@ echo ""
 echo "--- Spawn 10 specialists ---"
 for AGENT in "${AGENTS[@]}"; do
     echo "  Spawning $AGENT..."
-    TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" spawn \
+    spawn_tracked \
         --name "$AGENT" --roles analyst \
         --wait --wait-timeout 15 \
         -- bash "$WATCHER" "$TERMLINK" "$RUNTIME_DIR" "$CLAUDE" "$AGENT"
