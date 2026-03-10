@@ -7,6 +7,7 @@ use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
 use termlink_session::auth::PeerCredentials;
 use termlink_session::discovery;
 
+use crate::pidfile;
 use crate::router;
 
 /// Return the well-known hub socket path: `runtime_dir()/hub.sock`.
@@ -19,7 +20,17 @@ pub fn hub_socket_path() -> PathBuf {
 /// The hub accepts JSON-RPC connections and routes requests via [`router::route`]:
 /// - `session.discover` is handled locally (lists all sessions)
 /// - All other methods are forwarded to the target session specified in params.target
+///
+/// Acquires a pidfile to prevent multiple hub instances. The pidfile is removed
+/// on clean shutdown. Stale pidfiles from crashed hubs are cleaned automatically.
 pub async fn run(socket_path: &Path) -> std::io::Result<()> {
+    let pidfile_path = pidfile::hub_pidfile_path();
+
+    // Acquire pidfile (prevents double-start, cleans stale)
+    pidfile::acquire(&pidfile_path).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::AddrInUse, e.to_string())
+    })?;
+
     // Ensure parent directory exists
     if let Some(parent) = socket_path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -32,6 +43,9 @@ pub async fn run(socket_path: &Path) -> std::io::Result<()> {
     tracing::info!(path = %socket_path.display(), "Hub listening");
 
     run_accept_loop(listener).await;
+
+    // Cleanup on exit
+    pidfile::remove(&pidfile_path);
     Ok(())
 }
 

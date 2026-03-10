@@ -1,3 +1,4 @@
+pub mod pidfile;
 pub mod router;
 pub mod server;
 

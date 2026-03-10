@@ -404,8 +404,11 @@ enum Command {
         dry_run: bool,
     },
 
-    /// Start the hub server (routes requests between sessions)
-    Hub,
+    /// Hub server management (routes requests between sessions)
+    Hub {
+        #[command(subcommand)]
+        action: Option<HubAction>,
+    },
 
     /// Generate shell completions
     Completions {
@@ -413,6 +416,17 @@ enum Command {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
     },
+}
+
+/// Hub server actions
+#[derive(Subcommand)]
+enum HubAction {
+    /// Start the hub server (default if no subcommand given)
+    Start,
+    /// Stop a running hub server
+    Stop,
+    /// Show hub server status
+    Status,
 }
 
 /// PTY terminal operations
@@ -724,7 +738,11 @@ async fn main() -> Result<()> {
 
         // Infrastructure
         Command::Clean { dry_run } => cmd_clean(dry_run),
-        Command::Hub => cmd_hub().await,
+        Command::Hub { action } => match action {
+            None | Some(HubAction::Start) => cmd_hub_start().await,
+            Some(HubAction::Stop) => cmd_hub_stop(),
+            Some(HubAction::Status) => cmd_hub_status(),
+        },
         Command::Completions { shell } => {
             clap_complete::generate(
                 shell,
@@ -2680,15 +2698,18 @@ fn shell_escape(s: &str) -> String {
     }
 }
 
-async fn cmd_hub() -> Result<()> {
+async fn cmd_hub_start() -> Result<()> {
     let socket_path = termlink_hub::server::hub_socket_path();
+    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
 
     println!("Starting hub server...");
-    println!("  Socket: {}", socket_path.display());
+    println!("  Socket:  {}", socket_path.display());
+    println!("  Pidfile: {}", pidfile_path.display());
     println!();
     println!("Listening for connections... (Ctrl+C to stop)");
 
     let socket_clone = socket_path.clone();
+    let pidfile_clone = pidfile_path.clone();
     tokio::select! {
         result = termlink_hub::server::run(&socket_path) => {
             result.context("Hub server error")?;
@@ -2697,10 +2718,62 @@ async fn cmd_hub() -> Result<()> {
             println!();
             println!("Shutting down hub...");
             let _ = std::fs::remove_file(&socket_clone);
+            termlink_hub::pidfile::remove(&pidfile_clone);
             println!("Hub stopped.");
         }
     }
 
+    Ok(())
+}
+
+fn cmd_hub_stop() -> Result<()> {
+    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+
+    match termlink_hub::pidfile::check(&pidfile_path) {
+        termlink_hub::pidfile::PidfileStatus::NotRunning => {
+            println!("Hub is not running.");
+        }
+        termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
+            println!("Hub pidfile found (PID {pid}) but process is dead. Cleaning up.");
+            termlink_hub::pidfile::remove(&pidfile_path);
+            let socket_path = termlink_hub::server::hub_socket_path();
+            let _ = std::fs::remove_file(&socket_path);
+        }
+        termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+            println!("Stopping hub (PID {pid})...");
+            unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+            // Wait briefly for process to exit
+            for _ in 0..20 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if !termlink_session::liveness::process_exists(pid) {
+                    println!("Hub stopped.");
+                    return Ok(());
+                }
+            }
+            println!("Hub did not stop within 2 seconds. You may need to kill -9 {pid}.");
+        }
+    }
+    Ok(())
+}
+
+fn cmd_hub_status() -> Result<()> {
+    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+    let socket_path = termlink_hub::server::hub_socket_path();
+
+    match termlink_hub::pidfile::check(&pidfile_path) {
+        termlink_hub::pidfile::PidfileStatus::NotRunning => {
+            println!("Hub: not running");
+        }
+        termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
+            println!("Hub: stale (PID {pid} is dead, pidfile needs cleanup)");
+            println!("  Run 'termlink hub stop' to clean up.");
+        }
+        termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+            println!("Hub: running (PID {pid})");
+            println!("  Socket: {}", socket_path.display());
+            println!("  Pidfile: {}", pidfile_path.display());
+        }
+    }
     Ok(())
 }
 
