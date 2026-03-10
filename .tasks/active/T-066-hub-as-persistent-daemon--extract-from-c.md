@@ -24,23 +24,28 @@ Enhancement opportunity identified by reflection fleet enhance agent. Hub is a C
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1: A persistent daemon model (pidfile, graceful shutdown) is more reliable than a CLI subcommand that dies when the terminal closes
+- A2: Session supervision (heartbeat + auto-deregister for dead sessions) requires a persistent process
+- A3: The hub can be extracted from `termlink-cli` into a standalone binary or long-running mode without protocol changes
+- A4: launchd (macOS) / systemd (Linux) integration is feasible and valuable for auto-start
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Spike 1 (1h):** Prototype pidfile management — write PID, check liveness, handle stale pidfiles
+2. **Spike 2 (1h):** Test graceful shutdown — SIGTERM handler, drain active connections, deregister sessions
+3. **Research (30m):** launchd plist vs. systemd unit file for auto-start. What do similar tools (Docker daemon, tmux server) do?
+4. **Design (1h):** Draft daemon lifecycle: start, pidfile, health check, session supervision loop, shutdown
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- macOS uses launchd (plist), Linux uses systemd (unit files) — need both or neither
+- Hub currently holds state in-memory (session registry, event stores) — daemon crash loses all state
+- CLI `termlink hub` command must remain for manual/development use alongside daemon mode
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope:** Daemon extraction, pidfile, graceful shutdown, session liveness supervision, auto-restart on crash.
+**OUT of scope:** Hub clustering/federation (T-011), persistent event storage (WAL), web dashboard.
 
 ## Acceptance Criteria
 
@@ -51,12 +56,13 @@ Enhancement opportunity identified by reflection fleet enhance agent. Hub is a C
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Daemon extraction is clean (no protocol changes, no session API changes)
+- Pidfile + SIGTERM shutdown works reliably on both macOS and Linux
+- Session supervision adds real value (catches dead sessions within seconds, not minutes)
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Hub state is too complex for in-memory-only (requires persistence first, which is a different task)
+- The complexity of daemon management exceeds the benefit for local-only deployment
 
 ## Verification
 

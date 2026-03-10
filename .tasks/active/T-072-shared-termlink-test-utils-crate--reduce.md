@@ -25,35 +25,18 @@ Test infrastructure gap found by reflection fleet architecture and test-coverage
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] `termlink-test-utils` crate exists in workspace with `[dev-dependencies]` usage from other crates
+- [ ] Unique temp dir helper: creates `/tmp/tl-test-*` dirs with auto-cleanup on drop
+- [ ] Process guard helper: spawns a process and kills it on drop (RAII cleanup)
+- [ ] Socket polling helper: waits for a Unix socket to become available with timeout
+- [ ] Session fixture helper: registers a session with default config, returns handle for testing
+- [ ] At least 2 existing test files refactored to use the shared helpers (proving the abstraction works)
+- [ ] All existing tests pass after refactoring
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-test-utils 2>&1 | tail -5
+grep -q 'termlink-test-utils' Cargo.toml
 
 ## Decisions
 

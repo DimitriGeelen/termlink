@@ -25,35 +25,19 @@ Schema gaps found by reflection fleet event-schema and protocol agents. Missing 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] `task.progress` event type defined with `percent` (0-100) and `message` fields
+- [ ] `task.cancelled` event type defined with `reason` and `cancelled_by` fields
+- [ ] `schema_version` field added to all event payloads (start at "1.0")
+- [ ] `error_code` enum added to `task.failed` payload (e.g., `CRASH`, `TIMEOUT`, `VALIDATION`, `UNKNOWN`)
+- [ ] Event types documented in protocol crate with Rust structs (serde Serialize/Deserialize)
+- [ ] Existing `task.delegate`, `task.accepted`, `task.completed`, `task.failed` events include `schema_version`
+- [ ] Backward compatibility: events without `schema_version` are accepted as v1.0
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-protocol 2>&1 | tail -5
+grep -q "schema_version" crates/termlink-protocol/src/events.rs
+grep -q "task.progress\|TaskProgress" crates/termlink-protocol/src/events.rs
 
 ## Decisions
 

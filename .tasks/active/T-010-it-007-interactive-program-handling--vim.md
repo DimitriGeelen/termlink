@@ -20,27 +20,32 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+TermLink controls terminal sessions via PTY — but interactive programs (vim, Python REPL, SSH, sudo/password prompts) change terminal state in ways that break naive send/inject workflows. An agent injecting keystrokes into a vim session needs to understand modal state; a password prompt requires suppressing echo capture. This inception explores what interactive program detection and handling is needed, and whether TermLink should support it natively or leave it to agents.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1: Most agent use cases involve non-interactive commands (not vim/REPL editing)
+- A2: Interactive program detection can be done via terminal mode flags (raw/cooked/canonical)
+- A3: Password prompts can be detected by echo-off terminal mode changes
+- A4: Nested PTY sessions (tmux, screen, SSH) pass through without special handling
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Spike 1 (1h):** Test current TermLink behavior with vim, python3 REPL, and SSH — document what works and what breaks
+2. **Spike 2 (1h):** Research terminal mode detection — can we detect raw vs. cooked mode from the PTY master side?
+3. **Spike 3 (30m):** Test nested sessions (tmux inside TermLink PTY) — does inject/output still work?
+4. **Design (1h):** If detection is feasible, draft event types (e.g., `pty.mode-change`) for agents to react to
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- PTY master side can read terminal attributes via `tcgetattr` but this reflects the slave side's settings
+- Some programs (vim) switch between raw and cooked mode frequently
+- SSH creates a nested PTY — keystrokes pass through but output parsing becomes ambiguous
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope:** Interactive program detection, terminal mode reporting, behavior documentation for common programs (vim, REPL, SSH, sudo).
+**OUT of scope:** Building a full terminal emulator, semantic understanding of program state, screen scraping/parsing.
 
 ## Acceptance Criteria
 
@@ -51,12 +56,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Terminal mode detection from PTY master is reliable and low-overhead
+- At least 2 common interactive programs (vim, REPL) can be detected and handled differently
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Mode detection is too unreliable for practical use
+- Agent-side handling (without TermLink support) is sufficient for all use cases
 
 ## Verification
 

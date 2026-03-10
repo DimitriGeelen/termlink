@@ -20,27 +20,32 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+TermLink's event system uses polling with cursor-based pagination. Under multi-agent load (e.g., 10 specialists polling simultaneously in L6 tests), there are no guarantees on event ordering, no backpressure mechanism, and no protection against slow consumers falling behind. The reflection fleet test coverage analysis (docs/reports/reflection-result-testcov.md) found zero tests for concurrent client connections. The event schema report (docs/reports/reflection-result-evschema.md) noted that free-form polling will miss events under load. This inception explores whether the current model is adequate or needs upgrading to push-based delivery.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1: Current polling model handles up to ~5 concurrent agents without event loss
+- A2: Event ordering within a single session is guaranteed by sequential sequence numbers
+- A3: Cross-session event ordering (via hub broadcast) is not guaranteed and doesn't need to be
+- A4: Backpressure is unnecessary for local deployment (bounded by local CPU/memory)
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Spike 1 (1h):** Stress test — 10 concurrent pollers on one session, measure event loss/ordering
+2. **Spike 2 (1h):** Measure event throughput ceiling (events/sec before polling falls behind)
+3. **Research (30m):** Compare polling vs. push (WebSocket/SSE) for event delivery trade-offs
+4. **Design (1h):** If polling is insufficient, draft push-based delivery design with backpressure
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- Current event store is append-only in-memory Vec — no persistence, no compaction
+- Polling interval in watchers is 2 seconds — latency floor for event detection
+- Hub broadcasts events to all sessions — fan-out amplifies under load
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope:** Event ordering guarantees, concurrent poller behavior, backpressure design, event delivery reliability.
+**OUT of scope:** Distributed event ordering across machines (T-011), event persistence/WAL, exactly-once delivery semantics.
 
 ## Acceptance Criteria
 
@@ -51,12 +56,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Stress test shows event loss or ordering violations under 10+ concurrent pollers
+- Push-based delivery can be added without breaking existing polling API (additive change)
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Polling handles 10+ concurrent agents reliably with no event loss
+- Backpressure is unnecessary because local event throughput never exceeds consumer capacity
 
 ## Verification
 

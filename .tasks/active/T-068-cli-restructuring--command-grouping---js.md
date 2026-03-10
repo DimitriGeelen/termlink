@@ -25,35 +25,26 @@ UX issues found by reflection fleet cli-ux agent. 28 flat subcommands need group
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] PTY commands nested under `pty` subcommand: `termlink pty attach`, `pty inject`, `pty resize`, `pty stream`, `pty output`
+- [ ] Event commands nested under `event` subcommand: `termlink event watch`, `event emit`, `event broadcast`, `event wait`, `event topics`
+- [ ] Old flat command names remain as hidden aliases for backward compatibility (one release cycle)
+- [ ] `--json` flag added to `list`, `status`, `info`, `events`, `topics` commands — outputs structured JSON
+- [ ] Shell completions generated via `clap_complete` for bash, zsh, fish
+- [ ] `termlink --help` shows grouped commands with clear descriptions
+- [ ] All existing e2e tests pass with the restructured CLI (may need command updates)
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] CLI help output is readable and logically grouped
+  **Steps:** Run `termlink --help` and `termlink pty --help`
+  **Expected:** Commands grouped by domain, descriptions clear
+  **If not:** Note which grouping feels wrong
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo build -p termlink 2>&1 | tail -3
+# Verify nested subcommands exist
+/Users/dimidev32/.cargo/bin/cargo run -p termlink -- pty --help 2>&1 | grep -q "attach\|inject"
+/Users/dimidev32/.cargo/bin/cargo run -p termlink -- event --help 2>&1 | grep -q "watch\|emit"
 
 ## Decisions
 

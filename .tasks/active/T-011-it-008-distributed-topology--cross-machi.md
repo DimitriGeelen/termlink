@@ -20,27 +20,33 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+TermLink is currently local-only (Unix sockets). For multi-machine agent coordination (dev laptop + cloud VMs, container orchestration, CI workers), sessions need to communicate across network boundaries. The architecture analysis (docs/reports/reflection-result-arch.md) noted the session crate is hardcoded to tokio + Unix sockets with no transport abstraction. This inception explores what distributed topology looks like: broker federation, NAT traversal, container networking, and whether SSH tunneling is sufficient or a native TCP/TLS transport is needed.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1: SSH tunneling over Unix sockets is sufficient for 90% of cross-machine use cases
+- A2: Container networking (Docker bridge, Kubernetes pod networking) can use TCP sockets without NAT traversal
+- A3: A trait-based transport abstraction (T-073) is a prerequisite for distributed topology
+- A4: Hub federation (multiple hubs peering) is more complex than hub-spoke (single hub, remote sessions)
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Research (1h):** Survey existing approaches — MCP over SSH, tmux remote sessions, VS Code remote development
+2. **Spike 1 (1h):** Test Unix socket forwarding over SSH tunnel — does the TermLink protocol work transparently?
+3. **Spike 2 (1h):** Test TermLink in Docker containers — can two containers communicate via TCP socket?
+4. **Design (2h):** Draft topology options: SSH tunneling vs. native TCP/TLS vs. broker federation
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- NAT traversal requires relay servers or STUN/TURN — significant infrastructure
+- TLS certificate management adds operational complexity (CA, rotation, revocation)
+- Latency: cross-machine RPC adds 1-100ms vs. <1ms for local Unix sockets
+- Transport abstraction (T-073) must land before any distributed transport implementation
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope:** Transport options analysis, SSH tunneling feasibility, container networking, hub federation design.
+**OUT of scope:** Implementation of TCP/TLS transport (that's a build task after inception), cloud deployment, auto-discovery across networks, zero-trust networking.
 
 ## Acceptance Criteria
 
@@ -51,12 +57,13 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- SSH tunneling works transparently with existing protocol (zero code changes)
+- A clear topology model (hub-spoke or federated) emerges with manageable complexity
+- Transport abstraction (T-073) is feasible and doesn't require protocol changes
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Cross-machine use cases are too niche to justify the complexity
+- SSH tunneling handles all real-world scenarios adequately (no native transport needed)
 
 ## Verification
 

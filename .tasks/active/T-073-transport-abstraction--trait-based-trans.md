@@ -24,23 +24,28 @@ Architectural coupling found by reflection fleet architecture agent. Session cra
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1: A `Transport` trait with `connect()`, `accept()`, `send()`, `recv()` methods can abstract over Unix sockets, TCP, and QUIC
+- A2: The trait can be defined in `termlink-protocol` without pulling in tokio as a dependency (use `async-trait` or `std::future`)
+- A3: Existing Unix socket implementation can be wrapped to implement the trait without performance regression
+- A4: Transport selection can be configuration-driven (e.g., `--transport unix` vs. `--transport tcp`)
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Spike 1 (1h):** Draft `Transport` trait API — what methods are needed? Look at how `tower::Service` and `hyper` abstract transports
+2. **Spike 2 (1h):** Prototype Unix socket implementation behind the trait — measure overhead vs. direct calls
+3. **Research (30m):** Survey Rust transport abstraction patterns — `tokio::net` traits, `async-net`, custom approaches
+4. **Design (1h):** Finalize trait design, decide where it lives (protocol vs. new crate), plan migration path
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- `termlink-protocol` currently has zero runtime dependencies (just serde) — adding tokio would be a significant change
+- The trait must support both control plane (JSON-RPC messages) and data plane (binary frames)
+- `libc` dependency in session crate (for signal handling, PTY) is separate from transport
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope:** Trait definition, Unix socket adapter, API design for TCP adapter (stub, not implemented).
+**OUT of scope:** TCP/TLS implementation (build task after inception GO), QUIC support, transport encryption.
 
 ## Acceptance Criteria
 
@@ -51,12 +56,14 @@ Architectural coupling found by reflection fleet architecture agent. Session cra
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Trait API is clean and covers both control and data plane needs
+- Unix socket adapter adds <1% overhead vs. direct implementation
+- Trait can live in protocol crate without adding heavy dependencies
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Transport abstraction requires leaking async runtime details into the protocol crate
+- The overhead of trait dispatch is measurable in latency-sensitive paths
+- A simpler approach (compile-time feature flags) covers the same use cases
 
 ## Verification
 
