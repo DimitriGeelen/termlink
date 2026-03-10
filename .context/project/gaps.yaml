@@ -1,3 +1,68 @@
 # Gaps Register — Spec-Reality gaps with decision triggers
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
-gaps: []
+gaps:
+  - id: G-001
+    title: "Command injection in spawn — arbitrary code execution via RPC"
+    severity: critical
+    directive: D2-Reliability
+    status: watching
+    discovered: "2026-03-10"
+    discovered_by: "T-063 reflection fleet (security agent)"
+    evidence: "executor.rs:21-22 passes user-controlled strings directly to sh -c with no escaping, validation, or allowlisting. Any process connecting to the Unix socket can execute arbitrary commands as the process owner."
+    impact: "Local privilege escalation. Any rogue process on the same machine can execute arbitrary shell commands through TermLink's RPC interface."
+    related_tasks: [T-064, T-008]
+    report: "docs/reports/reflection-result-security.md"
+    trigger_check:
+      type: auto
+      check: "grep -c 'sh.*-c' $PROJECT_ROOT/crates/termlink-session/src/executor.rs"
+      threshold: ">= 1"
+      description: "Fires while executor.rs still passes unescaped input to sh -c"
+
+  - id: G-002
+    title: "No authentication on Unix sockets — any local process can impersonate sessions"
+    severity: critical
+    directive: D2-Reliability
+    status: watching
+    discovered: "2026-03-10"
+    discovered_by: "T-063 reflection fleet (security agent)"
+    evidence: "CommonParams.sender is extracted but never validated. Auth error codes (AUTH_REQUIRED, AUTH_DENIED) are defined in control.rs:40-41 but never used by any handler. Socket permissions (0o700) are the only trust boundary."
+    impact: "Session impersonation. Any process running as the same user can send events, execute commands, and inject input as any session. No audit trail of who did what."
+    related_tasks: [T-008]
+    report: "docs/reports/reflection-result-security.md"
+    trigger_check:
+      type: auto
+      check: "grep -c 'AUTH_REQUIRED\\|AUTH_DENIED' $PROJECT_ROOT/crates/termlink-session/src/handler.rs"
+      threshold: ">= 1"
+      description: "Closes when handler.rs actually uses auth error codes"
+
+  - id: G-003
+    title: "Watcher emits false task.completed on Claude crash — silent failure"
+    severity: high
+    directive: D1-Antifragility
+    status: watching
+    discovered: "2026-03-10"
+    discovered_by: "T-063 reflection fleet (watcher-pattern agent)"
+    evidence: "specialist-watcher.sh and role-watcher.sh emit task.completed unconditionally after claude -p returns. The || echo swallows non-zero exits. Orchestrator sees success even when specialist crashed."
+    impact: "Anti-antifragile — the system hides failures instead of learning from them. Orchestrators make decisions based on results that don't exist. Scales the broken pattern to N agents."
+    related_tasks: [T-065]
+    report: "docs/reports/reflection-result-watcher.md"
+    trigger_check:
+      type: auto
+      check: "grep -c 'task.completed' $PROJECT_ROOT/tests/e2e/specialist-watcher.sh"
+      threshold: ">= 1"
+      description: "Fires while watcher unconditionally emits completed. Should be 0 when replaced with exit-code-aware logic."
+
+  - id: G-004
+    title: "Hub is a CLI subcommand — single point of failure for multi-agent coordination"
+    severity: high
+    directive: D2-Reliability
+    status: watching
+    discovered: "2026-03-10"
+    discovered_by: "T-063 reflection fleet (enhancement agent)"
+    evidence: "Hub is a subcommand in the CLI binary with no persistence, no state recovery, no supervision. When the terminal closes, all coordination stops. No heartbeat, no auto-deregistration of dead sessions."
+    impact: "TermLink has crossed from CLI tool to infrastructure (10 agents depend on it for coordination). A CLI-embedded hub cannot provide infrastructure-grade reliability."
+    related_tasks: [T-066]
+    report: "docs/reports/reflection-result-enhance.md"
+    trigger_check:
+      type: manual
+      description: "Closes when hub is extracted to a proper daemon with pidfile and supervision"
