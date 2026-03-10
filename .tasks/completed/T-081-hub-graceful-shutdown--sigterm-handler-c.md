@@ -4,7 +4,7 @@ name: "Hub graceful shutdown — SIGTERM handler, connection drain"
 description: >
   SIGTERM/SIGINT signal handler for hub. Stop accepting connections, drain active with 5s timeout, remove pidfile+socket, exit 0.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: next
@@ -12,35 +12,25 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T22:10:39Z
-last_update: 2026-03-10T22:10:39Z
-date_finished: null
+last_update: 2026-03-10T22:17:49Z
+date_finished: 2026-03-10T22:17:49Z
 ---
 
 # T-081: Hub graceful shutdown — SIGTERM handler, connection drain
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+From T-066 inception (GO). See [docs/reports/T-066-hub-daemon-inception.md].
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
+- [x] Hub server handles SIGTERM for graceful shutdown (via ShutdownHandle)
+- [x] Accept loop stops accepting new connections on shutdown signal
+- [x] Pidfile and socket cleaned up on SIGTERM
+- [x] Hub `run()` returns a ShutdownHandle for external signal integration
+- [x] Tests verify shutdown behavior (2 new tests: stop + drain)
+- [x] All existing hub tests continue to pass (24 total)
          **If not:** Screenshot the broken panel and note the console error
 -->
 
@@ -72,3 +62,9 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-081-hub-graceful-shutdown--sigterm-handler-c.md
 - **Context:** Initial task creation
+
+### 2026-03-10T22:15:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-10T22:17:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
