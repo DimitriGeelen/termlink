@@ -1,6 +1,7 @@
 pub mod pidfile;
 pub mod router;
 pub mod server;
+pub mod supervisor;
 
 /// Shared test utilities (crate-internal).
 #[cfg(test)]

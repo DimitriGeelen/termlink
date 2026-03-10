@@ -10,6 +10,7 @@ use termlink_session::discovery;
 
 use crate::pidfile;
 use crate::router;
+use crate::supervisor;
 
 /// Return the well-known hub socket path: `runtime_dir()/hub.sock`.
 pub fn hub_socket_path() -> PathBuf {
@@ -61,6 +62,12 @@ pub async fn run(socket_path: &Path) -> std::io::Result<ShutdownHandle> {
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let handle = ShutdownHandle { tx: shutdown_tx };
+
+    // Start the session supervisor
+    let supervisor_rx = shutdown_rx.clone();
+    tokio::spawn(async move {
+        supervisor::run(supervisor::DEFAULT_INTERVAL, supervisor_rx).await;
+    });
 
     let socket_path_owned = socket_path.to_path_buf();
     tokio::spawn(async move {
