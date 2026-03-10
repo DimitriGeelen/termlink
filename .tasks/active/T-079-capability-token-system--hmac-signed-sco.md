@@ -4,15 +4,15 @@ name: "Capability token system — HMAC-signed scoped tokens for multi-agent"
 description: >
   Token generation, HMAC-SHA256 signing, token validation in dispatch. Enables fine-grained per-agent permissions. Depends on T-077 and T-078.
 
-status: captured
-workflow_type: build
+status: started-work
+workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T20:44:22Z
-last_update: 2026-03-10T20:44:22Z
+last_update: 2026-03-10T23:24:04Z
 date_finished: null
 ---
 
@@ -20,29 +20,16 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Phase 3 of TermLink's security model. Currently: UID-based auth (Phase 1, T-077) + 4-tier permission scoping (Phase 2, T-078/T-084). Same-UID connections get Execute scope (full access). For multi-agent scenarios, different agents running as the same user need different permission levels. Capability tokens provide fine-grained, per-agent authorization without requiring different UIDs.
+
+Related gaps: G-001 (command injection), G-002 (no auth beyond UID check). Research artifact: `docs/reports/T-079-capability-tokens.md`
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] Research artifact created with problem analysis and design options
+- [x] At least 2 design alternatives explored with trade-offs
+- [x] GO/NO-GO recommendation with rationale
 
 ## Verification
 
@@ -72,3 +59,9 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-079-capability-token-system--hmac-signed-sco.md
 - **Context:** Initial task creation
+
+### 2026-03-10T23:24:03Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-03-10T23:24:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
