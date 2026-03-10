@@ -1,22 +1,22 @@
 ---
-id: T-083
-name: "Register fabric cards for hub daemon modules"
+id: T-084
+name: "Per-method permission enforcement in session handler"
 description: >
-  Register fabric cards for pidfile.rs and supervisor.rs from T-080/T-082
+  Wire T-078 PermissionScope into session handler dispatch — check method_scope against connection's granted scope before executing. Addresses G-002.
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-10T22:21:08Z
-last_update: 2026-03-10T22:22:04Z
-date_finished: 2026-03-10T22:21:35Z
+created: 2026-03-10T22:29:22Z
+last_update: 2026-03-10T22:32:52Z
+date_finished: 2026-03-10T22:32:52Z
 ---
 
-# T-083: Register fabric cards for hub daemon modules
+# T-084: Per-method permission enforcement in session handler
 
 ## Context
 
@@ -25,18 +25,13 @@ date_finished: 2026-03-10T22:21:35Z
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
+- [x] Per-method scope check in handle_connection before dispatch
+- [x] Observe-scoped connections denied Execute/Control/Interact methods
+- [x] Execute-scoped connections allowed all methods
+- [x] Permission denied returns JSON-RPC error (-32603) with scope details
+- [x] Same-UID connections granted Execute scope (backward compatible)
+- [x] 2 new tests: scope denial + scope allowance
+- [x] All 195 workspace tests pass
          1. Open https://example.com/dashboard in browser
          2. Verify all panels load within 2 seconds
          3. Check browser console for errors
@@ -68,10 +63,10 @@ date_finished: 2026-03-10T22:21:35Z
 
 ## Updates
 
-### 2026-03-10T22:21:08Z — task-created [task-create-agent]
+### 2026-03-10T22:29:22Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-083-register-fabric-cards-for-hub-daemon-mod.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-084-per-method-permission-enforcement-in-ses.md
 - **Context:** Initial task creation
 
-### 2026-03-10T22:21:35Z — status-update [task-update-agent]
+### 2026-03-10T22:32:52Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
