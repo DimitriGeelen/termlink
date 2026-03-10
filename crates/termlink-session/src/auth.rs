@@ -1,12 +1,15 @@
-//! Peer credential extraction and UID-based authentication for Unix sockets.
+//! Peer credential extraction, UID-based authentication, and permission scoping
+//! for Unix sockets.
 //!
-//! Phase 1 of the security model (T-008 inception → T-077 build):
-//! - Extract peer UID/GID/PID on socket accept via OS-specific APIs
-//! - Compare peer UID to session owner UID
-//! - Same UID → allowed; different UID → AUTH_DENIED
+//! Security model phases:
+//! - Phase 1 (T-077): Extract peer UID, reject different-UID connections
+//! - Phase 2 (T-078): 4-tier permission scoping per RPC method
+//! - Phase 3 (T-079): Capability tokens for fine-grained multi-agent auth
 
 use std::io;
 use std::os::unix::io::AsRawFd;
+
+use termlink_protocol::control;
 
 /// Credentials of a connected peer, extracted from the Unix socket.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -116,6 +119,87 @@ impl PeerCredentials {
     }
 }
 
+/// Permission scope tiers for RPC method authorization.
+///
+/// Scopes are hierarchical: a higher scope implicitly grants all lower scopes.
+/// `Execute > Control > Interact > Observe`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PermissionScope {
+    /// Read-only queries with no side effects.
+    /// Methods: ping, query.*, event.poll, event.topics, kv.get, kv.list
+    Observe = 0,
+
+    /// Mutates session state or injects events.
+    /// Methods: event.emit, event.broadcast, command.resize, session.update,
+    ///          session.heartbeat, kv.set, kv.delete
+    Interact = 1,
+
+    /// Affects running processes (keystroke injection, signals).
+    /// Methods: command.inject, command.signal
+    Control = 2,
+
+    /// Runs arbitrary shell commands.
+    /// Methods: command.execute
+    Execute = 3,
+}
+
+impl PermissionScope {
+    /// Check if this scope is sufficient for the required scope.
+    ///
+    /// Higher scopes grant access to lower scopes (hierarchy).
+    pub fn satisfies(&self, required: PermissionScope) -> bool {
+        *self >= required
+    }
+}
+
+impl std::fmt::Display for PermissionScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Observe => write!(f, "observe"),
+            Self::Interact => write!(f, "interact"),
+            Self::Control => write!(f, "control"),
+            Self::Execute => write!(f, "execute"),
+        }
+    }
+}
+
+/// Map an RPC method name to its required permission scope.
+///
+/// Unknown methods default to `Execute` (deny by default).
+pub fn method_scope(method: &str) -> PermissionScope {
+    match method {
+        // Observe: read-only, no side effects
+        "termlink.ping"
+        | control::method::QUERY_STATUS
+        | control::method::QUERY_OUTPUT
+        | control::method::QUERY_CAPABILITIES
+        | control::method::EVENT_POLL
+        | control::method::EVENT_TOPICS
+        | control::method::KV_GET
+        | control::method::KV_LIST => PermissionScope::Observe,
+
+        // Interact: mutates session state or event bus
+        | control::method::EVENT_EMIT
+        | control::method::EVENT_BROADCAST
+        | control::method::EVENT_COLLECT
+        | control::method::COMMAND_RESIZE
+        | control::method::SESSION_UPDATE
+        | control::method::SESSION_HEARTBEAT
+        | control::method::KV_SET
+        | control::method::KV_DELETE => PermissionScope::Interact,
+
+        // Control: affects running processes
+        control::method::COMMAND_INJECT
+        | control::method::COMMAND_SIGNAL => PermissionScope::Control,
+
+        // Execute: runs shell commands
+        control::method::COMMAND_EXECUTE => PermissionScope::Execute,
+
+        // Unknown methods: deny by default (require highest scope)
+        _ => PermissionScope::Execute,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,5 +251,65 @@ mod tests {
         assert!(creds.is_same_user(501));
         assert!(!creds.is_same_user(0));
         assert!(!creds.is_same_user(502));
+    }
+
+    #[test]
+    fn scope_hierarchy() {
+        // Higher scopes satisfy lower requirements
+        assert!(PermissionScope::Execute.satisfies(PermissionScope::Control));
+        assert!(PermissionScope::Execute.satisfies(PermissionScope::Interact));
+        assert!(PermissionScope::Execute.satisfies(PermissionScope::Observe));
+        assert!(PermissionScope::Control.satisfies(PermissionScope::Interact));
+        assert!(PermissionScope::Control.satisfies(PermissionScope::Observe));
+        assert!(PermissionScope::Interact.satisfies(PermissionScope::Observe));
+
+        // Same scope satisfies itself
+        assert!(PermissionScope::Observe.satisfies(PermissionScope::Observe));
+        assert!(PermissionScope::Execute.satisfies(PermissionScope::Execute));
+
+        // Lower scopes don't satisfy higher requirements
+        assert!(!PermissionScope::Observe.satisfies(PermissionScope::Interact));
+        assert!(!PermissionScope::Observe.satisfies(PermissionScope::Execute));
+        assert!(!PermissionScope::Interact.satisfies(PermissionScope::Control));
+        assert!(!PermissionScope::Control.satisfies(PermissionScope::Execute));
+    }
+
+    #[test]
+    fn method_scope_mapping() {
+        use termlink_protocol::control::method;
+
+        // Observe tier
+        assert_eq!(method_scope("termlink.ping"), PermissionScope::Observe);
+        assert_eq!(method_scope(method::QUERY_STATUS), PermissionScope::Observe);
+        assert_eq!(method_scope(method::QUERY_OUTPUT), PermissionScope::Observe);
+        assert_eq!(method_scope(method::EVENT_POLL), PermissionScope::Observe);
+        assert_eq!(method_scope(method::KV_GET), PermissionScope::Observe);
+        assert_eq!(method_scope(method::KV_LIST), PermissionScope::Observe);
+
+        // Interact tier
+        assert_eq!(method_scope(method::EVENT_EMIT), PermissionScope::Interact);
+        assert_eq!(method_scope(method::SESSION_UPDATE), PermissionScope::Interact);
+        assert_eq!(method_scope(method::KV_SET), PermissionScope::Interact);
+        assert_eq!(method_scope(method::KV_DELETE), PermissionScope::Interact);
+        assert_eq!(method_scope(method::COMMAND_RESIZE), PermissionScope::Interact);
+
+        // Control tier
+        assert_eq!(method_scope(method::COMMAND_INJECT), PermissionScope::Control);
+        assert_eq!(method_scope(method::COMMAND_SIGNAL), PermissionScope::Control);
+
+        // Execute tier
+        assert_eq!(method_scope(method::COMMAND_EXECUTE), PermissionScope::Execute);
+
+        // Unknown methods default to Execute (deny by default)
+        assert_eq!(method_scope("foo.bar"), PermissionScope::Execute);
+        assert_eq!(method_scope("admin.shutdown"), PermissionScope::Execute);
+    }
+
+    #[test]
+    fn scope_display() {
+        assert_eq!(format!("{}", PermissionScope::Observe), "observe");
+        assert_eq!(format!("{}", PermissionScope::Interact), "interact");
+        assert_eq!(format!("{}", PermissionScope::Control), "control");
+        assert_eq!(format!("{}", PermissionScope::Execute), "execute");
     }
 }
