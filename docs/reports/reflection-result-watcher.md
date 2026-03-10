@@ -7,3 +7,8 @@
 - **Shutdown handling**: File-based (`$RUNTIME_DIR/shutdown`) checked once per loop top. A long-running `claude -p` call blocks shutdown detection indefinitely. No SIGTERM/SIGINT trap handlers.
 - **Resource cleanup**: Prompt files (`prompt-$REQUEST_ID.txt`) accumulate in RUNTIME_DIR and are never deleted. PID file written but never cleaned up on exit. `role-watcher.sh` appends to `pids.txt` (no cleanup on exit either).
 - **role-watcher.sh delta**: Adds role-based system prompts and per-role tool restrictions — good separation of concerns. Same structural issues as specialist-watcher.sh (identical polling/dispatch loop).
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-065 (fix watcher false-completion)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

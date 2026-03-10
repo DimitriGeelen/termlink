@@ -20,7 +20,7 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Enhancement opportunity identified by reflection fleet enhance agent. Hub is a CLI subcommand with no persistence — single point of failure for multi-agent coordination. See [docs/reports/reflection-result-enhance.md].
 
 ## Assumptions
 

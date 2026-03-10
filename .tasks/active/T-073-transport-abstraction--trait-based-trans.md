@@ -20,7 +20,7 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Architectural coupling found by reflection fleet architecture agent. Session crate couples to tokio + Unix sockets with no trait-based transport abstraction. See [docs/reports/reflection-result-arch.md].
 
 ## Assumptions
 

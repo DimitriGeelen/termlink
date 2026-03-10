@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Reliability flaw found by reflection fleet watcher-pattern agent. Watcher emits task.completed even when claude -p crashes — orchestrator sees false success. See [docs/reports/reflection-result-watcher.md].
 
 ## Acceptance Criteria
 

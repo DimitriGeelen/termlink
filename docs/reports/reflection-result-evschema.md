@@ -11,3 +11,8 @@
 **CloudEvents / CNCF comparison:** CloudEvents mandates envelope metadata (`specversion`, `id`, `source`, `type`, `time`). This schema embeds correlation (`request_id`) but lacks timestamp, source identity, and content-type metadata. The "write to disk, return path" pattern is a pragmatic divergence from CloudEvents' `data` field — justified for LLM context budget, but reduces interoperability. Adopting a CloudEvents-compatible envelope wrapper would be low-cost and would future-proof integration with CNCF tooling (Knative, Argo Events).
 
 **Verdict:** Solid for its scope — minimal, purposeful, well-documented. Main gaps: no progress/cancel events, no schema versioning, no structured error codes, and no CloudEvents alignment. These are refinements, not blockers.
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-069 (event schema v2)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

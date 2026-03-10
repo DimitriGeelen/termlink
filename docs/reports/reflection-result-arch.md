@@ -13,3 +13,8 @@
 - `session` pulls in `libc` (platform-specific) and `tokio` (async runtime), coupling it to a specific runtime. Consider a trait-based transport abstraction in `protocol` to keep `session` runtime-agnostic.
 - No `termlink-transport` or `termlink-io` crate — transport mechanics (Unix sockets, TCP) are likely embedded in `session` or `hub`, which may hinder future transport swaps.
 - No shared `termlink-test-utils` or workspace-level integration test crate; `cli` has dev-deps but lower crates have none, suggesting limited unit test infrastructure.
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-072 (test-utils crate), T-073 (transport abstraction)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Test infrastructure gap found by reflection fleet architecture and test-coverage agents. No shared test-utils crate, boilerplate repeated across crates. See [docs/reports/reflection-result-arch.md] and [docs/reports/reflection-result-testcov.md].
 
 ## Acceptance Criteria
 

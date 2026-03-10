@@ -11,3 +11,8 @@
 **`--dangerously-skip-permissions` in e2e tests:** Used in 4 test scripts (level1-echo.sh, level2-file-task.sh, specialist-watcher.sh, role-watcher.sh). Acceptable for CI e2e tests that need non-interactive execution, but these tests should run in isolated environments (ephemeral containers/VMs) and never on shared infrastructure.
 
 **Recommendation:** Before any multi-user or networked deployment, implement sender authentication (e.g., SO_PEERCRED on the socket), per-method authorization, and input validation on `command.execute` payloads.
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-064 (command injection fix), T-008 (security model)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

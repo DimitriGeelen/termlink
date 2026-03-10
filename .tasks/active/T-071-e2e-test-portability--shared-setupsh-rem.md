@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Portability issue found by reflection fleet e2e-suite agent. Hardcoded paths and duplicated setup patterns across e2e levels. See [docs/reports/reflection-result-e2e.md].
 
 ## Acceptance Criteria
 

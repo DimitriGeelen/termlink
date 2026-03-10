@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Security vulnerability found by reflection fleet security agent. executor.rs:21-22 passes user-controlled strings to `sh -c` with no escaping. See [docs/reports/reflection-result-security.md]. Related: T-008.
 
 ## Acceptance Criteria
 

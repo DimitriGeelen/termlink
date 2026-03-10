@@ -6,3 +6,8 @@
 - **Cleanup on failure**: If `register_in` fails after binding the socket but before writing JSON, the socket file leaks (no cleanup in the error path). `deregister` ignores all `remove_file` errors (acceptable for best-effort cleanup). Stale sessions are cleaned opportunistically during `list_sessions` and `find_by_display_name`.
 - **Race conditions**: The display-name uniqueness check (`find_by_display_name` → `is_alive` → `register`) is a TOCTOU race — two concurrent registrations with the same name can both pass the check. File-system operations (dir scan, JSON read/write) are not locked; concurrent list+deregister could read a half-removed session. Low risk for single-host CLI usage but relevant if scaled.
 - **Missing `Drop` impl**: If a `Session` is dropped without calling `deregister()`, the socket and JSON files are leaked. A `Drop` impl with best-effort cleanup would improve robustness.
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-067 (session state machine validation)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

@@ -11,3 +11,8 @@
 5. **Error Propagation & Observability** — `main.rs` is ~500+ lines of flat command handlers using `anyhow` with minimal structured error codes. Add exit codes per failure class, machine-readable JSON output mode (`--json`), and OpenTelemetry tracing spans so orchestrators can programmatically react to failures instead of parsing stderr.
 
 **Biggest pitfall to avoid:** Treating TermLink as "just a CLI tool" — the moment agents depend on it for coordination, it becomes infrastructure. Prioritize the hub's reliability and auth before adding more CLI features.
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-066 (hub as daemon), T-008 (security model)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

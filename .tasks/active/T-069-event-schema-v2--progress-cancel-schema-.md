@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Schema gaps found by reflection fleet event-schema and protocol agents. Missing task.progress, task.cancelled events, no schema versioning, no structured error codes. See [docs/reports/reflection-result-evschema.md].
 
 ## Acceptance Criteria
 

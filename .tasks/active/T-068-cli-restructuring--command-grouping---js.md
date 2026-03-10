@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+UX issues found by reflection fleet cli-ux agent. 28 flat subcommands need grouping (pty.*, event.*), missing --json output and shell completions. See [docs/reports/reflection-result-cli.md].
 
 ## Acceptance Criteria
 

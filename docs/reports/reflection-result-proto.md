@@ -11,3 +11,8 @@
 **Error handling is thorough.** `ProtocolError` covers all parse/decode failures with descriptive messages. Control plane defines 10 domain-specific error codes (-32001 to -32010) alongside standard JSON-RPC codes. `from_bits_truncate` on flags is a pragmatic forward-compat choice.
 
 **Minor concerns:** (1) No checksum/CRC on data frames — relies on transport integrity. (2) `CommonParams.timestamp` is a `String`, not a typed timestamp — risks format inconsistency. (3) `jsonrpc` field is a `String` rather than a validated constant, allowing malformed values.
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-069 (event schema v2)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

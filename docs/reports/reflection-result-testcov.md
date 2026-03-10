@@ -11,3 +11,8 @@
 **Missing edge cases:** No tests for concurrent client connections, malformed JSON input to RPC handlers, socket path length limits, or permission errors on sessions_dir. `find_by_capability`/`find_by_tag`/`find_by_role` in manager.rs are untested (they use the default directory, hard to test in isolation). No negative tests for `write_atomic` failures or disk-full scenarios. `termlink-protocol` has no integration tests (only unit tests for serialization).
 
 **Overall:** Well-structured test strategy with clear layering (unit → integration → CLI → interactive). Coverage is strong for happy paths and core error cases. Main gaps are around concurrency, adversarial inputs, and the few helper functions that hardcode the default sessions directory.
+
+---
+**Source:** T-063 reflection fleet (Level 6, 2026-03-10)
+**Feeds:** T-070 (failure-mode e2e tests), T-072 (test-utils crate)
+**Governance:** [docs/reports/T-063-reflection-fleet-governance.md](T-063-reflection-fleet-governance.md)

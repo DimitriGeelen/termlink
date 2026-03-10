@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Testing gap found by reflection fleet e2e-suite and test-coverage agents. No tests for failure scenarios: specialist crash, orchestrator death, event loss. See [docs/reports/reflection-result-e2e.md] and [docs/reports/reflection-result-testcov.md].
 
 ## Acceptance Criteria
 

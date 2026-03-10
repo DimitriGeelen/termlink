@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Session management issues found by reflection fleet session agent. State machine accepts invalid transitions, no Drop impl, TOCTOU race on display name. See [docs/reports/reflection-result-session.md].
 
 ## Acceptance Criteria
 
