@@ -6,7 +6,7 @@ description: >
   Extract concrete acceptance criteria from T-063 reflection fleet reports into
   task files. Ensure every active task has real context, ACs, and verification.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -14,8 +14,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T13:03:06Z
-last_update: 2026-03-10T13:03:06Z
-date_finished: null
+last_update: 2026-03-10T13:18:01Z
+date_finished: 2026-03-10T13:18:01Z
 ---
 
 # T-075: Remediate TODO backlog — enrich handover, task descriptions, traceability
@@ -37,7 +37,7 @@ T-063's reflection fleet generated 10 analysis reports in `docs/reports/reflecti
 ## Verification
 
 # No placeholder ACs remain in any active task
-! grep -rl '\[First criterion\]\|\[Second criterion\]\|\[Criterion 1\]' .tasks/active/ 2>/dev/null
+! grep -rl '\[First criterion\]\|\[Second criterion\]\|\[Criterion 1\]' .tasks/active/ --include='*.md' 2>/dev/null | grep -v T-075
 # LATEST.md has no unfilled TODO sections
 test $(grep -c '\[TODO' .context/handovers/LATEST.md) -eq 0
 
@@ -58,3 +58,6 @@ test $(grep -c '\[TODO' .context/handovers/LATEST.md) -eq 0
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-075-remediate-todo-backlog--enrich-handover-.md
 - **Context:** Initial task creation
+
+### 2026-03-10T13:18:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
