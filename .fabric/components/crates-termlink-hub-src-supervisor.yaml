@@ -1,0 +1,23 @@
+id: crates/termlink-hub/src/supervisor.rs
+name: supervisor
+type: module
+subsystem: hub
+location: crates/termlink-hub/src/supervisor.rs
+tags: [daemon, supervision, liveness]
+
+purpose: "Session supervision loop — polls registered sessions for liveness every 30s, cleans up stale sessions (dead process, missing socket). Respects shutdown signal."
+
+depends_on:
+  - target: crates/termlink-session/src/liveness.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+  - target: crates/termlink-hub/src/lib.rs
+    type: exports-via
+
+depended_by:
+  - target: crates/termlink-hub/src/server.rs
+    type: calls
+
+last_verified: 2026-03-10
+created_by: T-082
