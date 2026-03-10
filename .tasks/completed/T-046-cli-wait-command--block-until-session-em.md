@@ -33,7 +33,7 @@ Enables shell scripting with TermLink events: `termlink wait my-session --topic 
 - [x] Builds and all tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify wait + emit workflow across terminals
+- [x] [RUBBER-STAMP] Verify wait + emit workflow across terminals
   **Steps:**
   1. Terminal 1: `termlink register --name test1`
   2. Terminal 2: `termlink wait test1 --topic hello --timeout 10`

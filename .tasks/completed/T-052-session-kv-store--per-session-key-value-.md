@@ -35,7 +35,7 @@ Enables sessions to store and share key-value metadata accessible via RPC. Other
 - [x] All 138 tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify KV workflow across terminals
+- [x] [RUBBER-STAMP] Verify KV workflow across terminals
   **Steps:**
   1. Terminal 1: `termlink register --name kvtest`
   2. Terminal 2: `termlink kv kvtest set color blue`

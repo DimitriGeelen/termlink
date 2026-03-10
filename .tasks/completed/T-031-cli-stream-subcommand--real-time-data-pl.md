@@ -36,7 +36,7 @@ Real-time data plane attach via binary frames. Unlike the polling-based `attach`
 - [x] Builds without warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Interactive streaming works end-to-end
+- [x] [RUBBER-STAMP] Interactive streaming works end-to-end
   **Steps:**
   1. Terminal A: `termlink register --name test-stream --shell`
   2. Terminal B: `termlink stream test-stream`

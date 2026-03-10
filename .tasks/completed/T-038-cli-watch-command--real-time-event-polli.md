@@ -31,7 +31,7 @@ date_finished: 2026-03-08T21:14:19Z
 - [x] All 126 tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Watch command shows live events from multiple sessions
+- [x] [RUBBER-STAMP] Watch command shows live events from multiple sessions
   **Steps:**
   1. Register two sessions: `termlink register --name s1 --shell` and `termlink register --name s2 --shell`
   2. In another terminal: `termlink watch`

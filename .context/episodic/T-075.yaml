@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-075: Remediate TODO backlog — enrich handover, task descriptions, traceability
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T13:27:55Z
+# ============================================================================
+
+task_id: T-075
+task_name: "Remediate TODO backlog — enrich handover, task descriptions, traceability"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T13:03:06Z
+completed: 2026-03-10T13:18:01Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T14:13:49+01:00
+last_commit: 2026-03-10T14:18:14+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Enrich all task files — concrete ACs, problem statements, verification. Complete TODO backlog remediation — verification passed
+
+# Key outcomes
+outcomes:
+  - "LATEST.md handover has all TODO sections filled with real content"
+  - "T-069 has concrete acceptance criteria (not placeholder text)"
+  - "T-066 through T-073 all have concrete ACs derived from reflection reports"
+  - "T-008 through T-011 inception tasks have problem statements and key questions"
+  - "All active tasks with `workflow_type: build|refactor|specification` have verification commands"
+  - "No active task file contains `[First criterion]` or `[Second criterion]` placeholder text"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/handovers/S-2026-0310-1357.md"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".tasks/active/T-008-it-006-security-model--capability-based-.md"
+  - ".tasks/active/T-009-it-005-concurrency-ordering-and-backpres.md"
+  - ".tasks/active/T-010-it-007-interactive-program-handling--vim.md"
+  - ".tasks/active/T-011-it-008-distributed-topology--cross-machi.md"
+  - ".tasks/active/T-066-hub-as-persistent-daemon--extract-from-c.md"
+  - ".tasks/active/T-067-session-state-machine-validation--transi.md"
+  - ".tasks/active/T-068-cli-restructuring--command-grouping---js.md"
+  - ".tasks/active/T-069-event-schema-v2--progress-cancel-schema-.md"
+  - ".tasks/active/T-070-failure-mode-e2e-tests--crash-recovery-o.md"
+  - ".tasks/active/T-071-e2e-test-portability--shared-setupsh-rem.md"
+  - ".tasks/active/T-072-shared-termlink-test-utils-crate--reduce.md"
+  - ".tasks/active/T-073-transport-abstraction--trait-based-trans.md"
+  - ".tasks/active/T-075-remediate-todo-backlog--enrich-handover-.md"
+  - ".tasks/completed/T-064-fix-command-injection-in-spawn--executor.md"
+  - ".tasks/completed/T-065-fix-watcher-false-completion--detect-cla.md"
+  - ".tasks/completed/T-075-remediate-todo-backlog--enrich-handover-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T14:13:49"
+    action: "T-075: Enrich all task files — concrete ACs, problem statements, verification"
+  - time: "2026-03-10T14:18:14"
+    action: "T-075: Complete TODO backlog remediation — verification passed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 20
+  lines_added: 457
+  lines_removed: 312
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-075-remediate-todo-backlog--enrich-handover-.md
+generated_by: context-agent-hybrid

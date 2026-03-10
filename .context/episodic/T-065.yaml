@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-065: Fix watcher false-completion — detect Claude crash, emit task.failed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T13:27:54Z
+# ============================================================================
+
+task_id: T-065
+task_name: "Fix watcher false-completion — detect Claude crash, emit task.failed"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T08:44:18Z
+completed: 2026-03-10T12:54:46Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T13:54:39+01:00
+last_commit: 2026-03-10T13:54:39+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix watcher false-completion — emit task.failed on Claude crash
+
+# Key outcomes
+outcomes:
+  - "specialist-watcher.sh captures Claude exit code and emits task.failed on non-zero"
+  - "role-watcher.sh captures Claude exit code and emits task.failed on non-zero"
+  - "Both watchers include exit_code in task.failed payload"
+  - "Successful runs still emit task.completed (no regression)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix watcher false-completion — emit task.failed on Claude crash"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-065-fix-watcher-false-completion--detect-cla.md"
+  - "tests/e2e/role-watcher.sh"
+  - "tests/e2e/specialist-watcher.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T13:54:39"
+    action: "T-065: Fix watcher false-completion — emit task.failed on Claude crash"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 27
+  lines_added: 1360
+  lines_removed: 58
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-065-fix-watcher-false-completion--detect-cla.md
+generated_by: context-agent-hybrid

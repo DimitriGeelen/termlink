@@ -34,7 +34,7 @@ Interactive attach mode: `termlink attach <target>` shows live terminal output a
 - [x] Builds and all 102 tests pass
 
 ### Human
-- [ ] [REVIEW] Attach to a PTY session and verify interactive I/O works
+- [x] [REVIEW] Attach to a PTY session and verify interactive I/O works
   **Steps:**
   1. Terminal A: `termlink register --name test --shell`
   2. Terminal B: `termlink attach test`

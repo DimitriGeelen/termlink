@@ -8,3 +8,24 @@ learnings:
   date: 2026-03-08
   context: Added via context agent
   application: TBD
+- id: L-002
+  learning: "Always run fw fix-learned after completing bugfix tasks — captures the root cause and mitigation as a pattern for future debugging"
+  source: unknown
+  task: T-064
+  date: 2026-03-10
+  context: Added via context agent
+  application: TBD
+- id: L-003
+  learning: "Watcher scripts must capture subprocess exit codes explicitly — the || pattern swallows non-zero exits and causes false success reporting"
+  source: unknown
+  task: T-065
+  date: 2026-03-10
+  context: Added via context agent
+  application: TBD
+- id: L-004
+  learning: "Shell commands accepting user input must escape arguments before passing to sh -c — use single-quote wrapping with internal quote escaping"
+  source: unknown
+  task: T-064
+  date: 2026-03-10
+  context: Added via context agent
+  application: TBD
