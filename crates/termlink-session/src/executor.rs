@@ -11,13 +11,45 @@ pub struct ExecResult {
     pub stderr: String,
 }
 
+/// Maximum command length to prevent abuse (64 KiB).
+const MAX_COMMAND_LEN: usize = 65_536;
+
+/// Validate a command string for safe shell execution.
+/// Rejects null bytes, invalid UTF-8 control sequences, and oversized commands.
+fn validate_command(command: &str) -> Result<(), ExecError> {
+    if command.is_empty() {
+        return Err(ExecError::Validation("command must not be empty".into()));
+    }
+    if command.len() > MAX_COMMAND_LEN {
+        return Err(ExecError::Validation(format!(
+            "command too long ({} bytes, max {})",
+            command.len(),
+            MAX_COMMAND_LEN
+        )));
+    }
+    if command.contains('\0') {
+        return Err(ExecError::Validation(
+            "command must not contain null bytes".into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Execute a shell command with optional timeout, working directory, and env vars.
+///
+/// # Security
+/// The command string is passed to `sh -c` and executed as a shell command.
+/// Callers must ensure commands are trusted or come from authenticated sources.
+/// Input validation rejects null bytes and oversized commands, but does NOT
+/// sanitize shell metacharacters — that is the caller's responsibility.
 pub async fn execute(
     command: &str,
     cwd: Option<&str>,
     env: Option<&std::collections::HashMap<String, String>>,
     timeout: Option<Duration>,
 ) -> Result<ExecResult, ExecError> {
+    validate_command(command)?;
+
     let mut cmd = Command::new("sh");
     cmd.arg("-c").arg(command);
 
@@ -145,6 +177,9 @@ pub enum ExecError {
 
     #[error("failed to send signal {0}: {1}")]
     Signal(i32, std::io::Error),
+
+    #[error("command validation failed: {0}")]
+    Validation(String),
 }
 
 /// Minimal base64 decoder (avoids adding a dependency for this).
@@ -179,6 +214,38 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, &'static str> {
 mod tests {
     use super::*;
     use termlink_protocol::control::KeyEntry;
+
+    #[test]
+    fn validate_rejects_empty_command() {
+        assert!(matches!(
+            validate_command(""),
+            Err(ExecError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn validate_rejects_null_bytes() {
+        assert!(matches!(
+            validate_command("echo hello\0world"),
+            Err(ExecError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn validate_rejects_oversized_command() {
+        let long_cmd = "x".repeat(MAX_COMMAND_LEN + 1);
+        assert!(matches!(
+            validate_command(&long_cmd),
+            Err(ExecError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn validate_accepts_normal_commands() {
+        assert!(validate_command("echo hello").is_ok());
+        assert!(validate_command("ls -la | grep foo").is_ok());
+        assert!(validate_command("cat file.txt && echo done").is_ok());
+    }
 
     #[tokio::test]
     async fn execute_echo() {

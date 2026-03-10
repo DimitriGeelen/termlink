@@ -2317,7 +2317,10 @@ async fn cmd_spawn(
         let mut reg_parts = vec![termlink_path.to_string()];
         reg_parts.extend(register_args.iter().cloned());
 
-        let user_cmd = command.join(" ");
+        let user_cmd = command.iter()
+            .map(|arg| shell_escape(arg))
+            .collect::<Vec<_>>()
+            .join(" ");
         let env_prefix = if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
             format!("export TERMLINK_RUNTIME_DIR={}; ", shell_escape(&rd))
         } else {

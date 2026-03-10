@@ -4,7 +4,7 @@ name: "Fix command injection in spawn — executor.rs input validation"
 description: >
   Security: executor.rs passes user-controlled strings to sh -c with no escaping. Fix with input validation/escaping. Ref: security reflection agent finding.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:07Z
-last_update: 2026-03-10T08:44:07Z
+last_update: 2026-03-10T12:48:02Z
 date_finished: null
 ---
 
@@ -25,46 +25,32 @@ Security vulnerability found by reflection fleet security agent. executor.rs:21-
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] `cmd_spawn` escapes user command args via `shell_escape()` before embedding in shell script
+- [x] `executor::execute()` validates command: rejects empty, null bytes, oversized (>64KB)
+- [x] `ExecError::Validation` variant added for input validation failures
+- [x] Validation tests pass: empty, null bytes, oversized, normal commands
+- [x] All existing executor tests still pass (no regression)
+- [x] Full CLI builds successfully
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+# Spawn args are escaped
+grep -q "shell_escape(arg)" crates/termlink-cli/src/main.rs
+# Executor validates commands
+grep -q "validate_command" crates/termlink-session/src/executor.rs
+# Validation rejects null bytes
+grep -q "null bytes" crates/termlink-session/src/executor.rs
+# ExecError::Validation exists
+grep -q "Validation" crates/termlink-session/src/executor.rs
+# Tests pass
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-session -- executor --quiet
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-03-10 — Scope of executor.rs fix
+- **Chose:** Input validation (empty, null bytes, length) + security doc comment, NOT command sanitization
+- **Why:** `command.execute` is designed for shell commands (pipes, redirects, etc.). Sanitizing metacharacters would break the API. Real fix for untrusted callers is auth (T-008/G-002).
+- **Rejected:** Command allowlist (too restrictive), full metacharacter escaping (breaks legitimate use), disabling `sh -c` (breaking change)
 
 ## Updates
 
@@ -72,3 +58,6 @@ Security vulnerability found by reflection fleet security agent. executor.rs:21-
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-064-fix-command-injection-in-spawn--executor.md
 - **Context:** Initial task creation
+
+### 2026-03-10T12:48:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
