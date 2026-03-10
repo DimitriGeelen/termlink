@@ -29,6 +29,9 @@ Extends T-062's generic specialist-watcher with role-specific system prompts, to
 - [x] Role-aware watcher (role-watcher.sh) loads role prompts and sets role-appropriate tools
 - [x] Level 5 e2e test exists and is executable
 - [x] Level 5 e2e test passes — 3 role-aware specialists complete with role-tagged events
+- [x] Role prompts enriched with framework conventions (task refs, severity categories, output structure)
+- [x] Infrastructure specialist role prompt with Ring20 topology and shared-toolkit skill references
+- [x] Git-committer prompt includes task traceability rules (T-XXX prefix, no force push, no git add -A)
 
 ### Human
 - [ ] [RUBBER-STAMP] Review role prompt quality
@@ -44,6 +47,10 @@ test -f tests/e2e/role-prompts/reviewer.md
 test -f tests/e2e/role-prompts/tester.md
 test -f tests/e2e/role-prompts/documenter.md
 test -f tests/e2e/role-prompts/git-committer.md
+test -f tests/e2e/role-prompts/infrastructure.md
+grep -q "Ring20" tests/e2e/role-prompts/infrastructure.md
+grep -q "T-XXX" tests/e2e/role-prompts/git-committer.md
+grep -q "framework" tests/e2e/role-prompts/reviewer.md
 test -x tests/e2e/role-watcher.sh
 test -x tests/e2e/level5-role-specialists.sh
 

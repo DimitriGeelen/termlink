@@ -33,8 +33,9 @@ case "$ROLE" in
     reviewer)    TOOLS="Read,Write" ;;
     tester)      TOOLS="Bash,Read,Write" ;;
     documenter)  TOOLS="Read,Write" ;;
-    git-committer) TOOLS="Bash,Read,Write" ;;
-    *)           TOOLS="Bash,Read,Write" ;;
+    git-committer)   TOOLS="Bash,Read,Write" ;;
+    infrastructure)  TOOLS="Bash,Read,Write" ;;
+    *)               TOOLS="Bash,Read,Write" ;;
 esac
 
 echo "[role-watcher:$ROLE] Started (pid=$$, tools=$TOOLS)"
