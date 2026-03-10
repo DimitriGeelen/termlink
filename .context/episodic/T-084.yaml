@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-084: Per-method permission enforcement in session handler
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T22:58:45Z
+# ============================================================================
+
+task_id: T-084
+task_name: "Per-method permission enforcement in session handler"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T22:29:22Z
+completed: 2026-03-10T22:32:52Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T23:32:31+01:00
+last_commit: 2026-03-10T23:32:58+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Per-method permission enforcement — scope check before dispatch, 2 new tests. Complete — per-method permission enforcement, 195 tests pass
+
+# Key outcomes
+outcomes:
+  - "Per-method scope check in handle_connection before dispatch"
+  - "Observe-scoped connections denied Execute/Control/Interact methods"
+  - "Execute-scoped connections allowed all methods"
+  - "Permission denied returns JSON-RPC error (-32603) with scope details"
+  - "Same-UID connections granted Execute scope (backward compatible)"
+  - "2 new tests: scope denial + scope allowance"
+  - "All 195 workspace tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-083-register-fabric-cards-for-hub-daemon-mod.md"
+  - ".tasks/completed/T-084-per-method-permission-enforcement-in-ses.md"
+  - "crates/termlink-session/src/server.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T23:32:31"
+    action: "T-084: Per-method permission enforcement — scope check before dispatch, 2 new tests"
+  - time: "2026-03-10T23:32:58"
+    action: "T-084: Complete — per-method permission enforcement, 195 tests pass"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 205
+  lines_removed: 8
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-084-per-method-permission-enforcement-in-ses.md
+generated_by: context-agent-hybrid

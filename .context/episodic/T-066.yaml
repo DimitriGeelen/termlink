@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-066: Hub as persistent daemon — extract from CLI, supervision, pidfile
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T22:58:42Z
+# ============================================================================
+
+task_id: T-066
+task_name: "Hub as persistent daemon — extract from CLI, supervision, pidfile"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T08:44:28Z
+completed: 2026-03-10T22:10:08Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T23:10:21+01:00
+last_commit: 2026-03-10T23:10:49+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Hub daemon inception — GO decision, research artifact, 3 build tasks proposed. Create build tasks T-080, T-081, T-082 from hub daemon inception
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Go/No-Go decision made"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-008.yaml"
+  - ".context/episodic/T-077.yaml"
+  - ".context/episodic/T-078.yaml"
+  - ".tasks/active/T-077-socket-credential-auth--peercredentials-.md"
+  - ".tasks/active/T-078-per-method-permission-scoping--4-tier-au.md"
+  - ".tasks/active/T-080-hub-pidfile--startstopstatus-commands.md"
+  - ".tasks/active/T-081-hub-graceful-shutdown--sigterm-handler-c.md"
+  - ".tasks/active/T-082-hub-session-supervision-loop--active-liv.md"
+  - ".tasks/completed/T-066-hub-as-persistent-daemon--extract-from-c.md"
+  - "docs/reports/T-066-hub-daemon-inception.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T23:10:21"
+    action: "T-066: Hub daemon inception — GO decision, research artifact, 3 build tasks proposed"
+  - time: "2026-03-10T23:10:49"
+    action: "T-066: Create build tasks T-080, T-081, T-082 from hub daemon inception"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 35
+  lines_added: 1916
+  lines_removed: 145
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-066-hub-as-persistent-daemon--extract-from-c.md
+generated_by: context-agent-hybrid

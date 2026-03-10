@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-081: Hub graceful shutdown — SIGTERM handler, connection drain
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T22:58:43Z
+# ============================================================================
+
+task_id: T-081
+task_name: "Hub graceful shutdown — SIGTERM handler, connection drain"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T22:10:39Z
+completed: 2026-03-10T22:17:49Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T23:17:33+01:00
+last_commit: 2026-03-10T23:17:59+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Hub graceful shutdown — SIGTERM via ShutdownHandle, connection drain with 5s timeout. Complete — graceful shutdown with ShutdownHandle, 24 hub tests pass
+
+# Key outcomes
+outcomes:
+  - "Hub server handles SIGTERM for graceful shutdown (via ShutdownHandle)"
+  - "Accept loop stops accepting new connections on shutdown signal"
+  - "Pidfile and socket cleaned up on SIGTERM"
+  - "Hub `run()` returns a ShutdownHandle for external signal integration"
+  - "Tests verify shutdown behavior (2 new tests: stop + drain)"
+  - "All existing hub tests continue to pass (24 total)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/completed/T-081-hub-graceful-shutdown--sigterm-handler-c.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/server.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T23:17:33"
+    action: "T-081: Hub graceful shutdown — SIGTERM via ShutdownHandle, connection drain with 5s timeout"
+  - time: "2026-03-10T23:17:59"
+    action: "T-081: Complete — graceful shutdown with ShutdownHandle, 24 hub tests pass"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 206
+  lines_removed: 67
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-081-hub-graceful-shutdown--sigterm-handler-c.md
+generated_by: context-agent-hybrid
