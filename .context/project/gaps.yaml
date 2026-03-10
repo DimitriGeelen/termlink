@@ -56,12 +56,15 @@ gaps:
     title: "Hub is a CLI subcommand — single point of failure for multi-agent coordination"
     severity: high
     directive: D2-Reliability
-    status: watching
+    status: closed
     discovered: "2026-03-10"
     discovered_by: "T-063 reflection fleet (enhancement agent)"
+    closed: "2026-03-10"
+    closed_by: "T-080, T-081, T-082"
     evidence: "Hub is a subcommand in the CLI binary with no persistence, no state recovery, no supervision. When the terminal closes, all coordination stops. No heartbeat, no auto-deregistration of dead sessions."
+    resolution: "Hub now has pidfile lifecycle (T-080), graceful shutdown with SIGTERM/connection drain (T-081), and active session supervision loop at 30s intervals (T-082). CLI supports hub start/stop/status subcommands."
     impact: "TermLink has crossed from CLI tool to infrastructure (10 agents depend on it for coordination). A CLI-embedded hub cannot provide infrastructure-grade reliability."
-    related_tasks: [T-066]
+    related_tasks: [T-066, T-080, T-081, T-082]
     report: "docs/reports/reflection-result-enhance.md"
     trigger_check:
       type: manual
