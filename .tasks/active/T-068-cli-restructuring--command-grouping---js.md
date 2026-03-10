@@ -4,16 +4,16 @@ name: "CLI restructuring — command grouping, --json output, shell completions"
 description: >
   Group 28 flat subcommands into pty.* and event.* namespaces. Add --json output flag. Generate shell completions via clap_complete.
 
-status: captured
+status: work-completed
 workflow_type: refactor
-owner: agent
+owner: human
 horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:38Z
-last_update: 2026-03-10T08:44:38Z
-date_finished: null
+last_update: 2026-03-10T17:22:10Z
+date_finished: 2026-03-10T17:22:10Z
 ---
 
 # T-068: CLI restructuring — command grouping, --json output, shell completions
@@ -25,13 +25,13 @@ UX issues found by reflection fleet cli-ux agent. 28 flat subcommands need group
 ## Acceptance Criteria
 
 ### Agent
-- [ ] PTY commands nested under `pty` subcommand: `termlink pty attach`, `pty inject`, `pty resize`, `pty stream`, `pty output`
-- [ ] Event commands nested under `event` subcommand: `termlink event watch`, `event emit`, `event broadcast`, `event wait`, `event topics`
-- [ ] Old flat command names remain as hidden aliases for backward compatibility (one release cycle)
-- [ ] `--json` flag added to `list`, `status`, `info`, `events`, `topics` commands — outputs structured JSON
-- [ ] Shell completions generated via `clap_complete` for bash, zsh, fish
-- [ ] `termlink --help` shows grouped commands with clear descriptions
-- [ ] All existing e2e tests pass with the restructured CLI (may need command updates)
+- [x] PTY commands nested under `pty` subcommand: `termlink pty attach`, `pty inject`, `pty resize`, `pty stream`, `pty output`
+- [x] Event commands nested under `event` subcommand: `termlink event watch`, `event emit`, `event broadcast`, `event wait`, `event topics`
+- [x] Old flat command names remain as hidden aliases for backward compatibility (one release cycle)
+- [x] `--json` flag added to `list`, `status`, `info`, `events`, `topics` commands — outputs structured JSON
+- [x] Shell completions generated via `clap_complete` for bash, zsh, fish
+- [x] `termlink --help` shows grouped commands with clear descriptions
+- [x] All existing e2e tests pass with the restructured CLI (may need command updates)
 
 ### Human
 - [ ] [REVIEW] CLI help output is readable and logically grouped
@@ -63,3 +63,9 @@ UX issues found by reflection fleet cli-ux agent. 28 flat subcommands need group
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-068-cli-restructuring--command-grouping---js.md
 - **Context:** Initial task creation
+
+### 2026-03-10T17:13:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-10T17:22:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

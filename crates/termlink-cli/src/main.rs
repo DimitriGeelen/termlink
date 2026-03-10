@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use tokio::sync::RwLock;
 
 use termlink_session::client;
@@ -28,6 +28,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    // === Session Management ===
+
     /// Register a new session and start listening for connections
     Register {
         /// Display name for this session
@@ -52,6 +54,10 @@ enum Command {
         /// Include stale/dead sessions
         #[arg(long)]
         all: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Ping a session to verify it's alive
@@ -64,7 +70,20 @@ enum Command {
     Status {
         /// Session ID or display name
         target: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
+
+    /// Show TermLink runtime information and system status
+    Info {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    // === RPC & Execution ===
 
     /// Send a JSON-RPC method call to a session
     Send {
@@ -96,47 +115,6 @@ enum Command {
         timeout: u64,
     },
 
-    /// Read terminal output from a PTY-backed session
-    Output {
-        /// Session ID or display name
-        target: String,
-
-        /// Number of lines to read (default: 50)
-        #[arg(short, long, default_value = "50")]
-        lines: u64,
-
-        /// Read by bytes instead of lines
-        #[arg(short, long)]
-        bytes: Option<u64>,
-    },
-
-    /// Inject keystrokes into a PTY-backed session
-    Inject {
-        /// Session ID or display name
-        target: String,
-
-        /// Text to inject (e.g., "ls -la")
-        text: String,
-
-        /// Append Enter key after text
-        #[arg(long, short = 'e')]
-        enter: bool,
-
-        /// Send a named key instead of text (e.g., Escape, Tab, Up, Down)
-        #[arg(long, short)]
-        key: Option<String>,
-    },
-
-    /// Attach to a PTY session — live output and keyboard forwarding
-    Attach {
-        /// Session ID or display name
-        target: String,
-
-        /// Output poll interval in milliseconds (default: 100)
-        #[arg(long, default_value = "100")]
-        poll_ms: u64,
-    },
-
     /// Send a signal to a session's process (e.g., SIGTERM, SIGINT)
     Signal {
         /// Session ID or display name
@@ -146,79 +124,148 @@ enum Command {
         signal: String,
     },
 
-    /// Poll events from a session's event bus
-    Events {
+    // === PTY Operations (grouped) ===
+
+    /// PTY terminal operations (attach, inject, output, resize, stream)
+    #[command(subcommand)]
+    Pty(PtyCommand),
+
+    // === Event System (grouped) ===
+
+    /// Event system operations (watch, emit, broadcast, wait, topics, collect)
+    #[command(subcommand)]
+    Event(EventCommand),
+
+    // === Hidden backward-compat aliases for PTY commands ===
+
+    /// Read terminal output from a PTY-backed session
+    #[command(hide = true)]
+    Output {
         /// Session ID or display name
         target: String,
-
-        /// Only show events after this sequence number (omit for all)
-        #[arg(long)]
-        since: Option<u64>,
-
-        /// Filter by topic
-        #[arg(long)]
-        topic: Option<String>,
+        #[arg(short, long, default_value = "50")]
+        lines: u64,
+        #[arg(short, long)]
+        bytes: Option<u64>,
     },
 
-    /// Broadcast an event to multiple sessions via the hub
-    Broadcast {
-        /// Event topic (e.g., "deploy.start", "alert.fire")
-        topic: String,
-
-        /// JSON payload (optional, defaults to {})
-        #[arg(short, long, default_value = "{}")]
-        payload: String,
-
-        /// Target specific sessions (omit for all)
-        #[arg(long, value_delimiter = ',')]
-        targets: Vec<String>,
-    },
-
-    /// Emit an event to a session's event bus
-    Emit {
+    /// Inject keystrokes into a PTY-backed session
+    #[command(hide = true)]
+    Inject {
         /// Session ID or display name
         target: String,
+        text: String,
+        #[arg(long, short = 'e')]
+        enter: bool,
+        #[arg(long, short)]
+        key: Option<String>,
+    },
 
-        /// Event topic (e.g., "build.complete", "test.failed")
-        topic: String,
-
-        /// JSON payload (optional, defaults to {})
-        #[arg(short, long, default_value = "{}")]
-        payload: String,
+    /// Attach to a PTY session
+    #[command(hide = true)]
+    Attach {
+        /// Session ID or display name
+        target: String,
+        #[arg(long, default_value = "100")]
+        poll_ms: u64,
     },
 
     /// Resize a PTY session's terminal
+    #[command(hide = true)]
     Resize {
         /// Session ID or display name
         target: String,
-
-        /// Number of columns
         cols: u16,
-
-        /// Number of rows
         rows: u16,
     },
 
-    /// Stream a PTY session via data plane (real-time binary frames, zero polling)
+    /// Stream a PTY session via data plane
+    #[command(hide = true)]
     Stream {
         /// Session ID or display name
         target: String,
     },
 
+    // === Hidden backward-compat aliases for Event commands ===
+
+    /// Poll events from a session's event bus
+    #[command(hide = true)]
+    Events {
+        /// Session ID or display name
+        target: String,
+        #[arg(long)]
+        since: Option<u64>,
+        #[arg(long)]
+        topic: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Broadcast an event to multiple sessions via the hub
+    #[command(hide = true)]
+    Broadcast {
+        topic: String,
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+        #[arg(long, value_delimiter = ',')]
+        targets: Vec<String>,
+    },
+
+    /// Emit an event to a session's event bus
+    #[command(hide = true)]
+    Emit {
+        /// Session ID or display name
+        target: String,
+        topic: String,
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+    },
+
     /// Watch events from one or more sessions in real-time
+    #[command(hide = true)]
     Watch {
-        /// Session IDs or display names (omit for all sessions)
         #[arg(value_name = "TARGET")]
         targets: Vec<String>,
-
-        /// Poll interval in milliseconds (default: 500)
         #[arg(long, default_value = "500")]
         interval: u64,
-
-        /// Filter by event topic
         #[arg(long)]
         topic: Option<String>,
     },
+
+    /// List event topics from one or all sessions
+    #[command(hide = true)]
+    Topics {
+        target: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Collect events from multiple sessions via hub (fan-in)
+    #[command(hide = true)]
+    Collect {
+        #[arg(long, value_delimiter = ',')]
+        targets: Vec<String>,
+        #[arg(long)]
+        topic: Option<String>,
+        #[arg(long, default_value = "500")]
+        interval: u64,
+        #[arg(long, default_value = "0")]
+        count: u64,
+    },
+
+    /// Wait for a session to emit an event matching a topic, then exit
+    #[command(hide = true)]
+    Wait {
+        target: String,
+        #[arg(long)]
+        topic: String,
+        #[arg(long, default_value = "0")]
+        timeout: u64,
+        #[arg(long, default_value = "250")]
+        interval: u64,
+    },
+
+    // === Metadata & Discovery ===
 
     /// Update session tags, name, or roles at runtime
     Tag {
@@ -255,6 +302,10 @@ enum Command {
         /// Filter by display name (substring match)
         #[arg(long)]
         name: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Manage key-value metadata on a session
@@ -266,33 +317,7 @@ enum Command {
         action: KvAction,
     },
 
-    /// Show TermLink runtime information and system status
-    Info,
-
-    /// List event topics from one or all sessions
-    Topics {
-        /// Session ID or display name (omit for all sessions)
-        target: Option<String>,
-    },
-
-    /// Collect events from multiple sessions via hub (fan-in)
-    Collect {
-        /// Target specific sessions (omit for all)
-        #[arg(long, value_delimiter = ',')]
-        targets: Vec<String>,
-
-        /// Filter by event topic
-        #[arg(long)]
-        topic: Option<String>,
-
-        /// Poll interval in milliseconds (default: 500)
-        #[arg(long, default_value = "500")]
-        interval: u64,
-
-        /// Exit after receiving N events (0 = continuous)
-        #[arg(long, default_value = "0")]
-        count: u64,
-    },
+    // === Execution ===
 
     /// Run a command in an ephemeral session (register, execute, deregister)
     Run {
@@ -311,31 +336,6 @@ enum Command {
         /// Shell command to execute
         #[arg(trailing_var_arg = true, required = true)]
         command: Vec<String>,
-    },
-
-    /// Wait for a session to emit an event matching a topic, then exit
-    Wait {
-        /// Session ID or display name
-        target: String,
-
-        /// Event topic to wait for (required)
-        #[arg(long)]
-        topic: String,
-
-        /// Timeout in seconds (0 = wait forever, default: 0)
-        #[arg(long, default_value = "0")]
-        timeout: u64,
-
-        /// Poll interval in milliseconds (default: 250)
-        #[arg(long, default_value = "250")]
-        interval: u64,
-    },
-
-    /// Remove stale (dead) session registrations from the runtime directory
-    Clean {
-        /// Show what would be removed without actually removing
-        #[arg(long)]
-        dry_run: bool,
     },
 
     /// Send a request event and wait for a reply (request-reply pattern)
@@ -395,8 +395,198 @@ enum Command {
         command: Vec<String>,
     },
 
+    // === Infrastructure ===
+
+    /// Remove stale (dead) session registrations from the runtime directory
+    Clean {
+        /// Show what would be removed without actually removing
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Start the hub server (routes requests between sessions)
     Hub,
+
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
+}
+
+/// PTY terminal operations
+#[derive(Subcommand)]
+enum PtyCommand {
+    /// Read terminal output from a PTY-backed session
+    Output {
+        /// Session ID or display name
+        target: String,
+
+        /// Number of lines to read (default: 50)
+        #[arg(short, long, default_value = "50")]
+        lines: u64,
+
+        /// Read by bytes instead of lines
+        #[arg(short, long)]
+        bytes: Option<u64>,
+    },
+
+    /// Inject keystrokes into a PTY-backed session
+    Inject {
+        /// Session ID or display name
+        target: String,
+
+        /// Text to inject (e.g., "ls -la")
+        text: String,
+
+        /// Append Enter key after text
+        #[arg(long, short = 'e')]
+        enter: bool,
+
+        /// Send a named key instead of text (e.g., Escape, Tab, Up, Down)
+        #[arg(long, short)]
+        key: Option<String>,
+    },
+
+    /// Attach to a PTY session — live output and keyboard forwarding
+    Attach {
+        /// Session ID or display name
+        target: String,
+
+        /// Output poll interval in milliseconds (default: 100)
+        #[arg(long, default_value = "100")]
+        poll_ms: u64,
+    },
+
+    /// Resize a PTY session's terminal
+    Resize {
+        /// Session ID or display name
+        target: String,
+
+        /// Number of columns
+        cols: u16,
+
+        /// Number of rows
+        rows: u16,
+    },
+
+    /// Stream a PTY session via data plane (real-time binary frames, zero polling)
+    Stream {
+        /// Session ID or display name
+        target: String,
+    },
+}
+
+/// Event system operations
+#[derive(Subcommand)]
+enum EventCommand {
+    /// Poll events from a session's event bus
+    Poll {
+        /// Session ID or display name
+        target: String,
+
+        /// Only show events after this sequence number (omit for all)
+        #[arg(long)]
+        since: Option<u64>,
+
+        /// Filter by topic
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Watch events from one or more sessions in real-time
+    Watch {
+        /// Session IDs or display names (omit for all sessions)
+        #[arg(value_name = "TARGET")]
+        targets: Vec<String>,
+
+        /// Poll interval in milliseconds (default: 500)
+        #[arg(long, default_value = "500")]
+        interval: u64,
+
+        /// Filter by event topic
+        #[arg(long)]
+        topic: Option<String>,
+    },
+
+    /// Emit an event to a session's event bus
+    Emit {
+        /// Session ID or display name
+        target: String,
+
+        /// Event topic (e.g., "build.complete", "test.failed")
+        topic: String,
+
+        /// JSON payload (optional, defaults to {})
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+    },
+
+    /// Broadcast an event to multiple sessions via the hub
+    Broadcast {
+        /// Event topic (e.g., "deploy.start", "alert.fire")
+        topic: String,
+
+        /// JSON payload (optional, defaults to {})
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+
+        /// Target specific sessions (omit for all)
+        #[arg(long, value_delimiter = ',')]
+        targets: Vec<String>,
+    },
+
+    /// Wait for a session to emit an event matching a topic, then exit
+    Wait {
+        /// Session ID or display name
+        target: String,
+
+        /// Event topic to wait for (required)
+        #[arg(long)]
+        topic: String,
+
+        /// Timeout in seconds (0 = wait forever, default: 0)
+        #[arg(long, default_value = "0")]
+        timeout: u64,
+
+        /// Poll interval in milliseconds (default: 250)
+        #[arg(long, default_value = "250")]
+        interval: u64,
+    },
+
+    /// List event topics from one or all sessions
+    Topics {
+        /// Session ID or display name (omit for all sessions)
+        target: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Collect events from multiple sessions via hub (fan-in)
+    Collect {
+        /// Target specific sessions (omit for all)
+        #[arg(long, value_delimiter = ',')]
+        targets: Vec<String>,
+
+        /// Filter by event topic
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Poll interval in milliseconds (default: 500)
+        #[arg(long, default_value = "500")]
+        interval: u64,
+
+        /// Exit after receiving N events (0 = continuous)
+        #[arg(long, default_value = "0")]
+        count: u64,
+    },
 }
 
 #[derive(Subcommand)]
@@ -434,23 +624,65 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        // Session management
         Command::Register { name, roles, tags, shell } => {
             cmd_register(name, roles, tags, shell).await
         }
-        Command::List { all } => cmd_list(all),
+        Command::List { all, json } => cmd_list(all, json),
         Command::Ping { target } => cmd_ping(&target).await,
-        Command::Status { target } => cmd_status(&target).await,
+        Command::Status { target, json } => cmd_status(&target, json).await,
+        Command::Info { json } => cmd_info(json),
         Command::Send { target, method, params } => cmd_send(&target, &method, &params).await,
         Command::Exec { target, command, cwd, timeout } => {
             cmd_exec(&target, &command, cwd.as_deref(), timeout).await
         }
+        Command::Signal { target, signal } => cmd_signal(&target, &signal).await,
+
+        // PTY subcommand group
+        Command::Pty(pty) => match pty {
+            PtyCommand::Output { target, lines, bytes } => cmd_output(&target, lines, bytes).await,
+            PtyCommand::Inject { target, text, enter, key } => {
+                cmd_inject(&target, &text, enter, key.as_deref()).await
+            }
+            PtyCommand::Attach { target, poll_ms } => cmd_attach(&target, poll_ms).await,
+            PtyCommand::Resize { target, cols, rows } => cmd_resize(&target, cols, rows).await,
+            PtyCommand::Stream { target } => cmd_stream(&target).await,
+        },
+
+        // Event subcommand group
+        Command::Event(ev) => match ev {
+            EventCommand::Poll { target, since, topic, json: _ } => {
+                cmd_events(&target, since, topic.as_deref()).await
+            }
+            EventCommand::Watch { targets, interval, topic } => {
+                cmd_watch(targets, interval, topic.as_deref()).await
+            }
+            EventCommand::Emit { target, topic, payload } => {
+                cmd_emit(&target, &topic, &payload).await
+            }
+            EventCommand::Broadcast { topic, payload, targets } => {
+                cmd_broadcast(&topic, &payload, targets).await
+            }
+            EventCommand::Wait { target, topic, timeout, interval } => {
+                cmd_wait(&target, &topic, timeout, interval).await
+            }
+            EventCommand::Topics { target, json: _ } => cmd_topics(target.as_deref()).await,
+            EventCommand::Collect { targets, topic, interval, count } => {
+                cmd_collect(targets, topic.as_deref(), interval, count).await
+            }
+        },
+
+        // Hidden backward-compat aliases (PTY)
         Command::Output { target, lines, bytes } => cmd_output(&target, lines, bytes).await,
         Command::Inject { target, text, enter, key } => {
             cmd_inject(&target, &text, enter, key.as_deref()).await
         }
         Command::Attach { target, poll_ms } => cmd_attach(&target, poll_ms).await,
-        Command::Signal { target, signal } => cmd_signal(&target, &signal).await,
-        Command::Events { target, since, topic } => {
+        Command::Resize { target, cols, rows } => cmd_resize(&target, cols, rows).await,
+        Command::Stream { target } => cmd_stream(&target).await,
+
+        // Hidden backward-compat aliases (Event)
+        Command::Events { target, since, topic, json: _ } => {
             cmd_events(&target, since, topic.as_deref()).await
         }
         Command::Broadcast { topic, payload, targets } => {
@@ -459,37 +691,49 @@ async fn main() -> Result<()> {
         Command::Emit { target, topic, payload } => {
             cmd_emit(&target, &topic, &payload).await
         }
-        Command::Resize { target, cols, rows } => cmd_resize(&target, cols, rows).await,
-        Command::Stream { target } => cmd_stream(&target).await,
-        Command::Tag { target, set, add, remove } => {
-            cmd_tag(&target, set, add, remove).await
-        }
         Command::Watch { targets, interval, topic } => {
             cmd_watch(targets, interval, topic.as_deref()).await
         }
-        Command::Discover { tag, role, cap, name } => {
-            cmd_discover(tag, role, cap, name)
-        }
-        Command::Kv { target, action } => cmd_kv(&target, action).await,
-        Command::Info => cmd_info(),
-        Command::Topics { target } => cmd_topics(target.as_deref()).await,
+        Command::Topics { target, json: _ } => cmd_topics(target.as_deref()).await,
         Command::Collect { targets, topic, interval, count } => {
             cmd_collect(targets, topic.as_deref(), interval, count).await
-        }
-        Command::Run { name, tags, timeout, command } => {
-            cmd_run(name, tags, timeout, command).await
         }
         Command::Wait { target, topic, timeout, interval } => {
             cmd_wait(&target, &topic, timeout, interval).await
         }
-        Command::Clean { dry_run } => cmd_clean(dry_run),
+
+        // Metadata & Discovery
+        Command::Tag { target, set, add, remove } => {
+            cmd_tag(&target, set, add, remove).await
+        }
+        Command::Discover { tag, role, cap, name, json } => {
+            cmd_discover(tag, role, cap, name, json)
+        }
+        Command::Kv { target, action } => cmd_kv(&target, action).await,
+
+        // Execution
+        Command::Run { name, tags, timeout, command } => {
+            cmd_run(name, tags, timeout, command).await
+        }
         Command::Request { target, topic, payload, reply_topic, timeout, interval } => {
             cmd_request(&target, &topic, &payload, &reply_topic, timeout, interval).await
         }
         Command::Spawn { name, roles, tags, wait, wait_timeout, shell, command } => {
             cmd_spawn(name, roles, tags, wait, wait_timeout, shell, command).await
         }
+
+        // Infrastructure
+        Command::Clean { dry_run } => cmd_clean(dry_run),
         Command::Hub => cmd_hub().await,
+        Command::Completions { shell } => {
+            clap_complete::generate(
+                shell,
+                &mut Cli::command(),
+                "termlink",
+                &mut std::io::stdout(),
+            );
+            Ok(())
+        }
     }
 }
 
@@ -637,9 +881,24 @@ async fn cmd_register(
     Ok(())
 }
 
-fn cmd_list(include_stale: bool) -> Result<()> {
+fn cmd_list(include_stale: bool, json: bool) -> Result<()> {
     let sessions = manager::list_sessions(include_stale)
         .context("Failed to list sessions")?;
+
+    if json {
+        let items: Vec<serde_json::Value> = sessions.iter().map(|s| {
+            serde_json::json!({
+                "id": s.id.as_str(),
+                "display_name": s.display_name,
+                "state": s.state.to_string(),
+                "pid": s.pid,
+                "tags": s.tags,
+                "roles": s.roles,
+            })
+        }).collect();
+        println!("{}", serde_json::to_string_pretty(&items)?);
+        return Ok(());
+    }
 
     if sessions.is_empty() {
         println!("No active sessions.");
@@ -730,7 +989,7 @@ async fn cmd_ping(target: &str) -> Result<()> {
     }
 }
 
-async fn cmd_status(target: &str) -> Result<()> {
+async fn cmd_status(target: &str, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -740,6 +999,10 @@ async fn cmd_status(target: &str) -> Result<()> {
 
     match client::unwrap_result(resp) {
         Ok(result) => {
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+                return Ok(());
+            }
             println!("Session: {}", result["id"].as_str().unwrap_or("?"));
             println!("  Name:        {}", result["display_name"].as_str().unwrap_or("?"));
             println!("  State:       {}", result["state"].as_str().unwrap_or("?"));
@@ -856,6 +1119,7 @@ fn cmd_discover(
     roles: Vec<String>,
     caps: Vec<String>,
     name: Option<String>,
+    json: bool,
 ) -> Result<()> {
     let sessions = manager::list_sessions(false)
         .context("Failed to discover sessions")?;
@@ -877,6 +1141,22 @@ fn cmd_discover(
                 })
         })
         .collect();
+
+    if json {
+        let items: Vec<serde_json::Value> = filtered.iter().map(|s| {
+            serde_json::json!({
+                "id": s.id.as_str(),
+                "display_name": s.display_name,
+                "state": s.state.to_string(),
+                "pid": s.pid,
+                "tags": s.tags,
+                "roles": s.roles,
+                "capabilities": s.capabilities,
+            })
+        }).collect();
+        println!("{}", serde_json::to_string_pretty(&items)?);
+        return Ok(());
+    }
 
     if filtered.is_empty() {
         if has_filters {
@@ -1785,25 +2065,11 @@ async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
     Ok(())
 }
 
-fn cmd_info() -> Result<()> {
+fn cmd_info(json: bool) -> Result<()> {
     let runtime_dir = termlink_session::discovery::runtime_dir();
     let sessions_dir = termlink_session::discovery::sessions_dir();
     let hub_socket = termlink_hub::server::hub_socket_path();
-
-    println!("TermLink Runtime");
-    println!("{}", "-".repeat(40));
-    println!("  Runtime dir:  {}", runtime_dir.display());
-    println!("  Sessions dir: {}", sessions_dir.display());
-    println!("  Hub socket:   {}", hub_socket.display());
-
-    // Check hub status
     let hub_running = hub_socket.exists();
-    println!(
-        "  Hub:          {}",
-        if hub_running { "running" } else { "stopped" }
-    );
-
-    // Count sessions
     let live = manager::list_sessions(false)
         .map(|s| s.len())
         .unwrap_or(0);
@@ -1811,6 +2077,31 @@ fn cmd_info() -> Result<()> {
         .map(|s| s.len())
         .unwrap_or(0);
     let stale = all - live;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+            "runtime_dir": runtime_dir.to_string_lossy(),
+            "sessions_dir": sessions_dir.to_string_lossy(),
+            "hub_socket": hub_socket.to_string_lossy(),
+            "hub_running": hub_running,
+            "sessions": {
+                "live": live,
+                "stale": stale,
+                "total": all,
+            },
+        }))?);
+        return Ok(());
+    }
+
+    println!("TermLink Runtime");
+    println!("{}", "-".repeat(40));
+    println!("  Runtime dir:  {}", runtime_dir.display());
+    println!("  Sessions dir: {}", sessions_dir.display());
+    println!("  Hub socket:   {}", hub_socket.display());
+    println!(
+        "  Hub:          {}",
+        if hub_running { "running" } else { "stopped" }
+    );
 
     println!();
     println!("Sessions");
