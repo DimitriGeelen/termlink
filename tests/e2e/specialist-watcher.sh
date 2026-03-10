@@ -68,15 +68,23 @@ PROMPT
 
     # Dispatch to fresh Claude (fresh context window!)
     echo "[watcher] Running claude for $REQUEST_ID..."
+    CLAUDE_EXIT=0
     "$CLAUDE" -p "$(cat "$TASK_PROMPT_FILE")" \
         --allowedTools "Bash,Read,Write" \
-        --dangerously-skip-permissions 2>&1 || echo "[watcher] claude exit: $?"
+        --dangerously-skip-permissions 2>&1 || CLAUDE_EXIT=$?
 
-    # Emit task.completed
-    "$TERMLINK" emit orchestrator task.completed \
-        --payload "{\"request_id\":\"$REQUEST_ID\",\"status\":\"completed\",\"result_path\":\"$RESULT_PATH\"}" 2>/dev/null || true
-
-    echo "[watcher] Task $REQUEST_ID done"
+    if [ "$CLAUDE_EXIT" -eq 0 ]; then
+        # Emit task.completed
+        "$TERMLINK" emit orchestrator task.completed \
+            --payload "{\"request_id\":\"$REQUEST_ID\",\"status\":\"completed\",\"result_path\":\"$RESULT_PATH\"}" 2>/dev/null || true
+        echo "[watcher] Task $REQUEST_ID completed"
+    else
+        # Emit task.failed — Claude crashed or errored
+        echo "[watcher] Claude failed for $REQUEST_ID (exit=$CLAUDE_EXIT)"
+        "$TERMLINK" emit orchestrator task.failed \
+            --payload "{\"request_id\":\"$REQUEST_ID\",\"status\":\"failed\",\"exit_code\":$CLAUDE_EXIT}" 2>/dev/null || true
+        echo "[watcher] Task $REQUEST_ID failed"
+    fi
 
     # Update cursor: use the seq of the event we just processed + 1
     # (--since is exclusive: returns events with seq > CURSOR)

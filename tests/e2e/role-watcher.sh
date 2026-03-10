@@ -96,15 +96,23 @@ PROMPT
 
     # Dispatch to fresh Claude with role-appropriate tools
     echo "[role-watcher:$ROLE] Running claude for $REQUEST_ID..."
+    CLAUDE_EXIT=0
     "$CLAUDE" -p "$(cat "$TASK_PROMPT_FILE")" \
         --allowedTools "$TOOLS" \
-        --dangerously-skip-permissions 2>&1 || echo "[role-watcher:$ROLE] claude exit: $?"
+        --dangerously-skip-permissions 2>&1 || CLAUDE_EXIT=$?
 
-    # Emit task.completed
-    "$TERMLINK" emit orchestrator task.completed \
-        --payload "{\"request_id\":\"$REQUEST_ID\",\"specialist\":\"$ROLE\",\"status\":\"completed\",\"result_path\":\"$RESULT_PATH\"}" 2>/dev/null || true
-
-    echo "[role-watcher:$ROLE] Task $REQUEST_ID done"
+    if [ "$CLAUDE_EXIT" -eq 0 ]; then
+        # Emit task.completed
+        "$TERMLINK" emit orchestrator task.completed \
+            --payload "{\"request_id\":\"$REQUEST_ID\",\"specialist\":\"$ROLE\",\"status\":\"completed\",\"result_path\":\"$RESULT_PATH\"}" 2>/dev/null || true
+        echo "[role-watcher:$ROLE] Task $REQUEST_ID completed"
+    else
+        # Emit task.failed — Claude crashed or errored
+        echo "[role-watcher:$ROLE] Claude failed for $REQUEST_ID (exit=$CLAUDE_EXIT)"
+        "$TERMLINK" emit orchestrator task.failed \
+            --payload "{\"request_id\":\"$REQUEST_ID\",\"specialist\":\"$ROLE\",\"status\":\"failed\",\"exit_code\":$CLAUDE_EXIT}" 2>/dev/null || true
+        echo "[role-watcher:$ROLE] Task $REQUEST_ID failed"
+    fi
 
     if [ -n "$SEQ" ]; then CURSOR="$SEQ"; fi
 done

@@ -4,7 +4,7 @@ name: "Fix watcher false-completion — detect Claude crash, emit task.failed"
 description: >
   Watcher emits task.completed even when claude -p crashes. Check exit code, emit task.failed on non-zero. Add retry option.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:18Z
-last_update: 2026-03-10T08:44:18Z
+last_update: 2026-03-10T12:53:31Z
 date_finished: null
 ---
 
@@ -25,46 +25,26 @@ Reliability flaw found by reflection fleet watcher-pattern agent. Watcher emits 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] specialist-watcher.sh captures Claude exit code and emits task.failed on non-zero
+- [x] role-watcher.sh captures Claude exit code and emits task.failed on non-zero
+- [x] Both watchers include exit_code in task.failed payload
+- [x] Successful runs still emit task.completed (no regression)
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+# specialist-watcher checks exit code
+grep -q "CLAUDE_EXIT" tests/e2e/specialist-watcher.sh
+# specialist-watcher emits task.failed
+grep -q "task.failed" tests/e2e/specialist-watcher.sh
+# role-watcher checks exit code
+grep -q "CLAUDE_EXIT" tests/e2e/role-watcher.sh
+# role-watcher emits task.failed
+grep -q "task.failed" tests/e2e/role-watcher.sh
+# Both include exit_code in failure payload
+grep -q "exit_code" tests/e2e/specialist-watcher.sh
+grep -q "exit_code" tests/e2e/role-watcher.sh
 
 ## Decisions
-
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
 
 ## Updates
 
@@ -72,3 +52,6 @@ Reliability flaw found by reflection fleet watcher-pattern agent. Watcher emits 
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-065-fix-watcher-false-completion--detect-cla.md
 - **Context:** Initial task creation
+
+### 2026-03-10T12:53:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
