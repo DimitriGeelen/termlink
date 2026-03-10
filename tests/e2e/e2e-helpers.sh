@@ -40,10 +40,10 @@ cleanup_all() {
     echo ""
     echo "=== Cleanup ==="
 
-    # Kill tracked processes
+    # Kill tracked processes and their children (process groups)
     if [ -f "$PIDS_FILE" ]; then
         while IFS= read -r pid; do
-            kill "$pid" 2>/dev/null || true
+            kill -- -"$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
         done < "$PIDS_FILE"
     fi
 
@@ -52,8 +52,8 @@ cleanup_all() {
         kill "$ORCH_PID" 2>/dev/null || true
     fi
 
-    # Wait for processes to die before closing windows
-    sleep 1
+    # Wait for processes to fully exit before closing windows
+    sleep 3
 
     # Close tracked Terminal.app windows (only ours, no confirmation dialog)
     if [ -f "$WINDOW_IDS_FILE" ] && [ -s "$WINDOW_IDS_FILE" ]; then
