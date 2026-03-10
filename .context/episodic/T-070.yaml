@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-070: Failure-mode e2e tests — crash recovery, orchestrator death, event loss
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T20:19:13Z
+# ============================================================================
+
+task_id: T-070
+task_name: "Failure-mode e2e tests — crash recovery, orchestrator death, event loss"
+workflow_type: test
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T08:44:43Z
+completed: 2026-03-10T20:01:42Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T21:01:35+01:00
+last_commit: 2026-03-10T21:01:35+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Level 7 failure-mode e2e tests — 5/5 pass (crash, death, ordering, cursor, polling)
+
+# Key outcomes
+outcomes:
+  - "E2e test: specialist watcher crash mid-task — orchestrator receives `task.failed` event"
+  - "E2e test: orchestrator process killed mid-coordination — sessions continue, no orphan locks"
+  - "E2e test: event ordering verified under concurrent emitters (3+ agents emitting simultaneously)"
+  - "E2e test: `--since` cursor with stale/invalid value returns error or empty (not crash)"
+  - "E2e test: session deregistration during active event polling — poller handles gracefully"
+  - "All failure-mode tests have cleanup (no leftover processes or sockets)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-protocol-src-events.yaml"
+  - ".tasks/active/T-070-failure-mode-e2e-tests--crash-recovery-o.md"
+  - "tests/e2e/level7-failure-modes.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T21:01:35"
+    action: "T-070: Level 7 failure-mode e2e tests — 5/5 pass (crash, death, ordering, cursor, polling)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 27
+  lines_added: 1724
+  lines_removed: 19
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-070-failure-mode-e2e-tests--crash-recovery-o.md
+generated_by: context-agent-hybrid
