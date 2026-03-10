@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-067: Session state machine validation — transition guards, Drop impl, TOCTOU fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-10T16:56:04Z
+# ============================================================================
+
+task_id: T-067
+task_name: "Session state machine validation — transition guards, Drop impl, TOCTOU fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T08:44:31Z
+completed: 2026-03-10T16:49:02Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T17:49:22+01:00
+last_commit: 2026-03-10T17:49:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add state transition guards, Drop impl, TOCTOU doc, error path cleanup
+
+# Key outcomes
+outcomes:
+  - "`set_state()` has a `valid_transition()` guard that rejects invalid state transitions (e.g., Terminated → Active)"
+  - "Invalid transition attempts return a typed error (not panic)"
+  - "`Session` implements `Drop` with best-effort cleanup (remove socket file, remove JSON registration)"
+  - "`register_in()` cleans up socket file if JSON write fails (no socket leak on error path)"
+  - "TOCTOU race on display-name uniqueness is documented with a code comment explaining the risk and mitigation path"
+  - "Unit tests cover: valid transitions succeed, invalid transitions are rejected, Drop cleans up files"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Add state transition guards, Drop impl, TOCTOU doc, error path cleanup"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-063-role-specific-persistent-specialist-agen.md"
+  - ".tasks/completed/T-067-session-state-machine-validation--transi.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "crates/termlink-session/src/lifecycle.rs"
+  - "crates/termlink-session/src/manager.rs"
+  - "crates/termlink-session/src/registration.rs"
+  - "crates/termlink-session/tests/integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T17:49:22"
+    action: "T-067: Add state transition guards, Drop impl, TOCTOU doc, error path cleanup"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 34
+  lines_added: 1514
+  lines_removed: 62
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-067-session-state-machine-validation--transi.md
+generated_by: context-agent-hybrid
