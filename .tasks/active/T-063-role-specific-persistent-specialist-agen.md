@@ -28,7 +28,7 @@ Extends T-062's generic specialist-watcher with role-specific system prompts, to
 - [x] Role-specific system prompts exist for reviewer, tester, documenter, git-committer
 - [x] Role-aware watcher (role-watcher.sh) loads role prompts and sets role-appropriate tools
 - [x] Level 5 e2e test exists and is executable
-- [ ] Level 5 e2e test passes — 3 role-aware specialists complete with role-tagged events
+- [x] Level 5 e2e test passes — 3 role-aware specialists complete with role-tagged events
 
 ### Human
 - [ ] [RUBBER-STAMP] Review role prompt quality
