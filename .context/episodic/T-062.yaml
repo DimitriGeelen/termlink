@@ -1,0 +1,45 @@
+id: T-062
+name: "Agent-to-agent e2e tests — Claude Code orchestrator and specialists"
+workflow_type: build
+owner: agent
+duration_hours: 3
+date_finished: "2026-03-10T08:07:29Z"
+
+summary: >
+  Built 4 progressive e2e tests validating TermLink as Claude Code inter-agent
+  communication layer. Level 1 (echo), Level 2 (file task with delegation events),
+  Level 3 (persistent watcher handling sequential tasks), Level 4 (3 parallel
+  specialists: reviewer, tester, documenter). Created reusable specialist-watcher.sh
+  pattern for persistent agents.
+
+key_artifacts:
+  - tests/e2e/level1-echo.sh
+  - tests/e2e/level2-file-task.sh
+  - tests/e2e/level3-persistent-agent.sh
+  - tests/e2e/level4-multi-specialist.sh
+  - tests/e2e/specialist-watcher.sh
+  - docs/conventions/agent-delegation-events.md
+
+decisions:
+  - topic: "Prompt delivery mechanism"
+    chose: "Write prompt to file, use claude -p $(cat file)"
+    why: "AppleScript quote mangling corrupts inline prompts"
+  - topic: "Persistent agent pattern"
+    chose: "Bash watcher loop dispatching to fresh claude -p per task"
+    why: "Each task gets fresh 200K context; watcher stays lightweight"
+
+patterns:
+  - type: failure
+    description: "events --since 0 is exclusive, misses seq 0"
+    mitigation: "Start with empty cursor, first poll omits --since"
+  - type: failure
+    description: "CLAUDECODE env var prevents nested Claude sessions"
+    mitigation: "unset CLAUDECODE before spawning specialist agents"
+  - type: success
+    description: "N parallel specialists = N × 200K context capacity"
+    evidence: "Level 4: 3 specialists each analyzed different files concurrently"
+
+learnings:
+  - "AppleScript do script mangles quotes — always use prompt files"
+  - "Specialist watcher pattern: poll events → parse JSON → dispatch fresh claude -p → emit completion"
+  - "Fan-out/fan-in with request_id correlation enables parallel agent orchestration"
