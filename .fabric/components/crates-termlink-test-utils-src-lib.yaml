@@ -1,0 +1,25 @@
+id: crates/termlink-test-utils/src/lib.rs
+name: test-utils
+type: library
+subsystem: session
+location: crates/termlink-test-utils/src/lib.rs
+tags: [testing, infrastructure]
+
+purpose: "Shared test utilities for the TermLink workspace: TestDir (unique temp dirs with cleanup), ProcessGuard (RAII process management), wait_for_socket/wait_for_data_socket (polling), start_session (session fixture), termlink_cmd (CLI command builder)"
+
+depends_on:
+  - target: crates/termlink-session/src/handler.rs
+    type: calls
+  - target: crates/termlink-session/src/server.rs
+    type: calls
+  - target: crates/termlink-session/src/registration.rs
+    type: calls
+
+depended_by:
+  - target: crates/termlink-session/tests/integration.rs
+    type: calls
+  - target: crates/termlink-cli/tests/cli_integration.rs
+    type: calls
+
+last_verified: 2026-03-11
+created_by: T-072
