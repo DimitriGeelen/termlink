@@ -245,7 +245,7 @@ Client → Hub Socket → Router
 
 ## Security Model
 
-### Three Phases
+### Four Phases
 
 1. **Phase 1 (implemented, T-077):** UID-based authentication — extract peer UID via socket credentials, reject cross-user connections
 2. **Phase 2 (implemented, T-078/T-084):** 4-tier permission scoping — `method_scope()` maps each RPC method to a required scope, checked before dispatch
@@ -285,10 +285,10 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 | Crate | Tests | Coverage Focus |
 |-------|-------|----------------|
 | termlink-protocol | 21 | JSON-RPC parsing, frame encode/decode, error types |
-| termlink-session | 131 | Handlers (all 18 RPC methods), events, PTY, liveness, auth (tokens), server |
+| termlink-session | 138 | Handlers (all 18 RPC methods), events, PTY, liveness, auth (tokens), server, executor allowlist |
 | termlink-hub | 28 | Router (discover, broadcast, collect, forward), server, pidfile, supervisor |
 | termlink (CLI) | 15+4 | Integration tests (register, ping, exec, events, KV), interactive TTY tests |
-| **Total** | **211** | |
+| **Total** | **218** | |
 
 ---
 
