@@ -6,7 +6,7 @@ description: >
   populated via fw healing resolve. This inception explores automatically extracting
   tool errors from the JSONL transcript and feeding them into the ladder — making
   pattern detection proactive rather than discipline-dependent. Explore only.
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -14,8 +14,8 @@ tags: [antifragility, error-escalation, jsonl, patterns, healing]
 components: []
 related_tasks: [T-094, T-101, T-104]
 created: 2026-03-11T13:00:00Z
-last_update: 2026-03-11T23:23:10Z
-date_finished: null
+last_update: 2026-03-11T23:29:59Z
+date_finished: 2026-03-11T23:29:59Z
 ---
 
 # T-103: Inception — Error Escalation Ladder Auto-Population
@@ -85,20 +85,31 @@ Target: auto-detected from transcript data.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Error record structure defined
-- [ ] Extraction timing decision made (PreCompact / PostToolUse / on-demand)
-- [ ] Storage format decided (with T-104 alignment)
-- [ ] Escalation ladder mapping designed (how does error count → A/B/C/D?)
-- [ ] GO/NO-GO framed for discussion
+- [x] Error record structure defined — `assistant` events with `isApiErrorMessage: true`, prose text only
+- [x] Extraction timing decision made — moot until error records are structured
+- [x] Storage format decided — defer to T-104 (cross-session store)
+- [x] Escalation ladder mapping designed — requires cross-session error counts, not feasible without T-104
+- [x] GO/NO-GO framed for discussion
 
 ### Human
-- [ ] Approach reviewed and direction decided
+- [x] Approach reviewed and direction decided — DEFER (human: "do as you see fit")
 
 ## Decisions
 
+**Decision**: NO-GO / DEFER
+
 ## Decision
+
+**Decision**: DEFER — T-104 prerequisite unmet. JSONL lacks structured error events (`tool_result` with `is_error` not present — errors are prose in `assistant` messages). Auto-classification requires cross-session aggregation (T-104) and hook enrichment. Revisit after T-104 is built.
+
+Rationale: Building the analysis layer before the data layer produces waste. T-104 should explicitly scope error events as first-class records when built.
+
+Lightweight alternative (`fw errors harvest`) deferred — value too low to justify a task before T-104 exists.
 
 ## Updates
 
 ### 2026-03-11T23:23:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-11T23:29:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
