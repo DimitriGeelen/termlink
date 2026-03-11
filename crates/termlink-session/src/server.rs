@@ -4,7 +4,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tokio::sync::RwLock;
 
-use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
+use termlink_protocol::control;
+use termlink_protocol::jsonrpc::{ErrorResponse, Request, Response, RpcResponse};
 
 use crate::auth::{self, PeerCredentials, PermissionScope};
 use crate::handler::{self, SessionContext};
@@ -16,13 +17,24 @@ pub type SharedSession = Arc<RwLock<SessionContext>>;
 ///
 /// Reads newline-delimited JSON-RPC requests, checks per-method permission scope,
 /// dispatches authorized requests, and writes newline-delimited JSON-RPC responses.
+///
+/// If the session has a `token_secret`, the initial scope is `Observe` and clients
+/// must authenticate via `auth.token` to upgrade their scope. Without a `token_secret`,
+/// same-UID connections get `Execute` scope (legacy behavior).
 pub async fn handle_connection(
     stream: UnixStream,
     session: SharedSession,
-    granted_scope: PermissionScope,
+    initial_scope: PermissionScope,
 ) {
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
+    let mut granted_scope = initial_scope;
+
+    // Read token_secret from session registration (for auth.token validation)
+    let token_secret = {
+        let ctx = session.read().await;
+        ctx.registration.token_secret.clone()
+    };
 
     while let Ok(Some(line)) = lines.next_line().await {
         let line = line.trim().to_string();
@@ -33,33 +45,39 @@ pub async fn handle_connection(
         // Parse JSON-RPC request
         let response = match serde_json::from_str::<Request>(&line) {
             Ok(req) => {
-                // Check permission scope before dispatching
-                let required = auth::method_scope(&req.method);
-                if !granted_scope.satisfies(required) {
+                // Handle auth.token specially — upgrades connection scope
+                if req.method == control::method::AUTH_TOKEN {
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
-                    tracing::warn!(
-                        method = %req.method,
-                        required = %required,
-                        granted = %granted_scope,
-                        "Permission denied: insufficient scope"
-                    );
-                    Some(
-                        ErrorResponse::new(
-                            id,
-                            -32603,
-                            &format!(
-                                "Permission denied: method '{}' requires '{}' scope, connection has '{}'",
-                                req.method, required, granted_scope
-                            ),
-                        )
-                        .into(),
-                    )
-                } else if handler::needs_write(&req) {
-                    let mut ctx = session.write().await;
-                    handler::dispatch_mut(&req, &mut ctx).await
+                    handle_auth_token(&req, &token_secret, &mut granted_scope, id)
                 } else {
-                    let ctx = session.read().await;
-                    handler::dispatch(&req, &ctx).await
+                    // Check permission scope before dispatching
+                    let required = auth::method_scope(&req.method);
+                    if !granted_scope.satisfies(required) {
+                        let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+                        tracing::warn!(
+                            method = %req.method,
+                            required = %required,
+                            granted = %granted_scope,
+                            "Permission denied: insufficient scope"
+                        );
+                        Some(
+                            ErrorResponse::new(
+                                id,
+                                control::error_code::AUTH_DENIED,
+                                &format!(
+                                    "Permission denied: method '{}' requires '{}' scope, connection has '{}'",
+                                    req.method, required, granted_scope
+                                ),
+                            )
+                            .into(),
+                        )
+                    } else if handler::needs_write(&req) {
+                        let mut ctx = session.write().await;
+                        handler::dispatch_mut(&req, &mut ctx).await
+                    } else {
+                        let ctx = session.read().await;
+                        handler::dispatch(&req, &ctx).await
+                    }
                 }
             }
             Err(e) => {
@@ -89,6 +107,100 @@ pub async fn handle_connection(
     }
 }
 
+/// Handle an `auth.token` request — validate the token and upgrade connection scope.
+fn handle_auth_token(
+    req: &Request,
+    token_secret: &Option<String>,
+    granted_scope: &mut PermissionScope,
+    id: serde_json::Value,
+) -> Option<RpcResponse> {
+    let secret = match token_secret {
+        Some(s) => s,
+        None => {
+            // No token secret configured — auth.token is not supported
+            return Some(
+                ErrorResponse::new(
+                    id,
+                    control::error_code::AUTH_DENIED,
+                    "Token authentication not configured for this session",
+                )
+                .into(),
+            );
+        }
+    };
+
+    // Decode the hex secret
+    let secret_bytes: auth::TokenSecret = match hex_to_bytes(secret) {
+        Some(b) => b,
+        None => {
+            tracing::error!("Invalid token_secret in registration (not valid hex)");
+            return Some(
+                ErrorResponse::internal_error(id, "Internal auth configuration error").into(),
+            );
+        }
+    };
+
+    // Extract the token string from params
+    let token_str = match req.params.get("token").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => {
+            return Some(
+                ErrorResponse::new(
+                    id,
+                    control::error_code::AUTH_REQUIRED,
+                    "Missing 'token' parameter",
+                )
+                .into(),
+            );
+        }
+    };
+
+    // Validate the token
+    match auth::validate_token(&secret_bytes, token_str, None) {
+        Ok((payload, scope)) => {
+            *granted_scope = scope;
+            tracing::info!(
+                scope = %scope,
+                session_id = %payload.session_id,
+                "Connection authenticated via token"
+            );
+            Some(
+                Response::success(
+                    id,
+                    serde_json::json!({
+                        "authenticated": true,
+                        "scope": scope.to_string(),
+                    }),
+                )
+                .into(),
+            )
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "Token validation failed");
+            Some(
+                ErrorResponse::new(
+                    id,
+                    control::error_code::AUTH_DENIED,
+                    &format!("Token validation failed: {e}"),
+                )
+                .into(),
+            )
+        }
+    }
+}
+
+/// Convert a hex string to a 32-byte array.
+fn hex_to_bytes(hex: &str) -> Option<[u8; 32]> {
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(bytes)
+}
+
 /// Run the session accept loop, spawning a task for each connection.
 ///
 /// This is the main entry point for a session's control plane server.
@@ -97,10 +209,10 @@ pub async fn run_accept_loop(
     listener: tokio::net::UnixListener,
     session: SharedSession,
 ) {
-    // Cache the session owner UID for auth checks
-    let owner_uid = {
+    // Cache session owner UID and token mode for auth checks
+    let (owner_uid, has_token_secret) = {
         let ctx = session.read().await;
-        ctx.registration.uid
+        (ctx.registration.uid, ctx.registration.token_secret.is_some())
     };
 
     loop {
@@ -135,9 +247,14 @@ pub async fn run_accept_loop(
                     }
                 }
 
-                // Same-UID connections get full access (Execute scope).
-                // Future: capability tokens (T-079) will allow scoped access.
-                let scope = PermissionScope::Execute;
+                // Scope assignment:
+                // - With token_secret: default to Observe, client must auth.token to upgrade
+                // - Without token_secret: legacy behavior, same-UID gets Execute
+                let scope = if has_token_secret {
+                    PermissionScope::Observe
+                } else {
+                    PermissionScope::Execute
+                };
 
                 let sess = session.clone();
                 tokio::spawn(async move {
@@ -387,7 +504,7 @@ mod tests {
         let resp: serde_json::Value =
             serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
         assert_eq!(resp["id"], "e1");
-        assert_eq!(resp["error"]["code"], -32603, "Execute should be denied");
+        assert_eq!(resp["error"]["code"], -32010, "Execute should be denied (AUTH_DENIED)");
         assert!(resp["error"]["message"].as_str().unwrap().contains("Permission denied"));
 
         // Observe-scoped: command.inject should be denied (Control tier)
@@ -396,7 +513,7 @@ mod tests {
         let resp: serde_json::Value =
             serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
         assert_eq!(resp["id"], "i1");
-        assert_eq!(resp["error"]["code"], -32603, "Inject should be denied");
+        assert_eq!(resp["error"]["code"], -32010, "Inject should be denied (AUTH_DENIED)");
 
         // Observe-scoped: event.emit should be denied (Interact tier)
         let req = json!({"jsonrpc": "2.0", "method": "event.emit", "id": "em1", "params": {"topic": "test", "payload": {}}});
@@ -404,7 +521,7 @@ mod tests {
         let resp: serde_json::Value =
             serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
         assert_eq!(resp["id"], "em1");
-        assert_eq!(resp["error"]["code"], -32603, "Emit should be denied");
+        assert_eq!(resp["error"]["code"], -32010, "Emit should be denied (AUTH_DENIED)");
 
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
@@ -444,6 +561,227 @@ mod tests {
         let resp: serde_json::Value =
             serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
         assert!(resp["result"].is_object(), "Emit should work with Execute scope");
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    // === Token auth tests (T-087) ===
+
+    /// Helper: create a session with token_secret enabled.
+    fn test_session_with_tokens(socket: PathBuf) -> (SessionContext, auth::TokenSecret) {
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let id = SessionId::generate();
+        let mut reg = Registration::new(
+            id,
+            SessionConfig {
+                display_name: Some("token-test".into()),
+                capabilities: vec!["inject".into(), "query".into()],
+                roles: vec![],
+                tags: vec![],
+            },
+            socket,
+        );
+        reg.state = SessionState::Ready;
+        reg.token_secret = Some(secret_hex);
+        (SessionContext::new(reg), secret)
+    }
+
+    #[tokio::test]
+    async fn auth_token_upgrades_scope() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let (ctx, secret) = test_session_with_tokens(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        // Spawn handler with Observe scope (token mode)
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, shared_clone, PermissionScope::Observe).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Before auth: execute should be denied
+        let req = json!({"jsonrpc": "2.0", "method": "command.execute", "id": "e1", "params": {"command": "echo hi"}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32010, "Execute should be denied before auth");
+
+        // Authenticate with Execute-scoped token
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let req = json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a1", "params": {"token": token.raw}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["result"]["authenticated"], true);
+        assert_eq!(resp["result"]["scope"], "execute");
+
+        // After auth: ping should still work
+        let req = json!({"jsonrpc": "2.0", "method": "termlink.ping", "id": "p1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(resp["result"]["id"].is_string());
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn auth_token_with_observe_scope_allows_only_reads() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let (ctx, secret) = test_session_with_tokens(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, shared_clone, PermissionScope::Observe).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Authenticate with Observe-only token
+        let token = auth::create_token(&secret, PermissionScope::Observe, "", 3600);
+        let req = json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a1", "params": {"token": token.raw}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["result"]["scope"], "observe");
+
+        // Ping works (Observe)
+        let req = json!({"jsonrpc": "2.0", "method": "termlink.ping", "id": "p1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(resp["result"]["id"].is_string());
+
+        // Event.emit denied (Interact > Observe)
+        let req = json!({"jsonrpc": "2.0", "method": "event.emit", "id": "em1", "params": {"topic": "test", "payload": {}}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32010);
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn auth_token_wrong_secret_rejected() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let (ctx, _secret) = test_session_with_tokens(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, shared_clone, PermissionScope::Observe).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Create token with different secret
+        let wrong_secret = auth::generate_secret();
+        let token = auth::create_token(&wrong_secret, PermissionScope::Execute, "", 3600);
+        let req = json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a1", "params": {"token": token.raw}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32010, "Wrong secret should be rejected");
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn auth_token_without_secret_configured_rejected() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        // Session WITHOUT token_secret (legacy mode)
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, shared_clone, PermissionScope::Execute).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Try to authenticate on a session that doesn't support tokens
+        let secret = auth::generate_secret();
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let req = json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a1", "params": {"token": token.raw}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32010, "Should reject when no secret configured");
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn accept_loop_uses_observe_scope_when_token_secret_set() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let (ctx, _secret) = test_session_with_tokens(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            run_accept_loop(listener, shared_clone).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Ping works (Observe)
+        let req = json!({"jsonrpc": "2.0", "method": "termlink.ping", "id": "p1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(resp["result"]["id"].is_string(), "Ping should work");
+
+        // Execute denied (no token auth yet)
+        let req = json!({"jsonrpc": "2.0", "method": "command.execute", "id": "e1", "params": {"command": "echo hi"}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32010, "Execute should be denied without token");
 
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
