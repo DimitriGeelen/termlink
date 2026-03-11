@@ -45,18 +45,21 @@ gaps:
     title: "Watcher emits false task.completed on Claude crash — silent failure"
     severity: high
     directive: D1-Antifragility
-    status: watching
+    status: closed
     discovered: "2026-03-10"
     discovered_by: "T-063 reflection fleet (watcher-pattern agent)"
+    closed: "2026-03-11"
+    closed_by: "T-091"
     evidence: "specialist-watcher.sh and role-watcher.sh emit task.completed unconditionally after claude -p returns. The || echo swallows non-zero exits. Orchestrator sees success even when specialist crashed."
+    resolution: "Both watchers already have exit-code-aware logic. specialist-watcher.sh (lines 71-87) and role-watcher.sh (lines 99-115) capture CLAUDE_EXIT via || CLAUDE_EXIT=$?, check exit code, and emit task.failed with exit_code on non-zero. The original gap evidence was based on an earlier version of the scripts. The trigger check was too coarse (grep for string presence, not conditional logic)."
     impact: "Anti-antifragile — the system hides failures instead of learning from them. Orchestrators make decisions based on results that don't exist. Scales the broken pattern to N agents."
-    related_tasks: [T-065]
+    related_tasks: [T-065, T-091]
     report: "docs/reports/reflection-result-watcher.md"
     trigger_check:
       type: auto
-      check: "grep -c 'task.completed' $PROJECT_ROOT/tests/e2e/specialist-watcher.sh"
+      check: "grep -c 'CLAUDE_EXIT' $PROJECT_ROOT/tests/e2e/specialist-watcher.sh"
       threshold: ">= 1"
-      description: "Fires while watcher unconditionally emits completed. Should be 0 when replaced with exit-code-aware logic."
+      description: "Confirms exit-code-aware logic is present in watcher scripts."
 
   - id: G-004
     title: "Hub is a CLI subcommand — single point of failure for multi-agent coordination"
