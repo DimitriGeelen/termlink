@@ -104,4 +104,17 @@ both readable from this file with a simple Python parser.
 
 ## Decision
 
+**Decision**: GO — 2026-03-11
+
+Rationale:
+- JSONL format confirmed stable (mirrors public Claude API message structure)
+- Cost confirmed negligible: current session ~1MB, parsed in milliseconds
+- Written in real-time — data is live and complete
+- Structure confirmed: `user`/`assistant` event types, `tool_result` with `is_error` flag
+- Scope defined: current session JSONL only (not cross-session — that is T-104)
+- Capture scope: back to current topic start (interpretation A), fallback to last capture
+- Sub-agent transcript gap acknowledged and separated to T-107
+
+Next: create build task for JSONL transcript reader + `/capture` skill implementation.
+
 ## Updates
