@@ -78,3 +78,19 @@ gaps:
     trigger_check:
       type: manual
       description: "Closes when hub is extracted to a proper daemon with pidfile and supervision"
+
+  - id: G-005
+    title: "Pure conversation sessions bypass all framework enforcement"
+    severity: medium
+    directive: D1-Antifragility
+    status: watching
+    discovered: "2026-03-11"
+    discovered_by: "T-094 (5-agent investigation)"
+    evidence: "Claude Code fires zero hooks for pure conversation sessions — no PreToolUse, no PostToolUse, no SessionEnd. The task gate, commit cadence enforcement, and session capture checklist only trigger on tool use. A session that never touches a file can run indefinitely and lose all content on context exhaustion."
+    impact: "Research and exploration conversations — often the most valuable sessions — are silently ephemeral. No structural backstop exists. Agent self-governance is the only mitigation."
+    mitigation: "C-002 Exploratory Conversation Guard (CLAUDE.md rule): stop at 3 substantive exchanges, create inception task, invoke /capture. /capture skill (T-108) provides the save mechanism."
+    related_tasks: [T-094, T-095, T-108]
+    report: "docs/reports/T-094-volatile-conversation-prevention.md"
+    trigger_check:
+      type: manual
+      description: "Closes if Anthropic adds PostMessage or SessionEnd hooks to Claude Code (T-099 PR request)"
