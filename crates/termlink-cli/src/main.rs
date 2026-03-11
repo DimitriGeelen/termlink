@@ -47,6 +47,10 @@ enum Command {
         /// Start a PTY-backed session (full bidirectional I/O)
         #[arg(long)]
         shell: bool,
+
+        /// Enable token-based authentication (generates a random secret)
+        #[arg(long)]
+        token_secret: bool,
     },
 
     /// List all registered sessions
@@ -410,6 +414,14 @@ enum Command {
         action: Option<HubAction>,
     },
 
+    // === Token Management ===
+
+    /// Create or inspect capability tokens for session authentication
+    Token {
+        #[command(subcommand)]
+        action: TokenAction,
+    },
+
     /// Generate shell completions
     Completions {
         /// Shell to generate completions for
@@ -427,6 +439,29 @@ enum HubAction {
     Stop,
     /// Show hub server status
     Status,
+}
+
+/// Token management actions
+#[derive(Subcommand)]
+enum TokenAction {
+    /// Create a new capability token for a session
+    Create {
+        /// Session ID or display name (must have token_secret enabled)
+        target: String,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(short, long, default_value = "observe")]
+        scope: String,
+
+        /// Time-to-live in seconds (default: 3600 = 1 hour)
+        #[arg(long, default_value = "3600")]
+        ttl: u64,
+    },
+    /// Inspect a token without validating (decode the payload)
+    Inspect {
+        /// The token string to inspect
+        token: String,
+    },
 }
 
 /// PTY terminal operations
@@ -639,8 +674,8 @@ async fn main() -> Result<()> {
 
     match cli.command {
         // Session management
-        Command::Register { name, roles, tags, shell } => {
-            cmd_register(name, roles, tags, shell).await
+        Command::Register { name, roles, tags, shell, token_secret } => {
+            cmd_register(name, roles, tags, shell, token_secret).await
         }
         Command::List { all, json } => cmd_list(all, json),
         Command::Ping { target } => cmd_ping(&target).await,
@@ -743,6 +778,12 @@ async fn main() -> Result<()> {
             Some(HubAction::Stop) => cmd_hub_stop(),
             Some(HubAction::Status) => cmd_hub_status(),
         },
+        Command::Token { action } => match action {
+            TokenAction::Create { target, scope, ttl } => {
+                cmd_token_create(&target, &scope, ttl).await
+            }
+            TokenAction::Inspect { token } => cmd_token_inspect(&token),
+        },
         Command::Completions { shell } => {
             clap_complete::generate(
                 shell,
@@ -760,6 +801,7 @@ async fn cmd_register(
     roles: Vec<String>,
     tags: Vec<String>,
     shell: bool,
+    enable_token_secret: bool,
 ) -> Result<()> {
     let mut config = SessionConfig {
         display_name: name,
@@ -777,6 +819,15 @@ async fn cmd_register(
     let mut session = termlink_session::Session::register(config)
         .await
         .context("Failed to register session")?;
+
+    // Enable token-based auth if requested
+    if enable_token_secret {
+        let secret = termlink_session::auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+        session.registration.token_secret = Some(secret_hex.clone());
+        println!("Token auth enabled. Secret: {secret_hex}");
+        println!("  Create tokens with: termlink token create {} --scope observe", session.id());
+    }
 
     println!("Session registered:");
     println!("  ID:      {}", session.id());
@@ -2773,6 +2824,82 @@ fn cmd_hub_status() -> Result<()> {
             println!("  Pidfile: {}", pidfile_path.display());
         }
     }
+    Ok(())
+}
+
+async fn cmd_token_create(target: &str, scope: &str, ttl: u64) -> Result<()> {
+    use termlink_session::auth;
+
+    // Resolve target to a registration
+    let sessions_dir = termlink_session::discovery::sessions_dir();
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    // Check for token_secret
+    let secret_hex = reg
+        .token_secret
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!(
+            "Session '{}' does not have token auth enabled. Register with --token-secret.",
+            target
+        ))?;
+
+    // Decode hex secret
+    let secret_bytes: auth::TokenSecret = {
+        if secret_hex.len() != 64 {
+            anyhow::bail!("Invalid token_secret in registration (expected 64 hex chars)");
+        }
+        let mut bytes = [0u8; 32];
+        for i in 0..32 {
+            bytes[i] = u8::from_str_radix(&secret_hex[i * 2..i * 2 + 2], 16)
+                .context("Invalid hex in token_secret")?;
+        }
+        bytes
+    };
+
+    // Parse scope
+    let permission_scope = auth::parse_scope(scope)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let token = auth::create_token(&secret_bytes, permission_scope, reg.id.as_str(), ttl);
+
+    println!("{}", token.raw);
+    eprintln!("Scope: {scope}, TTL: {ttl}s, Session: {}", reg.id);
+
+    let _ = sessions_dir; // suppress unused
+    Ok(())
+}
+
+fn cmd_token_inspect(token_str: &str) -> Result<()> {
+    use base64::Engine;
+
+    let parts: Vec<&str> = token_str.splitn(2, '.').collect();
+    if parts.len() != 2 {
+        anyhow::bail!("Invalid token format (expected payload.signature)");
+    }
+
+    let payload_json = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(parts[0])
+        .context("Invalid base64 in token payload")?;
+
+    let payload: serde_json::Value =
+        serde_json::from_slice(&payload_json).context("Invalid JSON in token payload")?;
+
+    println!("{}", serde_json::to_string_pretty(&payload)?);
+
+    // Check expiry
+    if let Some(expires) = payload["expires_at"].as_u64() {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if now > expires {
+            eprintln!("WARNING: Token has expired ({} seconds ago)", now - expires);
+        } else {
+            eprintln!("Expires in {} seconds", expires - now);
+        }
+    }
+
     Ok(())
 }
 

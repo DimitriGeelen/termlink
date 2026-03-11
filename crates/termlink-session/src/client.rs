@@ -3,6 +3,7 @@ use std::path::Path;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 
+use termlink_protocol::control;
 use termlink_protocol::jsonrpc::{Request, RpcResponse};
 
 /// A JSON-RPC client that connects to a session's Unix socket.
@@ -45,6 +46,34 @@ impl Client {
         Ok(resp)
     }
 
+    /// Authenticate with a capability token (auth.token RPC method).
+    ///
+    /// On success, the connection's scope is upgraded to the token's scope.
+    /// Returns the granted scope string on success.
+    pub async fn authenticate(&mut self, token: &str) -> Result<String, ClientError> {
+        let resp = self
+            .call(
+                control::method::AUTH_TOKEN,
+                serde_json::json!("auth"),
+                serde_json::json!({"token": token}),
+            )
+            .await?;
+
+        match resp {
+            RpcResponse::Success(r) => {
+                let scope = r.result["scope"]
+                    .as_str()
+                    .unwrap_or("unknown")
+                    .to_string();
+                Ok(scope)
+            }
+            RpcResponse::Error(e) => Err(ClientError::AuthFailed(format!(
+                "{}: {}",
+                e.error.code, e.error.message
+            ))),
+        }
+    }
+
     /// Send a notification (no response expected).
     pub async fn notify(
         &mut self,
@@ -80,6 +109,9 @@ pub enum ClientError {
 
     #[error("connection closed by server")]
     ConnectionClosed,
+
+    #[error("authentication failed: {0}")]
+    AuthFailed(String),
 }
 
 /// Extract the successful result from an RpcResponse, or format the error.

@@ -16,6 +16,7 @@ clap = { workspace = true }
 clap_complete = "4"
 serde_json = { workspace = true }
 libc = { workspace = true }
+base64 = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = "2"
