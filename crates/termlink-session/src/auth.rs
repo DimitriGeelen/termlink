@@ -4,11 +4,13 @@
 //! Security model phases:
 //! - Phase 1 (T-077): Extract peer UID, reject different-UID connections
 //! - Phase 2 (T-078): 4-tier permission scoping per RPC method
-//! - Phase 3 (T-079): Capability tokens for fine-grained multi-agent auth
+//! - Phase 3 (T-079/T-086): Capability tokens for fine-grained multi-agent auth
 
 use std::io;
 use std::os::unix::io::AsRawFd;
 
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 use termlink_protocol::control;
 
 /// Credentials of a connected peer, extracted from the Unix socket.
@@ -200,6 +202,167 @@ pub fn method_scope(method: &str) -> PermissionScope {
     }
 }
 
+type HmacSha256 = Hmac<Sha256>;
+
+/// Default token time-to-live: 1 hour.
+pub const DEFAULT_TOKEN_TTL_SECS: u64 = 3600;
+
+/// A 32-byte secret used for HMAC-SHA256 token signing.
+pub type TokenSecret = [u8; 32];
+
+/// Generate a cryptographically random token secret.
+pub fn generate_secret() -> TokenSecret {
+    use rand::Rng;
+    rand::rng().random()
+}
+
+/// Token payload that gets serialized and signed.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TokenPayload {
+    /// Permission scope granted by this token.
+    pub scope: String,
+    /// Session ID this token is scoped to (optional — empty means any session).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub session_id: String,
+    /// Unix timestamp when the token was issued.
+    pub issued_at: u64,
+    /// Unix timestamp when the token expires.
+    pub expires_at: u64,
+    /// Random nonce to prevent replay across different token creations.
+    pub nonce: String,
+}
+
+/// A signed capability token: base64(json_payload).base64(hmac_signature).
+#[derive(Debug, Clone)]
+pub struct CapabilityToken {
+    /// The raw token string (payload.signature).
+    pub raw: String,
+    /// The decoded payload.
+    pub payload: TokenPayload,
+}
+
+/// Errors from token creation or validation.
+#[derive(Debug, thiserror::Error)]
+pub enum TokenError {
+    #[error("token has expired")]
+    Expired,
+    #[error("invalid token format")]
+    InvalidFormat,
+    #[error("invalid signature")]
+    InvalidSignature,
+    #[error("invalid scope: {0}")]
+    InvalidScope(String),
+    #[error("token is for a different session")]
+    SessionMismatch,
+}
+
+/// Parse a scope string into a PermissionScope.
+pub fn parse_scope(s: &str) -> Result<PermissionScope, TokenError> {
+    match s {
+        "observe" => Ok(PermissionScope::Observe),
+        "interact" => Ok(PermissionScope::Interact),
+        "control" => Ok(PermissionScope::Control),
+        "execute" => Ok(PermissionScope::Execute),
+        _ => Err(TokenError::InvalidScope(s.to_string())),
+    }
+}
+
+/// Create a signed capability token.
+pub fn create_token(
+    secret: &TokenSecret,
+    scope: PermissionScope,
+    session_id: &str,
+    ttl_secs: u64,
+) -> CapabilityToken {
+    use base64::Engine;
+    use rand::Rng;
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let nonce: [u8; 16] = rand::rng().random();
+    let nonce_hex = nonce.iter().map(|b| format!("{b:02x}")).collect::<String>();
+
+    let payload = TokenPayload {
+        scope: scope.to_string(),
+        session_id: session_id.to_string(),
+        issued_at: now,
+        expires_at: now + ttl_secs,
+        nonce: nonce_hex,
+    };
+
+    let payload_json = serde_json::to_string(&payload).expect("payload serializes");
+    let payload_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(payload_json.as_bytes());
+
+    let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC accepts any key size");
+    mac.update(payload_b64.as_bytes());
+    let signature = mac.finalize().into_bytes();
+    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&signature);
+
+    let raw = format!("{payload_b64}.{sig_b64}");
+
+    CapabilityToken { raw, payload }
+}
+
+/// Validate a token string and return the decoded payload with its scope.
+///
+/// Checks: format, HMAC signature, expiry, and optionally session ID.
+pub fn validate_token(
+    secret: &TokenSecret,
+    token_str: &str,
+    expected_session_id: Option<&str>,
+) -> Result<(TokenPayload, PermissionScope), TokenError> {
+    use base64::Engine;
+
+    let parts: Vec<&str> = token_str.splitn(2, '.').collect();
+    if parts.len() != 2 {
+        return Err(TokenError::InvalidFormat);
+    }
+
+    let (payload_b64, sig_b64) = (parts[0], parts[1]);
+
+    // Verify HMAC signature
+    let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC accepts any key size");
+    mac.update(payload_b64.as_bytes());
+
+    let claimed_sig = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(sig_b64)
+        .map_err(|_| TokenError::InvalidFormat)?;
+    mac.verify_slice(&claimed_sig)
+        .map_err(|_| TokenError::InvalidSignature)?;
+
+    // Decode payload
+    let payload_json = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload_b64)
+        .map_err(|_| TokenError::InvalidFormat)?;
+    let payload: TokenPayload =
+        serde_json::from_slice(&payload_json).map_err(|_| TokenError::InvalidFormat)?;
+
+    // Check expiry
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    if now > payload.expires_at {
+        return Err(TokenError::Expired);
+    }
+
+    // Check session ID if specified
+    if let Some(expected) = expected_session_id {
+        if !payload.session_id.is_empty() && payload.session_id != expected {
+            return Err(TokenError::SessionMismatch);
+        }
+    }
+
+    // Parse scope
+    let scope = parse_scope(&payload.scope)?;
+
+    Ok((payload, scope))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,5 +474,140 @@ mod tests {
         assert_eq!(format!("{}", PermissionScope::Interact), "interact");
         assert_eq!(format!("{}", PermissionScope::Control), "control");
         assert_eq!(format!("{}", PermissionScope::Execute), "execute");
+    }
+
+    // === Token tests (T-086) ===
+
+    #[test]
+    fn generate_secret_is_random() {
+        let s1 = generate_secret();
+        let s2 = generate_secret();
+        assert_ne!(s1, s2);
+        assert_eq!(s1.len(), 32);
+    }
+
+    #[test]
+    fn create_and_validate_token() {
+        let secret = generate_secret();
+        let token = create_token(&secret, PermissionScope::Interact, "sess-123", 3600);
+
+        let (payload, scope) = validate_token(&secret, &token.raw, Some("sess-123")).unwrap();
+        assert_eq!(scope, PermissionScope::Interact);
+        assert_eq!(payload.session_id, "sess-123");
+        assert!(payload.expires_at > payload.issued_at);
+    }
+
+    #[test]
+    fn token_with_empty_session_id_matches_any() {
+        let secret = generate_secret();
+        let token = create_token(&secret, PermissionScope::Observe, "", 3600);
+
+        // Should validate against any session ID
+        let (_, scope) = validate_token(&secret, &token.raw, Some("any-session")).unwrap();
+        assert_eq!(scope, PermissionScope::Observe);
+    }
+
+    #[test]
+    fn token_session_mismatch_rejected() {
+        let secret = generate_secret();
+        let token = create_token(&secret, PermissionScope::Execute, "sess-A", 3600);
+
+        let err = validate_token(&secret, &token.raw, Some("sess-B")).unwrap_err();
+        assert!(matches!(err, TokenError::SessionMismatch));
+    }
+
+    #[test]
+    fn token_wrong_secret_rejected() {
+        let secret1 = generate_secret();
+        let secret2 = generate_secret();
+        let token = create_token(&secret1, PermissionScope::Execute, "", 3600);
+
+        let err = validate_token(&secret2, &token.raw, None).unwrap_err();
+        assert!(matches!(err, TokenError::InvalidSignature));
+    }
+
+    #[test]
+    fn token_tampered_payload_rejected() {
+        let secret = generate_secret();
+        let token = create_token(&secret, PermissionScope::Observe, "", 3600);
+
+        // Tamper with the payload portion (change first char)
+        let parts: Vec<&str> = token.raw.splitn(2, '.').collect();
+        let mut tampered = parts[0].as_bytes().to_vec();
+        tampered[0] ^= 0xFF;
+        let tampered_str = format!("{}.{}", String::from_utf8_lossy(&tampered), parts[1]);
+
+        let err = validate_token(&secret, &tampered_str, None).unwrap_err();
+        assert!(matches!(
+            err,
+            TokenError::InvalidSignature | TokenError::InvalidFormat
+        ));
+    }
+
+    #[test]
+    fn token_expired_rejected() {
+        let secret = generate_secret();
+        // Create token with 0 TTL (immediately expired)
+        let token = create_token(&secret, PermissionScope::Observe, "", 0);
+
+        // Sleep briefly to ensure we're past expiry
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+
+        let err = validate_token(&secret, &token.raw, None).unwrap_err();
+        assert!(matches!(err, TokenError::Expired));
+    }
+
+    #[test]
+    fn token_invalid_format_rejected() {
+        let secret = generate_secret();
+
+        // No dot separator
+        assert!(matches!(
+            validate_token(&secret, "nodot", None).unwrap_err(),
+            TokenError::InvalidFormat
+        ));
+
+        // Empty string
+        assert!(matches!(
+            validate_token(&secret, "", None).unwrap_err(),
+            TokenError::InvalidFormat
+        ));
+    }
+
+    #[test]
+    fn parse_scope_roundtrip() {
+        for scope in [
+            PermissionScope::Observe,
+            PermissionScope::Interact,
+            PermissionScope::Control,
+            PermissionScope::Execute,
+        ] {
+            let s = scope.to_string();
+            let parsed = parse_scope(&s).unwrap();
+            assert_eq!(parsed, scope);
+        }
+    }
+
+    #[test]
+    fn parse_scope_invalid() {
+        assert!(matches!(
+            parse_scope("admin").unwrap_err(),
+            TokenError::InvalidScope(_)
+        ));
+    }
+
+    #[test]
+    fn all_four_scopes_can_be_tokenized() {
+        let secret = generate_secret();
+        for scope in [
+            PermissionScope::Observe,
+            PermissionScope::Interact,
+            PermissionScope::Control,
+            PermissionScope::Execute,
+        ] {
+            let token = create_token(&secret, scope, "", 3600);
+            let (_, validated_scope) = validate_token(&secret, &token.raw, None).unwrap();
+            assert_eq!(validated_scope, scope);
+        }
     }
 }

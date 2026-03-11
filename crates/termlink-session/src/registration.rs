@@ -29,6 +29,11 @@ pub struct Registration {
     pub tags: Vec<String>,
     #[serde(default)]
     pub metadata: SessionMetadata,
+    /// HMAC secret for capability token validation (Phase 3 auth, T-086).
+    /// When present, connections must authenticate via `auth.token` to get scoped access.
+    /// When absent, legacy behavior: same-UID connections get Execute scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_secret: Option<String>,
 }
 
 /// Environment metadata included in registration.
@@ -103,6 +108,7 @@ impl Registration {
                 termlink_version: Some(env!("CARGO_PKG_VERSION").to_string()),
                 data_socket: None,
             },
+            token_secret: None,
         }
     }
 

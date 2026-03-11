@@ -42,6 +42,12 @@ bitflags = "2"
 # CLI
 clap = { version = "4", features = ["derive"] }
 
+# Crypto (capability tokens)
+hmac = "0.12"
+sha2 = "0.10"
+rand = "0.9"
+base64 = "0.22"
+
 # Platform
 libc = "0.2"
 
