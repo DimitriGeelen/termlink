@@ -1,68 +1,96 @@
 # T-107: Inception — Sub-Agent Transcript Persistence
 
-> Created: 2026-03-12 | Status: Research complete — GO/NO-GO pending
+> Created: 2026-03-12 | Two deep-dive agents run | Status: NO-GO (original) + new task spawned
 
 ## Problem Statement
 
-Background agents write their transcripts to `/tmp` with `isSidechain: true`, NOT to
-the project JSONL. Concern: these files are ephemeral and lost on reboot.
+Background agents write transcripts to `/tmp` with `isSidechain: true`. Concern:
+ephemeral — lost on reboot. Are sub-agent reasoning trails being lost?
 
-## Findings
+## Finding 1: Original problem doesn't exist
 
-### The problem doesn't exist.
+Claude Code already persists sub-agent transcripts durably.
 
-Claude Code already persists sub-agent transcripts to a durable location.
-
-**Two-layer architecture (discovered):**
+**Two-layer architecture:**
 
 | Layer | Location | Lifecycle |
 |-------|----------|-----------|
-| Session (fast) | `/tmp/claude-501/<project>/tasks/<agent-id>.output` | Symlinks only — ephemeral |
-| Persistent | `~/.claude/projects/<project>/<session-id>/subagents/agent-<id>.jsonl` | Durable — survives reboot |
+| Session | `/tmp/claude-501/<project>/tasks/<agent-id>.output` | Symlinks only |
+| **Persistent** | `~/.claude/projects/<project>/<session-id>/subagents/agent-<id>.jsonl` | **Durable** |
 
-**Confirmed:**
-- 8 sub-agent JSONL files in `~/.claude/projects/.../2392cce9-.../subagents/`
-- Total: 3.6 MB of persisted sub-agent transcripts from this session
-- Format: Standard JSONL with `isSidechain: true`, `agentId`, `sessionId`, `parentUuid`
-- Permissions: 0600 (user-only), appropriate for sensitive reasoning trails
-- Progress events (PreToolUse/PostToolUse) captured — tool call details present
+The `/tmp` files are symlinks to `~/.claude/`. Reboots clear the symlinks, not the data.
 
-**The /tmp files are symlinks to the persistent files, not the source of truth.**
+**Confirmed:** 8 sub-agent JSONL files from current session, 3.6 MB. 60 files across 2 sessions with sub-agents, 200+ MB. Full reasoning trails present.
 
-### What the persistent files contain
-- Full reasoning trails (tool calls, hypotheses, intermediate findings)
-- Tool use details (command, args, results)
-- `progress` events with PreToolUse/PostToolUse hook data
-- `assistant` messages with the agent's thinking
+---
 
-### Path stability
-- `/tmp/claude-501/` uses the actual unix uid (501 on this machine)
-- Stable within a machine; not stable across machines (different uid = different path)
-- Persistent path (`~/.claude/`) is stable and standard
+## Finding 2: New problem discovered — unbounded growth
 
-## GO/NO-GO Recommendation
+| Metric | Value |
+|--------|-------|
+| Sessions in `~/.claude/projects/...` | 15 (4 days) |
+| Total size | 261 MB |
+| Growth rate | ~65 MB/day |
+| 30-day projection | ~1.8 GB |
+| 6-month projection | ~8 GB |
+| Cleanup mechanisms | **None** |
+| Retention policy | **None** |
 
-**NO-GO** — the problem T-107 was created to solve is already solved by Claude Code.
+One heavy multi-agent session (30 sub-agents) = 201 MB alone.
 
-Sub-agent transcripts are durable. No archival mechanism needs building.
+Meta.json files contain only `{"agentType":"Explore"}` — too sparse for indexing or selective cleanup.
 
-### What might still be worth doing (scope pivot)
+**This is a real and active problem.** `~/.claude/` will grow to gigabytes with no automatic relief valve.
 
-If the inception is re-scoped:
-1. **T-104 alignment** — The persistent sub-agent JSONLs are a data source for the
-   tool call capture store. T-104's parser should be aware of `~/.claude/.../subagents/`
-   as an input location.
-2. **Lifecycle policy** — How long do these files live? Is there a cleanup mechanism?
-   `~/.claude/` could grow unbounded across sessions. Worth documenting but not urgent.
-3. **Cross-session access** — The subagent files live under the session UUID directory.
-   To query "what did sub-agents do across all sessions", you need to walk the session
-   dirs. T-104's data layer should handle this aggregation.
+---
 
-## Dialogue Log
+## Finding 3: Sidechain files have better structure than main JSONL
 
-**Agent (research):** Checked `/tmp/claude-501/-Users-dimidev32-001-projects-010-termlink/tasks/` — found symlinks pointing to `~/.claude/projects/.../<session-id>/subagents/`. Confirmed 8 agent JSONL files, 3.6MB total, durable.
+Main session JSONL lacks structured tool_result events — errors appear as prose in `assistant` messages.
+
+**Sidechain files have:**
+- `tool_result` events with `is_error: true/false` — structured error data ✓
+- `progress` events with tool name, command, exit code ✓
+- Full reasoning trails (hypotheses, intermediate findings) ✓
+- `agentId`, `sessionId`, `parentUuid` for identity ✓
+- Agent task context (what it was asked to do) ✗ — NOT stored
+
+**Implication for T-104:** The cross-session tool call store MUST consume both the main session JSONL and sub-agent sidechain files. Sidechains are actually the richer source for tool errors.
+
+---
+
+## Finding 4: Cross-session queryability
+
+Walking `~/.claude/.../*/subagents/*.jsonl` to aggregate tool calls across sessions:
+- Complexity: medium-low (~100 line Python script)
+- No natural index — session dirs keyed by UUID, not date
+- Feasible with filesystem walk + caching above 50 sessions
+
+---
+
+## GO/NO-GO Decision
+
+**T-107 as scoped: NO-GO** — original problem (ephemerality) is already solved by Claude Code.
+
+**New task warranted (T-110):** Transcript retention policy + `fw transcripts clean` command.
+Scope: 30-day TTL default, `--older-than N` flag, dry-run mode. ~1 day of build work.
+
+**T-104 design note:** Unified parser must handle both main JSONL and sidechain files.
+Sidechain files are the primary source of structured tool errors.
+
+---
+
+## Options Explored
+
+| Option | Verdict |
+|--------|---------|
+| Build archival mechanism for /tmp files | NO-GO — /tmp are symlinks, data already in ~/.claude |
+| Accept status quo (no cleanup) | NO-GO — 8 GB in 6 months is untenable |
+| Retention policy + cleanup command (T-110) | **GO — separate task** |
+| T-104 unified parser consuming sidechains | **GO — T-104 design constraint** |
 
 ## Open Questions
 
-- Does `~/.claude/` grow indefinitely? Is there a retention policy?
-- At what point does T-104 consume sub-agent JSONLs vs. main session JSONL?
+- Should T-110 compress archived transcripts or just delete? (delete is simpler)
+- Should `fw handover` report `~/.claude/` size as a health signal?
+- Should T-104 task include a note that sidechain files are the primary error source?

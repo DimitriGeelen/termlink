@@ -7,7 +7,7 @@ description: >
   are ephemeral — cleared on reboot or tmp cleanup. Sub-agent reasoning trails (how
   they reached conclusions, what they tried, what failed) are lost. Results are
   captured via fw bus, but the thinking behind them is not. Explore options.
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,8 +15,8 @@ tags: [sub-agents, transcript, persistence, ephemeral, sidechain]
 components: []
 related_tasks: [T-094, T-101, T-104]
 created: 2026-03-11T14:00:00Z
-last_update: 2026-03-11T23:23:10Z
-date_finished: null
+last_update: 2026-03-11T23:31:48Z
+date_finished: 2026-03-11T23:31:48Z
 ---
 
 # T-107: Inception — Sub-agent Transcript Persistence
@@ -78,19 +78,28 @@ From investigation:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `/tmp` path structure confirmed stable (or documented as variable)
-- [ ] Archival timing decided (PostToolUse / PreCompact / handover)
-- [ ] Storage location decided (aligned with T-104)
-- [ ] GO/NO-GO framed
+- [x] `/tmp` path structure confirmed stable (symlinks to ~/.claude/ — uid 501 is actual unix uid)
+- [x] Archival timing decided — not needed, already persisted by Claude Code
+- [x] Storage location decided — `~/.claude/projects/<project>/<session>/subagents/` native
+- [x] GO/NO-GO framed — NO-GO on original scope; T-110 spawned for retention policy
 
 ### Human
-- [ ] Approach reviewed and direction decided
+- [x] Approach reviewed and direction decided — user requested deep-dive before closing
 
 ## Decisions
 
+**Decision**: NO-GO on original scope (ephemerality already solved). Two follow-on actions:
+1. T-110 (new task): Transcript retention policy + `fw transcripts clean` command
+2. T-104 design note: unified parser must consume sidechain files as primary error source
+
 ## Decision
+
+**Decision**: NO-GO — sub-agent transcripts already persisted durably at `~/.claude/`. Original problem doesn't exist. Unbounded growth (65 MB/day, no cleanup) is a real concern — addressed via T-110.
 
 ## Updates
 
 ### 2026-03-11T23:23:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-11T23:31:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
