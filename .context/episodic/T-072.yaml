@@ -1,0 +1,38 @@
+id: T-072
+name: "Shared termlink-test-utils crate — reduce test boilerplate"
+workflow_type: build
+status: completed
+created: 2026-03-10T08:44:48Z
+completed: 2026-03-11T10:05:25Z
+duration_days: 1
+
+outcome: |
+  Created termlink-test-utils workspace crate with 5 shared test helpers:
+  TestDir (unique temp dirs with auto-cleanup on drop), ProcessGuard (RAII
+  kill-on-drop), wait_for_socket/wait_for_data_socket (polling with timeout),
+  start_session (async session fixture), termlink_cmd (CLI command builder
+  with isolated runtime dir). Refactored termlink-session integration tests
+  and termlink-cli integration tests to use shared helpers, removing ~100
+  lines of duplicated boilerplate. All 223 tests pass after refactoring.
+
+decisions: []
+
+learnings:
+  - id: L-072-1
+    text: "TestDir with Drop-based cleanup is more reliable than manual teardown — prevents temp dir leaks even on test panics"
+    category: pattern
+    reusable: true
+  - id: L-072-2
+    text: "Extracting test helpers into a workspace crate (dev-dependency) keeps production builds clean while sharing code across test suites"
+    category: technique
+    reusable: true
+
+failure_patterns: []
+
+key_files:
+  - crates/termlink-test-utils/src/lib.rs
+  - crates/termlink-test-utils/Cargo.toml
+  - crates/termlink-session/tests/integration.rs
+  - crates/termlink-cli/tests/cli_integration.rs
+
+tags: [testing, infrastructure, refactor]

@@ -4,7 +4,7 @@ name: "Shared termlink-test-utils crate — reduce test boilerplate"
 description: >
   Create workspace crate for shared test helpers: unique dirs, process guards, socket polling, session fixtures.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:48Z
-last_update: 2026-03-11T09:56:44Z
-date_finished: null
+last_update: 2026-03-11T10:05:25Z
+date_finished: 2026-03-11T10:05:25Z
 ---
 
 # T-072: Shared termlink-test-utils crate — reduce test boilerplate
@@ -61,3 +61,6 @@ grep -q 'termlink-test-utils' Cargo.toml
 
 ### 2026-03-11T09:56:44Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-11T10:05:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "Register fabric card for termlink-test-utils"
 description: >
   Register fabric card for termlink-test-utils
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-11T10:05:56Z
-last_update: 2026-03-11T10:05:56Z
-date_finished: null
+last_update: 2026-03-11T10:07:23Z
+date_finished: 2026-03-11T10:07:23Z
 ---
 
 # T-092: Register fabric card for termlink-test-utils
@@ -71,3 +71,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-092-register-fabric-card-for-termlink-test-u.md
 - **Context:** Initial task creation
+
+### 2026-03-11T10:07:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

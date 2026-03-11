@@ -1,8 +1,8 @@
-timestamp: 2026-03-10T22:58:59Z
+timestamp: 2026-03-11T10:14:15Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (0/73)"
+    check: "D1: Episodic quality — 0% [TODO] (0/77)"
   - id: D2
     level: PASS
     check: "D2: Human review queue — no aging items"
@@ -24,13 +24,13 @@ findings:
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — normal (PASS today=67 avg=42 ratio=1.6x)"
+    check: "D3: Commit velocity — normal (PASS today=19 avg=51 ratio=0.4x)"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 67_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 65_commits_24h)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS insufficient_data)"
+    check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=6.7)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
