@@ -1,0 +1,17 @@
+id: transcripts-agent
+name: "Transcript Retention Agent"
+type: script
+subsystem: maintenance
+location: agents/transcripts/transcripts.sh
+purpose: >
+  Manages Claude Code session transcript storage growth. Provides size reporting
+  and time-based cleanup of old session directories in ~/.claude/projects/.
+  Prevents unbounded growth (65 MB/day discovered via T-107 investigation).
+interfaces:
+  - CLI: ./agents/transcripts/transcripts.sh size
+  - CLI: ./agents/transcripts/transcripts.sh clean [--older-than N] [--dry-run]
+depends_on: []
+depended_by: []
+tags: [maintenance, transcripts, retention, cleanup, storage]
+created: 2026-03-12
+task: T-110
