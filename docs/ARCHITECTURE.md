@@ -9,7 +9,7 @@ TermLink enables **multiple terminal sessions to communicate** with each other v
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                        CLI (termlink)                    │
-│  26 commands: register, list, ping, exec, attach, ...   │
+│  28 commands: register, list, ping, exec, attach, ...   │
 └────────┬────────────────────┬────────────────────────────┘
          │ direct             │ via hub
          ▼                    ▼
@@ -98,7 +98,7 @@ termlink (CLI)      (user interface — depends on all crates)
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| **auth** | `src/auth.rs` | `PeerCredentials` extraction (SO_PEERCRED / LOCAL_PEERCRED), UID check, 4-tier `PermissionScope` (Observe/Interact/Control/Execute), `method_scope()` mapping |
+| **auth** | `src/auth.rs` | `PeerCredentials` extraction (SO_PEERCRED / LOCAL_PEERCRED), UID check, 4-tier `PermissionScope` (Observe/Interact/Control/Execute), `method_scope()` mapping, HMAC-SHA256 capability tokens (`create_token`, `validate_token`, `generate_secret`) |
 
 ### RPC Handlers
 
@@ -107,7 +107,7 @@ termlink (CLI)      (user interface — depends on all crates)
 | **handler** | `src/handler.rs` | `SessionContext`, `dispatch()` / `dispatch_mut()` with read/write lock branching, all RPC implementations |
 | **server** | `src/server.rs` | Control plane server: accept loop, peer credential check, per-method permission enforcement, connection handling |
 
-### RPC Method Inventory (17 methods)
+### RPC Method Inventory (18 methods)
 
 | Method | Scope | Handler |
 |--------|-------|---------|
@@ -129,6 +129,7 @@ termlink (CLI)      (user interface — depends on all crates)
 | `command.inject` | Control | Inject keystrokes into PTY |
 | `command.signal` | Control | Send POSIX signal to child |
 | `command.execute` | Execute | Run shell command via `sh -c` |
+| `auth.token` | (special) | Authenticate connection, upgrade scope from token |
 
 ### Execution & PTY
 
@@ -193,6 +194,7 @@ Client → Hub Socket → Router
 | **Streaming** | `attach`, `stream`, `watch`, `resize` | Real-time terminal I/O |
 | **Metadata** | `tag`, `send` | Session tagging and generic messaging |
 | **Hub** | `hub start`, `hub stop`, `hub status`, `discover` | Hub daemon management |
+| **Token** | `token create`, `token inspect` | Capability token management |
 | **Infrastructure** | `completions` | Shell completion generation |
 
 ---
@@ -245,9 +247,9 @@ Client → Hub Socket → Router
 
 ### Three Phases
 
-1. **Phase 1 (implemented):** UID-based authentication — extract peer UID via socket credentials, reject cross-user connections
-2. **Phase 2 (implemented):** 4-tier permission scoping — `method_scope()` maps each RPC method to a required scope, checked before dispatch
-3. **Phase 3 (planned, T-079):** Capability tokens — HMAC-signed scoped tokens for fine-grained multi-agent authorization
+1. **Phase 1 (implemented, T-077):** UID-based authentication — extract peer UID via socket credentials, reject cross-user connections
+2. **Phase 2 (implemented, T-078/T-084):** 4-tier permission scoping — `method_scope()` maps each RPC method to a required scope, checked before dispatch
+3. **Phase 3 (implemented, T-086/T-087/T-088):** Capability tokens — HMAC-SHA256 signed tokens for fine-grained multi-agent authorization. Sessions with `token_secret` in registration default to Observe scope; clients authenticate via `auth.token` to upgrade. Legacy sessions (no secret) retain Execute scope for backward compatibility.
 
 ### Permission Hierarchy
 
@@ -282,10 +284,10 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 | Crate | Tests | Coverage Focus |
 |-------|-------|----------------|
 | termlink-protocol | 21 | JSON-RPC parsing, frame encode/decode, error types |
-| termlink-session | 115 | Handlers (all 17 RPC methods), events, PTY, liveness, auth, server |
+| termlink-session | 131 | Handlers (all 18 RPC methods), events, PTY, liveness, auth (tokens), server |
 | termlink-hub | 28 | Router (discover, broadcast, collect, forward), server, pidfile, supervisor |
 | termlink (CLI) | 15+4 | Integration tests (register, ping, exec, events, KV), interactive TTY tests |
-| **Total** | **195** | |
+| **Total** | **211** | |
 
 ---
 

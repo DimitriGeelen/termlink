@@ -22,12 +22,15 @@ gaps:
     title: "No authentication on Unix sockets — any local process can impersonate sessions"
     severity: critical
     directive: D2-Reliability
-    status: watching
+    status: closed
     discovered: "2026-03-10"
     discovered_by: "T-063 reflection fleet (security agent)"
+    closed: "2026-03-11"
+    closed_by: "T-077, T-078, T-084, T-086, T-087, T-088"
     evidence: "CommonParams.sender is extracted but never validated. Auth error codes (AUTH_REQUIRED, AUTH_DENIED) are defined in control.rs:40-41 but never used by any handler. Socket permissions (0o700) are the only trust boundary."
+    resolution: "Three-phase security model: Phase 1 (T-077) UID peer credentials, Phase 2 (T-078/T-084) per-method permission scoping with AUTH_DENIED, Phase 3 (T-086/T-087/T-088) HMAC-SHA256 capability tokens with auth.token RPC method."
     impact: "Session impersonation. Any process running as the same user can send events, execute commands, and inject input as any session. No audit trail of who did what."
-    related_tasks: [T-008]
+    related_tasks: [T-008, T-077, T-078, T-084, T-086, T-087, T-088]
     report: "docs/reports/reflection-result-security.md"
     trigger_check:
       type: auto
