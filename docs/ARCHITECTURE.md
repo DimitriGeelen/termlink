@@ -38,16 +38,18 @@ TermLink enables **multiple terminal sessions to communicate** with each other v
 ## Crate Hierarchy
 
 ```
-termlink-protocol   (foundation — zero dependencies on other crates)
+termlink-protocol      (foundation — zero dependencies on other crates)
     ▲
     │
-termlink-session    (core — depends on protocol)
+termlink-session       (core — depends on protocol)
     ▲
     │
-termlink-hub        (coordination — depends on protocol + session)
+termlink-hub           (coordination — depends on protocol + session)
     ▲
     │
-termlink (CLI)      (user interface — depends on all crates)
+termlink (CLI)         (user interface — depends on all crates)
+
+termlink-test-utils    (dev-only — shared test helpers, depends on session)
 ```
 
 ---
@@ -288,7 +290,8 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 | termlink-session | 138 | Handlers (all 18 RPC methods), events, PTY, liveness, auth (tokens), server, executor allowlist |
 | termlink-hub | 28 | Router (discover, broadcast, collect, forward), server, pidfile, supervisor |
 | termlink (CLI) | 15+4 | Integration tests (register, ping, exec, events, KV), interactive TTY tests |
-| **Total** | **218** | |
+| termlink-test-utils | 5 | TestDir cleanup, ProcessGuard kill-on-drop, session fixture |
+| **Total** | **223** | |
 
 ---
 
