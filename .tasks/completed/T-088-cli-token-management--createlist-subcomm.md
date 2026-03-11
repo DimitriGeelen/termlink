@@ -4,7 +4,7 @@ name: "CLI token management — create/list subcommands + client auth"
 description: >
   Add termlink token create/list CLI subcommands, client.authenticate() method. From T-079 inception.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T23:27:04Z
-last_update: 2026-03-11T07:47:17Z
-date_finished: null
+last_update: 2026-03-11T07:52:05Z
+date_finished: 2026-03-11T07:52:05Z
 ---
 
 # T-088: CLI token management — create/list subcommands + client auth
@@ -56,3 +56,6 @@ CLI layer for capability tokens. Adds `termlink token create/inspect` and `--tok
 
 ### 2026-03-11T07:47:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-11T07:52:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
