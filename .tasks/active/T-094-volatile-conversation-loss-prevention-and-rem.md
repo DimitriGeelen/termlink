@@ -12,7 +12,7 @@ owner: human
 horizon: now
 tags: [framework, governance, session-capture, antifragility]
 components: []
-related_tasks: [T-012]
+related_tasks: [T-012, T-095, T-096, T-097, T-098, T-099, T-100, T-101, T-102]
 created: 2026-03-11T11:00:00Z
 last_update: 2026-03-11T11:00:00Z
 date_finished: null
@@ -102,5 +102,10 @@ test -f docs/reports/T-094-volatile-conversation-prevention.md
 ## Decisions
 
 ## Decision
+
+**Decision**: GO — 2026-03-11
+5-agent investigation confirmed structural gap. Multiple remediation paths identified.
+Spawned T-095–T-102. T-101 (JSONL transcript) active for dialogue now.
+See: `docs/reports/T-094-volatile-conversation-prevention.md`
 
 ## Updates
