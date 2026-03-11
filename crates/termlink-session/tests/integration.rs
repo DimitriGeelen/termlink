@@ -3,8 +3,6 @@
 //! These tests spin up real sessions with Unix socket listeners and verify
 //! the full request/response cycle across the stack.
 
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 use serde_json::json;
@@ -21,52 +19,14 @@ use termlink_session::server;
 
 use termlink_protocol::data::{FrameFlags, FrameType};
 
-static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
-
-fn unique_dir(name: &str) -> PathBuf {
-    let n = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let dir = PathBuf::from(format!("/tmp/tl-int-{}-{}", n, name));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
-}
-
-/// Register a session and start its accept loop, returning the handle and registration.
-async fn start_session(
-    sessions_dir: &std::path::Path,
-    name: &str,
-    roles: Vec<String>,
-) -> (tokio::task::JoinHandle<()>, Registration) {
-    let config = SessionConfig {
-        display_name: Some(name.into()),
-        roles,
-        ..Default::default()
-    };
-    let session = Session::register_in(config, sessions_dir)
-        .await
-        .unwrap();
-
-    let (registration, listener, _sessions_dir) = session.into_parts();
-    let reg = registration.clone();
-    let ctx = SessionContext::new(registration);
-    let shared = Arc::new(RwLock::new(ctx));
-
-    let handle = tokio::spawn(async move {
-        server::run_accept_loop(listener, shared).await;
-    });
-
-    // Give the accept loop a moment to start
-    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
-    (handle, reg)
-}
+use termlink_test_utils::{start_session, TestDir};
 
 #[tokio::test]
 async fn two_sessions_ping_each_other() {
-    let dir = unique_dir("ping");
+    let dir = TestDir::new("ping");
 
-    let (h_alice, reg_alice) = start_session(&dir, "alice", vec![]).await;
-    let (h_bob, reg_bob) = start_session(&dir, "bob", vec![]).await;
+    let (h_alice, reg_alice) = start_session(&dir.sessions_dir(),"alice", vec![]).await;
+    let (h_bob, reg_bob) = start_session(&dir.sessions_dir(),"bob", vec![]).await;
 
     // Bob pings Alice
     let resp = client::rpc_call(&reg_alice.socket, "termlink.ping", json!({}))
@@ -90,9 +50,9 @@ async fn two_sessions_ping_each_other() {
 
 #[tokio::test]
 async fn session_executes_command_on_another() {
-    let dir = unique_dir("exec");
+    let dir = TestDir::new("exec");
 
-    let (h_target, reg_target) = start_session(&dir, "worker", vec!["executor".into()]).await;
+    let (h_target, reg_target) = start_session(&dir.sessions_dir(),"worker", vec!["executor".into()]).await;
 
     // A "client" session sends a command.execute to the worker
     let resp = client::rpc_call(
@@ -115,13 +75,13 @@ async fn session_executes_command_on_another() {
 
 #[tokio::test]
 async fn discovery_lists_all_sessions() {
-    let dir = unique_dir("disc");
+    let dir = TestDir::new("disc");
 
-    let (h1, _) = start_session(&dir, "session-x", vec!["coder".into()]).await;
-    let (h2, _) = start_session(&dir, "session-y", vec!["reviewer".into()]).await;
-    let (h3, _) = start_session(&dir, "session-z", vec![]).await;
+    let (h1, _) = start_session(&dir.sessions_dir(),"session-x", vec!["coder".into()]).await;
+    let (h2, _) = start_session(&dir.sessions_dir(),"session-y", vec!["reviewer".into()]).await;
+    let (h3, _) = start_session(&dir.sessions_dir(),"session-z", vec![]).await;
 
-    let sessions = manager::list_sessions_in(&dir, false).unwrap();
+    let sessions = manager::list_sessions_in(&dir.sessions_dir(), false).unwrap();
     assert_eq!(sessions.len(), 3);
 
     let names: Vec<&str> = sessions.iter().map(|s| s.display_name.as_str()).collect();
@@ -140,41 +100,41 @@ async fn discovery_lists_all_sessions() {
 
 #[tokio::test]
 async fn deregister_removes_session_from_discovery() {
-    let dir = unique_dir("dereg");
+    let dir = TestDir::new("dereg");
 
-    let (h_keep, _) = start_session(&dir, "keeper", vec![]).await;
+    let (h_keep, _) = start_session(&dir.sessions_dir(),"keeper", vec![]).await;
 
     // Register and immediately deregister
     let config = SessionConfig {
         display_name: Some("ephemeral".into()),
         ..Default::default()
     };
-    let ephemeral = Session::register_in(config, &dir).await.unwrap();
+    let ephemeral = Session::register_in(config, &dir.sessions_dir()).await.unwrap();
     let eph_id = ephemeral.id().clone();
 
     // Verify it's visible
-    let sessions = manager::list_sessions_in(&dir, false).unwrap();
+    let sessions = manager::list_sessions_in(&dir.sessions_dir(), false).unwrap();
     assert_eq!(sessions.len(), 2);
 
     // Deregister
     ephemeral.deregister().unwrap();
 
     // Verify it's gone
-    let sessions = manager::list_sessions_in(&dir, false).unwrap();
+    let sessions = manager::list_sessions_in(&dir.sessions_dir(), false).unwrap();
     assert_eq!(sessions.len(), 1);
     assert_eq!(sessions[0].display_name, "keeper");
 
     // Verify find_session_in also can't find it
-    assert!(manager::find_session_in(&dir, eph_id.as_str()).is_err());
+    assert!(manager::find_session_in(&dir.sessions_dir(), eph_id.as_str()).is_err());
 
     h_keep.abort();
 }
 
 #[tokio::test]
 async fn multi_request_conversation() {
-    let dir = unique_dir("conv");
+    let dir = TestDir::new("conv");
 
-    let (handle, reg) = start_session(&dir, "conversant", vec!["query".into()]).await;
+    let (handle, reg) = start_session(&dir.sessions_dir(),"conversant", vec!["query".into()]).await;
 
     // Use a persistent client for multiple requests
     let mut client = Client::connect(&reg.socket).await.unwrap();
@@ -242,9 +202,9 @@ async fn multi_request_conversation() {
 
 #[tokio::test]
 async fn cross_session_exec_with_env_and_cwd() {
-    let dir = unique_dir("xexec");
+    let dir = TestDir::new("xexec");
 
-    let (handle, reg) = start_session(&dir, "env-worker", vec![]).await;
+    let (handle, reg) = start_session(&dir.sessions_dir(),"env-worker", vec![]).await;
 
     let resp = client::rpc_call(
         &reg.socket,
@@ -270,21 +230,21 @@ async fn cross_session_exec_with_env_and_cwd() {
 
 #[tokio::test]
 async fn find_session_by_name_across_directory() {
-    let dir = unique_dir("findname");
+    let dir = TestDir::new("findname");
 
-    let (h1, _) = start_session(&dir, "alpha", vec![]).await;
-    let (h2, _) = start_session(&dir, "beta", vec![]).await;
+    let (h1, _) = start_session(&dir.sessions_dir(),"alpha", vec![]).await;
+    let (h2, _) = start_session(&dir.sessions_dir(),"beta", vec![]).await;
 
     // Find by name
-    let found = manager::find_session_in(&dir, "beta").unwrap();
+    let found = manager::find_session_in(&dir.sessions_dir(), "beta").unwrap();
     assert_eq!(found.display_name, "beta");
 
     // Find by ID
-    let found_by_id = manager::find_session_in(&dir, found.id.as_str()).unwrap();
+    let found_by_id = manager::find_session_in(&dir.sessions_dir(), found.id.as_str()).unwrap();
     assert_eq!(found_by_id.display_name, "beta");
 
     // Not found
-    assert!(manager::find_session_in(&dir, "gamma").is_err());
+    assert!(manager::find_session_in(&dir.sessions_dir(), "gamma").is_err());
 
     h1.abort();
     h2.abort();
@@ -357,8 +317,8 @@ async fn start_pty_session(
 
 #[tokio::test]
 async fn data_plane_stream_output() {
-    let dir = unique_dir("dp-out");
-    let (handles, reg, data_socket, pty) = start_pty_session(&dir, "streamer").await;
+    let dir = TestDir::new("dp-out");
+    let (handles, reg, data_socket, pty) = start_pty_session(&dir.sessions_dir(),"streamer").await;
 
     // Connect to data plane
     let stream = tokio::net::UnixStream::connect(&data_socket).await.unwrap();
@@ -411,8 +371,8 @@ async fn data_plane_stream_output() {
 
 #[tokio::test]
 async fn data_plane_input_and_output() {
-    let dir = unique_dir("dp-io");
-    let (handles, _reg, data_socket, pty) = start_pty_session(&dir, "bidir").await;
+    let dir = TestDir::new("dp-io");
+    let (handles, _reg, data_socket, pty) = start_pty_session(&dir.sessions_dir(),"bidir").await;
 
     // Connect to data plane
     let stream = tokio::net::UnixStream::connect(&data_socket).await.unwrap();
@@ -471,8 +431,8 @@ async fn data_plane_input_and_output() {
 
 #[tokio::test]
 async fn data_plane_ping_pong_integration() {
-    let dir = unique_dir("dp-ping");
-    let (handles, _reg, data_socket, pty) = start_pty_session(&dir, "pinger").await;
+    let dir = TestDir::new("dp-ping");
+    let (handles, _reg, data_socket, pty) = start_pty_session(&dir.sessions_dir(),"pinger").await;
 
     let stream = tokio::net::UnixStream::connect(&data_socket).await.unwrap();
     let (read_half, write_half) = tokio::io::split(stream);
@@ -518,8 +478,8 @@ async fn data_plane_ping_pong_integration() {
 
 #[tokio::test]
 async fn data_plane_capabilities_in_status() {
-    let dir = unique_dir("dp-caps");
-    let (handles, reg, data_socket, pty) = start_pty_session(&dir, "capable").await;
+    let dir = TestDir::new("dp-caps");
+    let (handles, reg, data_socket, pty) = start_pty_session(&dir.sessions_dir(),"capable").await;
 
     // Query status via control plane
     let resp = client::rpc_call(&reg.socket, "query.status", json!({}))
@@ -547,9 +507,9 @@ async fn data_plane_capabilities_in_status() {
 
 #[tokio::test]
 async fn event_emit_and_poll() {
-    let dir = unique_dir("evt-ep");
+    let dir = TestDir::new("evt-ep");
 
-    let (handle, reg) = start_session(&dir, "emitter", vec![]).await;
+    let (handle, reg) = start_session(&dir.sessions_dir(),"emitter", vec![]).await;
 
     // Emit an event
     let resp = client::rpc_call(
@@ -582,9 +542,9 @@ async fn event_emit_and_poll() {
 
 #[tokio::test]
 async fn event_topics_lists_distinct_topics() {
-    let dir = unique_dir("evt-topics");
+    let dir = TestDir::new("evt-topics");
 
-    let (handle, reg) = start_session(&dir, "topicker", vec![]).await;
+    let (handle, reg) = start_session(&dir.sessions_dir(),"topicker", vec![]).await;
 
     // Emit events on different topics
     for topic in &["build.start", "build.done", "test.pass", "build.start"] {
@@ -614,9 +574,9 @@ async fn event_topics_lists_distinct_topics() {
 
 #[tokio::test]
 async fn event_poll_with_topic_filter() {
-    let dir = unique_dir("evt-filter");
+    let dir = TestDir::new("evt-filter");
 
-    let (handle, reg) = start_session(&dir, "filterer", vec![]).await;
+    let (handle, reg) = start_session(&dir.sessions_dir(),"filterer", vec![]).await;
 
     // Emit mixed topics
     client::rpc_call(
@@ -662,9 +622,9 @@ async fn event_poll_with_topic_filter() {
 
 #[tokio::test]
 async fn kv_set_get_list_delete_cycle() {
-    let dir = unique_dir("kv-crud");
+    let dir = TestDir::new("kv-crud");
 
-    let (handle, reg) = start_session(&dir, "kvstore", vec![]).await;
+    let (handle, reg) = start_session(&dir.sessions_dir(),"kvstore", vec![]).await;
 
     // Set a key
     let resp = client::rpc_call(
@@ -777,9 +737,9 @@ async fn kv_set_get_list_delete_cycle() {
 
 #[tokio::test]
 async fn kv_get_nonexistent_returns_not_found() {
-    let dir = unique_dir("kv-notfound");
+    let dir = TestDir::new("kv-notfound");
 
-    let (handle, reg) = start_session(&dir, "kvempty", vec![]).await;
+    let (handle, reg) = start_session(&dir.sessions_dir(),"kvempty", vec![]).await;
 
     let resp = client::rpc_call(
         &reg.socket,

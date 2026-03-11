@@ -1,0 +1,12 @@
+[package]
+name = "termlink-test-utils"
+description = "Shared test utilities for the TermLink workspace"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+serde_json = { workspace = true }
+termlink-protocol = { workspace = true }
+termlink-session = { workspace = true }
+libc = { workspace = true }

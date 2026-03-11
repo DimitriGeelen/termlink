@@ -5,6 +5,7 @@ members = [
     "crates/termlink-session",
     "crates/termlink-hub",
     "crates/termlink-cli",
+    "crates/termlink-test-utils",
 ]
 
 [workspace.package]
@@ -55,3 +56,4 @@ libc = "0.2"
 termlink-protocol = { path = "crates/termlink-protocol" }
 termlink-session = { path = "crates/termlink-session" }
 termlink-hub = { path = "crates/termlink-hub" }
+termlink-test-utils = { path = "crates/termlink-test-utils" }

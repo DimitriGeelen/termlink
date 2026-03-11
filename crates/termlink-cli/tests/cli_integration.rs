@@ -4,83 +4,20 @@
 //! coordinating background sessions with foreground CLI commands.
 //! Each test uses an isolated temp directory via TERMLINK_RUNTIME_DIR.
 
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use assert_cmd::cargo::cargo_bin;
 
-static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
-
-/// RAII guard that kills a child process on drop.
-/// Guarantees cleanup even on test panic.
-struct ProcessGuard {
-    child: Child,
-    #[allow(dead_code)]
-    name: String,
-}
-
-impl ProcessGuard {
-    fn new(child: Child, name: &str) -> Self {
-        Self {
-            child,
-            name: name.to_string(),
-        }
-    }
-
-}
-
-impl Drop for ProcessGuard {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-}
-
-/// Create an isolated test directory with sessions subdirectory.
-fn test_dir(name: &str) -> PathBuf {
-    let n = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let dir = PathBuf::from(format!("/tmp/tl-cli-{}-{}", n, name));
-    let _ = std::fs::remove_dir_all(&dir);
-    let sessions = dir.join("sessions");
-    std::fs::create_dir_all(&sessions).unwrap();
-    dir
-}
-
-/// Wait until at least one .sock file appears in the sessions directory.
-fn wait_for_socket(sessions_dir: &Path, timeout: Duration) -> Result<PathBuf, String> {
-    let start = Instant::now();
-    loop {
-        if let Ok(entries) = std::fs::read_dir(sessions_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().is_some_and(|e| e == "sock") {
-                    return Ok(path);
-                }
-            }
-        }
-        if start.elapsed() > timeout {
-            return Err(format!(
-                "No socket appeared in {:?} within {:?}",
-                sessions_dir, timeout
-            ));
-        }
-        std::thread::sleep(Duration::from_millis(20));
-    }
-}
+use termlink_test_utils::{wait_for_socket, ProcessGuard, TestDir};
 
 /// Build a Command for the `termlink` binary with isolated runtime dir.
-fn termlink_cmd(runtime_dir: &Path) -> Command {
-    let mut cmd = Command::new(cargo_bin!("termlink"));
-    cmd.env("TERMLINK_RUNTIME_DIR", runtime_dir);
-    // Suppress tracing output in tests
-    cmd.env("RUST_LOG", "");
-    cmd
+fn termlink_cmd(runtime_dir: &std::path::Path) -> Command {
+    termlink_test_utils::termlink_cmd(&cargo_bin!("termlink"), runtime_dir)
 }
 
 /// Start a `termlink register` process in the background.
-fn start_register(runtime_dir: &Path, name: &str) -> ProcessGuard {
+fn start_register(runtime_dir: &std::path::Path, name: &str) -> ProcessGuard {
     let child = termlink_cmd(runtime_dir)
         .args(["register", "--name", name])
         .stdout(Stdio::piped())
@@ -94,11 +31,11 @@ fn start_register(runtime_dir: &Path, name: &str) -> ProcessGuard {
 
 #[test]
 fn cli_register_and_list() {
-    let dir = test_dir("reg-list");
-    let _guard = start_register(&dir, "testbox");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("reg-list");
+    let _guard = start_register(&dir.path, "testbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["list"])
         .output()
         .expect("Failed to run termlink list");
@@ -110,11 +47,11 @@ fn cli_register_and_list() {
 
 #[test]
 fn cli_ping_session() {
-    let dir = test_dir("ping");
-    let _guard = start_register(&dir, "pingable");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("ping");
+    let _guard = start_register(&dir.path, "pingable");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["ping", "pingable"])
         .output()
         .expect("Failed to run termlink ping");
@@ -126,11 +63,11 @@ fn cli_ping_session() {
 
 #[test]
 fn cli_status_query() {
-    let dir = test_dir("status");
-    let _guard = start_register(&dir, "statusbox");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("status");
+    let _guard = start_register(&dir.path, "statusbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["status", "statusbox"])
         .output()
         .expect("Failed to run termlink status");
@@ -145,11 +82,11 @@ fn cli_status_query() {
 
 #[test]
 fn cli_exec_command() {
-    let dir = test_dir("exec");
-    let _guard = start_register(&dir, "worker");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("exec");
+    let _guard = start_register(&dir.path, "worker");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["exec", "worker", "echo hello-from-test"])
         .output()
         .expect("Failed to run termlink exec");
@@ -164,19 +101,19 @@ fn cli_exec_command() {
 
 #[test]
 fn cli_emit_and_events() {
-    let dir = test_dir("emit-events");
-    let _guard = start_register(&dir, "eventer");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("emit-events");
+    let _guard = start_register(&dir.path, "eventer");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Emit two events
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["emit", "eventer", "build.start"])
         .output()
         .expect("Failed to run termlink emit");
     assert!(output.status.success(), "emit failed: {}",
         String::from_utf8_lossy(&output.stderr));
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["emit", "eventer", "build.done"])
         .output()
         .expect("Failed to run termlink emit");
@@ -184,7 +121,7 @@ fn cli_emit_and_events() {
         String::from_utf8_lossy(&output.stderr));
 
     // Default events (no --since) shows ALL events including seq=0
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["events", "eventer"])
         .output()
         .expect("Failed to run termlink events");
@@ -199,13 +136,13 @@ fn cli_emit_and_events() {
 
 #[test]
 fn cli_topics_command() {
-    let dir = test_dir("topics");
-    let _guard = start_register(&dir, "topicbox");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("topics");
+    let _guard = start_register(&dir.path, "topicbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Emit events on different topics
     for topic in &["build.start", "test.pass", "deploy.done"] {
-        let output = termlink_cmd(&dir)
+        let output = termlink_cmd(&dir.path)
             .args(["emit", "topicbox", topic])
             .output()
             .expect("Failed to run termlink emit");
@@ -213,7 +150,7 @@ fn cli_topics_command() {
     }
 
     // Query topics
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["topics", "topicbox"])
         .output()
         .expect("Failed to run termlink topics");
@@ -227,12 +164,12 @@ fn cli_topics_command() {
 
 #[test]
 fn cli_wait_receives_emitted_event() {
-    let dir = test_dir("wait-emit");
-    let _guard = start_register(&dir, "waitable");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("wait-emit");
+    let _guard = start_register(&dir.path, "waitable");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Start wait in background thread (it blocks)
-    let dir_clone = dir.clone();
+    let dir_clone = dir.path.clone();
     let wait_handle = std::thread::spawn(move || {
         termlink_cmd(&dir_clone)
             .args(["wait", "waitable", "--topic", "hello", "--timeout", "10"])
@@ -244,7 +181,7 @@ fn cli_wait_receives_emitted_event() {
     std::thread::sleep(Duration::from_secs(1));
 
     // Emit the event (will be at seq=1, visible to since=1 polling)
-    let emit_output = termlink_cmd(&dir)
+    let emit_output = termlink_cmd(&dir.path)
         .args(["emit", "waitable", "hello", "--payload", r#"{"msg":"world"}"#])
         .output()
         .expect("Failed to run termlink emit");
@@ -262,12 +199,12 @@ fn cli_wait_receives_emitted_event() {
 
 #[test]
 fn cli_wait_timeout_exits_nonzero() {
-    let dir = test_dir("wait-timeout");
-    let _guard = start_register(&dir, "timeouty");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("wait-timeout");
+    let _guard = start_register(&dir.path, "timeouty");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Wait with very short timeout — no event will arrive
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["wait", "timeouty", "--topic", "never", "--timeout", "1"])
         .output()
         .expect("Failed to run termlink wait");
@@ -279,12 +216,12 @@ fn cli_wait_timeout_exits_nonzero() {
 
 #[test]
 fn cli_kv_set_get_list_del() {
-    let dir = test_dir("kv-crud");
-    let _guard = start_register(&dir, "kvbox");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("kv-crud");
+    let _guard = start_register(&dir.path, "kvbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Set
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["kv", "kvbox", "set", "color", "blue"])
         .output()
         .expect("Failed to run kv set");
@@ -294,7 +231,7 @@ fn cli_kv_set_get_list_del() {
     assert!(stdout.contains("color"), "Expected 'color' in set output: {}", stdout);
 
     // Get
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["kv", "kvbox", "get", "color"])
         .output()
         .expect("Failed to run kv get");
@@ -303,7 +240,7 @@ fn cli_kv_set_get_list_del() {
     assert!(stdout.contains("blue"), "Expected 'blue' in get output: {}", stdout);
 
     // List
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["kv", "kvbox", "list"])
         .output()
         .expect("Failed to run kv list");
@@ -312,7 +249,7 @@ fn cli_kv_set_get_list_del() {
     assert!(stdout.contains("color"), "Expected 'color' in list output: {}", stdout);
 
     // Del
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["kv", "kvbox", "del", "color"])
         .output()
         .expect("Failed to run kv del");
@@ -322,7 +259,7 @@ fn cli_kv_set_get_list_del() {
         "Expected deletion confirmation: {}", stdout);
 
     // Get after delete — should fail
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["kv", "kvbox", "get", "color"])
         .output()
         .expect("Failed to run kv get after delete");
@@ -331,19 +268,19 @@ fn cli_kv_set_get_list_del() {
 
 #[test]
 fn cli_kv_json_value() {
-    let dir = test_dir("kv-json");
-    let _guard = start_register(&dir, "jsonbox");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("kv-json");
+    let _guard = start_register(&dir.path, "jsonbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Set a JSON value
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["kv", "jsonbox", "set", "config", r#"{"debug":true}"#])
         .output()
         .expect("Failed to run kv set with JSON");
     assert!(output.status.success());
 
     // Get it back
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["kv", "jsonbox", "get", "config"])
         .output()
         .expect("Failed to run kv get");
@@ -356,25 +293,25 @@ fn cli_kv_json_value() {
 
 #[test]
 fn cli_info_shows_runtime() {
-    let dir = test_dir("info");
+    let dir = TestDir::new("info");
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["info"])
         .output()
         .expect("Failed to run termlink info");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     // Info should show the runtime directory
-    assert!(stdout.contains("Runtime") || stdout.contains("runtime") || stdout.contains(&dir.to_string_lossy().to_string()),
+    assert!(stdout.contains("Runtime") || stdout.contains("runtime") || stdout.contains(&dir.path.to_string_lossy().to_string()),
         "Expected runtime info in output: {}", stdout);
     assert!(output.status.success());
 }
 
 #[test]
 fn cli_clean_with_no_sessions() {
-    let dir = test_dir("clean-empty");
+    let dir = TestDir::new("clean-empty");
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["clean", "--dry-run"])
         .output()
         .expect("Failed to run termlink clean");
@@ -386,13 +323,13 @@ fn cli_clean_with_no_sessions() {
 
 #[test]
 fn cli_list_multiple_sessions() {
-    let dir = test_dir("multi-list");
-    let _g1 = start_register(&dir, "alpha");
-    let _g2 = start_register(&dir, "beta");
-    let _g3 = start_register(&dir, "gamma");
+    let dir = TestDir::new("multi-list");
+    let _g1 = start_register(&dir.path, "alpha");
+    let _g2 = start_register(&dir.path, "beta");
+    let _g3 = start_register(&dir.path, "gamma");
 
     // Wait for all three sockets
-    let sessions_dir = dir.join("sessions");
+    let sessions_dir = dir.sessions_dir();
     let start = Instant::now();
     loop {
         let count = std::fs::read_dir(&sessions_dir)
@@ -407,7 +344,7 @@ fn cli_list_multiple_sessions() {
         std::thread::sleep(Duration::from_millis(50));
     }
 
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args(["list"])
         .output()
         .expect("Failed to run termlink list");
@@ -423,12 +360,12 @@ fn cli_list_multiple_sessions() {
 
 #[test]
 fn cli_request_reply_flow() {
-    let dir = test_dir("request-reply");
-    let _guard = start_register(&dir, "worker");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("request-reply");
+    let _guard = start_register(&dir.path, "worker");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Emit the reply event AFTER a delay (simulating specialist responding)
-    let dir_clone = dir.clone();
+    let dir_clone = dir.path.clone();
     let _reply_thread = std::thread::spawn(move || {
         std::thread::sleep(Duration::from_secs(1));
         termlink_cmd(&dir_clone)
@@ -438,7 +375,7 @@ fn cli_request_reply_flow() {
     });
 
     // Run request — it will wait for the reply
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args([
             "request", "worker",
             "--topic", "task.delegate",
@@ -458,12 +395,12 @@ fn cli_request_reply_flow() {
 
 #[test]
 fn cli_request_timeout() {
-    let dir = test_dir("request-timeout");
-    let _guard = start_register(&dir, "silent");
-    wait_for_socket(&dir.join("sessions"), Duration::from_secs(5)).unwrap();
+    let dir = TestDir::new("request-timeout");
+    let _guard = start_register(&dir.path, "silent");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
     // Request with short timeout — no reply will come
-    let output = termlink_cmd(&dir)
+    let output = termlink_cmd(&dir.path)
         .args([
             "request", "silent",
             "--topic", "task.delegate",
