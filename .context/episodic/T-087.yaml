@@ -1,0 +1,29 @@
+id: T-087
+name: "Server-side token authentication — auth.token RPC method"
+workflow_type: build
+duration_days: 1
+outcome: completed
+
+summary: >
+  Integrated capability tokens into the session server. Refactored handle_connection()
+  to make scope mutable and upgradeable. Added auth.token RPC method handling that
+  validates HMAC tokens and upgrades connection scope on success. Updated
+  run_accept_loop() to conditionally assign initial scope: Observe for sessions with
+  token_secret, Execute for legacy sessions (backward compatibility). Changed
+  permission denied error code from -32603 (generic) to -32010 (AUTH_DENIED).
+  5 new server tests covering scope upgrade, observe-only access, wrong secret rejection,
+  no-secret-configured rejection, and conditional scope assignment.
+
+key_decisions:
+  - decision: "Mutable scope in handle_connection instead of per-request auth"
+    rationale: "Single auth call upgrades for connection lifetime; simpler implementation"
+  - decision: "AUTH_DENIED error code -32010 instead of generic -32603"
+    rationale: "Distinguishable error for clients to handle auth failures specifically"
+
+artifacts:
+  - crates/termlink-session/src/server.rs
+
+patterns: []
+learnings:
+  - "Existing test expected -32603 for permission denied — remember to update assertions when changing error codes"
+  - "req.params is serde_json::Value (not Option) — use .get() directly, not as_ref().and_then()"

@@ -1,0 +1,32 @@
+id: T-079
+name: "Capability token system — HMAC-signed scope tokens"
+workflow_type: inception
+duration_days: 1
+outcome: completed
+decision: GO
+
+summary: >
+  Inception task exploring capability token design for Phase 3 security.
+  Evaluated 3 approaches: (A) request-level tokens, (B) connection-level tokens,
+  (C) hybrid. Chose Option B — connection-level auth via auth.token RPC method
+  that upgrades scope for the connection lifetime. This fits the existing
+  handle_connection(scope) parameter pattern with minimal changes.
+  GO decision decomposed into 3 build tasks: T-086 (token gen/validation),
+  T-087 (server-side auth.token), T-088 (CLI token commands).
+
+key_decisions:
+  - decision: "Connection-level token auth (Option B)"
+    rationale: "Fits existing handle_connection(scope) pattern; one auth call per connection vs per-request overhead"
+  - decision: "HMAC-SHA256 with base64(payload).base64(signature) format"
+    rationale: "Stateless verification, no database needed, inspectable payload"
+  - decision: "Backward compatibility — sessions without token_secret get legacy Execute scope"
+    rationale: "Opt-in security avoids breaking existing sessions"
+
+artifacts:
+  - docs/reports/T-079-capability-tokens.md
+  - .tasks/completed/T-079-capability-token-system--hmac-signed-sco.md
+
+patterns: []
+learnings:
+  - "Inception to GO to 3 build tasks pattern works well for security features"
+  - "Connection-level auth is simpler than request-level when the transport already carries scope"

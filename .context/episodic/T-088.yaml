@@ -1,0 +1,29 @@
+id: T-088
+name: "CLI token management — create/inspect subcommands + client auth"
+workflow_type: build
+duration_days: 1
+outcome: completed
+
+summary: >
+  Added CLI token management commands and client-side authentication. New Token
+  subcommand with Create and Inspect actions. token create resolves target session,
+  reads token_secret from registration, signs HMAC token with specified scope/TTL.
+  token inspect base64-decodes payload and pretty-prints with expiry check.
+  Added --token-secret flag to register command for enabling token auth on new sessions.
+  Added authenticate() method to client.rs for auth.token RPC calls.
+  Added ClientError::AuthFailed variant. Updated CLI command count to 28.
+
+key_decisions:
+  - decision: "token create reads secret from session registration file"
+    rationale: "Secret stays on disk, never passed as CLI argument (avoids ps aux exposure)"
+  - decision: "token inspect is offline (no server needed)"
+    rationale: "Payload is base64, not encrypted — inspection doesn't need the secret"
+
+artifacts:
+  - crates/termlink-cli/src/main.rs
+  - crates/termlink-session/src/client.rs
+
+patterns: []
+learnings:
+  - "CLI integration is straightforward when the library layer (auth.rs) is well-designed"
+  - "Cargo.lock was in .gitignore — don't try to git add it"

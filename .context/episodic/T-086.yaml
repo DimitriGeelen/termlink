@@ -1,0 +1,29 @@
+id: T-086
+name: "Token generation and HMAC validation in auth module"
+workflow_type: build
+duration_days: 1
+outcome: completed
+
+summary: >
+  Implemented HMAC-SHA256 capability token system in termlink-session auth.rs.
+  Added TokenPayload struct (scope, session_id, issued_at, expires_at, nonce),
+  TokenSecret type ([u8; 32]), TokenError enum, create_token() and validate_token()
+  functions. Token format: base64(json_payload).base64(hmac_signature).
+  Added generate_secret() for random 32-byte secret generation.
+  Also added token_secret field to Registration struct (backward compatible via serde defaults).
+  11 new tests covering creation, validation, expiry, tampering, and scope roundtrips.
+
+key_decisions:
+  - decision: "Token format: base64(payload).base64(signature) with dot separator"
+    rationale: "Human-inspectable payload, simple split parsing, standard encoding"
+  - decision: "TokenSecret as [u8; 32] stored as hex string in Registration JSON"
+    rationale: "32 bytes gives 256-bit security; hex is safe for JSON serialization"
+
+artifacts:
+  - crates/termlink-session/src/auth.rs
+  - crates/termlink-session/src/registration.rs
+
+patterns: []
+learnings:
+  - "hmac 0.12 API: Hmac::new_from_slice() + update() + finalize() + verify_slice()"
+  - "serde default + skip_serializing_if = Option::is_none ensures backward-compatible JSON"
