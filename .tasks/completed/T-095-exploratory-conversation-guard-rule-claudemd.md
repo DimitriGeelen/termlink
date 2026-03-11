@@ -7,7 +7,7 @@ description: >
   (via /resume or autonomous mode) without a task currently bypass all enforcement.
   The new rule requires the agent to stop at 3 substantive exchanges on an untracked
   topic and create an inception task + artifact before continuing.
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -15,8 +15,8 @@ tags: [framework, governance, claude-md, session-capture]
 components: []
 related_tasks: [T-094]
 created: 2026-03-11T11:30:00Z
-last_update: 2026-03-11T11:30:00Z
-date_finished: null
+last_update: 2026-03-11T23:17:53Z
+date_finished: 2026-03-11T23:17:53Z
 ---
 
 # T-095: Exploratory Conversation Guard — Add Rule to CLAUDE.md
@@ -32,10 +32,10 @@ See: `docs/reports/T-094-volatile-conversation-prevention.md` (Agent 3 findings 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Exploratory Conversation Guard rule added to CLAUDE.md Inception Discipline section
-- [ ] Rule includes: trigger condition (3+ exchanges), required actions (create task, create artifact, log prior dialogue), commit cadence
-- [ ] Dialogue Log requirement explicitly stated
-- [ ] Rule is positioned after C-001 (Research artifact first) as C-002
+- [x] Exploratory Conversation Guard rule added to CLAUDE.md Inception Discipline section
+- [x] Rule includes: trigger condition (3+ exchanges), required actions (create task, create artifact, log prior dialogue), commit cadence
+- [x] Dialogue Log requirement explicitly stated
+- [x] Rule is positioned after C-001 (Research artifact first) as C-002
 
 ## Verification
 
@@ -49,3 +49,9 @@ grep -q "Exploratory Conversation Guard" /Users/dimidev32/001-projects/010-terml
 - **Rejected:** New top-level section — would break existing structure
 
 ## Updates
+
+### 2026-03-11T23:17:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-11T23:17:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
