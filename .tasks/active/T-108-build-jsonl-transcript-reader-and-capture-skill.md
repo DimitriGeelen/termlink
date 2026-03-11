@@ -7,16 +7,16 @@ description: >
   back to the current topic boundary. The /capture skill invokes it, writes a
   structured research artifact, and commits. Includes format canary for stability
   detection.
-status: captured
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [jsonl, capture, skill, conversation-capture, session]
 components: []
 related_tasks: [T-101, T-094, T-095, T-096]
 created: 2026-03-11T14:30:00Z
-last_update: 2026-03-11T14:30:00Z
-date_finished: null
+last_update: 2026-03-11T23:16:09Z
+date_finished: 2026-03-11T23:16:09Z
 ---
 
 # T-108: Build JSONL Transcript Reader + /capture Skill
@@ -71,20 +71,20 @@ Behavior when invoked:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `agents/capture/read-transcript.py` created and handles all cases:
-  - [ ] Finds current session JSONL correctly
-  - [ ] Format canary fires warning on unexpected structure
-  - [ ] Filters user/assistant text turns only
-  - [ ] Strips ANSI codes
-  - [ ] Topic boundary detection returns reasonable results
-  - [ ] Fallback to last 20 exchanges when no boundary found
-- [ ] `.claude/commands/capture.md` created
-  - [ ] Handles no-active-task case gracefully
-  - [ ] Writes artifact with all 6 sections
-  - [ ] Commits on completion
-- [ ] Manual test: invoke `/capture` in this session, verify artifact written and committed
-- [ ] Fabric card registered for new components
-- [ ] Framework PR task created (T-109) with research artifact + OneDev PR +
+- [x] `agents/capture/read-transcript.py` created and handles all cases:
+  - [x] Finds current session JSONL correctly
+  - [x] Format canary fires warning on unexpected structure
+  - [x] Filters user/assistant text turns only
+  - [x] Strips ANSI codes
+  - [x] Topic boundary detection returns reasonable results
+  - [x] Fallback to last 20 exchanges when no boundary found
+- [x] `.claude/commands/capture.md` created
+  - [x] Handles no-active-task case gracefully
+  - [x] Writes artifact with all 6 sections
+  - [x] Commits on completion
+- [x] Manual test: invoke `/capture` in this session, verify artifact written and committed
+- [x] Fabric card registered for new components
+- [x] Framework PR task created (T-109) with research artifact + OneDev PR +
       pickup prompt written to `docs/framework-agent-pickups/T-109-capture-skill.md`
 
 ### Human
@@ -117,3 +117,9 @@ python3 agents/capture/read-transcript.py --dry-run 2>&1 | grep -v "^Warning"
 - **Rejected:** Semantic similarity detection — too complex, adds dependencies
 
 ## Updates
+
+### 2026-03-11T22:32:17Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-11T23:16:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
