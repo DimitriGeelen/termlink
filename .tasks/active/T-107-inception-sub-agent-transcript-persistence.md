@@ -7,7 +7,7 @@ description: >
   are ephemeral — cleared on reboot or tmp cleanup. Sub-agent reasoning trails (how
   they reached conclusions, what they tried, what failed) are lost. Results are
   captured via fw bus, but the thinking behind them is not. Explore options.
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,7 +15,7 @@ tags: [sub-agents, transcript, persistence, ephemeral, sidechain]
 components: []
 related_tasks: [T-094, T-101, T-104]
 created: 2026-03-11T14:00:00Z
-last_update: 2026-03-11T14:00:00Z
+last_update: 2026-03-11T23:23:10Z
 date_finished: null
 ---
 
@@ -91,3 +91,6 @@ From investigation:
 ## Decision
 
 ## Updates
+
+### 2026-03-11T23:23:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

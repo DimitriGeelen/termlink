@@ -6,7 +6,7 @@ description: >
   populated via fw healing resolve. This inception explores automatically extracting
   tool errors from the JSONL transcript and feeding them into the ladder — making
   pattern detection proactive rather than discipline-dependent. Explore only.
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -14,7 +14,7 @@ tags: [antifragility, error-escalation, jsonl, patterns, healing]
 components: []
 related_tasks: [T-094, T-101, T-104]
 created: 2026-03-11T13:00:00Z
-last_update: 2026-03-11T13:00:00Z
+last_update: 2026-03-11T23:23:10Z
 date_finished: null
 ---
 
@@ -99,3 +99,6 @@ Target: auto-detected from transcript data.
 ## Decision
 
 ## Updates
+
+### 2026-03-11T23:23:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
