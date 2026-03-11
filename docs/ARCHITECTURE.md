@@ -250,6 +250,7 @@ Client → Hub Socket → Router
 1. **Phase 1 (implemented, T-077):** UID-based authentication — extract peer UID via socket credentials, reject cross-user connections
 2. **Phase 2 (implemented, T-078/T-084):** 4-tier permission scoping — `method_scope()` maps each RPC method to a required scope, checked before dispatch
 3. **Phase 3 (implemented, T-086/T-087/T-088):** Capability tokens — HMAC-SHA256 signed tokens for fine-grained multi-agent authorization. Sessions with `token_secret` in registration default to Observe scope; clients authenticate via `auth.token` to upgrade. Legacy sessions (no secret) retain Execute scope for backward compatibility.
+4. **Phase 4 (implemented, T-090):** Command allowlist — optional prefix-based allowlist for `command.execute`. Sessions with `allowed_commands` in registration restrict which commands can be executed, even for clients with Execute scope. Defense-in-depth against command injection (G-001).
 
 ### Permission Hierarchy
 

@@ -34,6 +34,11 @@ pub struct Registration {
     /// When absent, legacy behavior: same-UID connections get Execute scope.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_secret: Option<String>,
+    /// Optional command allowlist for `command.execute` (defense-in-depth, T-090).
+    /// When present, only commands matching at least one prefix are allowed.
+    /// When absent, all commands are allowed (backward compatible).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_commands: Option<Vec<String>>,
 }
 
 /// Environment metadata included in registration.
@@ -109,6 +114,7 @@ impl Registration {
                 data_socket: None,
             },
             token_secret: None,
+            allowed_commands: None,
         }
     }
 

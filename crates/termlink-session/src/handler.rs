@@ -120,7 +120,10 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         control::method::QUERY_CAPABILITIES => handle_query_capabilities(id, &ctx.registration),
         control::method::QUERY_OUTPUT => handle_query_output(id, &req.params, ctx).await,
         control::method::SESSION_HEARTBEAT => handle_heartbeat(id, &ctx.registration),
-        control::method::COMMAND_EXECUTE => handle_command_execute(id, &req.params).await,
+        control::method::COMMAND_EXECUTE => {
+            handle_command_execute(id, &req.params, ctx.registration.allowed_commands.as_deref())
+                .await
+        }
         control::method::COMMAND_INJECT => handle_command_inject(id, &req.params, ctx).await,
         control::method::COMMAND_SIGNAL => {
             handle_command_signal(id, &req.params, &ctx.registration)
@@ -326,6 +329,7 @@ async fn handle_query_output(
 async fn handle_command_execute(
     id: serde_json::Value,
     params: &serde_json::Value,
+    allowed_commands: Option<&[String]>,
 ) -> RpcResponse {
     let command = match params
         .get("command")
@@ -360,7 +364,7 @@ async fn handle_command_execute(
         .and_then(|t| t.as_u64())
         .map(Duration::from_secs);
 
-    match executor::execute(command, cwd, env.as_ref(), timeout).await {
+    match executor::execute(command, cwd, env.as_ref(), timeout, allowed_commands).await {
         Ok(result) => Response::success(
             id,
             json!({

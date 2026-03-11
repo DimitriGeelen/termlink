@@ -35,6 +35,24 @@ fn validate_command(command: &str) -> Result<(), ExecError> {
     Ok(())
 }
 
+/// Validate a command against an allowlist of prefix patterns.
+///
+/// If `allowed_commands` is `None`, all commands are allowed (backward compatible).
+/// If `Some(&[])` (empty list), NO commands are allowed.
+/// Otherwise, the command must start with at least one of the allowed prefixes.
+fn validate_allowlist(command: &str, allowed_commands: Option<&[String]>) -> Result<(), ExecError> {
+    if let Some(prefixes) = allowed_commands {
+        let trimmed = command.trim_start();
+        let allowed = prefixes
+            .iter()
+            .any(|prefix| trimmed.starts_with(prefix.as_str()));
+        if !allowed {
+            return Err(ExecError::NotAllowed(command.to_string()));
+        }
+    }
+    Ok(())
+}
+
 /// Execute a shell command with optional timeout, working directory, and env vars.
 ///
 /// # Security
@@ -42,13 +60,17 @@ fn validate_command(command: &str) -> Result<(), ExecError> {
 /// Callers must ensure commands are trusted or come from authenticated sources.
 /// Input validation rejects null bytes and oversized commands, but does NOT
 /// sanitize shell metacharacters — that is the caller's responsibility.
+///
+/// If `allowed_commands` is provided, the command must match at least one prefix.
 pub async fn execute(
     command: &str,
     cwd: Option<&str>,
     env: Option<&std::collections::HashMap<String, String>>,
     timeout: Option<Duration>,
+    allowed_commands: Option<&[String]>,
 ) -> Result<ExecResult, ExecError> {
     validate_command(command)?;
+    validate_allowlist(command, allowed_commands)?;
 
     let mut cmd = Command::new("sh");
     cmd.arg("-c").arg(command);
@@ -180,6 +202,9 @@ pub enum ExecError {
 
     #[error("command validation failed: {0}")]
     Validation(String),
+
+    #[error("command not in allowlist: {0}")]
+    NotAllowed(String),
 }
 
 /// Minimal base64 decoder (avoids adding a dependency for this).
@@ -249,7 +274,7 @@ mod tests {
 
     #[tokio::test]
     async fn execute_echo() {
-        let result = execute("echo hello", None, None, None).await.unwrap();
+        let result = execute("echo hello", None, None, None, None).await.unwrap();
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout.trim(), "hello");
         assert!(result.stderr.is_empty());
@@ -257,7 +282,7 @@ mod tests {
 
     #[tokio::test]
     async fn execute_with_cwd() {
-        let result = execute("pwd", Some("/tmp"), None, None).await.unwrap();
+        let result = execute("pwd", Some("/tmp"), None, None, None).await.unwrap();
         assert_eq!(result.exit_code, 0);
         // macOS resolves /tmp to /private/tmp
         assert!(
@@ -269,7 +294,7 @@ mod tests {
     async fn execute_with_env() {
         let mut env = std::collections::HashMap::new();
         env.insert("MY_VAR".into(), "my_value".into());
-        let result = execute("echo $MY_VAR", None, Some(&env), None)
+        let result = execute("echo $MY_VAR", None, Some(&env), None, None)
             .await
             .unwrap();
         assert_eq!(result.stdout.trim(), "my_value");
@@ -277,14 +302,14 @@ mod tests {
 
     #[tokio::test]
     async fn execute_captures_stderr() {
-        let result = execute("echo err >&2", None, None, None).await.unwrap();
+        let result = execute("echo err >&2", None, None, None, None).await.unwrap();
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stderr.trim(), "err");
     }
 
     #[tokio::test]
     async fn execute_nonzero_exit() {
-        let result = execute("exit 42", None, None, None).await.unwrap();
+        let result = execute("exit 42", None, None, None, None).await.unwrap();
         assert_eq!(result.exit_code, 42);
     }
 
@@ -295,6 +320,7 @@ mod tests {
             None,
             None,
             Some(Duration::from_millis(100)),
+            None,
         )
         .await;
         assert!(matches!(result, Err(ExecError::Timeout(_))));
@@ -344,5 +370,60 @@ mod tests {
     fn send_signal_to_nonexistent() {
         let result = send_signal(4_000_000, 0);
         assert!(result.is_err());
+    }
+
+    // --- Allowlist tests ---
+
+    #[test]
+    fn allowlist_none_allows_everything() {
+        assert!(validate_allowlist("rm -rf /", None).is_ok());
+    }
+
+    #[test]
+    fn allowlist_empty_blocks_everything() {
+        let empty: Vec<String> = vec![];
+        assert!(matches!(
+            validate_allowlist("echo hello", Some(&empty)),
+            Err(ExecError::NotAllowed(_))
+        ));
+    }
+
+    #[test]
+    fn allowlist_matching_prefix_allows() {
+        let allowed = vec!["echo".into(), "ls".into()];
+        assert!(validate_allowlist("echo hello", Some(&allowed)).is_ok());
+        assert!(validate_allowlist("ls -la", Some(&allowed)).is_ok());
+    }
+
+    #[test]
+    fn allowlist_non_matching_prefix_blocks() {
+        let allowed = vec!["echo".into(), "ls".into()];
+        assert!(matches!(
+            validate_allowlist("rm -rf /", Some(&allowed)),
+            Err(ExecError::NotAllowed(_))
+        ));
+    }
+
+    #[test]
+    fn allowlist_trims_leading_whitespace() {
+        let allowed = vec!["echo".into()];
+        assert!(validate_allowlist("  echo hello", Some(&allowed)).is_ok());
+    }
+
+    #[tokio::test]
+    async fn execute_with_allowlist_allows_matching() {
+        let allowed = vec!["echo".into()];
+        let result = execute("echo allowed", None, None, None, Some(&allowed))
+            .await
+            .unwrap();
+        assert_eq!(result.exit_code, 0);
+        assert_eq!(result.stdout.trim(), "allowed");
+    }
+
+    #[tokio::test]
+    async fn execute_with_allowlist_blocks_non_matching() {
+        let allowed = vec!["echo".into()];
+        let result = execute("rm -rf /", None, None, None, Some(&allowed)).await;
+        assert!(matches!(result, Err(ExecError::NotAllowed(_))));
     }
 }

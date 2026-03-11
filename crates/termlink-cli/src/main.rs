@@ -51,6 +51,10 @@ enum Command {
         /// Enable token-based authentication (generates a random secret)
         #[arg(long)]
         token_secret: bool,
+
+        /// Restrict command.execute to commands matching these prefixes (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        allowed_commands: Vec<String>,
     },
 
     /// List all registered sessions
@@ -674,8 +678,8 @@ async fn main() -> Result<()> {
 
     match cli.command {
         // Session management
-        Command::Register { name, roles, tags, shell, token_secret } => {
-            cmd_register(name, roles, tags, shell, token_secret).await
+        Command::Register { name, roles, tags, shell, token_secret, allowed_commands } => {
+            cmd_register(name, roles, tags, shell, token_secret, allowed_commands).await
         }
         Command::List { all, json } => cmd_list(all, json),
         Command::Ping { target } => cmd_ping(&target).await,
@@ -802,6 +806,7 @@ async fn cmd_register(
     tags: Vec<String>,
     shell: bool,
     enable_token_secret: bool,
+    allowed_commands: Vec<String>,
 ) -> Result<()> {
     let mut config = SessionConfig {
         display_name: name,
@@ -829,6 +834,12 @@ async fn cmd_register(
         println!("  Create tokens with: termlink token create {} --scope observe", session.id());
     }
 
+    // Set command allowlist if specified
+    if !allowed_commands.is_empty() {
+        session.registration.allowed_commands = Some(allowed_commands.clone());
+        println!("Command allowlist: {:?}", allowed_commands);
+    }
+
     println!("Session registered:");
     println!("  ID:      {}", session.id());
     println!("  Name:    {}", session.display_name());
@@ -851,8 +862,8 @@ async fn cmd_register(
         None
     };
 
-    // Persist updated registration (capabilities + metadata)
-    if shell {
+    // Persist updated registration (capabilities + metadata + auth + allowlist)
+    if shell || enable_token_secret || session.registration.allowed_commands.is_some() {
         session.persist_registration()
             .context("Failed to persist updated registration")?;
     }
@@ -2387,12 +2398,13 @@ async fn cmd_run(
         server::run_accept_loop(listener, shared_clone).await;
     });
 
-    // Execute the command
+    // Execute the command (CLI-initiated, no allowlist restriction)
     let result = executor::execute(
         &command_str,
         None,
         None,
         Some(std::time::Duration::from_secs(timeout)),
+        None,
     )
     .await;
 

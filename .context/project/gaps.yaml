@@ -5,12 +5,15 @@ gaps:
     title: "Command injection in spawn — arbitrary code execution via RPC"
     severity: critical
     directive: D2-Reliability
-    status: watching
+    status: closed
     discovered: "2026-03-10"
     discovered_by: "T-063 reflection fleet (security agent)"
+    closed: "2026-03-11"
+    closed_by: "T-077, T-078, T-084, T-086, T-087, T-088, T-090"
     evidence: "executor.rs:21-22 passes user-controlled strings directly to sh -c with no escaping, validation, or allowlisting. Any process connecting to the Unix socket can execute arbitrary commands as the process owner."
+    resolution: "Defense-in-depth via 4 layers: (1) UID peer credentials reject cross-user connections (T-077), (2) command.execute requires Execute scope — highest tier (T-078/T-084), (3) capability tokens require explicit HMAC-signed authorization (T-086/T-087/T-088), (4) optional command prefix allowlist restricts WHAT can be executed (T-090). The sh -c pattern is intentional for a command execution endpoint; the security model ensures only authorized callers can invoke it."
     impact: "Local privilege escalation. Any rogue process on the same machine can execute arbitrary shell commands through TermLink's RPC interface."
-    related_tasks: [T-064, T-008]
+    related_tasks: [T-064, T-008, T-077, T-078, T-084, T-086, T-087, T-088, T-090]
     report: "docs/reports/reflection-result-security.md"
     trigger_check:
       type: auto
