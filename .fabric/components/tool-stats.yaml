@@ -1,0 +1,20 @@
+id: tool-stats
+name: Tool Stats Reporter
+type: agent-script
+subsystem: telemetry
+location: agents/telemetry/tool-stats.py
+purpose: >
+  General-purpose tool call statistics from telemetry store. Produces full
+  terminal report, compact one-line (for handover), or JSON output.
+interfaces:
+  - type: cli
+    commands: [--store, --session, --compact, --json]
+  - type: output
+    format: Terminal report, one-line compact, or JSON
+depends_on:
+  - target: .context/telemetry/tool-calls.jsonl
+    type: reads
+depended_by: []
+tags: [telemetry, reporting, statistics, tool-calls]
+created: 2026-03-12
+task: T-105
