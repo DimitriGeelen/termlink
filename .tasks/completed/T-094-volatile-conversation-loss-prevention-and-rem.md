@@ -102,6 +102,7 @@ test -f docs/reports/T-094-volatile-conversation-prevention.md
 ## Decisions
 
 ## Decision
+<!-- inception-decision -->
 
 **Decision**: GO — 2026-03-11
 5-agent investigation confirmed structural gap. Multiple remediation paths identified.

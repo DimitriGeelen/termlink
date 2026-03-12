@@ -93,6 +93,7 @@ From investigation:
 2. T-104 design note: unified parser must consume sidechain files as primary error source
 
 ## Decision
+<!-- inception-decision -->
 
 **Decision**: NO-GO — sub-agent transcripts already persisted durably at `~/.claude/`. Original problem doesn't exist. Unbounded growth (65 MB/day, no cleanup) is a real concern — addressed via T-110.
 

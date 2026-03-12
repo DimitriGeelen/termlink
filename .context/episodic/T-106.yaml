@@ -1,0 +1,24 @@
+id: T-106
+task_name: "Inception — Streamline framework agent PR handoff process"
+summary: "Explored streamlining the manual framework agent PR handoff process. Decided on a lightweight approach: a pickup prompt template rather than a dedicated skill/agent. TermLink migration path designed for future transport swap."
+workflow_type: inception
+status: auto-complete
+created: 2026-03-11T13:30:00Z
+completed: 2026-03-12T08:11:42Z
+duration_days: 0
+duration_minutes: 0
+commit_count: 4
+lines_changed: "+537 -115"
+files_touched: 13
+outcomes:
+  - "Decided template-only approach — no skill/agent needed at current PR volume"
+  - "Pickup prompt template defined at docs/templates/framework-pickup-prompt.md"
+  - "TermLink migration path designed: transport-agnostic template, swap console for termlink emit later"
+challenges:
+  - "Balancing automation investment vs current low PR volume"
+artifacts:
+  - ".tasks/completed/T-106-inception-streamline-framework-agent-pr-handoff.md"
+  - "docs/templates/framework-pickup-prompt.md"
+key_decisions:
+  - "GO (lightweight) — Template only, no skill/agent. Revisit at 5+ PRs."
+patterns: []

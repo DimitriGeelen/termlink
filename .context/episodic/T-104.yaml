@@ -1,0 +1,23 @@
+id: T-104
+task_name: "Inception — Tool call capture store (data layer, all calls + errors, cross-session)"
+summary: "Explored and designed a tool call capture store for persistent cross-session tool call recording. Decided on JSONL format with PostToolUse extraction, ~350 bytes/record. GO decision — unblocks T-103 and T-105."
+workflow_type: inception
+status: auto-complete
+created: 2026-03-11T13:00:00Z
+completed: 2026-03-12T06:40:25Z
+duration_days: 0
+duration_minutes: 0
+commit_count: 7
+lines_changed: "+1282 -129"
+files_touched: 19
+outcomes:
+  - "Schema defined for tool call capture: tool name, input, result, error content, timestamp, session ID, task context, token count"
+  - "Storage format decided: append-only JSONL at .context/telemetry/tool-calls.jsonl"
+  - "GO decision recorded — bounded build scope confirmed"
+challenges:
+  - "Balancing capture completeness vs storage size for tool inputs (large Write payloads)"
+artifacts:
+  - ".tasks/completed/T-104-inception-tool-call-capture-store.md"
+key_decisions:
+  - "GO — JSONL format chosen over SQLite for simplicity; ~350 bytes/record, 30 MB/month estimated"
+patterns: []

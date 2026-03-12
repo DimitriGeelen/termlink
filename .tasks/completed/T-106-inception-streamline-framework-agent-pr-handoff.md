@@ -93,6 +93,7 @@ But that's Phase 1 of Agent Mesh. Today we need a process that works without it.
 - [x] Design reviewed and direction decided
 
 ## Decisions
+<!-- inception-decision -->
 
 **Decision**: GO (lightweight) — Template at `docs/templates/framework-pickup-prompt.md`. No skill/agent needed yet. Revisit at 5+ PRs.
 

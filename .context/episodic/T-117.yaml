@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-117: Fix fabric: add agent-mesh subsystem, update CLI description
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-12T17:13:54Z
+# ============================================================================
+
+task_id: T-117
+task_name: "Fix fabric: add agent-mesh subsystem, update CLI description"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-12T15:48:57Z
+completed: 2026-03-12T15:49:57Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-12T16:49:50+01:00
+last_commit: 2026-03-12T16:49:50+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add agent-mesh subsystem, update CLI to 26 commands
+
+# Key outcomes
+outcomes:
+  - "Register `agent-mesh` as 5th subsystem in `subsystems.yaml`"
+  - "Update CLI description from 20 to 26 commands"
+  - "`fw fabric overview` shows 5 subsystems with agent-mesh"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/subsystems.yaml"
+  - ".tasks/active/T-117-fix-fabric-add-agent-mesh-subsystem-upda.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12T16:49:50"
+    action: "T-117: Add agent-mesh subsystem, update CLI to 26 commands"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 67
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-117-fix-fabric-add-agent-mesh-subsystem-upda.md
+generated_by: context-agent-hybrid

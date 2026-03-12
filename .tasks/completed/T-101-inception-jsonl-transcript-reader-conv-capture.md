@@ -103,6 +103,7 @@ both readable from this file with a simple Python parser.
 ## Decisions
 
 ## Decision
+<!-- inception-decision -->
 
 **Decision**: GO — T-108 built the JSONL transcript reader (26802a9). Inception complete.
 

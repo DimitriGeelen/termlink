@@ -99,6 +99,7 @@ Target: auto-detected from transcript data.
 **Decision**: NO-GO / DEFER
 
 ## Decision
+<!-- inception-decision -->
 
 **Decision**: DEFER — T-104 prerequisite unmet. JSONL lacks structured error events (`tool_result` with `is_error` not present — errors are prose in `assistant` messages). Auto-classification requires cross-session aggregation (T-104) and hook enrichment. Revisit after T-104 is built.
 

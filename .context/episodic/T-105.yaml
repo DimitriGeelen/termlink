@@ -1,0 +1,23 @@
+id: T-105
+task_name: "Inception — Tool call reporting page (filter / drill-down)"
+summary: "Designed reporting interface for tool call statistics. Decided on terminal-based reports (analyze-errors.py for errors, tool-stats.py for full stats) with handover integration for session summaries. GO decision."
+workflow_type: inception
+status: auto-complete
+created: 2026-03-11T13:00:00Z
+completed: 2026-03-12T07:59:21Z
+duration_days: 0
+duration_minutes: 0
+commit_count: 6
+lines_changed: "+833 -115"
+files_touched: 14
+outcomes:
+  - "Report format decided: terminal-based Python scripts (analyze-errors.py, tool-stats.py)"
+  - "Key filter dimensions defined: session, tool, error/success"
+  - "Handover integration designed: tool call summary section in handover output"
+challenges:
+  - "Hard dependency on T-104 data layer — had to wait for capture store completion"
+artifacts:
+  - ".tasks/completed/T-105-inception-tool-call-reporting-page.md"
+key_decisions:
+  - "GO — Terminal reports over web UI; build tool-stats.py for full reporting and integrate summary into handover agent"
+patterns: []

@@ -73,6 +73,7 @@ and at least one session's worth of data captured.
 - [x] Design reviewed and approved before build starts
 
 ## Decisions
+<!-- inception-decision -->
 
 **Decision**: GO — T-104 data layer exists, T-113 error report delivered. Build tool-stats.py for full reporting and integrate summary into handover agent.
 
