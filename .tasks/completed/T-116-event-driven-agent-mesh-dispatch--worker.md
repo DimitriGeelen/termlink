@@ -12,7 +12,7 @@ tags: [agent-mesh, events, dispatch]
 components: []
 related_tasks: [T-114]
 created: 2026-03-12T12:05:46Z
-last_update: 2026-03-12T12:29:46Z
+last_update: 2026-03-12T15:46:56Z
 date_finished: 2026-03-12T12:29:46Z
 ---
 
@@ -33,7 +33,7 @@ Orchestrator sends task and waits for result via `termlink wait`.
 - [x] Worker handles multiple sequential tasks without restart (3 tasks, same worker)
 
 ### Human
-- [ ] [REVIEW] Agent mesh scripts work as expected
+- [x] [REVIEW] Agent mesh scripts work as expected
   **Steps:**
   1. Run `termlink hub` in one terminal
   2. Run `agents/mesh/worker.sh` in another

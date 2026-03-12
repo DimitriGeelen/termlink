@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-114: PoC — replace internal agent spawning with TermLink agent mesh
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-12T15:46:52Z
+# ============================================================================
+
+task_id: T-114
+task_name: "PoC — replace internal agent spawning with TermLink agent mesh"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-12T08:27:33Z
+completed: 2026-03-12T09:34:53Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-12T09:31:40+01:00
+last_commit: 2026-03-12T10:34:52+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception research — agent mesh PoC design with 3 spikes. Fix wait command cursor bug — was skipping matching events. GO — agent mesh PoC validated (3/3 spikes pass)
+
+# Key outcomes
+outcomes:
+  - "Spike 1 validated: manual event round-trip with existing CLI"
+  - "Spike 2 validated: Claude Code runs inside `termlink run` wrapper"
+  - "Spike 3 validated: automated dispatch end-to-end"
+  - "Research artifact at `docs/reports/T-114-poc-agent-mesh-spawning.md`"
+  - "GO/NO-GO framed"
+  - "Design reviewed and direction decided"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix wait command cursor bug — was skipping matching events"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-114-poc--replace-internal-agent-spawning-wit.md"
+  - "agents/mesh/agent-wrapper.sh"
+  - "agents/mesh/dispatch.sh"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/reports/T-114-poc-agent-mesh-spawning.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12T09:31:40"
+    action: "T-114: Inception research — agent mesh PoC design with 3 spikes"
+  - time: "2026-03-12T10:05:30"
+    action: "T-114: Fix wait command cursor bug — was skipping matching events"
+  - time: "2026-03-12T10:34:52"
+    action: "T-114: GO — agent mesh PoC validated (3/3 spikes pass)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-mesh, poc, termlink-core, spawning]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 5
+  lines_added: 443
+  lines_removed: 32
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-114-poc--replace-internal-agent-spawning-wit.md
+generated_by: context-agent-hybrid

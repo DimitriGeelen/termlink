@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-116: Event-driven agent mesh dispatch — worker watches for tasks via TermLink events
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-12T15:46:57Z
+# ============================================================================
+
+task_id: T-116
+task_name: "Event-driven agent mesh dispatch — worker watches for tasks via TermLink events"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-12T12:05:46Z
+completed: 2026-03-12T12:29:46Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-12T13:29:01+01:00
+last_commit: 2026-03-12T13:29:39+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Event-driven agent mesh — worker + orchestrator with 3-task E2E validation. Register fabric cards for worker and orchestrator
+
+# Key outcomes
+outcomes:
+  - "`agents/mesh/worker.sh` — long-running worker that watches for task events and executes them"
+  - "`agents/mesh/orchestrate.sh` — dispatches task via event, waits for result"
+  - "E2E test: orchestrate → worker → result round-trip succeeds (3+3=6, Paris, primes)"
+  - "Worker handles multiple sequential tasks without restart (3 tasks, same worker)"
+  - "[REVIEW] Agent mesh scripts work as expected"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/agents-mesh-orchestrate.yaml"
+  - ".fabric/components/agents-mesh-worker.yaml"
+  - ".tasks/active/T-116-event-driven-agent-mesh-dispatch--worker.md"
+  - "agents/mesh/orchestrate.sh"
+  - "agents/mesh/worker.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12T13:29:01"
+    action: "T-116: Event-driven agent mesh — worker + orchestrator with 3-task E2E validation"
+  - time: "2026-03-12T13:29:39"
+    action: "T-116: Register fabric cards for worker and orchestrator"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-mesh, events, dispatch]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 5
+  lines_added: 336
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-116-event-driven-agent-mesh-dispatch--worker.md
+generated_by: context-agent-hybrid
