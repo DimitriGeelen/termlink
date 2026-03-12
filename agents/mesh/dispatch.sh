@@ -1,23 +1,73 @@
 #!/usr/bin/env bash
 # TermLink Agent Mesh — Dispatch a task to a worker agent
-# Usage: dispatch.sh "prompt text" [--worker-name NAME]
+# Usage: dispatch.sh [--isolate] [--worker-name NAME] [--timeout SECS] "prompt text"
+#
+# Options:
+#   --isolate       Create a git worktree per worker for filesystem isolation.
+#                   Each worker gets its own branch (mesh-{worker-name}) and
+#                   CARGO_TARGET_DIR. Worktree is cleaned up on exit.
+#   --worker-name   Worker session name (default: mesh-worker-$$)
+#   --timeout       Worker timeout in seconds (default: $TERMLINK_DISPATCH_TIMEOUT or 120)
 #
 # Flow:
 #   1. Ensures hub is running
-#   2. Spawns a worker agent (Claude Code via agent-wrapper.sh)
-#   3. Waits for the worker to register
-#   4. Emits task.dispatch event to worker
-#   5. Worker executes, writes result to file
-#   6. Orchestrator reads result
-#   7. Cleanup
+#   2. (If --isolate) Creates git worktree on a new branch
+#   3. Spawns a worker agent (Claude Code via agent-wrapper.sh)
+#   4. Worker executes, writes result to stdout
+#   5. Orchestrator reads result
+#   6. Cleanup (worktree removal if --isolate)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROMPT="${1:?Usage: dispatch.sh \"prompt text\" [--worker-name NAME]}"
-WORKER_NAME="${3:-mesh-worker-$$}"
-RESULT_FILE="/tmp/termlink-mesh-result-$$.txt"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# --- Parse arguments ---
+ISOLATE=false
+WORKER_NAME="mesh-worker-$$"
 TIMEOUT="${TERMLINK_DISPATCH_TIMEOUT:-120}"
+PROMPT=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --isolate)
+            ISOLATE=true
+            shift
+            ;;
+        --worker-name)
+            WORKER_NAME="$2"
+            shift 2
+            ;;
+        --timeout)
+            TIMEOUT="$2"
+            shift 2
+            ;;
+        *)
+            PROMPT="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$PROMPT" ]; then
+    echo "Usage: dispatch.sh [--isolate] [--worker-name NAME] [--timeout SECS] \"prompt text\"" >&2
+    exit 1
+fi
+
+RESULT_FILE="/tmp/termlink-mesh-result-${WORKER_NAME}.txt"
+WORKTREE_DIR=""
+BRANCH_NAME="mesh-${WORKER_NAME}"
+WORKDIR="$PROJECT_ROOT"
+
+# --- Cleanup trap ---
+cleanup() {
+    rm -f "$RESULT_FILE"
+    if [ "$ISOLATE" = true ] && [ -n "$WORKTREE_DIR" ] && [ -d "$WORKTREE_DIR" ]; then
+        echo "Cleaning up worktree: $WORKTREE_DIR" >&2
+        git -C "$PROJECT_ROOT" worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
 
 # --- Step 1: Ensure hub is running ---
 if ! termlink info 2>/dev/null | grep -q "Hub socket:"; then
@@ -32,20 +82,34 @@ if [ ! -S "$HUB_SOCK" ]; then
     sleep 1
 fi
 
-# --- Step 2: Spawn worker agent ---
+# --- Step 2: Create worktree if --isolate ---
+if [ "$ISOLATE" = true ]; then
+    WORKTREE_DIR=$(mktemp -d /tmp/termlink-worktree-XXXXX)
+    echo "Creating worktree: $WORKTREE_DIR (branch: $BRANCH_NAME)" >&2
+
+    # Delete branch if it exists from a previous failed run
+    git -C "$PROJECT_ROOT" branch -D "$BRANCH_NAME" 2>/dev/null || true
+
+    git -C "$PROJECT_ROOT" worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" HEAD 2>&1 >&2
+    WORKDIR="$WORKTREE_DIR"
+
+    export CARGO_TARGET_DIR="${WORKTREE_DIR}/target"
+    echo "CARGO_TARGET_DIR=$CARGO_TARGET_DIR" >&2
+fi
+
+# --- Step 3: Spawn worker agent ---
 echo "Dispatching to worker: $WORKER_NAME" >&2
+echo "Workdir: $WORKDIR" >&2
 echo "Prompt: ${PROMPT:0:80}..." >&2
 
-# The worker runs the agent-wrapper which executes claude --print
-# We run it in background and capture its output
 termlink run \
     -n "$WORKER_NAME" \
     -t "worker,agent-mesh" \
     --timeout "$TIMEOUT" \
-    -- "$SCRIPT_DIR/agent-wrapper.sh" "$PROMPT" > "$RESULT_FILE" 2>/dev/null &
+    -- "$SCRIPT_DIR/agent-wrapper.sh" "$PROMPT" "$WORKDIR" > "$RESULT_FILE" 2>/dev/null &
 WORKER_PID=$!
 
-# --- Step 3: Wait for completion ---
+# --- Step 4: Wait for completion ---
 echo "Worker PID: $WORKER_PID (timeout: ${TIMEOUT}s)" >&2
 
 if wait $WORKER_PID 2>/dev/null; then
@@ -53,16 +117,22 @@ if wait $WORKER_PID 2>/dev/null; then
 else
     EXIT_CODE=$?
     echo "Worker failed (exit $EXIT_CODE)" >&2
-    rm -f "$RESULT_FILE"
     exit $EXIT_CODE
 fi
 
-# --- Step 4: Output result ---
+# --- Step 5: Output result ---
 if [ -f "$RESULT_FILE" ] && [ -s "$RESULT_FILE" ]; then
     cat "$RESULT_FILE"
-    rm -f "$RESULT_FILE"
 else
     echo "ERROR: No result produced" >&2
-    rm -f "$RESULT_FILE"
     exit 1
+fi
+
+# --- Step 6: Report worktree branch if --isolate ---
+if [ "$ISOLATE" = true ]; then
+    echo "" >&2
+    echo "=== Worktree Branch ===" >&2
+    echo "Branch: $BRANCH_NAME" >&2
+    echo "To merge: git merge $BRANCH_NAME" >&2
+    echo "To inspect: git log main..$BRANCH_NAME --oneline" >&2
 fi
