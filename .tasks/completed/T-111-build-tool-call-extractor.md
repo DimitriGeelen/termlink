@@ -4,7 +4,7 @@ name: "Build tool call extractor"
 description: >
   Python script to extract tool call metadata from session JSONL transcripts (main + sidechain). Outputs metadata-only records to stdout as JSONL. Schema from T-104.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [observability, tool-calls, telemetry, jsonl]
 components: []
 related_tasks: [T-104, T-103, T-105]
 created: 2026-03-12T06:20:18Z
-last_update: 2026-03-12T06:20:18Z
-date_finished: null
+last_update: 2026-03-12T06:31:02Z
+date_finished: 2026-03-12T06:31:02Z
 ---
 
 # T-111: Build tool call extractor
@@ -57,3 +57,6 @@ test -f .fabric/components/extract-tool-calls.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-111-build-tool-call-extractor.md
 - **Context:** Initial task creation
+
+### 2026-03-12T06:31:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

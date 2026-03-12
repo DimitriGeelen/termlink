@@ -4,7 +4,7 @@ name: "Integrate tool call extractor into session lifecycle"
 description: >
   Hook extract-tool-calls.py into PreCompact/session-end. Append to .context/telemetry/tool-calls.jsonl. Align retention with T-110.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [observability, telemetry, hooks, lifecycle]
 components: []
 related_tasks: [T-104, T-111, T-110]
 created: 2026-03-12T06:31:11Z
-last_update: 2026-03-12T06:31:11Z
-date_finished: null
+last_update: 2026-03-12T06:39:54Z
+date_finished: 2026-03-12T06:39:54Z
 ---
 
 # T-112: Integrate tool call extractor into session lifecycle
@@ -55,3 +55,6 @@ python3 agents/telemetry/extract-tool-calls.py --help
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-112-integrate-tool-call-extractor-into-sessi.md
 - **Context:** Initial task creation
+
+### 2026-03-12T06:39:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

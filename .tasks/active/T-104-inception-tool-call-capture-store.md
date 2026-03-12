@@ -6,16 +6,16 @@ description: >
   and whether it errored, across all sessions. Store the raw data without pre-optimizing
   for reporting. When the data exists, insights and reporting (T-105) can be derived
   from it. Principle: capture is permanent, reporting is iterative. Explore only.
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [observability, tool-calls, data-capture, cross-session, jsonl]
 components: []
 related_tasks: [T-094, T-101, T-103, T-105]
 created: 2026-03-11T13:00:00Z
-last_update: 2026-03-12T06:10:01Z
-date_finished: null
+last_update: 2026-03-12T06:40:25Z
+date_finished: 2026-03-12T06:40:25Z
 ---
 
 # T-104: Inception — Tool Call Capture Store
@@ -125,3 +125,6 @@ From the JSONL transcript, each tool call event contains:
 
 ### 2026-03-12T06:10:01Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
+
+### 2026-03-12T06:40:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

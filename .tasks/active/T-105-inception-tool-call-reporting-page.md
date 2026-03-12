@@ -5,16 +5,16 @@ description: >
   Design and explore a reporting page for tool call statistics — filters, drill-down,
   cross-session trends. Depends entirely on T-104 (capture store). Do not start this
   inception until T-104 has a defined schema and data. Horizon: later.
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [observability, reporting, ui, tool-calls]
 components: []
 related_tasks: [T-104, T-103]
 created: 2026-03-11T13:00:00Z
-last_update: 2026-03-12T07:18:59Z
-date_finished: null
+last_update: 2026-03-12T07:59:21Z
+date_finished: 2026-03-12T07:59:21Z
 ---
 
 # T-105: Inception — Tool Call Reporting Page
@@ -84,3 +84,6 @@ and at least one session's worth of data captured.
 - **Change:** status: captured → started-work
 - **Change:** owner: human → agent
 - **Change:** horizon: later → now
+
+### 2026-03-12T07:59:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
