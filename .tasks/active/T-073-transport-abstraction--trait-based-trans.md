@@ -49,9 +49,9 @@ Architectural coupling found by reflection fleet architecture agent. Session cra
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested (via mesh exploration report — docs/reports/T-073-exploration.md)
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -85,8 +85,11 @@ Architectural coupling found by reflection fleet architecture agent. Session cra
 -->
 
 ## Decision
+<!-- inception-decision -->
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO — trait design validated. `TransportAddr` enum in protocol crate (serde only), `Transport` + `Connection` traits in session crate. 10 coupling points mapped (7 session, 3 hub). Unix socket adapter wraps existing code. Protocol crate stays dependency-free. Build task should implement trait + adapter, then stub TCP.
+
+**Date**: 2026-03-12
 
 ## Updates
 

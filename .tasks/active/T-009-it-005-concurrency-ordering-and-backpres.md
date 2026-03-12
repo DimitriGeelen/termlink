@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:43Z
-last_update: 2026-03-12T19:02:57Z
+last_update: 2026-03-12T19:56:13Z
 date_finished: null
 ---
 
@@ -49,9 +49,9 @@ TermLink's event system uses polling with cursor-based pagination. Under multi-a
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested (via mesh exploration report — docs/reports/T-009-exploration.md)
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -83,8 +83,11 @@ TermLink's event system uses polling with cursor-based pagination. Under multi-a
 -->
 
 ## Decision
+<!-- inception-decision -->
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO — bounded fix: add gap detection to EventBus (cursor < oldest_seq → warning/event). Hub broadcast fan-out needs concurrent dispatch (not sequential). Defer push-based delivery until polling proves inadequate under real mesh load.
+
+**Date**: 2026-03-12
 
 ## Updates
 

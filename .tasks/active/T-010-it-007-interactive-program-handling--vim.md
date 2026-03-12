@@ -49,9 +49,9 @@ TermLink controls terminal sessions via PTY — but interactive programs (vim, P
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested (via mesh exploration report — docs/reports/T-010-exploration.md)
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -83,8 +83,11 @@ TermLink controls terminal sessions via PTY — but interactive programs (vim, P
 -->
 
 ## Decision
+<!-- inception-decision -->
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO — `tcgetattr()` on PTY master fd is reliable and low-overhead for detecting raw/canonical/echo state. Build task: P1 `pty.mode` RPC, P2 `pty.mode-change` event, P3 alternate screen buffer detection. ANSI-aware scrollback (vt100 state machine) is out of scope.
+
+**Date**: 2026-03-12
 
 ## Updates
 
