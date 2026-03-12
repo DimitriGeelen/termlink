@@ -19,6 +19,7 @@ No copy-paste. No different-system problem.
 | T-094-conversation-guard-capture-skill.md | T-094 | Research artifact |
 | T-098-conversation-guard-pr.md | T-098 | PR pickup (CLAUDE.md rule + /capture) |
 | T-109-capture-skill-pr.md | T-109 | PR pickup (/capture skill tooling only) |
+| T-104-T-105-tool-call-telemetry.md | T-104, T-105 | PR pickup (capture store + Watchtower reporting) |
 | T-118-fabric-context-llm-enrichment.md | T-118 | PR pickup (fw fabric context) |
 
 ## How to use
