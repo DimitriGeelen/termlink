@@ -7,15 +7,15 @@ description: >
   it to the framework agent running on a different system. This works today but is
   fragile and will become a bottleneck as we produce more framework PRs. Explore
   making this a skill or agent — structured, repeatable, eventually TermLink-routed.
-status: captured
+status: started-work
 workflow_type: inception
-owner: human
-horizon: later
+owner: agent
+horizon: now
 tags: [framework, workflow, skill, agent-mesh, pr-handoff]
 components: []
 related_tasks: [T-094, T-099, T-101, T-103, T-104, T-105]
 created: 2026-03-11T13:30:00Z
-last_update: 2026-03-11T13:30:00Z
+last_update: 2026-03-12T08:10:00Z
 date_finished: null
 ---
 
@@ -84,16 +84,23 @@ But that's Phase 1 of Agent Mesh. Today we need a process that works without it.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Skill vs. agent decision made with rationale
-- [ ] Pickup prompt template defined
-- [ ] TermLink migration path designed
-- [ ] GO/NO-GO framed for discussion
+- [x] Skill vs. agent decision made — template only, no skill/agent needed at current volume
+- [x] Pickup prompt template defined at `docs/templates/framework-pickup-prompt.md`
+- [x] TermLink migration path designed — transport-agnostic template, swap console for `termlink emit` later
+- [x] GO/NO-GO framed — GO (lightweight: template + AC checkbox)
 
 ### Human
 - [ ] Design reviewed and direction decided
 
 ## Decisions
 
-## Decision
+**Decision**: GO (lightweight) — Template at `docs/templates/framework-pickup-prompt.md`. No skill/agent needed yet. Revisit at 5+ PRs.
+
+**Date**: 2026-03-12
 
 ## Updates
+
+### 2026-03-12T08:10:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** owner: human → agent
+- **Change:** horizon: later → now
