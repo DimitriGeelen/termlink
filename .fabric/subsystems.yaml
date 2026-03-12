@@ -48,9 +48,20 @@ subsystems:
       - crates/termlink-hub/src/server.rs
 
   - name: cli
-    description: "User-facing CLI binary — 20 subcommands for session management and communication"
+    description: "User-facing CLI binary — 26 subcommands for session management and communication"
     root: crates/termlink-cli/src/
     depends_on: [protocol, session]
-    summary: "User entry point: 20 commands for register, query, inject, stream, discover, events"
+    summary: "User entry point: 26 commands for register, query, inject, stream, discover, events, run, wait, collect, topics, info, hub"
     components:
       - crates/termlink-cli/src/main.rs
+
+  - name: agent-mesh
+    description: "Agent mesh — dispatch tasks to Claude Code agents via TermLink events"
+    root: agents/mesh/
+    depends_on: [cli, hub, session]
+    summary: "Orchestration layer: agent wrapper, synchronous dispatch, event-driven worker + orchestrator"
+    components:
+      - agents/mesh/agent-wrapper.sh
+      - agents/mesh/dispatch.sh
+      - agents/mesh/worker.sh
+      - agents/mesh/orchestrate.sh
