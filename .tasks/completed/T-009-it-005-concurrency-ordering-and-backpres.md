@@ -4,7 +4,7 @@ name: "IT-005: Concurrency, ordering, and backpressure"
 description: >
   Multiple senders, message ordering, queue management, typing races
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:43Z
-last_update: 2026-03-12T19:56:13Z
-date_finished: null
+last_update: 2026-03-12T19:57:52Z
+date_finished: 2026-03-12T19:57:52Z
 ---
 
 # T-009: IT-005: Concurrency, ordering, and backpressure
@@ -99,3 +99,6 @@ TermLink's event system uses polling with cursor-based pagination. Under multi-a
 
 ### 2026-03-12T19:02:57Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-03-12T19:57:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

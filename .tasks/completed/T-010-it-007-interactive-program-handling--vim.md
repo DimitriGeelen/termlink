@@ -4,7 +4,7 @@ name: "IT-007: Interactive program handling — vim, REPLs, nested sessions"
 description: >
   What happens when target runs vim, Python REPL, SSH, password prompt
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:48Z
-last_update: 2026-03-12T19:02:58Z
-date_finished: null
+last_update: 2026-03-12T19:58:05Z
+date_finished: 2026-03-12T19:58:05Z
 ---
 
 # T-010: IT-007: Interactive program handling — vim, REPLs, nested sessions
@@ -96,3 +96,9 @@ TermLink controls terminal sessions via PTY — but interactive programs (vim, P
 
 ### 2026-03-12T19:02:58Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-03-12T19:58:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-12T19:58:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

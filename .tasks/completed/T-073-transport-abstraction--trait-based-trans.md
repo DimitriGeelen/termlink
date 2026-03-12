@@ -4,7 +4,7 @@ name: "Transport abstraction — trait-based transport in protocol crate"
 description: >
   Session crate couples to tokio and Unix sockets. Inception: trait-based transport abstraction to enable TCP, QUIC, or other transports.
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:51Z
-last_update: 2026-03-12T19:02:56Z
-date_finished: null
+last_update: 2026-03-12T19:58:09Z
+date_finished: 2026-03-12T19:58:09Z
 ---
 
 # T-073: Transport abstraction — trait-based transport in protocol crate
@@ -98,3 +98,9 @@ Architectural coupling found by reflection fleet architecture agent. Session cra
 
 ### 2026-03-12T19:02:56Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-03-12T19:58:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-12T19:58:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
