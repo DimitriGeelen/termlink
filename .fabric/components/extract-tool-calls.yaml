@@ -1,0 +1,24 @@
+id: extract-tool-calls
+name: Tool Call Extractor
+type: agent-script
+subsystem: telemetry
+location: agents/telemetry/extract-tool-calls.py
+purpose: >
+  Extract tool call metadata from Claude Code JSONL transcripts (main + sidechain).
+  Outputs metadata-only JSONL records to stdout. Schema from T-104 inception.
+interfaces:
+  - type: cli
+    commands: [--session, --task, --project-dir, --include-sidechains, --stats]
+  - type: output
+    format: JSONL to stdout (one record per tool call)
+depends_on:
+  - target: "~/.claude/projects/*//*.jsonl"
+    type: reads
+  - target: "~/.claude/projects/*/*/subagents/agent-*.jsonl"
+    type: reads
+depended_by:
+  - target: ".context/telemetry/tool-calls.jsonl"
+    type: produces
+tags: [telemetry, tool-calls, jsonl, extraction, observability]
+created: 2026-03-12
+task: T-111
