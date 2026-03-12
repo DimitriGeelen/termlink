@@ -4,7 +4,7 @@ name: "Fix fabric: add agent-mesh subsystem, update CLI description"
 description: >
   Fix fabric: add agent-mesh subsystem, update CLI description
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-12T15:48:57Z
-last_update: 2026-03-12T15:48:57Z
-date_finished: null
+last_update: 2026-03-12T15:49:57Z
+date_finished: 2026-03-12T15:49:57Z
 ---
 
 # T-117: Fix fabric: add agent-mesh subsystem, update CLI description
@@ -52,3 +52,6 @@ grep -q "26 commands" .fabric/subsystems.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-117-fix-fabric-add-agent-mesh-subsystem-upda.md
 - **Context:** Initial task creation
+
+### 2026-03-12T15:49:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
