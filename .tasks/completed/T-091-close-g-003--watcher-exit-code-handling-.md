@@ -4,7 +4,7 @@ name: "Close G-003 — watcher exit-code handling already implemented"
 description: >
   Close G-003 — watcher exit-code handling already implemented
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-11T09:48:33Z
-last_update: 2026-03-11T09:48:33Z
-date_finished: null
+last_update: 2026-03-11T23:44:32Z
+date_finished: 2026-03-11T23:44:32Z
 ---
 
 # T-091: Close G-003 — watcher exit-code handling already implemented
@@ -54,3 +54,6 @@ python3 -c "import yaml; yaml.safe_load(open('.context/project/gaps.yaml'))"
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-091-close-g-003--watcher-exit-code-handling-.md
 - **Context:** Initial task creation
+
+### 2026-03-11T23:44:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

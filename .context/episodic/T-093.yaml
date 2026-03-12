@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-093: Update architecture docs with test-utils crate and test count
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-11T23:49:08Z
+# ============================================================================
+
+task_id: T-093
+task_name: "Update architecture docs with test-utils crate and test count"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-11T10:09:56Z
+completed: 2026-03-11T23:48:23Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-11T11:13:27+01:00
+last_commit: 2026-03-11T11:13:27+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Update architecture docs — 5 crates, 223 tests
+
+# Key outcomes
+outcomes:
+  - "Architecture docs updated with test-utils crate in hierarchy and test count (223)"
+  - "[REVIEW] Dashboard renders correctly — template placeholder, n/a"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-093-update-architecture-docs-with-test-utils.md"
+  - "docs/ARCHITECTURE.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-11T11:13:27"
+    action: "T-093: Update architecture docs — 5 crates, 223 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 81
+  lines_removed: 5
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-093-update-architecture-docs-with-test-utils.md
+generated_by: context-agent-hybrid

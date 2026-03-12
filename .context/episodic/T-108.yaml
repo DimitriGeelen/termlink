@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-108: Build JSONL transcript reader + /capture skill
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-11T23:47:02Z
+# ============================================================================
+
+task_id: T-108
+task_name: "Build JSONL transcript reader + /capture skill"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-11T14:30:00Z
+completed: 2026-03-11T23:46:43Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-11T23:33:54+01:00
+last_commit: 2026-03-12T00:16:13+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  JSONL transcript reader + /capture skill. /capture — conversation artifact. Proper session handover S-2026-0311-2342. work-completed — T-109 created, all agent ACs checked
+
+# Key outcomes
+outcomes:
+  - "`agents/capture/read-transcript.py` created and handles all cases:"
+  - "Finds current session JSONL correctly"
+  - "Format canary fires warning on unexpected structure"
+  - "Filters user/assistant text turns only"
+  - "Strips ANSI codes"
+  - "Topic boundary detection returns reasonable results"
+  - "Fallback to last 20 exchanges when no boundary found"
+  - "`.claude/commands/capture.md` created"
+  - "Handles no-active-task case gracefully"
+  - "Writes artifact with all 6 sections"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/capture.md"
+  - ".context/handovers/S-2026-0311-2342.md"
+  - ".fabric/components/capture-reader.yaml"
+  - ".fabric/components/capture-skill.yaml"
+  - ".tasks/active/T-108-build-jsonl-transcript-reader-and-capture-skill.md"
+  - ".tasks/active/T-109-framework-pr-capture-skill.md"
+  - "agents/capture/read-transcript.py"
+  - "docs/reports/T-108-capture-2026-03-11-22.md"
+  - "docs/reports/T-108-capture-2026-03-11-23.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-11T23:33:54"
+    action: "T-108: JSONL transcript reader + /capture skill"
+  - time: "2026-03-11T23:34:59"
+    action: "T-108: /capture — conversation artifact"
+  - time: "2026-03-11T23:43:52"
+    action: "T-108: Proper session handover S-2026-0311-2342"
+  - time: "2026-03-12T00:12:39"
+    action: "T-108: /capture — conversation artifact"
+  - time: "2026-03-12T00:16:13"
+    action: "T-108: work-completed — T-109 created, all agent ACs checked"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [jsonl, capture, skill, conversation-capture, session]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 5
+  files_changed: 9
+  lines_added: 1035
+  lines_removed: 218
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-108-build-jsonl-transcript-reader-and-capture-skill.md
+generated_by: context-agent-hybrid

@@ -8,7 +8,7 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: later
 tags: [capture, framework-pr, skill, conversation-capture]
 components: []
 related_tasks: [T-108, T-106]

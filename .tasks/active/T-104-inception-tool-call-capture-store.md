@@ -9,7 +9,7 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [observability, tool-calls, data-capture, cross-session, jsonl]
 components: []
 related_tasks: [T-094, T-101, T-103, T-105]

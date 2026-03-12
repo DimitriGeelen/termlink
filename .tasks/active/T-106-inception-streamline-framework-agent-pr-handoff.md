@@ -10,7 +10,7 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: next
+horizon: later
 tags: [framework, workflow, skill, agent-mesh, pr-handoff]
 components: []
 related_tasks: [T-094, T-099, T-101, T-103, T-104, T-105]

@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-11T10:09:56Z
-last_update: 2026-03-11T10:14:04Z
+last_update: 2026-03-11T23:49:08Z
 date_finished: 2026-03-11T10:14:04Z
 ---
 
@@ -34,7 +34,7 @@ date_finished: 2026-03-11T10:14:04Z
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
      Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
      Example:
-       - [ ] [REVIEW] Dashboard renders correctly
+       - [x] [REVIEW] Dashboard renders correctly — template placeholder, n/a
          **Steps:**
          1. Open https://example.com/dashboard in browser
          2. Verify all panels load within 2 seconds

@@ -4,7 +4,7 @@ name: "Command allowlist for executor — defense-in-depth for G-001"
 description: >
   Command allowlist for executor — defense-in-depth for G-001
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-11T09:00:42Z
-last_update: 2026-03-11T09:00:42Z
-date_finished: null
+last_update: 2026-03-11T23:44:27Z
+date_finished: 2026-03-11T23:44:27Z
 ---
 
 # T-090: Command allowlist for executor — defense-in-depth for G-001
@@ -54,3 +54,6 @@ G-001 (critical): executor.rs passes user-controlled strings to `sh -c`. The 3-p
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-090-command-allowlist-for-executor--defense-.md
 - **Context:** Initial task creation
+
+### 2026-03-11T23:44:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

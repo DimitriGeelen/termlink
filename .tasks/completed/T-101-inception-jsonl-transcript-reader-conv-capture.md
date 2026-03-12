@@ -7,7 +7,7 @@ description: >
   read this file to extract conversation content and write it as a research artifact?
   This is the most direct path — no new capture mechanism needed, the data already exists.
   Explore and dialogue only — understand what's there before deciding anything.
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,8 +15,8 @@ tags: [jsonl, transcript, conversation-capture, exploration]
 components: []
 related_tasks: [T-094, T-100, T-102, T-099]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-11T12:00:00Z
-date_finished: null
+last_update: 2026-03-11T23:47:37Z
+date_finished: 2026-03-11T23:47:30Z
 ---
 
 # T-101: Inception — JSONL Transcript Reader for Conversation Capture
@@ -104,6 +104,8 @@ both readable from this file with a simple Python parser.
 
 ## Decision
 
+**Decision**: GO — T-108 built the JSONL transcript reader (26802a9). Inception complete.
+
 **Decision**: GO — 2026-03-11
 
 Rationale:
@@ -118,3 +120,6 @@ Rationale:
 Next: create build task for JSONL transcript reader + `/capture` skill implementation.
 
 ## Updates
+
+### 2026-03-11T23:47:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

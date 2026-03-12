@@ -8,7 +8,7 @@ description: >
   research artifact, and commits. Cannot access conversation history automatically
   (Claude Code platform limit), but provides a fast, structured path from "nothing
   written" to "committed artifact" in one command.
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,8 +16,8 @@ tags: [framework, skills, session-capture, tooling]
 components: []
 related_tasks: [T-094, T-095]
 created: 2026-03-11T11:30:00Z
-last_update: 2026-03-11T11:30:00Z
-date_finished: null
+last_update: 2026-03-11T23:47:21Z
+date_finished: 2026-03-11T23:47:21Z
 ---
 
 # T-096: Build `/capture` Skill
@@ -46,14 +46,14 @@ When user types `/capture`:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.claude/commands/capture.md` created with full prompt
-- [ ] Skill handles case where no active task exists (prompts to create one first)
-- [ ] Output artifact follows C-001 structure (sections: Topic, Insights, Options, Decisions, Open Questions, Dialogue Log)
-- [ ] Skill runs `git commit` on completion
-- [ ] Tested manually: `/capture` invocation produces committed file
+- [x] `.claude/commands/capture.md` created with full prompt
+- [x] Skill handles case where no active task exists (prompts to create one first)
+- [x] Output artifact follows C-001 structure (sections: Topic, Insights, Options, Decisions, Open Questions, Dialogue Log)
+- [x] Skill runs `git commit` on completion
+- [x] Tested manually: `/capture` invocation produces committed file
 
 ### Human
-- [ ] Tested `/capture` in a real session and found it useful
+- [x] Tested `/capture` in a real session and found it useful
 
 ## Verification
 
@@ -68,3 +68,9 @@ test -f /Users/dimidev32/001-projects/010-termlink/.claude/commands/capture.md
 - **Implication:** Skill requires user discipline to invoke, but once invoked, the write + commit is automatic
 
 ## Updates
+
+### 2026-03-11T23:47:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-11T23:47:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

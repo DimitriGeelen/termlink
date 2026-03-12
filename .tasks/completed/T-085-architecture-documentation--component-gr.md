@@ -1,8 +1,8 @@
 ---
-id: T-092
-name: "Register fabric card for termlink-test-utils"
+id: T-085
+name: "Architecture documentation — component graph and hierarchical description"
 description: >
-  Register fabric card for termlink-test-utils
+  Create detailed documentation from the component fabric, inferring functionality of each component and producing a logical, structured hierarchical description of TermLink.
 
 status: work-completed
 workflow_type: build
@@ -11,12 +11,12 @@ horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-11T10:05:56Z
-last_update: 2026-03-11T10:07:23Z
-date_finished: 2026-03-11T10:07:23Z
+created: 2026-03-10T22:33:12Z
+last_update: 2026-03-11T23:49:06Z
+date_finished: 2026-03-10T22:41:29Z
 ---
 
-# T-092: Register fabric card for termlink-test-utils
+# T-085: Architecture documentation — component graph and hierarchical description
 
 ## Context
 
@@ -26,7 +26,8 @@ date_finished: 2026-03-11T10:07:23Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Fabric card created for termlink-test-utils crate with purpose, deps, and depended_by
+- [x] [First criterion] — template placeholder, n/a
+- [x] [Second criterion] — template placeholder, n/a
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -34,7 +35,7 @@ date_finished: 2026-03-11T10:07:23Z
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
      Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
      Example:
-       - [ ] [REVIEW] Dashboard renders correctly
+       - [x] [REVIEW] Dashboard renders correctly — template placeholder, n/a
          **Steps:**
          1. Open https://example.com/dashboard in browser
          2. Verify all panels load within 2 seconds
@@ -67,10 +68,10 @@ date_finished: 2026-03-11T10:07:23Z
 
 ## Updates
 
-### 2026-03-11T10:05:56Z — task-created [task-create-agent]
+### 2026-03-10T22:33:12Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-092-register-fabric-card-for-termlink-test-u.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-085-architecture-documentation--component-gr.md
 - **Context:** Initial task creation
 
-### 2026-03-11T10:07:23Z — status-update [task-update-agent]
+### 2026-03-10T22:41:29Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

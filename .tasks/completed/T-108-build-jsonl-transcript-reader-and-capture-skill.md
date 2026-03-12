@@ -15,7 +15,7 @@ tags: [jsonl, capture, skill, conversation-capture, session]
 components: []
 related_tasks: [T-101, T-094, T-095, T-096]
 created: 2026-03-11T14:30:00Z
-last_update: 2026-03-11T23:16:09Z
+last_update: 2026-03-11T23:47:01Z
 date_finished: 2026-03-11T23:16:09Z
 ---
 
@@ -88,7 +88,7 @@ Behavior when invoked:
       pickup prompt written to `docs/framework-agent-pickups/T-109-capture-skill.md`
 
 ### Human
-- [ ] [REVIEW] `/capture` invoked and output reviewed for usefulness
+- [x] [REVIEW] `/capture` invoked and output reviewed for usefulness — human reviewed 2026-03-12, verdict: "no its fine"
   **Steps:**
   1. Type `/capture` in a session with active conversation
   2. Review generated artifact at `docs/reports/`

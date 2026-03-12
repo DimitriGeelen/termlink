@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-092: Register fabric card for termlink-test-utils
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-11T23:49:08Z
+# ============================================================================
+
+task_id: T-092
+task_name: "Register fabric card for termlink-test-utils"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-11T10:05:56Z
+completed: 2026-03-11T23:48:23Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-11T11:06:31+01:00
+last_commit: 2026-03-11T11:06:31+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Register fabric card for termlink-test-utils crate
+
+# Key outcomes
+outcomes:
+  - "Fabric card created for termlink-test-utils crate with purpose, deps, and depended_by"
+  - "[REVIEW] Dashboard renders correctly — template placeholder, n/a"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-test-utils-src-lib.yaml"
+  - ".tasks/active/T-092-register-fabric-card-for-termlink-test-u.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-11T11:06:31"
+    action: "T-092: Register fabric card for termlink-test-utils crate"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 98
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-092-register-fabric-card-for-termlink-test-u.md
+generated_by: context-agent-hybrid

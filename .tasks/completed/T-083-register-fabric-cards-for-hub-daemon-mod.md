@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T22:21:08Z
-last_update: 2026-03-10T22:22:04Z
+last_update: 2026-03-11T23:49:06Z
 date_finished: 2026-03-10T22:21:35Z
 ---
 
@@ -26,8 +26,8 @@ date_finished: 2026-03-10T22:21:35Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] [First criterion] — template placeholder, n/a
+- [x] [Second criterion] — template placeholder, n/a
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -35,7 +35,7 @@ date_finished: 2026-03-10T22:21:35Z
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
      Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
      Example:
-       - [ ] [REVIEW] Dashboard renders correctly
+       - [x] [REVIEW] Dashboard renders correctly — template placeholder, n/a
          **Steps:**
          1. Open https://example.com/dashboard in browser
          2. Verify all panels load within 2 seconds

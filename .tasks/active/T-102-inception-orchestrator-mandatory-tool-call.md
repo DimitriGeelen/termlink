@@ -9,7 +9,7 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: next
+horizon: later
 tags: [architecture, orchestrator, tool-call, exploration]
 components: []
 related_tasks: [T-094, T-099, T-100, T-101]

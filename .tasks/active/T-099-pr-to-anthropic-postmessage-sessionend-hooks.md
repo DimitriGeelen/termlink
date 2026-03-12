@@ -10,7 +10,7 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: next
+horizon: later
 tags: [anthropic, claude-code, hooks, framework, governance]
 components: []
 related_tasks: [T-094, T-095, T-096, T-100, T-101, T-102]

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-083: Register fabric cards for hub daemon modules
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-11T23:49:06Z
+# ============================================================================
+
+task_id: T-083
+task_name: "Register fabric cards for hub daemon modules"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T22:21:08Z
+completed: 2026-03-10T22:22:04Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T23:21:25+01:00
+last_commit: 2026-03-10T23:22:04+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Register fabric cards for hub pidfile and supervisor modules. Complete — fabric cards registered. Close G-004 — hub daemon with pidfile, graceful shutdown, supervision
+
+# Key outcomes
+outcomes:
+  - "[First criterion] — template placeholder, n/a"
+  - "[Second criterion] — template placeholder, n/a"
+  - "[REVIEW] Dashboard renders correctly — template placeholder, n/a"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/gaps.yaml"
+  - ".fabric/components/crates-termlink-hub-src-pidfile.yaml"
+  - ".fabric/components/crates-termlink-hub-src-supervisor.yaml"
+  - ".tasks/active/T-083-register-fabric-cards-for-hub-daemon-mod.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T23:21:25"
+    action: "T-083: Register fabric cards for hub pidfile and supervisor modules"
+  - time: "2026-03-10T23:21:41"
+    action: "T-083: Complete — fabric cards registered"
+  - time: "2026-03-10T23:22:04"
+    action: "T-083: Close G-004 — hub daemon with pidfile, graceful shutdown, supervision"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 4
+  lines_added: 130
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-083-register-fabric-cards-for-hub-daemon-mod.md
+generated_by: context-agent-hybrid

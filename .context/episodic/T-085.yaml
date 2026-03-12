@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-085: Architecture documentation — component graph and hierarchical description
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-11T23:49:07Z
+# ============================================================================
+
+task_id: T-085
+task_name: "Architecture documentation — component graph and hierarchical description"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-10T22:33:12Z
+completed: 2026-03-10T22:41:34Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-10T23:41:22+01:00
+last_commit: 2026-03-10T23:41:34+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Architecture documentation — component graph, hierarchy, security model, runtime layout. Complete — architecture documentation
+
+# Key outcomes
+outcomes:
+  - "[First criterion] — template placeholder, n/a"
+  - "[Second criterion] — template placeholder, n/a"
+  - "[REVIEW] Dashboard renders correctly — template placeholder, n/a"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-085-architecture-documentation--component-gr.md"
+  - "docs/ARCHITECTURE.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-10T23:41:22"
+    action: "T-085: Architecture documentation — component graph, hierarchy, security model, runtime layout"
+  - time: "2026-03-10T23:41:34"
+    action: "T-085: Complete — architecture documentation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 2
+  lines_added: 377
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-085-architecture-documentation--component-gr.md
+generated_by: context-agent-hybrid

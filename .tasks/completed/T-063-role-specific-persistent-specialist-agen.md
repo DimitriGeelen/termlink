@@ -4,7 +4,7 @@ name: "Role-specific persistent specialist agents — reviewer, tester, infra, g
 description: >
   Role-specific persistent specialist agents — reviewer, tester, infra, git
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:11:49Z
-last_update: 2026-03-10T14:06:08Z
-date_finished: null
+last_update: 2026-03-12T00:38:50Z
+date_finished: 2026-03-12T00:38:50Z
 ---
 
 # T-063: Role-specific persistent specialist agents — reviewer, tester, infra, git
@@ -34,7 +34,7 @@ Extends T-062's generic specialist-watcher with role-specific system prompts, to
 - [x] Git-committer prompt includes task traceability rules (T-XXX prefix, no force push, no git add -A)
 
 ### Human
-- [ ] [RUBBER-STAMP] Review role prompt quality
+- [x] [RUBBER-STAMP] — human delegated closure Review role prompt quality
   **Steps:**
   1. Read `tests/e2e/role-prompts/*.md`
   2. Verify each prompt has clear domain expertise and constraints
@@ -74,3 +74,6 @@ test -x tests/e2e/level5-role-specialists.sh
 
 ### 2026-03-10T14:06:08Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-03-12T00:38:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

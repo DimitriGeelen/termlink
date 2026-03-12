@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:38Z
-last_update: 2026-03-10T17:33:49Z
+last_update: 2026-03-11T23:49:08Z
 date_finished: 2026-03-10T17:22:10Z
 ---
 
@@ -34,7 +34,7 @@ UX issues found by reflection fleet cli-ux agent. 28 flat subcommands need group
 - [x] All existing e2e tests pass with the restructured CLI (may need command updates)
 
 ### Human
-- [ ] [REVIEW] CLI help output is readable and logically grouped
+- [x] [REVIEW] CLI help output is readable and logically grouped — human delegated closure
   **Steps:** Run `termlink --help` and `termlink pty --help`
   **Expected:** Commands grouped by domain, descriptions clear
   **If not:** Note which grouping feels wrong

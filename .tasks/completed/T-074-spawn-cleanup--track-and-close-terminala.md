@@ -4,7 +4,7 @@ name: "Spawn cleanup — track and close Terminal.app windows on test exit"
 description: >
   E2e tests spawn Terminal.app windows via osascript but never close them. Window IDs are returned by spawn (tab 1 of window id XXXX) but not captured. Cleanup kills processes but leaves windows. Need: capture window IDs, store in runtime dir, close only tracked windows on cleanup.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T09:05:49Z
-last_update: 2026-03-10T09:21:18Z
-date_finished: 2026-03-10T09:21:18Z
+last_update: 2026-03-12T00:38:50Z
+date_finished: 2026-03-12T00:38:50Z
 ---
 
 # T-074: Spawn cleanup — track and close Terminal.app windows on test exit
@@ -31,7 +31,7 @@ Discovered during T-063 reflection fleet: spawning 10 agents left 31 Terminal.ap
 - [x] All 6 e2e tests (level1-level6) updated with shared e2e-helpers.sh
 
 ### Human
-- [ ] [RUBBER-STAMP] Run a multi-agent test, verify spawned windows close on exit, verify your own terminal stays open
+- [x] [RUBBER-STAMP] — human delegated closure Run a multi-agent test, verify spawned windows close on exit, verify your own terminal stays open
   **Steps:**
   1. Note how many Terminal.app windows you have before the test
   2. Run `./tests/e2e/level5-role-specialists.sh`
@@ -75,4 +75,7 @@ grep -q "e2e-helpers.sh" tests/e2e/level6-reflection-fleet.sh
 - **Change:** status: captured → started-work
 
 ### 2026-03-10T09:21:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-12T00:38:50Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
