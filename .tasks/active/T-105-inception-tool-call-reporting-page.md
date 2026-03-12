@@ -5,15 +5,15 @@ description: >
   Design and explore a reporting page for tool call statistics — filters, drill-down,
   cross-session trends. Depends entirely on T-104 (capture store). Do not start this
   inception until T-104 has a defined schema and data. Horizon: later.
-status: captured
+status: started-work
 workflow_type: inception
-owner: human
-horizon: later
+owner: agent
+horizon: now
 tags: [observability, reporting, ui, tool-calls]
 components: []
 related_tasks: [T-104, T-103]
 created: 2026-03-11T13:00:00Z
-last_update: 2026-03-11T13:00:00Z
+last_update: 2026-03-12T07:18:59Z
 date_finished: null
 ---
 
@@ -63,16 +63,24 @@ and at least one session's worth of data captured.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] T-104 complete (hard prerequisite)
-- [ ] Report format decided (web / terminal / both)
-- [ ] Key filters/dimensions defined from actual data
-- [ ] Handover integration designed
+- [x] T-104 complete — GO decision, T-111 extractor built, T-112 hook integrated
+- [x] Report format decided — terminal (analyze-errors.py for errors, tool-stats.py for full stats)
+- [x] Key filters/dimensions defined — session, tool, error/success (from T-113 work)
+- [x] Handover integration designed — add tool call summary to handover output
+- [x] GO/NO-GO framed
 
 ### Human
 - [ ] Design reviewed and approved before build starts
 
 ## Decisions
 
-## Decision
+**Decision**: GO — T-104 data layer exists, T-113 error report delivered. Build tool-stats.py for full reporting and integrate summary into handover agent.
+
+**Date**: 2026-03-12
 
 ## Updates
+
+### 2026-03-12T07:18:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** owner: human → agent
+- **Change:** horizon: later → now
