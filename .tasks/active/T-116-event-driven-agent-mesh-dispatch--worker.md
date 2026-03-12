@@ -4,16 +4,16 @@ name: "Event-driven agent mesh dispatch — worker watches for tasks via TermLin
 description: >
   Event-driven agent mesh dispatch — worker watches for tasks via TermLink events
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [agent-mesh, events, dispatch]
 components: []
 related_tasks: [T-114]
 created: 2026-03-12T12:05:46Z
-last_update: 2026-03-12T12:05:46Z
-date_finished: null
+last_update: 2026-03-12T12:29:46Z
+date_finished: 2026-03-12T12:29:46Z
 ---
 
 # T-116: Event-driven agent mesh dispatch — worker watches for tasks via TermLink events
@@ -63,3 +63,6 @@ test -x agents/mesh/orchestrate.sh
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-116-event-driven-agent-mesh-dispatch--worker.md
 - **Context:** Initial task creation
+
+### 2026-03-12T12:29:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
