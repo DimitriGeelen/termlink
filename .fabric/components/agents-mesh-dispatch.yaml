@@ -1,0 +1,17 @@
+id: agents/mesh/dispatch.sh
+name: dispatch
+type: script
+subsystem: agent-mesh
+location: agents/mesh/dispatch.sh
+tags: [agent-mesh, orchestration, dispatch]
+
+purpose: "Automated task dispatch via TermLink agent mesh — ensures hub, spawns worker via termlink run + agent-wrapper.sh, collects result"
+
+depends_on:
+  - target: agents/mesh/agent-wrapper.sh
+    type: calls
+  - target: crates/termlink-cli/src/main.rs
+    type: calls
+
+last_verified: 2026-03-12
+created_by: T-114

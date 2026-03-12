@@ -1,0 +1,19 @@
+id: agents/mesh/agent-wrapper.sh
+name: agent-wrapper
+type: script
+subsystem: agent-mesh
+location: agents/mesh/agent-wrapper.sh
+tags: [agent-mesh, claude-code, wrapper]
+
+purpose: "Wrapper script that runs Claude Code as a TermLink agent — unsets CLAUDECODE env var, uses --print --no-session-persistence for non-interactive execution"
+
+depends_on:
+  - target: crates/termlink-cli/src/main.rs
+    type: called-by
+
+depended_by:
+  - target: agents/mesh/dispatch.sh
+    type: calls
+
+last_verified: 2026-03-12
+created_by: T-114
