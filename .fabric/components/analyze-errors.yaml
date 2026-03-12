@@ -1,0 +1,21 @@
+id: analyze-errors
+name: Error Analyzer
+type: agent-script
+subsystem: telemetry
+location: agents/telemetry/analyze-errors.py
+purpose: >
+  Analyze tool call errors from telemetry store, classify into named patterns,
+  and map frequency to escalation ladder levels (A→B→C→D). Outputs terminal
+  report with actionable recommendations or machine-readable JSON.
+interfaces:
+  - type: cli
+    commands: [--store, --session, --json]
+  - type: output
+    format: Terminal report or JSON
+depends_on:
+  - target: .context/telemetry/tool-calls.jsonl
+    type: reads
+depended_by: []
+tags: [telemetry, errors, escalation-ladder, antifragility, analysis]
+created: 2026-03-12
+task: T-113
