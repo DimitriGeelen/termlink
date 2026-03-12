@@ -15,7 +15,7 @@ tags: [framework-pr, fabric, llm-context]
 components: []
 related_tasks: [T-109, T-117]
 created: 2026-03-12T16:04:36Z
-last_update: 2026-03-12T16:04:36Z
+last_update: 2026-03-12T16:05:21Z
 date_finished: null
 ---
 
