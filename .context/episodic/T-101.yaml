@@ -1,0 +1,60 @@
+# ============================================================================
+# EPISODIC MEMORY - T-101: Inception — JSONL transcript reader for conversation capture
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-101
+task_name: "Inception — JSONL transcript reader for conversation capture"
+workflow_type: inception
+enrichment_status: auto-complete
+
+created: 2026-03-11T12:00:00Z
+completed: 2026-03-11T23:47:30Z
+duration_days: 0
+updates_count: 0
+
+summary: |
+  Explored using Claude Code's JSONL session transcript as a conversation capture source.
+  Confirmed the format mirrors the public Claude API message structure, is written in real-time,
+  and is complete. GO decision led to T-108 which built the JSONL reader and /capture skill.
+
+outcomes:
+  - "GO decision — JSONL transcript confirmed as viable capture source"
+  - "Spawned T-108 build task for JSONL reader + /capture skill"
+
+challenges: []
+
+decisions:
+  - "GO — JSONL format stable, cost negligible, data complete and live"
+
+artifacts:
+  - ".tasks/completed/T-101-inception-jsonl-transcript-reader-conv-capture.md"
+
+git_timeline:
+  - time: "2026-03-11 22:03:58 +0100"
+    action: "T-094: GO decision + 4 inception tasks for conversation capture options"
+  - time: "2026-03-11 23:24:48 +0100"
+    action: "T-101: GO decision — JSONL transcript reader for conversation capture"
+  - time: "2026-03-11 23:29:16 +0100"
+    action: "T-101: Spawn T-108 build task — JSONL reader + /capture skill"
+  - time: "2026-03-12 01:39:00 +0100"
+    action: "T-094: Batch close — T-101 completed"
+
+successes:
+  - "Discovered JSONL transcript already contains all conversation data needed for capture"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-108]
+
+tags: [jsonl, transcript, conversation-capture, exploration]
+
+metrics:
+  wall_clock_minutes: 0
+  commits: 4
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-101-inception-jsonl-transcript-reader-conv-capture.md
+generated_by: context-agent-manual

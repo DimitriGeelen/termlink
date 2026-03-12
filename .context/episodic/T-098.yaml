@@ -1,0 +1,55 @@
+# ============================================================================
+# EPISODIC MEMORY - T-098: OneDev issue + framework agent pickup prompt
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-098
+task_name: "OneDev issue + framework agent pickup prompt for /capture and Conversation Guard"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-11T11:30:00Z
+completed: 2026-03-12T00:38:12Z
+duration_days: 1
+updates_count: 0
+
+summary: |
+  Created a OneDev issue and framework agent pickup prompt to propagate the
+  Conversation Guard rule (T-095) and /capture skill (T-096) from the termlink
+  project into the framework's CLAUDE.md template and skills library. Ensures
+  all consumer projects benefit from the remediation.
+
+outcomes:
+  - "OneDev issue drafted with problem description, 5-agent findings, proposed rule text, and skill design"
+  - "Console prompt generated for framework agent pickup"
+  - "Human reviewed and pasted prompt to framework agent"
+
+challenges: []
+
+decisions: []
+
+artifacts:
+  - ".tasks/completed/T-098-onedev-issue-framework-agent-pr-capture-guard.md"
+
+git_timeline:
+  - time: "2026-03-12T01:39:00"
+    action: "T-094: Batch close — T-098 completed"
+
+successes:
+  - "Handoff to framework agent completed with structured prompt including all context"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [framework, onedev, handoff]
+
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-098-onedev-issue-framework-agent-pr-capture-guard.md
+generated_by: context-agent-manual

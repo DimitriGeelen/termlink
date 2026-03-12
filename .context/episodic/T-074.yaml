@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-074: Spawn cleanup — track and close Terminal.app windows
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-074
+task_name: "Spawn cleanup — track and close Terminal.app windows on test exit"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-10T09:05:49Z
+completed: 2026-03-12T00:38:50Z
+duration_days: 2
+updates_count: 0
+
+# Summary
+summary: |
+  Fixed e2e test cleanup to close only spawned Terminal.app windows instead of
+  all windows. Created shared e2e-helpers.sh with spawn_tracked and cleanup_all
+  functions that capture window IDs from termlink spawn output and store them
+  in $RUNTIME_DIR/window-ids.txt. Updated all 6 e2e test levels to use shared helpers.
+
+# Key outcomes
+outcomes:
+  - "Shared e2e-helpers.sh with window tracking (spawn_tracked, cleanup_all)"
+  - "Window IDs captured from termlink spawn output and stored for targeted cleanup"
+  - "All 6 e2e tests (level1-level6) updated to source shared helpers"
+  - "AppleScript cleanup closes only tracked windows, not user sessions"
+
+# Challenges
+challenges:
+  - "Terminal close dialog required 'saving no' to suppress confirmation prompts"
+  - "Process cleanup needed kill via TTY for clean shell exit"
+
+# Decisions
+decisions: []
+
+# Artifacts
+artifacts:
+  - ".tasks/completed/T-074-spawn-cleanup--track-and-close-terminala.md"
+  - "tests/e2e/e2e-helpers.sh"
+
+# Git timeline
+git_timeline:
+  - time: "2026-03-10T10:31:46"
+    action: "T-074: Fix Terminal close dialog — use 'saving no' to suppress confirmation"
+  - time: "2026-03-10T10:34:44"
+    action: "T-074: Kill process groups + longer wait before window close"
+  - time: "2026-03-10T12:16:41"
+    action: "T-074: Fix window cleanup — kill child procs via TTY, exit shell cleanly"
+
+# What worked well
+successes:
+  - "Shared helper pattern reduced duplication across all 6 e2e test files"
+  - "Targeted window cleanup prevents accidental closure of user terminal sessions"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [build, e2e-tests, cleanup, terminal, macos, applescript]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-074-spawn-cleanup--track-and-close-terminala.md
+generated_by: context-agent-manual

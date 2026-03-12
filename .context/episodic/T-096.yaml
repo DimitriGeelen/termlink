@@ -1,0 +1,62 @@
+# ============================================================================
+# EPISODIC MEMORY - T-096: Build /capture skill — emergency ejector seat
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-096
+task_name: "Build /capture skill — emergency ejector seat for untracked conversations"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-11T11:30:00Z
+completed: 2026-03-11T23:47:21Z
+duration_days: 0
+updates_count: 0
+
+summary: |
+  Created .claude/commands/capture.md — a skill that rescues untracked conversations
+  by writing a structured research artifact to disk and committing it. User provides
+  a summary interactively since Claude Code cannot access conversation history
+  programmatically. Implementation done under T-108 with JSONL transcript reader.
+
+outcomes:
+  - "/capture skill created at .claude/commands/capture.md"
+  - "Skill handles missing active task by prompting user to create one first"
+  - "Output follows C-001 structure with Topic, Insights, Options, Decisions, Open Questions, Dialogue Log"
+
+challenges: []
+
+decisions:
+  - context: "Conversation history access"
+    choice: "User-provided summary (interactive)"
+    rationale: "Claude Code hooks only fire on tool calls; conversation content is not accessible to skills or hooks"
+    rejected: "Automatic background capture — architecturally impossible per Agent 1 + 2 findings"
+
+artifacts:
+  - ".tasks/completed/T-096-build-capture-skill-emergency-ejector-seat.md"
+  - ".claude/commands/capture.md"
+
+git_timeline:
+  - time: "2026-03-11T23:33:54"
+    action: "T-108: JSONL transcript reader + /capture skill"
+  - time: "2026-03-12T01:39:00"
+    action: "T-094: Batch close — T-096 completed"
+
+successes:
+  - "Feasibility confirmed by T-094 Agent 4; skill built and manually tested"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-108]
+
+tags: [framework, skills, session-capture, tooling]
+
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-096-build-capture-skill-emergency-ejector-seat.md
+generated_by: context-agent-manual

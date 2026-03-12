@@ -1,0 +1,59 @@
+# ============================================================================
+# EPISODIC MEMORY - T-095: Exploratory Conversation Guard — add rule to CLAUDE.md
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-095
+task_name: "Exploratory Conversation Guard — add rule to CLAUDE.md"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-11T11:30:00Z
+completed: 2026-03-11T23:17:53Z
+duration_days: 0
+updates_count: 0
+
+summary: |
+  Added C-002 Exploratory Conversation Guard rule to CLAUDE.md's Inception Discipline
+  section. The rule requires the agent to stop after 3 substantive exchanges on an
+  untracked topic and create an inception task plus research artifact before continuing.
+  Closes the trigger gap where organic conversations bypassed all framework enforcement.
+
+outcomes:
+  - "C-002 rule added to CLAUDE.md Inception Discipline section"
+  - "Trigger condition (3+ exchanges), required actions, and dialogue log requirement codified"
+
+challenges: []
+
+decisions:
+  - context: "Rule placement in CLAUDE.md"
+    choice: "Add as C-002 in Inception Discipline section (after C-001)"
+    rationale: "Logically follows research artifact first — this is the trigger that makes C-001 relevant for organic conversations"
+    rejected: "New top-level section — would break existing structure"
+
+artifacts:
+  - ".tasks/completed/T-095-exploratory-conversation-guard-rule-claudemd.md"
+  - "CLAUDE.md"
+
+git_timeline:
+  - time: "2026-03-12T00:17:57"
+    action: "T-095: Add C-002 Exploratory Conversation Guard to CLAUDE.md"
+
+successes:
+  - "Rule integrated cleanly into existing Inception Discipline section without structural changes"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [framework, governance, claude-md, session-capture]
+
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-095-exploratory-conversation-guard-rule-claudemd.md
+generated_by: context-agent-manual

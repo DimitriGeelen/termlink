@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-094: Volatile conversation loss — prevention and remediation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-094
+task_name: "Volatile conversation loss — prevention and remediation"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-11T11:00:00Z
+completed: 2026-03-11T23:51:42Z
+duration_days: 0
+updates_count: 0
+
+# Summary
+summary: |
+  Inception task investigating volatile conversation loss after a full Agent Mesh
+  research session was permanently lost. Five parallel explore agents confirmed
+  structural gap: framework hooks only fire on tool use, not conversation length.
+  GO decision to implement remediations. Spawned T-095 through T-102 covering
+  CLAUDE.md rules (C-002), /capture skill, OneDev issue capture, and observability.
+
+# Key outcomes
+outcomes:
+  - "Root cause identified: hooks fire on PreToolUse/PostToolUse only, not on message generation"
+  - "Research artifact at docs/reports/T-094-volatile-conversation-prevention.md"
+  - "GO decision: implement structural remediations across multiple tasks"
+  - "Spawned 8 implementation tasks (T-095 through T-102)"
+  - "Exploratory Conversation Guard rule (C-002) designed for CLAUDE.md"
+
+# Challenges
+challenges:
+  - "Claude Code hook model fundamentally cannot trigger on conversation-only sessions"
+  - "Agent discipline alone proved insufficient as a reliability mechanism"
+
+# Decisions
+decisions:
+  - date: "2026-03-11"
+    topic: "GO decision"
+    chose: "GO — implement structural remediations (C-002 rule, /capture skill, framework PR)"
+    why: "5-agent investigation confirmed structural gap; multiple feasible remediation paths identified"
+    rejected: "Rely on agent discipline alone (proven unreliable)"
+
+# Artifacts
+artifacts:
+  - ".tasks/completed/T-094-volatile-conversation-loss-prevention-and-rem.md"
+  - "docs/reports/T-094-volatile-conversation-prevention.md"
+
+# Git timeline
+git_timeline:
+  - time: "2026-03-11T22:03:58"
+    action: "T-094: GO decision + 4 inception tasks for conversation capture options"
+  - time: "2026-03-11T22:51:47"
+    action: "T-094: Open T-103/T-104/T-105 — observability inception cluster"
+  - time: "2026-03-11T23:02:52"
+    action: "T-094: T-106 inception + build template PR nudge + pickup dir"
+
+# What worked well
+successes:
+  - "5 parallel explore agents provided comprehensive coverage of the structural gap"
+  - "Multi-layered remediation approach (rules + tooling + framework PR)"
+  - "Loss event itself became the evidence base for structural improvement"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-095, T-096, T-097, T-098, T-099, T-100, T-101, T-102]
+
+# Tags
+tags: [inception, governance, session-capture, antifragility, conversation-loss, C-002]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-094-volatile-conversation-loss-prevention-and-rem.md
+generated_by: context-agent-manual

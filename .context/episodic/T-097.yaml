@@ -1,0 +1,57 @@
+# ============================================================================
+# EPISODIC MEMORY - T-097: Register G-005 + update FP-004 patterns
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-097
+task_name: "Register G-005 conversation-only session loss + update FP-004"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-11T11:30:00Z
+completed: 2026-03-11T23:22:33Z
+duration_days: 0
+updates_count: 0
+
+summary: |
+  Registered G-005 in gaps.yaml for the structural gap where conversation-only sessions
+  bypass all framework enforcement. Updated FP-004 in patterns.yaml to explicitly name
+  the conversation-only sub-variant. Makes the problem visible in future audits and
+  watchtower scans.
+
+outcomes:
+  - "G-005 registered in .context/project/gaps.yaml"
+  - "FP-004 updated with conversation-only session sub-variant in .context/project/patterns.yaml"
+  - "G-005 references T-094 as discovery and T-095/T-096 as mitigation"
+
+challenges: []
+
+decisions: []
+
+artifacts:
+  - ".tasks/completed/T-097-register-gap-g005-update-fp004-patterns.md"
+  - ".context/project/gaps.yaml"
+  - ".context/project/patterns.yaml"
+
+git_timeline:
+  - time: "2026-03-12T00:22:33"
+    action: "T-097: Register G-005 gap + update FP-004 with conversation-only sub-variant"
+
+successes:
+  - "Gap and pattern registered in single commit, immediately visible to audit tooling"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [framework, governance, gaps, patterns]
+
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-097-register-gap-g005-update-fp004-patterns.md
+generated_by: context-agent-manual

@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-090: Command allowlist for executor — defense-in-depth
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-090
+task_name: "Command allowlist for executor — defense-in-depth for G-001"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-11T09:00:42Z
+completed: 2026-03-11T23:44:27Z
+duration_days: 0
+updates_count: 0
+
+# Summary
+summary: |
+  Added optional command allowlist to the executor as defense-in-depth for G-001
+  (command injection via sh -c). Registration now supports allowed_commands field,
+  executor validates commands against prefix patterns, and CLI register accepts
+  --allowed-commands flag. Closes G-001 in gaps.yaml.
+
+# Key outcomes
+outcomes:
+  - "Registration struct extended with optional allowed_commands: Vec<String>"
+  - "Executor validates commands against prefix-based allowlist patterns"
+  - "CLI register command supports --allowed-commands flag"
+  - "G-001 closed in gaps.yaml with resolution details"
+  - "Architecture docs updated to reflect 4-phase security model with 218 tests"
+
+# Challenges
+challenges:
+  # None
+
+# Decisions
+decisions: []
+
+# Artifacts
+artifacts:
+  - ".tasks/completed/T-090-command-allowlist-for-executor--defense-.md"
+
+# Git timeline
+git_timeline:
+  - time: "2026-03-11T10:09:03"
+    action: "T-090: Command allowlist for executor — defense-in-depth, closes G-001"
+  - time: "2026-03-11T10:19:54"
+    action: "T-090: Update architecture docs — 218 tests, 4-phase security model"
+
+# What worked well
+successes:
+  - "Backward-compatible design — absent allowlist allows all commands (no breaking change)"
+  - "Prefix-pattern matching provides flexible yet secure allowlist semantics"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [build, security, executor, defense-in-depth, G-001]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-090-command-allowlist-for-executor--defense-.md
+generated_by: context-agent-manual

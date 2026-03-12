@@ -1,0 +1,70 @@
+# ============================================================================
+# EPISODIC MEMORY - T-091: Close G-003 — watcher exit-code handling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-091
+task_name: "Close G-003 — watcher exit-code handling already implemented"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-11T09:48:33Z
+completed: 2026-03-11T23:44:32Z
+duration_days: 0
+updates_count: 0
+
+# Summary
+summary: |
+  Closed G-003 after investigation showed that both specialist-watcher.sh and
+  role-watcher.sh already have exit-code-aware dispatch logic (CLAUDE_EXIT
+  capture + conditional task.failed emit). The gap trigger check was a false
+  positive due to coarse grep matching the string "task.completed" inside
+  conditional blocks. Updated gaps.yaml with resolution details.
+
+# Key outcomes
+outcomes:
+  - "Confirmed both watchers already have exit-code-aware dispatch (CLAUDE_EXIT + task.failed)"
+  - "G-003 closed in gaps.yaml — false positive from coarse grep trigger"
+  - "Gap trigger check updated to reflect conditional logic"
+
+# Challenges
+challenges:
+  # None — investigation confirmed the gap was already resolved
+
+# Decisions
+decisions: []
+
+# Artifacts
+artifacts:
+  - ".tasks/completed/T-091-close-g-003--watcher-exit-code-handling-.md"
+
+# Git timeline
+git_timeline:
+  - time: "2026-03-11T10:49:23"
+    action: "T-091: Close G-003 — watcher exit-code handling already implemented"
+
+# What worked well
+successes:
+  - "Investigation-first approach avoided unnecessary code changes"
+  - "Identified coarse grep as root cause of false positive gap detection"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [build, gap-closure, G-003, watcher, false-positive]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-091-close-g-003--watcher-exit-code-handling-.md
+generated_by: context-agent-manual

@@ -1,0 +1,58 @@
+# ============================================================================
+# EPISODIC MEMORY - T-107: Inception — Sub-agent transcript persistence
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-107
+task_name: "Inception — Sub-agent transcript persistence"
+workflow_type: inception
+enrichment_status: auto-complete
+
+created: 2026-03-11T14:00:00Z
+completed: 2026-03-11T23:31:48Z
+duration_days: 0
+updates_count: 0
+
+summary: |
+  Investigated whether sub-agent transcripts (written to /tmp with isSidechain: true) are
+  ephemeral and need archiving. Deep-dive revealed that /tmp/claude-501/ is actually a symlink
+  to ~/.claude/, meaning transcripts are already durably persisted. The original problem does
+  not exist. However, discovered unbounded growth (~65 MB/day) which spawned T-110 for
+  retention policy.
+
+outcomes:
+  - "NO-GO — sub-agent transcripts already persisted at ~/.claude/ (not ephemeral)"
+  - "Spawned T-110 for transcript retention policy to address unbounded growth"
+
+challenges: []
+
+decisions:
+  - "NO-GO — ephemerality problem already solved by Claude Code's native persistence"
+
+artifacts:
+  - ".tasks/completed/T-107-inception-sub-agent-transcript-persistence.md"
+
+git_timeline:
+  - time: "2026-03-12 00:27:17 +0100"
+    action: "T-107: Research artifact — NO-GO, already solved"
+  - time: "2026-03-12 00:32:10 +0100"
+    action: "T-107: NO-GO — ephemerality solved, T-110 created for retention policy"
+
+successes:
+  - "Discovered /tmp symlink to ~/.claude/ — avoided building unnecessary archival infrastructure"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-110]
+
+tags: [sub-agents, transcript, persistence, ephemeral, sidechain]
+
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-107-inception-sub-agent-transcript-persistence.md
+generated_by: context-agent-manual

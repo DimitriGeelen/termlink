@@ -1,0 +1,56 @@
+# ============================================================================
+# EPISODIC MEMORY - T-110: Transcript retention policy — fw transcripts clean
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-110
+task_name: "Transcript retention policy — fw transcripts clean command"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-12T00:00:00Z
+completed: 2026-03-11T23:40:10Z
+duration_days: 0
+updates_count: 0
+
+summary: |
+  Built the fw transcripts clean command to manage unbounded growth of Claude Code session
+  transcripts (~65 MB/day, 261 MB after 4 days). Implemented 30-day default TTL with
+  --older-than, --dry-run, and size reporting. Current session is protected from deletion.
+
+outcomes:
+  - "fw transcripts clean command implemented at agents/transcripts/transcripts.sh"
+  - "fw transcripts size command shows current usage breakdown"
+
+challenges: []
+
+decisions: []
+
+artifacts:
+  - ".tasks/completed/T-110-transcript-retention-policy-and-cleanup.md"
+  - "agents/transcripts/transcripts.sh"
+
+git_timeline:
+  - time: "2026-03-12 00:32:10 +0100"
+    action: "T-107: NO-GO — ephemerality solved, T-110 created for retention policy"
+  - time: "2026-03-12 00:40:17 +0100"
+    action: "T-110: Transcript retention agent — size + clean commands with dry-run"
+
+successes:
+  - "Clean command with dry-run safety and current-session protection"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [transcripts, retention, cleanup, storage, maintenance]
+
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-110-transcript-retention-policy-and-cleanup.md
+generated_by: context-agent-manual

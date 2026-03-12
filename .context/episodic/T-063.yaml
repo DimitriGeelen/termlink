@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-063: Role-specific persistent specialist agents
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-063
+task_name: "Role-specific persistent specialist agents — reviewer, tester, infra, git"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-10T08:11:49Z
+completed: 2026-03-12T00:38:50Z
+duration_days: 2
+updates_count: 0
+
+# Summary
+summary: |
+  Extended T-062's generic specialist-watcher with role-specific system prompts
+  for reviewer, tester, documenter, git-committer, and infrastructure roles.
+  Created role-aware watcher script and Level 5 e2e test for role-tagged events.
+  Also triggered a 10-agent reflection fleet that spawned governance backlog T-064 through T-073.
+
+# Key outcomes
+outcomes:
+  - "Role-specific system prompts created for 5 roles (reviewer, tester, documenter, git-committer, infrastructure)"
+  - "Role-aware watcher (role-watcher.sh) loads role prompts with role-appropriate tools"
+  - "Level 5 e2e test for role-aware specialists passing"
+  - "10-agent reflection fleet spawned governance backlog (T-064 through T-073)"
+  - "4 gaps registered — 2 critical (security), 2 high (reliability)"
+
+# Challenges
+challenges:
+  # None
+
+# Decisions
+decisions: []
+
+# Artifacts
+artifacts:
+  - ".tasks/completed/T-063-role-specific-persistent-specialist-agen.md"
+  - "tests/e2e/role-prompts/reviewer.md"
+  - "tests/e2e/role-prompts/tester.md"
+  - "tests/e2e/role-prompts/documenter.md"
+  - "tests/e2e/role-prompts/git-committer.md"
+  - "tests/e2e/role-prompts/infrastructure.md"
+  - "tests/e2e/role-watcher.sh"
+  - "tests/e2e/level5-role-specialists.sh"
+
+# Git timeline
+git_timeline:
+  - time: "2026-03-10T09:45:31"
+    action: "T-063: 10-agent reflection fleet + governance backlog (T-064 through T-073)"
+  - time: "2026-03-10T09:54:05"
+    action: "T-063: Link research to tasks — governance traceability complete"
+  - time: "2026-03-10T09:57:09"
+    action: "T-063: Register 4 gaps — 2 critical (security), 2 high (reliability)"
+
+# What worked well
+successes:
+  - "Reflection fleet approach surfaced 10 governance issues systematically"
+  - "Role prompts enriched with framework conventions for task refs and output structure"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-064, T-065, T-066, T-067, T-068, T-069, T-070, T-071, T-072, T-073]
+
+# Tags
+tags: [build, multi-agent, role-prompts, e2e-tests, specialist-agents]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-063-role-specific-persistent-specialist-agen.md
+generated_by: context-agent-manual
