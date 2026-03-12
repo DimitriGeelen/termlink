@@ -5,7 +5,7 @@ description: >
   Create a framework PR in OneDev to contribute the /capture skill and JSONL
   transcript reader to the agentic-engineering-framework. Includes research
   artifact, OneDev PR, and pickup prompt for the framework agent.
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: later
@@ -13,7 +13,7 @@ tags: [capture, framework-pr, skill, conversation-capture]
 components: []
 related_tasks: [T-108, T-106]
 created: 2026-03-12T00:00:00Z
-last_update: 2026-03-12T00:00:00Z
+last_update: 2026-03-12T16:10:54Z
 date_finished: null
 ---
 
@@ -58,3 +58,6 @@ a OneDev PR, following the framework PR handoff pattern established in T-106.
 
 test -f docs/reports/T-109-capture-skill-framework-pr.md
 test -f docs/framework-agent-pickups/T-109-capture-skill.md
+
+### 2026-03-12T16:10:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
