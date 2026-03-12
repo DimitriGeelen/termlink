@@ -16,9 +16,25 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TERMLINK="$PROJECT_ROOT/target/debug/termlink"
+
+# Resolve binaries portably
+if [ -n "${TERMLINK_BIN:-}" ]; then
+    TERMLINK="$TERMLINK_BIN"
+else
+    TERMLINK="$PROJECT_ROOT/target/debug/termlink"
+fi
+if [ -n "${CARGO_BIN:-}" ]; then
+    CARGO="$CARGO_BIN"
+elif command -v cargo >/dev/null 2>&1; then
+    CARGO="$(command -v cargo)"
+elif [ -x "$HOME/.cargo/bin/cargo" ]; then
+    CARGO="$HOME/.cargo/bin/cargo"
+else
+    echo "ERROR: cargo not found." >&2; exit 1
+fi
+
 RUNTIME_DIR=$(mktemp -d)
 PIDS_FILE="$RUNTIME_DIR/pids.txt"
 touch "$PIDS_FILE"
@@ -49,7 +65,7 @@ echo ""
 
 # Build
 echo "--- Build ---"
-(cd "$PROJECT_ROOT" && /Users/dimidev32/.cargo/bin/cargo build -p termlink 2>&1 | tail -1)
+(cd "$PROJECT_ROOT" && "$CARGO" build -p termlink 2>&1 | tail -1)
 echo ""
 
 tl() {

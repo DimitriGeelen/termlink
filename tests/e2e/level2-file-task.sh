@@ -11,11 +11,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TERMLINK="$PROJECT_ROOT/target/debug/termlink"
-CLAUDE="/Users/dimidev32/.local/bin/claude"
-RUNTIME_DIR=$(mktemp -d)
+source "$(dirname "$0")/setup.sh"
+
 PROMPT_FILE="$RUNTIME_DIR/specialist-prompt.txt"
 SUMMARY_FILE="$RUNTIME_DIR/summary.md"
 RESULT_MARKER="$RUNTIME_DIR/task-done.txt"
@@ -23,36 +20,13 @@ RESULT_MARKER="$RUNTIME_DIR/task-done.txt"
 # The file the specialist will summarize
 TARGET_FILE="$PROJECT_ROOT/crates/termlink-protocol/src/lib.rs"
 
-source "$SCRIPT_DIR/e2e-helpers.sh"
-trap cleanup_all EXIT
-
 echo "=== Level 2: File Task ==="
 echo "Runtime: $RUNTIME_DIR"
 echo "Target:  $TARGET_FILE"
 echo ""
 
-# Step 1: Build
-echo "--- Step 1: Build ---"
-(cd "$PROJECT_ROOT" && /Users/dimidev32/.cargo/bin/cargo build -p termlink 2>&1 | tail -1)
-echo ""
-
-# Step 2: Register orchestrator
-echo "--- Step 2: Register orchestrator ---"
-TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" register \
-    --name orchestrator --roles orchestrator &
-ORCH_PID=$!
-
-for i in $(seq 1 10); do
-    if ls "$RUNTIME_DIR/sessions/"*.sock >/dev/null 2>&1; then break; fi
-    sleep 1
-done
-
-if TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" ping orchestrator 2>/dev/null; then
-    echo "Orchestrator OK"
-else
-    echo "FAIL: Orchestrator not registered"; exit 1
-fi
-echo ""
+build_termlink
+register_orchestrator
 
 # Step 3: Write specialist prompt
 cat > "$PROMPT_FILE" <<PROMPT

@@ -7,36 +7,18 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TERMLINK="$PROJECT_ROOT/target/debug/termlink"
-CLAUDE="/Users/dimidev32/.local/bin/claude"
+source "$(dirname "$0")/setup.sh"
+
 WATCHER="$SCRIPT_DIR/specialist-watcher.sh"
-RUNTIME_DIR=$(mktemp -d)
 TASK1_RESULT="$RUNTIME_DIR/task1-result.md"
 TASK2_RESULT="$RUNTIME_DIR/task2-result.md"
-
-source "$SCRIPT_DIR/e2e-helpers.sh"
-trap cleanup_all EXIT
 
 echo "=== Level 3: Persistent Agent ==="
 echo "Runtime: $RUNTIME_DIR"
 echo ""
 
-# Build
-echo "--- Build ---"
-(cd "$PROJECT_ROOT" && /Users/dimidev32/.cargo/bin/cargo build -p termlink 2>&1 | tail -1)
-echo ""
-
-# Register orchestrator
-echo "--- Register orchestrator ---"
-TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" register --name orchestrator --roles orchestrator &
-ORCH_PID=$!
-for i in $(seq 1 10); do
-    if ls "$RUNTIME_DIR/sessions/"*.sock >/dev/null 2>&1; then break; fi; sleep 1
-done
-TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" "$TERMLINK" ping orchestrator 2>/dev/null && echo "Orchestrator OK" || { echo "FAIL"; exit 1; }
-echo ""
+build_termlink
+register_orchestrator
 
 # Spawn persistent specialist
 echo "--- Spawn persistent specialist ---"
