@@ -6,15 +6,15 @@ description: >
   and whether it errored, across all sessions. Store the raw data without pre-optimizing
   for reporting. When the data exists, insights and reporting (T-105) can be derived
   from it. Principle: capture is permanent, reporting is iterative. Explore only.
-status: captured
+status: started-work
 workflow_type: inception
-owner: human
-horizon: later
+owner: agent
+horizon: now
 tags: [observability, tool-calls, data-capture, cross-session, jsonl]
 components: []
 related_tasks: [T-094, T-101, T-103, T-105]
 created: 2026-03-11T13:00:00Z
-last_update: 2026-03-11T13:00:00Z
+last_update: 2026-03-12T06:10:01Z
 date_finished: null
 ---
 
@@ -95,17 +95,33 @@ From the JSONL transcript, each tool call event contains:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Storage format decided (JSONL / SQLite / other) with rationale
-- [ ] Schema defined: what fields are captured per tool call
-- [ ] Volume estimate confirmed against actual session data
-- [ ] Capture timing decided (PreCompact / PostToolUse / hybrid)
-- [ ] GO/NO-GO framed
+- [x] Storage format decided (JSONL / SQLite / other) with rationale
+- [x] Schema defined: what fields are captured per tool call
+- [x] Volume estimate confirmed against actual session data
+- [x] Capture timing decided (PreCompact / PostToolUse / hybrid)
+- [x] GO/NO-GO framed
 
 ### Human
 - [ ] Approach reviewed and direction decided
 
 ## Decisions
 
-## Decision
+**Decision**: GO
+
+**Rationale**: Schema confirmed via JSONL investigation. Bounded build (1 Python extractor + 1 hook). Unblocks T-103 + T-105. ~350 bytes/record, 30 MB/month.
+
+**Date**: 2026-03-12T06:06:50Z
 
 ## Updates
+
+### 2026-03-12T05:56:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now
+
+### 2026-03-12T06:06:50Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Schema confirmed via JSONL investigation. Bounded build (1 Python extractor + 1 hook). Unblocks T-103 + T-105. ~350 bytes/record, 30 MB/month.
+
+### 2026-03-12T06:10:01Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
