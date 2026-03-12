@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:51Z
-last_update: 2026-03-10T08:44:51Z
+last_update: 2026-03-12T19:02:56Z
 date_finished: null
 ---
 
@@ -92,3 +92,6 @@ Architectural coupling found by reflection fleet architecture agent. Session cra
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-12T19:02:56Z — status-update [task-update-agent]
+- **Change:** horizon: later → now

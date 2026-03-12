@@ -4,15 +4,15 @@ name: "IT-005: Concurrency, ordering, and backpressure"
 description: >
   Multiple senders, message ordering, queue management, typing races
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:43Z
-last_update: 2026-03-08T14:19:43Z
+last_update: 2026-03-12T19:02:57Z
 date_finished: null
 ---
 
@@ -90,3 +90,9 @@ TermLink's event system uses polling with cursor-based pagination. Under multi-a
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-12T18:58:11Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-12T19:02:57Z — status-update [task-update-agent]
+- **Change:** horizon: later → now

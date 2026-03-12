@@ -5,16 +5,16 @@ description: >
   Agent mesh workers (claude --print via agent-wrapper.sh) are blocked by the
   PreToolUse task gate (check-active-task.sh) because no task is focused in
   their session. Workers need an ungated write path or task-aware dispatch.
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [agent-mesh, enforcement, bug]
 components: []
 related_tasks: [T-114, T-116]
 created: 2026-03-12T19:00:39Z
-last_update: 2026-03-12T19:36:26Z
-date_finished: null
+last_update: 2026-03-12T19:38:15Z
+date_finished: 2026-03-12T19:38:15Z
 ---
 
 # T-119: Agent mesh task gate bypass — workers blocked by check-active-task.sh
@@ -100,3 +100,6 @@ reports. 2/4 fell back to inline output; 2/4 returned nothing useful.
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-12T19:38:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

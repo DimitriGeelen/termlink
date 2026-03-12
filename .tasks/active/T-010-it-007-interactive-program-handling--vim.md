@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:48Z
-last_update: 2026-03-08T14:19:48Z
+last_update: 2026-03-12T19:02:58Z
 date_finished: null
 ---
 
@@ -90,3 +90,6 @@ TermLink controls terminal sessions via PTY — but interactive programs (vim, P
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-12T19:02:58Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
