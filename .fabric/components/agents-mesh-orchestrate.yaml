@@ -1,0 +1,17 @@
+id: agents/mesh/orchestrate.sh
+name: mesh-orchestrate
+type: script
+subsystem: agent-mesh
+location: agents/mesh/orchestrate.sh
+tags: [agent-mesh, orchestrator, events, dispatch]
+
+purpose: "TermLink orchestrator — discovers worker by role, emits task.dispatch event, waits for task.result reply via termlink wait"
+
+depends_on:
+  - target: agents/mesh/worker.sh
+    type: dispatches-to
+  - target: crates/termlink-cli/src/main.rs
+    type: calls
+
+last_verified: 2026-03-12
+created_by: T-116

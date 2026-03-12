@@ -1,0 +1,19 @@
+id: agents/mesh/worker.sh
+name: mesh-worker
+type: script
+subsystem: agent-mesh
+location: agents/mesh/worker.sh
+tags: [agent-mesh, worker, events, long-running]
+
+purpose: "Long-running TermLink worker — registers as session, watches for task.dispatch events, executes via agent-wrapper.sh, emits task.result back to orchestrator"
+
+depends_on:
+  - target: agents/mesh/agent-wrapper.sh
+    type: calls
+
+depended_by:
+  - target: agents/mesh/orchestrate.sh
+    type: dispatches-to
+
+last_verified: 2026-03-12
+created_by: T-116
