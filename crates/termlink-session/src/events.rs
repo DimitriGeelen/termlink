@@ -24,6 +24,17 @@ pub struct Event {
     pub timestamp: u64,
 }
 
+/// Result of polling the event bus.
+pub struct PollResult<'a> {
+    /// Events matching the poll criteria.
+    pub events: Vec<&'a Event>,
+    /// True if events were lost due to ring buffer overflow between the
+    /// caller's cursor and the oldest event still in the buffer.
+    pub gap_detected: bool,
+    /// Number of events that were lost (0 if no gap).
+    pub events_lost: u64,
+}
+
 /// Ring buffer event bus with sequence tracking.
 pub struct EventBus {
     events: VecDeque<Event>,
@@ -81,21 +92,46 @@ impl EventBus {
         self.events.iter().filter(|e| e.topic == topic).collect()
     }
 
+    /// The sequence number of the oldest event still in the buffer,
+    /// or `None` if the buffer is empty.
+    pub fn oldest_seq(&self) -> Option<u64> {
+        self.events.front().map(|e| e.seq)
+    }
+
     /// Poll events since a given sequence number (exclusive).
-    /// Returns events with seq > since_seq.
-    pub fn poll(&self, since_seq: u64) -> Vec<&Event> {
-        self.events
+    /// Returns events with seq > since_seq, plus gap detection.
+    pub fn poll(&self, since_seq: u64) -> PollResult<'_> {
+        let (gap_detected, events_lost) = self.detect_gap(since_seq);
+        let events = self.events
             .iter()
             .filter(|e| e.seq > since_seq)
-            .collect()
+            .collect();
+        PollResult { events, gap_detected, events_lost }
     }
 
     /// Poll events by topic since a given sequence number.
-    pub fn poll_topic(&self, topic: &str, since_seq: u64) -> Vec<&Event> {
-        self.events
+    pub fn poll_topic(&self, topic: &str, since_seq: u64) -> PollResult<'_> {
+        let (gap_detected, events_lost) = self.detect_gap(since_seq);
+        let events = self.events
             .iter()
             .filter(|e| e.seq > since_seq && e.topic == topic)
-            .collect()
+            .collect();
+        PollResult { events, gap_detected, events_lost }
+    }
+
+    /// Check if a cursor falls before the oldest event in the buffer,
+    /// indicating that events have been lost to ring buffer overflow.
+    fn detect_gap(&self, since_seq: u64) -> (bool, u64) {
+        if let Some(oldest) = self.oldest_seq() {
+            // If since_seq + 1 < oldest, events between since_seq and oldest were evicted.
+            // since_seq is exclusive (we want events > since_seq), so the first expected
+            // event is since_seq + 1. If oldest > since_seq + 1, we have a gap.
+            if since_seq < u64::MAX && oldest > since_seq + 1 {
+                let lost = oldest - (since_seq + 1);
+                return (true, lost);
+            }
+        }
+        (false, 0)
     }
 
     /// List distinct topics that have events in the buffer.
@@ -153,18 +189,15 @@ mod tests {
         assert_eq!(bus.len(), 2);
 
         // Poll all (since_seq 0 is exclusive, so we need a sentinel)
-        let all = bus.poll(u64::MAX); // nothing above MAX
-        assert!(all.is_empty());
+        let result = bus.poll(u64::MAX); // nothing above MAX
+        assert!(result.events.is_empty());
+        assert!(!result.gap_detected);
 
         // Poll since before first event
-        let events = bus.poll(0); // events with seq > 0
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].topic, "test.pass");
-
-        // Poll all events (since before any)
-        // We use a trick: since_seq is exclusive, seq > since_seq
-        // To get all, we can't use 0 since seq 0 won't be included
-        // So we need to handle this edge case
+        let result = bus.poll(0); // events with seq > 0
+        assert_eq!(result.events.len(), 1);
+        assert_eq!(result.events[0].topic, "test.pass");
+        assert!(!result.gap_detected);
     }
 
     #[test]
@@ -175,19 +208,19 @@ mod tests {
         bus.emit("c", json!(3));
 
         // Since 0: events with seq > 0 → [1, 2]
-        let events = bus.poll(0);
-        assert_eq!(events.len(), 2);
-        assert_eq!(events[0].topic, "b");
-        assert_eq!(events[1].topic, "c");
+        let result = bus.poll(0);
+        assert_eq!(result.events.len(), 2);
+        assert_eq!(result.events[0].topic, "b");
+        assert_eq!(result.events[1].topic, "c");
 
         // Since 1: events with seq > 1 → [2]
-        let events = bus.poll(1);
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].topic, "c");
+        let result = bus.poll(1);
+        assert_eq!(result.events.len(), 1);
+        assert_eq!(result.events[0].topic, "c");
 
         // Since 2: no new events
-        let events = bus.poll(2);
-        assert!(events.is_empty());
+        let result = bus.poll(2);
+        assert!(result.events.is_empty());
     }
 
     #[test]
@@ -198,9 +231,10 @@ mod tests {
         bus.emit("build.done", json!({}));
         bus.emit("test.fail", json!({}));
 
-        let build_events = bus.poll_topic("build.done", 0);
-        assert_eq!(build_events.len(), 1);
-        assert_eq!(build_events[0].seq, 2);
+        let result = bus.poll_topic("build.done", 0);
+        assert_eq!(result.events.len(), 1);
+        assert_eq!(result.events[0].seq, 2);
+        assert!(!result.gap_detected);
     }
 
     #[test]
@@ -223,6 +257,65 @@ mod tests {
     }
 
     #[test]
+    fn gap_detection_on_overflow() {
+        let mut bus = EventBus::with_capacity(3);
+
+        // Fill and overflow: seqs 0,1,2,3,4 — buffer holds [2,3,4]
+        for i in 0..5 {
+            bus.emit(&format!("e{i}"), json!(i));
+        }
+
+        assert_eq!(bus.oldest_seq(), Some(2));
+
+        // Polling with cursor 0 should detect gap (events 1 lost)
+        let result = bus.poll(0);
+        assert!(result.gap_detected);
+        assert_eq!(result.events_lost, 1); // seq 1 was lost (seq 0 not included since exclusive)
+        assert_eq!(result.events.len(), 3); // seqs 2,3,4
+
+        // Polling with cursor 1 should also detect gap (seq 2 is oldest, expected seq 2)
+        let result = bus.poll(1);
+        assert!(!result.gap_detected); // oldest is 2, since+1 is 2, no gap
+        assert_eq!(result.events.len(), 3);
+
+        // Polling with cursor 2 should not detect gap
+        let result = bus.poll(2);
+        assert!(!result.gap_detected);
+        assert_eq!(result.events.len(), 2); // seqs 3,4
+    }
+
+    #[test]
+    fn gap_detection_topic_poll() {
+        let mut bus = EventBus::with_capacity(2);
+
+        bus.emit("a", json!(0)); // seq 0
+        bus.emit("b", json!(1)); // seq 1
+        bus.emit("a", json!(2)); // seq 2, evicts seq 0
+
+        // Polling topic "a" with cursor 0 should detect gap
+        // oldest is seq 1, since_seq+1 = 1, no gap actually (1 >= 1)
+        // Wait — seq 0 was evicted, oldest is 1, cursor 0 → since+1=1, oldest=1, no gap
+        let result = bus.poll_topic("a", 0);
+        assert!(!result.gap_detected);
+
+        // Add more to create actual gap
+        bus.emit("c", json!(3)); // seq 3, evicts seq 1
+
+        // Now oldest is seq 2, cursor 0 → since+1=1, oldest=2, gap of 1
+        let result = bus.poll_topic("a", 0);
+        assert!(result.gap_detected);
+        assert_eq!(result.events_lost, 1);
+    }
+
+    #[test]
+    fn no_gap_on_empty_bus() {
+        let bus = EventBus::new();
+        let result = bus.poll(0);
+        assert!(!result.gap_detected);
+        assert!(result.events.is_empty());
+    }
+
+    #[test]
     fn topics_returns_distinct() {
         let mut bus = EventBus::new();
         bus.emit("build.start", json!({}));
@@ -241,6 +334,6 @@ mod tests {
         assert_eq!(bus.len(), 0);
         assert_eq!(bus.next_seq(), 0);
         assert!(bus.topics().is_empty());
-        assert!(bus.poll(0).is_empty());
+        assert!(bus.poll(0).events.is_empty());
     }
 }

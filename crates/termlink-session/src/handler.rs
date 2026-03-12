@@ -566,17 +566,21 @@ async fn handle_event_poll(
     // Use a sentinel below any valid seq to mean "all events"
     let since_seq = since_param.unwrap_or(u64::MAX);
 
-    let events: Vec<&crate::events::Event> = if since_seq == u64::MAX {
+    let (events, gap_detected, events_lost) = if since_seq == u64::MAX {
         // No since param — return everything, optionally filtered by topic
-        if let Some(topic) = topic_filter {
+        let events = if let Some(topic) = topic_filter {
             bus.all_by_topic(topic)
         } else {
             bus.all()
-        }
-    } else if let Some(topic) = topic_filter {
-        bus.poll_topic(topic, since_seq)
+        };
+        (events, false, 0u64)
     } else {
-        bus.poll(since_seq)
+        let result = if let Some(topic) = topic_filter {
+            bus.poll_topic(topic, since_seq)
+        } else {
+            bus.poll(since_seq)
+        };
+        (result.events, result.gap_detected, result.events_lost)
     };
 
     let events_json: Vec<serde_json::Value> = events
@@ -591,15 +595,18 @@ async fn handle_event_poll(
         })
         .collect();
 
-    Response::success(
-        id,
-        json!({
-            "events": events_json,
-            "count": events_json.len(),
-            "next_seq": bus.next_seq(),
-        }),
-    )
-    .into()
+    let mut result = json!({
+        "events": events_json,
+        "count": events_json.len(),
+        "next_seq": bus.next_seq(),
+    });
+
+    if gap_detected {
+        result["gap_detected"] = json!(true);
+        result["events_lost"] = json!(events_lost);
+    }
+
+    Response::success(id, result).into()
 }
 
 async fn handle_event_topics(
@@ -1377,6 +1384,147 @@ mod tests {
             assert_eq!(r.result["count"], 1);
         } else {
             panic!("Expected success for kv.list");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_poll_gap_detection() {
+        // Use a small-capacity event bus to trigger overflow
+        let reg = test_registration();
+        let ctx = SessionContext {
+            registration: reg,
+            registration_path: None,
+            scrollback: None,
+            pty: None,
+            events: Arc::new(Mutex::new(crate::events::EventBus::with_capacity(3))),
+            kv: HashMap::new(),
+        };
+
+        // Emit 5 events (buffer capacity 3 → seqs 0,1 evicted, buffer holds 2,3,4)
+        for i in 0..5 {
+            let req = Request::new(
+                "event.emit",
+                json!("ge"),
+                json!({"topic": format!("e{i}"), "payload": {}}),
+            );
+            dispatch(&req, &ctx).await.unwrap();
+        }
+
+        // Poll with since=0 → should detect gap (events at seq 1 lost)
+        let req = Request::new("event.poll", json!("gp-1"), json!({"since": 0}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert!(resp.result["gap_detected"].as_bool().unwrap());
+            assert_eq!(resp.result["events_lost"], 1);
+            assert_eq!(resp.result["count"], 3);
+        } else {
+            panic!("Expected success for gap poll");
+        }
+
+        // Poll with since=1 → no gap (oldest is 2, since+1=2)
+        let req = Request::new("event.poll", json!("gp-2"), json!({"since": 1}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert!(resp.result.get("gap_detected").is_none());
+            assert_eq!(resp.result["count"], 3);
+        } else {
+            panic!("Expected success");
+        }
+
+        // Poll without since → no gap info (returns all, no cursor check)
+        let req = Request::new("event.poll", json!("gp-3"), json!({}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert!(resp.result.get("gap_detected").is_none());
+            assert_eq!(resp.result["count"], 3);
+        } else {
+            panic!("Expected success");
+        }
+    }
+
+    #[tokio::test]
+    async fn concurrent_pollers_see_all_events() {
+        let reg = test_registration();
+        let ctx = SessionContext::new(reg);
+        let events = ctx.events.clone();
+
+        let num_pollers = 4;
+        let num_events: usize = 50;
+
+        // Emit all events first
+        {
+            let mut bus = events.lock().await;
+            for i in 0..num_events {
+                bus.emit("test.event", json!({"index": i}));
+            }
+        }
+
+        // Now spawn concurrent pollers — each independently polls the same bus
+        let mut poller_handles = Vec::new();
+
+        for poller_id in 0..num_pollers {
+            let events_clone = events.clone();
+            poller_handles.push(tokio::spawn(async move {
+                let mut cursor: u64 = 0;
+                let mut seen = Vec::new();
+                let mut iterations = 0;
+
+                // Use a cursor-based approach: poll in batches until caught up
+                // Start with cursor meaning "give me everything > cursor"
+                // We use a special first poll to get seq 0
+                let bus = events_clone.lock().await;
+                let all = bus.all();
+                for event in &all {
+                    seen.push(event.seq);
+                }
+                if let Some(last) = all.last() {
+                    cursor = last.seq;
+                }
+                drop(bus);
+
+                // Do additional polls to verify no events missed
+                while iterations < 10 {
+                    iterations += 1;
+                    let bus = events_clone.lock().await;
+                    let result = bus.poll(cursor);
+                    assert!(
+                        !result.gap_detected,
+                        "Poller {poller_id} detected gap at cursor {cursor}"
+                    );
+                    for event in &result.events {
+                        seen.push(event.seq);
+                        cursor = event.seq;
+                    }
+                    drop(bus);
+                    tokio::task::yield_now().await;
+                }
+
+                seen
+            }));
+        }
+
+        // Wait for pollers and verify all saw all events
+        for handle in poller_handles {
+            let seen = handle.await.unwrap();
+            assert_eq!(
+                seen.len(),
+                num_events,
+                "Poller missed events: saw {} of {}",
+                seen.len(),
+                num_events
+            );
+            // Verify no duplicates in a single poller's view
+            let mut sorted = seen.clone();
+            sorted.sort();
+            sorted.dedup();
+            assert_eq!(sorted.len(), seen.len(), "Poller saw duplicate events");
+            // Verify all seq numbers present
+            for i in 0..num_events as u64 {
+                assert!(sorted.contains(&i), "Poller missing seq {i}");
+            }
         }
     }
 }

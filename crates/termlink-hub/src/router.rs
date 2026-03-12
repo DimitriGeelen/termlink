@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde_json::json;
 
 use termlink_protocol::control;
@@ -5,6 +7,9 @@ use termlink_protocol::jsonrpc::{ErrorResponse, Request, Response, RpcResponse};
 
 use termlink_session::client;
 use termlink_session::manager;
+
+/// Per-target timeout for broadcast/collect operations.
+const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Route a JSON-RPC request to the appropriate handler.
 ///
@@ -142,34 +147,49 @@ async fn handle_event_broadcast(
         }
     };
 
+    let targeted = registrations.len();
+    let topic_owned = topic.to_string();
+
+    // Dispatch to all targets concurrently with per-target timeout
+    let mut join_set = tokio::task::JoinSet::new();
+
+    for reg in registrations {
+        let emit_params = json!({
+            "topic": topic_owned,
+            "payload": payload,
+        });
+        let socket = reg.socket.clone();
+
+        join_set.spawn(async move {
+            let result = tokio::time::timeout(
+                PER_TARGET_TIMEOUT,
+                client::rpc_call(&socket, control::method::EVENT_EMIT, emit_params),
+            )
+            .await;
+
+            match result {
+                Ok(Ok(resp)) => client::unwrap_result(resp).is_ok(),
+                Ok(Err(_)) => false,   // RPC error
+                Err(_) => false,        // Timeout
+            }
+        });
+    }
+
     let mut succeeded = 0u64;
     let mut failed = 0u64;
 
-    for reg in &registrations {
-        let emit_params = json!({
-            "topic": topic,
-            "payload": payload,
-        });
-
-        match client::rpc_call(&reg.socket, control::method::EVENT_EMIT, emit_params).await {
-            Ok(resp) => {
-                if client::unwrap_result(resp).is_ok() {
-                    succeeded += 1;
-                } else {
-                    failed += 1;
-                }
-            }
-            Err(_) => {
-                failed += 1;
-            }
+    while let Some(result) = join_set.join_next().await {
+        match result {
+            Ok(true) => succeeded += 1,
+            _ => failed += 1,
         }
     }
 
     Response::success(
         id,
         json!({
-            "topic": topic,
-            "targeted": registrations.len(),
+            "topic": topic_owned,
+            "targeted": targeted,
             "succeeded": succeeded,
             "failed": failed,
         }),
@@ -220,38 +240,69 @@ async fn handle_event_collect(
 
     let topic_filter = params.get("topic").and_then(|t| t.as_str());
 
+    // Dispatch polls concurrently with per-target timeout
+    let mut join_set = tokio::task::JoinSet::new();
+
+    for reg in registrations {
+        let sid = reg.id.to_string();
+        let display_name = reg.display_name.clone();
+        let socket = reg.socket.clone();
+        let since_map = since_map.clone();
+        let topic_filter = topic_filter.map(String::from);
+
+        join_set.spawn(async move {
+            let mut poll_params = json!({});
+            if let Some(seq_val) = since_map.get(&sid) {
+                poll_params["since"] = seq_val.clone();
+            }
+            if let Some(t) = &topic_filter {
+                poll_params["topic"] = json!(t);
+            }
+
+            let result = tokio::time::timeout(
+                PER_TARGET_TIMEOUT,
+                client::rpc_call(&socket, control::method::EVENT_POLL, poll_params),
+            )
+            .await;
+
+            match result {
+                Ok(Ok(resp)) => {
+                    if let Ok(result) = client::unwrap_result(resp) {
+                        let mut events = Vec::new();
+                        if let Some(ev_array) = result["events"].as_array() {
+                            for event in ev_array {
+                                let mut enriched = event.clone();
+                                enriched["session"] = json!(&sid);
+                                enriched["session_name"] = json!(&display_name);
+                                events.push(enriched);
+                            }
+                        }
+                        let next_seq = result.get("next_seq").cloned();
+                        Some((sid, events, next_seq))
+                    } else {
+                        None
+                    }
+                }
+                Ok(Err(e)) => {
+                    tracing::debug!(session = %sid, error = %e, "Collect: failed to reach session");
+                    None
+                }
+                Err(_) => {
+                    tracing::debug!(session = %sid, "Collect: timeout reaching session");
+                    None
+                }
+            }
+        });
+    }
+
     let mut all_events: Vec<serde_json::Value> = Vec::new();
     let mut cursors = json!({});
 
-    for reg in &registrations {
-        let sid = reg.id.as_str();
-
-        let mut poll_params = json!({});
-        if let Some(seq_val) = since_map.get(sid) {
-            poll_params["since"] = seq_val.clone();
-        }
-        if let Some(t) = topic_filter {
-            poll_params["topic"] = json!(t);
-        }
-
-        match client::rpc_call(&reg.socket, control::method::EVENT_POLL, poll_params).await {
-            Ok(resp) => {
-                if let Ok(result) = client::unwrap_result(resp) {
-                    if let Some(events) = result["events"].as_array() {
-                        for event in events {
-                            let mut enriched = event.clone();
-                            enriched["session"] = json!(sid);
-                            enriched["session_name"] = json!(&reg.display_name);
-                            all_events.push(enriched);
-                        }
-                    }
-                    if let Some(next) = result.get("next_seq") {
-                        cursors[sid] = next.clone();
-                    }
-                }
-            }
-            Err(_) => {
-                tracing::debug!(session = sid, "Collect: failed to reach session");
+    while let Some(result) = join_set.join_next().await {
+        if let Ok(Some((sid, events, next_seq))) = result {
+            all_events.extend(events);
+            if let Some(next) = next_seq {
+                cursors[sid] = next;
             }
         }
     }
