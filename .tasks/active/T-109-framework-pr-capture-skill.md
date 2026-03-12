@@ -13,7 +13,7 @@ tags: [capture, framework-pr, skill, conversation-capture]
 components: []
 related_tasks: [T-108, T-106]
 created: 2026-03-12T00:00:00Z
-last_update: 2026-03-12T16:59:55Z
+last_update: 2026-03-12T17:05:16Z
 date_finished: null
 ---
 
