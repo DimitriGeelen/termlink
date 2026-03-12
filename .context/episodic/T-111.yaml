@@ -1,0 +1,59 @@
+# ============================================================================
+# EPISODIC MEMORY - T-111: Build tool call extractor
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-111
+task_name: "Build tool call extractor"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-12T06:20:18Z
+completed: 2026-03-12T06:31:02Z
+duration_days: 0
+updates_count: 2
+
+summary: |
+  Built extract-tool-calls.py — a Python script that extracts tool call metadata
+  from Claude Code JSONL transcripts (main + sidechain). Outputs metadata-only
+  JSONL records (14 fields, ~350 bytes each). Tested against real session:
+  985 calls extracted (339 main + 646 sidechain), 124 errors (12%).
+
+outcomes:
+  - "agents/telemetry/extract-tool-calls.py created and tested"
+  - "Fabric card registered at .fabric/components/extract-tool-calls.yaml"
+  - "Schema validated: ts, session_id, task, tool, tool_use_id, is_error, error_summary, input_size, output_size, model, tokens_in, tokens_out, is_sidechain, agent_id, cwd"
+
+challenges:
+  - "Sidechain files have same format as main JSONL (correcting prior assumption from T-107 that they were richer)"
+
+decisions: []
+
+artifacts:
+  - "agents/telemetry/extract-tool-calls.py"
+  - ".fabric/components/extract-tool-calls.yaml"
+  - ".tasks/completed/T-111-build-tool-call-extractor.md"
+
+git_timeline:
+  - time: "2026-03-12 07:30:00 +0100"
+    action: "T-111: Tool call extractor — extract-tool-calls.py"
+
+successes:
+  - "Metadata-only approach keeps records small (~350 bytes) while full data stays in source JSONL"
+  - "Sidechain parsing provides per-agent attribution"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-112, T-113]
+
+tags: [observability, tool-calls, telemetry, jsonl]
+
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-111-build-tool-call-extractor.md
+generated_by: context-agent-manual

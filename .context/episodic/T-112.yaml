@@ -1,0 +1,63 @@
+# ============================================================================
+# EPISODIC MEMORY - T-112: Integrate tool call extractor into session lifecycle
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-112
+task_name: "Integrate tool call extractor into session lifecycle"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-12T06:31:11Z
+completed: 2026-03-12T06:39:54Z
+duration_days: 0
+updates_count: 2
+
+summary: |
+  Hooked extract-tool-calls.py into the session lifecycle via PreCompact.
+  Created capture-on-compact.sh wrapper that appends to .context/telemetry/tool-calls.jsonl.
+  Non-blocking design (exits 0 on failure). Fixed stderr leak that corrupted JSONL store.
+  Integration tested: 1,008 valid records from current session.
+
+outcomes:
+  - "agents/telemetry/capture-on-compact.sh created"
+  - ".context/telemetry/ directory auto-created and gitignored"
+  - "Fabric card registered at .fabric/components/capture-on-compact.yaml"
+  - "1,008 valid JSONL records produced in integration test"
+
+challenges:
+  - "stderr from extractor leaked into JSONL store via 2>&1 redirect — fixed to 2>/dev/null"
+  - "B-005 blocked adding hook to .claude/settings.json — requires manual human edit"
+
+decisions: []
+
+artifacts:
+  - "agents/telemetry/capture-on-compact.sh"
+  - ".fabric/components/capture-on-compact.yaml"
+  - ".tasks/completed/T-112-integrate-tool-call-extractor-into-sessi.md"
+
+git_timeline:
+  - time: "2026-03-12 07:40:00 +0100"
+    action: "T-112: Integrate tool call extractor into session lifecycle"
+  - time: "2026-03-12 07:41:00 +0100"
+    action: "T-112: Register fabric card for capture-on-compact.sh"
+
+successes:
+  - "Non-blocking design ensures compaction never fails due to telemetry"
+  - "stderr fix prevents JSONL corruption"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [observability, telemetry, hooks, lifecycle]
+
+metrics:
+  wall_clock_minutes: 9
+  commits: 2
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-112-integrate-tool-call-extractor-into-sessi.md
+generated_by: context-agent-manual

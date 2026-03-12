@@ -1,0 +1,62 @@
+# ============================================================================
+# EPISODIC MEMORY - T-113: Error analysis from telemetry store
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Generated: 2026-03-12
+# ============================================================================
+
+task_id: T-113
+task_name: "Error analysis from telemetry store — escalation ladder auto-detection"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-12T06:41:54Z
+completed: 2026-03-12T06:51:07Z
+duration_days: 0
+updates_count: 2
+
+summary: |
+  Built analyze-errors.py — error pattern classifier with escalation ladder mapping.
+  17 named pattern classifiers (fw-help-instead-of-execute, task-gate-blocked,
+  inception-gate-blocked, sovereignty-gate, edit-before-read, etc.). Maps frequency
+  to escalation levels: A (1x, don't repeat) through D (10+ or 3+ sessions, change
+  ways of working). Tested: 126 errors, 6 level-D, 2 level-C patterns detected.
+
+outcomes:
+  - "agents/telemetry/analyze-errors.py created and tested"
+  - "17 error pattern classifiers implemented"
+  - "Escalation ladder mapping: A(1x) B(2-4x) C(5-9x/2+sessions) D(10+/3+sessions)"
+  - "Fabric card registered at .fabric/components/analyze-errors.yaml"
+
+challenges: []
+
+decisions: []
+
+artifacts:
+  - "agents/telemetry/analyze-errors.py"
+  - ".fabric/components/analyze-errors.yaml"
+  - ".tasks/completed/T-113-error-analysis-from-telemetry-store--esc.md"
+
+git_timeline:
+  - time: "2026-03-12 07:50:00 +0100"
+    action: "T-113: Error analyzer — escalation ladder auto-detection from telemetry"
+  - time: "2026-03-12 07:51:00 +0100"
+    action: "T-113: Register fabric card for analyze-errors.py"
+
+successes:
+  - "Delivers T-103 vision of proactive error pattern detection"
+  - "Actionable output — each pattern gets a specific escalation recommendation"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [antifragility, error-escalation, telemetry, healing]
+
+metrics:
+  wall_clock_minutes: 10
+  commits: 2
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-113-error-analysis-from-telemetry-store--esc.md
+generated_by: context-agent-manual
