@@ -2363,7 +2363,17 @@ async fn cmd_run(
 ) -> Result<()> {
     use termlink_session::executor;
 
-    let command_str = command_parts.join(" ");
+    let command_str = command_parts
+        .iter()
+        .map(|part| {
+            if part.contains(' ') || part.contains('"') || part.contains('\'') || part.contains('\\') || part.contains('$') || part.contains('`') {
+                format!("'{}'", part.replace('\'', "'\\''"))
+            } else {
+                part.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
 
     let config = SessionConfig {
         display_name: name,
