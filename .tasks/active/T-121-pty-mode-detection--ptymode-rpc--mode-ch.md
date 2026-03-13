@@ -5,16 +5,16 @@ description: >
   Add tcgetattr-based terminal mode detection to PtySession. New pty.mode RPC
   returns canonical/raw/echo state. pty.mode-change event emitted on state transitions.
   From T-010 inception GO.
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [session, pty, interactive, termios]
 components: []
 related_tasks: [T-010]
 created: 2026-03-12T20:17:46Z
-last_update: 2026-03-12T20:17:46Z
-date_finished: null
+last_update: 2026-03-13T09:53:33Z
+date_finished: 2026-03-13T09:53:33Z
 ---
 
 # T-121: PTY mode detection — pty.mode RPC + mode-change events
@@ -28,12 +28,12 @@ can't distinguish raw vs canonical mode or detect password prompts (echo off).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] P1: `pty.mode` RPC returns `{canonical: bool, echo: bool, raw: bool}` via tcgetattr on PTY master fd
-- [ ] P2: `pty.mode-change` event emitted when terminal flags change (polled on inject or periodic)
-- [ ] P3: Alternate screen buffer detection — track `\e[?1049h/l` in output stream
-- [ ] P4: Password prompt hint — event when ECHO flag drops
-- [ ] CLI: `termlink status <session>` includes terminal mode in output
-- [ ] Tests: mode detection works for canonical (bash) and raw (cat with stty raw) modes
+- [x] P1: `pty.mode` RPC returns `{canonical: bool, echo: bool, raw: bool}` via tcgetattr on PTY master fd
+- [x] P2: `pty.mode-change` event emitted when terminal flags change (polled on inject or periodic)
+- [x] P3: Alternate screen buffer detection — track `\e[?1049h/l` in output stream
+- [x] P4: Password prompt hint — event when ECHO flag drops
+- [x] CLI: `termlink status <session>` includes terminal mode in output
+- [x] Tests: mode detection works for canonical (bash) and raw (cat with stty raw) modes
 
 ### Human
 - [ ] [REVIEW] Verify pty.mode returns correct state during vim session
@@ -43,7 +43,7 @@ can't distinguish raw vs canonical mode or detect password prompts (echo off).
 
 ## Verification
 
-/Users/dimidev32/.cargo/bin/cargo test -p termlink-session --lib 2>&1 | tail -1 | grep -q "ok"
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-session --lib 2>&1 | grep -q "test result: ok"
 
 ## Decisions
 
@@ -62,3 +62,6 @@ can't distinguish raw vs canonical mode or detect password prompts (echo off).
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-121-pty-mode-detection--ptymode-rpc--mode-ch.md
 - **Context:** Initial task creation
+
+### 2026-03-13T09:53:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

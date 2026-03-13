@@ -4,16 +4,16 @@ name: "dispatch.sh --isolate flag — worktree isolation for mesh workers"
 description: >
   dispatch.sh --isolate flag — worktree isolation for mesh workers
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [agent-mesh, isolation, concurrency]
 components: []
 related_tasks: [T-123, T-114]
 created: 2026-03-12T20:57:05Z
-last_update: 2026-03-12T20:57:05Z
-date_finished: null
+last_update: 2026-03-12T21:16:09Z
+date_finished: 2026-03-12T21:16:09Z
 ---
 
 # T-124: dispatch.sh --isolate flag — worktree isolation for mesh workers
@@ -63,3 +63,6 @@ grep -q 'CARGO_TARGET_DIR' agents/mesh/dispatch.sh
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-124-dispatchsh---isolate-flag--worktree-isol.md
 - **Context:** Initial task creation
+
+### 2026-03-12T21:16:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

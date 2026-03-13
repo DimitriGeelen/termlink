@@ -4,7 +4,7 @@ name: "EventBus gap detection + concurrent hub broadcast"
 description: >
   Fix EventBus silent event loss (gap detection when cursor < oldest_seq) and
   make hub broadcast concurrent instead of sequential. From T-009 inception GO.
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [concurrency, eventbus, hub, backpressure]
 components: []
 related_tasks: [T-009]
 created: 2026-03-12T20:17:23Z
-last_update: 2026-03-12T20:17:23Z
-date_finished: null
+last_update: 2026-03-12T21:29:40Z
+date_finished: 2026-03-12T21:29:40Z
 ---
 
 # T-120: EventBus gap detection + concurrent hub broadcast
@@ -27,18 +27,18 @@ sessions sequentially — one dead session stalls all.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] EventBus detects gap when poller cursor < oldest sequence in buffer
-- [ ] Gap detection returns a warning/error in the events response (not silent)
-- [ ] Hub broadcast dispatches to sessions concurrently (tokio::spawn per target, not sequential loop)
-- [ ] Hub broadcast has per-target timeout (not relying on default socket timeout)
-- [ ] Existing event ordering tests still pass
-- [ ] New test: concurrent pollers on one session see all events without loss
+- [x] EventBus detects gap when poller cursor < oldest sequence in buffer
+- [x] Gap detection returns a warning/error in the events response (not silent)
+- [x] Hub broadcast dispatches to sessions concurrently (tokio::spawn per target, not sequential loop)
+- [x] Hub broadcast has per-target timeout (not relying on default socket timeout)
+- [x] Existing event ordering tests still pass
+- [x] New test: concurrent pollers on one session see all events without loss
 
 ## Verification
 
 # Rust tests pass
-/Users/dimidev32/.cargo/bin/cargo test -p termlink-session --lib 2>&1 | tail -1 | grep -q "ok"
-/Users/dimidev32/.cargo/bin/cargo test -p termlink-hub --lib 2>&1 | tail -1 | grep -q "ok"
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-session --lib 2>&1 | grep -q "test result: ok"
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-hub --lib 2>&1 | grep -q "test result: ok"
 
 ## Decisions
 
@@ -57,3 +57,6 @@ sessions sequentially — one dead session stalls all.
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-120-eventbus-gap-detection--concurrent-hub-b.md
 - **Context:** Initial task creation
+
+### 2026-03-12T21:29:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
