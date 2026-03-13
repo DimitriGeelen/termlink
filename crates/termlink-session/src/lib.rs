@@ -14,6 +14,7 @@ pub mod handler;
 pub mod pty;
 pub mod scrollback;
 pub mod server;
+pub mod transport;
 
 pub use identity::SessionId;
 pub use lifecycle::SessionState;

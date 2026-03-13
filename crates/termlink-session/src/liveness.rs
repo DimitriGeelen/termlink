@@ -17,7 +17,12 @@ pub fn is_alive(reg: &Registration) -> bool {
     }
 
     // Confirm socket file still exists
-    reg.socket.exists()
+    // For Unix sockets, check if the socket file exists on disk.
+    // For non-Unix transports, skip the file check (will need a different probe).
+    match reg.addr.as_unix_path() {
+        Some(path) => path.exists(),
+        None => true, // non-Unix transport — cannot file-check, assume alive
+    }
 }
 
 /// Check if a process with the given PID exists.
@@ -38,7 +43,9 @@ pub fn process_exists(pid: u32) -> bool {
 /// Remove stale registration artifacts (socket + JSON files).
 pub fn cleanup_stale(reg: &Registration, sessions_dir: &Path) {
     let json_path = Registration::json_path(sessions_dir, &reg.id);
-    let _ = std::fs::remove_file(&reg.socket);
+    if let Some(path) = reg.addr.as_unix_path() {
+        let _ = std::fs::remove_file(path);
+    }
     let _ = std::fs::remove_file(&json_path);
     tracing::info!(
         session_id = %reg.id,

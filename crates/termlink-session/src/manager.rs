@@ -54,7 +54,7 @@ impl Session {
             )?;
         }
 
-        let socket_path = Registration::socket_path(sessions_dir, &id);
+        let socket_path = Registration::default_socket_path(sessions_dir, &id);
         let json_path = Registration::json_path(sessions_dir, &id);
 
         // Check for display name conflicts.
@@ -103,7 +103,7 @@ impl Session {
         tracing::info!(
             session_id = %id,
             display_name = %registration.display_name,
-            socket = %registration.socket.display(),
+            socket = %registration.addr,
             "Session registered"
         );
 
@@ -181,7 +181,7 @@ impl Drop for Session {
     fn drop(&mut self) {
         let json_path =
             Registration::json_path(&self.sessions_dir, &self.registration.id);
-        let _ = std::fs::remove_file(&self.registration.socket);
+        let _ = std::fs::remove_file(self.registration.socket_path());
         let _ = std::fs::remove_file(&json_path);
         tracing::debug!(
             session_id = %self.registration.id,
@@ -405,7 +405,7 @@ mod tests {
 
         // Verify files exist
         let json_path = Registration::json_path(&sessions_dir, &id);
-        let socket_path = Registration::socket_path(&sessions_dir, &id);
+        let socket_path = Registration::default_socket_path(&sessions_dir, &id);
         assert!(json_path.exists());
         assert!(socket_path.exists());
 
@@ -513,7 +513,7 @@ mod tests {
             .unwrap();
         let id = session.id().clone();
         let json_path = Registration::json_path(&sessions_dir, &id);
-        let socket_path = Registration::socket_path(&sessions_dir, &id);
+        let socket_path = Registration::default_socket_path(&sessions_dir, &id);
 
         assert!(json_path.exists());
         assert!(socket_path.exists());

@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::identity::SessionId;
 use crate::lifecycle::SessionState;
+use termlink_protocol::TransportAddr;
 
 /// Registration entry format version.
 pub const REGISTRATION_VERSION: u8 = 1;
@@ -11,6 +12,13 @@ pub const REGISTRATION_VERSION: u8 = 1;
 /// Registration entry written as a JSON sidecar file alongside the session socket.
 ///
 /// Format defined in T-006 design doc.
+///
+/// The `addr` field replaced the legacy `socket` field in T-122. For backward
+/// compatibility, deserialization accepts either:
+/// - `"addr": {"type": "unix", "path": "..."}` (new format)
+/// - `"socket": "/path/to/socket"` (legacy format, auto-upgraded)
+///
+/// Serialization always writes `addr` (new format).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Registration {
     pub version: u8,
@@ -18,7 +26,9 @@ pub struct Registration {
     pub display_name: String,
     pub pid: u32,
     pub uid: u32,
-    pub socket: PathBuf,
+    /// Transport address for this session's control plane.
+    #[serde(flatten)]
+    pub addr: RegistrationAddr,
     pub created_at: String,
     pub heartbeat_at: String,
     pub state: SessionState,
@@ -39,6 +49,90 @@ pub struct Registration {
     /// When absent, all commands are allowed (backward compatible).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allowed_commands: Option<Vec<String>>,
+}
+
+/// Wrapper that handles backward-compatible serialization of the transport address.
+///
+/// Serializes as `"addr": { ... }`. Deserializes from either `"addr"` (new) or
+/// `"socket"` (legacy PathBuf, auto-converted to `TransportAddr::Unix`).
+#[derive(Debug, Clone)]
+pub struct RegistrationAddr(pub TransportAddr);
+
+impl std::fmt::Display for RegistrationAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::ops::Deref for RegistrationAddr {
+    type Target = TransportAddr;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<TransportAddr> for RegistrationAddr {
+    fn from(addr: TransportAddr) -> Self {
+        Self(addr)
+    }
+}
+
+impl Serialize for RegistrationAddr {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry("addr", &self.0)?;
+        map.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for RegistrationAddr {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        /// Visitor that accepts either `addr` or legacy `socket` field.
+        struct AddrVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for AddrVisitor {
+            type Value = RegistrationAddr;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a map with 'addr' or legacy 'socket' field")
+            }
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<RegistrationAddr, A::Error> {
+                let mut addr: Option<TransportAddr> = None;
+                let mut socket: Option<PathBuf> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "addr" => {
+                            addr = Some(map.next_value()?);
+                        }
+                        "socket" => {
+                            socket = Some(map.next_value()?);
+                        }
+                        _ => {
+                            // Ignore unknown fields (they belong to other parts of Registration)
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                if let Some(a) = addr {
+                    Ok(RegistrationAddr(a))
+                } else if let Some(s) = socket {
+                    // Legacy format: convert PathBuf to TransportAddr::Unix
+                    Ok(RegistrationAddr(TransportAddr::unix(s)))
+                } else {
+                    Err(serde::de::Error::missing_field("addr"))
+                }
+            }
+        }
+
+        deserializer.deserialize_map(AddrVisitor)
+    }
 }
 
 /// Environment metadata included in registration.
@@ -97,7 +191,7 @@ impl Registration {
             display_name,
             pid,
             uid,
-            socket: socket_path,
+            addr: RegistrationAddr(TransportAddr::unix(socket_path)),
             created_at: now.clone(),
             heartbeat_at: now,
             state: SessionState::Initializing,
@@ -118,13 +212,25 @@ impl Registration {
         }
     }
 
+    /// Convenience: get the Unix socket path if this is a Unix transport address.
+    ///
+    /// Panics if the address is not Unix — this is intentional for now since
+    /// only Unix sockets are supported at runtime. When TCP support is added,
+    /// callers should switch to pattern-matching on `reg.addr`.
+    pub fn socket_path(&self) -> &Path {
+        self.addr.as_unix_path().expect(
+            "Registration.socket_path() called on non-Unix address; \
+             use reg.addr.as_unix_path() for safe access",
+        )
+    }
+
     /// Path to the JSON registration file for this session.
     pub fn json_path(sessions_dir: &std::path::Path, id: &SessionId) -> PathBuf {
         sessions_dir.join(format!("{id}.json"))
     }
 
-    /// Path to the Unix socket for this session.
-    pub fn socket_path(sessions_dir: &std::path::Path, id: &SessionId) -> PathBuf {
+    /// Path to the Unix socket for a session in the given directory.
+    pub fn default_socket_path(sessions_dir: &std::path::Path, id: &SessionId) -> PathBuf {
         sessions_dir.join(format!("{id}.sock"))
     }
 
@@ -272,6 +378,53 @@ mod tests {
         let socket = PathBuf::from("/tmp/test.sock");
         let reg = Registration::new(id, config, socket);
         assert_eq!(reg.display_name, "builder");
+    }
+
+    #[test]
+    fn socket_path_convenience() {
+        let id = SessionId::generate();
+        let config = SessionConfig::default();
+        let socket = PathBuf::from("/tmp/test.sock");
+        let reg = Registration::new(id, config, socket.clone());
+        assert_eq!(reg.socket_path(), Path::new("/tmp/test.sock"));
+    }
+
+    #[test]
+    fn addr_field_in_json() {
+        let id = SessionId::generate();
+        let config = SessionConfig::default();
+        let socket = PathBuf::from("/tmp/test.sock");
+        let reg = Registration::new(id, config, socket);
+
+        let json = serde_json::to_string_pretty(&reg).unwrap();
+        // New format should have "addr" with "type"
+        assert!(json.contains("\"addr\""), "JSON should contain addr field");
+        assert!(json.contains("\"type\": \"unix\""), "addr should have type unix");
+        // Should NOT have old "socket" field
+        assert!(!json.contains("\"socket\""), "JSON should not contain legacy socket field");
+    }
+
+    #[test]
+    fn backward_compat_legacy_socket_field() {
+        // Simulate a legacy registration JSON that has "socket" instead of "addr"
+        let legacy_json = r#"{
+            "version": 1,
+            "id": "tl-test1234",
+            "display_name": "legacy-session",
+            "pid": 12345,
+            "uid": 501,
+            "socket": "/tmp/legacy.sock",
+            "created_at": "1234Z",
+            "heartbeat_at": "1234Z",
+            "state": "ready",
+            "capabilities": ["inject"],
+            "roles": [],
+            "tags": []
+        }"#;
+
+        let reg: Registration = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(reg.socket_path(), Path::new("/tmp/legacy.sock"));
+        assert!(reg.addr.is_unix());
     }
 
     fn tempdir() -> PathBuf {

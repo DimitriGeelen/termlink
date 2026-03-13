@@ -843,12 +843,12 @@ async fn cmd_register(
     println!("Session registered:");
     println!("  ID:      {}", session.id());
     println!("  Name:    {}", session.display_name());
-    println!("  Socket:  {}", session.registration.socket.display());
+    println!("  Socket:  {}", session.registration.socket_path().display());
 
     // Set up session context (with or without PTY)
     let pty_session = if shell {
         // Set data_socket metadata for discoverability
-        let data_path = data_server::data_socket_path(&session.registration.socket);
+        let data_path = data_server::data_socket_path(&session.registration.socket_path());
         session.registration.metadata.data_socket =
             Some(data_path.to_string_lossy().into_owned());
 
@@ -892,7 +892,7 @@ async fn cmd_register(
 
     // Compute data socket path before moving reg
     let data_socket_path = if shell {
-        Some(data_server::data_socket_path(&reg_for_cleanup.socket))
+        Some(data_server::data_socket_path(&reg_for_cleanup.socket_path()))
     } else {
         None
     };
@@ -946,7 +946,7 @@ async fn cmd_register(
 
             // Clean up registration files
             let json_path = termlink_session::Registration::json_path(&sessions_dir, &session_id);
-            let _ = std::fs::remove_file(&reg_for_cleanup.socket);
+            let _ = std::fs::remove_file(&reg_for_cleanup.socket_path());
             let _ = std::fs::remove_file(&json_path);
 
             // Clean up data socket if present
@@ -1049,7 +1049,7 @@ async fn cmd_ping(target: &str) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let resp = client::rpc_call(&reg.socket, "termlink.ping", serde_json::json!({}))
+    let resp = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}))
         .await
         .context("Failed to connect to session")?;
 
@@ -1073,7 +1073,7 @@ async fn cmd_status(target: &str, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let resp = client::rpc_call(&reg.socket, "query.status", serde_json::json!({}))
+    let resp = client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({}))
         .await
         .context("Failed to connect to session")?;
 
@@ -1139,7 +1139,7 @@ async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, timeout: u64) 
         params["cwd"] = serde_json::json!(dir);
     }
 
-    let resp = client::rpc_call(&reg.socket, "command.execute", params)
+    let resp = client::rpc_call(reg.socket_path(), "command.execute", params)
         .await
         .context("Failed to connect to session")?;
 
@@ -1174,7 +1174,7 @@ async fn cmd_send(target: &str, method: &str, params_str: &str) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let resp = client::rpc_call(&reg.socket, method, params)
+    let resp = client::rpc_call(reg.socket_path(), method, params)
         .await
         .context("Failed to connect to session")?;
 
@@ -1280,7 +1280,7 @@ async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>) -> Result<()> 
         serde_json::json!({ "lines": lines })
     };
 
-    let resp = client::rpc_call(&reg.socket, "query.output", params)
+    let resp = client::rpc_call(reg.socket_path(), "query.output", params)
         .await
         .context("Failed to connect to session")?;
 
@@ -1314,7 +1314,7 @@ async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) ->
 
     let params = serde_json::json!({ "keys": keys });
 
-    let resp = client::rpc_call(&reg.socket, "command.inject", params)
+    let resp = client::rpc_call(reg.socket_path(), "command.inject", params)
         .await
         .context("Failed to connect to session")?;
 
@@ -1338,7 +1338,7 @@ async fn cmd_signal(target: &str, signal: &str) -> Result<()> {
         .context(format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal))?;
 
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "command.signal",
         serde_json::json!({ "signal": sig_num }),
     )
@@ -1389,7 +1389,7 @@ async fn cmd_attach(target: &str, poll_ms: u64) -> Result<()> {
         .context(format!("Session '{}' not found", target))?;
 
     // Verify the session has PTY output
-    let resp = client::rpc_call(&reg.socket, "query.output", serde_json::json!({ "lines": 0 }))
+    let resp = client::rpc_call(reg.socket_path(), "query.output", serde_json::json!({ "lines": 0 }))
         .await
         .context("Failed to connect to session")?;
     if let Err(e) = client::unwrap_result(resp) {
@@ -1419,7 +1419,7 @@ async fn cmd_attach(target: &str, poll_ms: u64) -> Result<()> {
     }
 
     // Restore terminal on exit
-    let result = attach_loop(&reg.socket, poll_ms).await;
+    let result = attach_loop(reg.socket_path(), poll_ms).await;
 
     unsafe {
         libc::tcsetattr(stdin_fd, libc::TCSANOW, &orig_termios);
@@ -1539,7 +1539,7 @@ async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>) -> Re
         params["topic"] = serde_json::json!(t);
     }
 
-    let resp = client::rpc_call(&reg.socket, "event.poll", params)
+    let resp = client::rpc_call(reg.socket_path(), "event.poll", params)
         .await
         .context("Failed to connect to session")?;
 
@@ -1581,7 +1581,7 @@ async fn cmd_emit(target: &str, topic: &str, payload_str: &str) -> Result<()> {
         .context(format!("Session '{}' not found", target))?;
 
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "event.emit",
         serde_json::json!({ "topic": topic, "payload": payload }),
     )
@@ -1653,7 +1653,7 @@ async fn cmd_resize(target: &str, cols: u16, rows: u16) -> Result<()> {
         .context(format!("Session '{}' not found", target))?;
 
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "command.resize",
         serde_json::json!({ "cols": cols, "rows": rows }),
     )
@@ -1680,7 +1680,7 @@ async fn cmd_stream(target: &str) -> Result<()> {
         .context(format!("Session '{}' not found", target))?;
 
     // Connect to the data socket
-    let data_socket = data_server::data_socket_path(&reg.socket);
+    let data_socket = data_server::data_socket_path(reg.socket_path());
     if !data_socket.exists() {
         anyhow::bail!(
             "No data plane for '{}'. Start with --shell to enable data plane.",
@@ -1689,7 +1689,7 @@ async fn cmd_stream(target: &str) -> Result<()> {
     }
 
     // Fetch initial scrollback via control plane before entering raw mode
-    let resp = client::rpc_call(&reg.socket, "query.output", serde_json::json!({ "lines": 100 }))
+    let resp = client::rpc_call(reg.socket_path(), "query.output", serde_json::json!({ "lines": 100 }))
         .await
         .context("Failed to fetch initial scrollback")?;
     if let Ok(result) = client::unwrap_result(resp) {
@@ -1888,7 +1888,7 @@ async fn cmd_tag(
         params["remove_tags"] = serde_json::json!(remove);
     }
 
-    let resp = client::rpc_call(&reg.socket, "session.update", params)
+    let resp = client::rpc_call(reg.socket_path(), "session.update", params)
         .await
         .context("Failed to connect to session")?;
 
@@ -1989,7 +1989,7 @@ async fn cmd_watch(
                         params["topic"] = serde_json::json!(t);
                     }
 
-                    let resp = match client::rpc_call(&reg.socket, "event.poll", params).await {
+                    let resp = match client::rpc_call(reg.socket_path(), "event.poll", params).await {
                         Ok(r) => r,
                         Err(_) => {
                             // Session may have gone away — skip silently
@@ -2049,7 +2049,7 @@ async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
                 .unwrap_or_else(|_| serde_json::Value::String(value));
 
             let resp = client::rpc_call(
-                &reg.socket,
+                reg.socket_path(),
                 "kv.set",
                 serde_json::json!({"key": key, "value": json_value}),
             )
@@ -2071,7 +2071,7 @@ async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
         }
         KvAction::Get { key } => {
             let resp = client::rpc_call(
-                &reg.socket,
+                reg.socket_path(),
                 "kv.get",
                 serde_json::json!({"key": key}),
             )
@@ -2092,7 +2092,7 @@ async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
         }
         KvAction::List => {
             let resp = client::rpc_call(
-                &reg.socket,
+                reg.socket_path(),
                 "kv.list",
                 serde_json::json!({}),
             )
@@ -2121,7 +2121,7 @@ async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
         }
         KvAction::Del { key } => {
             let resp = client::rpc_call(
-                &reg.socket,
+                reg.socket_path(),
                 "kv.delete",
                 serde_json::json!({"key": key}),
             )
@@ -2215,7 +2215,7 @@ async fn cmd_topics(target: Option<&str>) -> Result<()> {
     let mut session_topics: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for reg in &registrations {
-        match client::rpc_call(&reg.socket, "event.topics", serde_json::json!({})).await {
+        match client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({})).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(topics) = result["topics"].as_array() {
@@ -2426,7 +2426,7 @@ async fn cmd_run(
         &sessions_dir,
         &session_id,
     );
-    let _ = std::fs::remove_file(&reg_for_cleanup.socket);
+    let _ = std::fs::remove_file(&reg_for_cleanup.socket_path());
     let _ = std::fs::remove_file(&json_path);
     eprintln!("Session {} deregistered", session_id);
 
@@ -2483,7 +2483,7 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
                 if let Some(c) = cursor {
                     params["since"] = serde_json::json!(c);
                 }
-                let resp = match client::rpc_call(&reg.socket, "event.poll", params).await {
+                let resp = match client::rpc_call(reg.socket_path(), "event.poll", params).await {
                     Ok(r) => r,
                     Err(_) => {
                         anyhow::bail!("Session '{}' disconnected while waiting", target);
@@ -2542,7 +2542,7 @@ async fn cmd_request(
     // Snapshot the current next_seq BEFORE emitting — we'll poll for replies after this point
     let cursor: Option<u64> = {
         let params = serde_json::json!({});
-        match client::rpc_call(&reg.socket, "event.poll", params).await {
+        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     result["next_seq"].as_u64()
@@ -2558,7 +2558,7 @@ async fn cmd_request(
         "payload": payload_json,
     });
 
-    let emit_resp = client::rpc_call(&reg.socket, "event.emit", emit_params)
+    let emit_resp = client::rpc_call(reg.socket_path(), "event.emit", emit_params)
         .await
         .context("Failed to emit request event")?;
 
@@ -2588,7 +2588,7 @@ async fn cmd_request(
             params["since"] = serde_json::json!(c);
         }
 
-        match client::rpc_call(&reg.socket, "event.poll", params).await {
+        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {

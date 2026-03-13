@@ -3,8 +3,10 @@ pub mod data;
 pub mod error;
 pub mod events;
 pub mod jsonrpc;
+pub mod transport;
 
 pub use error::ProtocolError;
+pub use transport::TransportAddr;
 
 /// Protocol version for the data plane binary frames.
 pub const DATA_PLANE_VERSION: u8 = 1;

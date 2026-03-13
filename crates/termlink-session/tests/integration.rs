@@ -29,7 +29,7 @@ async fn two_sessions_ping_each_other() {
     let (h_bob, reg_bob) = start_session(&dir.sessions_dir(),"bob", vec![]).await;
 
     // Bob pings Alice
-    let resp = client::rpc_call(&reg_alice.socket, "termlink.ping", json!({}))
+    let resp = client::rpc_call(reg_alice.socket_path(), "termlink.ping", json!({}))
         .await
         .unwrap();
     let result = client::unwrap_result(resp).unwrap();
@@ -37,7 +37,7 @@ async fn two_sessions_ping_each_other() {
     assert_eq!(result["state"], "ready");
 
     // Alice pings Bob
-    let resp = client::rpc_call(&reg_bob.socket, "termlink.ping", json!({}))
+    let resp = client::rpc_call(reg_bob.socket_path(), "termlink.ping", json!({}))
         .await
         .unwrap();
     let result = client::unwrap_result(resp).unwrap();
@@ -56,7 +56,7 @@ async fn session_executes_command_on_another() {
 
     // A "client" session sends a command.execute to the worker
     let resp = client::rpc_call(
-        &reg_target.socket,
+        reg_target.socket_path(),
         "command.execute",
         json!({ "command": "echo hello-from-remote" }),
     )
@@ -137,7 +137,7 @@ async fn multi_request_conversation() {
     let (handle, reg) = start_session(&dir.sessions_dir(),"conversant", vec!["query".into()]).await;
 
     // Use a persistent client for multiple requests
-    let mut client = Client::connect(&reg.socket).await.unwrap();
+    let mut client = Client::connect(reg.socket_path()).await.unwrap();
 
     // 1. Ping
     let resp = client
@@ -207,7 +207,7 @@ async fn cross_session_exec_with_env_and_cwd() {
     let (handle, reg) = start_session(&dir.sessions_dir(),"env-worker", vec![]).await;
 
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "command.execute",
         json!({
             "command": "echo $TL_TEST_VAR",
@@ -282,7 +282,7 @@ async fn start_pty_session(
     let pty = Arc::new(PtySession::spawn(Some("/bin/sh"), 1024 * 64).unwrap());
     let (registration, listener, _sessions_dir) = session.into_parts();
     let reg = registration.clone();
-    let data_socket = data_server::data_socket_path(&reg.socket);
+    let data_socket = data_server::data_socket_path(reg.socket_path());
 
     // Start control plane
     let ctx = SessionContext::with_pty(registration, pty.clone());
@@ -331,7 +331,7 @@ async fn data_plane_stream_output() {
 
     // Inject a command via control plane
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "command.inject",
         json!({ "keys": [{ "type": "text", "value": "echo DATA_PLANE_TEST\n" }] }),
     )
@@ -482,7 +482,7 @@ async fn data_plane_capabilities_in_status() {
     let (handles, reg, data_socket, pty) = start_pty_session(&dir.sessions_dir(),"capable").await;
 
     // Query status via control plane
-    let resp = client::rpc_call(&reg.socket, "query.status", json!({}))
+    let resp = client::rpc_call(reg.socket_path(), "query.status", json!({}))
         .await
         .unwrap();
     let result = client::unwrap_result(resp).unwrap();
@@ -513,7 +513,7 @@ async fn event_emit_and_poll() {
 
     // Emit an event
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "event.emit",
         json!({ "topic": "build.done", "payload": { "status": "ok" } }),
     )
@@ -525,7 +525,7 @@ async fn event_emit_and_poll() {
 
     // Poll for events (cursor=0 gets all)
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "event.poll",
         json!({ "cursor": 0 }),
     )
@@ -549,7 +549,7 @@ async fn event_topics_lists_distinct_topics() {
     // Emit events on different topics
     for topic in &["build.start", "build.done", "test.pass", "build.start"] {
         client::rpc_call(
-            &reg.socket,
+            reg.socket_path(),
             "event.emit",
             json!({ "topic": topic, "payload": {} }),
         )
@@ -558,7 +558,7 @@ async fn event_topics_lists_distinct_topics() {
     }
 
     // Query topics
-    let resp = client::rpc_call(&reg.socket, "event.topics", json!({}))
+    let resp = client::rpc_call(reg.socket_path(), "event.topics", json!({}))
         .await
         .unwrap();
     let result = client::unwrap_result(resp).unwrap();
@@ -580,21 +580,21 @@ async fn event_poll_with_topic_filter() {
 
     // Emit mixed topics
     client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "event.emit",
         json!({ "topic": "build.done", "payload": { "n": 1 } }),
     )
     .await
     .unwrap();
     client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "event.emit",
         json!({ "topic": "test.fail", "payload": { "n": 2 } }),
     )
     .await
     .unwrap();
     client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "event.emit",
         json!({ "topic": "build.done", "payload": { "n": 3 } }),
     )
@@ -603,7 +603,7 @@ async fn event_poll_with_topic_filter() {
 
     // Poll with topic filter
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "event.poll",
         json!({ "cursor": 0, "topic": "build.done" }),
     )
@@ -628,7 +628,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Set a key
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.set",
         json!({ "key": "color", "value": "blue" }),
     )
@@ -640,7 +640,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Get the key
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.get",
         json!({ "key": "color" }),
     )
@@ -653,7 +653,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Set another key with JSON value
     client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.set",
         json!({ "key": "config", "value": { "debug": true, "level": 3 } }),
     )
@@ -661,7 +661,7 @@ async fn kv_set_get_list_delete_cycle() {
     .unwrap();
 
     // List all
-    let resp = client::rpc_call(&reg.socket, "kv.list", json!({}))
+    let resp = client::rpc_call(reg.socket_path(), "kv.list", json!({}))
         .await
         .unwrap();
     let result = client::unwrap_result(resp).unwrap();
@@ -671,7 +671,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Replace a key
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.set",
         json!({ "key": "color", "value": "red" }),
     )
@@ -682,7 +682,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Verify replacement
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.get",
         json!({ "key": "color" }),
     )
@@ -693,7 +693,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Delete
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.delete",
         json!({ "key": "color" }),
     )
@@ -705,7 +705,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Get deleted key
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.get",
         json!({ "key": "color" }),
     )
@@ -716,7 +716,7 @@ async fn kv_set_get_list_delete_cycle() {
 
     // Delete non-existent
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.delete",
         json!({ "key": "nonexistent" }),
     )
@@ -726,7 +726,7 @@ async fn kv_set_get_list_delete_cycle() {
     assert_eq!(result["deleted"], false);
 
     // Final list — should have only "config"
-    let resp = client::rpc_call(&reg.socket, "kv.list", json!({}))
+    let resp = client::rpc_call(reg.socket_path(), "kv.list", json!({}))
         .await
         .unwrap();
     let result = client::unwrap_result(resp).unwrap();
@@ -742,7 +742,7 @@ async fn kv_get_nonexistent_returns_not_found() {
     let (handle, reg) = start_session(&dir.sessions_dir(),"kvempty", vec![]).await;
 
     let resp = client::rpc_call(
-        &reg.socket,
+        reg.socket_path(),
         "kv.get",
         json!({ "key": "missing" }),
     )

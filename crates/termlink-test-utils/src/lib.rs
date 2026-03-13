@@ -263,7 +263,7 @@ mod tests {
     async fn start_session_creates_socket() {
         let dir = TestDir::new("session-fixture");
         let (_handle, reg) = start_session(&dir.sessions_dir(), "test-sess", vec![]).await;
-        assert!(reg.socket.exists());
+        assert!(reg.socket_path().exists());
         _handle.abort();
     }
 }
