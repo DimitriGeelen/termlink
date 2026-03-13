@@ -536,13 +536,13 @@ mod tests {
         }
 
         // Verify events landed on each session
-        let resp = client::rpc_call(&r1.socket, "event.poll", json!({})).await.unwrap();
+        let resp = client::rpc_call(r1.socket_path(), "event.poll", json!({})).await.unwrap();
         let result = client::unwrap_result(resp).unwrap();
         let events = result["events"].as_array().unwrap();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0]["topic"], "deploy.start");
 
-        let resp = client::rpc_call(&r2.socket, "event.poll", json!({})).await.unwrap();
+        let resp = client::rpc_call(r2.socket_path(), "event.poll", json!({})).await.unwrap();
         let result = client::unwrap_result(resp).unwrap();
         let events = result["events"].as_array().unwrap();
         assert_eq!(events.len(), 1);
@@ -584,7 +584,7 @@ mod tests {
         }
 
         // Session b should have no events
-        let resp = client::rpc_call(&r2.socket, "event.poll", json!({})).await.unwrap();
+        let resp = client::rpc_call(r2.socket_path(), "event.poll", json!({})).await.unwrap();
         let result = client::unwrap_result(resp).unwrap();
         assert_eq!(result["count"], 0);
 
@@ -605,13 +605,13 @@ mod tests {
 
         // Emit events to each session directly
         client::rpc_call(
-            &r1.socket,
+            r1.socket_path(),
             "event.emit",
             json!({"topic": "build.done", "payload": {"id": 1}}),
         ).await.unwrap();
 
         client::rpc_call(
-            &r2.socket,
+            r2.socket_path(),
             "event.emit",
             json!({"topic": "test.pass", "payload": {"id": 2}}),
         ).await.unwrap();
@@ -658,12 +658,12 @@ mod tests {
 
         // Emit two events
         client::rpc_call(
-            &r1.socket,
+            r1.socket_path(),
             "event.emit",
             json!({"topic": "a", "payload": {}}),
         ).await.unwrap();
         client::rpc_call(
-            &r1.socket,
+            r1.socket_path(),
             "event.emit",
             json!({"topic": "b", "payload": {}}),
         ).await.unwrap();
@@ -715,14 +715,14 @@ mod tests {
 
         // Tag session 1 as "prod"
         client::rpc_call(
-            &r1.socket,
+            r1.socket_path(),
             "session.update",
             json!({"tags": ["prod", "web"]}),
         ).await.unwrap();
 
         // Tag session 2 as "staging"
         client::rpc_call(
-            &r2.socket,
+            r2.socket_path(),
             "session.update",
             json!({"tags": ["staging", "api"]}),
         ).await.unwrap();

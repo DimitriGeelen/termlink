@@ -1105,6 +1105,26 @@ async fn cmd_status(target: &str, json: bool) -> Result<()> {
                     println!("  Roles:       {}", role_strs.join(", "));
                 }
             }
+            if let Some(mode) = result.get("terminal_mode") {
+                let canonical = mode["canonical"].as_bool().unwrap_or(false);
+                let echo = mode["echo"].as_bool().unwrap_or(false);
+                let raw = mode["raw"].as_bool().unwrap_or(false);
+                let alt_screen = mode["alternate_screen"].as_bool().unwrap_or(false);
+                let mode_label = if raw {
+                    "raw"
+                } else if canonical && echo {
+                    "canonical+echo"
+                } else if canonical {
+                    "canonical"
+                } else {
+                    "cooked"
+                };
+                print!("  Term Mode:   {}", mode_label);
+                if alt_screen {
+                    print!(" (alternate screen)");
+                }
+                println!();
+            }
             if let Some(meta) = result.get("metadata") {
                 if let Some(shell) = meta.get("shell").and_then(|s| s.as_str()) {
                     println!("  Shell:       {}", shell);

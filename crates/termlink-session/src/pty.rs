@@ -1,11 +1,25 @@
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use tokio::io::unix::AsyncFd;
 use tokio::io::Interest;
 use tokio::sync::Mutex;
 
 use crate::scrollback::ScrollbackBuffer;
+
+/// Terminal mode flags detected via tcgetattr on the PTY master fd.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TerminalMode {
+    /// Canonical (line-editing) mode — ICANON flag is set.
+    pub canonical: bool,
+    /// Echo mode — ECHO flag is set.
+    pub echo: bool,
+    /// Raw mode — neither ICANON nor ECHO is set.
+    pub raw: bool,
+    /// Whether the terminal is in alternate screen buffer mode.
+    pub alternate_screen: bool,
+}
 
 /// Errors from PTY operations.
 #[derive(Debug, thiserror::Error)]
@@ -44,6 +58,10 @@ pub struct PtySession {
     child_pid: u32,
     /// Scrollback buffer for output capture.
     scrollback: Arc<Mutex<ScrollbackBuffer>>,
+    /// Whether the terminal is in alternate screen buffer mode.
+    alternate_screen: Arc<Mutex<bool>>,
+    /// Last known terminal mode (for change detection).
+    last_mode: Arc<Mutex<Option<TerminalMode>>>,
 }
 
 impl PtySession {
@@ -133,6 +151,8 @@ impl PtySession {
             master_write_fd: Arc::new(Mutex::new(write_fd)),
             child_pid: pid as u32,
             scrollback: Arc::new(Mutex::new(ScrollbackBuffer::new(scrollback_bytes))),
+            alternate_screen: Arc::new(Mutex::new(false)),
+            last_mode: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -175,6 +195,10 @@ impl PtySession {
                 Ok(Ok(0)) => return Ok(()),
                 Ok(Ok(n)) => {
                     let chunk = &buf[..n];
+
+                    // Scan for alternate screen buffer escape sequences
+                    Self::scan_alternate_screen(chunk, &self.alternate_screen).await;
+
                     let mut scrollback = self.scrollback.lock().await;
                     scrollback.append(chunk);
                     // Broadcast to data plane clients (if any)
@@ -270,6 +294,92 @@ impl PtySession {
         .map_err(|e| PtyError::Io(std::io::Error::other(e)))?
     }
 
+    /// Query the current terminal mode via tcgetattr on the PTY master fd.
+    ///
+    /// Returns the current canonical/echo/raw state and alternate screen status.
+    pub async fn terminal_mode(&self) -> Result<TerminalMode, PtyError> {
+        let fd = self.master_read.as_raw_fd();
+        let mut termios: libc::termios = unsafe { std::mem::zeroed() };
+        let ret = unsafe { libc::tcgetattr(fd, &mut termios) };
+        if ret != 0 {
+            return Err(PtyError::Io(std::io::Error::last_os_error()));
+        }
+
+        let canonical = (termios.c_lflag & libc::ICANON as libc::tcflag_t) != 0;
+        let echo = (termios.c_lflag & libc::ECHO as libc::tcflag_t) != 0;
+        let raw = !canonical && !echo;
+        let alternate_screen = *self.alternate_screen.lock().await;
+
+        Ok(TerminalMode {
+            canonical,
+            echo,
+            raw,
+            alternate_screen,
+        })
+    }
+
+    /// Check for terminal mode changes. Returns the new mode and the previous mode
+    /// if a change was detected, or None if the mode hasn't changed.
+    ///
+    /// Also returns a `password_prompt_hint` flag when the ECHO flag drops.
+    pub async fn poll_mode_change(
+        &self,
+    ) -> Result<Option<(TerminalMode, Option<TerminalMode>, bool)>, PtyError> {
+        let current = self.terminal_mode().await?;
+        let mut last = self.last_mode.lock().await;
+
+        let result = match last.as_ref() {
+            Some(prev) if *prev != current => {
+                // Detect password prompt hint: ECHO was on, now off
+                let password_hint = prev.echo && !current.echo;
+                let previous = prev.clone();
+                *last = Some(current.clone());
+                Some((current, Some(previous), password_hint))
+            }
+            None => {
+                // First poll — store initial state, no change event
+                *last = Some(current);
+                None
+            }
+            _ => None, // No change
+        };
+
+        Ok(result)
+    }
+
+    /// Scan output bytes for alternate screen buffer escape sequences.
+    ///
+    /// `\x1b[?1049h` enters alternate screen, `\x1b[?1049l` leaves it.
+    async fn scan_alternate_screen(chunk: &[u8], alt_screen: &Arc<Mutex<bool>>) {
+        // Look for the escape sequences in the chunk
+        let enter_seq = b"\x1b[?1049h";
+        let leave_seq = b"\x1b[?1049l";
+
+        let mut changed = None;
+        for window in chunk.windows(enter_seq.len()) {
+            if window == enter_seq {
+                changed = Some(true);
+            } else if window == leave_seq {
+                changed = Some(false);
+            }
+        }
+
+        if let Some(new_state) = changed {
+            let mut state = alt_screen.lock().await;
+            *state = new_state;
+        }
+    }
+
+    /// Get a clone of the alternate screen state handle.
+    pub fn alternate_screen(&self) -> Arc<Mutex<bool>> {
+        self.alternate_screen.clone()
+    }
+
+    /// Get a clone of the last mode handle (for external change detection).
+    pub fn last_mode(&self) -> Arc<Mutex<Option<TerminalMode>>> {
+        self.last_mode.clone()
+    }
+
     /// Send a signal to the child process.
     pub fn signal(&self, sig: i32) -> Result<(), PtyError> {
         let ret = unsafe { libc::kill(self.child_pid as libc::pid_t, sig) };
@@ -335,6 +445,81 @@ mod tests {
         session.signal(libc::SIGTERM).unwrap();
         let status = session.wait().await.unwrap();
         assert!(status > 0);
+    }
+
+    #[tokio::test]
+    async fn terminal_mode_returns_valid_flags() {
+        // Verify tcgetattr succeeds and returns a valid TerminalMode struct.
+        // Note: the exact flags depend on the shell and OS configuration.
+        let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
+
+        // Give the shell a moment to initialize
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        let mode = session.terminal_mode().await.unwrap();
+
+        // raw should be consistent with canonical/echo flags
+        assert_eq!(mode.raw, !mode.canonical && !mode.echo,
+            "raw should be !canonical && !echo, got canonical={} echo={} raw={}",
+            mode.canonical, mode.echo, mode.raw);
+        assert!(!mode.alternate_screen, "Should not be in alternate screen initially");
+
+        session.write(b"exit 0\n").await.unwrap();
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            session.wait(),
+        ).await;
+    }
+
+    #[tokio::test]
+    async fn terminal_mode_struct_serialization() {
+        let mode = TerminalMode {
+            canonical: true,
+            echo: true,
+            raw: false,
+            alternate_screen: false,
+        };
+        let json = serde_json::to_value(&mode).unwrap();
+        assert_eq!(json["canonical"], true);
+        assert_eq!(json["echo"], true);
+        assert_eq!(json["raw"], false);
+        assert_eq!(json["alternate_screen"], false);
+
+        let deserialized: TerminalMode = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized, mode);
+    }
+
+    #[tokio::test]
+    async fn alternate_screen_detection() {
+        let alt_screen = Arc::new(Mutex::new(false));
+
+        // Simulate entering alternate screen
+        PtySession::scan_alternate_screen(b"\x1b[?1049h", &alt_screen).await;
+        assert!(*alt_screen.lock().await, "Should detect alternate screen enter");
+
+        // Simulate leaving alternate screen
+        PtySession::scan_alternate_screen(b"\x1b[?1049l", &alt_screen).await;
+        assert!(!*alt_screen.lock().await, "Should detect alternate screen leave");
+    }
+
+    #[tokio::test]
+    async fn poll_mode_change_initial_stores_mode() {
+        let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // First poll should initialize and return None (no change)
+        let result = session.poll_mode_change().await.unwrap();
+        assert!(result.is_none(), "First poll should return None (initialization)");
+
+        // Second poll with no changes should also return None
+        let result = session.poll_mode_change().await.unwrap();
+        assert!(result.is_none(), "Second poll with no change should return None");
+
+        session.write(b"exit 0\n").await.unwrap();
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            session.wait(),
+        ).await;
     }
 
     #[tokio::test]

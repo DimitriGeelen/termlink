@@ -116,7 +116,7 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
 
     let response = match req.method.as_str() {
         "termlink.ping" => handle_ping(id, &ctx.registration),
-        control::method::QUERY_STATUS => handle_query_status(id, ctx),
+        control::method::QUERY_STATUS => handle_query_status(id, ctx).await,
         control::method::QUERY_CAPABILITIES => handle_query_capabilities(id, &ctx.registration),
         control::method::QUERY_OUTPUT => handle_query_output(id, &req.params, ctx).await,
         control::method::SESSION_HEARTBEAT => handle_heartbeat(id, &ctx.registration),
@@ -134,6 +134,7 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         control::method::EVENT_EMIT => handle_event_emit(id, &req.params, ctx).await,
         control::method::EVENT_POLL => handle_event_poll(id, &req.params, ctx).await,
         control::method::EVENT_TOPICS => handle_event_topics(id, ctx).await,
+        control::method::PTY_MODE => handle_pty_mode(id, ctx).await,
         control::method::KV_GET => handle_kv_get(id, &req.params, ctx),
         control::method::KV_LIST => handle_kv_list(id, ctx),
         _ => ErrorResponse::method_not_found(id, &req.method).into(),
@@ -232,7 +233,7 @@ fn handle_ping(id: serde_json::Value, reg: &Registration) -> RpcResponse {
     .into()
 }
 
-fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> RpcResponse {
+async fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> RpcResponse {
     let reg = &ctx.registration;
     let mut result = json!({
         "id": reg.id.as_str(),
@@ -249,6 +250,18 @@ fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> RpcRespon
 
     // Add PTY info if available
     result["has_pty"] = json!(ctx.pty.is_some());
+
+    // Add terminal mode if PTY is available
+    if let Some(pty) = &ctx.pty {
+        if let Ok(mode) = pty.terminal_mode().await {
+            result["terminal_mode"] = json!({
+                "canonical": mode.canonical,
+                "echo": mode.echo,
+                "raw": mode.raw,
+                "alternate_screen": mode.alternate_screen,
+            });
+        }
+    }
 
     Response::success(id, result).into()
 }
@@ -434,6 +447,9 @@ async fn handle_command_inject(
     if let Some(pty) = &ctx.pty {
         match pty.write(&bytes).await {
             Ok(()) => {
+                // Poll for terminal mode changes after injection
+                emit_mode_change_if_needed(ctx).await;
+
                 return Response::success(
                     id,
                     json!({
@@ -793,6 +809,81 @@ fn handle_command_resize(
             &format!("Resize failed: {e}"),
         )
         .into(),
+    }
+}
+
+/// Handle `pty.mode` — return the current terminal mode flags.
+///
+/// Queries tcgetattr on the PTY master fd to determine canonical/echo/raw state,
+/// and includes alternate screen buffer tracking.
+async fn handle_pty_mode(id: serde_json::Value, ctx: &SessionContext) -> RpcResponse {
+    let pty = match &ctx.pty {
+        Some(pty) => pty,
+        None => {
+            return ErrorResponse::new(
+                id,
+                control::error_code::CAPABILITY_NOT_SUPPORTED,
+                "No PTY session — terminal mode detection not available. Use `register --shell` for PTY-backed sessions.",
+            )
+            .into();
+        }
+    };
+
+    match pty.terminal_mode().await {
+        Ok(mode) => Response::success(
+            id,
+            json!({
+                "canonical": mode.canonical,
+                "echo": mode.echo,
+                "raw": mode.raw,
+                "alternate_screen": mode.alternate_screen,
+            }),
+        )
+        .into(),
+        Err(e) => ErrorResponse::new(
+            id,
+            control::error_code::CAPABILITY_NOT_SUPPORTED,
+            &format!("Failed to read terminal mode: {e}"),
+        )
+        .into(),
+    }
+}
+
+/// Emit a `pty.mode-change` event if the terminal mode has changed.
+///
+/// Called after inject operations to detect mode transitions.
+async fn emit_mode_change_if_needed(ctx: &SessionContext) {
+    let pty = match &ctx.pty {
+        Some(pty) => pty,
+        None => return,
+    };
+
+    match pty.poll_mode_change().await {
+        Ok(Some((current, previous, password_hint))) => {
+            let mut payload = json!({
+                "canonical": current.canonical,
+                "echo": current.echo,
+                "raw": current.raw,
+                "alternate_screen": current.alternate_screen,
+            });
+            if let Some(prev) = previous {
+                payload["previous"] = json!({
+                    "canonical": prev.canonical,
+                    "echo": prev.echo,
+                    "raw": prev.raw,
+                    "alternate_screen": prev.alternate_screen,
+                });
+            }
+            if password_hint {
+                payload["password_prompt_hint"] = json!(true);
+            }
+            let mut bus = ctx.events.lock().await;
+            bus.emit("pty.mode-change", payload);
+        }
+        Ok(None) => {} // No change
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to poll terminal mode change");
+        }
     }
 }
 

@@ -26,6 +26,7 @@ pub mod method {
     pub const KV_LIST: &str = "kv.list";
     pub const KV_DELETE: &str = "kv.delete";
     pub const AUTH_TOKEN: &str = "auth.token";
+    pub const PTY_MODE: &str = "pty.mode";
 }
 
 /// TermLink-specific JSON-RPC error codes (in addition to standard -32700..-32603).
