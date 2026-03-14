@@ -59,12 +59,37 @@ WORKTREE_DIR=""
 BRANCH_NAME="mesh-${WORKER_NAME}"
 WORKDIR="$PROJECT_ROOT"
 
+# --- Auto-commit worktree changes ---
+auto_commit_worktree() {
+    if [ ! -d "$WORKTREE_DIR" ]; then return; fi
+
+    cd "$WORKTREE_DIR"
+    if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+        echo "No changes to commit in worktree" >&2
+        return 1  # Signal: no commits, safe to remove
+    fi
+
+    echo "Auto-committing worker changes..." >&2
+    git add -A
+    git commit -m "mesh(${WORKER_NAME}): auto-commit worker changes" --no-gpg-sign 2>&1 >&2
+    echo "Committed on branch: $BRANCH_NAME" >&2
+    return 0  # Signal: commits exist, preserve branch
+}
+
 # --- Cleanup trap ---
 cleanup() {
     rm -f "$RESULT_FILE"
     if [ "$ISOLATE" = true ] && [ -n "$WORKTREE_DIR" ] && [ -d "$WORKTREE_DIR" ]; then
-        echo "Cleaning up worktree: $WORKTREE_DIR" >&2
-        git -C "$PROJECT_ROOT" worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
+        if auto_commit_worktree; then
+            # Worker made changes — remove worktree but keep branch for merge
+            echo "Preserving branch $BRANCH_NAME (has commits). Removing worktree only." >&2
+            git -C "$PROJECT_ROOT" worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
+        else
+            # No changes — clean up completely
+            echo "Cleaning up worktree: $WORKTREE_DIR" >&2
+            git -C "$PROJECT_ROOT" worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
+            git -C "$PROJECT_ROOT" branch -d "$BRANCH_NAME" 2>/dev/null || true
+        fi
     fi
 }
 trap cleanup EXIT
@@ -133,6 +158,12 @@ if [ "$ISOLATE" = true ]; then
     echo "" >&2
     echo "=== Worktree Branch ===" >&2
     echo "Branch: $BRANCH_NAME" >&2
-    echo "To merge: git merge $BRANCH_NAME" >&2
-    echo "To inspect: git log main..$BRANCH_NAME --oneline" >&2
+    if git -C "$PROJECT_ROOT" rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
+        COMMIT_COUNT=$(git -C "$PROJECT_ROOT" rev-list "main..$BRANCH_NAME" --count 2>/dev/null || echo "0")
+        echo "Commits: $COMMIT_COUNT" >&2
+        echo "To merge: git merge $BRANCH_NAME" >&2
+        echo "To inspect: git log main..$BRANCH_NAME --oneline" >&2
+    else
+        echo "Branch cleaned up (no changes)" >&2
+    fi
 fi
