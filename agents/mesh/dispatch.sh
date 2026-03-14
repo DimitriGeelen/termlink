@@ -127,11 +127,15 @@ echo "Dispatching to worker: $WORKER_NAME" >&2
 echo "Workdir: $WORKDIR" >&2
 echo "Prompt: ${PROMPT:0:80}..." >&2
 
+# Wrap prompt with standard mesh worker instructions
+source "$SCRIPT_DIR/prompt-template.sh"
+WRAPPED_PROMPT=$(cd "$WORKDIR" && wrap_prompt "$PROMPT" "$WORKER_NAME")
+
 termlink run \
     -n "$WORKER_NAME" \
     -t "worker,agent-mesh" \
     --timeout "$TIMEOUT" \
-    -- "$SCRIPT_DIR/agent-wrapper.sh" "$PROMPT" "$WORKDIR" > "$RESULT_FILE" 2>/dev/null &
+    -- "$SCRIPT_DIR/agent-wrapper.sh" "$WRAPPED_PROMPT" "$WORKDIR" > "$RESULT_FILE" 2>/dev/null &
 WORKER_PID=$!
 
 # --- Step 4: Wait for completion ---
