@@ -180,6 +180,9 @@ enum Command {
         lines: u64,
         #[arg(short, long)]
         bytes: Option<u64>,
+        /// Strip ANSI escape sequences from output
+        #[arg(long)]
+        strip_ansi: bool,
     },
 
     /// Inject keystrokes into a PTY-backed session
@@ -508,6 +511,10 @@ enum PtyCommand {
         /// Read by bytes instead of lines
         #[arg(short, long)]
         bytes: Option<u64>,
+
+        /// Strip ANSI escape sequences from output
+        #[arg(long)]
+        strip_ansi: bool,
     },
 
     /// Inject keystrokes into a PTY-backed session
@@ -721,7 +728,7 @@ async fn main() -> Result<()> {
 
         // PTY subcommand group
         Command::Pty(pty) => match pty {
-            PtyCommand::Output { target, lines, bytes } => cmd_output(&target, lines, bytes).await,
+            PtyCommand::Output { target, lines, bytes, strip_ansi } => cmd_output(&target, lines, bytes, strip_ansi).await,
             PtyCommand::Inject { target, text, enter, key } => {
                 cmd_inject(&target, &text, enter, key.as_deref()).await
             }
@@ -754,7 +761,7 @@ async fn main() -> Result<()> {
         },
 
         // Hidden backward-compat aliases (PTY)
-        Command::Output { target, lines, bytes } => cmd_output(&target, lines, bytes).await,
+        Command::Output { target, lines, bytes, strip_ansi } => cmd_output(&target, lines, bytes, strip_ansi).await,
         Command::Inject { target, text, enter, key } => {
             cmd_inject(&target, &text, enter, key.as_deref()).await
         }
@@ -1541,15 +1548,19 @@ fn cmd_discover(
     Ok(())
 }
 
-async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>) -> Result<()> {
+async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, strip_ansi: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let params = if let Some(b) = bytes {
+    let mut params = if let Some(b) = bytes {
         serde_json::json!({ "bytes": b })
     } else {
         serde_json::json!({ "lines": lines })
     };
+
+    if strip_ansi {
+        params["strip_ansi"] = serde_json::json!(true);
+    }
 
     let resp = client::rpc_call(reg.socket_path(), "query.output", params)
         .await

@@ -296,6 +296,7 @@ fn handle_heartbeat(id: serde_json::Value, reg: &Registration) -> RpcResponse {
 /// Params:
 ///   lines: number (optional) — last N lines (default: 50)
 ///   bytes: number (optional) — last N bytes (overrides lines if both given)
+///   strip_ansi: bool (optional) — strip ANSI escape sequences from output
 async fn handle_query_output(
     id: serde_json::Value,
     params: &serde_json::Value,
@@ -327,15 +328,70 @@ async fn handle_query_output(
 
     let output_str = String::from_utf8_lossy(&output);
 
+    let strip_ansi = params
+        .get("strip_ansi")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let final_output = if strip_ansi {
+        strip_ansi_codes(&output_str)
+    } else {
+        output_str.into_owned()
+    };
+
     Response::success(
         id,
         json!({
-            "output": output_str,
+            "output": final_output,
             "bytes_len": output.len(),
             "total_buffered": sb.len(),
         }),
     )
     .into()
+}
+
+/// Strip ANSI escape sequences and carriage returns from a string.
+fn strip_ansi_codes(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            match chars.peek() {
+                Some('[') => {
+                    chars.next();
+                    while let Some(&ch) = chars.peek() {
+                        chars.next();
+                        if ch.is_ascii_alphabetic() || ch == 'K' || ch == 'J' || ch == 'H' {
+                            break;
+                        }
+                    }
+                }
+                Some(']') => {
+                    chars.next();
+                    while let Some(&ch) = chars.peek() {
+                        chars.next();
+                        if ch == '\x07' {
+                            break;
+                        }
+                        if ch == '\x1b' {
+                            if chars.peek() == Some(&'\\') {
+                                chars.next();
+                            }
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    chars.next();
+                }
+            }
+        } else if c == '\r' {
+            continue;
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 /// Handle `command.execute` — spawn a shell command and return output.
@@ -1146,6 +1202,34 @@ mod tests {
         if let RpcResponse::Success(resp) = resp {
             assert_eq!(resp.result["output"], "fghij");
             assert_eq!(resp.result["bytes_len"], 5);
+        } else {
+            panic!("Expected success response");
+        }
+    }
+
+    #[tokio::test]
+    async fn query_output_strip_ansi() {
+        let ctx = test_ctx_with_scrollback(b"\x1b[32mgreen\x1b[0m text\r\n");
+        let req = Request::new("query.output", json!("out-strip-1"), json!({"lines": 10, "strip_ansi": true}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["output"], "green text\n");
+        } else {
+            panic!("Expected success response");
+        }
+    }
+
+    #[tokio::test]
+    async fn query_output_strip_ansi_false_preserves() {
+        let input = b"\x1b[32mgreen\x1b[0m";
+        let ctx = test_ctx_with_scrollback(input);
+        let req = Request::new("query.output", json!("out-strip-2"), json!({"lines": 10, "strip_ansi": false}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            let output = resp.result["output"].as_str().unwrap();
+            assert!(output.contains("\x1b[32m"));
         } else {
             panic!("Expected success response");
         }
