@@ -5,16 +5,16 @@ description: >
   Create a framework PR in OneDev to contribute the /capture skill and JSONL
   transcript reader to the agentic-engineering-framework. Includes research
   artifact, OneDev PR, and pickup prompt for the framework agent.
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
-horizon: later
+owner: human
+horizon: now
 tags: [capture, framework-pr, skill, conversation-capture]
 components: []
 related_tasks: [T-108, T-106]
 created: 2026-03-12T00:00:00Z
-last_update: 2026-03-12T17:05:16Z
-date_finished: null
+last_update: 2026-03-14T12:45:59Z
+date_finished: 2026-03-14T12:45:59Z
 ---
 
 # T-109: Framework PR — /capture Skill and JSONL Transcript Reader
@@ -46,10 +46,10 @@ a OneDev PR, following the framework PR handoff pattern established in T-106.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Research artifact created at `docs/reports/T-109-capture-skill-framework-pr.md`
-- [ ] Pickup prompt written to `docs/framework-agent-pickups/T-109-capture-skill.md`
-- [ ] OneDev PR created (or PR content drafted if access not available)
-- [ ] T-108 final AC checked and T-108 closed
+- [x] Research artifact created at `docs/reports/T-109-capture-skill-framework-pr.md`
+- [x] Pickup prompt written to `docs/framework-agent-pickups/T-109-capture-skill-pr.md`
+- [x] OneDev PR content drafted in pickup prompt (no API auth available — human to submit)
+- [x] T-108 final AC checked and T-108 closed
 
 ### Human
 - [ ] [REVIEW] Pickup prompt reviewed and approved for framework agent submission
@@ -57,7 +57,15 @@ a OneDev PR, following the framework PR handoff pattern established in T-106.
 ## Verification
 
 test -f docs/reports/T-109-capture-skill-framework-pr.md
-test -f docs/framework-agent-pickups/T-109-capture-skill.md
+test -f docs/framework-agent-pickups/T-109-capture-skill-pr.md
+
+## Updates
 
 ### 2026-03-12T16:10:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-14T12:42:59Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-03-14T12:45:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
