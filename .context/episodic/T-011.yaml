@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-011: IT-008: Distributed topology
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T15:30:00Z
+# ============================================================================
+
+task_id: T-011
+task_name: "IT-008: Distributed topology — cross-machine, containers, NAT"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-08T14:19:49Z
+completed: 2026-03-14T15:05:48Z
+duration_days: 6
+updates_count: 3
+first_commit: 2026-03-14T00:00:00+00:00
+last_commit: 2026-03-14T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception exploring distributed topology for cross-machine TermLink communication.
+  Analyzed SSH tunneling, container networking, NAT traversal, and broker federation.
+  All 4 assumptions validated. Decision: GO with phased approach — Phase 0: SSH tunneling
+  (zero code changes), Phase 1: TcpTransport + client.rs refactor, Phase 2: TLS (defer),
+  Phase 3: Hub federation (defer). Depends on T-073 transport abstraction.
+
+# Key outcomes
+outcomes:
+  - "All assumptions A1-A4 validated"
+  - "GO decision: phased approach from SSH tunneling to TcpTransport to TLS to federation"
+  - "SSH tunneling works transparently with existing protocol (zero code changes)"
+  - "TcpTransport requires ~6 coupling point refactors in client.rs"
+  - "Research artifact produced: docs/reports/T-011-distributed-topology-inception.md"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - topic: "Distributed transport strategy"
+    chose: "Phased approach: SSH tunneling -> TcpTransport -> TLS -> Hub federation"
+    why: "SSH tunneling covers 90% of use cases with zero code changes; each phase adds complexity only when prior phase proves insufficient"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-011-distributed-topology-inception.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14"
+    action: "T-011: Inception GO — distributed topology, phased approach"
+
+# What worked well
+successes:
+  - "Clear phased decomposition avoided over-engineering"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [distributed, networking, inception, transport, ssh]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-011-it-008-distributed-topology--cross-machi.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-122: Transport trait + Unix socket adapter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-122
+task_name: "Transport trait + Unix socket adapter"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-12T20:17:49Z
+completed: 2026-03-13T09:56:20Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-03-12T22:37:37+01:00
+last_commit: 2026-03-13T10:56:31+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Defined Transport trait, TransportAddr enum, Connection/TransportListener/LivenessProbe traits
+  in protocol and session crates. Wrapped existing Unix socket code in adapter structs and
+  refactored all 10 coupling points (7 session, 3 hub) to use traits. All 245 tests passing.
+
+# Key outcomes
+outcomes:
+  - "TransportAddr enum in protocol crate (Unix, Tcp variants)"
+  - "Transport, Connection, TransportListener, LivenessProbe traits in session crate"
+  - "Unix socket adapter wrapping existing UnixListener/UnixStream"
+  - "Registration.socket replaced with Registration.addr"
+  - "All 10 coupling points refactored to use traits"
+  - "Full test suite passing (245 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-protocol/src/transport.rs"
+  - "crates/termlink-session/src/transport/"
+  - "crates/termlink-hub/src/"
+  - ".tasks/active/T-122-transport-trait--unix-socket-adapter.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12T22:37:37"
+    action: "T-122: Transport trait + Unix socket adapter"
+  - time: "2026-03-13T08:34:53"
+    action: "T-122: Transport trait + Unix socket adapter"
+  - time: "2026-03-13T10:56:31"
+    action: "T-120, T-121, T-122: Complete build tasks — all ACs checked, 245 tests passing"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s) across 2 days
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+  referenced: [T-073, T-011]
+
+# Tags for retrieval
+tags: [protocol, session, hub, transport]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 5
+  files_changed: 38
+  lines_added: 1599
+  lines_removed: 208
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-122-transport-trait--unix-socket-adapter.md
+generated_by: context-agent-hybrid

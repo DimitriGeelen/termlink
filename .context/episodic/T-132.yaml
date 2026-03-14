@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-132: Document SSH tunneling setup for cross-machine TermLink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-132
+task_name: "Document SSH tunneling setup for cross-machine TermLink"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-14T15:17:12Z
+completed: 2026-03-14T15:18:25Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-03-14T16:18:33+01:00
+last_commit: 2026-03-14T16:18:33+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Created SSH tunneling guide at docs/ssh-tunneling.md documenting cross-machine
+  TermLink connectivity using existing Unix socket forwarding. Phase 0 from T-011
+  inception — works today with zero code changes. Covers single session forwarding,
+  hub forwarding, and socat bridge for TCP.
+
+# Key outcomes
+outcomes:
+  - "SSH tunneling guide at docs/ssh-tunneling.md"
+  - "Covers single session, hub, and socat TCP bridge scenarios"
+  - "Working SSH commands with TermLink-specific paths"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/ssh-tunneling.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T16:18:33"
+    action: "T-132: SSH tunneling guide — cross-machine TermLink (Phase 0)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+  referenced: [T-011]
+
+# Tags for retrieval
+tags: [documentation, ssh, networking]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 161
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-132-document-ssh-tunneling-setup-for-cross-m.md
+generated_by: context-agent-hybrid

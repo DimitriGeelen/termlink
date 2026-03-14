@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-073: Transport abstraction inception
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T15:30:00Z
+# ============================================================================
+
+task_id: T-073
+task_name: "Transport abstraction — trait-based transport in protocol crate"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-10T08:44:51Z
+completed: 2026-03-12T19:58:09Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-03-12T00:00:00+00:00
+last_commit: 2026-03-12T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception exploring trait-based transport abstraction to decouple session crate from
+  tokio + Unix sockets. Mesh exploration validated all 4 assumptions. Decision: GO —
+  TransportAddr enum in protocol crate (serde only, stays dependency-free), Transport +
+  Connection traits in session crate. 10 coupling points mapped (7 session, 3 hub).
+  Spawned build task T-122.
+
+# Key outcomes
+outcomes:
+  - "Assumptions A1-A4 tested via mesh exploration report (docs/reports/T-073-exploration.md)"
+  - "GO decision: trait design validated"
+  - "TransportAddr enum in protocol crate, Transport + Connection traits in session crate"
+  - "10 coupling points mapped (7 session, 3 hub)"
+  - "Protocol crate stays dependency-free (serde only)"
+  - "Spawned build task T-122 for implementation"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - topic: "Transport trait location"
+    chose: "TransportAddr in protocol crate, Transport+Connection traits in session crate"
+    why: "Protocol crate stays dependency-free (serde only); session crate already has tokio dependency"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-073-exploration.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12"
+    action: "T-071, T-073: Mesh-generated exploration reports"
+  - time: "2026-03-12"
+    action: "T-009, T-010, T-073: GO decisions"
+  - time: "2026-03-12"
+    action: "T-009, T-010, T-073: Complete inception tasks"
+
+# What worked well
+successes:
+  - "Clean separation: address type in protocol, trait in session"
+  - "Coupling point mapping provided clear implementation scope for build task"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-122]
+
+# Tags for retrieval
+tags: [transport, abstraction, inception, architecture]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-073-transport-abstraction--trait-based-trans.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-010: IT-007: Interactive program handling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T15:30:00Z
+# ============================================================================
+
+task_id: T-010
+task_name: "IT-007: Interactive program handling — vim, REPLs, nested sessions"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-08T14:19:48Z
+completed: 2026-03-12T19:58:05Z
+duration_days: 4
+updates_count: 3
+first_commit: 2026-03-12T00:00:00+00:00
+last_commit: 2026-03-12T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception exploring interactive program handling (vim, REPLs, SSH, password prompts)
+  over PTY. Mesh exploration validated that tcgetattr() on PTY master fd reliably detects
+  raw/canonical/echo state. Decision: GO — build pty.mode RPC, pty.mode-change event,
+  and alternate screen buffer detection. Spawned build task T-121.
+
+# Key outcomes
+outcomes:
+  - "Assumptions A1-A4 tested via mesh exploration report (docs/reports/T-010-exploration.md)"
+  - "GO decision: PTY mode detection via tcgetattr() is reliable and low-overhead"
+  - "Phased build plan: P1 pty.mode RPC, P2 pty.mode-change event, P3 alternate screen buffer detection"
+  - "ANSI-aware scrollback (vt100 state machine) scoped out"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - topic: "Interactive program detection approach"
+    chose: "tcgetattr() on PTY master fd for mode detection"
+    why: "Reliable, low-overhead, covers raw/canonical/echo state for vim, REPL, SSH, sudo detection"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-010-exploration.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12"
+    action: "T-009, T-010: Mesh-generated exploration reports"
+  - time: "2026-03-12"
+    action: "T-009, T-010, T-073: GO decisions"
+  - time: "2026-03-12"
+    action: "T-009, T-010, T-073: Complete inception tasks"
+
+# What worked well
+successes:
+  - "Mesh exploration validated PTY mode detection feasibility"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-121]
+
+# Tags for retrieval
+tags: [pty, interactive, inception, terminal-mode]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-010-it-007-interactive-program-handling--vim.md
+generated_by: context-agent-hybrid

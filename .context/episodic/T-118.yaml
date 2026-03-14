@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-118: Framework PR — fw fabric context command
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T15:30:00Z
+# ============================================================================
+
+task_id: T-118
+task_name: "Framework PR — fw fabric context command for LLM context enrichment"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-12T16:04:36Z
+completed: 2026-03-14T12:52:26Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-03-14T00:00:00+00:00
+last_commit: 2026-03-14T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception for a framework-level fw fabric context command that generates a structured
+  architecture summary (subsystems, key interfaces, dependency graph) for LLM system prompt
+  injection. All 3 assumptions validated — existing fabric data sufficient for <2K token
+  context output. Decision: GO with pickup prompt ready for build task.
+
+# Key outcomes
+outcomes:
+  - "All 3 assumptions validated (A-001: token efficiency, A-002: data sufficiency, A-003: injectable format)"
+  - "GO decision: existing fabric data sufficient for useful context"
+  - "Output < 2K tokens confirmed as feasible"
+  - "Framework-level improvement (bash + Python, not TermLink-specific)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - topic: "fw fabric context feasibility"
+    chose: "GO — build the command"
+    why: "Existing fabric data sufficient for <2K token context output; all assumptions validated"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # Inception artifacts only (no build artifacts)
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14"
+    action: "T-118: Capture framework PR — fw fabric context for LLM enrichment"
+  - time: "2026-03-14"
+    action: "T-118: Inception GO — fw fabric context command for LLM enrichment"
+
+# What worked well
+successes:
+  - "Rapid inception — validated assumptions quickly with existing fabric data"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework-pr, fabric, llm-context, inception]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-118-framework-pr--fw-fabric-context-command-.md
+generated_by: context-agent-hybrid

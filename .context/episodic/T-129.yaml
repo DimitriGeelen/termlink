@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-129: Register fabric cards for new mesh scripts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-129
+task_name: "Register fabric cards for new mesh scripts"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-14T12:09:59Z
+completed: 2026-03-14T12:10:49Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-03-14T13:10:56+01:00
+last_commit: 2026-03-14T13:10:56+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Registered fabric component cards for merge-branches.sh and prompt-template.sh,
+  created in T-127 and T-128 respectively. Ensures new mesh scripts are tracked
+  in the component fabric for dependency and drift analysis.
+
+# Key outcomes
+outcomes:
+  - "Fabric card for agents/mesh/merge-branches.sh"
+  - "Fabric card for agents/mesh/prompt-template.sh"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/agents-mesh-merge-branches.yaml"
+  - ".fabric/components/agents-mesh-prompt-template.yaml"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T13:10:56"
+    action: "T-129: Register fabric cards for merge-branches.sh and prompt-template.sh"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+  referenced: [T-127, T-128]
+
+# Tags for retrieval
+tags: [fabric, agent-mesh]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 10
+  lines_added: 93
+  lines_removed: 7
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-129-register-fabric-cards-for-new-mesh-scrip.md
+generated_by: context-agent-hybrid

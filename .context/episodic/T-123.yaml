@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-123: Agent mesh concurrent builds — isolation strategy for parallel write tasks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-123
+task_name: "Agent mesh concurrent builds — isolation strategy for parallel write tasks"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-12T20:40:23Z
+completed: 2026-03-12T20:56:55Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-03-12T21:42:55+01:00
+last_commit: 2026-03-12T21:47:51+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception task exploring isolation strategies for parallel agent mesh build tasks.
+  Analyzed 5 strategies (file partitioning, CARGO_TARGET_DIR only, git worktrees, CoW copies,
+  layered patches). GO decision: git worktree per worker + CARGO_TARGET_DIR per worktree.
+
+# Key outcomes
+outcomes:
+  - "GO decision — worktree isolation strategy chosen"
+  - "Full strategy comparison report at docs/reports/T-123-mesh-concurrent-builds.md"
+  - "Risk matrix and file overlap analysis completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - topic: "Isolation strategy for parallel build tasks"
+    chose: "Git worktree per worker + CARGO_TARGET_DIR per worktree"
+    why: "Structural filesystem isolation eliminates all file conflict, build contention, and git corruption risks. Worktrees are lightweight (~1-2MB). ~20 lines of bash."
+    rejected: "File partitioning (breaks on overlapping files), CARGO_TARGET_DIR only (half-measure), CoW copies (overkill), layered patches (impractical for AI agents)"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-123-mesh-concurrent-builds.md"
+  - ".tasks/active/T-123-agent-mesh-concurrent-builds--isolation-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12T21:42:55"
+    action: "T-123: Inception report — mesh concurrent builds isolation strategy"
+  - time: "2026-03-12T21:47:51"
+    action: "T-123: Flesh out inception report — full strategy comparison, risks, pros/cons"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), same day
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-124]
+  referenced: []
+
+# Tags for retrieval
+tags: [agent-mesh, inception, isolation, worktree]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 481
+  lines_removed: 45
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-123-agent-mesh-concurrent-builds--isolation-.md
+generated_by: context-agent-hybrid

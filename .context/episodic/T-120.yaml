@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-120: EventBus gap detection + concurrent hub broadcast
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T15:30:00Z
+# ============================================================================
+
+task_id: T-120
+task_name: "EventBus gap detection + concurrent hub broadcast"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-12T20:17:23Z
+completed: 2026-03-12T21:29:40Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-12T00:00:00+00:00
+last_commit: 2026-03-12T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Implemented EventBus gap detection and concurrent hub broadcast from T-009 inception GO.
+  EventBus now detects when a poller's cursor falls behind the oldest sequence in the ring
+  buffer and returns a warning instead of silent event loss. Hub broadcast dispatches to
+  sessions concurrently via tokio::spawn with per-target timeouts instead of sequential
+  iteration.
+
+# Key outcomes
+outcomes:
+  - "EventBus gap detection: cursor < oldest_seq returns warning in events response"
+  - "Hub broadcast: concurrent dispatch via tokio::spawn per target"
+  - "Per-target timeout on hub broadcast (no reliance on default socket timeout)"
+  - "Existing event ordering tests still pass"
+  - "New test: concurrent pollers on one session see all events without loss"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (implementation followed T-009 inception design)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-session/src/event.rs"
+  - "crates/termlink-hub/src/hub.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12"
+    action: "T-120, T-121, T-122: Create build tasks for GO'd inceptions"
+  - time: "2026-03-12"
+    action: "T-120: EventBus gap detection + concurrent hub broadcast"
+  - time: "2026-03-12"
+    action: "T-120, T-121, T-122: Complete build tasks — all ACs checked, 245 tests passing"
+
+# What worked well
+successes:
+  - "Completed same day as task creation"
+  - "Clean implementation from well-defined inception output"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [concurrency, eventbus, hub, backpressure, build]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 72
+  commits: 2
+  files_changed: 3
+  lines_added: 378
+  lines_removed: 86
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-120-eventbus-gap-detection--concurrent-hub-b.md
+generated_by: context-agent-hybrid

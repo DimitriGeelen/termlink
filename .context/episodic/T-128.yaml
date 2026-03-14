@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-128: Agent mesh prompt template — include commit instructions and output format
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-128
+task_name: "Agent mesh prompt template — include commit instructions and output format"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-13T10:05:23Z
+completed: 2026-03-14T12:08:35Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-03-14T13:08:45+01:00
+last_commit: 2026-03-14T13:08:45+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Created standardized prompt template for mesh workers at agents/mesh/prompt-template.sh.
+  Template wraps user task prompts with commit instructions, cargo path, output format, and
+  error handling. dispatch.sh updated to apply the template before passing prompts to workers.
+
+# Key outcomes
+outcomes:
+  - "Prompt template file at agents/mesh/prompt-template.sh"
+  - "Template includes commit, cargo, output format, and error handling instructions"
+  - "dispatch.sh wraps user prompts through the template"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "agents/mesh/prompt-template.sh"
+  - "agents/mesh/dispatch.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T13:08:45"
+    action: "T-128: Agent mesh prompt template — commit instructions, cargo path, output format"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s)
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+  referenced: [T-123, T-125]
+
+# Tags for retrieval
+tags: [agent-mesh]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 6
+  lines_added: 108
+  lines_removed: 79
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-128-agent-mesh-prompt-template--include-comm.md
+generated_by: context-agent-hybrid

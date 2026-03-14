@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-009: IT-005: Concurrency, ordering, and backpressure
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T15:30:00Z
+# ============================================================================
+
+task_id: T-009
+task_name: "IT-005: Concurrency, ordering, and backpressure"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-08T14:19:43Z
+completed: 2026-03-12T19:57:52Z
+duration_days: 4
+updates_count: 3
+first_commit: 2026-03-12T00:00:00+00:00
+last_commit: 2026-03-12T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception exploring concurrency, ordering, and backpressure under multi-agent load.
+  Mesh-generated exploration report validated assumptions. Decision: GO — add EventBus
+  gap detection (cursor < oldest_seq warning), make hub broadcast concurrent, defer
+  push-based delivery. Spawned build task T-120.
+
+# Key outcomes
+outcomes:
+  - "Assumptions A1-A4 tested via mesh exploration report (docs/reports/T-009-exploration.md)"
+  - "GO decision: bounded fix — gap detection + concurrent hub broadcast"
+  - "Deferred push-based delivery until polling proves inadequate under real mesh load"
+  - "Spawned build task T-120 for implementation"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - topic: "Concurrency model"
+    chose: "Bounded fix: gap detection + concurrent broadcast"
+    why: "Polling is adequate for current scale; push-based delivery deferred until real load proves inadequacy"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-009-exploration.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12"
+    action: "T-009, T-010: Mesh-generated exploration reports"
+  - time: "2026-03-12"
+    action: "T-009, T-010, T-073: GO decisions"
+  - time: "2026-03-12"
+    action: "T-009, T-010, T-073: Complete inception tasks"
+
+# What worked well
+successes:
+  - "Mesh exploration provided structured evidence for GO decision"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-120]
+
+# Tags for retrieval
+tags: [concurrency, eventbus, backpressure, inception]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-009-it-005-concurrency-ordering-and-backpres.md
+generated_by: context-agent-hybrid

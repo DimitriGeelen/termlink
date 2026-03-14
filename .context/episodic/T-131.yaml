@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-131: Patch budget-gate.sh + checkpoint.sh for 1M context window
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-131
+task_name: "Patch budget-gate.sh + checkpoint.sh for 1M context window"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-14T12:59:44Z
+completed: 2026-03-14T14:36:02Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-03-14T15:36:19+01:00
+last_commit: 2026-03-14T15:36:19+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Patched local Homebrew install of budget-gate.sh and checkpoint.sh to support
+  1M context window (Opus 4.6 GA). Replaced hardcoded 200K thresholds with
+  CONTEXT_WINDOW env var (default 1M). Updated thresholds to 60%/80%/90% and
+  increased transcript tail window from 2MB to 10MB.
+
+# Key outcomes
+outcomes:
+  - "budget-gate.sh uses CONTEXT_WINDOW env var (default 1M)"
+  - "checkpoint.sh uses CONTEXT_WINDOW env var (default 1M)"
+  - "Thresholds: warn 60%, urgent 80%, critical 90%"
+  - "Transcript tail window increased 2MB to 10MB"
+  - "No remaining hardcoded 200K references"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "/usr/local/opt/agentic-fw/libexec/agents/context/budget-gate.sh"
+  - "/usr/local/opt/agentic-fw/libexec/agents/context/checkpoint.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T15:36:19"
+    action: "T-131: Patch budget-gate.sh + checkpoint.sh for 1M context window (Opus 4.6)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s)
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+  referenced: []
+
+# Tags for retrieval
+tags: [framework, budget, context-window]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 66
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-131-patch-budget-gatesh--checkpointsh-for-1m.md
+generated_by: context-agent-hybrid

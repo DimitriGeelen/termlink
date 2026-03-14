@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-071: E2E test portability
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T15:30:00Z
+# ============================================================================
+
+task_id: T-071
+task_name: "E2E test portability — shared setup.sh, remove hardcoded paths"
+workflow_type: refactor
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-10T08:44:46Z
+completed: 2026-03-14T11:16:31Z
+duration_days: 4
+updates_count: 4
+first_commit: 2026-03-12T00:00:00+00:00
+last_commit: 2026-03-14T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Refactored E2E test scripts for portability. Created shared setup.sh with common
+  orchestrator registration, health check, and binary resolution. Removed 13 hardcoded
+  absolute paths across 6 e2e level scripts. Binary paths now resolved via $PATH, which,
+  or TERMLINK_BIN/CLAUDE_BIN env vars. Registered setup.sh fabric card.
+
+# Key outcomes
+outcomes:
+  - "Shared setup.sh created with common orchestrator setup logic"
+  - "All 6 e2e level scripts source setup.sh instead of duplicating setup"
+  - "13 hardcoded absolute paths removed"
+  - "Binary paths resolved via $PATH, which, or env vars"
+  - "setup.sh fabric card registered"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "tests/e2e/setup.sh"
+  - "tests/e2e/level1-echo.sh"
+  - "tests/e2e/level2-multi-session.sh"
+  - "tests/e2e/level3-hub-coordination.sh"
+  - "tests/e2e/level4-agent-workflow.sh"
+  - "tests/e2e/level5-resilience.sh"
+  - "tests/e2e/level6-full-mesh.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-12"
+    action: "T-071: Shared setup.sh — remove 13 hardcoded paths, portable binary resolution"
+  - time: "2026-03-12"
+    action: "T-071: Register setup.sh fabric card, check ACs"
+  - time: "2026-03-14"
+    action: "T-071: E2E test portability — verify and complete"
+
+# What worked well
+successes:
+  - "Reflection fleet identified the portability issue systematically"
+  - "Clean extraction of shared setup logic"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [e2e, testing, portability, refactor]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 8
+  lines_added: 140
+  lines_removed: 151
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-071-e2e-test-portability--shared-setupsh-rem.md
+generated_by: context-agent-hybrid

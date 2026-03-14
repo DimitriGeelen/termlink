@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-125: Retrospective improvements — agent commit discipline, merge orchestration, prompt templates
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-125
+task_name: "Retrospective improvements — agent commit discipline, merge orchestration, prompt templates"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-13T10:01:53Z
+completed: 2026-03-13T10:05:34Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-03-13T11:05:41+01:00
+last_commit: 2026-03-13T11:07:23+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session retrospective capture from agent mesh build session. Identified three improvement
+  areas and created follow-up tasks: T-126 (auto-commit for workers), T-127 (merge
+  orchestration), T-128 (prompt template with commit/cargo/output instructions).
+
+# Key outcomes
+outcomes:
+  - "Retrospective capture artifact written (docs/reports/T-125-capture-2026-03-13-10.md)"
+  - "T-126 created (auto-commit for mesh workers)"
+  - "T-127 created (merge orchestration)"
+  - "T-128 created (prompt template)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-125-capture-2026-03-13-10.md"
+  - ".tasks/active/T-126-*.md"
+  - ".tasks/active/T-127-*.md"
+  - ".tasks/active/T-128-*.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-13T11:05:41"
+    action: "T-125: Retrospective tasks — T-126 (auto-commit), T-127 (merge orchestration), T-128 (prompt template)"
+  - time: "2026-03-13T11:07:23"
+    action: "T-125: /capture — session retrospective artifact"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), same day
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-126, T-127, T-128]
+  referenced: []
+
+# Tags for retrieval
+tags: [retrospective, agent-mesh]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 5
+  lines_added: 335
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-125-retrospective-improvements--agent-commit.md
+generated_by: context-agent-hybrid

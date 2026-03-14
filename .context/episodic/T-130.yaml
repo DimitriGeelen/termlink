@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-130: Housekeeping — finalize stale completed tasks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-14T12:00:00Z
+# ============================================================================
+
+task_id: T-130
+task_name: "Housekeeping — finalize stale completed tasks"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-14T12:41:08Z
+completed: 2026-03-14T12:42:38Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-03-14T13:42:45+01:00
+last_commit: 2026-03-14T13:42:45+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Housekeeping task to finalize T-115 and T-125, which had unfilled template acceptance
+  criteria preventing their move to completed/. Cleaned up stale template ACs and moved
+  both tasks to the completed directory.
+
+# Key outcomes
+outcomes:
+  - "T-115 moved to completed/"
+  - "T-125 moved to completed/"
+  - "Stale template ACs cleaned up"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/completed/T-115-register-fabric-cards-for-agent-mesh-scr.md"
+  - ".tasks/completed/T-125-retrospective-improvements--agent-commit.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T13:42:45"
+    action: "T-130: Finalize T-115, T-125 — clean up stale template ACs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+  referenced: [T-115, T-125]
+
+# Tags for retrieval
+tags: [housekeeping]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 5
+  lines_added: 61
+  lines_removed: 46
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-130-housekeeping--finalize-stale-completed-t.md
+generated_by: context-agent-hybrid
