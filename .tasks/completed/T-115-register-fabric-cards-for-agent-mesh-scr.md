@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-12T09:36:31Z
-last_update: 2026-03-14T11:10:40Z
+last_update: 2026-03-14T12:41:57Z
 date_finished: 2026-03-12T09:37:00Z
 ---
 
@@ -24,27 +24,7 @@ date_finished: 2026-03-12T09:37:00Z
 
 ## Acceptance Criteria
 
-### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-- [ ] If this work belongs in the framework (not just this project): framework PR task created (T-XXX) with research artifact, OneDev PR, and pickup prompt written to `docs/framework-agent-pickups/`
-  <!-- Remove this AC if the work is project-specific only -->
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] Fabric cards registered for agent mesh scripts (dispatch.sh, agent-wrapper.sh, orchestrate.sh, worker.sh)
 
 ## Verification
 
