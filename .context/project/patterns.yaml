@@ -19,13 +19,11 @@ failure_patterns:
     pattern: "Context exhaustion before handover"
     description: >
       Agent outputs consume context faster than expected. Handover generated as skeleton
-      with [TODO] placeholders is useless for recovery. Also applies to pure conversation
-      conversation-only sessions where no tools are called — those sessions have zero hook coverage and
-      content is silently lost on context exhaustion (G-005).
+      with [TODO] placeholders is useless for recovery.
     scope: universal
     inherited_from: framework
     origin_task: T-059
-    mitigation: "Token-aware monitoring from JSONL transcript. Commit early and often. Generate handovers AFTER work, not before. For conversation sessions: invoke /capture at topic boundaries (C-002 Exploratory Conversation Guard)."
+    mitigation: "Token-aware monitoring from JSONL transcript. Commit early and often. Generate handovers AFTER work, not before."
 
   - id: FP-005
     pattern: "Plugin authority override bypasses framework governance"

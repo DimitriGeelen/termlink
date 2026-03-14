@@ -27,8 +27,6 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [ ] [First criterion]
 - [ ] [Second criterion]
-- [ ] If this work belongs in the framework (not just this project): framework PR task created (T-XXX) with research artifact, OneDev PR, and pickup prompt written to `docs/framework-agent-pickups/`
-  <!-- Remove this AC if the work is project-specific only -->
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
