@@ -93,28 +93,18 @@ test -f docs/reports/T-136-termlink-status-report.md
 
 ## Decisions
 
-### 2026-03-14 — Observation mechanism for self-test loop
-- **Chose:** Full interactive (inject + query.output scrollback polling) as primary mechanism
-- **Why:** The requirement is full E2E testing — the agent must see everything a human sees (prompts, colors, hook output, errors) and be able to interact (type commands, respond to prompts, run sequences). `command.execute` is a subprocess shortcut — it doesn't test the real user experience. The interactive path uses the actual PTY where shell state persists between commands.
-- **Rejected:**
-  - Direct Bash (Option A): No isolation, circular hook execution
-  - Execute only (Option B): Subprocess, not interactive PTY. Misses shell state, hooks, prompts.
+**Decision**: GO
 
-### 2026-03-14 — Synchronization mechanism
-- **Chose:** Marker injection — append `; echo "___DONE___"` after commands, poll scrollback until marker appears
-- **Why:** Deterministic, works for any command, no timing assumptions
-- **Rejected:**
-  - Sleep-based: Fragile, adds unnecessary latency
-  - Prompt detection: Fragile with custom/multi-line prompts
+**Rationale**: Spike validated all 7 test cases: inject, scrollback, fw doctor E2E, marker sync, state persistence, cleanup. All primitives work. No new TermLink code needed for Phase 0.
 
+**Date**: 2026-03-14T16:59:00Z
 ## Decision
 
-**GO** — All 5 assumptions validated. All required TermLink primitives exist
-and are tested (253 tests). No new TermLink code needed for basic self-test
-loop. Integration work is bounded: Phase 0 (today, zero code), Phase 1
-(~1 session for /self-test skill), Phase 2 (~1 session for commit integration).
+**Decision**: GO
 
-See: docs/reports/T-136-framework-self-testing-inception.md
+**Rationale**: Spike validated all 7 test cases: inject, scrollback, fw doctor E2E, marker sync, state persistence, cleanup. All primitives work. No new TermLink code needed for Phase 0.
+
+**Date**: 2026-03-14T16:59:00Z
 
 ## Dialogue Log
 
@@ -145,3 +135,8 @@ Streaming is only needed for:
 - Wrote inception report: docs/reports/T-136-framework-self-testing-inception.md
 - Evaluated 4 options, chose hybrid approach
 - Verdict: GO — all primitives exist, no new TermLink code needed
+
+### 2026-03-14T16:59:00Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Spike validated all 7 test cases: inject, scrollback, fw doctor E2E, marker sync, state persistence, cleanup. All primitives work. No new TermLink code needed for Phase 0.

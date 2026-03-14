@@ -194,8 +194,44 @@ Works for most cases but fragile with multi-line prompts.
 Poll `query.output` repeatedly. When `total_buffered` stops changing for 1s,
 the command is done. Simple but adds latency.
 
-**Option 4: Smart Hybrid**
+**Option 4: Smart Hybrid (Recommended)**
 Use marker injection for automated tests. Use stabilization polling as fallback.
+Marker injection is deterministic; stabilization handles edge cases where the
+marker itself might produce output.
+
+### Input Capabilities (`command.inject`)
+
+The inject handler accepts three key types:
+- **Text:** `{"type": "text", "value": "fw doctor"}` — UTF-8 string, passed as-is
+- **Key:** `{"type": "key", "value": "Enter"}` — named keys: Enter (0x0D), Tab,
+  Escape, Ctrl+A through Ctrl+Z, arrows, Home/End, Delete
+- **Raw:** `{"type": "raw", "value": "Aw=="}` — base64-encoded arbitrary bytes
+  (e.g., 0x03 = Ctrl+C)
+
+This means the agent can type anything a human can type — including control
+sequences, escape codes, and special keys.
+
+### Scrollback Content
+
+`query.output` returns raw terminal bytes as UTF-8, including:
+- Shell prompts (`$ `, `% `)
+- ANSI escape sequences (colors: `\x1b[0;32m`, cursor movement, bold)
+- Command output (stdout interleaved with stderr in the PTY)
+- Error messages from hooks, scripts, etc.
+
+No ANSI stripping is built in. The agent (Claude) can parse ANSI or regex-strip
+it (`\x1b\[[0-9;]*m`). A future enhancement could add an ANSI-strip option.
+
+### Existing Pattern: `attach` Command
+
+The CLI `termlink attach` already implements the interactive loop:
+1. Put stdin in raw mode
+2. `tokio::select!` on stdin + poll timer
+3. On stdin: inject keystrokes (fire-and-forget, no RPC response wait)
+4. On timer: poll `query.output(bytes=8192)`, detect delta via `total_buffered`
+5. Write new output to stdout
+
+Claude Code replicates this synchronously: inject → sleep → poll → analyze.
 
 ### What Can Be Tested (Full E2E)
 
@@ -364,6 +400,27 @@ edit → self-test → fix → self-test → commit. ~1 session effort.
 Add optional ANSI-stripping to `query.output` so the agent gets clean text
 for pattern matching. Useful but not blocking — Claude can parse ANSI.
 ~0.5 session effort.
+
+## Proof-of-Concept Spike Results (2026-03-14)
+
+Actual interactive test loop executed against a live TermLink PTY session:
+
+| Test | Result |
+|------|--------|
+| Register PTY session | PASS — `spike-test` spawned with zsh |
+| Inject keystrokes | PASS — `echo HELLO_TERMLINK` typed, output captured |
+| Read scrollback | PASS — full output with prompt, ANSI, command echo |
+| Run `fw doctor` E2E | PASS — all OK/WARN/FAIL diagnostics visible |
+| Marker synchronization | PASS — `___DONE___` detected in scrollback via grep |
+| Shell state persistence | PASS — env var set in inject 1, read in inject 2 |
+| Session cleanup | PASS — SIGTERM terminates, removed from list |
+
+### Gotchas Discovered
+1. `termlink send` uses `--params` flag, not positional: `termlink send <session> <method> --params '{...}'`
+2. ANSI control chars in scrollback break Python `json.load` — use grep or regex, not JSON parsing
+3. Signal is via `termlink signal <session> SIGTERM` CLI command, not RPC via `send`
+4. Zsh `PROMPT_SP` (`%` marker) appears at start of output — cosmetic, not a problem
+5. 1-2 second sleep between inject and poll is sufficient for framework commands
 
 ## Related Tasks
 - T-121: PTY mode detection (enables Phase 3 interactive testing)
