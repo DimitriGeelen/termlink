@@ -4,16 +4,16 @@ name: "IT-008: Distributed topology — cross-machine, containers, NAT"
 description: >
   Broker federation, NAT traversal, container networking, SSH tunneling
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-08T14:19:49Z
-last_update: 2026-03-08T14:19:49Z
-date_finished: null
+last_update: 2026-03-14T15:05:48Z
+date_finished: 2026-03-14T15:05:48Z
 ---
 
 # T-011: IT-008: Distributed topology — cross-machine, containers, NAT
@@ -50,9 +50,9 @@ TermLink is currently local-only (Unix sockets). For multi-machine agent coordin
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested (A1-A4 all validated)
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -67,11 +67,7 @@ TermLink is currently local-only (Unix sockets). For multi-machine agent coordin
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     For inception tasks, verification is often not needed (decisions, not code).
--->
+test -f docs/reports/T-011-distributed-topology-inception.md
 
 ## Decisions
 
@@ -85,10 +81,22 @@ TermLink is currently local-only (Unix sockets). For multi-machine agent coordin
 -->
 
 ## Decision
+<!-- inception-decision -->
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO — Phased approach. Phase 0: SSH tunneling (zero code changes, document it). Phase 1: TcpTransport + client.rs refactor (~6 coupling points). Phase 2: TLS (defer). Phase 3: Hub federation (defer).
+
+**Date**: 2026-03-14
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-14T15:02:33Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-03-14T15:02:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-14T15:05:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
