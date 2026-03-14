@@ -1,0 +1,15 @@
+id: agents/mesh/merge-branches.sh
+name: merge-branches
+type: script
+subsystem: agent-mesh
+location: agents/mesh/merge-branches.sh
+tags: [agent-mesh, isolation, git]
+
+purpose: "Sequentially rebase and merge N worktree branches onto main after parallel dispatch. Runs tests after each merge, stops on conflict."
+
+depends_on:
+  - target: agents/mesh/dispatch.sh
+    type: workflow
+
+last_verified: 2026-03-14
+created_by: unknown
