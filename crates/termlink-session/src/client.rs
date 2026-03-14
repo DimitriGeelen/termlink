@@ -5,22 +5,41 @@ use tokio::net::UnixStream;
 
 use termlink_protocol::control;
 use termlink_protocol::jsonrpc::{Request, RpcResponse};
+use termlink_protocol::TransportAddr;
 
-/// A JSON-RPC client that connects to a session's Unix socket.
+/// A JSON-RPC client that connects to a session via any transport.
 pub struct Client {
-    writer: tokio::io::WriteHalf<UnixStream>,
-    reader: tokio::io::Lines<BufReader<tokio::io::ReadHalf<UnixStream>>>,
+    writer: Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+    reader: tokio::io::Lines<BufReader<Box<dyn tokio::io::AsyncRead + Send + Unpin>>>,
 }
 
 impl Client {
-    /// Connect to a session's control plane socket.
+    /// Connect to a session's control plane via transport address.
+    pub async fn connect_addr(addr: &TransportAddr) -> std::io::Result<Self> {
+        match addr {
+            TransportAddr::Unix { path } => {
+                let stream = UnixStream::connect(path).await?;
+                let (reader, writer) = tokio::io::split(stream);
+                Ok(Self {
+                    writer: Box::new(writer),
+                    reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                })
+            }
+            TransportAddr::Tcp { host, port } => {
+                let stream = tokio::net::TcpStream::connect((host.as_str(), *port)).await?;
+                stream.set_nodelay(true)?;
+                let (reader, writer) = tokio::io::split(stream);
+                Ok(Self {
+                    writer: Box::new(writer),
+                    reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                })
+            }
+        }
+    }
+
+    /// Connect to a session's control plane socket (convenience for Unix paths).
     pub async fn connect(socket_path: &Path) -> std::io::Result<Self> {
-        let stream = UnixStream::connect(socket_path).await?;
-        let (reader, writer) = tokio::io::split(stream);
-        Ok(Self {
-            writer,
-            reader: BufReader::new(reader).lines(),
-        })
+        Self::connect_addr(&TransportAddr::unix(socket_path)).await
     }
 
     /// Send a JSON-RPC request and wait for the response.
@@ -89,14 +108,23 @@ impl Client {
     }
 }
 
-/// Convenience function: connect, send one request, return response.
+/// Convenience function: connect via address, send one request, return response.
+pub async fn rpc_call_addr(
+    addr: &TransportAddr,
+    method: &str,
+    params: serde_json::Value,
+) -> Result<RpcResponse, ClientError> {
+    let mut client = Client::connect_addr(addr).await?;
+    client.call(method, serde_json::json!("cli-1"), params).await
+}
+
+/// Convenience function: connect via Unix socket path, send one request, return response.
 pub async fn rpc_call(
     socket_path: &Path,
     method: &str,
     params: serde_json::Value,
 ) -> Result<RpcResponse, ClientError> {
-    let mut client = Client::connect(socket_path).await?;
-    client.call(method, serde_json::json!("cli-1"), params).await
+    rpc_call_addr(&TransportAddr::unix(socket_path), method, params).await
 }
 
 #[derive(Debug, thiserror::Error)]

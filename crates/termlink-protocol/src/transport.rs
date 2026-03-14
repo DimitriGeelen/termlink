@@ -61,6 +61,14 @@ impl TransportAddr {
             _ => None,
         }
     }
+
+    /// Returns the TCP host and port, if this is a TCP address.
+    pub fn as_tcp(&self) -> Option<(&str, u16)> {
+        match self {
+            Self::Tcp { host, port } => Some((host, *port)),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for TransportAddr {

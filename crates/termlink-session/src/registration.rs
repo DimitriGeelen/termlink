@@ -71,6 +71,13 @@ impl std::ops::Deref for RegistrationAddr {
     }
 }
 
+impl RegistrationAddr {
+    /// Get the underlying `TransportAddr`.
+    pub fn to_transport_addr(&self) -> TransportAddr {
+        self.0.clone()
+    }
+}
+
 impl From<TransportAddr> for RegistrationAddr {
     fn from(addr: TransportAddr) -> Self {
         Self(addr)

@@ -4,6 +4,7 @@ use serde_json::json;
 
 use termlink_protocol::control;
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, Response, RpcResponse};
+use termlink_protocol::TransportAddr;
 
 use termlink_session::client;
 use termlink_session::manager;
@@ -158,12 +159,12 @@ async fn handle_event_broadcast(
             "topic": topic_owned,
             "payload": payload,
         });
-        let socket = reg.socket_path().to_path_buf();
+        let addr = reg.addr.to_transport_addr();
 
         join_set.spawn(async move {
             let result = tokio::time::timeout(
                 PER_TARGET_TIMEOUT,
-                client::rpc_call(&socket, control::method::EVENT_EMIT, emit_params),
+                client::rpc_call_addr(&addr, control::method::EVENT_EMIT, emit_params),
             )
             .await;
 
@@ -246,7 +247,7 @@ async fn handle_event_collect(
     for reg in registrations {
         let sid = reg.id.to_string();
         let display_name = reg.display_name.clone();
-        let socket = reg.socket_path().to_path_buf();
+        let addr = reg.addr.to_transport_addr();
         let since_map = since_map.clone();
         let topic_filter = topic_filter.map(String::from);
 
@@ -261,7 +262,7 @@ async fn handle_event_collect(
 
             let result = tokio::time::timeout(
                 PER_TARGET_TIMEOUT,
-                client::rpc_call(&socket, control::method::EVENT_POLL, poll_params),
+                client::rpc_call_addr(&addr, control::method::EVENT_POLL, poll_params),
             )
             .await;
 
@@ -360,7 +361,7 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
 
     // Forward the request via the target's socket, preserving the original request id
     let forward_result = async {
-        let mut c = client::Client::connect(reg.socket_path()).await?;
+        let mut c = client::Client::connect_addr(&reg.addr.to_transport_addr()).await?;
         c.call(&req.method, id.clone(), req.params.clone()).await
     };
     match forward_result.await {
@@ -381,10 +382,17 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
     }
 }
 
-/// Resolve a target string to a socket path.
+/// Resolve a target string to a transport address.
 ///
 /// Public so the CLI can use direct routing without the hub.
-pub fn resolve_target(target: &str) -> Result<std::path::PathBuf, String> {
+pub fn resolve_target(target: &str) -> Result<TransportAddr, String> {
+    manager::find_session(target)
+        .map(|r| r.addr.to_transport_addr())
+        .map_err(|e| e.to_string())
+}
+
+/// Resolve a target string to a socket path (convenience for Unix-only callers).
+pub fn resolve_target_path(target: &str) -> Result<std::path::PathBuf, String> {
     manager::find_session(target)
         .map(|r| r.socket_path().to_path_buf())
         .map_err(|e| e.to_string())

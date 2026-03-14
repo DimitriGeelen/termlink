@@ -17,7 +17,7 @@ use std::io;
 use std::pin::Pin;
 
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::{UnixListener, UnixStream};
+use tokio::net::{TcpListener, TcpStream, UnixListener, UnixStream};
 
 use termlink_protocol::TransportAddr;
 
@@ -152,6 +152,90 @@ impl LivenessProbe for UnixLivenessProbe {
 }
 
 // ===========================================================================
+// TCP transport adapter
+// ===========================================================================
+
+/// TCP transport adapter — wraps `tokio::net::TcpStream`/`TcpListener`.
+#[derive(Debug, Default)]
+pub struct TcpTransport;
+
+impl Transport for TcpTransport {
+    fn connect<'a>(
+        &'a self,
+        addr: &'a TransportAddr,
+    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + 'a>> {
+        Box::pin(async move {
+            let (host, port) = addr.as_tcp().ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidInput, "expected TCP address")
+            })?;
+            let stream = TcpStream::connect((host, port)).await?;
+            stream.set_nodelay(true)?;
+            Ok(Box::new(stream) as Box<dyn Connection>)
+        })
+    }
+
+    fn bind<'a>(
+        &'a self,
+        addr: &'a TransportAddr,
+    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn TransportListener>>> + Send + 'a>> {
+        Box::pin(async move {
+            let (host, port) = addr.as_tcp().ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidInput, "expected TCP address")
+            })?;
+            let listener = TcpListener::bind((host, port)).await?;
+            let local = listener.local_addr()?;
+            let addr = TransportAddr::tcp(local.ip().to_string(), local.port());
+            Ok(Box::new(TcpTransportListener { listener, addr }) as Box<dyn TransportListener>)
+        })
+    }
+}
+
+/// TCP listener adapter.
+struct TcpTransportListener {
+    listener: TcpListener,
+    addr: TransportAddr,
+}
+
+impl TransportListener for TcpTransportListener {
+    fn accept(&self) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + '_>> {
+        Box::pin(async move {
+            let (stream, _) = self.listener.accept().await?;
+            stream.set_nodelay(true)?;
+            Ok(Box::new(stream) as Box<dyn Connection>)
+        })
+    }
+
+    fn local_addr(&self) -> TransportAddr {
+        self.addr.clone()
+    }
+}
+
+/// TCP liveness probe — attempts a TCP connect with a short timeout.
+#[derive(Debug, Default)]
+pub struct TcpLivenessProbe;
+
+impl LivenessProbe for TcpLivenessProbe {
+    fn check(&self, addr: &TransportAddr) -> bool {
+        match addr.as_tcp() {
+            Some((host, port)) => {
+                // Use a std::net blocking connect with a short timeout.
+                // LivenessProbe::check is sync, so we can't use async here.
+                use std::net::{TcpStream as StdTcpStream, ToSocketAddrs};
+                use std::time::Duration;
+                let addr_str = format!("{}:{}", host, port);
+                if let Ok(mut addrs) = addr_str.to_socket_addrs() {
+                    if let Some(sock_addr) = addrs.next() {
+                        return StdTcpStream::connect_timeout(&sock_addr, Duration::from_millis(500)).is_ok();
+                    }
+                }
+                false
+            }
+            None => false,
+        }
+    }
+}
+
+// ===========================================================================
 // Tests
 // ===========================================================================
 
@@ -239,8 +323,59 @@ mod tests {
 
     #[test]
     fn connection_blanket_impl() {
-        // Verify that UnixStream implements Connection
+        // Verify that UnixStream and TcpStream implement Connection
         fn _assert_connection<T: Connection>() {}
         _assert_connection::<UnixStream>();
+        _assert_connection::<TcpStream>();
+    }
+
+    #[tokio::test]
+    async fn tcp_transport_connect_and_accept() {
+        let addr = TransportAddr::tcp("127.0.0.1", 0); // port 0 = OS picks
+
+        let transport = TcpTransport;
+        let listener = transport.bind(&addr).await.unwrap();
+        let bound_addr = listener.local_addr();
+        assert!(bound_addr.is_tcp());
+
+        let accept_handle = tokio::spawn(async move {
+            let mut conn = listener.accept().await.unwrap();
+            let mut buf = [0u8; 5];
+            conn.read_exact(&mut buf).await.unwrap();
+            assert_eq!(&buf, b"hello");
+        });
+
+        let mut conn = transport.connect(&bound_addr).await.unwrap();
+        conn.write_all(b"hello").await.unwrap();
+        drop(conn);
+
+        accept_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn tcp_transport_invalid_addr() {
+        let transport = TcpTransport;
+        let unix_addr = TransportAddr::unix("/tmp/test.sock");
+
+        let result = transport.connect(&unix_addr).await;
+        assert!(result.is_err());
+
+        let result = transport.bind(&unix_addr).await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn tcp_liveness_probe_no_listener() {
+        let probe = TcpLivenessProbe;
+        // Port 1 should not be listening
+        let addr = TransportAddr::tcp("127.0.0.1", 1);
+        assert!(!probe.check(&addr));
+    }
+
+    #[test]
+    fn tcp_liveness_probe_unix_returns_false() {
+        let probe = TcpLivenessProbe;
+        let addr = TransportAddr::unix("/tmp/test.sock");
+        assert!(!probe.check(&addr));
     }
 }
