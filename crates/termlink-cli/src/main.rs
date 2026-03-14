@@ -1302,16 +1302,14 @@ async fn cmd_interact(
     };
     let pre_len = pre_output.len();
 
-    // Inject strategy: send command on one line, then marker echo on a SEPARATE line.
-    // The terminal echoes the first line (command), then the second line (echo marker).
-    // We detect completion by finding the marker in the OUTPUT (not the echo of the second line).
-    // The marker appears twice in scrollback: once in the command echo, once in the output.
-    // We count occurrences: 1 = still echoing, 2 = command finished and echo produced output.
-    let inject_text = format!("{command}");
-    let marker_cmd = format!("echo \"{marker} exit=$?\"");
-    // Inject command + Enter
+    // Inject strategy: send command + marker echo on a SINGLE line using `;`.
+    // The shell processes them sequentially: run command, then echo marker.
+    // The marker appears twice in scrollback: once in the command echo (terminal
+    // echoes the full input line), and once in the actual echo output.
+    // We count occurrences: 1 = still running, 2 = command finished.
+    let inject_line = format!("{command}; echo \"{marker} exit=$?\"");
     let keys = serde_json::json!([
-        { "type": "text", "value": inject_text },
+        { "type": "text", "value": inject_line },
         { "type": "key", "value": "Enter" }
     ]);
     client::rpc_call(
@@ -1321,20 +1319,6 @@ async fn cmd_interact(
     )
     .await
     .context("Failed to inject command")?;
-
-    // Small delay, then inject the marker echo on a separate line
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    let marker_keys = serde_json::json!([
-        { "type": "text", "value": marker_cmd },
-        { "type": "key", "value": "Enter" }
-    ]);
-    client::rpc_call(
-        reg.socket_path(),
-        "command.inject",
-        serde_json::json!({ "keys": marker_keys }),
-    )
-    .await
-    .context("Failed to inject marker")?;
 
     let start = std::time::Instant::now();
     let deadline = std::time::Duration::from_secs(timeout);
@@ -1373,11 +1357,15 @@ async fn cmd_interact(
             full_output
         };
 
-        // Count marker occurrences: the marker text appears in the new output
-        // once when the shell echoes the `echo "MARKER"` command, and a second
-        // time when echo actually produces output. We need 2 occurrences.
-        let marker_count = output.matches(&marker).count();
-        if marker_count >= 2 {
+        // With single-line injection, the marker appears in the command echo BUT
+        // terminal line-wrapping inserts ANSI escapes (e.g. \x1b[K) that break
+        // the marker string. The clean occurrence is only in the echo output.
+        // So we look for exactly 1 clean occurrence in new content.
+        // To avoid false positives from partial echoing, we also verify the
+        // marker is followed by " exit=" (the echo output format).
+        let marker_with_exit = format!("{marker} exit=");
+        let has_marker = output.contains(&marker_with_exit);
+        if has_marker {
             let elapsed_ms = start.elapsed().as_millis();
 
             // Find the marker line and extract exit code
@@ -1390,33 +1378,30 @@ async fn cmd_interact(
                 }
             }
 
-            // Extract just the command output between the two marker occurrences:
-            // Scrollback shows:
-            //   [cmd echo line]\n[cmd output]\n[prompt][marker echo line]\n[marker output line]
-            // First marker occurrence = in the echo of `echo "MARKER..."`
-            // Second marker occurrence = actual output of that echo
-            // We want everything between the first command echo and the echo
-            // of the marker command (which starts with "echo")
+            // Extract command output from scrollback.
+            // With single-line injection, new content layout is:
+            //   [cmd echo line (contains command + marker text, may be wrapped)]\n
+            //   [command output lines]\n
+            //   [marker output: "___TERMLINK_DONE_xxx___ exit=N"]\n
+            //   [prompt]
+            // We want everything between the command echo and the marker output.
             let clean_output = {
-                // Find the first newline (end of command echo)
+                // Skip the first line (command echo)
                 let after_cmd_echo = output.find('\n')
                     .map(|pos| &output[pos + 1..])
                     .unwrap_or(output);
 
-                // Find where the marker echo command starts (second-to-last occurrence)
-                // Look for the line containing `echo "MARKER` before the actual marker output
-                let before_marker_echo = if let Some(pos) = after_cmd_echo.find(&marker) {
-                    // Go back to find the start of the line containing the marker echo
+                // Find the marker output line and take everything before it
+                if let Some(pos) = after_cmd_echo.find(&marker_with_exit) {
                     let before = &after_cmd_echo[..pos];
-                    // Find the last newline before the marker — that's the end of real output
+                    // Go back to the last newline — that's the end of real output
                     before.rfind('\n')
                         .map(|nl| &after_cmd_echo[..nl])
                         .unwrap_or("")
+                        .to_string()
                 } else {
-                    after_cmd_echo
-                };
-
-                before_marker_echo.to_string()
+                    after_cmd_echo.to_string()
+                }
             };
 
             let final_output = if strip_ansi {
