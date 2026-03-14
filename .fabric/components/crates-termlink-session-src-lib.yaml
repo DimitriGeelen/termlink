@@ -8,6 +8,7 @@ tags: [foundation, re-exports]
 purpose: "Session crate root — re-exports all modules, pub types SessionId, SessionState, Registration, Session, SessionError"
 
 depends_on:
+  - crates/termlink-session/src/auth.rs
   - crates/termlink-session/src/identity.rs
   - crates/termlink-session/src/discovery.rs
   - crates/termlink-session/src/lifecycle.rs
@@ -23,6 +24,7 @@ depends_on:
   - crates/termlink-session/src/pty.rs
   - crates/termlink-session/src/scrollback.rs
   - crates/termlink-session/src/server.rs
+  - crates/termlink-session/src/transport.rs
 
-last_verified: 2026-03-08
+last_verified: 2026-03-14
 created_by: T-043

@@ -11,7 +11,9 @@ depends_on:
   - crates/termlink-protocol/src/control.rs
   - crates/termlink-protocol/src/data.rs
   - crates/termlink-protocol/src/error.rs
+  - crates/termlink-protocol/src/events.rs
   - crates/termlink-protocol/src/jsonrpc.rs
+  - crates/termlink-protocol/src/transport.rs
 
-last_verified: 2026-03-08
+last_verified: 2026-03-14
 created_by: T-043

@@ -3,13 +3,17 @@ name: client
 type: module
 subsystem: session
 location: crates/termlink-session/src/client.rs
-tags: [client, rpc, unix-socket]
+tags: [client, rpc, unix-socket, tcp]
 
-purpose: "JSON-RPC client — connects to session Unix socket, sends requests, reads responses, rpc_call() convenience function"
+purpose: "JSON-RPC client — connects to session via Unix socket or TCP, sends requests, reads responses; connect_addr() for TransportAddr, rpc_call_addr() convenience"
 
 depends_on:
   - target: crates/termlink-protocol/src/jsonrpc.rs
     type: calls
+  - target: crates/termlink-protocol/src/control.rs
+    type: calls
+  - target: crates/termlink-protocol/src/transport.rs
+    type: calls
 
-last_verified: 2026-03-08
+last_verified: 2026-03-14
 created_by: T-043

@@ -8,8 +8,10 @@ tags: [foundation, re-exports]
 purpose: "Hub crate root — re-exports router and server modules, test_util for shared ENV_LOCK"
 
 depends_on:
+  - crates/termlink-hub/src/pidfile.rs
   - crates/termlink-hub/src/router.rs
   - crates/termlink-hub/src/server.rs
+  - crates/termlink-hub/src/supervisor.rs
 
-last_verified: 2026-03-08
+last_verified: 2026-03-14
 created_by: T-043

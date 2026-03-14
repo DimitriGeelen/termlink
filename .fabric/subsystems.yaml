@@ -12,7 +12,9 @@ subsystems:
       - crates/termlink-protocol/src/control.rs
       - crates/termlink-protocol/src/data.rs
       - crates/termlink-protocol/src/error.rs
+      - crates/termlink-protocol/src/events.rs
       - crates/termlink-protocol/src/jsonrpc.rs
+      - crates/termlink-protocol/src/transport.rs
 
   - name: session
     description: "Session lifecycle — identity, registration, discovery, handlers, PTY, events, data plane"
@@ -21,6 +23,7 @@ subsystems:
     summary: "Core business logic: session management, RPC handlers, PTY, events, streaming"
     components:
       - crates/termlink-session/src/lib.rs
+      - crates/termlink-session/src/auth.rs
       - crates/termlink-session/src/identity.rs
       - crates/termlink-session/src/discovery.rs
       - crates/termlink-session/src/lifecycle.rs
@@ -36,6 +39,7 @@ subsystems:
       - crates/termlink-session/src/pty.rs
       - crates/termlink-session/src/scrollback.rs
       - crates/termlink-session/src/server.rs
+      - crates/termlink-session/src/transport.rs
 
   - name: hub
     description: "Message hub — routes requests between sessions, fan-out broadcast, fan-in collection"
@@ -44,8 +48,10 @@ subsystems:
     summary: "Router/broker: discovery, request forwarding, broadcast, event collection"
     components:
       - crates/termlink-hub/src/lib.rs
+      - crates/termlink-hub/src/pidfile.rs
       - crates/termlink-hub/src/router.rs
       - crates/termlink-hub/src/server.rs
+      - crates/termlink-hub/src/supervisor.rs
 
   - name: cli
     description: "User-facing CLI binary — 26 subcommands for session management and communication"
@@ -63,5 +69,7 @@ subsystems:
     components:
       - agents/mesh/agent-wrapper.sh
       - agents/mesh/dispatch.sh
-      - agents/mesh/worker.sh
+      - agents/mesh/merge-branches.sh
       - agents/mesh/orchestrate.sh
+      - agents/mesh/prompt-template.sh
+      - agents/mesh/worker.sh
