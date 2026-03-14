@@ -5,16 +5,16 @@ description: >
   CLI command that injects a command into a PTY session, waits for completion
   via marker detection, and returns the output. Wraps inject + poll into one call.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, interactive, self-test]
 components: []
 related_tasks: [T-136]
 created: 2026-03-14T17:05:41Z
-last_update: 2026-03-14T17:05:41Z
-date_finished: null
+last_update: 2026-03-14T19:51:01Z
+date_finished: 2026-03-14T19:51:01Z
 ---
 
 # T-137: termlink interact — inject + marker + poll wrapper
@@ -60,3 +60,6 @@ This task wraps that into a single `termlink interact <session> <command>` that:
 
 ### 2026-03-14T17:05:41Z — task-created
 - Phase 1 build task from T-136 inception
+
+### 2026-03-14T19:51:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
