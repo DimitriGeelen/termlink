@@ -4,7 +4,7 @@ name: "E2E test portability — shared setup.sh, remove hardcoded paths"
 description: >
   Extract shared orchestrator registration and health check into setup.sh. Replace hardcoded paths with env vars for portability.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:46Z
-last_update: 2026-03-12T19:35:29Z
-date_finished: null
+last_update: 2026-03-14T11:16:31Z
+date_finished: 2026-03-14T11:16:31Z
 ---
 
 # T-071: E2E test portability — shared setup.sh, remove hardcoded paths
@@ -29,7 +29,7 @@ Portability issue found by reflection fleet e2e-suite agent. Hardcoded paths and
 - [x] All 6 e2e level scripts source `setup.sh` instead of duplicating setup logic
 - [x] No hardcoded absolute paths (e.g., `/Users/dimidev32/...`) in any e2e test script
 - [x] Binary paths resolved via `$PATH`, `which`, or `TERMLINK_BIN`/`CLAUDE_BIN` env vars
-- [ ] All e2e tests pass after portability changes
+- [x] All e2e tests pass after portability changes
 
 ## Verification
 
@@ -62,3 +62,6 @@ grep -q 'source.*setup.sh\|\. .*setup.sh' tests/e2e/level1-echo.sh
 
 ### 2026-03-12T19:02:54Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-03-14T11:16:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
