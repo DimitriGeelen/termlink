@@ -57,104 +57,180 @@ and re-execute commands. The loop is: exec → observe → diagnose → fix → 
 Limitation: the agent cannot restart hooks or reload CLAUDE.md mid-session
 (requires session restart for some changes).
 
-## Exploration: How the Self-Test Loop Works
+## Exploration: Full Interactive E2E Testing Loop
 
-### Scenario: Agent Tests `fw doctor`
+### Requirement
+
+The framework agent must be able to do **everything a human can do** in a
+terminal: type commands, see all output (including prompts, colors, hook stderr),
+respond to prompts, run sequences of commands where each depends on the previous,
+and iterate.
+
+This rules out `command.execute` as the primary mechanism — it runs commands in
+a subprocess, not in the PTY. The agent needs the **inject + observe** path.
+
+### Two Modes of Observation
+
+| Mode | Mechanism | What It Sees | Use Case |
+|------|-----------|-------------|----------|
+| **Subprocess** | `command.execute` | stdout + stderr + exit_code | One-shot tests, no state |
+| **Interactive** | `inject` + `query.output` | Everything: prompt, ANSI, hooks, errors | Full E2E, stateful sequences |
+
+**The interactive mode is the primary requirement.** `command.execute` is a
+convenience shortcut for simple cases, but the real value is the interactive loop.
+
+### How Interactive Mode Works
 
 ```
-┌──────────────────┐        ┌──────────────────┐
-│  Agent Session   │        │  Test Session     │
-│  (Claude Code)   │        │  (TermLink PTY)   │
-│                  │        │                   │
-│  1. Register ────────────►│  Spawned          │
-│                  │        │                   │
-│  2. Exec ────────────────►│  fw doctor        │
-│     "fw doctor"  │        │  ... runs ...     │
-│                  │◄───────│  {exit:1, stdout,  │
-│  3. Analyze      │        │   stderr}         │
-│     output       │        │                   │
-│                  │        │                   │
-│  4. Fix script   │        │                   │
-│     (Edit tool)  │        │                   │
-│                  │        │                   │
-│  5. Retry ───────────────►│  fw doctor        │
-│     "fw doctor"  │        │  ... runs ...     │
-│                  │◄───────│  {exit:0, stdout}  │
-│  6. Assert pass  │        │                   │
-│                  │        │                   │
-│  7. Cleanup ─────────────►│  Terminated       │
-└──────────────────┘        └──────────────────┘
+┌───────────────────┐        ┌───────────────────────────┐
+│  Agent Session    │        │  Test Session (PTY)        │
+│  (Claude Code)    │        │  termlink register --shell │
+│                   │        │                            │
+│  1. Register ─────────────►│  Shell spawned (zsh/bash)  │
+│                   │        │  $ ▌                       │
+│  2. Inject ───────────────►│  $ fw context init▌        │
+│     "fw context   │        │  === Context Init ===      │
+│      init\n"      │        │  ✓ Created focus.yaml      │
+│                   │        │  ✗ Error: missing dir      │
+│  3. Poll ─────────────────►│                            │
+│     query.output  │◄───────│  (scrollback: everything)  │
+│     {"lines":100} │        │  $ ▌                       │
+│                   │        │                            │
+│  4. Analyze:      │        │                            │
+│     "prompt is    │        │                            │
+│      back → done" │        │                            │
+│                   │        │                            │
+│  5. Fix the bug   │        │                            │
+│     (Edit tool)   │        │                            │
+│                   │        │                            │
+│  6. Inject ───────────────►│  $ fw context init▌        │
+│     "fw context   │        │  === Context Init ===      │
+│      init\n"      │        │  ✓ Created focus.yaml      │
+│                   │        │  ✓ Created session.yaml    │
+│  7. Poll ─────────────────►│                            │
+│     query.output  │◄───────│  $ ▌  (prompt back = done) │
+│                   │        │                            │
+│  8. Inject ───────────────►│  $ fw doctor▌              │
+│     "fw doctor\n" │        │  === Health Check ===      │
+│                   │        │  ✓ All checks pass         │
+│  9. Poll ─────────────────►│                            │
+│     query.output  │◄───────│  $ ▌                       │
+│                   │        │                            │
+│  10. Done! ───────────────►│  SIGTERM → Terminated      │
+└───────────────────┘        └───────────────────────────┘
 ```
 
-### Step-by-Step Protocol
+### Step-by-Step Protocol (Interactive)
 
 ```bash
-# 1. Register a test session
+# 1. Spawn a PTY-backed test session
 termlink register --name fw-test --shell
-
-# 2. Wait for ready
 termlink wait fw-test --state ready --timeout 5
 
-# 3. Execute the command under test
-RESULT=$(termlink exec fw-test "fw doctor" 2>&1)
-EXIT_CODE=$?
+# 2. Inject a command (types into the PTY, like a human)
+termlink send fw-test command.inject '{"keys":[
+  {"type":"text","value":"fw context init"},
+  {"type":"key","value":"Enter"}
+]}'
 
-# 4. Agent reads RESULT, diagnoses issues
+# 3. Wait for command to finish (poll until prompt returns)
+sleep 2  # or smart poll loop (see below)
 
-# 5. Agent fixes the script (Edit tool on the source file)
+# 4. Read EVERYTHING the terminal shows
+termlink send fw-test query.output '{"lines":100}'
+# Returns: raw scrollback including prompt, colors, output, errors
 
-# 6. Retry
-RESULT=$(termlink exec fw-test "fw doctor" 2>&1)
+# 5. Agent analyzes output, fixes scripts if needed
 
-# 7. Cleanup
-termlink send fw-test session.signal '{"signal": "SIGTERM"}'
+# 6. Inject next command
+termlink send fw-test command.inject '{"keys":[
+  {"type":"text","value":"fw doctor"},
+  {"type":"key","value":"Enter"}
+]}'
+
+# 7. Poll again
+sleep 2
+termlink send fw-test query.output '{"lines":100}'
+
+# 8. Cleanup
+termlink send fw-test session.signal '{"signal":"SIGTERM"}'
 ```
 
-### What the Agent Sees
+### What the Agent Sees (Scrollback)
 
-`command.execute` returns structured JSON:
+`query.output` returns the raw terminal content including ANSI sequences:
+
 ```json
 {
-  "exit_code": 1,
-  "stdout": "=== Framework Health Check ===\n✓ fw binary found\n✗ context not initialized\n...",
-  "stderr": "Error: .context/working/focus.yaml not found"
+  "output": "$ fw context init\r\n\u001b[0;36m=== Context Init ===\u001b[0m\r\n\u001b[0;32m✓ Created focus.yaml\u001b[0m\r\n\u001b[1;31m✗ Error: .context/working/ does not exist\u001b[0m\r\n$ ",
+  "bytes_len": 247,
+  "total_buffered": 247
 }
 ```
 
-The agent gets full stdout + stderr + exit code. No streaming needed for
-short-running commands. For long-running commands (>30s), use:
-- `termlink stream fw-test` in background (pipes real-time output)
-- `termlink send fw-test query.output '{"lines": 200}'` (poll scrollback)
+The agent sees **exactly what a human sees** — prompts, colors, errors,
+everything. It can:
+- Detect when the shell prompt returns (`$ ` at end → command finished)
+- Parse success/failure markers (✓ / ✗)
+- Read error messages and diagnose root causes
+- Decide what to type next based on what it saw
 
-### What Can Be Tested This Way
+### Synchronization: Knowing When a Command Finishes
 
-| Framework Component | Test Command | What Agent Observes |
-|----|---|---|
-| Health checks | `fw doctor` | Exit code + diagnostic output |
-| Session init | `fw context init` | Success/failure + created files |
-| Task creation | `fw task create --name test --type build` | Task file created, ID returned |
-| Git hooks | `fw git commit -m "T-000: test"` | Hook output, pass/fail |
-| Audit | `fw audit` | Compliance report, exit code |
-| Budget gate | Write a file, check if hook fires | Hook stderr output |
-| Handover | `fw handover` | Handover file created |
-| Episodic generator | `fw context generate-episodic T-001` | macOS date bug reproduction |
+The key challenge: after inject, how does the agent know the command is done?
+
+**Option 1: Marker Injection (Recommended)**
+```bash
+# Inject: fw doctor; echo "___MARKER_DONE___"
+# Poll until scrollback contains ___MARKER_DONE___
+```
+Reliable, deterministic, works for any command.
+
+**Option 2: Prompt Detection**
+Poll scrollback until the last line matches the shell prompt pattern (`$ `, `% `).
+Works for most cases but fragile with multi-line prompts.
+
+**Option 3: Stabilization Polling**
+Poll `query.output` repeatedly. When `total_buffered` stops changing for 1s,
+the command is done. Simple but adds latency.
+
+**Option 4: Smart Hybrid**
+Use marker injection for automated tests. Use stabilization polling as fallback.
+
+### What Can Be Tested (Full E2E)
+
+| Scenario | How | What Agent Sees |
+|----------|-----|-----------------|
+| `fw doctor` | inject + poll | All diagnostic output, exit indication |
+| `fw context init` then `fw doctor` | inject sequence | Init creates state, doctor validates it |
+| Hook behavior during commit | inject `git commit` | Hook stderr, pass/fail, prompts |
+| Interactive git operations | inject + respond to prompts | Full git workflow output |
+| `fw audit` compliance | inject + poll | Full audit report with colors |
+| Init sequence from scratch | inject sequence of commands | Build up from empty .context/ |
+| Test hook scripts after editing | Edit hook → inject trigger | See if fixed hook works |
+| macOS date bug reproduction | inject `generate-episodic` | See exact error output |
+| Budget gate trigger | inject Write tool equivalent | See gate block message |
 
 ### Limitations
 
-1. **Hook reload**: If the agent fixes a PreToolUse hook script, the fix takes
-   effect immediately (hooks are re-read per invocation). But changes to
-   CLAUDE.md or Claude Code settings require a new Claude Code session.
+1. **ANSI sequences**: Scrollback includes raw ANSI. The agent (Claude) can
+   read these, but pattern matching is harder. Could add ANSI-strip option
+   to `query.output` as enhancement.
 
-2. **Interactive commands**: Commands requiring stdin interaction (e.g.,
-   `git rebase -i`) cannot be tested via `command.execute`. They need
-   `command.inject` (keystroke injection into PTY).
+2. **Timing**: No built-in "command done" signal for interactive mode.
+   Marker injection solves this reliably.
 
-3. **Environment isolation**: The test session inherits the user's environment.
-   To test in a clean environment, use `command.execute` with explicit `env`
-   parameter to override variables.
+3. **Claude Code Bash tool is synchronous**: Each inject + poll is a separate
+   Bash call. The agent cannot stream and inject simultaneously in one call.
+   This is fine — the poll loop is: inject → sleep → poll → analyze → repeat.
 
-4. **Timeout**: Default 30s timeout on `command.execute`. Long-running tests
-   need explicit timeout parameter or streaming observation.
+4. **Shell state**: The test session is a real shell. Environment variables,
+   working directory, and shell state persist between commands — exactly like
+   a human's terminal. This is a feature, not a bug.
+
+5. **CLAUDE.md changes**: If the agent fixes CLAUDE.md, that won't affect the
+   test session (CLAUDE.md is Claude Code-specific). Hook script fixes take
+   effect immediately since hooks are re-read per invocation.
 
 ## Options Considered
 
@@ -164,43 +240,47 @@ The agent runs `fw doctor` directly in its own Bash tool.
 - **Pro**: Simplest, no TermLink dependency
 - **Con**: Pollutes the agent's own environment; can't test init sequences
   that modify state; hooks fire in the agent's session (circular); can't
-  test multi-session scenarios
+  test multi-session scenarios; agent can't observe its own hooks firing
 
-### Option B: TermLink `command.execute` (Recommended)
-Agent spawns a TermLink session, runs commands via `command.execute` RPC.
+### Option B: TermLink `command.execute` Only
+Agent spawns a session, runs commands via `command.execute` RPC (subprocess).
 
-- **Pro**: Clean isolation, structured output (exit_code + stdout + stderr),
-  timeout control, allowlist support, no environment pollution
-- **Con**: Requires TermLink running; adds dependency; slight overhead
+- **Pro**: Structured output (exit_code + stdout + stderr), timeout control
+- **Con**: Subprocess, not interactive PTY. No shell state between commands.
+  Can't test sequences. Can't see hook output in the PTY. Can't respond to
+  prompts. Not what a human would experience.
 
-### Option C: TermLink Streaming + PTY Observation
-Agent spawns session, sends commands via `command.inject`, reads output via
-`query.output` or data plane streaming.
+### Option C: TermLink Interactive (inject + query.output)
+Agent spawns PTY session, injects keystrokes via `command.inject`, reads
+ALL output via `query.output` scrollback polling. Full E2E.
 
-- **Pro**: Tests interactive scenarios (vim, REPLs); sees exactly what a
-  human would see including ANSI sequences
-- **Con**: More complex; needs ANSI parsing; harder to assert on output
+- **Pro**: Sees everything a human sees. Shell state persists between commands.
+  Can test sequences (init → doctor → commit). Can respond to prompts.
+  Can test interactive programs. Tests the real user experience.
+- **Con**: Needs synchronization (marker injection or prompt detection).
+  Raw ANSI in output. Slightly more complex than subprocess.
 
-### Option D: Hybrid (B for scripts, C for interactive)
-Use `command.execute` for simple script testing. Use inject + streaming
-for interactive program testing.
+### Option D: Hybrid (C primary, B for quick checks)
+Interactive mode (inject + poll) as the primary mechanism. `command.execute`
+available as a shortcut for isolated one-shot checks where you don't need
+shell state or interaction.
 
-- **Pro**: Best of both worlds; covers all scenarios
-- **Con**: More implementation effort; two code paths
+- **Pro**: Full E2E capability with a fast path for simple cases
+- **Con**: Two code paths, but both already exist
 
 ## Decision
 
 ### 2026-03-14 — Self-test observation mechanism
-- **Chose:** Option D (Hybrid) — `command.execute` for script testing,
-  inject + streaming for interactive testing
-- **Why:** Script testing is the 90% case and `command.execute` makes it
-  trivial (structured output, exit code, timeout). Interactive testing is
-  needed for edge cases (hooks firing in PTY, vim detection) and streaming
-  handles that. Both mechanisms already exist and are tested.
+- **Chose:** Option C (Full Interactive) as primary, with D (Hybrid) for
+  convenience. The agent must see everything and be able to interact.
+- **Why:** The whole point is end-to-end testing. `command.execute` runs a
+  subprocess — it doesn't test the real user experience. The framework agent
+  needs to see hooks firing, prompts appearing, shell state carrying over
+  between commands. Only the interactive path (inject + scrollback) gives
+  this. `command.execute` remains available as a convenience shortcut.
 - **Rejected:**
   - Option A (direct Bash): No isolation, circular hook execution
-  - Option B alone: Can't test interactive scenarios
-  - Option C alone: Unnecessary complexity for simple script tests
+  - Option B alone: Subprocess, not interactive. Misses the point.
 
 ## Go/No-Go Assessment
 
@@ -233,25 +313,57 @@ needed. The integration work is:
 ## Phased Implementation
 
 ### Phase 0: Manual Proof-of-Concept (Today)
-Agent uses Bash tool to run TermLink CLI commands directly:
+Agent uses Bash tool to run TermLink CLI commands directly. Full interactive:
 ```bash
-termlink register --name self-test --shell
-termlink exec self-test "fw doctor"
-# ... analyze, fix, retry ...
+# Spawn
+termlink register --name fw-test --shell
+termlink wait fw-test --state ready --timeout 5
+
+# Inject command
+termlink send fw-test command.inject '{"keys":[
+  {"type":"text","value":"fw doctor"},
+  {"type":"key","value":"Enter"}
+]}'
+
+# Wait + observe
+sleep 2
+termlink send fw-test query.output '{"lines":100}'
+
+# Agent reads output, fixes issues, injects next command...
+
+# Cleanup
+termlink send fw-test session.signal '{"signal":"SIGTERM"}'
 ```
-No new code. Just agent discipline.
+No new code. All primitives exist. Just agent discipline + Bash calls.
 
-### Phase 1: Framework Skill (`/self-test`)
-Create a skill that automates the spawn → exec → observe → report loop.
-Returns structured test results. ~1 session effort.
+### Phase 1: Synchronization Helper
+Add a wrapper script or CLI command that handles the inject → wait → poll
+loop with marker-based synchronization:
+```bash
+# Proposed: termlink interact <session> "fw doctor"
+# Internally: injects command + marker, polls until marker appears, returns output
+```
+~1 session effort. Makes the agent's job easier (one call instead of
+inject + sleep + poll).
 
-### Phase 2: Continuous Validation
-Agent runs `/self-test` after modifying framework scripts. Integrated into
-the commit cadence: edit → self-test → commit. ~1 session effort.
+### Phase 2: Framework Skill (`/self-test`)
+Create a skill that automates the full E2E test loop:
+- Spawns test session
+- Runs a sequence of framework commands interactively
+- Observes all output (scrollback)
+- Reports structured results (pass/fail per command, full output log)
+- Cleans up session
+~1-2 sessions effort.
 
-### Phase 3: Interactive Testing
-Add inject + streaming observation for PTY-based tests (vim detection,
-hook output in interactive terminals). ~2 sessions effort.
+### Phase 3: Self-Healing Loop
+Agent runs `/self-test`, diagnoses failures from output, fixes scripts,
+re-runs `/self-test`. Integrated into commit cadence:
+edit → self-test → fix → self-test → commit. ~1 session effort.
+
+### Phase 4: ANSI-Clean Output Option
+Add optional ANSI-stripping to `query.output` so the agent gets clean text
+for pattern matching. Useful but not blocking — Claude can parse ANSI.
+~0.5 session effort.
 
 ## Related Tasks
 - T-121: PTY mode detection (enables Phase 3 interactive testing)

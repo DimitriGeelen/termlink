@@ -94,12 +94,18 @@ test -f docs/reports/T-136-termlink-status-report.md
 ## Decisions
 
 ### 2026-03-14 — Observation mechanism for self-test loop
-- **Chose:** Hybrid — `command.execute` for script testing, inject+streaming for interactive
-- **Why:** execute gives structured output (exit_code, stdout, stderr) for 90% of cases; streaming handles long-running and interactive edge cases; both already exist and are tested
+- **Chose:** Full interactive (inject + query.output scrollback polling) as primary mechanism
+- **Why:** The requirement is full E2E testing — the agent must see everything a human sees (prompts, colors, hook output, errors) and be able to interact (type commands, respond to prompts, run sequences). `command.execute` is a subprocess shortcut — it doesn't test the real user experience. The interactive path uses the actual PTY where shell state persists between commands.
 - **Rejected:**
   - Direct Bash (Option A): No isolation, circular hook execution
-  - Execute only (Option B): Can't test interactive scenarios
-  - Streaming only (Option C): Unnecessary complexity for simple scripts
+  - Execute only (Option B): Subprocess, not interactive PTY. Misses shell state, hooks, prompts.
+
+### 2026-03-14 — Synchronization mechanism
+- **Chose:** Marker injection — append `; echo "___DONE___"` after commands, poll scrollback until marker appears
+- **Why:** Deterministic, works for any command, no timing assumptions
+- **Rejected:**
+  - Sleep-based: Fragile, adds unnecessary latency
+  - Prompt detection: Fragile with custom/multi-line prompts
 
 ## Decision
 
