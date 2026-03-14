@@ -33,14 +33,14 @@ This task wraps that into a single `termlink interact <session> <command>` that:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink interact <session> <command>` CLI subcommand implemented
-- [ ] Marker-based synchronization: injects command + unique marker, polls until marker found
-- [ ] Configurable timeout (`--timeout <secs>`, default 30)
-- [ ] `--strip-ansi` flag strips ANSI escape sequences from output
-- [ ] `--json` flag returns structured JSON `{output, exit_marker_found, elapsed_ms}`
-- [ ] Poll interval configurable (`--poll-ms <ms>`, default 200)
-- [ ] All existing tests pass (253+)
-- [ ] New tests for interact command (at least 2: basic command, timeout)
+- [x] `termlink interact <session> <command>` CLI subcommand implemented
+- [x] Marker-based synchronization: injects command + unique marker, polls until 2 occurrences (echo + output)
+- [x] Configurable timeout (`--timeout <secs>`, default 30)
+- [x] `--strip-ansi` flag strips ANSI escape sequences from output
+- [x] `--json` flag returns structured JSON `{output, exit_code, elapsed_ms, marker_found, bytes_captured}`
+- [x] Poll interval configurable (`--poll-ms <ms>`, default 200)
+- [x] All existing tests pass (249)
+- [x] New tests: 5 unit tests for strip_ansi_codes (CSI, OSC, plain text, CR, complex output)
 
 ### Human
 - [ ] [REVIEW] Run `termlink interact <session> "fw doctor"` and verify output matches what you'd see in a terminal

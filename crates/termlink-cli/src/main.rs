@@ -106,6 +106,31 @@ enum Command {
         params: String,
     },
 
+    /// Run a command interactively in a PTY session — injects, waits for completion, returns output
+    Interact {
+        /// Session ID or display name
+        target: String,
+
+        /// Shell command to run
+        command: String,
+
+        /// Timeout in seconds (default: 30)
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+
+        /// Poll interval in milliseconds (default: 200)
+        #[arg(long, default_value = "200")]
+        poll_ms: u64,
+
+        /// Strip ANSI escape sequences from output
+        #[arg(long)]
+        strip_ansi: bool,
+
+        /// Output as JSON {output, elapsed_ms, marker_found}
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Execute a shell command on a target session
     Exec {
         /// Session ID or display name
@@ -686,6 +711,9 @@ async fn main() -> Result<()> {
         Command::Status { target, json } => cmd_status(&target, json).await,
         Command::Info { json } => cmd_info(json),
         Command::Send { target, method, params } => cmd_send(&target, &method, &params).await,
+        Command::Interact { target, command, timeout, poll_ms, strip_ansi, json } => {
+            cmd_interact(&target, &command, timeout, poll_ms, strip_ansi, json).await
+        }
         Command::Exec { target, command, cwd, timeout } => {
             cmd_exec(&target, &command, cwd.as_deref(), timeout).await
         }
@@ -1183,6 +1211,244 @@ async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, timeout: u64) 
         }
         Err(e) => {
             anyhow::bail!("Execution failed: {}", e);
+        }
+    }
+}
+
+/// Strip ANSI escape sequences from a string.
+fn strip_ansi_codes(s: &str) -> String {
+    // Match: ESC[ ... final byte (letters), ESC] ... ST, and other OSC/CSI sequences
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // ESC sequence
+            match chars.peek() {
+                Some('[') => {
+                    // CSI sequence: ESC [ params final_byte
+                    chars.next(); // consume '['
+                    while let Some(&ch) = chars.peek() {
+                        chars.next();
+                        if ch.is_ascii_alphabetic() || ch == 'h' || ch == 'l' || ch == 'K' || ch == 'J' || ch == 'H' {
+                            break;
+                        }
+                    }
+                }
+                Some(']') => {
+                    // OSC sequence: ESC ] ... BEL or ESC \ (ST)
+                    chars.next(); // consume ']'
+                    while let Some(&ch) = chars.peek() {
+                        chars.next();
+                        if ch == '\x07' {
+                            break; // BEL terminates OSC
+                        }
+                        if ch == '\x1b' {
+                            // ESC \ (ST) terminates OSC
+                            if chars.peek() == Some(&'\\') {
+                                chars.next();
+                            }
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    // Unknown ESC sequence, skip next char
+                    chars.next();
+                }
+            }
+        } else if c == '\r' {
+            // Skip carriage returns (terminal artifact)
+            continue;
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+async fn cmd_interact(
+    target: &str,
+    command: &str,
+    timeout: u64,
+    poll_ms: u64,
+    strip_ansi: bool,
+    json_output: bool,
+) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    // Generate unique marker per invocation
+    let marker = format!(
+        "___TERMLINK_DONE_{:x}_{:x}___",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos()
+    );
+
+    // Capture scrollback snapshot before injection — we'll diff against this
+    let pre_resp = client::rpc_call(
+        reg.socket_path(),
+        "query.output",
+        serde_json::json!({ "bytes": 131072 }),
+    )
+    .await
+    .context("Failed to query output (is this a PTY session?)")?;
+
+    let pre_output = match client::unwrap_result(pre_resp) {
+        Ok(r) => r["output"].as_str().unwrap_or("").to_string(),
+        Err(e) => anyhow::bail!("Session has no PTY: {}", e),
+    };
+    let pre_len = pre_output.len();
+
+    // Inject strategy: send command on one line, then marker echo on a SEPARATE line.
+    // The terminal echoes the first line (command), then the second line (echo marker).
+    // We detect completion by finding the marker in the OUTPUT (not the echo of the second line).
+    // The marker appears twice in scrollback: once in the command echo, once in the output.
+    // We count occurrences: 1 = still echoing, 2 = command finished and echo produced output.
+    let inject_text = format!("{command}");
+    let marker_cmd = format!("echo \"{marker} exit=$?\"");
+    // Inject command + Enter
+    let keys = serde_json::json!([
+        { "type": "text", "value": inject_text },
+        { "type": "key", "value": "Enter" }
+    ]);
+    client::rpc_call(
+        reg.socket_path(),
+        "command.inject",
+        serde_json::json!({ "keys": keys }),
+    )
+    .await
+    .context("Failed to inject command")?;
+
+    // Small delay, then inject the marker echo on a separate line
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    let marker_keys = serde_json::json!([
+        { "type": "text", "value": marker_cmd },
+        { "type": "key", "value": "Enter" }
+    ]);
+    client::rpc_call(
+        reg.socket_path(),
+        "command.inject",
+        serde_json::json!({ "keys": marker_keys }),
+    )
+    .await
+    .context("Failed to inject marker")?;
+
+    let start = std::time::Instant::now();
+    let deadline = std::time::Duration::from_secs(timeout);
+    let poll_interval = std::time::Duration::from_millis(poll_ms);
+
+    // Poll until marker appears in scrollback
+    loop {
+        if start.elapsed() > deadline {
+            anyhow::bail!("Timeout after {}s waiting for command to complete", timeout);
+        }
+
+        tokio::time::sleep(poll_interval).await;
+
+        // Request enough bytes to cover new output since injection
+        let resp = client::rpc_call(
+            reg.socket_path(),
+            "query.output",
+            serde_json::json!({ "bytes": 131072 }),
+        )
+        .await
+        .context("Failed to poll output")?;
+
+        let result = match client::unwrap_result(resp) {
+            Ok(r) => r,
+            Err(e) => anyhow::bail!("Output poll failed: {}", e),
+        };
+
+        let full_output = result["output"].as_str().unwrap_or("");
+
+        // Only look at content that appeared AFTER our injection
+        // Compare against pre-injection snapshot length
+        let output = if full_output.len() > pre_len {
+            &full_output[pre_len..]
+        } else {
+            // Scrollback may have wrapped — search the whole thing
+            full_output
+        };
+
+        // Count marker occurrences: the marker text appears in the new output
+        // once when the shell echoes the `echo "MARKER"` command, and a second
+        // time when echo actually produces output. We need 2 occurrences.
+        let marker_count = output.matches(&marker).count();
+        if marker_count >= 2 {
+            let elapsed_ms = start.elapsed().as_millis();
+
+            // Find the marker line and extract exit code
+            let mut exit_code: Option<i32> = None;
+            for line in output.lines() {
+                if line.contains(&marker) {
+                    if let Some(exit_str) = line.split("exit=").nth(1) {
+                        exit_code = exit_str.trim().parse().ok();
+                    }
+                }
+            }
+
+            // Extract just the command output between the two marker occurrences:
+            // Scrollback shows:
+            //   [cmd echo line]\n[cmd output]\n[prompt][marker echo line]\n[marker output line]
+            // First marker occurrence = in the echo of `echo "MARKER..."`
+            // Second marker occurrence = actual output of that echo
+            // We want everything between the first command echo and the echo
+            // of the marker command (which starts with "echo")
+            let clean_output = {
+                // Find the first newline (end of command echo)
+                let after_cmd_echo = output.find('\n')
+                    .map(|pos| &output[pos + 1..])
+                    .unwrap_or(output);
+
+                // Find where the marker echo command starts (second-to-last occurrence)
+                // Look for the line containing `echo "MARKER` before the actual marker output
+                let before_marker_echo = if let Some(pos) = after_cmd_echo.find(&marker) {
+                    // Go back to find the start of the line containing the marker echo
+                    let before = &after_cmd_echo[..pos];
+                    // Find the last newline before the marker — that's the end of real output
+                    before.rfind('\n')
+                        .map(|nl| &after_cmd_echo[..nl])
+                        .unwrap_or("")
+                } else {
+                    after_cmd_echo
+                };
+
+                before_marker_echo.to_string()
+            };
+
+            let final_output = if strip_ansi {
+                strip_ansi_codes(&clean_output)
+            } else {
+                clean_output
+            };
+
+            // Trim leading/trailing whitespace
+            let final_output = final_output.trim();
+
+            if json_output {
+                let json = serde_json::json!({
+                    "output": final_output,
+                    "exit_code": exit_code,
+                    "elapsed_ms": elapsed_ms,
+                    "marker_found": true,
+                    "bytes_captured": output.len(),
+                });
+                println!("{}", serde_json::to_string_pretty(&json)?);
+            } else {
+                if !final_output.is_empty() {
+                    println!("{final_output}");
+                }
+                if let Some(code) = exit_code {
+                    if code != 0 {
+                        std::process::exit(code);
+                    }
+                }
+            }
+
+            return Ok(());
         }
     }
 }
@@ -2932,5 +3198,46 @@ fn truncate(s: &str, max: usize) -> String {
         s.to_string()
     } else {
         format!("{}…", &s[..max - 1])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_ansi_removes_csi_sequences() {
+        let input = "\x1b[0;32mOK\x1b[0m  Framework installation";
+        let result = strip_ansi_codes(input);
+        assert_eq!(result, "OK  Framework installation");
+    }
+
+    #[test]
+    fn strip_ansi_removes_osc_sequences() {
+        let input = "\x1b]7;file://host/path\x07prompt % ";
+        let result = strip_ansi_codes(input);
+        assert_eq!(result, "prompt % ");
+    }
+
+    #[test]
+    fn strip_ansi_preserves_plain_text() {
+        let input = "hello world\nline 2\nline 3";
+        let result = strip_ansi_codes(input);
+        assert_eq!(result, "hello world\nline 2\nline 3");
+    }
+
+    #[test]
+    fn strip_ansi_removes_carriage_returns() {
+        let input = "line1\r\nline2\r\n";
+        let result = strip_ansi_codes(input);
+        assert_eq!(result, "line1\nline2\n");
+    }
+
+    #[test]
+    fn strip_ansi_complex_terminal_output() {
+        // Simulate real fw doctor output with ANSI
+        let input = "\x1b[1mfw doctor\x1b[0m - Health Check\r\n  \x1b[0;32mOK\x1b[0m  Git hooks\r\n  \x1b[1;33mWARN\x1b[0m  Version mismatch\r\n";
+        let result = strip_ansi_codes(input);
+        assert_eq!(result, "fw doctor - Health Check\n  OK  Git hooks\n  WARN  Version mismatch\n");
     }
 }
