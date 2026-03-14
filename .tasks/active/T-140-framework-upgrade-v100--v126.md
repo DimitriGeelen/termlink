@@ -4,16 +4,16 @@ name: "Framework upgrade v1.0.0 → v1.2.6"
 description: >
   Framework upgrade v1.0.0 → v1.2.6
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-14T21:26:10Z
-last_update: 2026-03-14T21:27:03Z
-date_finished: null
+last_update: 2026-03-14T21:46:55Z
+date_finished: 2026-03-14T21:46:55Z
 ---
 
 # T-140: Framework upgrade v1.0.0 → v1.2.6
@@ -25,11 +25,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-- [ ] If this work belongs in the framework (not just this project): framework PR task created (T-XXX) with research artifact, OneDev PR, and pickup prompt written to `docs/framework-agent-pickups/`
-  <!-- Remove this AC if the work is project-specific only -->
+- [x] .framework.yaml updated to v1.2.6 with correct path
+- [x] CLAUDE.md governance rules updated via fw upgrade
+- [x] Hook paths migrated to new framework location
+- [x] Enforcement baseline updated
+- [x] fw doctor passes (no failures)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -48,14 +48,8 @@ date_finished: null
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+grep -q 'version: 1.2.6' .framework.yaml
+! PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/bin/fw doctor 2>&1 | grep -q "FAIL"
 
 ## Decisions
 
@@ -74,3 +68,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-140-framework-upgrade-v100--v126.md
 - **Context:** Initial task creation
+
+### 2026-03-14T21:46:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
