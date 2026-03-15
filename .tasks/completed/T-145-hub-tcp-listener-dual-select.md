@@ -4,7 +4,7 @@ name: "Hub TCP listener dual select"
 description: >
   Hub TCP dual-listen via --tcp flag
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [tcp, hub]
 components: []
 related_tasks: []
 created: 2026-03-15T22:05:51Z
-last_update: 2026-03-15T22:07:08Z
-date_finished: null
+last_update: 2026-03-15T22:49:31Z
+date_finished: 2026-03-15T22:49:31Z
 ---
 
 # T-145: Hub TCP listener dual select
@@ -59,3 +59,6 @@ docs/reports/T-144-tcp-hub-inception.md for design rationale.
 
 ### 2026-03-15T22:07:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-15T22:49:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Cross-machine session discovery + remote liveness"
 description: >
   Cross-machine discovery combining local FS and remote sessions
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [tcp, hub]
 components: []
 related_tasks: []
 created: 2026-03-15T22:06:27Z
-last_update: 2026-03-15T22:16:22Z
-date_finished: null
+last_update: 2026-03-15T22:50:11Z
+date_finished: 2026-03-15T22:50:11Z
 ---
 
 # T-147: Cross-machine session discovery + remote liveness
@@ -56,3 +56,6 @@ router resolves remote entries, integration test proves full E2E flow.
 
 ### 2026-03-15T22:16:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-15T22:50:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

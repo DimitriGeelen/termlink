@@ -4,7 +4,7 @@ name: "Remote session registration RPC + heartbeat"
 description: >
   Remote session registration RPC with heartbeat and TTL
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [tcp, hub]
 components: []
 related_tasks: []
 created: 2026-03-15T22:06:26Z
-last_update: 2026-03-15T22:12:06Z
-date_finished: null
+last_update: 2026-03-15T22:49:50Z
+date_finished: 2026-03-15T22:49:50Z
 ---
 
 # T-146: Remote session registration RPC + heartbeat
@@ -59,3 +59,6 @@ via RPC, heartbeat to stay alive, auto-expire after TTL. See T-144 inception.
 
 ### 2026-03-15T22:12:06Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-15T22:49:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "TermLink agent dispatch — spawn claude workers in real terminals"
 description: >
   TermLink agent dispatch — spawn claude workers in real terminals
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-15T21:22:05Z
-last_update: 2026-03-15T21:22:05Z
-date_finished: null
+last_update: 2026-03-15T22:50:33Z
+date_finished: 2026-03-15T22:50:33Z
 ---
 
 # T-143: TermLink agent dispatch — spawn claude workers in real terminals
@@ -71,3 +71,6 @@ grep -q "worker.done" scripts/tl-dispatch.sh
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-143-termlink-agent-dispatch--spawn-claude-wo.md
 - **Context:** Initial task creation
+
+### 2026-03-15T22:50:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

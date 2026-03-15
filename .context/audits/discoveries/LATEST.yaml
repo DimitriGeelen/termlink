@@ -1,4 +1,4 @@
-timestamp: 2026-03-14T22:42:38Z
+timestamp: 2026-03-15T13:18:41Z
 findings:
   - id: D1
     level: PASS
@@ -24,14 +24,16 @@ findings:
     check: "D5: Task lifecycle — 10 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) T-092(1min,human)"
     mitigation: "Review flagged tasks for process issues"
   - id: D3
-    level: PASS
-    check: "D3: Commit velocity — normal (PASS today=31 avg=42 ratio=0.7x)"
+    level: WARN
+    check: "D3: Commit velocity — WARN drop today=1 avg=41 ratio=0.0x"
+    mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS 31_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 23_commits_24h_no_bunching)"
   - id: D6
-    level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=13.6)"
+    level: WARN
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=4.7 vs earlier_avg=16.1)"
+    mitigation: "Check for blockers or process issues slowing work"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
@@ -40,7 +42,7 @@ findings:
     check: "D9: Control drift — normal (PASS insufficient_audits)"
 
 summary:
-  pass: 10
-  warn: 2
+  pass: 8
+  warn: 4
   fail: 0
   total: 12
