@@ -4,7 +4,11 @@
 
 ---
 
-I want to integrate TermLink into the framework. TermLink is a cross-terminal session communication tool we built — it's already installed at `/Users/dimidev32/.cargo/bin/termlink` (v0.1.0, 26 commands). This is NOT a third-party tool — it's our project, battle-tested with 264 passing tests.
+I want to integrate TermLink into the framework. TermLink is a cross-terminal session communication tool we built — it's our project, hosted at `https://onedev.docker.ring20.geelenandcompany.com/termlink`. It's already installed at `/Users/dimidev32/.cargo/bin/termlink` (v0.1.0, 26 commands), built from source via `cargo install --path .`. Battle-tested with 264 passing tests across 4 crates.
+
+**Repo:** `https://onedev.docker.ring20.geelenandcompany.com/termlink`
+**Install:** `git clone https://onedev.docker.ring20.geelenandcompany.com/termlink && cd termlink && cargo install --path crates/termlink-cli`
+**Binary:** `/Users/dimidev32/.cargo/bin/termlink`
 
 ## What TermLink already provides (DO NOT rebuild these)
 
@@ -389,6 +393,8 @@ esac
 
 ## What's already built in TermLink (don't rebuild — just use)
 
+**Repo:** `https://onedev.docker.ring20.geelenandcompany.com/termlink`
+
 - **26 CLI commands** — all with `--json`, semantic exit codes
 - **`interact --json`** — run command, wait, return `{output, exit_code, elapsed_ms, marker_found}`
 - **Event system** — emit/wait/poll/broadcast/topics/collect
@@ -397,7 +403,10 @@ esac
 - **Hybrid discovery** — `termlink discover` returns both local + remote TCP sessions
 - **Hub forwarding** — transparently routes requests to remote sessions
 - **Auth tokens** — `termlink token` for capability-based session auth
+- **Working dispatch prototype** — `scripts/tl-dispatch.sh` in the repo, tested with 3 parallel workers
 - **264 tests passing** across 4 crates
+
+To update TermLink: `cd /Users/dimidev32/001-projects/010-termlink && git pull && cargo install --path crates/termlink-cli`
 
 ## Phased Rollout (framework owns all phases)
 
