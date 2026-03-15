@@ -1365,13 +1365,25 @@ async fn cmd_interact(
         };
 
         // With single-line injection, the marker appears in the command echo BUT
-        // terminal line-wrapping inserts ANSI escapes (e.g. \x1b[K) that break
-        // the marker string. The clean occurrence is only in the echo output.
-        // So we look for exactly 1 clean occurrence in new content.
-        // To avoid false positives from partial echoing, we also verify the
-        // marker is followed by " exit=" (the echo output format).
+        // also in the actual echo output after the command finishes. The command
+        // echo line contains the literal text `echo "MARKER exit=$?"` where $?
+        // is not yet expanded. The actual output contains `MARKER exit=0` (with
+        // a digit). We distinguish them by requiring exit= followed by a digit.
         let marker_with_exit = format!("{marker} exit=");
-        let has_marker = output.contains(&marker_with_exit);
+        let has_marker = output.contains(&marker_with_exit) && {
+            // Verify at least one occurrence has exit= followed by a digit (not $)
+            let mut found_digit = false;
+            for line in output.lines() {
+                if let Some(pos) = line.find(&marker_with_exit) {
+                    let after = &line[pos + marker_with_exit.len()..];
+                    if after.starts_with(|c: char| c.is_ascii_digit()) {
+                        found_digit = true;
+                        break;
+                    }
+                }
+            }
+            found_digit
+        };
         if has_marker {
             let elapsed_ms = start.elapsed().as_millis();
 
