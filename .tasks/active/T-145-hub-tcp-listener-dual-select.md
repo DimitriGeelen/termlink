@@ -4,7 +4,7 @@ name: "Hub TCP listener dual select"
 description: >
   Hub TCP dual-listen via --tcp flag
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [tcp, hub]
 components: []
 related_tasks: []
 created: 2026-03-15T22:05:51Z
-last_update: 2026-03-15T22:05:51Z
+last_update: 2026-03-15T22:07:08Z
 date_finished: null
 ---
 
@@ -20,40 +20,24 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Add opt-in TCP listening to the hub via `--tcp` flag. See T-144 inception and
+docs/reports/T-144-tcp-hub-inception.md for design rationale.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] `HubAction::Start` has optional `--tcp` arg (e.g., `0.0.0.0:9100`)
+- [x] `server::run_with_tcp()` accepts `Option<&str>` for TCP address
+- [x] Hub binds TCP listener when `--tcp` provided, Unix-only otherwise
+- [x] `handle_connection` is generic (works with both Unix and TCP streams)
+- [x] `run_accept_loop` uses `tokio::select!` over both listeners
+- [x] TCP connections log info about LAN-only (no auth)
+- [x] All existing tests pass (257 total)
+- [x] New test: `hub_dual_listen_unix_and_tcp` verifies both transports work
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo test --workspace
 
 ## Decisions
 
@@ -72,3 +56,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-145-hub-tcp-listener-dual-select.md
 - **Context:** Initial task creation
+
+### 2026-03-15T22:07:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

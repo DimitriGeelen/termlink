@@ -466,7 +466,11 @@ enum Command {
 #[derive(Subcommand)]
 enum HubAction {
     /// Start the hub server (default if no subcommand given)
-    Start,
+    Start {
+        /// Optional TCP address to listen on (e.g., "0.0.0.0:9100", "127.0.0.1:9100")
+        #[arg(long)]
+        tcp: Option<String>,
+    },
     /// Stop a running hub server
     Stop,
     /// Show hub server status
@@ -813,7 +817,8 @@ async fn main() -> Result<()> {
         // Infrastructure
         Command::Clean { dry_run } => cmd_clean(dry_run),
         Command::Hub { action } => match action {
-            None | Some(HubAction::Start) => cmd_hub_start().await,
+            None | Some(HubAction::Start { tcp: None }) => cmd_hub_start(None).await,
+            Some(HubAction::Start { tcp: Some(ref addr) }) => cmd_hub_start(Some(addr)).await,
             Some(HubAction::Stop) => cmd_hub_stop(),
             Some(HubAction::Status) => cmd_hub_status(),
         },
@@ -3047,17 +3052,20 @@ fn shell_escape(s: &str) -> String {
     }
 }
 
-async fn cmd_hub_start() -> Result<()> {
+async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
     let socket_path = termlink_hub::server::hub_socket_path();
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
 
     println!("Starting hub server...");
     println!("  Socket:  {}", socket_path.display());
+    if let Some(addr) = tcp_addr {
+        println!("  TCP:     {}", addr);
+    }
     println!("  Pidfile: {}", pidfile_path.display());
     println!();
     println!("Listening for connections... (Ctrl+C to stop)");
 
-    let handle = termlink_hub::server::run(&socket_path)
+    let handle = termlink_hub::server::run_with_tcp(&socket_path, tcp_addr)
         .await
         .context("Hub server error")?;
 

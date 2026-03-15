@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{UnixListener, UnixStream};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::watch;
 
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
@@ -42,6 +42,17 @@ impl ShutdownHandle {
 /// Acquires a pidfile to prevent multiple hub instances. The pidfile is removed
 /// on clean shutdown. Stale pidfiles from crashed hubs are cleaned automatically.
 pub async fn run(socket_path: &Path) -> std::io::Result<ShutdownHandle> {
+    run_with_tcp(socket_path, None).await
+}
+
+/// Start the hub server with optional TCP listener.
+///
+/// When `tcp_addr` is provided (e.g., "0.0.0.0:9100"), the hub listens on
+/// both the Unix socket and the TCP address simultaneously.
+pub async fn run_with_tcp(
+    socket_path: &Path,
+    tcp_addr: Option<&str>,
+) -> std::io::Result<ShutdownHandle> {
     let pidfile_path = pidfile::hub_pidfile_path();
 
     // Acquire pidfile (prevents double-start, cleans stale)
@@ -57,8 +68,20 @@ pub async fn run(socket_path: &Path) -> std::io::Result<ShutdownHandle> {
     // Remove stale socket file
     let _ = std::fs::remove_file(socket_path);
 
-    let listener = UnixListener::bind(socket_path)?;
-    tracing::info!(path = %socket_path.display(), "Hub listening");
+    let unix_listener = UnixListener::bind(socket_path)?;
+    tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
+
+    // Optional TCP listener
+    let tcp_listener = if let Some(addr) = tcp_addr {
+        let listener = TcpListener::bind(addr).await.map_err(|e| {
+            std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
+        })?;
+        let local_addr = listener.local_addr()?;
+        tracing::info!(%local_addr, "Hub listening on TCP");
+        Some(listener)
+    } else {
+        None
+    };
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let handle = ShutdownHandle { tx: shutdown_tx };
@@ -71,7 +94,7 @@ pub async fn run(socket_path: &Path) -> std::io::Result<ShutdownHandle> {
 
     let socket_path_owned = socket_path.to_path_buf();
     tokio::spawn(async move {
-        run_accept_loop(listener, shutdown_rx).await;
+        run_accept_loop(unix_listener, tcp_listener, shutdown_rx).await;
 
         // Cleanup on exit
         let _ = std::fs::remove_file(&socket_path_owned);
@@ -86,7 +109,7 @@ pub async fn run(socket_path: &Path) -> std::io::Result<ShutdownHandle> {
 ///
 /// This is the simple API for CLI usage — starts the server and waits
 /// for the shutdown handle to be triggered.
-pub async fn run_blocking(socket_path: &Path) -> std::io::Result<()> {
+pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io::Result<()> {
     let pidfile_path = pidfile::hub_pidfile_path();
 
     // Acquire pidfile (prevents double-start, cleans stale)
@@ -102,11 +125,22 @@ pub async fn run_blocking(socket_path: &Path) -> std::io::Result<()> {
     // Remove stale socket file
     let _ = std::fs::remove_file(socket_path);
 
-    let listener = UnixListener::bind(socket_path)?;
-    tracing::info!(path = %socket_path.display(), "Hub listening");
+    let unix_listener = UnixListener::bind(socket_path)?;
+    tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
+
+    let tcp_listener = if let Some(addr) = tcp_addr {
+        let listener = TcpListener::bind(addr).await.map_err(|e| {
+            std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
+        })?;
+        let local_addr = listener.local_addr()?;
+        tracing::info!(%local_addr, "Hub listening on TCP");
+        Some(listener)
+    } else {
+        None
+    };
 
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
-    run_accept_loop(listener, shutdown_rx).await;
+    run_accept_loop(unix_listener, tcp_listener, shutdown_rx).await;
 
     // Cleanup on exit
     pidfile::remove(&pidfile_path);
@@ -118,13 +152,18 @@ pub async fn run_blocking(socket_path: &Path) -> std::io::Result<()> {
 /// Rejects connections from different UIDs (same security model as session server).
 /// Stops accepting when the shutdown signal is received, then waits up to 5 seconds
 /// for active connections to complete.
-pub async fn run_accept_loop(listener: UnixListener, mut shutdown_rx: watch::Receiver<bool>) {
+pub async fn run_accept_loop(
+    unix_listener: UnixListener,
+    tcp_listener: Option<TcpListener>,
+    mut shutdown_rx: watch::Receiver<bool>,
+) {
     let owner_uid = unsafe { libc::getuid() };
     let active_connections = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
 
     loop {
+        // Select over Unix listener, optional TCP listener, and shutdown signal
         tokio::select! {
-            result = listener.accept() => {
+            result = unix_listener.accept() => {
                 match result {
                     Ok((stream, _addr)) => {
                         // Extract peer credentials and check UID
@@ -135,7 +174,7 @@ pub async fn run_accept_loop(listener: UnixListener, mut shutdown_rx: watch::Rec
                                         peer_uid = creds.uid,
                                         peer_pid = ?creds.pid,
                                         owner_uid = owner_uid,
-                                        "Hub: rejected connection from different UID"
+                                        "Hub: rejected Unix connection from different UID"
                                     );
                                     continue;
                                 }
@@ -156,11 +195,39 @@ pub async fn run_accept_loop(listener: UnixListener, mut shutdown_rx: watch::Rec
                         });
                     }
                     Err(e) => {
-                        tracing::error!(error = %e, "Hub accept failed");
+                        tracing::error!(error = %e, "Hub Unix accept failed");
                         break;
                     }
                 }
             }
+
+            result = async {
+                match tcp_listener.as_ref() {
+                    Some(l) => l.accept().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                match result {
+                    Ok((stream, peer_addr)) => {
+                        tracing::info!(
+                            %peer_addr,
+                            "Hub: TCP connection accepted (no auth — LAN-only)"
+                        );
+
+                        let counter = active_connections.clone();
+                        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        tokio::spawn(async move {
+                            handle_connection(stream).await;
+                            counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                        });
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Hub TCP accept failed");
+                        // Don't break — Unix listener can still work
+                    }
+                }
+            }
+
             _ = shutdown_rx.changed() => {
                 if *shutdown_rx.borrow() {
                     tracing::info!("Hub: shutdown signal received, draining connections");
@@ -186,8 +253,11 @@ pub async fn run_accept_loop(listener: UnixListener, mut shutdown_rx: watch::Rec
 ///
 /// Reads newline-delimited JSON-RPC, routes via [`router::route`],
 /// writes newline-delimited JSON-RPC responses.
-async fn handle_connection(stream: UnixStream) {
-    let (reader, mut writer) = stream.into_split();
+async fn handle_connection<S>(stream: S)
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let (reader, mut writer) = tokio::io::split(stream);
     let mut lines = BufReader::new(reader).lines();
 
     while let Ok(Some(line)) = lines.next_line().await {
@@ -288,7 +358,7 @@ mod tests {
         let handle = tokio::spawn(async move {
             let _ = std::fs::remove_file(&socket);
             let listener = UnixListener::bind(&socket).unwrap();
-            run_accept_loop(listener, rx).await;
+            run_accept_loop(listener, None, rx).await;
         });
         (handle, tx)
     }
@@ -480,5 +550,73 @@ mod tests {
         ).await;
 
         assert!(result.is_ok(), "Hub did not shut down during drain");
+    }
+
+    #[tokio::test]
+    async fn hub_dual_listen_unix_and_tcp() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Start hub with both Unix and TCP listeners
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            // Bind TCP on ephemeral port
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            // Write port to file so test can read it
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        // 1. Connect via Unix and send a request
+        let unix_stream = tokio::net::UnixStream::connect(&hub_socket).await.unwrap();
+        let (reader, mut writer) = unix_stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "session.discover",
+            "id": "unix-1",
+            "params": {}
+        });
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+        assert_eq!(resp["id"], "unix-1");
+        assert!(resp["result"].is_object(), "Unix connection should get valid response");
+
+        // 2. Connect via TCP and send same request
+        let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (reader, mut writer) = tcp_stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "session.discover",
+            "id": "tcp-1",
+            "params": {}
+        });
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+        assert_eq!(resp["id"], "tcp-1");
+        assert!(resp["result"].is_object(), "TCP connection should get valid response");
+
+        // Cleanup
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
     }
 }
