@@ -9,6 +9,7 @@ use termlink_session::auth::PeerCredentials;
 use termlink_session::discovery;
 
 use crate::pidfile;
+use crate::remote_store;
 use crate::router;
 use crate::supervisor;
 
@@ -86,10 +87,19 @@ pub async fn run_with_tcp(
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let handle = ShutdownHandle { tx: shutdown_tx };
 
+    // Initialize the remote session store
+    let remote_store = router::init_remote_store();
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {
         supervisor::run(supervisor::DEFAULT_INTERVAL, supervisor_rx).await;
+    });
+
+    // Start the remote store reaper (expires stale remote sessions)
+    let reaper_rx = shutdown_rx.clone();
+    tokio::spawn(async move {
+        remote_store::run_reaper(remote_store, remote_store::REAPER_INTERVAL, reaper_rx).await;
     });
 
     let socket_path_owned = socket_path.to_path_buf();

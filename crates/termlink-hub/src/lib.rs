@@ -1,4 +1,5 @@
 pub mod pidfile;
+pub mod remote_store;
 pub mod router;
 pub mod server;
 pub mod supervisor;

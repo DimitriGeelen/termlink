@@ -1,3 +1,4 @@
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use serde_json::json;
@@ -9,8 +10,25 @@ use termlink_protocol::TransportAddr;
 use termlink_session::client;
 use termlink_session::manager;
 
+use crate::remote_store::RemoteStore;
+
 /// Per-target timeout for broadcast/collect operations.
 const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Global remote session store (initialized once by the hub server).
+static REMOTE_STORE: OnceLock<RemoteStore> = OnceLock::new();
+
+/// Initialize the global remote store. Called once by the hub server.
+pub fn init_remote_store() -> RemoteStore {
+    let store = RemoteStore::new();
+    let _ = REMOTE_STORE.set(store.clone());
+    store
+}
+
+/// Get the global remote store (returns None if not initialized).
+fn remote_store() -> Option<&'static RemoteStore> {
+    REMOTE_STORE.get()
+}
 
 /// Route a JSON-RPC request to the appropriate handler.
 ///
@@ -28,6 +46,9 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
+        "session.register_remote" => handle_register_remote(id, &req.params),
+        "session.heartbeat" => handle_heartbeat(id, &req.params),
+        "session.deregister_remote" => handle_deregister_remote(id, &req.params),
         _ => forward_to_target(req, id).await,
     };
 
@@ -61,7 +82,7 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
 
             let name_filter = params.get("name").and_then(|n| n.as_str());
 
-            let entries: Vec<serde_json::Value> = sessions
+            let mut entries: Vec<serde_json::Value> = sessions
                 .iter()
                 .filter(|s| {
                     tag_filter.iter().all(|t| s.tags.contains(t))
@@ -83,6 +104,24 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
                     })
                 })
                 .collect();
+
+            // Include remote (TCP) sessions from the in-memory store
+            if let Some(store) = remote_store() {
+                let remote_entries: Vec<serde_json::Value> = store
+                    .list_live()
+                    .iter()
+                    .filter(|e| {
+                        tag_filter.iter().all(|t| e.tags.contains(t))
+                            && role_filter.iter().all(|r| e.roles.contains(r))
+                            && cap_filter.iter().all(|c| e.capabilities.contains(c))
+                            && name_filter.map_or(true, |n| {
+                                e.display_name.to_lowercase().contains(&n.to_lowercase())
+                            })
+                    })
+                    .map(|e| e.to_json())
+                    .collect();
+                entries.extend(remote_entries);
+            }
 
             Response::success(id, json!({ "sessions": entries })).into()
         }
@@ -329,6 +368,111 @@ async fn handle_event_collect(
         }),
     )
     .into()
+}
+
+/// Handle `session.register_remote` — register a TCP session in the hub's memory.
+///
+/// Params: { display_name, host, port, pid?, roles?, tags?, capabilities? }
+fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let store = match remote_store() {
+        Some(s) => s,
+        None => {
+            return ErrorResponse::internal_error(id, "Remote store not initialized").into();
+        }
+    };
+
+    let host = match params.get("host").and_then(|h| h.as_str()) {
+        Some(h) => h.to_string(),
+        None => return ErrorResponse::new(id, -32602, "Missing 'host' in params").into(),
+    };
+    let port = match params.get("port").and_then(|p| p.as_u64()) {
+        Some(p) => p as u16,
+        None => return ErrorResponse::new(id, -32602, "Missing 'port' in params").into(),
+    };
+    let display_name = params
+        .get("display_name")
+        .and_then(|n| n.as_str())
+        .unwrap_or("remote")
+        .to_string();
+    let pid = params.get("pid").and_then(|p| p.as_u64()).map(|p| p as u32);
+    let roles = extract_string_array(params, "roles");
+    let tags = extract_string_array(params, "tags");
+    let capabilities = extract_string_array(params, "capabilities");
+
+    let session_id = store.register(display_name, host, port, pid, roles, tags, capabilities);
+    tracing::info!(id = %session_id, "Remote session registered");
+
+    Response::success(id, json!({ "id": session_id })).into()
+}
+
+/// Handle `session.heartbeat` — refresh TTL for a remote session.
+///
+/// Params: { id }
+fn handle_heartbeat(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let store = match remote_store() {
+        Some(s) => s,
+        None => {
+            return ErrorResponse::internal_error(id, "Remote store not initialized").into();
+        }
+    };
+
+    let session_id = match params.get("id").and_then(|i| i.as_str()) {
+        Some(i) => i,
+        None => return ErrorResponse::new(id, -32602, "Missing 'id' in params").into(),
+    };
+
+    if store.heartbeat(session_id) {
+        Response::success(id, json!({ "ok": true })).into()
+    } else {
+        ErrorResponse::new(
+            id,
+            control::error_code::SESSION_NOT_FOUND,
+            &format!("Remote session '{}' not found", session_id),
+        )
+        .into()
+    }
+}
+
+/// Handle `session.deregister_remote` — remove a remote session.
+///
+/// Params: { id }
+fn handle_deregister_remote(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let store = match remote_store() {
+        Some(s) => s,
+        None => {
+            return ErrorResponse::internal_error(id, "Remote store not initialized").into();
+        }
+    };
+
+    let session_id = match params.get("id").and_then(|i| i.as_str()) {
+        Some(i) => i,
+        None => return ErrorResponse::new(id, -32602, "Missing 'id' in params").into(),
+    };
+
+    if store.deregister(session_id) {
+        tracing::info!(id = %session_id, "Remote session deregistered");
+        Response::success(id, json!({ "ok": true })).into()
+    } else {
+        ErrorResponse::new(
+            id,
+            control::error_code::SESSION_NOT_FOUND,
+            &format!("Remote session '{}' not found", session_id),
+        )
+        .into()
+    }
+}
+
+/// Extract a string array from a JSON value by key, defaulting to empty vec.
+fn extract_string_array(params: &serde_json::Value, key: &str) -> Vec<String> {
+    params
+        .get(key)
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Forward a request to the target session specified in params.target.
