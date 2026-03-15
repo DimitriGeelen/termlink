@@ -12,7 +12,7 @@ tags: [tcp, distributed, hub]
 components: []
 related_tasks: [T-133, T-011, T-142, T-079]
 created: 2026-03-15T21:58:30Z
-last_update: 2026-03-15T21:58:30Z
+last_update: 2026-03-15T22:03:50Z
 date_finished: null
 ---
 
@@ -95,7 +95,18 @@ test -f docs/reports/T-144-tcp-hub-inception.md
 
 ## Decisions
 
+**Decision**: GO
+
+**Rationale**: All 5 assumptions validated. Hub dual-listen is ~58 lines (tokio select!, router untouched). TransportAddr::Tcp already serializes. Hub-mediated registration with heartbeat/TTL for remote sessions. LAN-only first, auth deferred. 3 bounded build tasks: hub TCP flag, remote registration RPC, cross-machine discovery.
+
+**Date**: 2026-03-15T22:05:25Z
+
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-15T22:05:25Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** All 5 assumptions validated. Hub dual-listen is ~58 lines (tokio select!, router untouched). TransportAddr::Tcp already serializes. Hub-mediated registration with heartbeat/TTL for remote sessions. LAN-only first, auth deferred. 3 bounded build tasks: hub TCP flag, remote registration RPC, cross-machine discovery.
