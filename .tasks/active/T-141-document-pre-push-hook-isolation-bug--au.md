@@ -4,16 +4,16 @@ name: "Document pre-push hook isolation bug — audit checks framework instead o
 description: >
   Document pre-push hook isolation bug — audit checks framework instead of project
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-14T22:20:01Z
-last_update: 2026-03-14T22:20:01Z
-date_finished: null
+last_update: 2026-03-14T22:42:27Z
+date_finished: 2026-03-14T22:26:30Z
 ---
 
 # T-141: Document pre-push hook isolation bug — audit checks framework instead of project
@@ -79,3 +79,6 @@ Then reinstall hooks in consumer projects: `fw git install-hooks`
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-141-document-pre-push-hook-isolation-bug--au.md
 - **Context:** Initial task creation
+
+### 2026-03-14T22:26:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

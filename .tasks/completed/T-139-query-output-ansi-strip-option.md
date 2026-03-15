@@ -5,7 +5,7 @@ description: >
   Add optional ANSI escape sequence stripping to the query.output RPC handler
   and CLI output command. Makes scrollback output clean text for automated parsing.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: next
@@ -13,8 +13,8 @@ tags: [protocol, scrollback, ansi]
 components: []
 related_tasks: [T-136, T-137]
 created: 2026-03-14T17:07:00Z
-last_update: 2026-03-14T22:48:50Z
-date_finished: null
+last_update: 2026-03-14T22:59:56Z
+date_finished: 2026-03-14T22:59:56Z
 ---
 
 # T-139: query.output --strip-ansi option
@@ -37,7 +37,7 @@ to the `query.output` RPC handler that strips escape codes server-side.
 
 ## Verification
 
-/Users/dimidev32/.cargo/bin/cargo test --workspace 2>&1 | grep -q "test result: ok"
+/Users/dimidev32/.cargo/bin/cargo test --workspace
 
 ## Updates
 
@@ -46,3 +46,6 @@ to the `query.output` RPC handler that strips escape codes server-side.
 
 ### 2026-03-14T22:48:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-14T22:59:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

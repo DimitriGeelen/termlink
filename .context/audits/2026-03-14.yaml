@@ -1,9 +1,9 @@
-# Audit Results - 2026-03-14-2159
-timestamp: 2026-03-14T20:59:02Z
+# Audit Results - 2026-03-14-2342
+timestamp: 2026-03-14T22:42:38Z
 summary:
-  pass: 77
-  warn: 15
-  fail: 1
+  pass: 85
+  warn: 12
+  fail: 0
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -22,11 +22,12 @@ findings:
   - level: PASS
     check: "Fabric edges: 38/48 cards enriched (10 without edges)"
   - level: PASS
-    check: "All 14 active tasks are valid"
+    check: "All 15 active tasks are valid"
+  - level: WARN
+    check: "Task T-140 has short description (33 chars)"
+    mitigation: "Expand description in T-140-framework-upgrade-v100--v126.md"
   - level: PASS
-    check: "All active tasks meet quality thresholds"
-  - level: PASS
-    check: "Git traceability: 100% (278/278 commits reference tasks)"
+    check: "Git traceability: 100% (286/286 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -42,13 +43,16 @@ findings:
     check: "Practices documented: 10 practice(s) in practices.yaml"
   - level: WARN
     check: "Bugfix-learning coverage: 25% (2/8)"
-    mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX "description""
+    mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX \"description\""
   - level: WARN
     check: "Completed task T-134 has no episodic summary"
     mitigation: "Run: ./agents/context/context.sh generate-episodic T-134"
   - level: WARN
     check: "Completed task T-135 has no episodic summary"
     mitigation: "Run: ./agents/context/context.sh generate-episodic T-135"
+  - level: WARN
+    check: "Completed task T-138 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-138"
   - level: WARN
     check: "1 episodics have empty or TODO summaries"
     mitigation: "Fill in summary field with actual task description"
@@ -59,7 +63,7 @@ findings:
   - level: PASS
     check: "Gaps register: 1 watching, no triggers fired"
   - level: PASS
-    check: "Handover open questions: none"
+    check: "Handover open questions: none (section empty or template placeholder)"
   - level: PASS
     check: "Graduation pipeline: 0 learnings (threshold: 20)"
   - level: WARN
@@ -71,15 +75,14 @@ findings:
     check: "C-002: commit-msg hook has research artifact check"
   - level: PASS
     check: "C-002: No research warnings logged (clean or first run)"
-  - level: WARN
-    check: "C-003: Research checkpoint logic missing from checkpoint.sh"
-    mitigation: "Add C-003 research checkpoint to checkpoint.sh post-tool handler"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-138)"
+    check: "C-003: Research checkpoint logic present in checkpoint.sh"
+  - level: PASS
+    check: "CTL-001: Focus file has active task (T-141)"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 34 (last commit: 68 minutes ago)"
+    check: "CTL-004: Tool counter at 2 (last commit: 35 seconds ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -92,7 +95,7 @@ findings:
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (41 handovers, 25 compactions)"
+    check: "CTL-006: Handover coverage for compactions (42 handovers, 26 compactions)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
   - level: PASS
@@ -114,7 +117,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (54 commits)"
+    check: "CTL-009: Inception T-012 has decision (55 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -148,15 +151,12 @@ findings:
   - level: WARN
     check: "CTL-012: Completed task T-101 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
-  - level: WARN
-    check: "CTL-013: T-135 verification re-run: 5 command(s) failing"
-    mitigation: "Review T-135 — environment may have changed"
-  - level: WARN
-    check: "CTL-013: T-134 verification re-run: 1 command(s) failing"
-    mitigation: "Review T-134 — environment may have changed"
-  - level: WARN
-    check: "CTL-013: T-132 verification re-run: 2 command(s) failing"
-    mitigation: "Review T-132 — environment may have changed"
+  - level: PASS
+    check: "CTL-013: T-138 verification re-run: 1/1 pass"
+  - level: PASS
+    check: "CTL-013: T-135 verification re-run: 5/5 pass"
+  - level: PASS
+    check: "CTL-013: T-134 verification re-run: 1/1 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -176,15 +176,19 @@ findings:
   - level: PASS
     check: "CTL-025: T-137 partial-complete with owner:human ✓"
   - level: PASS
+    check: "CTL-025: T-140 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-141 partial-complete with owner:human ✓"
+  - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
     check: "D1: Episodic quality — 0% [TODO] (0/123)"
-  - level: WARN
-    check: "D2: Human review queue — 1 task(s) waiting >48h: T-119(49h) T-121(35h) T-124(47h)"
-    mitigation: "Review pending tasks at :3000/tasks"
-  - level: FAIL
-    check: "D8: Handover quality — LATEST.md has 63 [TODO] sections"
-    mitigation: "Fill handover: edit .context/handovers/LATEST.md or run fw handover"
+  - level: PASS
+    check: "D2: Human review queue — 10 task(s) awaiting human action (normal)"
+  - level: PASS
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
+  - level: PASS
+    check: "D8b: Handover archive — 0/10 recent handovers have [TODO]s"
   - level: WARN
     check: "D10: Decision-without-dialogue — 1 task(s): T-101"
     mitigation: "Review flagged tasks — human dialogue may have been skipped"
@@ -196,11 +200,11 @@ findings:
     check: "D5: Task lifecycle — 10 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) T-092(1min,human)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — insufficient data"
+    check: "D3: Commit velocity — normal (PASS today=31 avg=42 ratio=0.7x)"
   - level: PASS
-    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+    check: "D7: Commit bunching — none (PASS 31_commits_24h_no_bunching)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=10.0 earlier=13.6)"
+    check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=13.6)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS
