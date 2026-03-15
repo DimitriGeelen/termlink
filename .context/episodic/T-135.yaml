@@ -1,0 +1,61 @@
+# ============================================================================
+# EPISODIC MEMORY - T-135: Fabric quality sweep
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-15T14:10:00Z
+# ============================================================================
+
+task_id: T-135
+task_name: "Fabric quality sweep — register missing cards, fix deps, sync subsystems"
+workflow_type: refactor
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-14T16:24:11Z
+completed: 2026-03-14T16:27:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-14T00:00:00+00:00
+last_commit: 2026-03-14T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fabric quality sweep addressing drift found during investigation: created 2 missing
+  transport.rs component cards (protocol + session crates), updated 4 lib.yaml cards
+  with complete depends_on entries, updated client.yaml with control.rs and transport.rs
+  deps, synced subsystems.yaml with all registered components.
+
+# Key outcomes
+outcomes:
+  - "transport.rs cards created for protocol and session crates"
+  - "lib.yaml cards updated with complete dependency graphs"
+  - "subsystems.yaml synced with all registered components"
+  - "All YAML files parse correctly"
+
+# Patterns observed
+patterns:
+  - type: workflow
+    description: "Fabric drift accumulates when new source files are created without registering cards"
+
+# Decisions
+decisions: []
+
+# Acceptance criteria results
+acceptance_criteria:
+  agent:
+    - criterion: "transport.rs cards created"
+      met: true
+    - criterion: "lib.yaml cards updated with complete deps"
+      met: true
+    - criterion: "client.yaml updated"
+      met: true
+    - criterion: "subsystems.yaml synced"
+      met: true
+    - criterion: "All YAML files parse correctly"
+      met: true
+
+# Commits
+commits:
+  - hash: 7b5d936
+    message: "T-135: Fabric quality sweep — register transport cards, fix deps, sync subsystems"

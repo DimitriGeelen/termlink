@@ -1,0 +1,52 @@
+# ============================================================================
+# EPISODIC MEMORY - T-134: Generate missing episodic summaries (10 tasks)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-15T14:10:00Z
+# ============================================================================
+
+task_id: T-134
+task_name: "Generate missing episodic summaries (10 tasks)"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-14T16:13:41Z
+completed: 2026-03-14T16:23:24Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-14T00:00:00+00:00
+last_commit: 2026-03-14T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Generated 16 missing episodic summaries for completed tasks. The generate-episodic
+  script had a macOS `date -d` bug, so summaries were written manually. Each YAML
+  file written to .context/episodic/ with git-mined timelines and task-derived content.
+
+# Key outcomes
+outcomes:
+  - "16 episodic YAML files created in .context/episodic/"
+  - "Episodic coverage gap closed for T-009 through T-132"
+
+# Patterns observed
+patterns:
+  - type: workflow
+    description: "macOS date -d incompatibility in generate-episodic script requires manual generation"
+
+# Decisions
+decisions: []
+
+# Acceptance criteria results
+acceptance_criteria:
+  agent:
+    - criterion: "All 16 missing episodic summaries written"
+      met: true
+    - criterion: "Each YAML file parses correctly"
+      met: true
+
+# Commits
+commits:
+  - hash: 61107c7
+    message: "T-134: Generate 16 missing episodic summaries"

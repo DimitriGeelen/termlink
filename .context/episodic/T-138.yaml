@@ -1,0 +1,68 @@
+# ============================================================================
+# EPISODIC MEMORY - T-138: /self-test framework skill
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-15T14:10:00Z
+# ============================================================================
+
+task_id: T-138
+task_name: "/self-test framework skill — E2E validation loop"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-14T17:07:00Z
+completed: 2026-03-14T21:23:00Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-14T00:00:00+00:00
+last_commit: 2026-03-14T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Phase 2 build from T-136 inception. Created /self-test Claude Code skill that
+  automates framework validation: spawns a TermLink test session via osascript,
+  runs configurable command sequences via `termlink interact`, collects structured
+  pass/fail results per command, handles timeouts and session failures gracefully,
+  and cleans up the test session. Also fixed interact marker detection issue.
+
+# Key outcomes
+outcomes:
+  - "/self-test skill created in .claude/commands/self-test.md"
+  - "Configurable command sequence (default: fw doctor)"
+  - "Structured table + failure detail reporting"
+  - "Auto-spawn and PID-based cleanup of test sessions"
+  - "TIMEOUT/SESSION_LOST/SKIPPED graceful handling"
+
+# Patterns observed
+patterns:
+  - type: workflow
+    description: "osascript Terminal.app spawn + termlink interact = reliable automated test loop"
+
+# Decisions
+decisions: []
+
+# Related tasks
+related_tasks:
+  - T-136  # inception
+  - T-137  # termlink interact (dependency)
+
+# Acceptance criteria results
+acceptance_criteria:
+  agent:
+    - criterion: "/self-test skill created"
+      met: true
+    - criterion: "Configurable command sequence"
+      met: true
+    - criterion: "Structured pass/fail reporting"
+      met: true
+    - criterion: "Auto-spawn and cleanup"
+      met: true
+    - criterion: "Graceful timeout/failure handling"
+      met: true
+
+# Commits
+commits:
+  - hash: 8d3759a
+    message: "T-138: /self-test skill + fix interact marker detection"

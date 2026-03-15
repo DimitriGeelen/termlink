@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-139: query.output --strip-ansi option
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-15T14:10:00Z
+# ============================================================================
+
+task_id: T-139
+task_name: "query.output --strip-ansi option"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-14T17:07:00Z
+completed: 2026-03-14T22:59:56Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-14T00:00:00+00:00
+last_commit: 2026-03-14T00:00:00+00:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Added optional ANSI escape sequence stripping to query.output RPC handler and
+  CLI output command. Motivated by T-136 spike finding that scrollback contains
+  raw ANSI codes breaking JSON parsers and pattern matching. Server-side
+  strip_ansi_codes function handles CSI, OSC sequences, and carriage returns.
+  CLI gets --strip-ansi flag on both `termlink output` and `termlink pty output`.
+  All 260 tests pass including 2 new strip_ansi tests.
+
+# Key outcomes
+outcomes:
+  - "query.output RPC accepts optional strip_ansi: true param"
+  - "Server-side strip_ansi_codes function (CSI, OSC, CR stripping)"
+  - "CLI --strip-ansi flag on output and pty output commands"
+  - "Backward compatible — default behavior unchanged"
+  - "2 new tests: query_output_strip_ansi, query_output_strip_ansi_false_preserves"
+  - "All 260 tests passing"
+
+# Patterns observed
+patterns:
+  - type: workflow
+    description: "Server-side filtering preferred over client-side for RPC — keeps transport clean"
+
+# Decisions
+decisions: []
+
+# Related tasks
+related_tasks:
+  - T-136  # inception that identified the need
+  - T-137  # interact command that benefits from clean output
+
+# Acceptance criteria results
+acceptance_criteria:
+  agent:
+    - criterion: "query.output RPC accepts strip_ansi param"
+      met: true
+    - criterion: "ANSI sequences removed when strip_ansi: true"
+      met: true
+    - criterion: "CLI --strip-ansi flag"
+      met: true
+    - criterion: "Backward compatible"
+      met: true
+    - criterion: "At least 2 tests for stripping"
+      met: true
+    - criterion: "All 260 tests pass"
+      met: true
+
+# Commits
+commits:
+  - hash: e27cc62
+    message: "T-139: query.output --strip-ansi option"
+  - hash: eb8a013
+    message: "T-139: Task completion + context housekeeping"
