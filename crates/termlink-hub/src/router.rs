@@ -26,7 +26,7 @@ pub fn init_remote_store() -> RemoteStore {
 }
 
 /// Get the global remote store (returns None if not initialized).
-fn remote_store() -> Option<&'static RemoteStore> {
+pub(crate) fn remote_store() -> Option<&'static RemoteStore> {
     REMOTE_STORE.get()
 }
 
@@ -490,22 +490,33 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
         }
     };
 
-    // Resolve target to a registration
-    let reg = match manager::find_session(target) {
-        Ok(r) => r,
-        Err(e) => {
-            return ErrorResponse::new(
-                id,
-                control::error_code::SESSION_NOT_FOUND,
-                &format!("Target not found: {e}"),
-            )
-            .into();
+    // Resolve target: try local FS first, then remote store
+    let addr = if let Ok(reg) = manager::find_session(target) {
+        reg.addr.to_transport_addr()
+    } else if let Some(entry) = remote_store().and_then(|s| {
+        // Try by ID first, then by display name
+        s.get(target).or_else(|| {
+            s.list_live()
+                .into_iter()
+                .find(|e| e.display_name == target || e.id == target)
+        })
+    }) {
+        TransportAddr::Tcp {
+            host: entry.host.clone(),
+            port: entry.port,
         }
+    } else {
+        return ErrorResponse::new(
+            id,
+            control::error_code::SESSION_NOT_FOUND,
+            &format!("Target '{}' not found (local or remote)", target),
+        )
+        .into();
     };
 
-    // Forward the request via the target's socket, preserving the original request id
+    // Forward the request, preserving the original request id
     let forward_result = async {
-        let mut c = client::Client::connect_addr(&reg.addr.to_transport_addr()).await?;
+        let mut c = client::Client::connect_addr(&addr).await?;
         c.call(&req.method, id.clone(), req.params.clone()).await
     };
     match forward_result.await {
@@ -530,9 +541,24 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
 ///
 /// Public so the CLI can use direct routing without the hub.
 pub fn resolve_target(target: &str) -> Result<TransportAddr, String> {
-    manager::find_session(target)
-        .map(|r| r.addr.to_transport_addr())
-        .map_err(|e| e.to_string())
+    // Try local FS first
+    if let Ok(r) = manager::find_session(target) {
+        return Ok(r.addr.to_transport_addr());
+    }
+    // Try remote store
+    if let Some(entry) = remote_store().and_then(|s| {
+        s.get(target).or_else(|| {
+            s.list_live()
+                .into_iter()
+                .find(|e| e.display_name == target || e.id == target)
+        })
+    }) {
+        return Ok(TransportAddr::Tcp {
+            host: entry.host,
+            port: entry.port,
+        });
+    }
+    Err(format!("Session '{}' not found (local or remote)", target))
 }
 
 /// Resolve a target string to a socket path (convenience for Unix-only callers).
@@ -856,6 +882,8 @@ mod tests {
     #[tokio::test]
     async fn discover_with_filters() {
         let _lock = ENV_LOCK.lock().unwrap();
+        // Clear remote store to avoid leakage from other tests
+        if let Some(s) = super::remote_store() { s.clear(); }
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
@@ -935,5 +963,151 @@ mod tests {
         } else {
             panic!("Expected error response");
         }
+    }
+
+    #[tokio::test]
+    async fn register_remote_and_discover() {
+        // Initialize the remote store for this test (clear any leftovers)
+        let _store = super::init_remote_store();
+        if let Some(s) = super::remote_store() { s.clear(); }
+
+        // Register a remote session via RPC handler
+        let params = json!({
+            "display_name": "remote-worker",
+            "host": "192.168.1.50",
+            "port": 9001,
+            "pid": 12345,
+            "tags": ["gpu", "worker"],
+            "roles": ["compute"],
+        });
+        let resp = super::handle_register_remote(json!("reg-1"), &params);
+        let session_id = if let RpcResponse::Success(r) = &resp {
+            r.result["id"].as_str().unwrap().to_string()
+        } else {
+            panic!("Expected success response from register_remote");
+        };
+        assert!(session_id.starts_with("tl-tcp-"));
+
+        // Discover should include the remote session
+        let resp = super::handle_discover(json!("d-1"), &json!({})).await;
+        if let RpcResponse::Success(r) = &resp {
+            let sessions = r.result["sessions"].as_array().unwrap();
+            let remote = sessions.iter().find(|s| s["id"] == session_id);
+            assert!(remote.is_some(), "Remote session should appear in discover");
+            let remote = remote.unwrap();
+            assert_eq!(remote["display_name"], "remote-worker");
+            assert_eq!(remote["addr"]["type"], "tcp");
+            assert_eq!(remote["addr"]["host"], "192.168.1.50");
+            assert_eq!(remote["addr"]["port"], 9001);
+            assert_eq!(remote["remote"], true);
+        } else {
+            panic!("Expected success response from discover");
+        }
+
+        // Discover with tag filter should find it
+        let resp = super::handle_discover(json!("d-2"), &json!({"tags": ["gpu"]})).await;
+        if let RpcResponse::Success(r) = &resp {
+            let sessions = r.result["sessions"].as_array().unwrap();
+            assert!(sessions.iter().any(|s| s["id"] == session_id));
+        } else {
+            panic!("Expected success");
+        }
+
+        // Heartbeat should work
+        let resp = super::handle_heartbeat(json!("hb-1"), &json!({"id": session_id}));
+        if let RpcResponse::Success(r) = &resp {
+            assert_eq!(r.result["ok"], true);
+        } else {
+            panic!("Expected success from heartbeat");
+        }
+
+        // Deregister
+        let resp = super::handle_deregister_remote(json!("dr-1"), &json!({"id": session_id}));
+        if let RpcResponse::Success(r) = &resp {
+            assert_eq!(r.result["ok"], true);
+        } else {
+            panic!("Expected success from deregister");
+        }
+
+        // Should no longer appear in discover
+        let resp = super::handle_discover(json!("d-3"), &json!({})).await;
+        if let RpcResponse::Success(r) = &resp {
+            let sessions = r.result["sessions"].as_array().unwrap();
+            assert!(!sessions.iter().any(|s| s["id"] == session_id));
+        } else {
+            panic!("Expected success");
+        }
+    }
+
+    #[tokio::test]
+    async fn forward_to_remote_session_via_tcp() {
+        // Start a real session listening on TCP
+        let dir = test_dir();
+        let (handle, reg) = start_test_session(&dir, "tcp-target").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // Also start a TCP listener that forwards to this session
+        // (simulating a remote session reachable via TCP)
+        let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let tcp_port = tcp_listener.local_addr().unwrap().port();
+        let socket_path = reg.socket_path().to_path_buf();
+
+        // Proxy: accept TCP, forward to Unix session
+        let proxy_handle = tokio::spawn(async move {
+            loop {
+                let (tcp_stream, _) = tcp_listener.accept().await.unwrap();
+                let sp = socket_path.clone();
+                tokio::spawn(async move {
+                    let unix_stream = tokio::net::UnixStream::connect(&sp).await.unwrap();
+                    let (mut tcp_r, mut tcp_w) = tokio::io::split(tcp_stream);
+                    let (mut unix_r, mut unix_w) = tokio::io::split(unix_stream);
+                    tokio::select! {
+                        _ = tokio::io::copy(&mut tcp_r, &mut unix_w) => {}
+                        _ = tokio::io::copy(&mut unix_r, &mut tcp_w) => {}
+                    }
+                });
+            }
+        });
+
+        // Initialize remote store and register the session as remote (clear first)
+        let _store = super::init_remote_store();
+        let store = super::remote_store().unwrap();
+        store.clear();
+        let remote_id = store.register(
+            "tcp-target".into(),
+            "127.0.0.1".into(),
+            tcp_port,
+            None,
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        // Forward a ping to the remote session via the router
+        let req = Request::new(
+            "termlink.ping",
+            json!("fwd-tcp-1"),
+            json!({"target": &remote_id}),
+        );
+        let resp = super::route(&req).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["display_name"], "tcp-target");
+            assert_eq!(r.result["state"], "ready");
+        } else {
+            panic!("Expected success — forward to remote TCP session should work");
+        }
+
+        // Also test lookup by display name
+        let req = Request::new(
+            "termlink.ping",
+            json!("fwd-tcp-2"),
+            json!({"target": "tcp-target"}),
+        );
+        let resp = super::route(&req).await.unwrap();
+        // This might resolve to local or remote — either is fine for this test
+        assert!(matches!(resp, RpcResponse::Success(_)));
+
+        proxy_handle.abort();
+        handle.abort();
     }
 }

@@ -157,6 +157,11 @@ impl RemoteStore {
     pub fn len(&self) -> usize {
         self.entries.read().unwrap().len()
     }
+
+    /// Remove all entries (used in testing).
+    pub fn clear(&self) {
+        self.entries.write().unwrap().clear();
+    }
 }
 
 /// Run the reaper background task that periodically removes expired entries.

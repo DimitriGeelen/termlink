@@ -384,6 +384,8 @@ mod tests {
     #[tokio::test]
     async fn hub_discover_and_forward() {
         let _lock = ENV_LOCK.lock().unwrap();
+        // Clear remote store to avoid leakage from other tests
+        if let Some(s) = crate::router::remote_store() { s.clear(); }
 
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
