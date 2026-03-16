@@ -4,7 +4,7 @@ name: "Refactor cmd_spawn — extract spawn backend enum, keep Terminal.app as d
 description: >
   Refactor cmd_spawn — extract spawn backend enum, keep Terminal.app as default
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:43:05Z
-last_update: 2026-03-16T05:43:05Z
-date_finished: null
+last_update: 2026-03-16T06:33:08Z
+date_finished: 2026-03-16T06:33:08Z
 ---
 
 # T-150: Refactor cmd_spawn — extract spawn backend enum, keep Terminal.app as default
@@ -53,3 +53,6 @@ T-149 inception. Extract spawn backend from cmd_spawn so T-151/T-152 can add tmu
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-150-refactor-cmdspawn--extract-spawn-backend.md
 - **Context:** Initial task creation
+
+### 2026-03-16T06:33:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

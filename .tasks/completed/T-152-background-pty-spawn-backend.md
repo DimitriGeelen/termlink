@@ -4,7 +4,7 @@ name: "Background PTY spawn backend"
 description: >
   Implement spawn_via_background: setsid + termlink register --shell as daemon fallback
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:45:33Z
-last_update: 2026-03-16T06:09:14Z
-date_finished: null
+last_update: 2026-03-16T06:33:29Z
+date_finished: 2026-03-16T06:33:29Z
 ---
 
 # T-152: Background PTY spawn backend
@@ -56,3 +56,6 @@ Background PTY fallback for environments without tmux or Terminal.app.
 
 ### 2026-03-16T06:09:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-16T06:33:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

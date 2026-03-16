@@ -4,7 +4,7 @@ name: "tmux spawn backend"
 description: >
   Implement spawn_via_tmux: tmux new-session -d, cleanup via kill-session
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:45:25Z
-last_update: 2026-03-16T05:56:00Z
-date_finished: null
+last_update: 2026-03-16T06:08:51Z
+date_finished: 2026-03-16T06:08:51Z
 ---
 
 # T-151: tmux spawn backend
@@ -56,3 +56,6 @@ T-150 extracted spawn backends. This task validates and refines spawn_via_tmux.
 
 ### 2026-03-16T05:56:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-16T06:08:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
