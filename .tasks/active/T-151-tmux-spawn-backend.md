@@ -4,7 +4,7 @@ name: "tmux spawn backend"
 description: >
   Implement spawn_via_tmux: tmux new-session -d, cleanup via kill-session
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:45:25Z
-last_update: 2026-03-16T05:45:25Z
+last_update: 2026-03-16T05:56:00Z
 date_finished: null
 ---
 
@@ -20,40 +20,21 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-150 extracted spawn backends. This task validates and refines spawn_via_tmux.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] `termlink spawn --backend tmux --name test --shell --wait` creates tmux session and registers
+- [x] tmux session named `tl-<name>` appears in `tmux list-sessions`
+- [x] `termlink pty inject` and `termlink pty output` work on the tmux-spawned session
+- [x] `termlink interact --json` returns structured output with correct exit_code
+- [x] `tmux kill-session -t tl-<name>` cleans up the session
+- [x] All existing tests pass (264)
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo test --workspace
 
 ## Decisions
 
@@ -72,3 +53,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-151-tmux-spawn-backend.md
 - **Context:** Initial task creation
+
+### 2026-03-16T05:56:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
