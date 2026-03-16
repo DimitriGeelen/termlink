@@ -1,0 +1,20 @@
+version: 37
+jobs:
+  - name: Push to GitHub Mirror
+    steps:
+      - !PushRepository
+        name: Push to GitHub
+        remoteUrl: https://github.com/DimitriGeelen/termlink.git
+        userName: DimitriGeelen
+        passwordSecret: github-push-token
+        force: false
+        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+    triggers:
+      - !BranchUpdateTrigger
+        branches: '**'
+      - !TagCreateTrigger
+        tags: '**'
+    retryCondition: never
+    maxRetries: 3
+    retryDelay: 30
+    timeout: 3600
