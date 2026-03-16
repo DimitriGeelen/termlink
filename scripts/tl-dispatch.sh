@@ -18,6 +18,7 @@ set -e
 
 DISPATCH_DIR="/tmp/tl-dispatch"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SPAWN_BACKEND="${TL_DISPATCH_BACKEND:-auto}"
 
 # --- Helpers ---
 
@@ -38,7 +39,7 @@ worker_dir() {
 # --- Commands ---
 
 cmd_spawn() {
-    local name="" prompt="" prompt_file="" project_dir="" timeout=600
+    local name="" prompt="" prompt_file="" project_dir="" timeout=600 backend="$SPAWN_BACKEND"
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -47,6 +48,7 @@ cmd_spawn() {
             --prompt-file) prompt_file="$2"; shift 2 ;;
             --project) project_dir="$2"; shift 2 ;;
             --timeout) timeout="$2"; shift 2 ;;
+            --backend) backend="$2"; shift 2 ;;
             *) die "Unknown option: $1" ;;
         esac
     done
@@ -77,6 +79,7 @@ cmd_spawn() {
   "name": "$name",
   "project": "$project_dir",
   "timeout": $timeout,
+  "backend": "$backend",
   "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "status": "running"
 }
@@ -122,33 +125,25 @@ echo "Result: $WDIR/result.md"
 RUNEOF
     chmod +x "$wdir/run.sh"
 
-    # Spawn terminal session and track window ID for cleanup
-    local spawn_output
-    spawn_output=$(osascript -e "tell application \"Terminal\" to do script \"termlink register --name $name --shell\"" 2>&1)
+    # Spawn session via termlink spawn (delegates backend selection to the binary)
+    termlink spawn --name "$name" --shell --wait --wait-timeout 15 --backend "$backend" \
+        || die "Failed to spawn session '$name' (backend: $backend)"
 
-    # Extract and store window ID (output is like "tab 1 of window id 7340")
-    local wid
-    wid=$(echo "$spawn_output" | sed -n 's/.*window id \([0-9]*\).*/\1/p' | head -1)
-    if [ -n "$wid" ]; then
-        echo "$wid" > "$wdir/window_id"
+    # Record the PID for cleanup
+    local pid
+    pid=$(termlink list 2>/dev/null | grep "$name" | awk '{print $4}')
+    [ -n "$pid" ] && echo "$pid" > "$wdir/pid"
+
+    # For tmux, record session name
+    if [ "$backend" = "tmux" ] || { [ "$backend" = "auto" ] && tmux has-session -t "tl-$name" 2>/dev/null; }; then
+        echo "tl-$name" > "$wdir/tmux_session"
     fi
 
-    # Wait for session to appear
-    local found=false
-    for i in $(seq 1 15); do
-        if termlink list 2>/dev/null | grep -q "$name"; then
-            found=true
-            break
-        fi
-        sleep 1
-    done
-    [ "$found" = true ] || die "Session $name did not register within 15s"
-
-    # Let shell settle, then inject the worker script (fire-and-forget, don't wait)
+    # Inject the worker script (fire-and-forget, don't wait)
     sleep 1
     termlink pty inject "$name" "bash $wdir/run.sh '$name' '$project_dir' '$wdir' '$timeout'" --enter >/dev/null 2>&1
 
-    echo "Worker spawned: $name"
+    echo "Worker spawned: $name (backend: $backend)"
     echo "  Project: $project_dir"
     echo "  Result:  $wdir/result.md"
     echo "  Timeout: ${timeout}s"
@@ -300,7 +295,28 @@ cmd_cleanup() {
     echo "Cleaning up workers..."
 
     if [ -d "$DISPATCH_DIR" ]; then
-        # Collect tracked window IDs
+        # Per-worker cleanup based on backend
+        for wdir in "$DISPATCH_DIR"/*/; do
+            [ -d "$wdir" ] || continue
+            local name
+            name=$(basename "$wdir")
+
+            # Kill the TermLink session process by PID
+            if [ -f "$wdir/pid" ]; then
+                local pid
+                pid=$(cat "$wdir/pid")
+                kill "$pid" 2>/dev/null || true
+            fi
+
+            # Kill tmux session if it exists
+            if [ -f "$wdir/tmux_session" ]; then
+                local tmux_name
+                tmux_name=$(cat "$wdir/tmux_session")
+                tmux kill-session -t "$tmux_name" 2>/dev/null || true
+            fi
+        done
+
+        # Collect tracked window IDs for Terminal.app cleanup
         local window_ids=""
         for wdir in "$DISPATCH_DIR"/*/; do
             [ -d "$wdir" ] || continue
@@ -308,18 +324,6 @@ cmd_cleanup() {
                 local wid
                 wid=$(cat "$wdir/window_id")
                 [ -n "$wid" ] && window_ids="${window_ids:+$window_ids }$wid"
-            fi
-        done
-
-        # Kill TermLink session processes
-        for wdir in "$DISPATCH_DIR"/*/; do
-            [ -d "$wdir" ] || continue
-            local name
-            name=$(basename "$wdir")
-            local pid
-            pid=$(termlink list 2>/dev/null | grep "$name" | awk '{print $1}')
-            if [ -n "$pid" ]; then
-                kill "$pid" 2>/dev/null || true
             fi
         done
 
@@ -404,12 +408,15 @@ case "${1:-}" in
     --name)   cmd_spawn "$@" ;;
     -h|--help|"")
         echo "Usage:"
-        echo "  tl-dispatch.sh --name <worker> --prompt \"...\" [--project /path] [--timeout 300]"
+        echo "  tl-dispatch.sh --name <worker> --prompt \"...\" [--project /path] [--timeout 300] [--backend auto]"
         echo "  tl-dispatch.sh --name <worker> --prompt-file /path/to/prompt.md"
         echo "  tl-dispatch.sh status"
         echo "  tl-dispatch.sh wait --name <worker>  |  wait --all"
         echo "  tl-dispatch.sh result --name <worker>"
         echo "  tl-dispatch.sh cleanup"
+        echo ""
+        echo "Backends: auto (default), terminal (macOS), tmux (headless), background (fallback)"
+        echo "Set TL_DISPATCH_BACKEND=tmux or use --backend tmux to override."
         ;;
     *)        die "Unknown command: $1. Use --help for usage." ;;
 esac

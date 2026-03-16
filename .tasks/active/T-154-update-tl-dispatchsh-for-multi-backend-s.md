@@ -4,7 +4,7 @@ name: "Update tl-dispatch.sh for multi-backend spawn"
 description: >
   Delegate spawn to termlink spawn command, simplify cleanup per backend
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:45:36Z
-last_update: 2026-03-16T05:45:36Z
+last_update: 2026-03-16T06:35:28Z
 date_finished: null
 ---
 
@@ -20,40 +20,22 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Replace osascript-only spawn in tl-dispatch.sh with `termlink spawn --backend auto`. Simplify cleanup.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] cmd_spawn uses `termlink spawn --backend auto` instead of direct osascript
+- [x] cmd_cleanup detects backend and uses appropriate cleanup (tmux kill-session / kill PID / osascript 3-phase)
+- [x] --backend flag added to tl-dispatch.sh for explicit override (+ TL_DISPATCH_BACKEND env)
+- [x] Script still works on macOS (backward compatible — Terminal.app cleanup preserved for window_id)
+- [x] Script syntax valid (bash -n check)
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+bash -n scripts/tl-dispatch.sh
+grep -q "termlink spawn" scripts/tl-dispatch.sh
+grep -q "backend" scripts/tl-dispatch.sh
 
 ## Decisions
 
@@ -72,3 +54,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-154-update-tl-dispatchsh-for-multi-backend-s.md
 - **Context:** Initial task creation
+
+### 2026-03-16T06:35:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
