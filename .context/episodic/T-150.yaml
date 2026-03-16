@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-150: Refactor cmd_spawn — extract spawn backend enum, keep Terminal.app as default
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:32Z
+# ============================================================================
+
+task_id: T-150
+task_name: "Refactor cmd_spawn — extract spawn backend enum, keep Terminal.app as default"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-16T05:43:05Z
+completed: 2026-03-16T06:33:08Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-16T06:55:39+01:00
+last_commit: 2026-03-16T06:55:39+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Refactored cmd_spawn to introduce a SpawnBackend enum (Terminal, Tmux, Background, Auto)
+  and extracted the osascript logic into spawn_via_terminal(), leaving cmd_spawn as a thin
+  dispatch layer for the backends added in T-151 and T-152.
+
+# Key outcomes
+outcomes:
+  - "SpawnBackend enum with Terminal, Tmux, Background, Auto variants"
+  - "`spawn_via_terminal()` extracted from cmd_spawn (osascript logic isolated)"
+  - "`cmd_spawn()` delegates to backend function via resolve + match"
+  - "`--backend` arg added to Spawn CLI command (auto default)"
+  - "All existing tests pass (264/264)"
+  - "`termlink spawn --help` shows --backend option with all 4 values"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-150-refactor-cmdspawn--extract-spawn-backend.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-16T06:55:39"
+    action: "T-150: Refactor cmd_spawn — extract SpawnBackend enum + 3 backend functions"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "Extracting osascript into spawn_via_terminal() isolated the platform-specific code cleanly before adding new backends"
+  - "Introducing the Auto variant early meant T-151/T-152 needed no CLI changes — just backend implementations"
+  - "All 264 existing tests passed with no regressions, confirming the refactor was non-breaking"
+what_didnt:
+  - "No notable issues — the refactor was straightforward given the well-scoped inception design from T-149"
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 157
+  lines_removed: 60
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-150-refactor-cmdspawn--extract-spawn-backend.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-153: Spawn --backend CLI flag + auto-detection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:40Z
+# ============================================================================
+
+task_id: T-153
+task_name: "Spawn --backend CLI flag + auto-detection"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-16T05:45:34Z
+completed: 2026-03-16T06:34:57Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-16T07:34:51+01:00
+last_commit: 2026-03-16T07:34:51+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Confirmed and closed the --backend CLI flag and auto-detection work that was co-delivered
+  in T-150: resolve_spawn_backend() selects terminal on macOS+GUI, tmux if available, and
+  background as the final fallback.
+
+# Key outcomes
+outcomes:
+  - "`--backend auto|terminal|tmux|background` flag on spawn command"
+  - "Auto-detection: macOS+GUI→terminal, tmux available→tmux, fallback→background"
+  - "`termlink spawn --help` shows all backend options"
+  - "All tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-153-spawn---backend-cli-flag--auto-detection.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-16T07:34:51"
+    action: "T-153: Mark --backend flag + auto-detection done (built in T-150)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "Co-delivering the --backend flag and auto-detection logic with the T-150 refactor avoided a redundant second pass over the same code"
+  - "Priority order (macOS+GUI → tmux → background) gave sensible defaults without requiring user configuration"
+what_didnt:
+  - "Task was effectively a close-out: the real work happened in T-150, so this task had minimal independent scope"
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 1
+  lines_added: 11
+  lines_removed: 29
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-153-spawn---backend-cli-flag--auto-detection.md
+generated_by: context-agent-hybrid

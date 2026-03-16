@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-151: tmux spawn backend
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:37Z
+# ============================================================================
+
+task_id: T-151
+task_name: "tmux spawn backend"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-16T05:45:25Z
+completed: 2026-03-16T06:08:51Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-16T07:00:08+01:00
+last_commit: 2026-03-16T07:00:08+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Implemented and validated the tmux spawn backend: termlink spawn --backend tmux creates a
+  detached tmux session named tl-<name>, registers it with TermLink, and supports inject,
+  output, and interact operations with clean kill-session teardown.
+
+# Key outcomes
+outcomes:
+  - "`termlink spawn --backend tmux --name test --shell --wait` creates tmux session and registers"
+  - "tmux session named `tl-<name>` appears in `tmux list-sessions`"
+  - "`termlink pty inject` and `termlink pty output` work on the tmux-spawned session"
+  - "`termlink interact --json` returns structured output with correct exit_code"
+  - "`tmux kill-session -t tl-<name>` cleans up the session"
+  - "All existing tests pass (264)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-151-tmux-spawn-backend.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-16T07:00:08"
+    action: "T-151: tmux spawn backend validated end-to-end"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "tmux new-session -d + termlink register --shell composed cleanly with no nested PTY issues"
+  - "Naming sessions tl-<name> gave a deterministic handle for both listing and cleanup"
+  - "End-to-end validation (inject → output → interact → kill-session) in ACs caught no integration surprises"
+what_didnt:
+  - "No notable issues — the spike from T-149 had already proven the approach, so implementation was straightforward"
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 1
+  lines_added: 13
+  lines_removed: 29
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-151-tmux-spawn-backend.md
+generated_by: context-agent-hybrid

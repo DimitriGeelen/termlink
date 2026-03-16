@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-145: Hub TCP listener dual select
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:23Z
+# ============================================================================
+
+task_id: T-145
+task_name: "Hub TCP listener dual select"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-15T22:05:51Z
+completed: 2026-03-15T22:49:31Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-15T23:11:32+01:00
+last_commit: 2026-03-15T23:11:32+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Added opt-in TCP listening to the hub via a --tcp flag, implementing a dual select
+  loop over both Unix socket and TCP listeners so existing Unix-only setups are unaffected.
+
+# Key outcomes
+outcomes:
+  - "`HubAction::Start` has optional `--tcp` arg (e.g., `0.0.0.0:9100`)"
+  - "`server::run_with_tcp()` accepts `Option<&str>` for TCP address"
+  - "Hub binds TCP listener when `--tcp` provided, Unix-only otherwise"
+  - "`handle_connection` is generic (works with both Unix and TCP streams)"
+  - "`run_accept_loop` uses `tokio::select!` over both listeners"
+  - "TCP connections log info about LAN-only (no auth)"
+  - "All existing tests pass (257 total)"
+  - "New test: `hub_dual_listen_unix_and_tcp` verifies both transports work"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-145-hub-tcp-listener-dual-select.md"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/server.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-15T23:11:32"
+    action: "T-145: Hub TCP dual-listen via --tcp flag"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "tokio::select! over two async listeners was clean and required no restructuring of the connection handler"
+  - "Making handle_connection generic meant Unix and TCP paths share the same code path with no duplication"
+  - "Dual-listener test (hub_dual_listen_unix_and_tcp) proved both transports work in one integration step"
+what_didnt:
+  - "No notable issues — task completed in a single commit with all 257 existing tests passing"
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [tcp, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 182
+  lines_removed: 49
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-145-hub-tcp-listener-dual-select.md
+generated_by: context-agent-hybrid

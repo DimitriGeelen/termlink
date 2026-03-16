@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-146: Remote session registration RPC + heartbeat
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:26Z
+# ============================================================================
+
+task_id: T-146
+task_name: "Remote session registration RPC + heartbeat"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-15T22:06:26Z
+completed: 2026-03-15T22:49:50Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-15T23:15:43+01:00
+last_commit: 2026-03-15T23:15:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Implemented in-hub remote session store with RPC methods for registration, heartbeat
+  refresh, and deregistration, plus a background reaper that expires stale entries after
+  a configurable TTL.
+
+# Key outcomes
+outcomes:
+  - "In-memory remote session store in hub (thread-safe, TTL-based)"
+  - "`session.register_remote` RPC method stores remote session entry"
+  - "`session.heartbeat` RPC method refreshes TTL"
+  - "`session.deregister_remote` RPC method removes entry"
+  - "Background reaper task expires stale entries (default TTL: 5 min, reap every 30s)"
+  - "`session.discover` returns both local FS and remote sessions"
+  - "All existing tests pass (262 total)"
+  - "5 new tests for remote store (register, heartbeat, deregister, expiry, JSON format)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-146-remote-session-registration-rpc--heartbe.md"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/remote_store.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-15T23:15:43"
+    action: "T-146: Remote session registration RPC + heartbeat + TTL expiry"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "Separating the remote store into its own module (remote_store.rs) kept the hub router clean"
+  - "TTL-based expiry with a background reaper task avoided any timer complexity in the RPC handlers"
+  - "5 focused unit tests covered the full register/heartbeat/deregister/expiry lifecycle independently of TCP"
+what_didnt:
+  - "No notable issues — completed in a single commit with all 262 tests passing"
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [tcp, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 5
+  lines_added: 451
+  lines_removed: 30
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-146-remote-session-registration-rpc--heartbe.md
+generated_by: context-agent-hybrid

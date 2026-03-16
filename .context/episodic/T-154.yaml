@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-154: Update tl-dispatch.sh for multi-backend spawn
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:43Z
+# ============================================================================
+
+task_id: T-154
+task_name: "Update tl-dispatch.sh for multi-backend spawn"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-16T05:45:36Z
+completed: 2026-03-16T06:45:30Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-16T07:45:23+01:00
+last_commit: 2026-03-16T07:45:23+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Updated tl-dispatch.sh to delegate spawning to termlink spawn --backend auto instead of
+  calling osascript directly, with per-backend cleanup logic and a --backend override flag
+  (plus TL_DISPATCH_BACKEND env var) while keeping macOS Terminal.app behaviour intact.
+
+# Key outcomes
+outcomes:
+  - "cmd_spawn uses `termlink spawn --backend auto` instead of direct osascript"
+  - "cmd_cleanup detects backend and uses appropriate cleanup (tmux kill-session / kill PID / osascript 3-phase)"
+  - "--backend flag added to tl-dispatch.sh for explicit override (+ TL_DISPATCH_BACKEND env)"
+  - "Script still works on macOS (backward compatible — Terminal.app cleanup preserved for window_id)"
+  - "Script syntax valid (bash -n check)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-154-update-tl-dispatchsh-for-multi-backend-s.md"
+  - ".tasks/completed/T-153-spawn---backend-cli-flag--auto-detection.md"
+  - "scripts/tl-dispatch.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-16T07:45:23"
+    action: "T-154: Update tl-dispatch.sh for multi-backend spawn"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "Delegating to termlink spawn --backend auto collapsed ~50 lines of osascript into a single CLI call"
+  - "TL_DISPATCH_BACKEND env var alongside --backend gave CI/CD pipelines a clean override mechanism"
+  - "Preserving the window_id-based osascript 3-phase cleanup for Terminal.app maintained full backward compatibility on macOS"
+what_didnt:
+  - "No notable issues — bash -n validation confirmed syntax correctness and all grep checks passed"
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 116
+  lines_removed: 65
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-154-update-tl-dispatchsh-for-multi-backend-s.md
+generated_by: context-agent-hybrid

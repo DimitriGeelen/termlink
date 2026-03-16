@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-149: Platform-aware spawn — tmux/headless support for spawn and dispatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:30Z
+# ============================================================================
+
+task_id: T-149
+task_name: "Platform-aware spawn — tmux/headless support for spawn and dispatch"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-16T05:34:52Z
+completed: 2026-03-16T05:42:54Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-16T06:35:43+01:00
+last_commit: 2026-03-16T07:45:38+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception exploring how to replace the macOS-only osascript spawn path with platform-aware
+  backends (tmux, background PTY); all 5 assumptions validated, GO decision recorded, and
+  build tasks T-150 through T-154 created.
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested (A1-A5)"
+  - "Research artifact written (docs/reports/T-149-*.md)"
+  - "Go/No-Go decision made"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-148-termlink-integration-spec-for-framework-.md"
+  - ".tasks/active/T-149-platform-aware-spawn--tmuxheadless-suppo.md"
+  - ".tasks/active/T-150-refactor-cmdspawn--extract-spawn-backend.md"
+  - ".tasks/active/T-151-tmux-spawn-backend.md"
+  - ".tasks/active/T-152-background-pty-spawn-backend.md"
+  - ".tasks/active/T-153-spawn---backend-cli-flag--auto-detection.md"
+  - ".tasks/active/T-154-update-tl-dispatchsh-for-multi-backend-s.md"
+  - ".tasks/completed/T-149-platform-aware-spawn--tmuxheadless-suppo.md"
+  - ".tasks/completed/T-154-update-tl-dispatchsh-for-multi-backend-s.md"
+  - "docs/reports/T-149-platform-aware-spawn.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-16T06:35:43"
+    action: "T-149: Inception template + research artifact for platform-aware spawn"
+  - time: "2026-03-16T06:38:42"
+    action: "T-149: Research complete — 3 agents, all assumptions validated"
+  - time: "2026-03-16T06:45:46"
+    action: "T-149: GO decision + create build tasks T-150 through T-154"
+  - time: "2026-03-16T07:45:38"
+    action: "T-149: All platform-aware spawn tasks complete (T-150–T-154)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "3-agent parallel research (spawn code, PTY internals, headless tooling) produced a thorough research artifact quickly"
+  - "Validating all 5 assumptions before committing to build prevented wasted effort on unproven paths"
+  - "Scoping OUT Windows, remote spawn, and additional Linux GUI terminals kept the blast radius tiny (~50 lines)"
+what_didnt:
+  - "GO decision was recorded three times in the task file due to duplicate inception-workflow entries (cosmetic only)"
+successes:
+  # Completed successfully in 4 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 4
+  files_changed: 9
+  lines_added: 669
+  lines_removed: 99
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-149-platform-aware-spawn--tmuxheadless-suppo.md
+generated_by: context-agent-hybrid

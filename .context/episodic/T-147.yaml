@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-147: Cross-machine session discovery + remote liveness
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T07:15:28Z
+# ============================================================================
+
+task_id: T-147
+task_name: "Cross-machine session discovery + remote liveness"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-15T22:06:27Z
+completed: 2026-03-15T22:50:11Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-15T23:23:02+01:00
+last_commit: 2026-03-15T23:23:02+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Completed the TCP hub story by wiring the router to resolve and forward requests to
+  remote sessions registered in the store, with integration tests proving the full
+  end-to-end cross-machine discovery and forwarding flow.
+
+# Key outcomes
+outcomes:
+  - "`forward_to_target` resolves remote sessions from the store (not just local FS)"
+  - "`resolve_target` looks up remote entries by ID or display name"
+  - "Integration test: register remote → discover → forward ping via TCP proxy"
+  - "Integration test: register/heartbeat/deregister lifecycle"
+  - "All 264 tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-147-cross-machine-session-discovery--remote-.md"
+  - "crates/termlink-hub/src/remote_store.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-15T23:23:02"
+    action: "T-147: Cross-machine discovery + forward to remote TCP sessions"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+what_worked:
+  - "resolve_target lookup by ID or display name unified local FS and remote store resolution behind one interface"
+  - "Integration test (register → discover → forward ping) gave high confidence without a real second machine"
+  - "Building on T-145 and T-146 foundation meant the forwarding change was small and surgical"
+what_didnt:
+  - "No notable issues — 264 tests passed across 2 commits"
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [tcp, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 11
+  lines_added: 476
+  lines_removed: 68
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-147-cross-machine-session-discovery--remote-.md
+generated_by: context-agent-hybrid
