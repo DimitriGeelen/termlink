@@ -426,6 +426,10 @@ enum Command {
         #[arg(long)]
         shell: bool,
 
+        /// Spawn backend: auto, terminal (macOS Terminal.app), tmux, background
+        #[arg(long, default_value = "auto")]
+        backend: SpawnBackend,
+
         /// Command to run in the spawned terminal (after --)
         #[arg(trailing_var_arg = true)]
         command: Vec<String>,
@@ -460,6 +464,30 @@ enum Command {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
     },
+}
+
+/// Spawn backend for creating new terminal sessions
+#[derive(Clone, Debug, clap::ValueEnum)]
+enum SpawnBackend {
+    /// Auto-detect: Terminal.app on macOS with GUI, tmux if available, background PTY fallback
+    Auto,
+    /// macOS Terminal.app via osascript
+    Terminal,
+    /// tmux detached session
+    Tmux,
+    /// Background PTY process (no terminal emulator)
+    Background,
+}
+
+impl std::fmt::Display for SpawnBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpawnBackend::Auto => write!(f, "auto"),
+            SpawnBackend::Terminal => write!(f, "terminal"),
+            SpawnBackend::Tmux => write!(f, "tmux"),
+            SpawnBackend::Background => write!(f, "background"),
+        }
+    }
 }
 
 /// Hub server actions
@@ -810,8 +838,8 @@ async fn main() -> Result<()> {
         Command::Request { target, topic, payload, reply_topic, timeout, interval } => {
             cmd_request(&target, &topic, &payload, &reply_topic, timeout, interval).await
         }
-        Command::Spawn { name, roles, tags, wait, wait_timeout, shell, command } => {
-            cmd_spawn(name, roles, tags, wait, wait_timeout, shell, command).await
+        Command::Spawn { name, roles, tags, wait, wait_timeout, shell, backend, command } => {
+            cmd_spawn(name, roles, tags, wait, wait_timeout, shell, backend, command).await
         }
 
         // Infrastructure
@@ -2934,89 +2962,26 @@ async fn cmd_spawn(
     wait: bool,
     wait_timeout: u64,
     shell: bool,
+    backend: SpawnBackend,
     command: Vec<String>,
 ) -> Result<()> {
     let session_name = name.clone().unwrap_or_else(|| {
         format!("spawn-{}", std::process::id())
     });
 
-    // Build the termlink register command that will run in the new terminal
-    let termlink_bin = std::env::current_exe()
-        .context("Failed to determine termlink binary path")?;
-    let termlink_path = termlink_bin.to_string_lossy();
+    // Build the shell command string for the session
+    let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, shell, &command)?;
 
-    let mut register_args = vec![
-        "register".to_string(),
-        "--name".to_string(),
-        session_name.clone(),
-    ];
-    if !roles.is_empty() {
-        register_args.push("--roles".to_string());
-        register_args.push(roles.join(","));
-    }
-    if !tags.is_empty() {
-        register_args.push("--tags".to_string());
-        register_args.push(tags.join(","));
-    }
-    if shell || command.is_empty() {
-        register_args.push("--shell".to_string());
+    // Resolve backend (auto-detect if needed)
+    let resolved = resolve_spawn_backend(&backend);
+    match resolved {
+        SpawnBackend::Terminal => spawn_via_terminal(&session_name, &shell_cmd)?,
+        SpawnBackend::Tmux => spawn_via_tmux(&session_name, &shell_cmd)?,
+        SpawnBackend::Background => spawn_via_background(&session_name, &shell_cmd)?,
+        SpawnBackend::Auto => unreachable!("resolve_spawn_backend always resolves Auto"),
     }
 
-    // Build the shell command to run in the new terminal
-    let shell_cmd = if command.is_empty() {
-        // Shell mode: just run termlink register --shell
-        let mut parts = vec![termlink_path.to_string()];
-        parts.extend(register_args.iter().cloned());
-
-        // Propagate TERMLINK_RUNTIME_DIR if set
-        if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
-            format!("TERMLINK_RUNTIME_DIR={} {}", shell_escape(&rd), parts.join(" "))
-        } else {
-            parts.join(" ")
-        }
-    } else {
-        // Command mode: run termlink register in background, then the user command
-        // When the user command exits, the register process is killed
-        let mut reg_parts = vec![termlink_path.to_string()];
-        reg_parts.extend(register_args.iter().cloned());
-
-        let user_cmd = command.iter()
-            .map(|arg| shell_escape(arg))
-            .collect::<Vec<_>>()
-            .join(" ");
-        let env_prefix = if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
-            format!("export TERMLINK_RUNTIME_DIR={}; ", shell_escape(&rd))
-        } else {
-            String::new()
-        };
-
-        // Start register in background, wait for socket, run user command, then cleanup
-        format!(
-            "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
-            reg_parts.join(" ")
-        )
-    };
-
-    // Use AppleScript to open a new Terminal.app window
-    let escaped_cmd = shell_cmd.replace('\\', "\\\\").replace('"', "\\\"");
-    let applescript = format!(
-        r#"tell application "Terminal"
-    activate
-    do script "{escaped_cmd}"
-end tell"#
-    );
-
-    let status = std::process::Command::new("osascript")
-        .arg("-e")
-        .arg(&applescript)
-        .status()
-        .context("Failed to run osascript — is Terminal.app available?")?;
-
-    if !status.success() {
-        anyhow::bail!("Failed to open new terminal window");
-    }
-
-    println!("Spawned session '{}' in new terminal", session_name);
+    println!("Spawned session '{}' via {} backend", session_name, resolved);
 
     // If --wait, poll for the session to appear
     if wait {
@@ -3040,6 +3005,157 @@ end tell"#
         }
     }
 
+    Ok(())
+}
+
+/// Build the shell command string that registers a TermLink session.
+fn build_spawn_shell_cmd(
+    session_name: &str,
+    roles: &[String],
+    tags: &[String],
+    shell: bool,
+    command: &[String],
+) -> Result<String> {
+    let termlink_bin = std::env::current_exe()
+        .context("Failed to determine termlink binary path")?;
+    let termlink_path = termlink_bin.to_string_lossy();
+
+    let mut register_args = vec![
+        "register".to_string(),
+        "--name".to_string(),
+        session_name.to_string(),
+    ];
+    if !roles.is_empty() {
+        register_args.push("--roles".to_string());
+        register_args.push(roles.join(","));
+    }
+    if !tags.is_empty() {
+        register_args.push("--tags".to_string());
+        register_args.push(tags.join(","));
+    }
+    if shell || command.is_empty() {
+        register_args.push("--shell".to_string());
+    }
+
+    let shell_cmd = if command.is_empty() {
+        let mut parts = vec![termlink_path.to_string()];
+        parts.extend(register_args.iter().cloned());
+
+        if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
+            format!("TERMLINK_RUNTIME_DIR={} {}", shell_escape(&rd), parts.join(" "))
+        } else {
+            parts.join(" ")
+        }
+    } else {
+        let mut reg_parts = vec![termlink_path.to_string()];
+        reg_parts.extend(register_args.iter().cloned());
+
+        let user_cmd = command.iter()
+            .map(|arg| shell_escape(arg))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let env_prefix = if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
+            format!("export TERMLINK_RUNTIME_DIR={}; ", shell_escape(&rd))
+        } else {
+            String::new()
+        };
+
+        format!(
+            "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
+            reg_parts.join(" ")
+        )
+    };
+
+    Ok(shell_cmd)
+}
+
+/// Resolve Auto backend to a concrete backend based on platform and environment.
+fn resolve_spawn_backend(backend: &SpawnBackend) -> SpawnBackend {
+    match backend {
+        SpawnBackend::Auto => {
+            // macOS with GUI → Terminal.app
+            #[cfg(target_os = "macos")]
+            {
+                // Check if we have a GUI (WindowServer running)
+                if std::process::Command::new("pgrep")
+                    .args(["-x", "WindowServer"])
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false)
+                {
+                    return SpawnBackend::Terminal;
+                }
+            }
+
+            // tmux available → use tmux
+            if std::process::Command::new("tmux")
+                .arg("-V")
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false)
+            {
+                return SpawnBackend::Tmux;
+            }
+
+            // Fallback → background PTY
+            SpawnBackend::Background
+        }
+        other => other.clone(),
+    }
+}
+
+/// Spawn via macOS Terminal.app using osascript.
+fn spawn_via_terminal(session_name: &str, shell_cmd: &str) -> Result<()> {
+    let escaped_cmd = shell_cmd.replace('\\', "\\\\").replace('"', "\\\"");
+    let applescript = format!(
+        r#"tell application "Terminal"
+    activate
+    do script "{escaped_cmd}"
+end tell"#
+    );
+
+    let status = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&applescript)
+        .status()
+        .context("Failed to run osascript — is Terminal.app available?")?;
+
+    if !status.success() {
+        anyhow::bail!("Failed to open new Terminal.app window for session '{}'", session_name);
+    }
+    Ok(())
+}
+
+/// Spawn via tmux detached session.
+fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
+    let tmux_session = format!("tl-{}", session_name);
+    let status = std::process::Command::new("tmux")
+        .args(["new-session", "-d", "-s", &tmux_session, shell_cmd])
+        .status()
+        .context("Failed to run tmux — is tmux installed?")?;
+
+    if !status.success() {
+        anyhow::bail!("Failed to create tmux session '{}' for TermLink session '{}'", tmux_session, session_name);
+    }
+    Ok(())
+}
+
+/// Spawn via background PTY process (setsid + shell).
+fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
+    let status = std::process::Command::new("setsid")
+        .args(["sh", "-c", shell_cmd])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .context("Failed to spawn background session — setsid not available?")?;
+
+    // setsid + spawn returns immediately (fire-and-forget)
+    let _ = status;
+    let _ = session_name;
     Ok(())
 }
 
