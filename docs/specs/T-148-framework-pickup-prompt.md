@@ -26,7 +26,7 @@ termlink event broadcast  # Fan-out to all listeners
 termlink pty inject   # Send input to PTY (fire-and-forget, --enter)
 termlink pty output   # Read terminal output (--strip-ansi)
 termlink status       # Session details (--json)
-termlink spawn        # Spawn command in new terminal with session registration
+termlink spawn        # Spawn command in new terminal with session registration (--backend auto|terminal|tmux|background)
 termlink hub start    # Start hub server (--tcp for cross-machine)
 termlink run          # Ephemeral session: register, execute, deregister
 termlink clean        # Remove stale session registrations
@@ -79,15 +79,18 @@ This is a **thin wrapper** around the `termlink` binary. It adds framework-speci
 
 ```
 fw termlink check                        # Is termlink on PATH? Print version. Exit 0/1.
-fw termlink spawn --task T-XXX [--name N] # Spawn tagged Terminal.app session via osascript + termlink register
+fw termlink spawn --task T-XXX [--name N] [--backend auto|terminal|tmux|background]
+                                          # Spawn tagged session — delegates to `termlink spawn --backend`
 fw termlink exec <session> <command>      # Wraps `termlink interact --json`
 fw termlink status                        # Wraps `termlink list --json` + annotates with task tags
-fw termlink cleanup                       # 3-phase Terminal.app cleanup (SEE BELOW — CRITICAL)
+fw termlink cleanup                       # Per-backend cleanup (tmux kill-session / kill PID / 3-phase Terminal.app)
 fw termlink dispatch --task T-XXX --name <worker> --prompt "..."
                                           # Spawn claude -p worker in real terminal
 fw termlink wait --name <worker> [--all]  # Wait for worker.done event
 fw termlink result --name <worker>        # Read worker result file
 ```
+
+**Backend selection:** `termlink spawn` auto-detects the best backend: macOS GUI → Terminal.app, tmux available → tmux, fallback → background PTY. Override with `--backend tmux` or env var `TL_DISPATCH_BACKEND=tmux`. This means the framework works on headless Linux servers, not just macOS desktops.
 
 ### 4. `fw termlink` route in fw CLI
 
@@ -106,291 +109,47 @@ Add a TermLink section:
 - Cleanup rule: always `fw termlink cleanup` before session end
 - The `termlink` binary does the heavy lifting — the framework wrapper adds task context
 
-## CRITICAL: Terminal Cleanup — 3-Phase Protocol
+## CRITICAL: Per-Backend Cleanup Protocol
 
-**Never close Terminal.app windows directly. We learned this the hard way (twice).**
+Cleanup is backend-aware. The dispatch script records which backend was used in `meta.json` and stores backend-specific tracking files:
 
-Direct close kills interactive sessions, loses unsaved work, and leaves orphaned processes.
+| Backend | Tracking file | Cleanup method |
+|---------|--------------|----------------|
+| **tmux** | `tmux_session` (e.g., `tl-worker-1`) | `tmux kill-session -t <name>` |
+| **background** | `pid` | `kill <pid>` |
+| **terminal** (macOS) | `window_id` | 3-phase osascript (see below) |
 
-The correct cleanup:
+### Terminal.app 3-Phase Cleanup (macOS only)
 
-1. **Phase 1 — Kill child processes via TTY** (spare login/shell):
-```bash
-tty=$(osascript -e "tell application \"Terminal\" to try
-    return tty of tab 1 of window id $wid
-end try" 2>/dev/null)
-if [ -n "$tty" ]; then
-    ps -t "${tty#/dev/}" -o pid=,comm= 2>/dev/null \
-        | grep -v -E '(login|-zsh|-bash)' \
-        | awk '{print $1}' | xargs kill -9 2>/dev/null || true
-fi
-```
+**Never close Terminal.app windows directly.** Direct close kills interactive sessions and leaves orphaned processes.
 
-2. **Phase 2 — Exit shells gracefully:**
-```bash
-osascript -e "tell application \"Terminal\" to try
-    do script \"exit\" in window id $wid
-end try" 2>/dev/null || true
-```
+1. **Phase 1 — Kill child processes via TTY** (spare login/shell)
+2. **Phase 2 — Exit shells gracefully** (`do script "exit"`)
+3. **Phase 3 — Close remaining by tracked window ID** (fallback)
 
-3. **Phase 3 — Close remaining by tracked window ID (fallback):**
-```bash
-osascript -e "tell application \"Terminal\"
-    set targetIds to {$id_list}
-    repeat with w in (reverse of (windows as list))
-        try
-            if (id of w) is in targetIds then close w
-        end try
-    end repeat
-end tell" 2>/dev/null || true
-```
-
-**You MUST track window IDs at spawn time** (extract from osascript output: `sed -n 's/.*window id \([0-9]*\).*/\1/p'`).
+The full 3-phase implementation is in `tl-dispatch.sh cmd_cleanup()` below.
 
 ## Reference Implementation: tl-dispatch.sh (ADAPT THIS, DON'T REWRITE)
 
 This is the working, tested dispatch script from the TermLink project. The `dispatch`, `wait`, `result`, and `cleanup` subcommands in `termlink.sh` should adapt this code directly. Key patterns to preserve:
 
-- **osascript spawn + window ID tracking** for cleanup
-- **`termlink register --name` + wait loop** for session registration
+- **`termlink spawn --backend auto`** for cross-platform session creation (Terminal.app, tmux, or background PTY)
+- **`TL_DISPATCH_BACKEND` env var / `--backend` flag** for backend override
+- **Per-backend cleanup** — tmux kill-session, kill PID, or 3-phase osascript depending on backend
 - **`termlink pty inject --enter`** for fire-and-forget command injection (NOT `interact` — claude takes minutes)
 - **Background process + kill watchdog** for timeout (macOS has no `timeout` command)
 - **`termlink event emit worker.done`** for completion signaling
 - **File-based result collection** (`/tmp/tl-dispatch/<worker>/result.md`)
 
-```bash
-#!/bin/bash
-# tl-dispatch.sh — Spawn claude workers in real terminals via TermLink
-# Tested with 3 parallel workers, all producing correct results.
-set -e
+See `scripts/tl-dispatch.sh` in the TermLink repo for the full implementation (423 lines). Key highlights of the current version:
 
-DISPATCH_DIR="/tmp/tl-dispatch"
+- **Multi-backend spawn**: `cmd_spawn()` delegates to `termlink spawn --backend "$backend"` instead of calling osascript directly
+- **Backend override**: `--backend` flag per-worker or `TL_DISPATCH_BACKEND` env var (default: `auto`)
+- **Per-backend tracking**: Records `tmux_session`, `pid`, or `window_id` files for cleanup
+- **Per-backend cleanup**: `cmd_cleanup()` iterates workers, kills by tmux session name, PID, or 3-phase osascript depending on what tracking files exist
+- **meta.json includes `"backend"` field** for post-mortem analysis
 
-die() { echo "ERROR: $1" >&2; exit 1; }
-
-ensure_termlink() {
-    command -v termlink >/dev/null 2>&1 || die "termlink not found on PATH"
-}
-
-cmd_spawn() {
-    local name="" prompt="" prompt_file="" project_dir="" timeout=600
-
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --name) name="$2"; shift 2 ;;
-            --prompt) prompt="$2"; shift 2 ;;
-            --prompt-file) prompt_file="$2"; shift 2 ;;
-            --project) project_dir="$2"; shift 2 ;;
-            --timeout) timeout="$2"; shift 2 ;;
-            *) die "Unknown option: $1" ;;
-        esac
-    done
-
-    [ -z "$name" ] && die "Missing --name"
-    [ -z "$prompt" ] && [ -z "$prompt_file" ] && die "Missing --prompt or --prompt-file"
-
-    if [ -n "$prompt_file" ]; then
-        [ -f "$prompt_file" ] || die "Prompt file not found: $prompt_file"
-        prompt=$(cat "$prompt_file")
-    fi
-
-    project_dir="${project_dir:-$(pwd)}"
-    local wdir="$DISPATCH_DIR/$name"
-    mkdir -p "$wdir"
-    echo "$prompt" > "$wdir/prompt.md"
-
-    cat > "$wdir/meta.json" <<METAEOF
-{
-  "name": "$name",
-  "project": "$project_dir",
-  "timeout": $timeout,
-  "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "status": "running"
-}
-METAEOF
-
-    # Worker script runs inside the spawned terminal
-    cat > "$wdir/run.sh" <<'RUNEOF'
-#!/bin/bash
-WORKER_NAME="$1"; PROJECT_DIR="$2"; WDIR="$3"; TIMEOUT="$4"
-cd "$PROJECT_DIR"
-
-# Background process + kill watchdog (macOS has no `timeout`)
-claude -p "$(cat "$WDIR/prompt.md")" --output-format text > "$WDIR/result.md" 2>"$WDIR/stderr.log" &
-CLAUDE_PID=$!
-(sleep "$TIMEOUT" && kill "$CLAUDE_PID" 2>/dev/null && echo "TIMEOUT" > "$WDIR/stderr.log") &
-WATCHDOG_PID=$!
-wait "$CLAUDE_PID" 2>/dev/null
-EXIT_CODE=$?
-kill "$WATCHDOG_PID" 2>/dev/null || true
-
-echo "$EXIT_CODE" > "$WDIR/exit_code"
-date -u +%Y-%m-%dT%H:%M:%SZ > "$WDIR/finished_at"
-termlink event emit "$WORKER_NAME" worker.done \
-    -p "{\"exit_code\":$EXIT_CODE,\"result\":\"$WDIR/result.md\"}" 2>/dev/null || true
-
-echo ""
-echo "=== Worker $WORKER_NAME finished (exit: $EXIT_CODE) ==="
-echo "Result: $WDIR/result.md"
-RUNEOF
-    chmod +x "$wdir/run.sh"
-
-    # Spawn terminal and track window ID
-    local spawn_output
-    spawn_output=$(osascript -e "tell application \"Terminal\" to do script \"termlink register --name $name --shell\"" 2>&1)
-    local wid=$(echo "$spawn_output" | sed -n 's/.*window id \([0-9]*\).*/\1/p' | head -1)
-    [ -n "$wid" ] && echo "$wid" > "$wdir/window_id"
-
-    # Wait for session registration (up to 15s)
-    local found=false
-    for i in $(seq 1 15); do
-        termlink list 2>/dev/null | grep -q "$name" && { found=true; break; }
-        sleep 1
-    done
-    [ "$found" = true ] || die "Session $name did not register within 15s"
-
-    # Inject worker script (fire-and-forget via pty inject, NOT interact)
-    sleep 1
-    termlink pty inject "$name" "bash $wdir/run.sh '$name' '$project_dir' '$wdir' '$timeout'" --enter >/dev/null 2>&1
-
-    echo "Worker spawned: $name (wdir: $wdir)"
-}
-
-cmd_status() {
-    echo "=== Active Workers ==="
-    [ -d "$DISPATCH_DIR" ] || { echo "No workers dispatched."; return; }
-
-    for wdir in "$DISPATCH_DIR"/*/; do
-        [ -d "$wdir" ] || continue
-        local name=$(basename "$wdir")
-        local status="running"
-        if [ -f "$wdir/exit_code" ]; then
-            local ec=$(cat "$wdir/exit_code")
-            [ "$ec" = "0" ] && status="complete" || status="failed (exit: $ec)"
-        fi
-        local session_alive="no"
-        termlink list 2>/dev/null | grep -q "$name" && session_alive="yes" || true
-        printf "  %-20s  status: %-20s  session: %s\n" "$name" "$status" "$session_alive"
-    done
-}
-
-cmd_wait() {
-    local name="" wait_all=false timeout=600
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --name) name="$2"; shift 2 ;;
-            --all) wait_all=true; shift ;;
-            --timeout) timeout="$2"; shift 2 ;;
-            *) die "Unknown option: $1" ;;
-        esac
-    done
-
-    if [ "$wait_all" = true ]; then
-        [ -d "$DISPATCH_DIR" ] || die "No workers dispatched"
-        local deadline=$(($(date +%s) + timeout))
-        while [ "$(date +%s)" -lt "$deadline" ]; do
-            local all_done=true
-            for wdir in "$DISPATCH_DIR"/*/; do
-                [ -d "$wdir" ] || continue
-                [ -f "$wdir/exit_code" ] || { all_done=false; break; }
-            done
-            [ "$all_done" = true ] && { echo "All workers complete."; return 0; }
-            sleep 2
-        done
-        echo "Timeout waiting for workers."; return 1
-    else
-        [ -z "$name" ] && die "Missing --name (or use --all)"
-        local wdir="$DISPATCH_DIR/$name"
-        [ -d "$wdir" ] || die "No worker named '$name'"
-
-        # Event-based wait, then file confirmation
-        termlink list 2>/dev/null | grep -q "$name" && \
-            termlink event wait "$name" --topic worker.done --timeout "$timeout" >/dev/null 2>&1 || true
-
-        local deadline=$(($(date +%s) + timeout))
-        while [ ! -f "$wdir/exit_code" ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 2; done
-
-        if [ -f "$wdir/exit_code" ]; then
-            local ec=$(cat "$wdir/exit_code")
-            echo "Worker $name finished (exit: $ec)"
-            return "$ec"
-        else
-            echo "Timeout waiting for worker $name"; return 1
-        fi
-    fi
-}
-
-cmd_result() {
-    local name=""
-    while [[ $# -gt 0 ]]; do
-        case $1 in --name) name="$2"; shift 2 ;; *) die "Unknown: $1" ;; esac
-    done
-    [ -z "$name" ] && die "Missing --name"
-    local wdir="$DISPATCH_DIR/$name"
-    [ -f "$wdir/result.md" ] && cat "$wdir/result.md" || { echo "No result yet."; return 1; }
-}
-
-cmd_cleanup() {
-    [ -d "$DISPATCH_DIR" ] || { echo "No workers."; return; }
-
-    # Collect tracked window IDs
-    local window_ids=""
-    for wdir in "$DISPATCH_DIR"/*/; do
-        [ -f "$wdir/window_id" ] && window_ids="${window_ids:+$window_ids }$(cat "$wdir/window_id")"
-    done
-
-    termlink clean 2>/dev/null || true
-
-    # Phase 1: kill child processes via TTY (spare login/shell)
-    for wid in $window_ids; do
-        local tty=$(osascript -e "tell application \"Terminal\" to try
-            return tty of tab 1 of window id $wid
-        end try" 2>/dev/null || true)
-        if [ -n "$tty" ]; then
-            ps -t "${tty#/dev/}" -o pid=,comm= 2>/dev/null \
-                | grep -v -E '(login|-zsh|-bash)' \
-                | awk '{print $1}' | xargs kill -9 2>/dev/null || true
-        fi
-    done
-    sleep 2
-
-    # Phase 2: exit shells gracefully
-    for wid in $window_ids; do
-        osascript -e "tell application \"Terminal\" to try
-            do script \"exit\" in window id $wid
-        end try" 2>/dev/null || true
-    done
-    sleep 2
-
-    # Phase 3: close remaining by tracked window ID
-    if [ -n "$window_ids" ]; then
-        local id_list=""
-        for wid in $window_ids; do id_list="${id_list:+$id_list, }$wid"; done
-        osascript -e "tell application \"Terminal\"
-            set targetIds to {$id_list}
-            repeat with w in (reverse of (windows as list))
-                try
-                    if (id of w) is in targetIds then close w
-                end try
-            end repeat
-        end tell" 2>/dev/null || true
-    fi
-
-    rm -rf "$DISPATCH_DIR"
-    echo "All workers cleaned up."
-}
-
-# --- Main ---
-ensure_termlink
-case "${1:-}" in
-    status)  cmd_status ;;
-    wait)    shift; cmd_wait "$@" ;;
-    result)  shift; cmd_result "$@" ;;
-    cleanup) cmd_cleanup ;;
-    --name)  cmd_spawn "$@" ;;
-    *)       echo "Usage: tl-dispatch.sh --name <w> --prompt '...' | status | wait | result | cleanup" ;;
-esac
-```
+Clone the repo and read `scripts/tl-dispatch.sh` directly — it's the source of truth.
 
 ## What's already built in TermLink (don't rebuild — just use)
 
@@ -405,7 +164,8 @@ esac
 - **Hybrid discovery** — `termlink discover` returns both local + remote TCP sessions
 - **Hub forwarding** — transparently routes requests to remote sessions
 - **Auth tokens** — `termlink token` for capability-based session auth
-- **Working dispatch prototype** — `scripts/tl-dispatch.sh` in the repo, tested with 3 parallel workers
+- **Platform-aware spawn** — `termlink spawn --backend auto|terminal|tmux|background` works on macOS, headless Linux, and anywhere tmux is available
+- **Working dispatch script** — `scripts/tl-dispatch.sh` in the repo, multi-backend, tested with 3 parallel workers
 - **264 tests passing** across 4 crates
 
 To update TermLink: `cd /Users/dimidev32/001-projects/010-termlink && git pull && cargo install --path crates/termlink-cli`
