@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-142: TermLink integration into engineering framework
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T08:00:00Z
+# ============================================================================
+
+task_id: T-142
+task_name: "TermLink integration into engineering framework"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-15T20:43:40Z
+completed: 2026-03-16T07:46:37Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-03-15T00:00:00+00:00
+last_commit: 2026-03-16T00:00:00+00:00
+
+# Summary
+summary: |
+  Inception validating that TermLink's 30+ CLI commands, JSON output, and event
+  system provide all primitives needed for engineering framework integration. All
+  5 assumptions validated; GO decision recorded with a phased rollout plan covering
+  self-test, parallel dispatch, remote control, and cross-machine coordination.
+
+# Key outcomes
+outcomes:
+  - "All 5 assumptions validated (A1–A5)"
+  - "11 integration capabilities identified and prioritized"
+  - "Phase 0 design defined: fw doctor check + agents/termlink/ wrapper + fw route"
+  - "GO decision recorded — no TermLink changes needed for Phase 0"
+  - "Research artifact written: docs/reports/T-142-framework-termlink-integration.md"
+
+# Artifacts
+artifacts:
+  - path: "docs/reports/T-142-framework-termlink-integration.md"
+    type: report
+
+# Patterns observed
+patterns:
+  - type: workflow
+    description: "interact --json is the key primitive: captures output + exit code in one RPC call, enabling agent observation of external terminals"
+
+# What worked
+what_worked:
+  - "3 parallel research agents for capabilities, integration model, and fw doctor check — efficient coverage"
+  - "Assumption-first structure surfaced A5 (fw doctor WARN pattern) early, preventing overbuilding"
+  - "Phased rollout framing kept scope bounded — Phase 0 requires zero new TermLink code"
+
+# What didn't
+what_didnt:
+  - "Nothing significant — all assumptions validated on first pass"
+
+# Decisions
+decisions:
+  - "GO — All TermLink primitives exist today. interact --json is the star primitive. Framework integration bounded to fw doctor check + agents/termlink/ wrapper + fw route. Phased rollout: self-test → parallel dispatch → remote control → cross-machine."
+
+# Commits
+commits:
+  - hash: "9bebcea"
+    message: "T-142: Inception research — capabilities, integration model, Phase 0 design"
+  - hash: "748c984"
+    message: "T-142: Fill inception template + GO decision"
+
+# Acceptance criteria results
+acceptance_criteria:
+  agent:
+    - criterion: "Problem statement validated"
+      met: true
+    - criterion: "Assumptions tested (A1-A5)"
+      met: true
+    - criterion: "Research artifact written (docs/reports/T-142-framework-termlink-integration.md)"
+      met: true
+    - criterion: "Go/No-Go decision made → GO"
+      met: true
+
+tags: [framework, termlink, integration, inception]

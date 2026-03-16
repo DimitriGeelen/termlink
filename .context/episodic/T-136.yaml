@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-136: Framework agent self-testing via TermLink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T08:00:00Z
+# ============================================================================
+
+task_id: T-136
+task_name: "Framework agent self-testing via TermLink — spawn, observe, fix loop"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-14T16:38:43Z
+completed: 2026-03-16T07:46:45Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-03-14T00:00:00+00:00
+last_commit: 2026-03-16T00:00:00+00:00
+
+# Summary
+summary: |
+  Inception validating that TermLink primitives (command.execute, scrollback, streaming)
+  are sufficient to build a framework self-test loop: spawn terminal, run fw doctor or
+  hooks, capture structured output, diagnose failure, fix, and retry — all without human
+  intervention. All 7 spike test cases passed; GO decision recorded; 3 Phase 1–3 build
+  tasks created.
+
+# Key outcomes
+outcomes:
+  - "All 5 assumptions validated (A1–A5, A5 partially — CLAUDE.md reload needs new session)"
+  - "Spike validated 7 test cases: inject, scrollback, fw doctor E2E, marker sync, state persistence, cleanup"
+  - "4 observation options evaluated; hybrid approach (execute + scrollback) chosen"
+  - "GO decision recorded — no new TermLink code needed for Phase 0"
+  - "Research artifacts written: docs/reports/T-136-framework-self-testing-inception.md and T-136-termlink-status-report.md"
+  - "3 Phase build tasks created from inception"
+
+# Artifacts
+artifacts:
+  - path: "docs/reports/T-136-framework-self-testing-inception.md"
+    type: report
+  - path: "docs/reports/T-136-termlink-status-report.md"
+    type: report
+
+# Patterns observed
+patterns:
+  - type: workflow
+    description: "command.execute returns structured JSON {exit_code, stdout, stderr} — sufficient for self-test loop without streaming"
+  - type: constraint
+    description: "CLAUDE.md/settings changes require a new session to take effect; hook changes apply immediately"
+
+# What worked
+what_worked:
+  - "Spike-first approach: validated all 7 test cases before GO decision"
+  - "Human dialogue revealed key constraint (streaming not needed for basic loop) early"
+  - "Phased scope fence (Phase 0+1 bounded, interactive PTY and cross-machine deferred) kept inception tight"
+
+# What didn't
+what_didnt:
+  - "A5 only partially validated — CLAUDE.md reload limitation means fix-retry cycle has a session boundary edge case"
+
+# Decisions
+decisions:
+  - "GO — Spike validated all 7 test cases. All primitives work. No new TermLink code needed for Phase 0. Hybrid approach: command.execute for most tests, scrollback for long-running, streaming only for interactive PTY (Phase 3)."
+
+# Commits
+commits:
+  - hash: "c454318"
+    message: "T-136: Inception — framework self-testing via TermLink"
+  - hash: "159ac1d"
+    message: "T-136: Revise inception — full interactive E2E, not subprocess"
+  - hash: "6de4abf"
+    message: "T-136: Spike validated — GO decision recorded"
+  - hash: "e1630e9"
+    message: "T-136: Create Phase 1-3 build tasks from inception"
+
+# Acceptance criteria results
+acceptance_criteria:
+  agent:
+    - criterion: "Problem statement validated"
+      met: true
+    - criterion: "Assumptions tested (A1-A5)"
+      met: true
+    - criterion: "Research artifact written (docs/reports/T-136-framework-self-testing-inception.md)"
+      met: true
+    - criterion: "Options evaluated (4 options, hybrid chosen)"
+      met: true
+    - criterion: "Go/No-Go decision recorded"
+      met: true
+
+tags: [framework, self-test, agent-autonomy, termlink, inception]

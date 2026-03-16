@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-144: TCP hub listener + cross-machine session discovery
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-16T08:00:00Z
+# ============================================================================
+
+task_id: T-144
+task_name: "TCP hub listener + cross-machine session discovery"
+workflow_type: inception
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-15T21:58:30Z
+completed: 2026-03-16T07:46:49Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-03-15T00:00:00+00:00
+last_commit: 2026-03-16T00:00:00+00:00
+
+# Summary
+summary: |
+  Inception validating that the hub can dual-listen (Unix + TCP) without architectural
+  changes, and that existing registration/discovery can be extended to support remote
+  sessions. All 5 assumptions validated; GO decision recorded with hub dual-listen
+  estimated at ~58 lines; 3 bounded build tasks created (T-145, T-146, T-147).
+
+# Key outcomes
+outcomes:
+  - "All 5 assumptions validated (A1–A5)"
+  - "Hub dual-listen design: tokio select! over Unix + TCP acceptors, router untouched"
+  - "TransportAddr::Tcp confirmed to serialize correctly in existing registration JSON"
+  - "Hub-mediated registration with heartbeat/TTL designed for remote sessions"
+  - "Auth deferred to Phase 2 (T-079 capability tokens); LAN-only for Phase 1"
+  - "GO decision recorded; 3 build tasks created: T-145 (hub TCP flag), T-146 (remote registration RPC), T-147 (cross-machine discovery)"
+  - "Research artifact written: docs/reports/T-144-tcp-hub-inception.md"
+
+# Artifacts
+artifacts:
+  - path: "docs/reports/T-144-tcp-hub-inception.md"
+    type: report
+
+# Patterns observed
+patterns:
+  - type: workflow
+    description: "Tokio select! pattern enables dual Unix+TCP listening with minimal code (~58 lines) and zero router changes"
+  - type: constraint
+    description: "TCP exposure requires auth eventually — capability tokens (T-079) are the planned mechanism; LAN-first allows safe deferral"
+
+# What worked
+what_worked:
+  - "Existing TransportAddr::Tcp type (from T-133) already handled serialization — no new types needed"
+  - "Scoping auth to Phase 2 kept Phase 1 implementation bounded and unblocked"
+  - "Deep-dive research on hub architecture confirmed dual-listen is additive, not a rewrite"
+
+# What didn't
+what_didnt:
+  - "Exploration plan items A1-A5 were not all spiked before GO — design analysis substituted for some spikes (acceptable given T-133 groundwork)"
+
+# Decisions
+decisions:
+  - "GO — Hub dual-listen ~58 lines with tokio select!, router untouched. TransportAddr::Tcp already serializes. Hub-mediated registration with heartbeat/TTL for remote sessions. LAN-only first, auth deferred to Phase 2. 3 bounded build tasks: T-145 hub TCP flag, T-146 remote registration RPC, T-147 cross-machine discovery."
+
+# Commits
+commits:
+  - hash: "13be6ca"
+    message: "T-144: Inception scope — TCP hub listener + cross-machine discovery"
+  - hash: "8160986"
+    message: "T-144: Inception research — hub dual-listen + remote registration deep-dive"
+  - hash: "9f20279"
+    message: "T-144: GO decision + create build tasks T-145, T-146, T-147"
+
+# Acceptance criteria results
+acceptance_criteria:
+  agent:
+    - criterion: "Problem statement validated"
+      met: true
+    - criterion: "Assumptions tested (A1-A5)"
+      met: true
+    - criterion: "Design decisions for hub TCP mode, registration flow, discovery"
+      met: true
+    - criterion: "Go/No-Go decision made"
+      met: true
+
+tags: [tcp, distributed, hub, cross-machine, inception]
