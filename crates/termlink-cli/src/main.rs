@@ -3144,17 +3144,28 @@ fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     Ok(())
 }
 
-/// Spawn via background PTY process (setsid + shell).
+/// Spawn via background process (detached shell).
+/// Works on both macOS and Linux — no terminal emulator needed.
 fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
-    let status = std::process::Command::new("setsid")
+    // Try setsid (Linux), fall back to plain sh (macOS)
+    let child = std::process::Command::new("setsid")
         .args(["sh", "-c", shell_cmd])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
+        .stdin(std::process::Stdio::null())
         .spawn()
-        .context("Failed to spawn background session — setsid not available?")?;
+        .or_else(|_| {
+            // setsid not available (macOS) — spawn sh directly
+            std::process::Command::new("sh")
+                .args(["-c", shell_cmd])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .stdin(std::process::Stdio::null())
+                .spawn()
+        })
+        .context("Failed to spawn background session")?;
 
-    // setsid + spawn returns immediately (fire-and-forget)
-    let _ = status;
+    let _ = child; // fire-and-forget — child runs independently
     let _ = session_name;
     Ok(())
 }
