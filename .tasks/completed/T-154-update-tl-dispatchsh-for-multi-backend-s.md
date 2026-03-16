@@ -4,7 +4,7 @@ name: "Update tl-dispatch.sh for multi-backend spawn"
 description: >
   Delegate spawn to termlink spawn command, simplify cleanup per backend
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:45:36Z
-last_update: 2026-03-16T06:35:28Z
-date_finished: null
+last_update: 2026-03-16T06:45:30Z
+date_finished: 2026-03-16T06:45:30Z
 ---
 
 # T-154: Update tl-dispatch.sh for multi-backend spawn
@@ -57,3 +57,6 @@ grep -q "backend" scripts/tl-dispatch.sh
 
 ### 2026-03-16T06:35:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-16T06:45:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
