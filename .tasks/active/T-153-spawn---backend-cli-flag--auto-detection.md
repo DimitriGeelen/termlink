@@ -4,7 +4,7 @@ name: "Spawn --backend CLI flag + auto-detection"
 description: >
   Add --backend tmux|terminal|background|auto flag to spawn command with platform auto-detection
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:45:34Z
-last_update: 2026-03-16T05:45:34Z
+last_update: 2026-03-16T06:34:29Z
 date_finished: null
 ---
 
@@ -20,40 +20,19 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Already implemented in T-150. --backend flag and resolve_spawn_backend() auto-detection built together with the refactor.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] `--backend auto|terminal|tmux|background` flag on spawn command
+- [x] Auto-detection: macOS+GUI→terminal, tmux available→tmux, fallback→background
+- [x] `termlink spawn --help` shows all backend options
+- [x] All tests pass
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo test --workspace
 
 ## Decisions
 
@@ -72,3 +51,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-153-spawn---backend-cli-flag--auto-detection.md
 - **Context:** Initial task creation
+
+### 2026-03-16T06:34:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
