@@ -4,16 +4,16 @@ name: "Platform-aware spawn — tmux/headless support for spawn and dispatch"
 description: >
   Inception: Platform-aware spawn — tmux/headless support for spawn and dispatch
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-16T05:34:52Z
-last_update: 2026-03-16T05:34:52Z
-date_finished: null
+last_update: 2026-03-16T05:42:54Z
+date_finished: 2026-03-16T05:42:54Z
 ---
 
 # T-149: Platform-aware spawn — tmux/headless support for spawn and dispatch
@@ -38,13 +38,13 @@ core framework use case: autonomous agent dispatch on any machine.
 
 ## Exploration Plan
 
-1. [ ] Research: What spawn backends exist? (tmux, screen, kitty, background PTY, systemd)
-2. [ ] Research: How does our current spawn/PTY code work? What's osascript-specific?
-3. [ ] Research: What do other tools do for headless terminal multiplexing?
-4. [ ] Spike: Can `tmux new-session -d` + `termlink register --shell` work together?
-5. [ ] Design: Backend selection strategy (auto-detect vs. config vs. CLI flag)
-6. [ ] Design: Cleanup protocol per backend (tmux kill-session vs. osascript 3-phase)
-7. [ ] Go/No-Go
+1. [x] Research: What spawn backends exist? (tmux, screen, kitty, background PTY, systemd)
+2. [x] Research: How does our current spawn/PTY code work? What's osascript-specific?
+3. [x] Research: What do other tools do for headless terminal multiplexing?
+4. [x] Spike: Can `tmux new-session -d` + `termlink register --shell` work together?
+5. [x] Design: Backend selection strategy (auto-detect vs. config vs. CLI flag)
+6. [x] Design: Cleanup protocol per backend (tmux kill-session vs. osascript 3-phase)
+7. [x] Go/No-Go → GO
 
 ## Technical Constraints
 
@@ -65,10 +65,10 @@ emulators on Linux (iTerm, kitty, alacritty — too many to support now)
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested (A1-A5)
-- [ ] Research artifact written (docs/reports/T-149-*.md)
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions tested (A1-A5)
+- [x] Research artifact written (docs/reports/T-149-*.md)
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -89,20 +89,42 @@ test -f docs/reports/T-149-platform-aware-spawn.md
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: All 5 assumptions validated. tmux backend proven, background PTY fallback viable, blast radius tiny (~50 lines osascript in 3 files). No protocol changes needed. 6 small build tasks.
+
+**Date**: 2026-03-16T05:42:54Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: All 5 assumptions validated. tmux backend proven, background PTY fallback viable, blast radius tiny (~50 lines osascript in 3 files). No protocol changes needed. 6 small build tasks.
+
+**Date**: 2026-03-16T05:42:54Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-16T05:41:58Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** All 5 assumptions validated. tmux backend proven, background PTY fallback viable, blast radius tiny (~50 lines osascript in 3 files). No protocol changes needed. 6 small build tasks.
+
+### 2026-03-16T05:42:21Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-03-16T05:42:27Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** All 5 assumptions validated. tmux backend proven, background PTY fallback viable, blast radius tiny (~50 lines osascript in 3 files). No protocol changes needed. 6 small build tasks.
+
+### 2026-03-16T05:42:54Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** All 5 assumptions validated. tmux backend proven, background PTY fallback viable, blast radius tiny (~50 lines osascript in 3 files). No protocol changes needed. 6 small build tasks.
+
+### 2026-03-16T05:42:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
