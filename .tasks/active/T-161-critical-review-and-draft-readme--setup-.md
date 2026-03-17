@@ -5,16 +5,16 @@ description: >
   Send 5 review agents to critically assess existing docs, then draft a
   comprehensive README.md with install, usage, architecture, and examples.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [docs, readme]
 components: []
 related_tasks: []
 created: 2026-03-17T22:40:47Z
-last_update: 2026-03-17T22:40:47Z
-date_finished: null
+last_update: 2026-03-17T22:49:28Z
+date_finished: 2026-03-17T22:49:28Z
 ---
 
 # T-161: Critical review and draft README + setup instructions
@@ -71,3 +71,6 @@ grep -q "Linux" README.md
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-161-critical-review-and-draft-readme--setup-.md
 - **Context:** Initial task creation
+
+### 2026-03-17T22:49:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

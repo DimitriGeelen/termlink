@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-17-1307
-timestamp: 2026-03-17T12:07:19Z
+# Audit Results - 2026-03-17-1728
+timestamp: 2026-03-17T16:28:02Z
 summary:
-  pass: 91
-  warn: 13
+  pass: 93
+  warn: 12
   fail: 0
 findings:
   - level: PASS
@@ -30,7 +30,7 @@ findings:
     check: "Task T-148 has short description (46 chars)"
     mitigation: "Expand description in T-148-termlink-integration-spec-for-framework-.md"
   - level: PASS
-    check: "Git traceability: 100% (328/328 commits reference tasks)"
+    check: "Git traceability: 100% (330/330 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -47,9 +47,8 @@ findings:
   - level: WARN
     check: "Bugfix-learning coverage: 22% (2/9)"
     mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX \"description\""
-  - level: WARN
-    check: "Completed task T-155 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-155"
+  - level: PASS
+    check: "All completed tasks have episodic summaries"
   - level: WARN
     check: "1 episodics have empty or TODO summaries"
     mitigation: "Fill in summary field with actual task description"
@@ -75,11 +74,11 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-157)"
+    check: "CTL-001: Focus file has active task (T-148)"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 10 (last commit: 30 minutes ago)"
+    check: "CTL-004: Tool counter at 4 (last commit: 2 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -92,7 +91,7 @@ findings:
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (45 handovers, 29 compactions)"
+    check: "CTL-006: Handover coverage for compactions (46 handovers, 30 compactions)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
   - level: PASS
@@ -112,7 +111,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (62 commits)"
+    check: "CTL-009: Inception T-012 has decision (64 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -148,7 +147,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-149 has decision (4 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-155 has decision (4 commits)"
+    check: "CTL-009: Inception T-155 has decision (5 commits)"
   - level: PASS
     check: "CTL-010: Bypass log exists but empty (no bypasses detected)"
   - level: PASS
@@ -187,6 +186,8 @@ findings:
   - level: PASS
     check: "CTL-025: T-143 partial-complete with owner:human ✓"
   - level: PASS
+    check: "CTL-025: T-148 partial-complete with owner:human ✓"
+  - level: PASS
     check: "CTL-025: T-156 partial-complete with owner:human ✓"
   - level: PASS
     check: "CTL-025: T-157 partial-complete with owner:human ✓"
@@ -195,9 +196,9 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (0/139)"
+    check: "D1: Episodic quality — 0% [TODO] (0/140)"
   - level: PASS
-    check: "D2: Human review queue — 14 task(s) awaiting human action (normal)"
+    check: "D2: Human review queue — 15 task(s) awaiting human action (normal)"
   - level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
   - level: PASS
@@ -213,10 +214,10 @@ findings:
     check: "D5: Task lifecycle — 10 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) T-092(1min,human)"
     mitigation: "Review flagged tasks for process issues"
   - level: WARN
-    check: "D3: Commit velocity — WARN drop today=6 avg=34 ratio=0.2x"
+    check: "D3: Commit velocity — WARN drop today=8 avg=34 ratio=0.2x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D7: Commit bunching — none (PASS 7_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 9_commits_24h_no_bunching)"
   - level: WARN
     check: "D6: Completion velocity — sustained drop (drop recent_avg=4.3 vs earlier_avg=18.1)"
     mitigation: "Check for blockers or process issues slowing work"

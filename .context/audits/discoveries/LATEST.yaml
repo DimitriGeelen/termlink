@@ -1,11 +1,11 @@
-timestamp: 2026-03-17T12:07:19Z
+timestamp: 2026-03-17T16:28:02Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (0/139)"
+    check: "D1: Episodic quality — 0% [TODO] (0/140)"
   - id: D2
     level: PASS
-    check: "D2: Human review queue — 14 task(s) awaiting human action (normal)"
+    check: "D2: Human review queue — 15 task(s) awaiting human action (normal)"
   - id: D8
     level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
@@ -25,11 +25,11 @@ findings:
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: WARN
-    check: "D3: Commit velocity — WARN drop today=6 avg=34 ratio=0.2x"
+    check: "D3: Commit velocity — WARN drop today=8 avg=34 ratio=0.2x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS 7_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 9_commits_24h_no_bunching)"
   - id: D6
     level: WARN
     check: "D6: Completion velocity — sustained drop (drop recent_avg=4.3 vs earlier_avg=18.1)"
