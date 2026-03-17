@@ -1,0 +1,41 @@
+---
+task_id: T-155
+name: "Claude Code inside TermLink session — remote access to master session"
+workflow_type: inception
+status: completed
+created: 2026-03-16T18:06:40Z
+completed: 2026-03-17T11:37:25Z
+duration_days: 1
+owner: human
+tags: [remote-access, claude-fw, observation]
+---
+
+summary: >
+  Inception exploring whether Claude Code can run inside a TermLink-managed PTY
+  for remote observation and input injection. Three parallel research agents
+  explored launch methods, observation models, and claude-fw wrapper integration.
+  PTY nesting spike validated all 4 tests (--help, --version, -p prompts).
+  GO decision: steelman approach (claude-fw --termlink flag, ~15 lines, opt-in)
+  with stream/attach observation and pty inject for input. Spawned build tasks
+  T-156 (tl-claude.sh), T-157 (claude-fw pickup prompt), T-158 (session persistence).
+
+what_worked:
+  - "Parallel research agents (3) efficiently explored launch, observe, and wrapper dimensions"
+  - "PTY nesting works cleanly — Claude Code TUI renders correctly in TermLink PTY"
+  - "Steelman/strawman analysis quickly converged on the right integration point (claude-fw)"
+  - "Existing TermLink primitives (spawn, inject, attach, stream) covered all requirements"
+  - "Inception discipline: research artifact first, spike second, GO/NO-GO third"
+
+what_didnt:
+  - "generate-episodic fails on macOS due to date -d (Linux-only) — had to create manually"
+
+decisions:
+  - decision: "GO — Claude Code works in TermLink PTY"
+    rationale: "All 4 spike tests passed. Integration bounded to ~15 lines in claude-fw. Opt-in only."
+    date: 2026-03-17
+
+artifacts:
+  - docs/reports/T-155-claude-code-in-termlink.md
+  - scripts/tl-claude.sh
+
+related_tasks: [T-136, T-142, T-143, T-144, T-156, T-157, T-158]
