@@ -5,7 +5,7 @@ description: >
   Document the cargo install/upgrade command in framework pickup specs
   (T-148, T-157) so the framework agent knows how to install or upgrade TermLink.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,8 +13,8 @@ tags: [remote-access, framework]
 components: []
 related_tasks: [T-148, T-157]
 created: 2026-03-17T20:20:50Z
-last_update: 2026-03-17T20:20:50Z
-date_finished: null
+last_update: 2026-03-17T20:21:49Z
+date_finished: 2026-03-17T20:21:49Z
 ---
 
 # T-159: Add termlink upgrade command to framework pickup specs
@@ -52,3 +52,6 @@ grep -q "cargo install" docs/specs/T-157-claude-fw-termlink-pickup.md
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-159-add-termlink-upgrade-command-to-framewor.md
 - **Context:** Initial task creation
+
+### 2026-03-17T20:21:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

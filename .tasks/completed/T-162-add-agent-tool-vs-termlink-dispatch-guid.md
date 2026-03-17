@@ -5,7 +5,7 @@ description: >
   Add decision matrix for when to use Agent tool vs TermLink dispatch
   to framework pickup specs. Triggered by framework agent confusion.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,8 +13,8 @@ tags: [framework, docs]
 components: []
 related_tasks: [T-148, T-157]
 created: 2026-03-17T23:20:33Z
-last_update: 2026-03-17T23:20:33Z
-date_finished: null
+last_update: 2026-03-17T23:21:27Z
+date_finished: 2026-03-17T23:21:27Z
 ---
 
 # T-162: Add Agent tool vs TermLink dispatch guidance to framework specs
@@ -51,3 +51,6 @@ grep -q "TermLink dispatch" docs/specs/T-148-termlink-framework-integration.md
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-162-add-agent-tool-vs-termlink-dispatch-guid.md
 - **Context:** Initial task creation
+
+### 2026-03-17T23:21:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
