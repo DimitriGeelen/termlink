@@ -73,8 +73,8 @@ cross-machine access. Can we wrap Claude Code itself in a TermLink session?
 - [x] Problem statement validated
 - [x] Assumptions documented (A1-A5)
 - [x] Research artifact written (docs/reports/T-155-claude-code-in-termlink.md)
-- [ ] PTY nesting spike validates A1-A3
-- [ ] Go/No-Go decision made
+- [x] PTY nesting spike validates A1-A3
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -95,7 +95,11 @@ test -f docs/reports/T-155-claude-code-in-termlink.md
 
 ## Decisions
 
-<!-- Pending human dialogue and PTY nesting spike -->
+**Decision**: GO
+
+**Rationale**: PTY nesting spike passed all 4 tests — Claude Code renders correctly, input injection works, output capture works. Steelman approach (claude-fw integration, ~15 lines, opt-in) validated. Remaining assumptions (attach TUI mirror, restart persistence) are low-risk and can be validated during build.
+
+**Date**: 2026-03-17T08:33:39Z
 
 ## Updates
 
@@ -109,3 +113,8 @@ test -f docs/reports/T-155-claude-code-in-termlink.md
 - Input: `pty inject` or bidirectional via attach/stream
 - claude-fw: steelman wins — ~15 lines, opt-in `--termlink` flag
 - Two risks to validate: PTY nesting + session persistence across restart
+
+### 2026-03-17T08:33:39Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** PTY nesting spike passed all 4 tests — Claude Code renders correctly, input injection works, output capture works. Steelman approach (claude-fw integration, ~15 lines, opt-in) validated. Remaining assumptions (attach TUI mirror, restart persistence) are low-risk and can be validated during build.
