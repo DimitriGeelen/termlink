@@ -5,7 +5,7 @@ description: >
   Inception: Can we run Claude Code inside a TermLink-managed PTY so the master
   session becomes observable, injectable, and remotely accessible via TCP hub?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -13,8 +13,8 @@ tags: [remote-access, claude-fw, observation]
 components: []
 related_tasks: [T-136, T-142, T-143, T-144]
 created: 2026-03-16T18:06:40Z
-last_update: 2026-03-16T18:06:40Z
-date_finished: null
+last_update: 2026-03-17T11:37:25Z
+date_finished: 2026-03-17T11:37:25Z
 ---
 
 # T-155: Claude Code inside TermLink session — remote access to master session
@@ -118,3 +118,6 @@ test -f docs/reports/T-155-claude-code-in-termlink.md
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** PTY nesting spike passed all 4 tests — Claude Code renders correctly, input injection works, output capture works. Steelman approach (claude-fw integration, ~15 lines, opt-in) validated. Remaining assumptions (attach TUI mirror, restart persistence) are low-risk and can be validated during build.
+
+### 2026-03-17T11:37:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

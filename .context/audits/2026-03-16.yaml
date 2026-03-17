@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-16-0806
-timestamp: 2026-03-16T07:06:05Z
+# Audit Results - 2026-03-16-0906
+timestamp: 2026-03-16T08:06:30Z
 summary:
-  pass: 87
-  warn: 20
+  pass: 90
+  warn: 10
   fail: 0
 findings:
   - level: PASS
@@ -22,7 +22,7 @@ findings:
   - level: PASS
     check: "Fabric edges: 38/48 cards enriched (10 without edges)"
   - level: PASS
-    check: "All 18 active tasks are valid"
+    check: "All 15 active tasks are valid"
   - level: WARN
     check: "Task T-140 has short description (33 chars)"
     mitigation: "Expand description in T-140-framework-upgrade-v100--v126.md"
@@ -30,7 +30,7 @@ findings:
     check: "Task T-148 has short description (46 chars)"
     mitigation: "Expand description in T-148-termlink-integration-spec-for-framework-.md"
   - level: PASS
-    check: "Git traceability: 100% (317/317 commits reference tasks)"
+    check: "Git traceability: 100% (321/321 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -45,35 +45,10 @@ findings:
   - level: PASS
     check: "Practices documented: 10 practice(s) in practices.yaml"
   - level: WARN
-    check: "Bugfix-learning coverage: 25% (2/8)"
+    check: "Bugfix-learning coverage: 22% (2/9)"
     mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX \"description\""
-  - level: WARN
-    check: "Completed task T-145 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-145"
-  - level: WARN
-    check: "Completed task T-146 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-146"
-  - level: WARN
-    check: "Completed task T-147 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-147"
-  - level: WARN
-    check: "Completed task T-149 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-149"
-  - level: WARN
-    check: "Completed task T-150 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-150"
-  - level: WARN
-    check: "Completed task T-151 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-151"
-  - level: WARN
-    check: "Completed task T-152 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-152"
-  - level: WARN
-    check: "Completed task T-153 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-153"
-  - level: WARN
-    check: "Completed task T-154 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-154"
+  - level: PASS
+    check: "All completed tasks have episodic summaries"
   - level: WARN
     check: "1 episodics have empty or TODO summaries"
     mitigation: "Fill in summary field with actual task description"
@@ -91,20 +66,19 @@ findings:
     check: "Inception task T-013 has no research artifact in docs/reports/"
     mitigation: "Save research findings: docs/reports/T-013-*.md"
   - level: PASS
-    check: "C-001: All 3 active inceptions have research artifacts"
+    check: "C-001: No active inception tasks to check"
   - level: PASS
     check: "C-002: commit-msg hook has research artifact check"
   - level: PASS
     check: "C-002: No research warnings logged (clean or first run)"
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
-  - level: WARN
-    check: "CTL-001: Focus file empty but 3 commit(s) in last 30min"
-    mitigation: "Check .claude/settings.json hook configuration for check-active-task"
   - level: PASS
-    check: "CTL-003: Budget status file stale (29560746min — no active session)"
+    check: "CTL-001: Focus file has active task (T-148)"
   - level: PASS
-    check: "CTL-004: Tool counter at 3 (last commit: 18 minutes ago)"
+    check: "CTL-003: Budget status file fresh (< 5min old)"
+  - level: PASS
+    check: "CTL-004: Tool counter at 5 (last commit: 2 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -123,10 +97,6 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-119 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-136 has decision (4 commits)"
-  - level: PASS
-    check: "CTL-009: Inception T-144 has decision (3 commits)"
-  - level: PASS
     check: "CTL-009: Inception T-002 has decision (4 commits)"
   - level: PASS
     check: "CTL-009: Inception T-003 has decision (3 commits)"
@@ -141,7 +111,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (59 commits)"
+    check: "CTL-009: Inception T-012 has decision (62 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -169,6 +139,12 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-123 has decision (4 commits)"
   - level: PASS
+    check: "CTL-009: Inception T-136 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-142 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-144 has decision (4 commits)"
+  - level: PASS
     check: "CTL-009: Inception T-149 has decision (4 commits)"
   - level: PASS
     check: "CTL-010: Bypass log exists but empty (no bypasses detected)"
@@ -178,11 +154,11 @@ findings:
     check: "CTL-012: Completed task T-101 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: PASS
-    check: "CTL-013: T-154 verification re-run: 3/3 pass"
+    check: "CTL-013: T-144 verification re-run: 1/1 pass"
   - level: PASS
-    check: "CTL-013: T-153 verification re-run: 1/1 pass"
+    check: "CTL-013: T-136 verification re-run: 2/2 pass"
   - level: PASS
-    check: "CTL-013: T-152 verification re-run: 1/1 pass"
+    check: "CTL-013: T-142 verification re-run: 1/1 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -210,7 +186,7 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (0/127)"
+    check: "D1: Episodic quality — 0% [TODO] (0/139)"
   - level: PASS
     check: "D2: Human review queue — 11 task(s) awaiting human action (normal)"
   - level: PASS
@@ -228,11 +204,11 @@ findings:
     check: "D5: Task lifecycle — 10 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) T-092(1min,human)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=16 avg=35 ratio=0.5x)"
+    check: "D3: Commit velocity — normal (PASS today=20 avg=35 ratio=0.6x)"
   - level: PASS
-    check: "D7: Commit bunching — none (PASS 30_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 34_commits_24h_no_bunching)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=7.0 earlier=16.4)"
+    check: "D6: Completion velocity — normal (PASS recent=8.0 earlier=16.4)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS
