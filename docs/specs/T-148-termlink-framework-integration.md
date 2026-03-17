@@ -102,6 +102,39 @@ Add a TermLink section covering:
 - Budget rule: don't spawn new sessions when context > 60%
 - Cleanup rule: always cleanup spawned sessions before session end
 
+### 6. Agent Tool vs TermLink Dispatch — Decision Matrix
+
+The framework agent must understand when to use Claude Code's built-in Agent tool vs TermLink dispatch. They are **complementary, not competing.**
+
+| Factor | Agent tool (Task) | TermLink dispatch (`tl-dispatch.sh`) |
+|--------|-------------------|--------------------------------------|
+| **Has Edit/Write tools** | Yes (sub-agent) | Yes — if dispatching `claude -p` workers |
+| **Has Claude Code intelligence** | Yes | Yes — if dispatching Claude Code workers |
+| **Real terminal isolation** | No (shares parent process) | Yes (separate PTY, separate process) |
+| **Survives context pressure** | No (eats parent context window) | Yes (independent session, own context) |
+| **Parallel execution** | Max 5, all share parent budget | Unlimited real processes |
+| **Observable from outside** | No | Yes (`termlink attach`, `stream`, `output`) |
+| **Startup cost** | Low (~1s) | Higher (~5-10s per terminal) |
+| **Result delivery** | Returns to parent context | Writes to disk, emits events |
+
+**Use Agent tool when:**
+- Quick research, file search, codebase exploration
+- Single file edits within the current session
+- Lightweight sub-tasks (<2K token output)
+- Sequential work that needs immediate results
+
+**Use TermLink dispatch when:**
+- Parallel work across 3+ independent tasks
+- Heavy work that would exhaust parent context budget
+- Long-running commands (builds, test suites, deploys)
+- Work you want to observe remotely (`termlink attach`)
+- Tasks that must survive parent session restart
+- Independent Claude Code workers with their own context windows
+
+**Common mistake:** "TermLink can't edit files." Wrong — a raw TermLink shell session can't use Edit/Write tools, but a Claude Code worker dispatched via TermLink has full tool access. The distinction is raw terminal vs Claude Code instance.
+
+Add this to the proposed CLAUDE.md TermLink section (item 5 above).
+
 ## Key TermLink Primitives (for AGENT.md)
 
 | Command | Purpose | Framework Use |
