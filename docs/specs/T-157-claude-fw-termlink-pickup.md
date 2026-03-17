@@ -15,6 +15,11 @@ I want to add a `--termlink` flag to `claude-fw` so the Claude Code session auto
 **TermLink binary:** `/Users/dimidev32/.cargo/bin/termlink` (already installed)
 **Repo:** `https://github.com/DimitriGeelen/termlink`
 
+**Install / upgrade:**
+```bash
+cargo install --git https://github.com/DimitriGeelen/termlink.git termlink --force
+```
+
 ## What to change
 
 ### 1. `bin/claude-fw` — Add `--termlink` flag (~15 lines)

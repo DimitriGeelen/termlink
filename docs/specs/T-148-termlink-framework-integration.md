@@ -18,7 +18,19 @@ remote control, and cross-machine coordination.
 | **TermLink** | Binary, protocol, session management, transport (Unix + TCP) |
 | **Framework** | Agent wrapper, skills, dispatch patterns, CLAUDE.md integration |
 
-Updates flow: TermLink repo -> `cargo install termlink` -> framework detects on PATH.
+Updates flow: TermLink repo -> install/upgrade -> framework detects on PATH.
+
+### Install / Upgrade Command
+
+```bash
+# Install or upgrade from GitHub (recommended)
+cargo install --git https://github.com/DimitriGeelen/termlink.git termlink --force
+
+# Or from local clone (if available)
+cargo install --path ~/001-projects/010-termlink/crates/termlink-cli --force
+```
+
+Binary: `~/.cargo/bin/termlink`. The `--force` flag overwrites the existing version on upgrade.
 
 ## What to Build (Phase 0)
 
