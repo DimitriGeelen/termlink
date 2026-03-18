@@ -4,7 +4,7 @@ name: "Agent message protocol — request/response over events"
 description: >
   Design and implement agent.request/agent.response/agent.status event schemas for bidirectional agent-to-agent communication over TermLink events.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [protocol, agent-comms]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:36Z
-last_update: 2026-03-18T16:43:53Z
-date_finished: null
+last_update: 2026-03-18T17:16:57Z
+date_finished: 2026-03-18T17:16:57Z
 ---
 
 # T-167: Agent message protocol — request/response over events
@@ -60,3 +60,6 @@ grep -q "AgentStatus" crates/termlink-protocol/src/events.rs
 
 ### 2026-03-18T16:43:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-18T17:16:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

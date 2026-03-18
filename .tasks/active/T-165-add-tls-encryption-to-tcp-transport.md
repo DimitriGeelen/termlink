@@ -4,16 +4,16 @@ name: "Add TLS encryption to TCP transport"
 description: >
   Wrap TCP hub connections with TLS via rustls. Self-signed certs for LAN use. Prevents token sniffing and MITM.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [security, tcp, tls]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:32Z
-last_update: 2026-03-18T16:10:35Z
-date_finished: null
+last_update: 2026-03-18T16:21:23Z
+date_finished: 2026-03-18T16:21:23Z
 ---
 
 # T-165: Add TLS encryption to TCP transport
@@ -68,3 +68,6 @@ grep -q "tokio-rustls" crates/termlink-hub/Cargo.toml
 
 ### 2026-03-18T16:10:35Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-18T16:21:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

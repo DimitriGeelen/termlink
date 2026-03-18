@@ -234,7 +234,11 @@
       "Bash(/Users/dimidev32/001-projects/010-termlink/scripts/tl-claude.sh start:*)",
       "Bash(/Users/dimidev32/001-projects/010-termlink/scripts/tl-claude.sh status:*)",
       "Bash(/Users/dimidev32/001-projects/010-termlink/scripts/tl-claude.sh restart:*)",
-      "Bash(/Users/dimidev32/001-projects/010-termlink/scripts/tl-claude.sh stop:*)"
+      "Bash(/Users/dimidev32/001-projects/010-termlink/scripts/tl-claude.sh stop:*)",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/bin/fw upstream report --title \"update-task.sh declare -A fails on macOS bash 3.2 \\(line 599\\)\" 2>&1)",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/bin/fw help 2>&1 | grep -i \"upstream\\\\|report\\\\|bug\")",
+      "Bash(stdbuf:*)",
+      "Bash(sysctl:*)"
     ]
   }
 }
