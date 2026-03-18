@@ -102,20 +102,18 @@ test -f docs/reports/T-163-cross-machine-agent-communication.md
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
-## Decision
+**Rationale**: TCP hub infrastructure 80% ready. Security hardening (token enforcement + TLS) is non-negotiable prerequisite but additive (2 sessions). Events over TCP need validation but code path exists. File transfer via base64 chunked events feasible. Total effort ~5.5 sessions, each phase independently useful.
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Date**: 2026-03-18T10:07:49Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-18T10:07:49Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** TCP hub infrastructure 80% ready. Security hardening (token enforcement + TLS) is non-negotiable prerequisite but additive (2 sessions). Events over TCP need validation but code path exists. File transfer via base64 chunked events feasible. Total effort ~5.5 sessions, each phase independently useful.
