@@ -7,15 +7,15 @@ description: >
   and stream its output. This exploration asks: can we wrap a Claude Code session as a
   TermLink session, capture stdout, and extract conversation turns from the raw stream?
   Explore only — no implementation.
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [termlink, output-capture, conversation-logging, exploration]
 components: []
 related_tasks: [T-094, T-101, T-102, T-099]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-11T12:00:00Z
+last_update: 2026-03-18T21:19:19Z
 date_finished: null
 ---
 
@@ -73,16 +73,27 @@ Claude Code's conversation appears in the terminal as formatted text with:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] TermLink output capture mechanics understood and documented
-- [ ] Claude Code stdout structure analyzed (what does it look like?)
-- [ ] Comparison table: TermLink capture vs. JSONL transcript completed
-- [ ] Feasibility assessment: go/no-go for next phase
+- [x] TermLink output capture mechanics understood and documented
+- [x] Claude Code stdout structure analyzed (what does it look like?)
+- [x] Comparison table: TermLink capture vs. JSONL transcript completed
+- [x] Feasibility assessment: go/no-go for next phase
 
 ### Human
 - [ ] Exploration findings reviewed and discussed
+
+## Verification
+
+test -f docs/reports/T-100-termlink-output-capture-conversation-logger.md
+grep -q "NO-GO" docs/reports/T-100-termlink-output-capture-conversation-logger.md
 
 ## Decisions
 
 ## Decision
 
 ## Updates
+
+### 2026-03-18T21:18:53Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-03-18T21:19:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
