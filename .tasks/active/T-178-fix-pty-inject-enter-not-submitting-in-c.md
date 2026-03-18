@@ -1,22 +1,22 @@
 ---
-id: T-173
-name: "Wire Stop hook for conversation governance (G-005)"
+id: T-178
+name: "Fix pty inject Enter not submitting in Claude Code TUI"
 description: >
-  Claude Code Stop hook fires after every response with last_assistant_message. Wire it into framework to enforce N-exchange guard and close G-005 (pure conversation sessions bypass enforcement).
+  pty inject sends text+Enter as one write. Ink TUI needs Enter (0x0D) as separate write with small delay. Root cause: batched write means ink sees multi-char chunk, not a keypress. Fix: split text write and Enter into two separate pty.write() calls. Also check ICRNL termios flag. See docs/reports/T-099 and agent research.
 
-status: started-work
+status: captured
 workflow_type: build
-owner: human
-horizon: later
-tags: [framework, hooks, governance]
+owner: agent
+horizon: now
+tags: [bug, cli, inject, pty]
 components: []
 related_tasks: []
-created: 2026-03-18T21:39:06Z
-last_update: 2026-03-18T21:55:34Z
+created: 2026-03-18T22:19:38Z
+last_update: 2026-03-18T22:19:38Z
 date_finished: null
 ---
 
-# T-173: Wire Stop hook for conversation governance (G-005)
+# T-178: Fix pty inject Enter not submitting in Claude Code TUI
 
 ## Context
 
@@ -68,10 +68,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-18T21:39:06Z — task-created [task-create-agent]
+### 2026-03-18T22:19:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-173-wire-stop-hook-for-conversation-governan.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-178-fix-pty-inject-enter-not-submitting-in-c.md
 - **Context:** Initial task creation
-
-### 2026-03-18T21:55:34Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

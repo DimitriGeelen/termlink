@@ -1,22 +1,22 @@
 ---
-id: T-173
-name: "Wire Stop hook for conversation governance (G-005)"
+id: T-177
+name: "Fix pty inject bytes_written display bug (always shows 0)"
 description: >
-  Claude Code Stop hook fires after every response with last_assistant_message. Wire it into framework to enforce N-exchange guard and close G-005 (pure conversation sessions bypass enforcement).
+  cmd_inject reads result[bytes_written] but handler returns bytes_len. One-line fix in main.rs:1765.
 
-status: started-work
+status: captured
 workflow_type: build
-owner: human
-horizon: later
-tags: [framework, hooks, governance]
+owner: agent
+horizon: now
+tags: [bug, cli, inject]
 components: []
 related_tasks: []
-created: 2026-03-18T21:39:06Z
-last_update: 2026-03-18T21:55:34Z
+created: 2026-03-18T22:19:28Z
+last_update: 2026-03-18T22:19:28Z
 date_finished: null
 ---
 
-# T-173: Wire Stop hook for conversation governance (G-005)
+# T-177: Fix pty inject bytes_written display bug (always shows 0)
 
 ## Context
 
@@ -68,10 +68,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-18T21:39:06Z — task-created [task-create-agent]
+### 2026-03-18T22:19:28Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-173-wire-stop-hook-for-conversation-governan.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-177-fix-pty-inject-byteswritten-display-bug-.md
 - **Context:** Initial task creation
-
-### 2026-03-18T21:55:34Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
