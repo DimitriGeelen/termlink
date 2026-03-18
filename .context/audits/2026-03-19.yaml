@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-19-0006
-timestamp: 2026-03-18T23:06:23Z
+# Audit Results - 2026-03-19-0019
+timestamp: 2026-03-18T23:19:40Z
 summary:
-  pass: 108
-  warn: 7
+  pass: 106
+  warn: 10
   fail: 0
 findings:
   - level: PASS
@@ -26,7 +26,7 @@ findings:
   - level: PASS
     check: "All active tasks meet quality thresholds"
   - level: PASS
-    check: "Git traceability: 100% (380/380 commits reference tasks)"
+    check: "Git traceability: 100% (383/383 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -43,8 +43,12 @@ findings:
   - level: WARN
     check: "Bugfix-learning coverage: 25% (3/12)"
     mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX \"description\""
-  - level: PASS
-    check: "All completed tasks have episodic summaries"
+  - level: WARN
+    check: "Completed task T-183 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-183"
+  - level: WARN
+    check: "Completed task T-184 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-184"
   - level: PASS
     check: "All      154 episodic summaries have quality content"
   - level: PASS
@@ -67,12 +71,13 @@ findings:
     check: "C-002: No research warnings logged (clean or first run)"
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
-  - level: PASS
-    check: "CTL-001: Focus file has active task (T-182)"
+  - level: WARN
+    check: "CTL-001: Focus file empty but 11 commit(s) in last 30min"
+    mitigation: "Check .claude/settings.json hook configuration for check-active-task"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 3 (last commit: 66 seconds ago)"
+    check: "CTL-004: Tool counter at 0 (last commit: 26 seconds ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -158,11 +163,11 @@ findings:
     check: "CTL-012: Completed task T-101 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: PASS
+    check: "CTL-013: T-184 verification re-run: 1/1 pass"
+  - level: PASS
+    check: "CTL-013: T-183 verification re-run: 2/2 pass"
+  - level: PASS
     check: "CTL-013: T-179 verification re-run: 1/1 pass"
-  - level: PASS
-    check: "CTL-013: T-181 verification re-run: 3/3 pass"
-  - level: PASS
-    check: "CTL-013: T-172 verification re-run: 1/1 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -230,12 +235,12 @@ findings:
     check: "D5: Task lifecycle — 10 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) T-092(1min,human)"
     mitigation: "Review flagged tasks for process issues"
   - level: WARN
-    check: "D3: Commit velocity — WARN drop today=4 avg=27 ratio=0.1x"
+    check: "D3: Commit velocity — WARN drop today=7 avg=27 ratio=0.3x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 46_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 48_commits_24h)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=7.3 earlier=12.1)"
+    check: "D6: Completion velocity — normal (PASS recent=8.0 earlier=12.1)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS

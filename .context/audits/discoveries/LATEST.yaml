@@ -1,4 +1,4 @@
-timestamp: 2026-03-18T23:06:23Z
+timestamp: 2026-03-18T23:19:40Z
 findings:
   - id: D1
     level: PASS
@@ -25,14 +25,14 @@ findings:
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: WARN
-    check: "D3: Commit velocity — WARN drop today=4 avg=27 ratio=0.1x"
+    check: "D3: Commit velocity — WARN drop today=7 avg=27 ratio=0.3x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 46_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 48_commits_24h)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=7.3 earlier=12.1)"
+    check: "D6: Completion velocity — normal (PASS recent=8.0 earlier=12.1)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
