@@ -26,14 +26,14 @@ token auth pattern (server.rs:24-108). Replicate for hub. See docs/reports/T-163
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Hub generates `token_secret` on startup, writes to `hub.secret` in runtime dir (600 perms)
-- [ ] TCP connections default to zero scope — only `hub.auth` method allowed
-- [ ] Unix connections keep current behavior (same-UID → full access)
-- [ ] `hub.auth` RPC validates token and upgrades connection scope
-- [ ] Hub-specific method scope mapping (discover=Observe, broadcast/register_remote=Interact, forward=per-method)
-- [ ] All existing hub tests pass
-- [ ] New tests: TCP connection rejected without auth, TCP connection works after auth
-- [ ] `hub start --tcp` prints token or path to hub.secret for client use
+- [x] Hub generates `token_secret` on startup, writes to `hub.secret` in runtime dir (600 perms)
+- [x] TCP connections default to zero scope — only `hub.auth` method allowed
+- [x] Unix connections keep current behavior (same-UID → full access)
+- [x] `hub.auth` RPC validates token and upgrades connection scope
+- [x] Hub-specific method scope mapping (discover=Observe, broadcast/register_remote=Interact, forward=per-method)
+- [x] All existing hub tests pass
+- [x] New tests: TCP connection rejected without auth, TCP connection works after auth
+- [x] `hub start --tcp` prints token or path to hub.secret for client use
 
 ### Human
 - [ ] [REVIEW] Verify TCP auth works end-to-end

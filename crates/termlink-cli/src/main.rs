@@ -3189,12 +3189,20 @@ async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
         println!("  TCP:     {}", addr);
     }
     println!("  Pidfile: {}", pidfile_path.display());
-    println!();
-    println!("Listening for connections... (Ctrl+C to stop)");
 
     let handle = termlink_hub::server::run_with_tcp(&socket_path, tcp_addr)
         .await
         .context("Hub server error")?;
+
+    if tcp_addr.is_some() {
+        let secret_path = termlink_hub::server::hub_secret_path();
+        println!("  Secret:  {}", secret_path.display());
+        println!();
+        println!("TCP auth required. Clients must call 'hub.auth' with a token.");
+        println!("Read the secret: cat {}", secret_path.display());
+    }
+    println!();
+    println!("Listening for connections... (Ctrl+C to stop)");
 
     // Wait for Ctrl+C, then trigger graceful shutdown
     tokio::signal::ctrl_c().await.ok();

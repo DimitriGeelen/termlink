@@ -4,7 +4,9 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::watch;
 
-use termlink_protocol::jsonrpc::{ErrorResponse, Request, RpcResponse};
+use termlink_protocol::control;
+use termlink_protocol::jsonrpc::{ErrorResponse, Request, Response, RpcResponse};
+use termlink_session::auth::{self, PermissionScope};
 use termlink_session::auth::PeerCredentials;
 use termlink_session::discovery;
 
@@ -16,6 +18,11 @@ use crate::supervisor;
 /// Return the well-known hub socket path: `runtime_dir()/hub.sock`.
 pub fn hub_socket_path() -> PathBuf {
     discovery::runtime_dir().join("hub.sock")
+}
+
+/// Return the hub secret file path: `runtime_dir()/hub.secret`.
+pub fn hub_secret_path() -> PathBuf {
+    discovery::runtime_dir().join("hub.secret")
 }
 
 /// A handle to signal the hub to shut down gracefully.
@@ -30,6 +37,31 @@ impl ShutdownHandle {
     pub fn shutdown(&self) {
         let _ = self.tx.send(true);
     }
+}
+
+/// Generate a hub secret and write it to the hub.secret file (mode 0600).
+///
+/// Returns the hex-encoded secret string.
+fn generate_and_write_hub_secret() -> std::io::Result<String> {
+    let secret = auth::generate_secret();
+    let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+    let path = hub_secret_path();
+    // Ensure parent dir exists
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&path, &secret_hex)?;
+
+    // Set file permissions to 0600 (owner read/write only)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    }
+
+    tracing::info!(path = %path.display(), "Hub secret written");
+    Ok(secret_hex)
 }
 
 /// Start the hub server, binding to the given socket path.
@@ -49,7 +81,8 @@ pub async fn run(socket_path: &Path) -> std::io::Result<ShutdownHandle> {
 /// Start the hub server with optional TCP listener.
 ///
 /// When `tcp_addr` is provided (e.g., "0.0.0.0:9100"), the hub listens on
-/// both the Unix socket and the TCP address simultaneously.
+/// both the Unix socket and the TCP address simultaneously. A hub secret is
+/// generated and written to `hub.secret` for TCP auth.
 pub async fn run_with_tcp(
     socket_path: &Path,
     tcp_addr: Option<&str>,
@@ -71,6 +104,13 @@ pub async fn run_with_tcp(
 
     let unix_listener = UnixListener::bind(socket_path)?;
     tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
+
+    // Generate hub secret when TCP is enabled
+    let token_secret = if tcp_addr.is_some() {
+        Some(generate_and_write_hub_secret()?)
+    } else {
+        None
+    };
 
     // Optional TCP listener
     let tcp_listener = if let Some(addr) = tcp_addr {
@@ -104,10 +144,11 @@ pub async fn run_with_tcp(
 
     let socket_path_owned = socket_path.to_path_buf();
     tokio::spawn(async move {
-        run_accept_loop(unix_listener, tcp_listener, shutdown_rx).await;
+        run_accept_loop(unix_listener, tcp_listener, token_secret, shutdown_rx).await;
 
         // Cleanup on exit
         let _ = std::fs::remove_file(&socket_path_owned);
+        let _ = std::fs::remove_file(hub_secret_path());
         pidfile::remove(&pidfile_path);
         tracing::info!("Hub shut down cleanly");
     });
@@ -138,6 +179,13 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     let unix_listener = UnixListener::bind(socket_path)?;
     tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
 
+    // Generate hub secret when TCP is enabled
+    let token_secret = if tcp_addr.is_some() {
+        Some(generate_and_write_hub_secret()?)
+    } else {
+        None
+    };
+
     let tcp_listener = if let Some(addr) = tcp_addr {
         let listener = TcpListener::bind(addr).await.map_err(|e| {
             std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
@@ -150,25 +198,142 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     };
 
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
-    run_accept_loop(unix_listener, tcp_listener, shutdown_rx).await;
+    run_accept_loop(unix_listener, tcp_listener, token_secret, shutdown_rx).await;
 
     // Cleanup on exit
+    let _ = std::fs::remove_file(hub_secret_path());
     pidfile::remove(&pidfile_path);
     Ok(())
+}
+
+/// Map hub RPC methods to their required permission scopes.
+///
+/// Hub-specific methods have their own scope mapping. Forwarded methods
+/// (anything not handled directly by the hub) use `auth::method_scope()`.
+fn hub_method_scope(method: &str) -> PermissionScope {
+    match method {
+        // Observe: read-only hub operations
+        control::method::SESSION_DISCOVER
+        | control::method::EVENT_COLLECT => PermissionScope::Observe,
+
+        // Interact: mutates hub state or fan-out operations
+        control::method::EVENT_BROADCAST
+        | "session.register_remote"
+        | "session.heartbeat"
+        | "session.deregister_remote" => PermissionScope::Interact,
+
+        // Forwarded methods: use per-method scope from the session auth model
+        _ => auth::method_scope(method),
+    }
+}
+
+/// Convert a hex string to a 32-byte array (for token_secret decoding).
+fn hex_to_bytes(hex: &str) -> Option<[u8; 32]> {
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(bytes)
+}
+
+/// Handle a `hub.auth` request — validate the token and upgrade connection scope.
+fn handle_hub_auth_token(
+    req: &Request,
+    token_secret: &Option<String>,
+    granted_scope: &mut Option<PermissionScope>,
+    id: serde_json::Value,
+) -> Option<RpcResponse> {
+    let secret = match token_secret {
+        Some(s) => s,
+        None => {
+            return Some(
+                ErrorResponse::new(
+                    id,
+                    control::error_code::AUTH_DENIED,
+                    "Token authentication not configured for this hub",
+                )
+                .into(),
+            );
+        }
+    };
+
+    let secret_bytes: auth::TokenSecret = match hex_to_bytes(secret) {
+        Some(b) => b,
+        None => {
+            tracing::error!("Invalid hub token_secret (not valid hex)");
+            return Some(
+                ErrorResponse::internal_error(id, "Internal auth configuration error").into(),
+            );
+        }
+    };
+
+    // Extract the token string from params
+    let token_str = match req.params.get("token").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => {
+            return Some(
+                ErrorResponse::new(
+                    id,
+                    control::error_code::AUTH_REQUIRED,
+                    "Missing 'token' parameter",
+                )
+                .into(),
+            );
+        }
+    };
+
+    // Validate the token (no session_id check — hub tokens are hub-scoped)
+    match auth::validate_token(&secret_bytes, token_str, None) {
+        Ok((_payload, scope)) => {
+            *granted_scope = Some(scope);
+            tracing::info!(
+                scope = %scope,
+                "Hub connection authenticated via token"
+            );
+            Some(
+                Response::success(
+                    id,
+                    serde_json::json!({
+                        "authenticated": true,
+                        "scope": scope.to_string(),
+                    }),
+                )
+                .into(),
+            )
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "Hub token validation failed");
+            Some(
+                ErrorResponse::new(
+                    id,
+                    control::error_code::AUTH_DENIED,
+                    &format!("Token validation failed: {e}"),
+                )
+                .into(),
+            )
+        }
+    }
 }
 
 /// Accept loop: spawns a task per connection.
 ///
 /// Rejects connections from different UIDs (same security model as session server).
+/// TCP connections start unauthenticated (only `hub.auth` allowed).
+/// Unix connections from the same UID get full access.
 /// Stops accepting when the shutdown signal is received, then waits up to 5 seconds
 /// for active connections to complete.
 pub async fn run_accept_loop(
     unix_listener: UnixListener,
     tcp_listener: Option<TcpListener>,
+    token_secret: Option<String>,
     mut shutdown_rx: watch::Receiver<bool>,
 ) {
     let owner_uid = unsafe { libc::getuid() };
     let active_connections = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let token_secret = std::sync::Arc::new(token_secret);
 
     loop {
         // Select over Unix listener, optional TCP listener, and shutdown signal
@@ -197,10 +362,17 @@ pub async fn run_accept_loop(
                             }
                         }
 
+                        // Unix same-UID connections get full access (no auth needed)
                         let counter = active_connections.clone();
+                        let secret = token_secret.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         tokio::spawn(async move {
-                            handle_connection(stream).await;
+                            handle_connection(
+                                stream,
+                                Some(PermissionScope::Execute),
+                                (*secret).clone(),
+                            )
+                            .await;
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
                     }
@@ -221,13 +393,15 @@ pub async fn run_accept_loop(
                     Ok((stream, peer_addr)) => {
                         tracing::info!(
                             %peer_addr,
-                            "Hub: TCP connection accepted (no auth — LAN-only)"
+                            "Hub: TCP connection accepted (unauthenticated — hub.auth required)"
                         );
 
+                        // TCP connections start with zero scope (unauthenticated)
                         let counter = active_connections.clone();
+                        let secret = token_secret.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         tokio::spawn(async move {
-                            handle_connection(stream).await;
+                            handle_connection(stream, None, (*secret).clone()).await;
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
                     }
@@ -259,16 +433,23 @@ pub async fn run_accept_loop(
     }
 }
 
-/// Handle a single hub client connection.
+/// Handle a single hub client connection with auth enforcement.
 ///
-/// Reads newline-delimited JSON-RPC, routes via [`router::route`],
-/// writes newline-delimited JSON-RPC responses.
-async fn handle_connection<S>(stream: S)
-where
+/// `granted_scope`:
+/// - `Some(Execute)` for Unix same-UID connections (full access)
+/// - `None` for TCP connections (unauthenticated — only `hub.auth` allowed)
+///
+/// The scope can be upgraded via `hub.auth` with a valid token.
+async fn handle_connection<S>(
+    stream: S,
+    initial_scope: Option<PermissionScope>,
+    token_secret: Option<String>,
+) where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let (reader, mut writer) = tokio::io::split(stream);
     let mut lines = BufReader::new(reader).lines();
+    let mut granted_scope = initial_scope;
 
     while let Ok(Some(line)) = lines.next_line().await {
         let line = line.trim().to_string();
@@ -277,7 +458,61 @@ where
         }
 
         let response = match serde_json::from_str::<Request>(&line) {
-            Ok(req) => router::route(&req).await,
+            Ok(req) => {
+                if req.method == control::method::HUB_AUTH {
+                    // hub.auth is always allowed (it's the authentication mechanism)
+                    let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+                    handle_hub_auth_token(&req, &token_secret, &mut granted_scope, id)
+                } else if req.is_notification() {
+                    // Notifications don't get responses
+                    router::route(&req).await
+                } else {
+                    match granted_scope {
+                        None => {
+                            // Unauthenticated — only hub.auth is allowed
+                            let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+                            tracing::warn!(
+                                method = %req.method,
+                                "Hub: rejected unauthenticated request"
+                            );
+                            Some(
+                                ErrorResponse::new(
+                                    id,
+                                    control::error_code::AUTH_REQUIRED,
+                                    "Authentication required. Call 'hub.auth' with a valid token first.",
+                                )
+                                .into(),
+                            )
+                        }
+                        Some(scope) => {
+                            // Check permission scope
+                            let required = hub_method_scope(&req.method);
+                            if !scope.satisfies(required) {
+                                let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+                                tracing::warn!(
+                                    method = %req.method,
+                                    required = %required,
+                                    granted = %scope,
+                                    "Hub: permission denied"
+                                );
+                                Some(
+                                    ErrorResponse::new(
+                                        id,
+                                        control::error_code::AUTH_DENIED,
+                                        &format!(
+                                            "Permission denied: '{}' requires '{}' scope, connection has '{}'",
+                                            req.method, required, scope
+                                        ),
+                                    )
+                                    .into(),
+                                )
+                            } else {
+                                router::route(&req).await
+                            }
+                        }
+                    }
+                }
+            }
             Err(e) => {
                 tracing::warn!(error = %e, "Hub: failed to parse JSON-RPC request");
                 Some(ErrorResponse::parse_error().into())
@@ -362,13 +597,13 @@ mod tests {
         (handle, reg)
     }
 
-    /// Start the hub server on the given socket with a shutdown handle.
+    /// Start the hub server on the given socket with a shutdown handle (Unix only, no auth).
     fn start_hub_with_shutdown(socket: PathBuf) -> (tokio::task::JoinHandle<()>, watch::Sender<bool>) {
         let (tx, rx) = watch::channel(false);
         let handle = tokio::spawn(async move {
             let _ = std::fs::remove_file(&socket);
             let listener = UnixListener::bind(&socket).unwrap();
-            run_accept_loop(listener, None, rx).await;
+            run_accept_loop(listener, None, None, rx).await;
         });
         (handle, tx)
     }
@@ -570,9 +805,14 @@ mod tests {
         let hub_socket = hub_sock(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
+        // Generate a secret for this test
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
         // Start hub with both Unix and TCP listeners
         let (tx, rx) = watch::channel(false);
         let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
         let hub_handle = tokio::spawn(async move {
             let _ = std::fs::remove_file(&socket_clone);
             let unix_listener = UnixListener::bind(&socket_clone).unwrap();
@@ -581,7 +821,7 @@ mod tests {
             let tcp_port = tcp_listener.local_addr().unwrap().port();
             // Write port to file so test can read it
             std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
-            run_accept_loop(unix_listener, Some(tcp_listener), rx).await;
+            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
         });
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -591,7 +831,7 @@ mod tests {
             .parse()
             .unwrap();
 
-        // 1. Connect via Unix and send a request
+        // 1. Connect via Unix and send a request (should work — full access)
         let unix_stream = tokio::net::UnixStream::connect(&hub_socket).await.unwrap();
         let (reader, mut writer) = unix_stream.into_split();
         let mut lines = BufReader::new(reader).lines();
@@ -608,7 +848,7 @@ mod tests {
         assert_eq!(resp["id"], "unix-1");
         assert!(resp["result"].is_object(), "Unix connection should get valid response");
 
-        // 2. Connect via TCP and send same request
+        // 2. Connect via TCP — unauthenticated requests should be rejected
         let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
             .await
             .unwrap();
@@ -618,17 +858,289 @@ mod tests {
         let req = json!({
             "jsonrpc": "2.0",
             "method": "session.discover",
-            "id": "tcp-1",
+            "id": "tcp-noauth",
             "params": {}
         });
         writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
         let resp_line = lines.next_line().await.unwrap().unwrap();
         let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
-        assert_eq!(resp["id"], "tcp-1");
-        assert!(resp["result"].is_object(), "TCP connection should get valid response");
+        assert_eq!(resp["id"], "tcp-noauth");
+        assert_eq!(
+            resp["error"]["code"], -32009,
+            "TCP without auth should get AUTH_REQUIRED"
+        );
+
+        // 3. Authenticate via hub.auth with a valid token
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "hub.auth",
+            "id": "auth-1",
+            "params": { "token": token.raw }
+        });
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+        assert_eq!(resp["result"]["authenticated"], true);
+        assert_eq!(resp["result"]["scope"], "execute");
+
+        // 4. After auth, discover should work
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "session.discover",
+            "id": "tcp-authed",
+            "params": {}
+        });
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+        assert_eq!(resp["id"], "tcp-authed");
+        assert!(resp["result"].is_object(), "Authenticated TCP should get valid response");
 
         // Cleanup
         tx.send(true).unwrap();
         let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    #[tokio::test]
+    async fn tcp_rejected_without_auth() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (reader, mut writer) = tcp_stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Try discover without auth
+        let req = json!({"jsonrpc": "2.0", "method": "session.discover", "id": "r1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32009, "Should get AUTH_REQUIRED");
+        assert!(resp["error"]["message"].as_str().unwrap().contains("Authentication required"));
+
+        // Try a forwarded method without auth
+        let req = json!({"jsonrpc": "2.0", "method": "termlink.ping", "id": "r2", "params": {"target": "foo"}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32009, "Forwarded methods also require auth");
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    #[tokio::test]
+    async fn tcp_works_after_auth() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (reader, mut writer) = tcp_stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Authenticate
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let req = json!({"jsonrpc": "2.0", "method": "hub.auth", "id": "a1", "params": {"token": token.raw}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["result"]["authenticated"], true);
+
+        // After auth, discover should succeed
+        let req = json!({"jsonrpc": "2.0", "method": "session.discover", "id": "d1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(resp["result"]["sessions"].is_array(), "Discover should work after auth");
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    #[tokio::test]
+    async fn tcp_wrong_token_rejected() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (reader, mut writer) = tcp_stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Try auth with wrong secret
+        let wrong_secret = auth::generate_secret();
+        let token = auth::create_token(&wrong_secret, PermissionScope::Execute, "", 3600);
+        let req = json!({"jsonrpc": "2.0", "method": "hub.auth", "id": "a1", "params": {"token": token.raw}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32010, "Wrong token should be rejected");
+
+        // Connection should still be unauthenticated
+        let req = json!({"jsonrpc": "2.0", "method": "session.discover", "id": "d1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32009, "Still unauthenticated after bad token");
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    #[tokio::test]
+    async fn tcp_scope_enforcement() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (reader, mut writer) = tcp_stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Auth with Observe-only scope
+        let token = auth::create_token(&secret, PermissionScope::Observe, "", 3600);
+        let req = json!({"jsonrpc": "2.0", "method": "hub.auth", "id": "a1", "params": {"token": token.raw}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["result"]["scope"], "observe");
+
+        // Discover should work (Observe)
+        let req = json!({"jsonrpc": "2.0", "method": "session.discover", "id": "d1", "params": {}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(resp["result"]["sessions"].is_array(), "Discover should work with Observe");
+
+        // Broadcast should be denied (requires Interact)
+        let req = json!({"jsonrpc": "2.0", "method": "event.broadcast", "id": "b1", "params": {"topic": "test", "payload": {}}});
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["error"]["code"], -32010, "Broadcast should be denied with Observe scope");
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    #[tokio::test]
+    async fn hub_method_scope_mapping() {
+        // Observe tier
+        assert_eq!(hub_method_scope("session.discover"), PermissionScope::Observe);
+        assert_eq!(hub_method_scope("event.collect"), PermissionScope::Observe);
+
+        // Interact tier
+        assert_eq!(hub_method_scope("event.broadcast"), PermissionScope::Interact);
+        assert_eq!(hub_method_scope("session.register_remote"), PermissionScope::Interact);
+        assert_eq!(hub_method_scope("session.heartbeat"), PermissionScope::Interact);
+        assert_eq!(hub_method_scope("session.deregister_remote"), PermissionScope::Interact);
+
+        // Forwarded methods use session auth model
+        assert_eq!(hub_method_scope("termlink.ping"), PermissionScope::Observe);
+        assert_eq!(hub_method_scope("command.execute"), PermissionScope::Execute);
+        assert_eq!(hub_method_scope("command.inject"), PermissionScope::Control);
+        assert_eq!(hub_method_scope("event.emit"), PermissionScope::Interact);
+
+        // Unknown defaults to Execute
+        assert_eq!(hub_method_scope("unknown.method"), PermissionScope::Execute);
     }
 }
