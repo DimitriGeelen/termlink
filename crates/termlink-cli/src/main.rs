@@ -3051,9 +3051,13 @@ async fn cmd_request(
                         }
                     }
 
-                    // Update cursor for next poll
-                    if let Some(next) = result["next_seq"].as_u64() {
-                        poll_cursor = if next > 0 { Some(next - 1) } else { None };
+                    // Update cursor only when events were received
+                    if let Some(events) = result["events"].as_array() {
+                        if !events.is_empty() {
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                poll_cursor = Some(next);
+                            }
+                        }
                     }
                 }
             }
@@ -3593,8 +3597,12 @@ async fn cmd_agent_ask(
                         }
                     }
 
-                    if let Some(next) = result["next_seq"].as_u64() {
-                        poll_cursor = Some(next);
+                    if let Some(events) = result["events"].as_array() {
+                        if !events.is_empty() {
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                poll_cursor = Some(next);
+                            }
+                        }
                     }
                 }
             }
@@ -3634,18 +3642,8 @@ async fn cmd_agent_listen(
     };
     let poll_interval = std::time::Duration::from_millis(interval);
 
-    // Get initial cursor
-    let mut poll_cursor: Option<u64> = {
-        let params = serde_json::json!({});
-        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
-            Ok(resp) => {
-                if let Ok(result) = client::unwrap_result(resp) {
-                    result["next_seq"].as_u64()
-                } else { None }
-            }
-            Err(_) => None,
-        }
-    };
+    // Start with no cursor — first poll gets all events, then track via next_seq.
+    let mut poll_cursor: Option<u64> = None;
 
     loop {
         let mut params = serde_json::json!({ "topic": agent_topic::REQUEST });
@@ -3673,8 +3671,12 @@ async fn cmd_agent_listen(
                         }
                     }
 
-                    if let Some(next) = result["next_seq"].as_u64() {
-                        poll_cursor = Some(next);
+                    if let Some(events) = result["events"].as_array() {
+                        if !events.is_empty() {
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                poll_cursor = Some(next);
+                            }
+                        }
                     }
                 }
             }
@@ -3816,18 +3818,9 @@ async fn cmd_file_receive(
     let timeout_dur = std::time::Duration::from_secs(timeout);
     let poll_interval = std::time::Duration::from_millis(interval);
 
-    // Get initial cursor
-    let mut poll_cursor: Option<u64> = {
-        let params = serde_json::json!({});
-        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
-            Ok(resp) => {
-                if let Ok(result) = client::unwrap_result(resp) {
-                    result["next_seq"].as_u64()
-                } else { None }
-            }
-            Err(_) => None,
-        }
-    };
+    // Start with no cursor — first poll gets all events, then track via next_seq.
+    // (since: 0 would skip seq 0, missing the file.init event)
+    let mut poll_cursor: Option<u64> = None;
 
     // State machine: waiting for init → collecting chunks → complete
     let mut transfer_id: Option<String> = None;
@@ -3930,8 +3923,14 @@ async fn cmd_file_receive(
                         }
                     }
 
-                    if let Some(next) = result["next_seq"].as_u64() {
-                        poll_cursor = Some(next);
+                    // Only advance cursor when events were returned — avoids
+                    // skipping seq 0 when the bus was empty on first poll.
+                    if let Some(events) = result["events"].as_array() {
+                        if !events.is_empty() {
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                poll_cursor = Some(next);
+                            }
+                        }
                     }
                 }
             }
