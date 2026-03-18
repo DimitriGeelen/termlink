@@ -74,13 +74,13 @@ This must be secure — an open TCP port on LAN should not expose agent I/O to u
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions A1-A6 assessed
-- [ ] Security model for LAN TCP hub evaluated
-- [ ] File transfer approach recommended
-- [ ] Agent message protocol sketched
-- [ ] Research artifact written (docs/reports/T-163-*.md)
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions A1-A6 assessed
+- [x] Security model for LAN TCP hub evaluated
+- [x] File transfer approach recommended
+- [x] Agent message protocol sketched
+- [x] Research artifact written (docs/reports/T-163-*.md)
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 

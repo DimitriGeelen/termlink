@@ -1322,8 +1322,13 @@ mod tests {
 
     #[tokio::test]
     async fn forward_to_remote_session_via_tcp() {
+        let _lock = ENV_LOCK.lock().unwrap();
         // Start a real session listening on TCP
         let dir = test_dir();
+        // Isolate runtime dir so connect_addr won't find a stale hub.cert.pem
+        // from a previous real hub run (T-165 TLS auto-detection).
+        // SAFETY: ENV_LOCK ensures single-threaded access to env vars in tests.
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", dir.to_str().unwrap()) };
         let (handle, reg) = start_test_session(&dir, "tcp-target").await;
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
