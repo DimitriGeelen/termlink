@@ -57,3 +57,10 @@ learnings:
   date: 2026-03-18
   context: Added via context agent
   application: TBD
+- id: L-009
+  learning: "Framework task gate check-active-task.sh blocks worker agents in mesh dispatch — workers need bypass or separate task assignment before they can write files"
+  source: P-001
+  task: T-119
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD

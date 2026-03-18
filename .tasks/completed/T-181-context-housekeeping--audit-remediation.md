@@ -3,7 +3,7 @@ id: T-181
 name: "Context housekeeping — audit remediation"
 description: >
   Remediate audit warnings: expand short task descriptions, fill empty episodic summaries, generate missing episodics, create missing inception research artifacts, add bugfix learnings
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -11,8 +11,8 @@ tags: [housekeeping, audit]
 components: []
 related_tasks: []
 created: 2026-03-18T22:46:27Z
-last_update: 2026-03-18T22:46:27Z
-date_finished: null
+last_update: 2026-03-18T22:47:41Z
+date_finished: 2026-03-18T22:47:41Z
 ---
 
 # T-181: Context housekeeping — audit remediation
@@ -30,7 +30,7 @@ Remediate 7 fixable warnings from `fw audit` run on 2026-03-18.
 - [x] T-159 episodic generated
 - [x] T-013 research artifact created in docs/reports/
 - [x] Bugfix-learning coverage improved (4 learnings added: L-005 through L-008, coverage 50%)
-- [ ] Uncommitted changes committed
+- [x] Uncommitted changes committed
 
 ## Verification
 
@@ -55,3 +55,6 @@ python3 -c "import yaml; d=yaml.safe_load(open('.context/episodic/T-072.yaml'));
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-181-context-housekeeping--audit-remediation.md
 - **Context:** Initial task creation
+
+### 2026-03-18T22:47:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
