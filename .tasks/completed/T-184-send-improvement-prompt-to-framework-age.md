@@ -4,7 +4,7 @@ name: "Send improvement prompt to framework agent on remote via TermLink"
 description: >
   Use TermLink cross-machine communication (TOFU TLS + hub forwarding) to inject a task-creation prompt into a framework Claude session running on 192.168.10.107. Tests T-178 + T-182 end-to-end for the real use case.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [cross-machine, termlink, framework]
 components: []
 related_tasks: []
 created: 2026-03-18T23:16:54Z
-last_update: 2026-03-18T23:16:54Z
-date_finished: null
+last_update: 2026-03-18T23:19:34Z
+date_finished: 2026-03-18T23:19:34Z
 ---
 
 # T-184: Send improvement prompt to framework agent on remote via TermLink
@@ -50,3 +50,6 @@ test -f crates/termlink-session/examples/tofu_test.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-184-send-improvement-prompt-to-framework-age.md
 - **Context:** Initial task creation
+
+### 2026-03-18T23:19:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
