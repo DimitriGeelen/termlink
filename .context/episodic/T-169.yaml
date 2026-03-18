@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-169: CLI commands for agent communication
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T19:15:55Z
+# ============================================================================
+
+task_id: T-169
+task_name: "CLI commands for agent communication"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-18T10:08:40Z
+completed: 2026-03-18T18:08:57Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-18T19:08:52+01:00
+last_commit: 2026-03-18T19:08:52+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI commands for agent communication (agent ask/listen)
+
+# Key outcomes
+outcomes:
+  - "`Agent` subcommand group added to CLI: `termlink agent <subcommand>`"
+  - "`agent ask <target> --action <action> [--params <json>] [--from <name>] [--timeout <secs>]` sends typed `AgentRequest`, waits for correlated `AgentResponse`, prints result"
+  - "`agent listen <target> [--timeout <secs>]` watches for incoming `agent.request` events on a session and prints them as they arrive"
+  - "`agent ask` generates a ULID-style request_id automatically"
+  - "`agent ask` prints intermediate `agent.status` events while waiting for the final response"
+  - "All existing CLI tests pass (`cargo test --package termlink`)"
+  - "`termlink agent --help` shows both subcommands with descriptions"
+  - "[REVIEW] Run `termlink agent ask <session> --action ping` against a live session and verify output format"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-169-cli-commands-for-agent-communication.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-18T19:08:52"
+    action: "T-169: CLI commands for agent communication (agent ask/listen)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, agent-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 317
+  lines_removed: 27
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-169-cli-commands-for-agent-communication.md
+generated_by: context-agent-hybrid

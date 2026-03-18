@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-168: File transfer via base64 chunked events
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T19:14:54Z
+# ============================================================================
+
+task_id: T-168
+task_name: "File transfer via base64 chunked events"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-18T10:08:38Z
+completed: 2026-03-18T18:31:32Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-18T19:31:24+01:00
+last_commit: 2026-03-18T19:31:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  File transfer via base64 chunked events
+
+# Key outcomes
+outcomes:
+  - "Event schemas added to `termlink-protocol/src/events.rs`: `FileInit`, `FileChunk`, `FileComplete`, `FileError` with `file_topic` constants"
+  - "Schema roundtrip tests for all file transfer event types"
+  - "`termlink file send <target> <path>` reads file, chunks to base64, emits events to target session"
+  - "`termlink file receive <target> [--output-dir <dir>] [--timeout <secs>]` polls for file events, reassembles, writes to disk"
+  - "SHA-256 checksum verified on receive, error printed on mismatch"
+  - "Integration test: send file between two sessions, verify content matches"
+  - "All existing tests pass (`cargo test --workspace`)"
+  - "[REVIEW] Transfer a binary file between two local sessions and verify integrity"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-168-file-transfer-via-base64-chunked-events.md"
+  - "crates/termlink-cli/Cargo.toml"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-protocol/src/events.rs"
+  - "crates/termlink-session/tests/integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-18T19:31:24"
+    action: "T-168: File transfer via base64 chunked events"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [file-transfer, agent-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 5
+  lines_added: 589
+  lines_removed: 28
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-168-file-transfer-via-base64-chunked-events.md
+generated_by: context-agent-hybrid

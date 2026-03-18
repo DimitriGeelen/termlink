@@ -4,7 +4,7 @@ name: "Fix event poll cursor off-by-one in CLI commands"
 description: >
   Fix event poll cursor off-by-one in CLI commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-18T18:48:54Z
-last_update: 2026-03-18T18:48:54Z
-date_finished: null
+last_update: 2026-03-18T19:09:02Z
+date_finished: 2026-03-18T19:09:02Z
 ---
 
 # T-171: Fix event poll cursor off-by-one in CLI commands
@@ -51,3 +51,6 @@ bash -c 'out=$(/Users/dimidev32/.cargo/bin/cargo test --package termlink 2>&1); 
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-171-fix-event-poll-cursor-off-by-one-in-cli-.md
 - **Context:** Initial task creation
+
+### 2026-03-18T19:09:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

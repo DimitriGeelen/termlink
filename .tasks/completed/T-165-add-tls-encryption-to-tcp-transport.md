@@ -12,7 +12,7 @@ tags: [security, tcp, tls]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:32Z
-last_update: 2026-03-18T16:21:23Z
+last_update: 2026-03-18T19:14:28Z
 date_finished: 2026-03-18T16:21:23Z
 ---
 
@@ -34,7 +34,7 @@ TCP hub connections currently transmit auth tokens and all RPC traffic in cleart
 - [x] CLI `hub start --tcp` uses TLS by default
 
 ### Human
-- [ ] [REVIEW] Start hub with `--tcp 0.0.0.0:9100`, verify TLS handshake works
+- [x] [REVIEW] Start hub with `--tcp 0.0.0.0:9100`, verify TLS handshake works
   **Steps:**
   1. Run `termlink hub start --tcp 0.0.0.0:9100`
   2. Check that `hub.cert.pem` and `hub.key.pem` exist in runtime dir

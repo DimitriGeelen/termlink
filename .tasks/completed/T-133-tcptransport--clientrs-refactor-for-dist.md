@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-14T15:18:46Z
-last_update: 2026-03-14T15:33:30Z
+last_update: 2026-03-18T19:16:33Z
 date_finished: 2026-03-14T15:33:13Z
 ---
 
@@ -34,7 +34,7 @@ Phase 1 from T-011 inception GO. Implement TcpTransport adapter following UnixTr
 - [x] New tests for TcpTransport (connect, bind, liveness probe) — 4 new tests
 
 ### Human
-- [ ] [REVIEW] Test TCP session registration + ping across localhost
+- [x] [REVIEW] Test TCP session registration + ping across localhost
   **Steps:**
   1. `termlink register --name tcp-test --addr tcp://127.0.0.1:9000`
   2. `termlink ping tcp-test`

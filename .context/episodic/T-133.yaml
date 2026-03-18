@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-133: TcpTransport + client.rs refactor for distributed sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T19:16:33Z
+# ============================================================================
+
+task_id: T-133
+task_name: "TcpTransport + client.rs refactor for distributed sessions"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-14T15:18:46Z
+completed: 2026-03-14T15:33:30Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-14T16:33:28+01:00
+last_commit: 2026-03-14T16:33:28+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  TcpTransport + TcpLivenessProbe + client.rs addr refactor — distributed sessions Phase 1
+
+# Key outcomes
+outcomes:
+  - "`TcpTransport` struct implements `Transport` trait (connect + bind)"
+  - "`TcpLivenessProbe` implements `LivenessProbe` (TCP connect with timeout)"
+  - "`client::Client::connect_addr` accepts `&TransportAddr` (+ backward-compat `connect(&Path)`)"
+  - "`client::rpc_call_addr` accepts `&TransportAddr` (+ backward-compat `rpc_call(&Path)`)"
+  - "Hub router uses `reg.addr.to_transport_addr()` instead of `reg.socket_path()` for routing"
+  - "All existing tests pass (249 total)"
+  - "New tests for TcpTransport (connect, bind, liveness probe) — 4 new tests"
+  - "[REVIEW] Test TCP session registration + ping across localhost"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-133-tcptransport--clientrs-refactor-for-dist.md"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/transport.rs"
+  - "crates/termlink-session/src/client.rs"
+  - "crates/termlink-session/src/registration.rs"
+  - "crates/termlink-session/src/transport.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T16:33:28"
+    action: "T-133: TcpTransport + TcpLivenessProbe + client.rs addr refactor — distributed sessions Phase 1"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 8
+  lines_added: 278
+  lines_removed: 24
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-133-tcptransport--clientrs-refactor-for-dist.md
+generated_by: context-agent-hybrid

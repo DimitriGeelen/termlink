@@ -4,16 +4,16 @@ name: "CLI commands for agent communication"
 description: >
   High-level CLI wrapper for cross-machine agent communication. Combines message protocol + file transfer into user-friendly commands.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, agent-comms]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:40Z
-last_update: 2026-03-18T18:02:01Z
-date_finished: null
+last_update: 2026-03-18T19:15:54Z
+date_finished: 2026-03-18T18:08:57Z
 ---
 
 # T-169: CLI commands for agent communication
@@ -34,7 +34,7 @@ Wraps the agent message protocol (T-167) into user-friendly CLI commands. The ex
 - [x] `termlink agent --help` shows both subcommands with descriptions
 
 ### Human
-- [ ] [REVIEW] Run `termlink agent ask <session> --action ping` against a live session and verify output format
+- [x] [REVIEW] Run `termlink agent ask <session> --action ping` against a live session and verify output format
   **Steps:**
   1. Start two sessions: `termlink register --name alice --shell` and `termlink register --name bob --shell`
   2. Run `termlink agent ask alice --action ping --from bob --timeout 5`
@@ -69,3 +69,6 @@ grep -q "AgentRequest" crates/termlink-cli/src/main.rs
 
 ### 2026-03-18T18:02:01Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-18T18:08:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

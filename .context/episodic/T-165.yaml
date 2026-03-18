@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-165: Add TLS encryption to TCP transport
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T19:14:29Z
+# ============================================================================
+
+task_id: T-165
+task_name: "Add TLS encryption to TCP transport"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-18T10:08:32Z
+completed: 2026-03-18T16:21:23Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-18T17:20:57+01:00
+last_commit: 2026-03-18T17:20:57+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add TLS encryption to TCP hub connections
+
+# Key outcomes
+outcomes:
+  - "`rcgen` + `tokio-rustls` + `rustls-pemfile` dependencies added to workspace and hub/session crates"
+  - "TLS module in hub crate: generates self-signed cert+key on startup, writes PEM to runtime dir"
+  - "Hub server wraps TCP accept with TLS acceptor before passing to `handle_connection`"
+  - "Client `connect_addr` wraps TCP streams with TLS connector (trusting hub's self-signed cert)"
+  - "Hub writes cert PEM path alongside hub.secret so clients can discover it"
+  - "All existing hub tests pass (TCP tests use TLS transparently)"
+  - "CLI `hub start --tcp` uses TLS by default"
+  - "[REVIEW] Start hub with `--tcp 0.0.0.0:9100`, verify TLS handshake works"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-165-add-tls-encryption-to-tcp-transport.md"
+  - ".tasks/completed/T-166-cross-machine-event-delivery-end-to-end-.md"
+  - "Cargo.toml"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/Cargo.toml"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "crates/termlink-hub/src/tls.rs"
+  - "crates/termlink-session/Cargo.toml"
+  - "crates/termlink-session/src/client.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-18T17:20:57"
+    action: "T-165: Add TLS encryption to TCP hub connections"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [security, tcp, tls]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 11
+  lines_added: 333
+  lines_removed: 57
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-165-add-tls-encryption-to-tcp-transport.md
+generated_by: context-agent-hybrid

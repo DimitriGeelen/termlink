@@ -13,7 +13,7 @@ tags: [session, pty, interactive, termios]
 components: []
 related_tasks: [T-010]
 created: 2026-03-12T20:17:46Z
-last_update: 2026-03-13T09:53:33Z
+last_update: 2026-03-18T19:16:14Z
 date_finished: 2026-03-13T09:53:33Z
 ---
 
@@ -36,7 +36,7 @@ can't distinguish raw vs canonical mode or detect password prompts (echo off).
 - [x] Tests: mode detection works for canonical (bash) and raw (cat with stty raw) modes
 
 ### Human
-- [ ] [REVIEW] Verify pty.mode returns correct state during vim session
+- [x] [REVIEW] Verify pty.mode returns correct state during vim session
   **Steps:** Start PTY session, run vim, call pty.mode RPC
   **Expected:** `raw: true, echo: false`
   **If not:** Report actual values

@@ -238,7 +238,14 @@
       "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/bin/fw upstream report --title \"update-task.sh declare -A fails on macOS bash 3.2 \\(line 599\\)\" 2>&1)",
       "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/bin/fw help 2>&1 | grep -i \"upstream\\\\|report\\\\|bug\")",
       "Bash(stdbuf:*)",
-      "Bash(sysctl:*)"
+      "Bash(sysctl:*)",
+      "Bash(bash -c 'out=$\\(/Users/dimidev32/.cargo/bin/cargo test --package termlink 2>&1\\); echo \"$out\" | grep -q \"0 failed\" && echo \"PASS: tests\" || echo \"FAIL: tests\"' && grep -q \"agent ask\" crates/termlink-cli/src/main.rs && echo \"PASS: agent ask\" && grep -q \"agent listen\" crates/termlink-cli/src/main.rs && echo \"PASS: agent listen\" && grep -q \"AgentRequest\" crates/termlink-cli/src/main.rs && echo \"PASS: AgentRequest\")",
+      "Bash(bash -c 'out=$\\(/Users/dimidev32/.cargo/bin/cargo test --package termlink 2>&1\\); echo \"$out\" | grep -q \"0 failed\"' && grep -q \"cmd_agent_ask\" crates/termlink-cli/src/main.rs && grep -q \"cmd_agent_listen\" crates/termlink-cli/src/main.rs && grep -q \"AgentRequest\" crates/termlink-cli/src/main.rs && echo \"ALL VERIFICATION PASSED\")",
+      "Bash(bash -c 'out=$\\(/Users/dimidev32/.cargo/bin/cargo test --workspace 2>&1\\); echo \"$out\" | grep \"test result\"')",
+      "Bash(TL=\"./target/release/termlink\" && echo \"Binary: $TL\" && $TL --version 2>&1 || echo \"no --version flag\")",
+      "Bash(TL=\"./target/release/termlink\" && $TL clean 2>&1)",
+      "Bash(TL=\"./target/release/termlink\"\necho \"=== T-169: Agent Ask ===\"\necho \"Sending agent ask to alice with 5s timeout...\"\n$TL agent ask alice --action ping --from bob --timeout 5 2>&1\nEXIT_CODE=$?\necho \"\"\necho \"Exit code: $EXIT_CODE\"\necho \"\\(Expected: non-zero due to timeout — no handler on alice to respond\\)\")",
+      "Bash(TL=\"./target/release/termlink\"\necho \"=== Direct poll test ===\"\necho \"1. Emit a test event:\"\n$TL event emit bob test.ping --payload '{\"hello\":\"world\"}' 2>&1\n\necho \"\"\necho \"2. Poll bob's events:\"\n$TL event poll bob 2>&1\n\necho \"\"\necho \"3. Poll with --since 0:\"\n$TL event poll bob --since 0 2>&1)"
     ]
   }
 }
