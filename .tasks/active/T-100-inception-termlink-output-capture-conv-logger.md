@@ -7,7 +7,7 @@ description: >
   and stream its output. This exploration asks: can we wrap a Claude Code session as a
   TermLink session, capture stdout, and extract conversation turns from the raw stream?
   Explore only — no implementation.
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,8 +15,8 @@ tags: [termlink, output-capture, conversation-logging, exploration]
 components: []
 related_tasks: [T-094, T-101, T-102, T-099]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-18T21:19:19Z
-date_finished: null
+last_update: 2026-03-18T21:29:51Z
+date_finished: 2026-03-18T21:29:51Z
 ---
 
 # T-100: Inception — TermLink Output Capture as Conversation Logger
@@ -88,7 +88,18 @@ grep -q "NO-GO" docs/reports/T-100-termlink-output-capture-conversation-logger.m
 
 ## Decisions
 
+**Decision**: NO-GO
+
+**Rationale**: JSONL transcript superior
+
+**Date**: 2026-03-18T21:29:51Z
 ## Decision
+
+**Decision**: NO-GO
+
+**Rationale**: JSONL transcript superior
+
+**Date**: 2026-03-18T21:29:51Z
 
 ## Updates
 
@@ -97,3 +108,25 @@ grep -q "NO-GO" docs/reports/T-100-termlink-output-capture-conversation-logger.m
 
 ### 2026-03-18T21:19:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-18T21:25:25Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** JSONL transcript (T-101) provides strictly superior structured data for conversation logging. TermLink capture is fragile (ANSI parsing), version-dependent, and redundant — /capture skill already exists via JSONL. TermLink value is real-time observation/injection, not logging.
+
+### 2026-03-18T21:29:45Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** JSONL transcript superior
+
+### 2026-03-18T21:29:51Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-03-18T21:29:51Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** JSONL transcript superior
+
+### 2026-03-18T21:29:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO
