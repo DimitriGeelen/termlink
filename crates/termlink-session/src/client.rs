@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
@@ -28,11 +29,27 @@ impl Client {
             TransportAddr::Tcp { host, port } => {
                 let stream = tokio::net::TcpStream::connect((host.as_str(), *port)).await?;
                 stream.set_nodelay(true)?;
-                let (reader, writer) = tokio::io::split(stream);
-                Ok(Self {
-                    writer: Box::new(writer),
-                    reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
-                })
+
+                // Try TLS if hub cert exists at well-known path
+                let cert_path = crate::discovery::runtime_dir().join("hub.cert.pem");
+                if cert_path.exists() {
+                    let connector = build_tls_connector(&cert_path)?;
+                    let host_owned = host.clone();
+                    let server_name = rustls::pki_types::ServerName::try_from(host_owned)
+                        .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
+                    let tls_stream = connector.connect(server_name, stream).await?;
+                    let (reader, writer) = tokio::io::split(tls_stream);
+                    Ok(Self {
+                        writer: Box::new(writer),
+                        reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                    })
+                } else {
+                    let (reader, writer) = tokio::io::split(stream);
+                    Ok(Self {
+                        writer: Box::new(writer),
+                        reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                    })
+                }
             }
         }
     }
@@ -140,6 +157,26 @@ pub enum ClientError {
 
     #[error("authentication failed: {0}")]
     AuthFailed(String),
+}
+
+/// Build a TLS connector that trusts the hub's self-signed certificate.
+fn build_tls_connector(cert_pem_path: &Path) -> std::io::Result<tokio_rustls::TlsConnector> {
+    let cert_pem = std::fs::read_to_string(cert_pem_path)?;
+    let certs = rustls_pemfile::certs(&mut std::io::BufReader::new(cert_pem.as_bytes()))
+        .collect::<Result<Vec<rustls::pki_types::CertificateDer<'_>>, _>>()?;
+
+    let mut root_store = rustls::RootCertStore::empty();
+    for cert in certs {
+        root_store.add(cert).map_err(|e| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, format!("failed to add cert: {e}"))
+        })?;
+    }
+
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+
+    Ok(tokio_rustls::TlsConnector::from(Arc::new(config)))
 }
 
 /// Extract the successful result from an RpcResponse, or format the error.

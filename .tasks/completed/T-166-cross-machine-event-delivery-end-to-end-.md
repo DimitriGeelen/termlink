@@ -4,7 +4,7 @@ name: "Cross-machine event delivery end-to-end test"
 description: >
   Validate that event.emit on machine A reaches machine B session via TCP hub. Test broadcast and collect across TCP.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [tcp, events]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:34Z
-last_update: 2026-03-18T16:04:09Z
-date_finished: null
+last_update: 2026-03-18T16:09:01Z
+date_finished: 2026-03-18T16:09:01Z
 ---
 
 # T-166: Cross-machine event delivery end-to-end test
@@ -56,3 +56,6 @@ grep -q "tcp_collect_aggregates_events" crates/termlink-hub/src/router.rs
 
 ### 2026-03-18T16:04:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-18T16:09:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

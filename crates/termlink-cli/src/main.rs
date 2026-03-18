@@ -3196,9 +3196,12 @@ async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
 
     if tcp_addr.is_some() {
         let secret_path = termlink_hub::server::hub_secret_path();
+        let cert_path = termlink_hub::tls::hub_cert_path();
         println!("  Secret:  {}", secret_path.display());
+        println!("  TLS cert: {}", cert_path.display());
         println!();
-        println!("TCP auth required. Clients must call 'hub.auth' with a token.");
+        println!("TCP connections use TLS with auto-generated self-signed certificate.");
+        println!("Auth required. Clients must call 'hub.auth' with a token.");
         println!("Read the secret: cat {}", secret_path.display());
     }
     println!();

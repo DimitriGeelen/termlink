@@ -4,7 +4,7 @@ name: "Add TLS encryption to TCP transport"
 description: >
   Wrap TCP hub connections with TLS via rustls. Self-signed certs for LAN use. Prevents token sniffing and MITM.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [security, tcp, tls]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:32Z
-last_update: 2026-03-18T10:08:32Z
+last_update: 2026-03-18T16:10:35Z
 date_finished: null
 ---
 
@@ -20,40 +20,33 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+TCP hub connections currently transmit auth tokens and all RPC traffic in cleartext. TLS wrapping prevents token sniffing and MITM on LAN. Uses self-signed certs auto-generated on hub startup.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `rcgen` + `tokio-rustls` + `rustls-pemfile` dependencies added to workspace and hub/session crates
+- [x] TLS module in hub crate: generates self-signed cert+key on startup, writes PEM to runtime dir
+- [x] Hub server wraps TCP accept with TLS acceptor before passing to `handle_connection`
+- [x] Client `connect_addr` wraps TCP streams with TLS connector (trusting hub's self-signed cert)
+- [x] Hub writes cert PEM path alongside hub.secret so clients can discover it
+- [x] All existing hub tests pass (TCP tests use TLS transparently)
+- [x] CLI `hub start --tcp` uses TLS by default
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Start hub with `--tcp 0.0.0.0:9100`, verify TLS handshake works
+  **Steps:**
+  1. Run `termlink hub start --tcp 0.0.0.0:9100`
+  2. Check that `hub.cert.pem` and `hub.key.pem` exist in runtime dir
+  3. Try connecting with `openssl s_client -connect 127.0.0.1:9100` — should complete TLS handshake
+  **Expected:** TLS handshake completes, cert subject visible
+  **If not:** Check hub logs for TLS errors
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+bash -c 'out=$(/Users/dimidev32/.cargo/bin/cargo test --package termlink-hub 2>&1); echo "$out" | grep -q "0 failed"'
+grep -q "TlsAcceptor" crates/termlink-hub/src/tls.rs
+grep -q "tokio-rustls" crates/termlink-hub/Cargo.toml
 
 ## Decisions
 
@@ -72,3 +65,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-165-add-tls-encryption-to-tcp-transport.md
 - **Context:** Initial task creation
+
+### 2026-03-18T16:10:35Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

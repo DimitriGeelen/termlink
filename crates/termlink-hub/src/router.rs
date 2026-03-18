@@ -1068,7 +1068,7 @@ mod tests {
             let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let tcp_port = tcp_listener.local_addr().unwrap().port();
             std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
-            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
         });
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 

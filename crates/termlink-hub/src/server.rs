@@ -14,6 +14,7 @@ use crate::pidfile;
 use crate::remote_store;
 use crate::router;
 use crate::supervisor;
+use crate::tls;
 
 /// Return the well-known hub socket path: `runtime_dir()/hub.sock`.
 pub fn hub_socket_path() -> PathBuf {
@@ -112,16 +113,18 @@ pub async fn run_with_tcp(
         None
     };
 
-    // Optional TCP listener
-    let tcp_listener = if let Some(addr) = tcp_addr {
+    // Optional TCP listener with TLS
+    let (tcp_listener, tls_acceptor) = if let Some(addr) = tcp_addr {
         let listener = TcpListener::bind(addr).await.map_err(|e| {
             std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
         })?;
         let local_addr = listener.local_addr()?;
-        tracing::info!(%local_addr, "Hub listening on TCP");
-        Some(listener)
+        tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
+
+        let acceptor = tls::generate_and_write_cert()?;
+        (Some(listener), Some(acceptor))
     } else {
-        None
+        (None, None)
     };
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
@@ -144,11 +147,12 @@ pub async fn run_with_tcp(
 
     let socket_path_owned = socket_path.to_path_buf();
     tokio::spawn(async move {
-        run_accept_loop(unix_listener, tcp_listener, token_secret, shutdown_rx).await;
+        run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
 
         // Cleanup on exit
         let _ = std::fs::remove_file(&socket_path_owned);
         let _ = std::fs::remove_file(hub_secret_path());
+        tls::cleanup();
         pidfile::remove(&pidfile_path);
         tracing::info!("Hub shut down cleanly");
     });
@@ -186,22 +190,25 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
         None
     };
 
-    let tcp_listener = if let Some(addr) = tcp_addr {
+    let (tcp_listener, tls_acceptor) = if let Some(addr) = tcp_addr {
         let listener = TcpListener::bind(addr).await.map_err(|e| {
             std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
         })?;
         let local_addr = listener.local_addr()?;
-        tracing::info!(%local_addr, "Hub listening on TCP");
-        Some(listener)
+        tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
+
+        let acceptor = tls::generate_and_write_cert()?;
+        (Some(listener), Some(acceptor))
     } else {
-        None
+        (None, None)
     };
 
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
-    run_accept_loop(unix_listener, tcp_listener, token_secret, shutdown_rx).await;
+    run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
 
     // Cleanup on exit
     let _ = std::fs::remove_file(hub_secret_path());
+    tls::cleanup();
     pidfile::remove(&pidfile_path);
     Ok(())
 }
@@ -328,12 +335,14 @@ fn handle_hub_auth_token(
 pub async fn run_accept_loop(
     unix_listener: UnixListener,
     tcp_listener: Option<TcpListener>,
+    tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
     token_secret: Option<String>,
     mut shutdown_rx: watch::Receiver<bool>,
 ) {
     let owner_uid = unsafe { libc::getuid() };
     let active_connections = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
     let token_secret = std::sync::Arc::new(token_secret);
+    let tls_acceptor = std::sync::Arc::new(tls_acceptor);
 
     loop {
         // Select over Unix listener, optional TCP listener, and shutdown signal
@@ -390,18 +399,31 @@ pub async fn run_accept_loop(
                 }
             } => {
                 match result {
-                    Ok((stream, peer_addr)) => {
+                    Ok((tcp_stream, peer_addr)) => {
                         tracing::info!(
                             %peer_addr,
-                            "Hub: TCP connection accepted (unauthenticated — hub.auth required)"
+                            "Hub: TCP connection accepted (TLS handshake pending)"
                         );
 
                         // TCP connections start with zero scope (unauthenticated)
                         let counter = active_connections.clone();
                         let secret = token_secret.clone();
+                        let acceptor = tls_acceptor.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         tokio::spawn(async move {
-                            handle_connection(stream, None, (*secret).clone()).await;
+                            if let Some(tls) = acceptor.as_ref() {
+                                match tls.accept(tcp_stream).await {
+                                    Ok(tls_stream) => {
+                                        handle_connection(tls_stream, None, (*secret).clone()).await;
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(%peer_addr, error = %e, "Hub: TLS handshake failed");
+                                    }
+                                }
+                            } else {
+                                // No TLS configured — use raw TCP (tests only)
+                                handle_connection(tcp_stream, None, (*secret).clone()).await;
+                            }
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
                     }
@@ -603,7 +625,7 @@ mod tests {
         let handle = tokio::spawn(async move {
             let _ = std::fs::remove_file(&socket);
             let listener = UnixListener::bind(&socket).unwrap();
-            run_accept_loop(listener, None, None, rx).await;
+            run_accept_loop(listener, None, None, None, rx).await;
         });
         (handle, tx)
     }
@@ -821,7 +843,7 @@ mod tests {
             let tcp_port = tcp_listener.local_addr().unwrap().port();
             // Write port to file so test can read it
             std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
-            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
         });
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -920,7 +942,7 @@ mod tests {
             let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let tcp_port = tcp_listener.local_addr().unwrap().port();
             std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
-            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
         });
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -973,7 +995,7 @@ mod tests {
             let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let tcp_port = tcp_listener.local_addr().unwrap().port();
             std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
-            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
         });
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -1026,7 +1048,7 @@ mod tests {
             let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let tcp_port = tcp_listener.local_addr().unwrap().port();
             std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
-            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
         });
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -1080,7 +1102,7 @@ mod tests {
             let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let tcp_port = tcp_listener.local_addr().unwrap().port();
             std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
-            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
         });
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 

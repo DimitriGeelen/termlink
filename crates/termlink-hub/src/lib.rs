@@ -3,6 +3,7 @@ pub mod remote_store;
 pub mod router;
 pub mod server;
 pub mod supervisor;
+pub mod tls;
 
 /// Shared test utilities (crate-internal).
 #[cfg(test)]
