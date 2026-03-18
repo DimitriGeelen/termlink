@@ -30,9 +30,12 @@ impl Client {
                 let stream = tokio::net::TcpStream::connect((host.as_str(), *port)).await?;
                 stream.set_nodelay(true)?;
 
-                // Try TLS if hub cert exists at well-known path
+                // Try TLS: use local cert for same-machine connections, TOFU for remote
                 let cert_path = crate::discovery::runtime_dir().join("hub.cert.pem");
-                if cert_path.exists() {
+                let is_local = host == "127.0.0.1" || host == "localhost" || host == "::1";
+
+                if is_local && cert_path.exists() {
+                    // Local hub — use pinned cert (original behavior)
                     let connector = build_tls_connector(&cert_path)?;
                     let host_owned = host.clone();
                     let server_name = rustls::pki_types::ServerName::try_from(host_owned)
@@ -43,7 +46,20 @@ impl Client {
                         writer: Box::new(writer),
                         reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
                     })
+                } else if !is_local {
+                    // Remote hub — use TOFU verification
+                    let host_port = format!("{host}:{port}");
+                    let connector = crate::tofu::build_tofu_connector(&host_port);
+                    let server_name = rustls::pki_types::ServerName::try_from(host.clone())
+                        .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
+                    let tls_stream = connector.connect(server_name, stream).await?;
+                    let (reader, writer) = tokio::io::split(tls_stream);
+                    Ok(Self {
+                        writer: Box::new(writer),
+                        reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                    })
                 } else {
+                    // No TLS (local, no cert)
                     let (reader, writer) = tokio::io::split(stream);
                     Ok(Self {
                         writer: Box::new(writer),
