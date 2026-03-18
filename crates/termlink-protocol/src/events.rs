@@ -196,6 +196,69 @@ pub struct AgentStatus {
     pub percent: Option<u8>,
 }
 
+// --- File Transfer Protocol ---
+// Chunked file transfer over events with base64 encoding and SHA-256 integrity.
+
+/// Topic constants for file transfer.
+pub mod file_topic {
+    pub const INIT: &str = "file.init";
+    pub const CHUNK: &str = "file.chunk";
+    pub const COMPLETE: &str = "file.complete";
+    pub const ERROR: &str = "file.error";
+}
+
+/// Payload for `file.init` events — announces a new file transfer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInit {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Unique transfer identifier for correlating chunks.
+    pub transfer_id: String,
+    /// Original filename (basename only, no path).
+    pub filename: String,
+    /// Total file size in bytes.
+    pub size: u64,
+    /// Number of chunks that will follow.
+    pub total_chunks: u32,
+    /// Session name of the sender.
+    pub from: String,
+}
+
+/// Payload for `file.chunk` events — one chunk of file data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileChunk {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Matches `transfer_id` from `FileInit`.
+    pub transfer_id: String,
+    /// Zero-based chunk index.
+    pub index: u32,
+    /// Base64-encoded chunk data.
+    pub data: String,
+}
+
+/// Payload for `file.complete` events — signals transfer finished.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileComplete {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Matches `transfer_id` from `FileInit`.
+    pub transfer_id: String,
+    /// Hex-encoded SHA-256 of the complete file.
+    pub sha256: String,
+}
+
+/// Payload for `file.error` events — signals transfer failure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileError {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Matches `transfer_id` from `FileInit`.
+    pub transfer_id: String,
+    /// Human-readable error message.
+    pub message: String,
+}
+
 fn default_schema_version() -> String {
     SCHEMA_VERSION.to_string()
 }
@@ -389,5 +452,71 @@ mod tests {
     fn response_status_serialization() {
         assert_eq!(serde_json::to_string(&ResponseStatus::Ok).unwrap(), "\"ok\"");
         assert_eq!(serde_json::to_string(&ResponseStatus::Error).unwrap(), "\"error\"");
+    }
+
+    // --- File Transfer Protocol tests ---
+
+    #[test]
+    fn file_init_roundtrip() {
+        let init = FileInit {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: "xfer-001".to_string(),
+            filename: "test.bin".to_string(),
+            size: 102400,
+            total_chunks: 3,
+            from: "sender-session".to_string(),
+        };
+        let json = serde_json::to_string(&init).unwrap();
+        let parsed: FileInit = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.transfer_id, "xfer-001");
+        assert_eq!(parsed.filename, "test.bin");
+        assert_eq!(parsed.size, 102400);
+        assert_eq!(parsed.total_chunks, 3);
+    }
+
+    #[test]
+    fn file_chunk_roundtrip() {
+        let chunk = FileChunk {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: "xfer-001".to_string(),
+            index: 0,
+            data: "SGVsbG8gV29ybGQ=".to_string(),
+        };
+        let json = serde_json::to_string(&chunk).unwrap();
+        let parsed: FileChunk = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.index, 0);
+        assert_eq!(parsed.data, "SGVsbG8gV29ybGQ=");
+    }
+
+    #[test]
+    fn file_complete_roundtrip() {
+        let complete = FileComplete {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: "xfer-001".to_string(),
+            sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string(),
+        };
+        let json = serde_json::to_string(&complete).unwrap();
+        let parsed: FileComplete = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.sha256, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    }
+
+    #[test]
+    fn file_error_roundtrip() {
+        let error = FileError {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: "xfer-001".to_string(),
+            message: "Disk full".to_string(),
+        };
+        let json = serde_json::to_string(&error).unwrap();
+        let parsed: FileError = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.message, "Disk full");
+    }
+
+    #[test]
+    fn file_topic_constants() {
+        assert_eq!(file_topic::INIT, "file.init");
+        assert_eq!(file_topic::CHUNK, "file.chunk");
+        assert_eq!(file_topic::COMPLETE, "file.complete");
+        assert_eq!(file_topic::ERROR, "file.error");
     }
 }

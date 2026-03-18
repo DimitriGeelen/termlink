@@ -14,7 +14,10 @@ use termlink_session::registration::SessionConfig;
 use termlink_session::server;
 
 use termlink_protocol::data::{FrameFlags, FrameType};
-use termlink_protocol::events::{agent_topic, AgentRequest, AgentResponse, AgentStatus, SCHEMA_VERSION};
+use termlink_protocol::events::{
+    agent_topic, file_topic, AgentRequest, AgentResponse, AgentStatus,
+    FileInit, FileChunk, FileComplete, SCHEMA_VERSION,
+};
 
 #[derive(Parser)]
 #[command(
@@ -467,6 +470,14 @@ enum Command {
         action: AgentAction,
     },
 
+    // === File Transfer ===
+
+    /// Transfer files between sessions via chunked events
+    File {
+        #[command(subcommand)]
+        action: FileAction,
+    },
+
     /// Generate shell completions
     Completions {
         /// Shell to generate completions for
@@ -577,6 +588,41 @@ enum AgentAction {
 
         /// Poll interval in milliseconds (default: 250)
         #[arg(long, default_value = "250")]
+        interval: u64,
+    },
+}
+
+/// File transfer actions
+#[derive(Subcommand)]
+enum FileAction {
+    /// Send a file to a target session
+    Send {
+        /// Target session ID or display name
+        target: String,
+
+        /// Path to the file to send
+        path: String,
+
+        /// Chunk size in bytes (default: 49152 = 48KB, ~64KB base64)
+        #[arg(long, default_value = "49152")]
+        chunk_size: usize,
+    },
+
+    /// Receive a file from a session (waits for file.init event)
+    Receive {
+        /// Source session ID or display name to watch for file events
+        target: String,
+
+        /// Output directory (default: current directory)
+        #[arg(long, default_value = ".")]
+        output_dir: String,
+
+        /// Timeout in seconds (default: 300)
+        #[arg(long, default_value = "300")]
+        timeout: u64,
+
+        /// Poll interval in milliseconds (default: 100)
+        #[arg(long, default_value = "100")]
         interval: u64,
     },
 }
@@ -915,6 +961,14 @@ async fn main() -> Result<()> {
             }
             AgentAction::Listen { target, timeout, interval } => {
                 cmd_agent_listen(&target, timeout, interval).await
+            }
+        },
+        Command::File { action } => match action {
+            FileAction::Send { target, path, chunk_size } => {
+                cmd_file_send(&target, &path, chunk_size).await
+            }
+            FileAction::Receive { target, output_dir, timeout, interval } => {
+                cmd_file_receive(&target, &output_dir, timeout, interval).await
             }
         },
         Command::Completions { shell } => {
@@ -3633,6 +3687,267 @@ async fn cmd_agent_listen(
             if start.elapsed() > td {
                 eprintln!("Listen timeout reached ({}s)", timeout);
                 return Ok(());
+            }
+        }
+
+        tokio::time::sleep(poll_interval).await;
+    }
+}
+
+/// Default chunk size for file transfers (48KB raw → ~64KB base64).
+const DEFAULT_CHUNK_SIZE: usize = 49152;
+
+async fn cmd_file_send(target: &str, path: &str, chunk_size: usize) -> Result<()> {
+    use base64::Engine;
+    use sha2::{Digest, Sha256};
+
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let file_path = std::path::Path::new(path);
+    let file_data = std::fs::read(file_path)
+        .context(format!("Failed to read file: {}", path))?;
+
+    let filename = file_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unnamed".to_string());
+
+    let size = file_data.len() as u64;
+    let chunk_sz = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
+    let total_chunks = ((file_data.len() + chunk_sz - 1) / chunk_sz) as u32;
+
+    let transfer_id = generate_request_id().replace("req-", "xfer-");
+
+    // Compute SHA-256
+    let mut hasher = Sha256::new();
+    hasher.update(&file_data);
+    let sha256 = format!("{:x}", hasher.finalize());
+
+    // Emit file.init
+    let init = FileInit {
+        schema_version: SCHEMA_VERSION.to_string(),
+        transfer_id: transfer_id.clone(),
+        filename: filename.clone(),
+        size,
+        total_chunks,
+        from: format!("cli-{}", std::process::id()),
+    };
+    let init_payload = serde_json::to_value(&init)?;
+    let emit_params = serde_json::json!({
+        "topic": file_topic::INIT,
+        "payload": init_payload,
+    });
+    client::rpc_call(reg.socket_path(), "event.emit", emit_params)
+        .await
+        .context("Failed to emit file.init")?;
+
+    eprintln!(
+        "Sending '{}' ({} bytes, {} chunks) transfer_id={}",
+        filename, size, total_chunks, transfer_id
+    );
+
+    // Emit chunks
+    let encoder = base64::engine::general_purpose::STANDARD;
+    for (i, chunk_data) in file_data.chunks(chunk_sz).enumerate() {
+        let chunk = FileChunk {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: transfer_id.clone(),
+            index: i as u32,
+            data: encoder.encode(chunk_data),
+        };
+        let chunk_payload = serde_json::to_value(&chunk)?;
+        let emit_params = serde_json::json!({
+            "topic": file_topic::CHUNK,
+            "payload": chunk_payload,
+        });
+        client::rpc_call(reg.socket_path(), "event.emit", emit_params)
+            .await
+            .context(format!("Failed to emit chunk {}/{}", i + 1, total_chunks))?;
+
+        if total_chunks > 1 {
+            eprint!("\r  Chunk {}/{}", i + 1, total_chunks);
+        }
+    }
+    if total_chunks > 1 {
+        eprintln!();
+    }
+
+    // Emit file.complete
+    let complete = FileComplete {
+        schema_version: SCHEMA_VERSION.to_string(),
+        transfer_id: transfer_id.clone(),
+        sha256: sha256.clone(),
+    };
+    let complete_payload = serde_json::to_value(&complete)?;
+    let emit_params = serde_json::json!({
+        "topic": file_topic::COMPLETE,
+        "payload": complete_payload,
+    });
+    client::rpc_call(reg.socket_path(), "event.emit", emit_params)
+        .await
+        .context("Failed to emit file.complete")?;
+
+    eprintln!("Transfer complete. SHA-256: {}", sha256);
+    Ok(())
+}
+
+async fn cmd_file_receive(
+    target: &str,
+    output_dir: &str,
+    timeout: u64,
+    interval: u64,
+) -> Result<()> {
+    use base64::Engine;
+    use sha2::{Digest, Sha256};
+
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    let out_path = std::path::Path::new(output_dir);
+    if !out_path.exists() {
+        std::fs::create_dir_all(out_path)
+            .context(format!("Failed to create output directory: {}", output_dir))?;
+    }
+
+    eprintln!("Waiting for file transfer on '{}' (timeout: {}s)...", target, timeout);
+
+    let start = std::time::Instant::now();
+    let timeout_dur = std::time::Duration::from_secs(timeout);
+    let poll_interval = std::time::Duration::from_millis(interval);
+
+    // Get initial cursor
+    let mut poll_cursor: Option<u64> = {
+        let params = serde_json::json!({});
+        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+            Ok(resp) => {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    result["next_seq"].as_u64()
+                } else { None }
+            }
+            Err(_) => None,
+        }
+    };
+
+    // State machine: waiting for init → collecting chunks → complete
+    let mut transfer_id: Option<String> = None;
+    let mut filename: Option<String> = None;
+    let mut expected_chunks: u32 = 0;
+    let mut chunks: std::collections::BTreeMap<u32, Vec<u8>> = std::collections::BTreeMap::new();
+
+    let decoder = base64::engine::general_purpose::STANDARD;
+
+    loop {
+        let mut params = serde_json::json!({});
+        if let Some(c) = poll_cursor {
+            params["since"] = serde_json::json!(c);
+        }
+
+        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+            Ok(resp) => {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    if let Some(events) = result["events"].as_array() {
+                        for event in events {
+                            let topic = event["topic"].as_str().unwrap_or("");
+                            let payload = &event["payload"];
+
+                            match topic {
+                                t if t == file_topic::INIT => {
+                                    if let Ok(init) = serde_json::from_value::<FileInit>(payload.clone()) {
+                                        eprintln!(
+                                            "Receiving '{}' ({} bytes, {} chunks) from {}",
+                                            init.filename, init.size, init.total_chunks, init.from
+                                        );
+                                        transfer_id = Some(init.transfer_id);
+                                        filename = Some(init.filename);
+                                        expected_chunks = init.total_chunks;
+                                        chunks.clear();
+                                    }
+                                }
+                                t if t == file_topic::CHUNK => {
+                                    if let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone()) {
+                                        if transfer_id.as_deref() == Some(&chunk.transfer_id) {
+                                            let decoded = decoder.decode(&chunk.data)
+                                                .context(format!("Invalid base64 in chunk {}", chunk.index))?;
+                                            chunks.insert(chunk.index, decoded);
+
+                                            if expected_chunks > 1 {
+                                                eprint!("\r  Chunk {}/{}", chunks.len(), expected_chunks);
+                                            }
+                                        }
+                                    }
+                                }
+                                t if t == file_topic::COMPLETE => {
+                                    if let Ok(complete) = serde_json::from_value::<FileComplete>(payload.clone()) {
+                                        if transfer_id.as_deref() == Some(&complete.transfer_id) {
+                                            if expected_chunks > 1 {
+                                                eprintln!();
+                                            }
+
+                                            // Reassemble file
+                                            let mut file_data = Vec::new();
+                                            for i in 0..expected_chunks {
+                                                match chunks.get(&i) {
+                                                    Some(data) => file_data.extend_from_slice(data),
+                                                    None => anyhow::bail!("Missing chunk {} of {}", i, expected_chunks),
+                                                }
+                                            }
+
+                                            // Verify SHA-256
+                                            let mut hasher = Sha256::new();
+                                            hasher.update(&file_data);
+                                            let actual_sha256 = format!("{:x}", hasher.finalize());
+
+                                            if actual_sha256 != complete.sha256 {
+                                                anyhow::bail!(
+                                                    "SHA-256 mismatch! Expected: {}, Got: {}",
+                                                    complete.sha256, actual_sha256
+                                                );
+                                            }
+
+                                            // Write file
+                                            let fname = filename.as_deref().unwrap_or("received-file");
+                                            let dest = out_path.join(fname);
+                                            std::fs::write(&dest, &file_data)
+                                                .context(format!("Failed to write file: {}", dest.display()))?;
+
+                                            eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
+                                            eprintln!("SHA-256 verified: {}", actual_sha256);
+                                            return Ok(());
+                                        }
+                                    }
+                                }
+                                t if t == file_topic::ERROR => {
+                                    if let Some(msg) = payload.get("message").and_then(|m| m.as_str()) {
+                                        let xfer = payload.get("transfer_id").and_then(|t| t.as_str()).unwrap_or("?");
+                                        if transfer_id.as_deref() == Some(xfer) || transfer_id.is_none() {
+                                            anyhow::bail!("Transfer error: {}", msg);
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+
+                    if let Some(next) = result["next_seq"].as_u64() {
+                        poll_cursor = Some(next);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Poll error: {}", e);
+            }
+        }
+
+        if start.elapsed() > timeout_dur {
+            if transfer_id.is_some() {
+                anyhow::bail!(
+                    "Timeout: received {}/{} chunks before timeout ({}s)",
+                    chunks.len(), expected_chunks, timeout
+                );
+            } else {
+                anyhow::bail!("Timeout waiting for file transfer ({}s)", timeout);
             }
         }
 

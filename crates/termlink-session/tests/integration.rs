@@ -882,3 +882,119 @@ async fn agent_request_response_via_events() {
     h_orch.abort();
     h_work.abort();
 }
+
+#[tokio::test]
+async fn file_transfer_via_chunked_events() {
+    use base64::Engine;
+    use sha2::{Digest, Sha256};
+    use termlink_protocol::events::{
+        file_topic, FileInit, FileChunk, FileComplete, SCHEMA_VERSION,
+    };
+
+    let dir = TestDir::new("file_xfer");
+
+    let (h_sender, _reg_sender) = start_session(&dir.sessions_dir(), "sender", vec![]).await;
+    let (h_receiver, reg_receiver) = start_session(&dir.sessions_dir(), "receiver", vec![]).await;
+
+    // Test data: 150 bytes across 2 chunks of 100 bytes
+    let test_data: Vec<u8> = (0..150u8).collect();
+    let chunk_size = 100;
+    let total_chunks = 2u32;
+    let transfer_id = "xfer-test-001".to_string();
+
+    let mut hasher = Sha256::new();
+    hasher.update(&test_data);
+    let expected_sha256 = format!("{:x}", hasher.finalize());
+
+    // 1. Emit file.init on receiver's bus
+    let init = FileInit {
+        schema_version: SCHEMA_VERSION.to_string(),
+        transfer_id: transfer_id.clone(),
+        filename: "test.bin".to_string(),
+        size: test_data.len() as u64,
+        total_chunks,
+        from: "sender".to_string(),
+    };
+    let resp = client::rpc_call(
+        reg_receiver.socket_path(),
+        "event.emit",
+        json!({"topic": file_topic::INIT, "payload": init}),
+    ).await.unwrap();
+    client::unwrap_result(resp).unwrap();
+
+    // 2. Emit chunks
+    let encoder = base64::engine::general_purpose::STANDARD;
+    for (i, chunk_data) in test_data.chunks(chunk_size).enumerate() {
+        let chunk = FileChunk {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: transfer_id.clone(),
+            index: i as u32,
+            data: encoder.encode(chunk_data),
+        };
+        let resp = client::rpc_call(
+            reg_receiver.socket_path(),
+            "event.emit",
+            json!({"topic": file_topic::CHUNK, "payload": chunk}),
+        ).await.unwrap();
+        client::unwrap_result(resp).unwrap();
+    }
+
+    // 3. Emit file.complete
+    let complete = FileComplete {
+        schema_version: SCHEMA_VERSION.to_string(),
+        transfer_id: transfer_id.clone(),
+        sha256: expected_sha256.clone(),
+    };
+    let resp = client::rpc_call(
+        reg_receiver.socket_path(),
+        "event.emit",
+        json!({"topic": file_topic::COMPLETE, "payload": complete}),
+    ).await.unwrap();
+    client::unwrap_result(resp).unwrap();
+
+    // 4. Poll receiver's event bus — should see all file events
+    let resp = client::rpc_call(reg_receiver.socket_path(), "event.poll", json!({}))
+        .await
+        .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+
+    let events = result["events"].as_array().unwrap();
+    assert_eq!(events.len(), 4); // init + 2 chunks + complete
+
+    // Verify event topics
+    assert_eq!(events[0]["topic"], file_topic::INIT);
+    assert_eq!(events[1]["topic"], file_topic::CHUNK);
+    assert_eq!(events[2]["topic"], file_topic::CHUNK);
+    assert_eq!(events[3]["topic"], file_topic::COMPLETE);
+
+    // Verify init payload
+    let init_payload: FileInit = serde_json::from_value(events[0]["payload"].clone()).unwrap();
+    assert_eq!(init_payload.transfer_id, transfer_id);
+    assert_eq!(init_payload.filename, "test.bin");
+    assert_eq!(init_payload.total_chunks, 2);
+
+    // Verify reassembly: decode chunks and compare
+    let decoder = base64::engine::general_purpose::STANDARD;
+    let mut reassembled = Vec::new();
+    for i in 0..total_chunks {
+        let chunk_payload: FileChunk =
+            serde_json::from_value(events[(i + 1) as usize]["payload"].clone()).unwrap();
+        assert_eq!(chunk_payload.index, i);
+        let decoded = decoder.decode(&chunk_payload.data).unwrap();
+        reassembled.extend_from_slice(&decoded);
+    }
+    assert_eq!(reassembled, test_data);
+
+    // Verify SHA-256
+    let complete_payload: FileComplete =
+        serde_json::from_value(events[3]["payload"].clone()).unwrap();
+    assert_eq!(complete_payload.sha256, expected_sha256);
+
+    let mut verify_hasher = Sha256::new();
+    verify_hasher.update(&reassembled);
+    let actual_sha256 = format!("{:x}", verify_hasher.finalize());
+    assert_eq!(actual_sha256, expected_sha256);
+
+    h_sender.abort();
+    h_receiver.abort();
+}

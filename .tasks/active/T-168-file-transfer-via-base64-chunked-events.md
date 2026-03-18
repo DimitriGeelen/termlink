@@ -4,7 +4,7 @@ name: "File transfer via base64 chunked events"
 description: >
   Implement file.send.init/chunk/complete event protocol for transferring files between machines via base64 chunked events. CLI commands: termlink file send/receive.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [file-transfer, agent-comms]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:38Z
-last_update: 2026-03-18T10:08:38Z
+last_update: 2026-03-18T18:09:38Z
 date_finished: null
 ---
 
@@ -20,40 +20,37 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Transfers files between sessions via base64-encoded chunked events. Uses the event bus so it works over TCP hub (cross-machine). Protocol: `file.init` → N × `file.chunk` → `file.complete`. SHA-256 integrity check on completion.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Event schemas added to `termlink-protocol/src/events.rs`: `FileInit`, `FileChunk`, `FileComplete`, `FileError` with `file_topic` constants
+- [x] Schema roundtrip tests for all file transfer event types
+- [x] `termlink file send <target> <path>` reads file, chunks to base64, emits events to target session
+- [x] `termlink file receive <target> [--output-dir <dir>] [--timeout <secs>]` polls for file events, reassembles, writes to disk
+- [x] SHA-256 checksum verified on receive, error printed on mismatch
+- [x] Integration test: send file between two sessions, verify content matches
+- [x] All existing tests pass (`cargo test --workspace`)
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Transfer a binary file between two local sessions and verify integrity
+  **Steps:**
+  1. Register two sessions: `termlink register --name sender --shell` and `termlink register --name receiver --shell`
+  2. Create a test file: `dd if=/dev/urandom of=/tmp/test-transfer.bin bs=1024 count=100`
+  3. In one terminal: `termlink file receive receiver --output-dir /tmp/received --timeout 30`
+  4. In another: `termlink file send receiver /tmp/test-transfer.bin`
+  5. Compare: `shasum -a 256 /tmp/test-transfer.bin /tmp/received/test-transfer.bin`
+  **Expected:** SHA-256 checksums match
+  **If not:** Check for chunk ordering or base64 decode errors in output
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+bash -c 'out=$(/Users/dimidev32/.cargo/bin/cargo test --package termlink-protocol 2>&1); echo "$out" | grep -q "0 failed"'
+bash -c 'out=$(/Users/dimidev32/.cargo/bin/cargo test --package termlink 2>&1); echo "$out" | grep -q "0 failed"'
+grep -q "FileInit" crates/termlink-protocol/src/events.rs
+grep -q "cmd_file_send" crates/termlink-cli/src/main.rs
+grep -q "cmd_file_receive" crates/termlink-cli/src/main.rs
 
 ## Decisions
 
@@ -72,3 +69,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-168-file-transfer-via-base64-chunked-events.md
 - **Context:** Initial task creation
+
+### 2026-03-18T18:09:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
