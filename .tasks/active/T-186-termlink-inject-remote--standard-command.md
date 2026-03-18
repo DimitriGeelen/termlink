@@ -1,21 +1,21 @@
 ---
-id: T-180
-name: "Build fw upstream report command for consumer-to-framework bug reports"
+id: T-186
+name: "termlink inject-remote — standard command for cross-machine prompt injection"
 description: >
-  Two-path upstream reporting for consumer-to-framework feedback. PRIMARY: TermLink inject-remote — directly inject improvement prompts into framework agent Claude session on another machine (proven in T-184/T-185: 5 prompts, 7.4KB injected). FALLBACK: fw upstream report --title ... --attach-doctor — create a task file with evidence when TermLink not available. Both scenarios need clear docs. Discovered 2026-03-18.
-status: captured
+  Design a standard CLI command for repeatable cross-machine prompt injection. Currently requires: hex secret parsing, HMAC token generation, TOFU TLS, hub routing — all manual via tofu_test example. Need: 'termlink inject-remote host:port session-name "message" --secret-file /path'. Should handle auth, TOFU, and split-writes automatically. Also consider 'termlink connect-hub' for persistent hub connections.
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
-tags: [framework, cli, upstream]
+tags: [cli, cross-machine, ux]
 components: []
-related_tasks: []
-created: 2026-03-18T22:25:12Z
-last_update: 2026-03-18T22:25:12Z
+related_tasks: [T-182, T-183, T-184, T-185]
+created: 2026-03-18T23:28:42Z
+last_update: 2026-03-18T23:28:42Z
 date_finished: null
 ---
 
-# T-180: Build fw upstream report command for consumer-to-framework bug reports
+# T-186: termlink inject-remote — standard command for cross-machine prompt injection
 
 ## Problem Statement
 

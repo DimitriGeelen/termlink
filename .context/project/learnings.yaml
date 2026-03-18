@@ -64,3 +64,10 @@ learnings:
   date: 2026-03-18
   context: Added via context agent
   application: TBD
+- id: L-010
+  learning: "Cross-machine prompt injection via TermLink TOFU is the preferred path for consumer-to-framework upstream reports — faster and richer than file-based handoff. Chain: TOFU TLS + hub auth + hub routing + split PTY writes. Example: tofu_test"
+  source: P-001
+  task: T-185
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
