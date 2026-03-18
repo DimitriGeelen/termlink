@@ -6,15 +6,15 @@ description: >
   response MUST include a tool call. If the orchestrator needs to explore/discuss, it
   spawns a dedicated agent for that. This transforms invisible conversations into
   traceable tool-call sequences. Explore only — understand tradeoffs before deciding.
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [architecture, orchestrator, tool-call, exploration]
 components: []
 related_tasks: [T-094, T-099, T-100, T-101]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-11T12:00:00Z
+last_update: 2026-03-18T21:25:31Z
 date_finished: null
 ---
 
@@ -63,16 +63,27 @@ constraint (T-102) as the long-term architectural norm.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Three variants documented with tradeoffs
-- [ ] Impact on human-agent interaction analyzed
-- [ ] Relationship to Agent Mesh roadmap mapped
-- [ ] Go/no-go framed for discussion
+- [x] Three variants documented with tradeoffs
+- [x] Impact on human-agent interaction analyzed
+- [x] Relationship to Agent Mesh roadmap mapped
+- [x] Go/no-go framed for discussion
 
 ### Human
 - [ ] Variants discussed, preferred direction identified
+
+## Verification
+
+test -f docs/reports/T-102-orchestrator-mandatory-tool-call-constraint.md
+grep -q "NO-GO" docs/reports/T-102-orchestrator-mandatory-tool-call-constraint.md
 
 ## Decisions
 
 ## Decision
 
 ## Updates
+
+### 2026-03-18T21:18:53Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-03-18T21:25:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
