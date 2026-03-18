@@ -1,11 +1,11 @@
-timestamp: 2026-03-18T22:47:47Z
+timestamp: 2026-03-18T22:50:18Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (0/152)"
+    check: "D1: Episodic quality — 0% [TODO] (0/153)"
   - id: D2
     level: FAIL
-    check: "D2: Human review queue — 8 task(s) waiting >72h: T-109(106h) T-119(147h) T-124(145h) T-126(106h) T-127(106h) T-137(98h) T-140(97h) T-141(96h) T-143(71h) T-148(30h) T-156(36h) T-157(35h) T-158(35h) T-161(24h)"
+    check: "D2: Human review queue — 9 task(s) waiting >72h: T-109(106h) T-119(147h) T-124(145h) T-126(106h) T-127(106h) T-137(99h) T-140(97h) T-141(96h) T-143(72h) T-148(30h) T-156(36h) T-157(35h) T-158(35h) T-161(24h)"
     mitigation: "Review pending tasks at :3000/tasks or run: fw task list --status work-completed"
   - id: D8
     level: PASS
@@ -26,7 +26,7 @@ findings:
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — normal (PASS today=38 avg=26 ratio=1.5x)"
+    check: "D3: Commit velocity — normal (PASS today=39 avg=26 ratio=1.5x)"
   - id: D7
     level: PASS
     check: "D7: Commit bunching — detected (INFO 1_bunch(es) 39_commits_24h)"
