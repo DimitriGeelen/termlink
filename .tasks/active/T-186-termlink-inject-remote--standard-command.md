@@ -19,62 +19,83 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Cross-machine prompt injection via TermLink currently requires 6 manual steps: hex secret parsing, HMAC token generation, TOFU TLS connection, hub authentication, hub-routed inject with target param, and split-write delay handling. This was proven in T-183/T-184 (5 prompts, 7.4KB injected into remote framework agent) but relies on the `tofu_test.rs` example — not a reusable CLI command.
+
+**For whom:** Any TermLink user who needs to inject text/commands into sessions on remote machines (primary use case: sending improvement prompts to framework agents on other machines).
+
+**Why now:** The primitives are all proven and complete (TOFU: T-182, auth: T-164, split-write: T-178, hub routing: T-163). Only the CLI surface is missing.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-001: All required primitives exist in termlink-session crate (VALIDATED — proven in T-183/T-184)
+- A-002: A `remote` subcommand namespace won't conflict with existing CLI (VALIDATED — no `remote` command exists)
+- A-003: Secret-file approach is sufficient for auth (no key exchange protocol needed for MVP)
+- A-004: ~150 lines of CLI code wrapping existing library functions
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. ~~Analyze current CLI structure and inject command~~ — DONE (see research artifact)
+2. ~~Evaluate 4 design variants (A-D)~~ — DONE (Variant D: `remote` subcommand family recommended)
+3. Present to human for GO/NO-GO decision
+4. If GO: create build task(s) for implementation
+
+See full research: `docs/reports/T-186-inject-remote-cli-design.md`
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- macOS + Linux (both TOFU TLS paths work)
+- No new crate dependencies needed
+- TOFU known_hubs at `~/.termlink/known_hubs`
+- Hub must be running with `--tcp` on remote machine
+- Secret shared out-of-band (plain hex file)
+- `command.inject` requires `PermissionScope::Control` (not Execute)
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope:**
+- `termlink remote inject` CLI command design
+- Secret file reading + hex parsing
+- TOFU+auth+inject chain in one command
+- Error messages for each failure mode
+
+**OUT of scope:**
+- `termlink remote list/status/trust/run` (future extensions)
+- Secret distribution protocol
+- Hub auto-discovery (mDNS)
+- Persistent connections / connection pooling
+- `termlink connect-hub` (deferred to separate task)
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
+- [x] Problem statement validated
+- [x] Assumptions tested (A-001 through A-004 all validated)
 - [ ] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- All building blocks proven (TOFU, auth, hub routing, split-write) — YES
+- Design variant chosen with clear UX — YES (Variant D: `remote` subcommand)
+- Implementation estimate is bounded (~150 lines, no new deps) — YES
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Missing primitives require new protocol work — NOT THE CASE
+- CLI namespace conflicts prevent clean design — NOT THE CASE
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     For inception tasks, verification is often not needed (decisions, not code).
--->
+# Research artifact exists
+test -f docs/reports/T-186-inject-remote-cli-design.md
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-03-19 — Command namespace
+- **Chose:** Variant D — `termlink remote inject` (new `remote` subcommand family)
+- **Why:** Clean namespace, no conflict with existing `hub` (start/stop/status), extensible to `remote list/status/trust/run`
+- **Rejected:**
+  - Variant A (top-level `inject-remote`): duplicates inject logic, not extensible
+  - Variant B (`inject --remote`): overloads existing command, confusing when session exists locally AND remotely
+  - Variant C (`hub inject`): conflicts with existing `hub` subcommand (start/stop/status)
 
 ## Decision
 
