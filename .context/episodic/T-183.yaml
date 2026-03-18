@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-183: Cross-machine TOFU integration test
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T23:44:00Z
+# ============================================================================
+
+task_id: T-183
+task_name: "Cross-machine TOFU integration test"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-18T23:12:30Z
+completed: 2026-03-18T23:15:18Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-19T00:15:06+01:00
+last_commit: 2026-03-19T00:15:06+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Cross-machine TOFU integration test — all passes
+
+# Key outcomes
+outcomes:
+  - "TOFU TLS handshake to remote hub succeeds"
+  - "Hub auth succeeds (HMAC token, scope: execute)"
+  - "Hub connection works end-to-end (hub.list needs target param — expected)"
+  - "tofu_test example added to workspace"
+  - "known_hubs file created with remote fingerprint"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - "Hub expects hub.auth (HMAC token), not auth.token — client.authenticate() uses wrong method for hub"
+  - "After hub restart, cert regenerates with new fingerprint — TOFU rejects stale known_hubs entry"
+  - "Hub routing is transparent: send command.inject with target param, not hub.forward"
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-183-cross-machine-tofu-integration-test.md"
+  - "crates/termlink-session/examples/tofu_test.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-19T00:15:06"
+    action: "T-183: Cross-machine TOFU integration test — all passes"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - "TOFU TLS model works seamlessly — accept on first connect, verify on subsequent"
+  - "Full chain proven: macOS → TOFU TLS → hub auth → hub routing → remote session"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-184, T-186]
+
+# Tags for retrieval
+tags: [test, tls, cross-machine, tofu, integration]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 140
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-183-cross-machine-tofu-integration-test.md
+generated_by: context-agent-hybrid

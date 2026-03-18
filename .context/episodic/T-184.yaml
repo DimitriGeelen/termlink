@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-184: Send improvement prompt to framework agent on remote via TermLink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T23:44:01Z
+# ============================================================================
+
+task_id: T-184
+task_name: "Send improvement prompt to framework agent on remote via TermLink"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-18T23:16:54Z
+completed: 2026-03-18T23:19:34Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-19T00:19:27+01:00
+last_commit: 2026-03-19T00:19:40+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Cross-machine prompt injection via TermLink TOFU — working. Complete — cross-machine prompt injection verified
+
+# Key outcomes
+outcomes:
+  - "tofu_test example extended with inject + hub routing capability"
+  - "Prompt successfully injected into remote session (681 bytes via command.inject)"
+  - "tofu_test example compiles and runs"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - "CapabilityToken not Serialize — must use token.raw field, not token struct directly"
+  - "Prompt size matters — 681-byte initial test, then five 1.2-1.9KB improvement prompts (7.4KB total)"
+  - "Each prompt needs governance instruction: create inception task, ask if more info needed"
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-03-19.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-184-send-improvement-prompt-to-framework-age.md"
+  - ".tasks/completed/T-183-cross-machine-tofu-integration-test.md"
+  - ".tasks/completed/T-184-send-improvement-prompt-to-framework-age.md"
+  - "crates/termlink-session/examples/tofu_test.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-19T00:19:27"
+    action: "T-184: Cross-machine prompt injection via TermLink TOFU — working"
+  - time: "2026-03-19T00:19:40"
+    action: "T-184: Complete — cross-machine prompt injection verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - "Cross-machine prompt injection works end-to-end: macOS → TOFU TLS → hub auth → hub routing → PTY inject → remote Claude session"
+  - "5 improvement prompts with rich context successfully injected into framework agent on remote server"
+  - "Proved TermLink as primary path for consumer-to-framework upstream feedback"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-185, T-186, T-180]
+
+# Tags for retrieval
+tags: [cross-machine, termlink, framework, tofu, prompt-injection, upstream]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 8
+  lines_added: 359
+  lines_removed: 32
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-184-send-improvement-prompt-to-framework-age.md
+generated_by: context-agent-hybrid
