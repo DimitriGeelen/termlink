@@ -769,3 +769,116 @@ async fn kv_get_nonexistent_returns_not_found() {
 
     handle.abort();
 }
+
+// ─── Agent Message Protocol Integration Test ──────────────────────────
+
+#[tokio::test]
+async fn agent_request_response_via_events() {
+    use termlink_protocol::events::{agent_topic, AgentRequest, AgentResponse, AgentStatus};
+
+    let dir = TestDir::new("agent-msg");
+
+    // Two sessions: orchestrator and worker
+    let (h_orch, reg_orch) = start_session(&dir.sessions_dir(), "orchestrator", vec![]).await;
+    let (h_work, reg_work) = start_session(&dir.sessions_dir(), "worker-1", vec![]).await;
+
+    // 1. Orchestrator emits a request on the worker's event bus
+    let request = AgentRequest {
+        schema_version: "1.0".to_string(),
+        request_id: "req-001".to_string(),
+        from: "orchestrator".to_string(),
+        to: "worker-1".to_string(),
+        action: "task.run".to_string(),
+        params: json!({"command": "cargo test"}),
+        timeout_secs: Some(60),
+    };
+    let resp = client::rpc_call(
+        reg_work.socket_path(),
+        "event.emit",
+        json!({"topic": agent_topic::REQUEST, "payload": request}),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["status"], "emitted");
+
+    // 2. Worker emits a status update on the orchestrator's event bus
+    let status = AgentStatus {
+        schema_version: "1.0".to_string(),
+        request_id: "req-001".to_string(),
+        from: "worker-1".to_string(),
+        phase: "running".to_string(),
+        message: Some("Building crate...".to_string()),
+        percent: Some(50),
+    };
+    let resp = client::rpc_call(
+        reg_orch.socket_path(),
+        "event.emit",
+        json!({"topic": agent_topic::STATUS, "payload": status}),
+    )
+    .await
+    .unwrap();
+    client::unwrap_result(resp).unwrap();
+
+    // 3. Worker emits a response on the orchestrator's event bus
+    let response = AgentResponse {
+        schema_version: "1.0".to_string(),
+        request_id: "req-001".to_string(),
+        from: "worker-1".to_string(),
+        status: termlink_protocol::events::ResponseStatus::Ok,
+        result: json!({"exit_code": 0, "tests_passed": 42}),
+        error_message: None,
+    };
+    let resp = client::rpc_call(
+        reg_orch.socket_path(),
+        "event.emit",
+        json!({"topic": agent_topic::RESPONSE, "payload": response}),
+    )
+    .await
+    .unwrap();
+    client::unwrap_result(resp).unwrap();
+
+    // 4. Orchestrator polls its event bus — should see status + response
+    let resp = client::rpc_call(reg_orch.socket_path(), "event.poll", json!({}))
+        .await
+        .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["count"], 2);
+    let events = result["events"].as_array().unwrap();
+
+    // First event: status update
+    assert_eq!(events[0]["topic"], "agent.status");
+    let status_payload: AgentStatus =
+        serde_json::from_value(events[0]["payload"].clone()).unwrap();
+    assert_eq!(status_payload.request_id, "req-001");
+    assert_eq!(status_payload.phase, "running");
+    assert_eq!(status_payload.percent, Some(50));
+
+    // Second event: response
+    assert_eq!(events[1]["topic"], "agent.response");
+    let resp_payload: AgentResponse =
+        serde_json::from_value(events[1]["payload"].clone()).unwrap();
+    assert_eq!(resp_payload.request_id, "req-001");
+    assert_eq!(resp_payload.status, termlink_protocol::events::ResponseStatus::Ok);
+    assert_eq!(resp_payload.result["tests_passed"], 42);
+
+    // 5. Worker polls its event bus — should see the request
+    let resp = client::rpc_call(
+        reg_work.socket_path(),
+        "event.poll",
+        json!({"topic": "agent.request"}),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    assert_eq!(result["count"], 1);
+    let events = result["events"].as_array().unwrap();
+    let req_payload: AgentRequest =
+        serde_json::from_value(events[0]["payload"].clone()).unwrap();
+    assert_eq!(req_payload.request_id, "req-001");
+    assert_eq!(req_payload.action, "task.run");
+    assert_eq!(req_payload.params["command"], "cargo test");
+
+    h_orch.abort();
+    h_work.abort();
+}

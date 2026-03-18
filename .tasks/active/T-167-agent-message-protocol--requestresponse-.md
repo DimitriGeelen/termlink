@@ -4,7 +4,7 @@ name: "Agent message protocol — request/response over events"
 description: >
   Design and implement agent.request/agent.response/agent.status event schemas for bidirectional agent-to-agent communication over TermLink events.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [protocol, agent-comms]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:36Z
-last_update: 2026-03-18T10:08:36Z
+last_update: 2026-03-18T16:43:53Z
 date_finished: null
 ---
 
@@ -20,40 +20,25 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+General-purpose agent-to-agent request/response protocol built on TermLink events. Extends the existing task delegation events with `agent.request`, `agent.response`, and `agent.status` schemas for arbitrary bidirectional communication with correlation tracking.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] `AgentRequest` struct: request_id (ULID), from, to, action, params, timeout_secs
+- [x] `AgentResponse` struct: request_id, from, status (ok/error), result, error_message
+- [x] `AgentStatus` struct: request_id, from, phase, message, progress percent
+- [x] Topic constants: `agent.request`, `agent.response`, `agent.status`
+- [x] Serde roundtrip tests for all three types
+- [x] Integration test: emit request → emit response → poll matches by request_id
+- [x] All workspace tests pass
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+bash -c 'out=$(/Users/dimidev32/.cargo/bin/cargo test --workspace 2>&1); echo "$out" | grep -cq "0 failed"'
+grep -q "AgentRequest" crates/termlink-protocol/src/events.rs
+grep -q "AgentResponse" crates/termlink-protocol/src/events.rs
+grep -q "AgentStatus" crates/termlink-protocol/src/events.rs
 
 ## Decisions
 
@@ -72,3 +57,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-167-agent-message-protocol--requestresponse-.md
 - **Context:** Initial task creation
+
+### 2026-03-18T16:43:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

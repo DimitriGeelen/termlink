@@ -112,6 +112,90 @@ pub struct TaskCancelled {
     pub cancelled_by: Option<String>,
 }
 
+// --- Agent Message Protocol ---
+// General-purpose agent-to-agent request/response over events.
+
+/// Topic constants for agent messaging.
+pub mod agent_topic {
+    pub const REQUEST: &str = "agent.request";
+    pub const RESPONSE: &str = "agent.response";
+    pub const STATUS: &str = "agent.status";
+}
+
+/// Response status for agent requests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ResponseStatus {
+    Ok,
+    Error,
+}
+
+/// Payload for `agent.request` events.
+///
+/// Sent by an agent to request an action from another agent.
+/// The `request_id` is used to correlate responses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentRequest {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Unique request identifier (ULID recommended).
+    pub request_id: String,
+    /// Session ID or name of the sender.
+    pub from: String,
+    /// Session ID or name of the target.
+    pub to: String,
+    /// Action to perform (e.g., "query.status", "file.get", "task.run").
+    pub action: String,
+    /// Action-specific parameters.
+    #[serde(default)]
+    pub params: serde_json::Value,
+    /// Optional timeout in seconds. Target should abandon after this.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_secs: Option<u64>,
+}
+
+/// Payload for `agent.response` events.
+///
+/// Sent by the target agent in response to an `agent.request`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentResponse {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Matches the `request_id` from the corresponding `AgentRequest`.
+    pub request_id: String,
+    /// Session ID or name of the responder.
+    pub from: String,
+    /// Whether the request succeeded or failed.
+    pub status: ResponseStatus,
+    /// Result payload on success.
+    #[serde(default)]
+    pub result: serde_json::Value,
+    /// Error description on failure.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+/// Payload for `agent.status` events.
+///
+/// Sent by the target agent to report progress on an in-flight request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentStatus {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Matches the `request_id` from the corresponding `AgentRequest`.
+    pub request_id: String,
+    /// Session ID or name of the agent reporting status.
+    pub from: String,
+    /// Current phase (e.g., "accepted", "running", "finalizing").
+    pub phase: String,
+    /// Human-readable status message.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// Progress percentage (0-100). None if indeterminate.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub percent: Option<u8>,
+}
+
 fn default_schema_version() -> String {
     SCHEMA_VERSION.to_string()
 }
@@ -209,5 +293,101 @@ mod tests {
         let json = serde_json::to_string_pretty(&delegate).unwrap();
         assert!(json.contains("schema_version"));
         assert!(json.contains("1.0"));
+    }
+
+    // --- Agent Message Protocol tests ---
+
+    #[test]
+    fn agent_request_roundtrip() {
+        let req = AgentRequest {
+            schema_version: SCHEMA_VERSION.to_string(),
+            request_id: "01HXYZ123456".to_string(),
+            from: "agent-orchestrator".to_string(),
+            to: "agent-worker-1".to_string(),
+            action: "task.run".to_string(),
+            params: serde_json::json!({"command": "cargo test", "cwd": "/project"}),
+            timeout_secs: Some(120),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let parsed: AgentRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.request_id, "01HXYZ123456");
+        assert_eq!(parsed.from, "agent-orchestrator");
+        assert_eq!(parsed.to, "agent-worker-1");
+        assert_eq!(parsed.action, "task.run");
+        assert_eq!(parsed.timeout_secs, Some(120));
+    }
+
+    #[test]
+    fn agent_response_ok_roundtrip() {
+        let resp = AgentResponse {
+            schema_version: SCHEMA_VERSION.to_string(),
+            request_id: "01HXYZ123456".to_string(),
+            from: "agent-worker-1".to_string(),
+            status: ResponseStatus::Ok,
+            result: serde_json::json!({"exit_code": 0, "output": "all tests passed"}),
+            error_message: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: AgentResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.status, ResponseStatus::Ok);
+        assert_eq!(parsed.result["exit_code"], 0);
+        assert!(parsed.error_message.is_none());
+    }
+
+    #[test]
+    fn agent_response_error_roundtrip() {
+        let resp = AgentResponse {
+            schema_version: SCHEMA_VERSION.to_string(),
+            request_id: "01HXYZ123456".to_string(),
+            from: "agent-worker-1".to_string(),
+            status: ResponseStatus::Error,
+            result: serde_json::json!({}),
+            error_message: Some("command not found".to_string()),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: AgentResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.status, ResponseStatus::Error);
+        assert_eq!(parsed.error_message.as_deref(), Some("command not found"));
+    }
+
+    #[test]
+    fn agent_status_roundtrip() {
+        let status = AgentStatus {
+            schema_version: SCHEMA_VERSION.to_string(),
+            request_id: "01HXYZ123456".to_string(),
+            from: "agent-worker-1".to_string(),
+            phase: "running".to_string(),
+            message: Some("Compiling crate 3/5...".to_string()),
+            percent: Some(60),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        let parsed: AgentStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.phase, "running");
+        assert_eq!(parsed.percent, Some(60));
+        assert_eq!(parsed.message.as_deref(), Some("Compiling crate 3/5..."));
+    }
+
+    #[test]
+    fn agent_request_minimal() {
+        // Minimal request without optional fields
+        let json = r#"{"request_id":"r1","from":"a","to":"b","action":"ping"}"#;
+        let parsed: AgentRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.schema_version, "1.0");
+        assert_eq!(parsed.action, "ping");
+        assert!(parsed.timeout_secs.is_none());
+        assert_eq!(parsed.params, serde_json::json!(null));
+    }
+
+    #[test]
+    fn agent_topic_constants() {
+        assert_eq!(agent_topic::REQUEST, "agent.request");
+        assert_eq!(agent_topic::RESPONSE, "agent.response");
+        assert_eq!(agent_topic::STATUS, "agent.status");
+    }
+
+    #[test]
+    fn response_status_serialization() {
+        assert_eq!(serde_json::to_string(&ResponseStatus::Ok).unwrap(), "\"ok\"");
+        assert_eq!(serde_json::to_string(&ResponseStatus::Error).unwrap(), "\"error\"");
     }
 }
