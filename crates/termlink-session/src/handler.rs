@@ -454,8 +454,9 @@ async fn handle_command_execute(
 
 /// Handle `command.inject` — inject keystrokes into the PTY.
 ///
-/// If a PTY session is active, writes resolved bytes directly to the PTY master.
-/// Otherwise, resolves keys and reports the result (no injection target).
+/// Writes each KeyEntry as a separate PTY write. Non-text entries (special keys
+/// like Enter) are preceded by a small delay so that raw-mode TUIs (e.g. ink)
+/// see them as individual keypresses rather than pasted text.
 async fn handle_command_inject(
     id: serde_json::Value,
     params: &serde_json::Value,
@@ -487,35 +488,41 @@ async fn handle_command_inject(
         }
     };
 
-    let bytes = match executor::resolve_keys(&keys) {
-        Ok(b) => b,
-        Err(e) => {
-            return ErrorResponse::new(
-                id,
-                control::error_code::INJECTION_FAILED,
-                &format!("Key resolution failed: {e}"),
-            )
-            .into();
-        }
-    };
+    // Parse optional inter-key delay (default 10ms, 0 = no delay)
+    let delay_ms = params
+        .get("inject_delay_ms")
+        .or_else(|| params.get("payload").and_then(|p| p.get("inject_delay_ms")))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10);
 
-    // If PTY session is available, inject directly
-    if let Some(pty) = &ctx.pty {
-        match pty.write(&bytes).await {
-            Ok(()) => {
-                // Poll for terminal mode changes after injection
-                emit_mode_change_if_needed(ctx).await;
-
-                return Response::success(
+    // Resolve each entry individually for separate writes
+    let mut resolved: Vec<(Vec<u8>, bool)> = Vec::with_capacity(keys.len());
+    let mut total_bytes = 0usize;
+    for entry in &keys {
+        let bytes = match executor::resolve_key_entry(entry) {
+            Ok(b) => b,
+            Err(e) => {
+                return ErrorResponse::new(
                     id,
-                    json!({
-                        "status": "injected",
-                        "bytes_len": bytes.len(),
-                    }),
+                    control::error_code::INJECTION_FAILED,
+                    &format!("Key resolution failed: {e}"),
                 )
                 .into();
             }
-            Err(e) => {
+        };
+        let is_special = !matches!(entry, KeyEntry::Text(_));
+        total_bytes += bytes.len();
+        resolved.push((bytes, is_special));
+    }
+
+    // If PTY session is available, inject with per-entry writes
+    if let Some(pty) = &ctx.pty {
+        for (i, (bytes, is_special)) in resolved.iter().enumerate() {
+            // Delay before special keys (not before the first entry)
+            if *is_special && i > 0 && delay_ms > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+            }
+            if let Err(e) = pty.write(bytes).await {
                 return ErrorResponse::new(
                     id,
                     control::error_code::INJECTION_FAILED,
@@ -524,6 +531,18 @@ async fn handle_command_inject(
                 .into();
             }
         }
+
+        // Poll for terminal mode changes after injection
+        emit_mode_change_if_needed(ctx).await;
+
+        return Response::success(
+            id,
+            json!({
+                "status": "injected",
+                "bytes_len": total_bytes,
+            }),
+        )
+        .into();
     }
 
     // No PTY — report resolved keys without injection
@@ -531,7 +550,7 @@ async fn handle_command_inject(
         id,
         json!({
             "status": "resolved",
-            "bytes_len": bytes.len(),
+            "bytes_len": total_bytes,
             "note": "No PTY session. Use `register --shell` for PTY-backed injection.",
         }),
     )
@@ -1108,6 +1127,53 @@ mod tests {
         if let RpcResponse::Success(resp) = resp {
             assert_eq!(resp.result["status"], "resolved");
             assert_eq!(resp.result["bytes_len"], 3); // "ls" + 0x0D
+        } else {
+            panic!("Expected success response");
+        }
+    }
+
+    #[tokio::test]
+    async fn command_inject_multi_entry_resolves_separately() {
+        let ctx = test_ctx();
+        // Text + special key should resolve to correct total bytes
+        let req = Request::new(
+            "command.inject",
+            json!("inj-multi"),
+            json!({
+                "keys": [
+                    {"type": "text", "value": "hello"},
+                    {"type": "key", "value": "Enter"}
+                ],
+                "inject_delay_ms": 0
+            }),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["status"], "resolved");
+            // "hello" (5 bytes) + Enter (1 byte) = 6
+            assert_eq!(resp.result["bytes_len"], 6);
+        } else {
+            panic!("Expected success response");
+        }
+    }
+
+    #[tokio::test]
+    async fn command_inject_custom_delay() {
+        let ctx = test_ctx();
+        let req = Request::new(
+            "command.inject",
+            json!("inj-delay"),
+            json!({
+                "keys": [{"type": "text", "value": "x"}],
+                "inject_delay_ms": 50
+            }),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        if let RpcResponse::Success(resp) = resp {
+            assert_eq!(resp.result["status"], "resolved");
+            assert_eq!(resp.result["bytes_len"], 1);
         } else {
             panic!("Expected success response");
         }
