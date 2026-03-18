@@ -61,3 +61,12 @@ irrelevant. Remote hub's self-signed cert is unknown.
 The Enter-not-submitting bug is NOT remote-specific. It affects any `pty inject --enter`
 against Claude Code's TUI, including local sessions. The `termlink interact` command
 works because it injects into a SHELL (cooked mode), not into Claude Code's raw-mode TUI.
+
+### Remote Server State (192.168.10.107) as of 2026-03-18T22:20Z
+
+- TermLink binary updated to latest (28 commits pulled, rebuilt from source)
+- Hub running: `termlink hub start --tcp 0.0.0.0:9100` (PID 4033597)
+- Firewall: port 9100 opened for 192.168.10.0/24 (LAN only)
+- Claude Code running in tmux session `tl-claude-master` as TermLink session `claude-master`
+- tmux installed (was missing)
+- T-177 fix NOT deployed to remote yet (still shows "Injected 0 bytes")

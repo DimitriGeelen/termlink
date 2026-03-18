@@ -4,16 +4,16 @@ name: "Fix pty inject bytes_written display bug (always shows 0)"
 description: >
   cmd_inject reads result[bytes_written] but handler returns bytes_len. One-line fix in main.rs:1765.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [bug, cli, inject]
 components: []
 related_tasks: []
 created: 2026-03-18T22:19:28Z
-last_update: 2026-03-18T22:20:31Z
-date_finished: null
+last_update: 2026-03-18T22:22:45Z
+date_finished: 2026-03-18T22:22:45Z
 ---
 
 # T-177: Fix pty inject bytes_written display bug (always shows 0)
@@ -75,3 +75,6 @@ date_finished: null
 
 ### 2026-03-18T22:20:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-18T22:22:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

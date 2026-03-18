@@ -2,7 +2,7 @@
 id: T-178
 name: "Fix pty inject Enter not submitting in Claude Code TUI"
 description: >
-  pty inject sends text+Enter as one write. Ink TUI needs Enter (0x0D) as separate write with small delay. Root cause: batched write means ink sees multi-char chunk, not a keypress. Fix: split text write and Enter into two separate pty.write() calls. Also check ICRNL termios flag. See docs/reports/T-099 and agent research.
+  pty inject sends text+Enter as one write. Ink TUI needs Enter (0x0D) as separate write with small delay. Root cause: batched write means ink sees multi-char chunk, not a keypress. Fix: split text write and Enter into two separate pty.write() calls. Also check ICRNL termios flag. See docs/reports/T-163-cross-machine-rca-findings.md for full RCA. Related: Claude Code issue #15553, ink useInput batching.
 
 status: captured
 workflow_type: build
@@ -10,7 +10,7 @@ owner: agent
 horizon: now
 tags: [bug, cli, inject, pty]
 components: []
-related_tasks: []
+related_tasks: [T-137, T-156, T-163, T-177]
 created: 2026-03-18T22:19:38Z
 last_update: 2026-03-18T22:19:38Z
 date_finished: null
