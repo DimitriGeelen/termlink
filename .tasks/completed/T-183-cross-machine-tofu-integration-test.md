@@ -3,7 +3,7 @@ id: T-183
 name: "Cross-machine TOFU integration test"
 description: >
   End-to-end test: connect from macOS to remote Linux hub via TOFU TLS, authenticate, list sessions, and inject a prompt into the remote Claude session. Validates T-178 (split writes) and T-182 (TOFU) together.
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -11,8 +11,8 @@ tags: [test, tls, cross-machine]
 components: []
 related_tasks: [T-178, T-182, T-163]
 created: 2026-03-18T23:12:30Z
-last_update: 2026-03-18T23:12:30Z
-date_finished: null
+last_update: 2026-03-18T23:15:18Z
+date_finished: 2026-03-18T23:15:18Z
 ---
 
 # T-183: Cross-machine TOFU integration test
@@ -52,3 +52,6 @@ test -f ~/.termlink/known_hubs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-183-cross-machine-tofu-integration-test.md
 - **Context:** Initial task creation
+
+### 2026-03-18T23:15:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

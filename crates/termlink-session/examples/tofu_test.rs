@@ -62,20 +62,35 @@ async fn main() {
                 }
             }
 
-            // List sessions
-            match client.call("hub.list", serde_json::json!("t1"), serde_json::json!({})).await {
-                Ok(resp) => {
-                    println!("PASS: hub.list succeeded");
-                    match resp {
-                        termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
-                            println!("  {}", serde_json::to_string_pretty(&r.result).unwrap());
-                        }
-                        termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
-                            println!("  Error: {} {}", e.error.code, e.error.message);
+            // Try to inject into a session (target = 4th arg, message = 5th arg)
+            if let Some(target) = args.get(3) {
+                let message = args[4..].join(" ");
+                println!("\nForwarding inject to '{target}': {message}");
+
+                // Hub routes any method with "target" param to the target session
+                let inject_params = serde_json::json!({
+                    "target": target,
+                    "keys": [
+                        {"type": "text", "value": message},
+                        {"type": "key", "value": "Enter"}
+                    ]
+                });
+
+                match client.call("command.inject", serde_json::json!("fwd1"), inject_params).await {
+                    Ok(resp) => {
+                        match resp {
+                            termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+                                println!("PASS: Forward+inject succeeded: {}", serde_json::to_string_pretty(&r.result).unwrap());
+                            }
+                            termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+                                println!("FAIL: Forward+inject failed: {} {}", e.error.code, e.error.message);
+                            }
                         }
                     }
+                    Err(e) => println!("FAIL: Forward error: {e}"),
                 }
-                Err(e) => println!("FAIL: hub.list failed: {e}"),
+            } else {
+                println!("\nNo target specified. Usage: tofu_test <host:port> <secret> [target] [message...]");
             }
         }
         Err(e) => {
