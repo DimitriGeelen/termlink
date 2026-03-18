@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-179: Cross-hub TLS trust via TOFU (Trust On First Use)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T23:04:06Z
+# ============================================================================
+
+task_id: T-179
+task_name: "Cross-hub TLS trust via TOFU (Trust On First Use)"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-18T22:19:49Z
+completed: 2026-03-18T22:58:29Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-18T23:58:37+01:00
+last_commit: 2026-03-18T23:58:37+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  GO — TOFU TLS trust for cross-hub communication
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Go/No-Go decision made"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-179-cross-hub-tls-trust-via-tofu-trust-on-fi.md"
+  - ".tasks/completed/T-179-cross-hub-tls-trust-via-tofu-trust-on-fi.md"
+  - "docs/reports/T-179-cross-hub-tls-tofu.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-18T23:58:37"
+    action: "T-179: GO — TOFU TLS trust for cross-hub communication"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [security, tls, hub, cross-machine]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 5
+  lines_added: 196
+  lines_removed: 89
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-179-cross-hub-tls-trust-via-tofu-trust-on-fi.md
+generated_by: context-agent-hybrid
