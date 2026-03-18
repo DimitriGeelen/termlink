@@ -1,0 +1,19 @@
+id: crates/termlink-session/src/tofu.rs
+name: tofu
+type: module
+subsystem: session
+location: crates/termlink-session/src/tofu.rs
+tags: [security, tls, cross-machine]
+
+purpose: "TOFU (Trust On First Use) TLS certificate verifier for cross-hub connections. Stores remote hub cert fingerprints in ~/.termlink/known_hubs and verifies on subsequent connections."
+
+depends_on:
+  - target: crates/termlink-session/src/client.rs
+    type: consumed-by
+
+depended_by:
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+
+last_verified: 2026-03-19
+created_by: T-182

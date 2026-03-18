@@ -3,16 +3,16 @@ id: T-182
 name: "Implement TOFU TLS verifier for cross-hub connections"
 description: >
   Implement Trust On First Use TLS verifier so cross-hub TCP connections accept and store remote cert fingerprints. Custom rustls ServerCertVerifier + ~/.termlink/known_hubs file. Derived from T-179 GO decision.
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [security, tls, hub, cross-machine]
 components: []
 related_tasks: [T-179, T-163]
 created: 2026-03-18T22:58:44Z
-last_update: 2026-03-18T22:58:44Z
-date_finished: null
+last_update: 2026-03-18T23:03:10Z
+date_finished: 2026-03-18T23:03:10Z
 ---
 
 # T-182: Implement TOFU TLS verifier for cross-hub connections
@@ -30,7 +30,7 @@ Design: `docs/reports/T-179-cross-hub-tls-tofu.md`. Derived from T-179 GO decisi
 - [x] Unit test: TOFU accepts unknown cert on first connect and stores fingerprint (7 tests)
 - [x] Unit test: TOFU rejects cert with changed fingerprint
 - [x] `cargo test --package termlink-session` passes (18/18)
-- [ ] `cargo build --release` succeeds
+- [x] `cargo build --release` succeeds
 
 ### Human
 - [ ] [REVIEW] Verify cross-hub forwarding works between two machines
@@ -64,3 +64,6 @@ Design: `docs/reports/T-179-cross-hub-tls-tofu.md`. Derived from T-179 GO decisi
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-182-implement-tofu-tls-verifier-for-cross-hu.md
 - **Context:** Initial task creation
+
+### 2026-03-18T23:03:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
