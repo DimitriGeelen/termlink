@@ -390,18 +390,34 @@ impl PtySession {
     }
 }
 
+impl Drop for PtySession {
+    fn drop(&mut self) {
+        let pid = self.child_pid as libc::pid_t;
+        unsafe {
+            // Kill child to ensure PTY device is released promptly
+            libc::kill(pid, libc::SIGKILL);
+            // Reap to avoid zombie processes
+            let mut status: libc::c_int = 0;
+            libc::waitpid(pid, &mut status, libc::WNOHANG);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::test_util::PTY_LOCK;
+
     #[tokio::test]
     async fn spawn_and_exit() {
+        let _guard = PTY_LOCK.lock().unwrap();
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
 
         session.write(b"exit 0\n").await.unwrap();
 
         let result = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
+            std::time::Duration::from_secs(2),
             session.read_loop(),
         )
         .await;
@@ -411,6 +427,7 @@ mod tests {
 
     #[tokio::test]
     async fn spawn_echo_and_capture() {
+        let _guard = PTY_LOCK.lock().unwrap();
         let session = PtySession::spawn(Some("/bin/sh"), 4096).unwrap();
 
         session
@@ -419,7 +436,7 @@ mod tests {
             .unwrap();
 
         let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
+            std::time::Duration::from_secs(2),
             session.read_loop(),
         )
         .await;
@@ -438,6 +455,7 @@ mod tests {
 
     #[tokio::test]
     async fn child_pid_is_valid() {
+        let _guard = PTY_LOCK.lock().unwrap();
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
 
         assert!(session.child_pid() > 0);
@@ -449,6 +467,7 @@ mod tests {
 
     #[tokio::test]
     async fn terminal_mode_returns_valid_flags() {
+        let _guard = PTY_LOCK.lock().unwrap();
         // Verify tcgetattr succeeds and returns a valid TerminalMode struct.
         // Note: the exact flags depend on the shell and OS configuration.
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
@@ -466,7 +485,7 @@ mod tests {
 
         session.write(b"exit 0\n").await.unwrap();
         let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
+            std::time::Duration::from_secs(2),
             session.wait(),
         ).await;
     }
@@ -504,6 +523,7 @@ mod tests {
 
     #[tokio::test]
     async fn poll_mode_change_initial_stores_mode() {
+        let _guard = PTY_LOCK.lock().unwrap();
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
@@ -517,13 +537,14 @@ mod tests {
 
         session.write(b"exit 0\n").await.unwrap();
         let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
+            std::time::Duration::from_secs(2),
             session.wait(),
         ).await;
     }
 
     #[tokio::test]
     async fn write_and_read_roundtrip() {
+        let _guard = PTY_LOCK.lock().unwrap();
         let session = PtySession::spawn(Some("/bin/sh"), 8192).unwrap();
 
         session
@@ -532,7 +553,7 @@ mod tests {
             .unwrap();
 
         let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
+            std::time::Duration::from_secs(2),
             session.read_loop(),
         )
         .await;

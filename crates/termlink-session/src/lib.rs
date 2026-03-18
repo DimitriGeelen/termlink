@@ -20,3 +20,11 @@ pub use identity::SessionId;
 pub use lifecycle::SessionState;
 pub use registration::Registration;
 pub use manager::{Session, SessionError};
+
+/// Shared test utilities (crate-internal).
+#[cfg(test)]
+pub(crate) mod test_util {
+    /// Serialize PTY-allocating tests to prevent device exhaustion under parallel load.
+    /// macOS `openpty()` returns ENXIO when too many PTY devices are allocated concurrently.
+    pub static PTY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+}

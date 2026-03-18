@@ -279,7 +279,22 @@ async fn start_pty_session(
         .await
         .unwrap();
 
-    let pty = Arc::new(PtySession::spawn(Some("/bin/sh"), 1024 * 64).unwrap());
+    // Retry PTY spawn with back-off — openpty can fail transiently under parallel load
+    let pty = Arc::new({
+        let mut session = None;
+        for attempt in 0..5 {
+            match PtySession::spawn(Some("/bin/sh"), 1024 * 64) {
+                Ok(s) => { session = Some(s); break; }
+                Err(e) => {
+                    if attempt == 4 {
+                        panic!("PtySession::spawn failed after 5 retries: {e}");
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(200 * (attempt + 1)));
+                }
+            }
+        }
+        session.unwrap()
+    });
     let (registration, listener, _sessions_dir) = session.into_parts();
     let reg = registration.clone();
     let data_socket = data_server::data_socket_path(reg.socket_path());
