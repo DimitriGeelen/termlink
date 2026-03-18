@@ -1,0 +1,33 @@
+---
+task_id: T-166
+name: "Cross-machine event delivery end-to-end test"
+workflow_type: test
+status: completed
+created: 2026-03-18T10:08:34Z
+completed: 2026-03-18T16:09:01Z
+duration_days: 0
+owner: agent
+tags: [tcp, events]
+---
+
+summary: >
+  Validated that event.broadcast via TCP hub reaches local sessions, and
+  event.collect aggregates events from sessions reached via TCP. Added three
+  integration tests: TCP-authenticated broadcast delivery, TCP-authenticated
+  collect aggregation, and unauthenticated client scope enforcement (rejected).
+  End-to-end coverage for T-164 TCP auth and T-163 cross-machine communication.
+
+what_worked:
+  - "Clear test structure: broadcast, collect, and negative (unauth) cases cover the key paths"
+  - "Building on existing hub test infrastructure made test setup efficient"
+  - "Scope enforcement test validates security boundary — unauthenticated clients cannot broadcast/collect"
+
+what_didnt:
+  - "No significant issues — tests are straightforward integration tests"
+
+decisions: []
+
+artifacts:
+  - crates/termlink-hub/src/router.rs
+
+related_tasks: [T-163, T-164]

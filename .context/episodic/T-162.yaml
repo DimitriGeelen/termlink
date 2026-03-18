@@ -1,0 +1,32 @@
+---
+task_id: T-162
+name: "Add Agent tool vs TermLink dispatch guidance to framework specs"
+workflow_type: build
+status: completed
+created: 2026-03-17T23:20:33Z
+completed: 2026-03-17T23:21:27Z
+duration_days: 0
+owner: agent
+tags: [framework, docs]
+---
+
+summary: >
+  Added decision matrix to T-148 framework integration spec and CLAUDE.md
+  clarifying when to use Claude Code Agent tool vs TermLink dispatch. Triggered
+  by framework agent incorrectly using Agent tool instead of TermLink, reasoning
+  that TermLink lacks Edit tools (missing that TermLink dispatches Claude Code
+  workers which DO have Edit/Write).
+
+what_worked:
+  - "Quick targeted doc fix — under 2 minutes from task creation to completion"
+  - "Decision matrix format clearly distinguishes the two dispatch mechanisms"
+
+what_didnt:
+  - "Nothing — very small, well-scoped documentation task"
+
+decisions: []
+
+artifacts:
+  - docs/specs/T-148-termlink-framework-integration.md
+
+related_tasks: [T-148, T-157]

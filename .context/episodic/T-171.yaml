@@ -1,0 +1,33 @@
+---
+task_id: T-171
+name: "Fix event poll cursor off-by-one in CLI commands"
+workflow_type: build
+status: completed
+created: 2026-03-18T18:48:54Z
+completed: 2026-03-18T19:09:02Z
+duration_days: 0
+owner: agent
+tags: [cli, events, bugfix]
+---
+
+summary: >
+  Fixed off-by-one bug in event.poll cursor handling. event.poll with since:0
+  returns events after seq 0, skipping the first event (seq 0). cmd_file_receive
+  and cmd_agent_listen fetched initial next_seq (returns 0 for empty bus) then
+  passed since:0, missing the first event. Fix: start with poll_cursor = None
+  (no since parameter on first poll), so all events including seq 0 are returned.
+
+what_worked:
+  - "Clear root cause — since:0 means 'after 0', not 'from 0'"
+  - "Quick fix: poll_cursor = None on first call, then set from response"
+  - "Validated via file transfer E2E test (T-168 human AC)"
+
+what_didnt:
+  - "Off-by-one was subtle — next_seq returning 0 for empty bus was misleading"
+
+decisions: []
+
+artifacts:
+  - crates/termlink-cli/src/main.rs
+
+related_tasks: [T-168]

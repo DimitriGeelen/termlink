@@ -1,0 +1,36 @@
+---
+task_id: T-167
+name: "Agent message protocol — request/response over events"
+workflow_type: build
+status: completed
+created: 2026-03-18T10:08:36Z
+completed: 2026-03-18T17:16:57Z
+duration_days: 0
+owner: agent
+tags: [protocol, agent-comms]
+---
+
+summary: >
+  Designed and implemented agent-to-agent request/response protocol built on
+  TermLink events. Three new structs: AgentRequest (request_id ULID, from, to,
+  action, params, timeout_secs), AgentResponse (request_id, from, status,
+  result, error_message), AgentStatus (request_id, from, phase, message,
+  progress). Topic constants agent.request, agent.response, agent.status.
+  Serde roundtrip tests and integration test (emit request, emit response,
+  poll by request_id) all pass.
+
+what_worked:
+  - "ULID-based request_id provides natural ordering and correlation across events"
+  - "Building on existing event infrastructure — no new transport needed"
+  - "AgentStatus struct enables progress reporting for long-running agent tasks"
+  - "Serde roundtrip tests caught schema issues early"
+
+what_didnt:
+  - "No significant issues — clean protocol layer on top of existing event system"
+
+decisions: []
+
+artifacts:
+  - crates/termlink-protocol/src/events.rs
+
+related_tasks: []

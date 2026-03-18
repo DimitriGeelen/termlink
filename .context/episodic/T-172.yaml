@@ -1,0 +1,33 @@
+---
+task_id: T-172
+name: "Fix forward_to_remote_session_via_tcp test broken by TLS cert detection"
+workflow_type: build
+status: completed
+created: 2026-03-18T21:09:20Z
+completed: 2026-03-18T21:12:11Z
+duration_days: 0
+owner: agent
+tags: [tcp, tls, testing, bugfix]
+---
+
+summary: >
+  Fixed forward_to_remote_session_via_tcp test broken after T-165 added TLS cert
+  detection in connect_addr. The test uses a plain TCP proxy but didn't isolate
+  TERMLINK_RUNTIME_DIR, so a stale hub.cert.pem from prior hub runs triggered
+  TLS handshake failure on a plain TCP connection. Fix: set TERMLINK_RUNTIME_DIR
+  to a clean temp dir and acquire ENV_LOCK (required when setting env vars in tests).
+
+what_worked:
+  - "Root cause was clear — stale cert in shared runtime dir triggered TLS on plain TCP"
+  - "ENV_LOCK pattern already established in codebase — consistent fix"
+  - "Clean temp dir isolation prevents cross-test contamination"
+
+what_didnt:
+  - "T-165 should have updated this test when adding TLS cert detection — missed downstream impact"
+
+decisions: []
+
+artifacts:
+  - crates/termlink-hub/src/router.rs
+
+related_tasks: [T-165]

@@ -1,0 +1,34 @@
+---
+task_id: T-170
+name: "Fix PTY test failures under parallel execution"
+workflow_type: build
+status: completed
+created: 2026-03-18T12:12:43Z
+completed: 2026-03-18T16:03:31Z
+duration_days: 0
+owner: agent
+tags: [pty, testing, bugfix]
+---
+
+summary: >
+  Fixed PTY test failures (terminal_mode_returns_valid_flags, write_and_read_roundtrip)
+  caused by PTY device exhaustion under parallel execution on macOS. Root cause:
+  PtySession had no Drop impl, leaving zombie processes and leaked PTY devices.
+  Additionally, 5-second read_loop timeouts held devices too long. Fix: added
+  Drop impl that kills child process and reaps via waitpid, reduced test timeouts
+  from 5s to 2s.
+
+what_worked:
+  - "Root cause analysis was clear — PTY device exhaustion from missing Drop impl"
+  - "Drop impl with kill + waitpid cleanly releases resources"
+  - "Reducing timeouts from 5s to 2s freed PTY devices faster without affecting test reliability"
+
+what_didnt:
+  - "Should have added Drop impl from the start — resource cleanup is essential for PTY management"
+
+decisions: []
+
+artifacts:
+  - crates/termlink-session/src/pty.rs
+
+related_tasks: []

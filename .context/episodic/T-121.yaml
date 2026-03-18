@@ -1,0 +1,34 @@
+---
+task_id: T-121
+name: "PTY mode detection — pty.mode RPC + mode-change events"
+workflow_type: build
+status: completed
+created: 2026-03-12T20:17:46Z
+completed: 2026-03-13T09:53:33Z
+duration_days: 1
+owner: human
+tags: [session, pty, interactive, termios]
+---
+
+summary: >
+  Added tcgetattr-based terminal mode detection to PtySession. New pty.mode RPC
+  returns canonical/raw/echo state. pty.mode-change event emitted on state
+  transitions (e.g., entering vim triggers raw mode). Alternate screen buffer
+  detection tracks escape sequences. Password prompt hint fires when ECHO flag
+  drops. CLI status command now includes terminal mode in output.
+
+what_worked:
+  - "tcgetattr on PTY master fd cleanly exposes canonical/raw/echo flags"
+  - "Alternate screen buffer detection via escape sequence tracking (1049h/l) works reliably"
+  - "Password prompt hint (ECHO flag drop) is a simple but effective security-relevant signal"
+  - "Building on T-010 inception GO — clear requirements made implementation straightforward"
+
+what_didnt:
+  - "No significant issues — well-scoped task from inception"
+
+decisions: []
+
+artifacts:
+  - crates/termlink-session/src/pty.rs
+
+related_tasks: [T-010]
