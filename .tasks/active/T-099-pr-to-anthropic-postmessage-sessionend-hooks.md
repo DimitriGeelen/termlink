@@ -15,7 +15,7 @@ tags: [anthropic, claude-code, hooks, framework, governance]
 components: []
 related_tasks: [T-094, T-095, T-096, T-100, T-101, T-102]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-18T21:37:58Z
+last_update: 2026-03-18T21:39:32Z
 date_finished: 2026-03-18T21:37:58Z
 ---
 

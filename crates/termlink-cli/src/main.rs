@@ -1762,7 +1762,7 @@ async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) ->
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            let bytes = result["bytes_written"].as_u64().unwrap_or(0);
+            let bytes = result["bytes_len"].as_u64().unwrap_or(0);
             println!("Injected {bytes} bytes");
             Ok(())
         }

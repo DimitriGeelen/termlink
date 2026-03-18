@@ -4,7 +4,7 @@ name: "Fix pty inject bytes_written display bug (always shows 0)"
 description: >
   cmd_inject reads result[bytes_written] but handler returns bytes_len. One-line fix in main.rs:1765.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [bug, cli, inject]
 components: []
 related_tasks: []
 created: 2026-03-18T22:19:28Z
-last_update: 2026-03-18T22:19:28Z
+last_update: 2026-03-18T22:20:31Z
 date_finished: null
 ---
 
@@ -25,12 +25,12 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] main.rs:1765 reads `bytes_len` instead of `bytes_written`
+- [x] `cargo build --release` succeeds
+- [x] Existing tests pass
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+<!-- No human ACs needed — purely mechanical fix
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
      Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
@@ -72,3 +72,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-177-fix-pty-inject-byteswritten-display-bug-.md
 - **Context:** Initial task creation
+
+### 2026-03-18T22:20:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
