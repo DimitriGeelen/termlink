@@ -1,9 +1,9 @@
-# Audit Results - 2026-03-18-2230
-timestamp: 2026-03-18T21:30:18Z
+# Audit Results - 2026-03-18-2329
+timestamp: 2026-03-18T22:29:48Z
 summary:
-  pass: 101
-  warn: 10
-  fail: 0
+  pass: 102
+  warn: 11
+  fail: 1
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -22,7 +22,7 @@ findings:
   - level: PASS
     check: "Fabric edges: 39/49 cards enriched (10 without edges)"
   - level: PASS
-    check: "All 20 active tasks are valid"
+    check: "All 28 active tasks are valid"
   - level: WARN
     check: "Task T-140 has short description (33 chars)"
     mitigation: "Expand description in T-140-framework-upgrade-v100--v126.md"
@@ -30,9 +30,10 @@ findings:
     check: "Task T-148 has short description (46 chars)"
     mitigation: "Expand description in T-148-termlink-integration-spec-for-framework-.md"
   - level: PASS
-    check: "Git traceability: 100% (362/362 commits reference tasks)"
-  - level: PASS
-    check: "Working directory clean"
+    check: "Git traceability: 100% (369/369 commits reference tasks)"
+  - level: WARN
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
   - level: PASS
     check: "All commit task refs resolve to actual tasks"
   - level: PASS
@@ -59,7 +60,7 @@ findings:
   - level: PASS
     check: "Gaps register: 1 watching, no triggers fired"
   - level: PASS
-    check: "Handover open questions: none (section empty or template placeholder)"
+    check: "Handover open questions: none"
   - level: PASS
     check: "Graduation pipeline: 0 learnings (threshold: 20)"
   - level: WARN
@@ -74,11 +75,11 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-102)"
+    check: "CTL-001: Focus file has active task (T-177)"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 2 (last commit: 33 seconds ago)"
+    check: "CTL-004: Tool counter at 1 (last commit: 36 seconds ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -91,9 +92,11 @@ findings:
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (51 handovers, 34 compactions)"
+    check: "CTL-006: Handover coverage for compactions (52 handovers, 34 compactions)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
+  - level: PASS
+    check: "CTL-009: Inception T-099 has decision (3 commits)"
   - level: PASS
     check: "CTL-009: Inception T-100 has decision (3 commits)"
   - level: PASS
@@ -101,7 +104,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-119 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-163 has decision (3 commits)"
+    check: "CTL-009: Inception T-163 has decision (4 commits)"
   - level: PASS
     check: "CTL-009: Inception T-002 has decision (4 commits)"
   - level: PASS
@@ -117,7 +120,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (76 commits)"
+    check: "CTL-009: Inception T-012 has decision (79 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -170,6 +173,8 @@ findings:
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
+    check: "CTL-025: T-099 partial-complete with owner:human ✓"
+  - level: PASS
     check: "CTL-025: T-100 partial-complete with owner:human ✓"
   - level: PASS
     check: "CTL-025: T-102 partial-complete with owner:human ✓"
@@ -206,15 +211,18 @@ findings:
   - level: PASS
     check: "CTL-025: T-164 partial-complete with owner:human ✓"
   - level: PASS
+    check: "CTL-025: T-177 partial-complete with owner:human ✓"
+  - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
     check: "D1: Episodic quality — 0% [TODO] (0/151)"
   - level: PASS
-    check: "D2: Human review queue — 18 task(s) awaiting human action (normal)"
+    check: "D2: Human review queue — 20 task(s) awaiting human action (normal)"
+  - level: FAIL
+    check: "D8: Handover quality — LATEST.md has 119 [TODO] sections"
+    mitigation: "Fill handover: edit .context/handovers/LATEST.md or run fw handover"
   - level: PASS
-    check: "D8: Handover quality — no [TODO] in LATEST.md"
-  - level: PASS
-    check: "D8b: Handover archive — 0/10 recent handovers have [TODO]s"
+    check: "D8b: Handover archive — 2/10 recent handovers have [TODO]s"
   - level: WARN
     check: "D10: Decision-without-dialogue — 1 task(s): T-101"
     mitigation: "Review flagged tasks — human dialogue may have been skipped"
@@ -226,9 +234,9 @@ findings:
     check: "D5: Task lifecycle — 10 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) T-092(1min,human)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=28 avg=26 ratio=1.1x)"
+    check: "D3: Commit velocity — normal (PASS today=36 avg=26 ratio=1.4x)"
   - level: PASS
-    check: "D7: Commit bunching — none (PASS 30_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
   - level: PASS
     check: "D6: Completion velocity — normal (PASS recent=6.7 earlier=12.1)"
   - level: PASS
