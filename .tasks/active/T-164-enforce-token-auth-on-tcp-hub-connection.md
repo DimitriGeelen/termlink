@@ -4,7 +4,7 @@ name: "Enforce token auth on TCP hub connections"
 description: >
   Require auth.token on all TCP connections before granting any RPC scope. Default TCP to zero scope. Make token_secret mandatory when TCP hub enabled.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [security, tcp]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:25Z
-last_update: 2026-03-18T10:08:25Z
+last_update: 2026-03-18T11:19:22Z
 date_finished: null
 ---
 
@@ -20,40 +20,36 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+TCP hub connections bypass all auth (T-163 research finding). Session server already has
+token auth pattern (server.rs:24-108). Replicate for hub. See docs/reports/T-163-*.md.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Hub generates `token_secret` on startup, writes to `hub.secret` in runtime dir (600 perms)
+- [ ] TCP connections default to zero scope — only `hub.auth` method allowed
+- [ ] Unix connections keep current behavior (same-UID → full access)
+- [ ] `hub.auth` RPC validates token and upgrades connection scope
+- [ ] Hub-specific method scope mapping (discover=Observe, broadcast/register_remote=Interact, forward=per-method)
+- [ ] All existing hub tests pass
+- [ ] New tests: TCP connection rejected without auth, TCP connection works after auth
+- [ ] `hub start --tcp` prints token or path to hub.secret for client use
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Verify TCP auth works end-to-end
+  **Steps:**
+  1. `termlink hub start --tcp 0.0.0.0:9100`
+  2. From another terminal, try raw TCP: `echo '{"jsonrpc":"2.0","method":"session.discover","id":"1","params":{}}' | nc localhost 9100`
+  3. Verify request is rejected (auth required)
+  4. Use `termlink token create --hub` to get a token, then authenticate
+  **Expected:** Unauthenticated TCP gets "Permission denied", authenticated TCP works
+  **If not:** Note which step fails
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo test --package termlink-hub 2>&1 | grep -q "test result: ok"
+grep -q "hub.auth" crates/termlink-hub/src/server.rs
+grep -q "hub.secret" crates/termlink-hub/src/server.rs
 
 ## Decisions
 
@@ -72,3 +68,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-164-enforce-token-auth-on-tcp-hub-connection.md
 - **Context:** Initial task creation
+
+### 2026-03-18T11:19:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
