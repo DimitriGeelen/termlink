@@ -575,6 +575,7 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
+    use tokio::io::AsyncWriteExt;
     use tokio::sync::RwLock;
 
     use termlink_session::handler::SessionContext;
@@ -1037,6 +1038,286 @@ mod tests {
         } else {
             panic!("Expected success");
         }
+    }
+
+    /// Helper: start a hub with Unix + TCP listeners.
+    /// Returns (hub_handle, shutdown_tx, hub_socket_path, tcp_port, secret_hex).
+    async fn start_hub_with_tcp(
+        dir: &Path,
+    ) -> (
+        tokio::task::JoinHandle<()>,
+        tokio::sync::watch::Sender<bool>,
+        PathBuf,
+        u16,
+        String,
+    ) {
+        use crate::server::run_accept_loop;
+        use tokio::net::{TcpListener, UnixListener};
+        use tokio::sync::watch;
+
+        let hub_socket = dir.join("hub.sock");
+        let secret = termlink_session::auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        (handle, tx, hub_socket, tcp_port, secret_hex)
+    }
+
+    /// Helper: connect to TCP, authenticate, return (lines_reader, writer).
+    async fn tcp_connect_and_auth(
+        tcp_port: u16,
+        secret_hex: &str,
+        scope: termlink_session::auth::PermissionScope,
+    ) -> (
+        tokio::io::Lines<tokio::io::BufReader<tokio::net::tcp::OwnedReadHalf>>,
+        tokio::net::tcp::OwnedWriteHalf,
+    ) {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+        let secret_vec: Vec<u8> = (0..secret_hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&secret_hex[i..i + 2], 16).unwrap())
+            .collect();
+        let secret_bytes: [u8; 32] = secret_vec.try_into().expect("secret must be 32 bytes");
+
+        let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (reader, mut writer) = tcp_stream.into_split();
+        let mut lines = tokio::io::BufReader::new(reader).lines();
+
+        let token = termlink_session::auth::create_token(&secret_bytes, scope, "", 3600);
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "hub.auth",
+            "id": "auth",
+            "params": { "token": token.raw }
+        });
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+        assert_eq!(resp["result"]["authenticated"], true);
+
+        (lines, writer)
+    }
+
+    #[tokio::test]
+    async fn tcp_broadcast_delivers_to_sessions() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (h1, r1) = start_test_session(&sessions_dir, "tcp-bcast-a").await;
+        let (h2, r2) = start_test_session(&sessions_dir, "tcp-bcast-b").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let (hub_handle, shutdown_tx, _hub_socket, tcp_port, secret_hex) =
+            start_hub_with_tcp(&dir).await;
+
+        // Connect via TCP and authenticate with Execute scope
+        let (mut lines, mut writer) = tcp_connect_and_auth(
+            tcp_port,
+            &secret_hex,
+            termlink_session::auth::PermissionScope::Execute,
+        )
+        .await;
+
+        // Broadcast event via TCP connection
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "event.broadcast",
+            "id": "bc-tcp-1",
+            "params": {
+                "topic": "deploy.tcp",
+                "payload": {"from": "remote-machine"},
+            }
+        });
+        writer
+            .write_all(format!("{}\n", req).as_bytes())
+            .await
+            .unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+
+        assert_eq!(resp["id"], "bc-tcp-1");
+        assert_eq!(resp["result"]["topic"], "deploy.tcp");
+        assert_eq!(resp["result"]["targeted"], 2);
+        assert_eq!(resp["result"]["succeeded"], 2);
+        assert_eq!(resp["result"]["failed"], 0);
+
+        // Verify events landed on each session
+        let resp = client::rpc_call(r1.socket_path(), "event.poll", json!({}))
+            .await
+            .unwrap();
+        let result = client::unwrap_result(resp).unwrap();
+        let events = result["events"].as_array().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["topic"], "deploy.tcp");
+        assert_eq!(events[0]["payload"]["from"], "remote-machine");
+
+        let resp = client::rpc_call(r2.socket_path(), "event.poll", json!({}))
+            .await
+            .unwrap();
+        let result = client::unwrap_result(resp).unwrap();
+        let events = result["events"].as_array().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["topic"], "deploy.tcp");
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        shutdown_tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        h1.abort();
+        h2.abort();
+    }
+
+    #[tokio::test]
+    async fn tcp_collect_aggregates_events() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (h1, r1) = start_test_session(&sessions_dir, "tcp-coll-a").await;
+        let (h2, r2) = start_test_session(&sessions_dir, "tcp-coll-b").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // Emit events directly to each session
+        client::rpc_call(
+            r1.socket_path(),
+            "event.emit",
+            json!({"topic": "build.done", "payload": {"machine": "A"}}),
+        )
+        .await
+        .unwrap();
+        client::rpc_call(
+            r2.socket_path(),
+            "event.emit",
+            json!({"topic": "test.pass", "payload": {"machine": "B"}}),
+        )
+        .await
+        .unwrap();
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let (hub_handle, shutdown_tx, _hub_socket, tcp_port, secret_hex) =
+            start_hub_with_tcp(&dir).await;
+
+        // Connect via TCP and authenticate
+        let (mut lines, mut writer) = tcp_connect_and_auth(
+            tcp_port,
+            &secret_hex,
+            termlink_session::auth::PermissionScope::Execute,
+        )
+        .await;
+
+        // Collect events via TCP connection
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "event.collect",
+            "id": "cl-tcp-1",
+            "params": {}
+        });
+        writer
+            .write_all(format!("{}\n", req).as_bytes())
+            .await
+            .unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+
+        assert_eq!(resp["id"], "cl-tcp-1");
+        assert_eq!(resp["result"]["count"], 2);
+        let events = resp["result"]["events"].as_array().unwrap();
+        let topics: Vec<&str> = events.iter().filter_map(|e| e["topic"].as_str()).collect();
+        assert!(topics.contains(&"build.done"));
+        assert!(topics.contains(&"test.pass"));
+
+        // Each event should have session metadata
+        for event in events {
+            assert!(event.get("session").is_some());
+            assert!(event.get("session_name").is_some());
+        }
+
+        // Cursors should be present
+        let cursors = resp["result"]["cursors"].as_object().unwrap();
+        assert_eq!(cursors.len(), 2);
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        shutdown_tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        h1.abort();
+        h2.abort();
+    }
+
+    #[tokio::test]
+    async fn tcp_unauthenticated_broadcast_rejected() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let dir = test_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let (hub_handle, shutdown_tx, _hub_socket, tcp_port, _secret_hex) =
+            start_hub_with_tcp(&dir).await;
+
+        // Connect via TCP without authenticating
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as TokioBufReader};
+
+        let tcp_stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (reader, mut writer) = tcp_stream.into_split();
+        let mut lines = TokioBufReader::new(reader).lines();
+
+        // Try broadcast — should be rejected
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "event.broadcast",
+            "id": "bc-noauth",
+            "params": {"topic": "test", "payload": {}}
+        });
+        writer
+            .write_all(format!("{}\n", req).as_bytes())
+            .await
+            .unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+        assert_eq!(resp["error"]["code"], -32009, "Broadcast should require auth");
+
+        // Try collect — should also be rejected
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "event.collect",
+            "id": "cl-noauth",
+            "params": {}
+        });
+        writer
+            .write_all(format!("{}\n", req).as_bytes())
+            .await
+            .unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+        assert_eq!(resp["error"]["code"], -32009, "Collect should require auth");
+        shutdown_tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
     }
 
     #[tokio::test]

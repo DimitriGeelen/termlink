@@ -4,7 +4,7 @@ name: "Cross-machine event delivery end-to-end test"
 description: >
   Validate that event.emit on machine A reaches machine B session via TCP hub. Test broadcast and collect across TCP.
 
-status: captured
+status: started-work
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [tcp, events]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:34Z
-last_update: 2026-03-18T10:08:34Z
+last_update: 2026-03-18T16:04:09Z
 date_finished: null
 ---
 
@@ -20,40 +20,21 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Validate that event.broadcast via TCP hub reaches sessions, and event.collect aggregates events from sessions reached via TCP. End-to-end test for T-164 TCP auth + T-163 cross-machine communication.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] Test: TCP-authenticated client can broadcast events to local sessions via hub
+- [x] Test: TCP-authenticated client can collect events from local sessions via hub
+- [x] Test: Unauthenticated TCP client cannot broadcast or collect (scope enforcement)
+- [x] All existing hub tests still pass (`cargo test -p termlink-hub`)
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+bash -c 'out=$(/Users/dimidev32/.cargo/bin/cargo test --package termlink-hub 2>&1); echo "$out" | grep -q "0 failed"'
+grep -q "tcp_broadcast_delivers_to_sessions" crates/termlink-hub/src/router.rs
+grep -q "tcp_collect_aggregates_events" crates/termlink-hub/src/router.rs
 
 ## Decisions
 
@@ -72,3 +53,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-166-cross-machine-event-delivery-end-to-end-.md
 - **Context:** Initial task creation
+
+### 2026-03-18T16:04:09Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
