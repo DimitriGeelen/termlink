@@ -26,6 +26,10 @@ What if we change the architectural constraint: the orchestrator MUST make a too
 for every substantive response. Pure conversation is not allowed at the orchestrator level.
 If exploration is needed, it must be delegated to a spawned agent.
 
+## Research Artifact
+
+`docs/reports/T-102-orchestrator-mandatory-tool-call-constraint.md`
+
 ## The Idea
 
 Three variants to explore:

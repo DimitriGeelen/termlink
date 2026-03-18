@@ -31,6 +31,10 @@ Two missing hook types would close this gap completely:
 - **PostMessage** — fires after each assistant response (enables N-exchange guard)
 - **SessionEnd** — fires on normal session exit (enables mandatory handover)
 
+## Research Artifact
+
+`docs/reports/T-099-postmessage-sessionend-hook-request.md`
+
 ## Background (for PR body)
 
 The Agentic Engineering Framework is a governance system for AI agents built on top of

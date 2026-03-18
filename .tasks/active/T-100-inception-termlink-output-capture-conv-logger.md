@@ -21,6 +21,10 @@ date_finished: 2026-03-18T21:29:51Z
 
 # T-100: Inception — TermLink Output Capture as Conversation Logger
 
+## Research Artifact
+
+`docs/reports/T-100-termlink-output-capture-conversation-logger.md`
+
 ## Problem Statement
 
 Can TermLink's existing output capture / stream / attach capabilities be used to capture

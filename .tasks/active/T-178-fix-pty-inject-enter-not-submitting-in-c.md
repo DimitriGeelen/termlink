@@ -20,7 +20,8 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+RCA report: `docs/reports/T-163-cross-machine-rca-findings.md` (Bug 2 section).
+Root cause: ink TUI treats batched text+Enter as paste, not keypress. Fix: split into two separate pty.write() calls with small delay. Also investigate ICRNL termios flag.
 
 ## Acceptance Criteria
 
