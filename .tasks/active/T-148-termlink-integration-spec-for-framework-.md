@@ -2,7 +2,7 @@
 id: T-148
 name: "TermLink integration spec for framework pickup"
 description: >
-  TermLink integration spec for framework pickup
+  Write the TermLink integration specification as a framework pickup prompt — covers session registration, hub management, inject/attach, and agent dispatch via TermLink
 
 status: work-completed
 workflow_type: specification

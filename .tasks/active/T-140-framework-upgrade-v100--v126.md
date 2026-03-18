@@ -2,7 +2,7 @@
 id: T-140
 name: "Framework upgrade v1.0.0 → v1.2.6"
 description: >
-  Framework upgrade v1.0.0 → v1.2.6
+  Upgrade the Agentic Engineering Framework from v1.0.0 to v1.2.6 — includes new audit checks, fabric subsystem, and CLI improvements
 
 status: work-completed
 workflow_type: build

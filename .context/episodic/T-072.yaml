@@ -35,4 +35,10 @@ key_files:
   - crates/termlink-session/tests/integration.rs
   - crates/termlink-cli/tests/cli_integration.rs
 
+summary: >
+  Created termlink-test-utils workspace crate with 5 shared test helpers (TestDir,
+  ProcessGuard, wait_for_socket, start_session, termlink_cmd). Refactored session
+  and CLI integration tests to use shared helpers, removing ~100 lines of duplicated
+  boilerplate. All 223 tests pass.
+
 tags: [testing, infrastructure, refactor]

@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-18-2329
-timestamp: 2026-03-18T22:29:48Z
+# Audit Results - 2026-03-18-2342
+timestamp: 2026-03-18T22:42:20Z
 summary:
-  pass: 102
-  warn: 11
+  pass: 100
+  warn: 12
   fail: 1
 findings:
   - level: PASS
@@ -30,7 +30,7 @@ findings:
     check: "Task T-148 has short description (46 chars)"
     mitigation: "Expand description in T-148-termlink-integration-spec-for-framework-.md"
   - level: PASS
-    check: "Git traceability: 100% (369/369 commits reference tasks)"
+    check: "Git traceability: 100% (371/371 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -46,7 +46,7 @@ findings:
     check: "Practices documented: 10 practice(s) in practices.yaml"
   - level: WARN
     check: "Bugfix-learning coverage: 16% (2/12)"
-    mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX \"description\""
+    mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX "description""
   - level: WARN
     check: "Completed task T-159 has no episodic summary"
     mitigation: "Run: ./agents/context/context.sh generate-episodic T-159"
@@ -60,7 +60,7 @@ findings:
   - level: PASS
     check: "Gaps register: 1 watching, no triggers fired"
   - level: PASS
-    check: "Handover open questions: none"
+    check: "Handover open questions: none (section empty or template placeholder)"
   - level: PASS
     check: "Graduation pipeline: 0 learnings (threshold: 20)"
   - level: WARN
@@ -72,14 +72,15 @@ findings:
     check: "C-002: commit-msg hook has research artifact check"
   - level: PASS
     check: "C-002: No research warnings logged (clean or first run)"
-  - level: PASS
-    check: "C-003: Research checkpoint logic present in checkpoint.sh"
+  - level: WARN
+    check: "C-003: Research checkpoint logic missing from checkpoint.sh"
+    mitigation: "Add C-003 research checkpoint to checkpoint.sh post-tool handler"
   - level: PASS
     check: "CTL-001: Focus file has active task (T-177)"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 1 (last commit: 36 seconds ago)"
+    check: "CTL-004: Tool counter at 5 (last commit: 9 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -92,7 +93,7 @@ findings:
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (52 handovers, 34 compactions)"
+    check: "CTL-006: Handover coverage for compactions (54 handovers, 35 compactions)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
   - level: PASS
@@ -120,7 +121,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (79 commits)"
+    check: "CTL-009: Inception T-012 has decision (81 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -216,13 +217,11 @@ findings:
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
     check: "D1: Episodic quality — 0% [TODO] (0/151)"
-  - level: PASS
-    check: "D2: Human review queue — 20 task(s) awaiting human action (normal)"
   - level: FAIL
-    check: "D8: Handover quality — LATEST.md has 119 [TODO] sections"
-    mitigation: "Fill handover: edit .context/handovers/LATEST.md or run fw handover"
+    check: "D2: Human review queue — 8 task(s) waiting >72h: T-109(105h) T-119(147h) T-124(145h) T-126(106h) T-127(106h) T-137(98h) T-140(96h) T-141(96h) T-143(71h) T-148(30h) T-156(36h) T-157(35h) T-158(35h)"
+    mitigation: "Review pending tasks at :3000/tasks or run: fw task list --status work-completed"
   - level: PASS
-    check: "D8b: Handover archive — 2/10 recent handovers have [TODO]s"
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
   - level: WARN
     check: "D10: Decision-without-dialogue — 1 task(s): T-101"
     mitigation: "Review flagged tasks — human dialogue may have been skipped"
@@ -234,9 +233,9 @@ findings:
     check: "D5: Task lifecycle — 10 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) T-092(1min,human)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=36 avg=26 ratio=1.4x)"
+    check: "D3: Commit velocity — normal (PASS today=37 avg=26 ratio=1.4x)"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 39_commits_24h)"
   - level: PASS
     check: "D6: Completion velocity — normal (PASS recent=6.7 earlier=12.1)"
   - level: PASS

@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-159: Add termlink upgrade command to framework pickup specs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-18T22:46:03Z
+# ============================================================================
+
+task_id: T-159
+task_name: "Add termlink upgrade command to framework pickup specs"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-17T20:20:50Z
+completed: 2026-03-17T20:21:49Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-17T21:21:41+01:00
+last_commit: 2026-03-17T21:21:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink install/upgrade command to framework pickup specs
+
+# Key outcomes
+outcomes:
+  - "T-148 spec has install/upgrade command section"
+  - "T-157 pickup prompt has install/upgrade command"
+  - "Commands reference both GitHub and local clone paths"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-159-add-termlink-upgrade-command-to-framewor.md"
+  - "docs/specs/T-148-termlink-framework-integration.md"
+  - "docs/specs/T-157-claude-fw-termlink-pickup.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-17T21:21:41"
+    action: "T-159: Add termlink install/upgrade command to framework pickup specs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [remote-access, framework]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 72
+  lines_removed: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-159-add-termlink-upgrade-command-to-framewor.md
+generated_by: context-agent-hybrid

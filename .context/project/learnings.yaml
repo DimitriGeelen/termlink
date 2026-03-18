@@ -29,3 +29,31 @@ learnings:
   date: 2026-03-10
   context: Added via context agent
   application: TBD
+- id: L-005
+  learning: "CLI field name must match RPC response field exactly — bytes_written vs bytes_len mismatch caused silent display bug (always showed 0)"
+  source: P-001
+  task: T-177
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-006
+  learning: "Hub tests that set TERMLINK_RUNTIME_DIR must use ENV_LOCK and isolated temp dirs — without isolation, TLS cert from another test leaks and causes handshake failures"
+  source: P-001
+  task: T-172
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-007
+  learning: "Newer Rust editions require unsafe block around std::env::set_var — test code that sets env vars needs explicit unsafe with SAFETY comment explaining single-threaded access"
+  source: P-001
+  task: T-172
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-008
+  learning: "ink TUI (React terminal) treats multi-byte writes as paste — Enter (0x0D) must be sent as separate pty.write() with delay for keypress detection"
+  source: P-001
+  task: T-178
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
