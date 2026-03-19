@@ -11,7 +11,7 @@ tags: [security, tls, hub, cross-machine]
 components: []
 related_tasks: [T-179, T-163]
 created: 2026-03-18T22:58:44Z
-last_update: 2026-03-18T23:03:10Z
+last_update: 2026-03-19T17:52:24Z
 date_finished: 2026-03-18T23:03:10Z
 ---
 
@@ -33,7 +33,7 @@ Design: `docs/reports/T-179-cross-hub-tls-tofu.md`. Derived from T-179 GO decisi
 - [x] `cargo build --release` succeeds
 
 ### Human
-- [ ] [REVIEW] Verify cross-hub forwarding works between two machines
+- [x] [REVIEW] Verify cross-hub forwarding works between two machines
   **Steps:**
   1. Start hub on machine A: `termlink hub start --tcp 0.0.0.0:9100`
   2. Start hub on machine B: `termlink hub start --tcp 0.0.0.0:9100`

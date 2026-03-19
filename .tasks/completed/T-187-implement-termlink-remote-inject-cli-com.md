@@ -6,16 +6,16 @@ description: >
   Wraps TOFU TLS + HMAC auth + hub-routed inject into a single command.
   Design: docs/reports/T-186-inject-remote-cli-design.md
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, cross-machine, remote]
 components: []
 related_tasks: [T-186, T-182, T-183, T-184]
 created: 2026-03-19T05:50:40Z
-last_update: 2026-03-19T05:50:40Z
-date_finished: null
+last_update: 2026-03-19T17:52:23Z
+date_finished: 2026-03-19T05:59:50Z
 ---
 
 # T-187: Implement termlink remote inject CLI command
@@ -36,7 +36,7 @@ Implements Variant D from T-186 inception. Design: `docs/reports/T-186-inject-re
 - [x] `termlink remote inject --help` shows correct usage
 
 ### Human
-- [ ] [REVIEW] Test cross-machine inject against remote hub on 192.168.10.107:9100
+- [x] [REVIEW] Test cross-machine inject against remote hub on 192.168.10.107:9100
   **Steps:**
   1. Ensure hub is running on remote: `ssh mint-dev 'termlink hub status'`
   2. Run: `termlink remote inject 192.168.10.107:9100 fw-agent "echo hello from remote inject" --secret-file ~/.termlink/hub.secret --enter`
@@ -67,3 +67,6 @@ Implements Variant D from T-186 inception. Design: `docs/reports/T-186-inject-re
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-187-implement-termlink-remote-inject-cli-com.md
 - **Context:** Initial task creation
+
+### 2026-03-19T05:59:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

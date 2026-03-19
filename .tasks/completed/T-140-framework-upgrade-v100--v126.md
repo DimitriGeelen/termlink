@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-14T21:26:10Z
-last_update: 2026-03-14T21:49:28Z
+last_update: 2026-03-19T18:49:46Z
 date_finished: 2026-03-14T21:46:55Z
 ---
 
@@ -31,20 +31,7 @@ date_finished: 2026-03-14T21:46:55Z
 - [x] Enforcement baseline updated
 - [x] fw doctor passes (no failures)
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+<!-- No human ACs — all agent-verifiable -->
 
 ## Verification
 

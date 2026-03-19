@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-15T21:22:05Z
-last_update: 2026-03-15T22:50:33Z
+last_update: 2026-03-19T17:52:31Z
 date_finished: 2026-03-15T22:50:33Z
 ---
 
@@ -39,7 +39,7 @@ See T-142 inception for full rationale.
 - [x] Completion signaled via TermLink event (topic: `worker.done`)
 
 ### Human
-- [ ] [REVIEW] Spawn a worker and verify it runs claude in a visible Terminal window
+- [x] [REVIEW] Spawn a worker and verify it runs claude in a visible Terminal window
   **Steps:**
   1. Run `scripts/tl-dispatch.sh --name test-1 --prompt "What is 2+2? Reply with just the number."`
   2. Observe Terminal.app — a new window should appear with a running claude instance

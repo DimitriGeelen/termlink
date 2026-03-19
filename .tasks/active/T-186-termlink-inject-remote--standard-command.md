@@ -11,7 +11,7 @@ tags: [cli, cross-machine, ux]
 components: []
 related_tasks: [T-182, T-183, T-184, T-185]
 created: 2026-03-18T23:28:42Z
-last_update: 2026-03-18T23:28:42Z
+last_update: 2026-03-18T23:47:58Z
 date_finished: null
 ---
 
@@ -89,19 +89,25 @@ test -f docs/reports/T-186-inject-remote-cli-design.md
 
 ## Decisions
 
-### 2026-03-19 — Command namespace
-- **Chose:** Variant D — `termlink remote inject` (new `remote` subcommand family)
-- **Why:** Clean namespace, no conflict with existing `hub` (start/stop/status), extensible to `remote list/status/trust/run`
-- **Rejected:**
-  - Variant A (top-level `inject-remote`): duplicates inject logic, not extensible
-  - Variant B (`inject --remote`): overloads existing command, confusing when session exists locally AND remotely
-  - Variant C (`hub inject`): conflicts with existing `hub` subcommand (start/stop/status)
+**Decision**: GO
 
+**Rationale**: All primitives proven (TOFU, auth, hub routing, split-write). Variant D (remote subcommand family) chosen. ~150 lines, no new deps.
+
+**Date**: 2026-03-19T05:50:30Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: All primitives proven (TOFU, auth, hub routing, split-write). Variant D (remote subcommand family) chosen. ~150 lines, no new deps.
+
+**Date**: 2026-03-19T05:50:30Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-19T05:50:30Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** All primitives proven (TOFU, auth, hub routing, split-write). Variant D (remote subcommand family) chosen. ~150 lines, no new deps.

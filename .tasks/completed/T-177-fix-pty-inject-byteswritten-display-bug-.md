@@ -12,7 +12,7 @@ tags: [bug, cli, inject]
 components: []
 related_tasks: []
 created: 2026-03-18T22:19:28Z
-last_update: 2026-03-18T22:22:45Z
+last_update: 2026-03-19T18:49:46Z
 date_finished: 2026-03-18T22:22:45Z
 ---
 
@@ -29,20 +29,7 @@ date_finished: 2026-03-18T22:22:45Z
 - [x] `cargo build --release` succeeds
 - [x] Existing tests pass
 
-### Human
-<!-- No human ACs needed — purely mechanical fix
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+<!-- No human ACs — purely mechanical fix -->
 
 ## Verification
 

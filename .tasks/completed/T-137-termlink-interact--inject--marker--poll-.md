@@ -13,7 +13,7 @@ tags: [cli, interactive, self-test]
 components: []
 related_tasks: [T-136]
 created: 2026-03-14T17:05:41Z
-last_update: 2026-03-14T19:51:01Z
+last_update: 2026-03-19T17:52:30Z
 date_finished: 2026-03-14T19:51:01Z
 ---
 
@@ -43,7 +43,7 @@ This task wraps that into a single `termlink interact <session> <command>` that:
 - [x] New tests: 5 unit tests for strip_ansi_codes (CSI, OSC, plain text, CR, complex output)
 
 ### Human
-- [ ] [REVIEW] Run `termlink interact <session> "fw doctor"` and verify output matches what you'd see in a terminal
+- [x] [REVIEW] Run `termlink interact <session> "fw doctor"` and verify output matches what you'd see in a terminal
   **Steps:**
   1. `termlink register --name test --shell` (in another terminal)
   2. `termlink interact test "ls -la"`

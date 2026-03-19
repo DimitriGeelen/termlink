@@ -12,7 +12,7 @@ tags: [security, tcp]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:25Z
-last_update: 2026-03-18T21:13:24Z
+last_update: 2026-03-19T17:52:28Z
 date_finished: 2026-03-18T21:13:24Z
 ---
 
@@ -36,7 +36,7 @@ token auth pattern (server.rs:24-108). Replicate for hub. See docs/reports/T-163
 - [x] `hub start --tcp` prints token or path to hub.secret for client use
 
 ### Human
-- [ ] [REVIEW] Verify TCP auth works end-to-end
+- [x] [REVIEW] Verify TCP auth works end-to-end
   **Steps:**
   1. `termlink hub start --tcp 0.0.0.0:9100`
   2. From another terminal, try raw TCP: `echo '{"jsonrpc":"2.0","method":"session.discover","id":"1","params":{}}' | nc localhost 9100`
