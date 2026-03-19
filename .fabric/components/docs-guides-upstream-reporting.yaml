@@ -1,0 +1,15 @@
+id: docs/guides/upstream-reporting.md
+name: upstream-reporting
+type: documentation
+subsystem: docs
+location: docs/guides/upstream-reporting.md
+tags: [upstream, workflow, cross-machine, guide]
+
+purpose: "Dual-path upstream reporting guide: TermLink inject-remote (primary) and fw upstream report (fallback) for consumer-to-framework feedback"
+
+depends_on:
+  - target: crates/termlink-cli/src/main.rs
+    type: documents
+
+last_verified: 2026-03-19
+created_by: unknown
