@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-189: Housekeeping: fabric card + push
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-19T16:14:33Z
+# ============================================================================
+
+task_id: T-189
+task_name: "Housekeeping: fabric card + push"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-19T11:46:30Z
+completed: 2026-03-19T11:49:31Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-19T12:47:10+01:00
+last_commit: 2026-03-19T12:49:31+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fabric card for upstream reporting guide + task cleanup. Mark push AC complete
+
+# Key outcomes
+outcomes:
+  - "Fabric card for upstream-reporting.md enriched with purpose and depends_on"
+  - "All changes pushed to remote"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/docs-guides-upstream-reporting.yaml"
+  - ".tasks/active/T-188-document-upstream-reporting-workflow-dua.md"
+  - ".tasks/active/T-189-housekeeping-fabric-card--push.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-19T12:47:10"
+    action: "T-189: Fabric card for upstream reporting guide + task cleanup"
+  - time: "2026-03-19T12:49:31"
+    action: "T-189: Mark push AC complete"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [housekeeping]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 82
+  lines_removed: 6
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-189-housekeeping-fabric-card--push.md
+generated_by: context-agent-hybrid

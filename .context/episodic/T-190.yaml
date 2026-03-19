@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-190: Capture missing bugfix learnings for audit coverage
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-19T16:14:34Z
+# ============================================================================
+
+task_id: T-190
+task_name: "Capture missing bugfix learnings for audit coverage"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-19T11:54:07Z
+completed: 2026-03-19T16:12:09Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-19T17:12:00+01:00
+last_commit: 2026-03-19T17:12:00+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Capture 6 bugfix learnings (L-011–L-016), coverage 56%
+
+# Key outcomes
+outcomes:
+  - "At least 5 new bugfix learnings captured via fw fix-learned (6 captured: L-011 to L-016)"
+  - "Bugfix-learning coverage reaches >= 40% (audit threshold) — now at 56% (9/16)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Capture 6 bugfix learnings (L-011–L-016), coverage 56%"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-190-capture-missing-bugfix-learnings-for-aud.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-19T17:12:00"
+    action: "T-190: Capture 6 bugfix learnings (L-011–L-016), coverage 56%"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [housekeeping, learnings]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 93
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-190-capture-missing-bugfix-learnings-for-aud.md
+generated_by: context-agent-hybrid
