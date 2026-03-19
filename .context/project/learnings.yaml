@@ -71,3 +71,45 @@ learnings:
   date: 2026-03-18
   context: Added via context agent
   application: TBD
+- id: L-011
+  learning: "CLI parameter defaults: None (omitted) and zero-value are semantically different. since=0 means 'after event 0' not 'from the start'. Test boundary conditions explicitly."
+  source: P-001
+  task: T-056
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-012
+  learning: "Framework hook paths must reference final installation directory (symlinks), not version-specific paths. Test hook paths immediately after tool upgrades."
+  source: P-001
+  task: T-020
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-013
+  learning: "Add state transition guards to prevent invalid state changes. Always implement Drop for resource cleanup. Document known race conditions (TOCTOU) with mitigation paths even if not fully resolved."
+  source: P-001
+  task: T-067
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-014
+  learning: "Avoid hardcoding context window thresholds. Use configurable environment variables (CONTEXT_WINDOW, THRESHOLD_LEVELS) so framework tools scale with model capability changes."
+  source: P-001
+  task: T-131
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-015
+  learning: "PTY tests under parallel execution: always implement Drop for PTY devices and child processes. Reduce timeouts to free resources faster. Shared test state (ENV_LOCK) prevents resource contention."
+  source: P-001
+  task: T-170
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-016
+  learning: "Delegate complex platform-specific logic (osascript, tmux, background PTY) to a single source of truth (termlink spawn). Use override mechanisms (env vars + flags) for testing and CI."
+  source: P-001
+  task: T-154
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
