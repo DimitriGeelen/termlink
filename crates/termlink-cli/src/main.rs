@@ -478,6 +478,14 @@ enum Command {
         action: FileAction,
     },
 
+    // === Remote Operations ===
+
+    /// Interact with sessions on remote hubs (cross-machine)
+    Remote {
+        #[command(subcommand)]
+        action: RemoteAction,
+    },
+
     /// Generate shell completions
     Completions {
         /// Shell to generate completions for
@@ -523,6 +531,50 @@ enum HubAction {
     Stop,
     /// Show hub server status
     Status,
+}
+
+/// Remote hub operations (cross-machine)
+#[derive(Subcommand)]
+enum RemoteAction {
+    /// Inject keystrokes into a session on a remote hub
+    Inject {
+        /// Remote hub address (e.g., 192.168.10.107:9100)
+        hub: String,
+
+        /// Target session name or ID on the remote hub
+        session: String,
+
+        /// Text to inject
+        text: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Append Enter keystroke after message
+        #[arg(long, short = 'e')]
+        enter: bool,
+
+        /// Send a special key instead of text (Enter, Tab, Escape, etc.)
+        #[arg(long, short)]
+        key: Option<String>,
+
+        /// Inter-key delay in milliseconds [default: 10]
+        #[arg(long, default_value = "10")]
+        delay_ms: u64,
+
+        /// Permission scope: observe, interact, control, execute [default: control]
+        #[arg(long, default_value = "control")]
+        scope: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Token management actions
@@ -969,6 +1021,11 @@ async fn main() -> Result<()> {
             }
             FileAction::Receive { target, output_dir, timeout, interval } => {
                 cmd_file_receive(&target, &output_dir, timeout, interval).await
+            }
+        },
+        Command::Remote { action } => match action {
+            RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json } => {
+                cmd_remote_inject(&hub, &session, &text, secret_file.as_deref(), secret.as_deref(), enter, key.as_deref(), delay_ms, &scope, json).await
             }
         },
         Command::Completions { shell } => {
@@ -1768,6 +1825,122 @@ async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) ->
         }
         Err(e) => {
             anyhow::bail!("Inject failed: {}", e);
+        }
+    }
+}
+
+async fn cmd_remote_inject(
+    hub: &str,
+    session: &str,
+    text: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    enter: bool,
+    key: Option<&str>,
+    delay_ms: u64,
+    scope: &str,
+    json: bool,
+) -> Result<()> {
+    use termlink_session::auth::{self, PermissionScope};
+
+    // --- Parse hub address ---
+    let parts: Vec<&str> = hub.split(':').collect();
+    if parts.len() != 2 {
+        anyhow::bail!("Invalid hub address '{}'. Expected format: host:port", hub);
+    }
+    let host = parts[0].to_string();
+    let port: u16 = parts[1].parse()
+        .context(format!("Invalid port in '{}'", hub))?;
+
+    // --- Read secret ---
+    let hex_secret = if let Some(path) = secret_file {
+        std::fs::read_to_string(path)
+            .context(format!("Secret file not found: {}", path))?
+            .trim()
+            .to_string()
+    } else if let Some(hex) = secret_hex {
+        hex.to_string()
+    } else {
+        anyhow::bail!("Either --secret-file or --secret is required");
+    };
+
+    // --- Parse hex to bytes ---
+    if hex_secret.len() != 64 {
+        anyhow::bail!("Secret must be 64 hex characters (32 bytes), got {} characters", hex_secret.len());
+    }
+    let secret_bytes: Vec<u8> = (0..hex_secret.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex_secret[i..i + 2], 16))
+        .collect::<Result<Vec<u8>, _>>()
+        .context("Secret contains invalid hex characters")?;
+    let secret: auth::TokenSecret = secret_bytes.try_into()
+        .map_err(|_| anyhow::anyhow!("Secret must be exactly 32 bytes"))?;
+
+    // --- Parse scope ---
+    let perm_scope = match scope {
+        "observe" => PermissionScope::Observe,
+        "interact" => PermissionScope::Interact,
+        "control" => PermissionScope::Control,
+        "execute" => PermissionScope::Execute,
+        _ => anyhow::bail!("Invalid scope '{}'. Use: observe, interact, control, execute", scope),
+    };
+
+    // --- Generate auth token ---
+    let token = auth::create_token(&secret, perm_scope, "", 3600);
+
+    // --- Connect to remote hub via TOFU TLS ---
+    let addr = termlink_protocol::TransportAddr::Tcp { host, port };
+    let mut client = client::Client::connect_addr(&addr)
+        .await
+        .context(format!("Cannot connect to {} — is the hub running?", hub))?;
+
+    // --- Authenticate ---
+    match client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            anyhow::bail!("Authentication failed: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => {
+            anyhow::bail!("Authentication error: {}", e);
+        }
+    }
+
+    // --- Build keys array ---
+    let mut keys = Vec::new();
+    if let Some(key_name) = key {
+        keys.push(serde_json::json!({ "type": "key", "value": key_name }));
+    } else {
+        keys.push(serde_json::json!({ "type": "text", "value": text }));
+    }
+    if enter {
+        keys.push(serde_json::json!({ "type": "key", "value": "Enter" }));
+    }
+
+    // --- Inject via hub routing ---
+    let inject_params = serde_json::json!({
+        "target": session,
+        "keys": keys,
+        "inject_delay_ms": delay_ms,
+    });
+
+    match client.call("command.inject", serde_json::json!("inject"), inject_params).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+            if json {
+                println!("{}", serde_json::to_string_pretty(&r.result)?);
+            } else {
+                let bytes = r.result["bytes_len"].as_u64().unwrap_or(0);
+                println!("Injected {} bytes into '{}' on {}", bytes, session, hub);
+            }
+            Ok(())
+        }
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            }
+            anyhow::bail!("Inject failed: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => {
+            anyhow::bail!("Inject error: {}", e);
         }
     }
 }
