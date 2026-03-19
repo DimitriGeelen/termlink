@@ -12,7 +12,7 @@ tags: [housekeeping]
 components: []
 related_tasks: []
 created: 2026-03-19T11:46:30Z
-last_update: 2026-03-19T11:46:30Z
+last_update: 2026-03-19T11:47:10Z
 date_finished: null
 ---
 
@@ -26,7 +26,7 @@ date_finished: null
 
 ### Agent
 - [x] Fabric card for upstream-reporting.md enriched with purpose and depends_on
-- [ ] All changes pushed to remote
+- [x] All changes pushed to remote
 
 ## Verification
 
