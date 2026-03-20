@@ -4,16 +4,16 @@ name: "termlink remote ping — quick hub connectivity check"
 description: >
   termlink remote ping — quick hub connectivity check
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, cross-machine, remote]
 components: []
 related_tasks: []
 created: 2026-03-20T23:49:02Z
-last_update: 2026-03-20T23:49:02Z
-date_finished: null
+last_update: 2026-03-20T23:52:48Z
+date_finished: 2026-03-20T23:52:48Z
 ---
 
 # T-201: termlink remote ping — quick hub connectivity check
@@ -64,3 +64,6 @@ grep -q "RemoteAction::Ping" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-201-termlink-remote-ping--quick-hub-connecti.md
 - **Context:** Initial task creation
+
+### 2026-03-20T23:52:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
