@@ -7,16 +7,16 @@ description: >
   instead of waiting for the next new transfer. Fix: snapshot current next_seq on
   startup and poll only from there.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [bug, file-transfer, events]
 components: []
 related_tasks: [T-197]
 created: 2026-03-20T22:39:35Z
-last_update: 2026-03-20T22:39:35Z
-date_finished: null
+last_update: 2026-03-20T23:12:33Z
+date_finished: 2026-03-20T23:12:33Z
 ---
 
 # T-198: Fix file receive replaying stale events from ring buffer
@@ -66,3 +66,6 @@ grep -q "next_seq" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-198-fix-file-receive-replaying-stale-events-.md
 - **Context:** Initial task creation
+
+### 2026-03-20T23:12:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
