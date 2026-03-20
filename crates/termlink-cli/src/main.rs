@@ -4221,21 +4221,12 @@ async fn cmd_file_receive(
     let timeout_dur = std::time::Duration::from_secs(timeout);
     let poll_interval = std::time::Duration::from_millis(interval);
 
-    // Snapshot the current event cursor so we only see NEW events.
-    // Without this, the receiver replays all historical events and picks up
-    // stale transfers from previous runs (T-198).
-    let mut poll_cursor: Option<u64> = match client::rpc_call(
-        reg.socket_path(), "event.poll", serde_json::json!({}),
-    ).await {
-        Ok(resp) => {
-            if let Ok(result) = client::unwrap_result(resp) {
-                result["next_seq"].as_u64()
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    };
+    // Start with no cursor — replay all events to find the LATEST transfer.
+    // The first poll scans all existing events but only latches onto the last
+    // FileInit found (not the first), so we get the most recent transfer.
+    // After the first poll, we track via next_seq for new events only.
+    let mut poll_cursor: Option<u64> = None;
+    let mut is_first_poll = true;
 
     // State machine: waiting for init → collecting chunks → complete
     let mut transfer_id: Option<String> = None;
@@ -4255,6 +4246,87 @@ async fn cmd_file_receive(
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
+                        // On first poll, scan ALL events but only latch onto the
+                        // LAST FileInit (most recent transfer), not the first.
+                        // This prevents picking up stale transfers (T-198).
+                        if is_first_poll {
+                            let mut last_init: Option<FileInit> = None;
+                            for event in events.iter() {
+                                let topic = event["topic"].as_str().unwrap_or("");
+                                if topic == file_topic::INIT {
+                                    if let Ok(init) = serde_json::from_value::<FileInit>(event["payload"].clone()) {
+                                        last_init = Some(init);
+                                    }
+                                }
+                            }
+                            if let Some(init) = last_init {
+                                transfer_id = Some(init.transfer_id.clone());
+                                filename = Some(init.filename.clone());
+                                expected_chunks = init.total_chunks;
+                                chunks.clear();
+                                eprintln!(
+                                    "Receiving '{}' ({} bytes, {} chunks) from {}",
+                                    init.filename, init.size, init.total_chunks, init.from
+                                );
+                                // Now collect chunks/complete for this transfer from same batch
+                                for event in events.iter() {
+                                    let topic = event["topic"].as_str().unwrap_or("");
+                                    let payload = &event["payload"];
+                                    if topic == file_topic::CHUNK {
+                                        if let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone()) {
+                                            if transfer_id.as_deref() == Some(&chunk.transfer_id) {
+                                                let decoded = decoder.decode(&chunk.data)
+                                                    .context(format!("Invalid base64 in chunk {}", chunk.index))?;
+                                                chunks.insert(chunk.index, decoded);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            is_first_poll = false;
+                            // Skip normal event loop — we already processed this batch
+                            // Update cursor and continue to next poll
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                poll_cursor = Some(next);
+                            }
+                            // Check if we already have a complete transfer
+                            if transfer_id.is_some() && chunks.len() as u32 == expected_chunks {
+                                // Look for file.complete in this batch
+                                for event in events.iter() {
+                                    let topic = event["topic"].as_str().unwrap_or("");
+                                    let payload = &event["payload"];
+                                    if topic == file_topic::COMPLETE {
+                                        if let Ok(complete) = serde_json::from_value::<FileComplete>(payload.clone()) {
+                                            if transfer_id.as_deref() == Some(&complete.transfer_id) {
+                                                // Reassemble and verify
+                                                let mut file_data = Vec::new();
+                                                for i in 0..expected_chunks {
+                                                    match chunks.get(&i) {
+                                                        Some(data) => file_data.extend_from_slice(data),
+                                                        None => anyhow::bail!("Missing chunk {} of {}", i, expected_chunks),
+                                                    }
+                                                }
+                                                let mut hasher = Sha256::new();
+                                                hasher.update(&file_data);
+                                                let actual_sha256 = format!("{:x}", hasher.finalize());
+                                                if actual_sha256 != complete.sha256 {
+                                                    anyhow::bail!("SHA-256 mismatch! Expected: {}, Got: {}", complete.sha256, actual_sha256);
+                                                }
+                                                let fname = filename.as_deref().unwrap_or("received-file");
+                                                let dest = out_path.join(fname);
+                                                std::fs::write(&dest, &file_data)
+                                                    .context(format!("Failed to write file: {}", dest.display()))?;
+                                                eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
+                                                eprintln!("SHA-256 verified: {}", actual_sha256);
+                                                return Ok(());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
                         for event in events {
                             let topic = event["topic"].as_str().unwrap_or("");
                             let payload = &event["payload"];

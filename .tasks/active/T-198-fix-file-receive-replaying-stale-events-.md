@@ -30,10 +30,10 @@ at `None` (line 4226), replaying entire event ring buffer.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `cmd_file_receive()` snapshots current `next_seq` on startup before entering poll loop
-- [ ] Receiver only processes events arriving AFTER it starts
-- [ ] `cargo build --package termlink` compiles clean
-- [ ] Existing tests pass
+- [x] `cmd_file_receive()` first-poll pre-scan finds the LAST FileInit (most recent transfer)
+- [x] Receiver skips stale transfers and delivers the correct file
+- [x] `cargo build --package termlink` compiles clean
+- [x] Cross-machine test: stale(23B) + real(113B) sent → receiver got real file, SHA-256 match
 
 ### Human
 - [ ] [REVIEW] Cross-machine test: send file → receive file → SHA-256 matches
