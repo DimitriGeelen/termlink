@@ -4,16 +4,16 @@ name: "termlink remote list/status — discover sessions on remote hubs"
 description: >
   termlink remote list/status — discover sessions on remote hubs
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, cross-machine, remote]
 components: []
 related_tasks: []
 created: 2026-03-20T23:25:30Z
-last_update: 2026-03-20T23:25:30Z
-date_finished: null
+last_update: 2026-03-20T23:33:17Z
+date_finished: 2026-03-20T23:33:17Z
 ---
 
 # T-199: termlink remote list/status — discover sessions on remote hubs
@@ -71,3 +71,6 @@ grep -q "cmd_remote_status" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-199-termlink-remote-liststatus--discover-ses.md
 - **Context:** Initial task creation
+
+### 2026-03-20T23:33:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
