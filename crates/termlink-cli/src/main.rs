@@ -575,6 +575,38 @@ enum RemoteAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Send a file to a session on a remote hub
+    SendFile {
+        /// Remote hub address (e.g., 192.168.10.107:9100)
+        hub: String,
+
+        /// Target session name or ID on the remote hub
+        session: String,
+
+        /// Path to the local file to send
+        path: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Chunk size in bytes (default: 49152 = 48KB, ~64KB base64)
+        #[arg(long, default_value = "49152")]
+        chunk_size: usize,
+
+        /// Permission scope: observe, interact, control, execute [default: control]
+        #[arg(long, default_value = "control")]
+        scope: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Token management actions
@@ -1026,6 +1058,9 @@ async fn main() -> Result<()> {
         Command::Remote { action } => match action {
             RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json } => {
                 cmd_remote_inject(&hub, &session, &text, secret_file.as_deref(), secret.as_deref(), enter, key.as_deref(), delay_ms, &scope, json).await
+            }
+            RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json } => {
+                cmd_remote_send_file(&hub, &session, &path, secret_file.as_deref(), secret.as_deref(), chunk_size, &scope, json).await
             }
         },
         Command::Completions { shell } => {
@@ -1943,6 +1978,201 @@ async fn cmd_remote_inject(
             anyhow::bail!("Inject error: {}", e);
         }
     }
+}
+
+async fn cmd_remote_send_file(
+    hub: &str,
+    session: &str,
+    path: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    chunk_size: usize,
+    scope: &str,
+    json: bool,
+) -> Result<()> {
+    use base64::Engine;
+    use sha2::{Digest, Sha256};
+    use termlink_session::auth::{self, PermissionScope};
+
+    // --- Read file ---
+    let file_path = std::path::Path::new(path);
+    let file_data = std::fs::read(file_path)
+        .context(format!("Failed to read file: {}", path))?;
+
+    let filename = file_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unnamed".to_string());
+
+    let size = file_data.len() as u64;
+    let chunk_sz = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
+    let total_chunks = ((file_data.len() + chunk_sz - 1) / chunk_sz) as u32;
+    let transfer_id = generate_request_id().replace("req-", "xfer-");
+
+    // Compute SHA-256
+    let mut hasher = Sha256::new();
+    hasher.update(&file_data);
+    let sha256 = format!("{:x}", hasher.finalize());
+
+    // --- Parse hub address ---
+    let parts: Vec<&str> = hub.split(':').collect();
+    if parts.len() != 2 {
+        anyhow::bail!("Invalid hub address '{}'. Expected format: host:port", hub);
+    }
+    let host = parts[0].to_string();
+    let port: u16 = parts[1].parse()
+        .context(format!("Invalid port in '{}'", hub))?;
+
+    // --- Read secret ---
+    let hex_secret = if let Some(path) = secret_file {
+        std::fs::read_to_string(path)
+            .context(format!("Secret file not found: {}", path))?
+            .trim()
+            .to_string()
+    } else if let Some(hex) = secret_hex {
+        hex.to_string()
+    } else {
+        anyhow::bail!("Either --secret-file or --secret is required");
+    };
+
+    // --- Parse hex to bytes ---
+    if hex_secret.len() != 64 {
+        anyhow::bail!("Secret must be 64 hex characters (32 bytes), got {} characters", hex_secret.len());
+    }
+    let secret_bytes: Vec<u8> = (0..hex_secret.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex_secret[i..i + 2], 16))
+        .collect::<Result<Vec<u8>, _>>()
+        .context("Secret contains invalid hex characters")?;
+    let secret: auth::TokenSecret = secret_bytes.try_into()
+        .map_err(|_| anyhow::anyhow!("Secret must be exactly 32 bytes"))?;
+
+    // --- Parse scope ---
+    let perm_scope = match scope {
+        "observe" => PermissionScope::Observe,
+        "interact" => PermissionScope::Interact,
+        "control" => PermissionScope::Control,
+        "execute" => PermissionScope::Execute,
+        _ => anyhow::bail!("Invalid scope '{}'. Use: observe, interact, control, execute", scope),
+    };
+
+    // --- Generate auth token ---
+    let token = auth::create_token(&secret, perm_scope, "", 3600);
+
+    // --- Connect to remote hub via TOFU TLS ---
+    let addr = termlink_protocol::TransportAddr::Tcp { host, port };
+    let mut client = client::Client::connect_addr(&addr)
+        .await
+        .context(format!("Cannot connect to {} — is the hub running?", hub))?;
+
+    // --- Authenticate ---
+    match client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            anyhow::bail!("Authentication failed: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => {
+            anyhow::bail!("Authentication error: {}", e);
+        }
+    }
+
+    eprintln!(
+        "Sending '{}' ({} bytes, {} chunks) to '{}' on {}",
+        filename, size, total_chunks, session, hub
+    );
+
+    // --- Emit file.init via hub routing ---
+    let init = FileInit {
+        schema_version: SCHEMA_VERSION.to_string(),
+        transfer_id: transfer_id.clone(),
+        filename: filename.clone(),
+        size,
+        total_chunks,
+        from: format!("remote-cli-{}", std::process::id()),
+    };
+    let init_payload = serde_json::to_value(&init)?;
+    let emit_params = serde_json::json!({
+        "target": session,
+        "topic": file_topic::INIT,
+        "payload": init_payload,
+    });
+    match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            }
+            anyhow::bail!("Failed to emit file.init: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => anyhow::bail!("Failed to emit file.init: {}", e),
+    }
+
+    // --- Emit chunks ---
+    let encoder = base64::engine::general_purpose::STANDARD;
+    for (i, chunk_data) in file_data.chunks(chunk_sz).enumerate() {
+        let chunk = FileChunk {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: transfer_id.clone(),
+            index: i as u32,
+            data: encoder.encode(chunk_data),
+        };
+        let chunk_payload = serde_json::to_value(&chunk)?;
+        let emit_params = serde_json::json!({
+            "target": session,
+            "topic": file_topic::CHUNK,
+            "payload": chunk_payload,
+        });
+        match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
+            Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
+            Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                anyhow::bail!("Failed to emit chunk {}/{}: {} {}", i + 1, total_chunks, e.error.code, e.error.message);
+            }
+            Err(e) => anyhow::bail!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e),
+        }
+        if total_chunks > 1 {
+            eprint!("\r  Chunk {}/{}", i + 1, total_chunks);
+        }
+    }
+    if total_chunks > 1 {
+        eprintln!();
+    }
+
+    // --- Emit file.complete ---
+    let complete = FileComplete {
+        schema_version: SCHEMA_VERSION.to_string(),
+        transfer_id: transfer_id.clone(),
+        sha256: sha256.clone(),
+    };
+    let complete_payload = serde_json::to_value(&complete)?;
+    let emit_params = serde_json::json!({
+        "target": session,
+        "topic": file_topic::COMPLETE,
+        "payload": complete_payload,
+    });
+    match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            anyhow::bail!("Failed to emit file.complete: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => anyhow::bail!("Failed to emit file.complete: {}", e),
+    }
+
+    if json {
+        println!("{}", serde_json::json!({
+            "transfer_id": transfer_id,
+            "filename": filename,
+            "size": size,
+            "chunks": total_chunks,
+            "sha256": sha256,
+            "hub": hub,
+            "session": session,
+        }));
+    } else {
+        eprintln!("Transfer complete. SHA-256: {}", sha256);
+        println!("Sent '{}' ({} bytes) to '{}' on {}", filename, size, session, hub);
+    }
+
+    Ok(())
 }
 
 async fn cmd_signal(target: &str, signal: &str) -> Result<()> {
