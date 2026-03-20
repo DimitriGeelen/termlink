@@ -536,6 +536,65 @@ enum HubAction {
 /// Remote hub operations (cross-machine)
 #[derive(Subcommand)]
 enum RemoteAction {
+    /// List sessions on a remote hub
+    List {
+        /// Remote hub address (e.g., 192.168.10.107:9100)
+        hub: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "observe")]
+        scope: String,
+
+        /// Filter by session name (substring match)
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Filter by tags (comma-separated, all must match)
+        #[arg(long)]
+        tags: Option<String>,
+
+        /// Filter by roles (comma-separated, all must match)
+        #[arg(long)]
+        roles: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Get detailed status of a session on a remote hub
+    Status {
+        /// Remote hub address (e.g., 192.168.10.107:9100)
+        hub: String,
+
+        /// Target session name or ID on the remote hub
+        session: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "observe")]
+        scope: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Inject keystrokes into a session on a remote hub
     Inject {
         /// Remote hub address (e.g., 192.168.10.107:9100)
@@ -1056,6 +1115,12 @@ async fn main() -> Result<()> {
             }
         },
         Command::Remote { action } => match action {
+            RemoteAction::List { hub, secret_file, secret, scope, name, tags, roles, json } => {
+                cmd_remote_list(&hub, secret_file.as_deref(), secret.as_deref(), &scope, name.as_deref(), tags.as_deref(), roles.as_deref(), json).await
+            }
+            RemoteAction::Status { hub, session, secret_file, secret, scope, json } => {
+                cmd_remote_status(&hub, &session, secret_file.as_deref(), secret.as_deref(), &scope, json).await
+            }
             RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json } => {
                 cmd_remote_inject(&hub, &session, &text, secret_file.as_deref(), secret.as_deref(), enter, key.as_deref(), delay_ms, &scope, json).await
             }
@@ -1864,18 +1929,14 @@ async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) ->
     }
 }
 
-async fn cmd_remote_inject(
+/// Connect to a remote hub via TOFU TLS and authenticate.
+/// Returns an authenticated client ready for RPC calls.
+async fn connect_remote_hub(
     hub: &str,
-    session: &str,
-    text: &str,
     secret_file: Option<&str>,
     secret_hex: Option<&str>,
-    enter: bool,
-    key: Option<&str>,
-    delay_ms: u64,
     scope: &str,
-    json: bool,
-) -> Result<()> {
+) -> Result<client::Client> {
     use termlink_session::auth::{self, PermissionScope};
 
     // --- Parse hub address ---
@@ -1888,24 +1949,24 @@ async fn cmd_remote_inject(
         .context(format!("Invalid port in '{}'", hub))?;
 
     // --- Read secret ---
-    let hex_secret = if let Some(path) = secret_file {
+    let hex = if let Some(path) = secret_file {
         std::fs::read_to_string(path)
             .context(format!("Secret file not found: {}", path))?
             .trim()
             .to_string()
-    } else if let Some(hex) = secret_hex {
-        hex.to_string()
+    } else if let Some(h) = secret_hex {
+        h.to_string()
     } else {
         anyhow::bail!("Either --secret-file or --secret is required");
     };
 
     // --- Parse hex to bytes ---
-    if hex_secret.len() != 64 {
-        anyhow::bail!("Secret must be 64 hex characters (32 bytes), got {} characters", hex_secret.len());
+    if hex.len() != 64 {
+        anyhow::bail!("Secret must be 64 hex characters (32 bytes), got {} characters", hex.len());
     }
-    let secret_bytes: Vec<u8> = (0..hex_secret.len())
+    let secret_bytes: Vec<u8> = (0..hex.len())
         .step_by(2)
-        .map(|i| u8::from_str_radix(&hex_secret[i..i + 2], 16))
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16))
         .collect::<Result<Vec<u8>, _>>()
         .context("Secret contains invalid hex characters")?;
     let secret: auth::TokenSecret = secret_bytes.try_into()
@@ -1923,14 +1984,14 @@ async fn cmd_remote_inject(
     // --- Generate auth token ---
     let token = auth::create_token(&secret, perm_scope, "", 3600);
 
-    // --- Connect to remote hub via TOFU TLS ---
+    // --- Connect via TOFU TLS ---
     let addr = termlink_protocol::TransportAddr::Tcp { host, port };
-    let mut client = client::Client::connect_addr(&addr)
+    let mut rpc_client = client::Client::connect_addr(&addr)
         .await
         .context(format!("Cannot connect to {} — is the hub running?", hub))?;
 
     // --- Authenticate ---
-    match client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
+    match rpc_client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             anyhow::bail!("Authentication failed: {} {}", e.error.code, e.error.message);
@@ -1939,6 +2000,181 @@ async fn cmd_remote_inject(
             anyhow::bail!("Authentication error: {}", e);
         }
     }
+
+    Ok(rpc_client)
+}
+
+async fn cmd_remote_list(
+    hub: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    name: Option<&str>,
+    tags: Option<&str>,
+    roles: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+
+    // Build discover params with optional filters
+    let mut params = serde_json::json!({});
+    if let Some(n) = name {
+        params["name"] = serde_json::json!(n);
+    }
+    if let Some(t) = tags {
+        let tag_list: Vec<&str> = t.split(',').map(|s| s.trim()).collect();
+        params["tags"] = serde_json::json!(tag_list);
+    }
+    if let Some(r) = roles {
+        let role_list: Vec<&str> = r.split(',').map(|s| s.trim()).collect();
+        params["roles"] = serde_json::json!(role_list);
+    }
+
+    match rpc_client.call("session.discover", serde_json::json!("discover"), params).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+            let sessions = r.result["sessions"].as_array();
+            let sessions = sessions.map(|a| a.as_slice()).unwrap_or(&[]);
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&sessions)?);
+                return Ok(());
+            }
+
+            if sessions.is_empty() {
+                println!("No sessions on {}.", hub);
+                return Ok(());
+            }
+
+            println!(
+                "{:<14} {:<16} {:<14} {:<8} TAGS",
+                "ID", "NAME", "STATE", "PID"
+            );
+            println!("{}", "-".repeat(64));
+
+            for s in sessions {
+                let id = s["id"].as_str().unwrap_or("?");
+                let display_name = s["display_name"].as_str().unwrap_or("?");
+                let state = s["state"].as_str().unwrap_or("?");
+                let pid = s["pid"].as_u64().unwrap_or(0);
+                let tags_arr = s["tags"].as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(","))
+                    .unwrap_or_default();
+                println!(
+                    "{:<14} {:<16} {:<14} {:<8} {}",
+                    truncate(id, 13),
+                    truncate(display_name, 15),
+                    state,
+                    pid,
+                    tags_arr,
+                );
+            }
+
+            println!();
+            println!("{} session(s) on {}", sessions.len(), hub);
+            Ok(())
+        }
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            anyhow::bail!("Discover failed: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => {
+            anyhow::bail!("Discover error: {}", e);
+        }
+    }
+}
+
+async fn cmd_remote_status(
+    hub: &str,
+    session: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    json: bool,
+) -> Result<()> {
+    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+
+    // Forward query.status to the target session via hub routing
+    let params = serde_json::json!({
+        "target": session,
+    });
+
+    match rpc_client.call("query.status", serde_json::json!("status"), params).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+            let result = &r.result;
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(result)?);
+                return Ok(());
+            }
+
+            println!("Session: {} (on {})", result["id"].as_str().unwrap_or("?"), hub);
+            println!("  Name:        {}", result["display_name"].as_str().unwrap_or("?"));
+            println!("  State:       {}", result["state"].as_str().unwrap_or("?"));
+            println!("  PID:         {}", result["pid"]);
+            println!("  Created:     {}", result["created_at"].as_str().unwrap_or("?"));
+            println!("  Heartbeat:   {}", result["heartbeat_at"].as_str().unwrap_or("?"));
+            if let Some(caps) = result.get("capabilities").and_then(|c| c.as_array()) {
+                let cap_strs: Vec<&str> = caps.iter().filter_map(|c| c.as_str()).collect();
+                if !cap_strs.is_empty() {
+                    println!("  Capabilities: {}", cap_strs.join(", "));
+                }
+            }
+            if let Some(tags) = result.get("tags").and_then(|t| t.as_array()) {
+                if !tags.is_empty() {
+                    let tag_strs: Vec<&str> = tags.iter().filter_map(|t| t.as_str()).collect();
+                    println!("  Tags:        {}", tag_strs.join(", "));
+                }
+            }
+            if let Some(roles) = result.get("roles").and_then(|r| r.as_array()) {
+                if !roles.is_empty() {
+                    let role_strs: Vec<&str> = roles.iter().filter_map(|r| r.as_str()).collect();
+                    println!("  Roles:       {}", role_strs.join(", "));
+                }
+            }
+            if let Some(mode) = result.get("terminal_mode") {
+                let raw = mode["raw"].as_bool().unwrap_or(false);
+                let canonical = mode["canonical"].as_bool().unwrap_or(false);
+                let echo = mode["echo"].as_bool().unwrap_or(false);
+                let alt_screen = mode["alternate_screen"].as_bool().unwrap_or(false);
+                let mode_label = if raw { "raw" }
+                    else if canonical && echo { "canonical+echo" }
+                    else if canonical { "canonical" }
+                    else { "cooked" };
+                print!("  Term Mode:   {}", mode_label);
+                if alt_screen { print!(" (alternate screen)"); }
+                println!();
+            }
+            if let Some(meta) = result.get("metadata") {
+                if let Some(shell) = meta.get("shell").and_then(|s| s.as_str()) {
+                    println!("  Shell:       {}", shell);
+                }
+            }
+            Ok(())
+        }
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            }
+            anyhow::bail!("Status query failed: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => {
+            anyhow::bail!("Status query error: {}", e);
+        }
+    }
+}
+
+async fn cmd_remote_inject(
+    hub: &str,
+    session: &str,
+    text: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    enter: bool,
+    key: Option<&str>,
+    delay_ms: u64,
+    scope: &str,
+    json: bool,
+) -> Result<()> {
+    let mut client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
 
     // --- Build keys array ---
     let mut keys = Vec::new();
@@ -1992,7 +2228,6 @@ async fn cmd_remote_send_file(
 ) -> Result<()> {
     use base64::Engine;
     use sha2::{Digest, Sha256};
-    use termlink_session::auth::{self, PermissionScope};
 
     // --- Read file ---
     let file_path = std::path::Path::new(path);
@@ -2014,67 +2249,7 @@ async fn cmd_remote_send_file(
     hasher.update(&file_data);
     let sha256 = format!("{:x}", hasher.finalize());
 
-    // --- Parse hub address ---
-    let parts: Vec<&str> = hub.split(':').collect();
-    if parts.len() != 2 {
-        anyhow::bail!("Invalid hub address '{}'. Expected format: host:port", hub);
-    }
-    let host = parts[0].to_string();
-    let port: u16 = parts[1].parse()
-        .context(format!("Invalid port in '{}'", hub))?;
-
-    // --- Read secret ---
-    let hex_secret = if let Some(path) = secret_file {
-        std::fs::read_to_string(path)
-            .context(format!("Secret file not found: {}", path))?
-            .trim()
-            .to_string()
-    } else if let Some(hex) = secret_hex {
-        hex.to_string()
-    } else {
-        anyhow::bail!("Either --secret-file or --secret is required");
-    };
-
-    // --- Parse hex to bytes ---
-    if hex_secret.len() != 64 {
-        anyhow::bail!("Secret must be 64 hex characters (32 bytes), got {} characters", hex_secret.len());
-    }
-    let secret_bytes: Vec<u8> = (0..hex_secret.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&hex_secret[i..i + 2], 16))
-        .collect::<Result<Vec<u8>, _>>()
-        .context("Secret contains invalid hex characters")?;
-    let secret: auth::TokenSecret = secret_bytes.try_into()
-        .map_err(|_| anyhow::anyhow!("Secret must be exactly 32 bytes"))?;
-
-    // --- Parse scope ---
-    let perm_scope = match scope {
-        "observe" => PermissionScope::Observe,
-        "interact" => PermissionScope::Interact,
-        "control" => PermissionScope::Control,
-        "execute" => PermissionScope::Execute,
-        _ => anyhow::bail!("Invalid scope '{}'. Use: observe, interact, control, execute", scope),
-    };
-
-    // --- Generate auth token ---
-    let token = auth::create_token(&secret, perm_scope, "", 3600);
-
-    // --- Connect to remote hub via TOFU TLS ---
-    let addr = termlink_protocol::TransportAddr::Tcp { host, port };
-    let mut client = client::Client::connect_addr(&addr)
-        .await
-        .context(format!("Cannot connect to {} — is the hub running?", hub))?;
-
-    // --- Authenticate ---
-    match client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
-        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
-        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            anyhow::bail!("Authentication failed: {} {}", e.error.code, e.error.message);
-        }
-        Err(e) => {
-            anyhow::bail!("Authentication error: {}", e);
-        }
-    }
+    let mut client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
 
     eprintln!(
         "Sending '{}' ({} bytes, {} chunks) to '{}' on {}",
