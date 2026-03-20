@@ -195,9 +195,9 @@ fn handle_session_update(
     }
 
     // Persist to disk if path is configured
-    if !changed.is_empty() {
-        if let Some(ref path) = ctx.registration_path {
-            if let Err(e) = ctx.registration.write_atomic(path) {
+    if !changed.is_empty()
+        && let Some(ref path) = ctx.registration_path
+            && let Err(e) = ctx.registration.write_atomic(path) {
                 tracing::error!(error = %e, "Failed to persist registration after session.update");
                 return ErrorResponse::new(
                     id,
@@ -206,8 +206,6 @@ fn handle_session_update(
                 )
                 .into();
             }
-        }
-    }
 
     Response::success(
         id,
@@ -252,8 +250,8 @@ async fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> Rpc
     result["has_pty"] = json!(ctx.pty.is_some());
 
     // Add terminal mode if PTY is available
-    if let Some(pty) = &ctx.pty {
-        if let Ok(mode) = pty.terminal_mode().await {
+    if let Some(pty) = &ctx.pty
+        && let Ok(mode) = pty.terminal_mode().await {
             result["terminal_mode"] = json!({
                 "canonical": mode.canonical,
                 "echo": mode.echo,
@@ -261,7 +259,6 @@ async fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> Rpc
                 "alternate_screen": mode.alternate_screen,
             });
         }
-    }
 
     Response::success(id, result).into()
 }

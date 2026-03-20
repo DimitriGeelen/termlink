@@ -35,7 +35,7 @@ pub fn generate_and_write_cert() -> std::io::Result<TlsAcceptor> {
 
     let CertifiedKey { cert, key_pair } =
         generate_simple_self_signed(subject_alt_names).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::Other, format!("cert generation failed: {e}"))
+            std::io::Error::other(format!("cert generation failed: {e}"))
         })?;
 
     let cert_pem = cert.pem();

@@ -300,7 +300,7 @@ pub fn create_token(
     let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC accepts any key size");
     mac.update(payload_b64.as_bytes());
     let signature = mac.finalize().into_bytes();
-    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&signature);
+    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature);
 
     let raw = format!("{payload_b64}.{sig_b64}");
 
@@ -351,11 +351,10 @@ pub fn validate_token(
     }
 
     // Check session ID if specified
-    if let Some(expected) = expected_session_id {
-        if !payload.session_id.is_empty() && payload.session_id != expected {
+    if let Some(expected) = expected_session_id
+        && !payload.session_id.is_empty() && payload.session_id != expected {
             return Err(TokenError::SessionMismatch);
         }
-    }
 
     // Parse scope
     let scope = parse_scope(&payload.scope)?;

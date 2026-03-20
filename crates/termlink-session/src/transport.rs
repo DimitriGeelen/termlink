@@ -31,6 +31,12 @@ pub trait Connection: AsyncRead + AsyncWrite + Send + Unpin {}
 
 impl<T: AsyncRead + AsyncWrite + Send + Unpin> Connection for T {}
 
+/// Boxed future returning a connection.
+type ConnectFuture<'a> = Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + 'a>>;
+
+/// Boxed future returning a listener.
+type BindFuture<'a> = Pin<Box<dyn Future<Output = io::Result<Box<dyn TransportListener>>> + Send + 'a>>;
+
 // ---------------------------------------------------------------------------
 // Trait: TransportListener
 // ---------------------------------------------------------------------------
@@ -38,7 +44,7 @@ impl<T: AsyncRead + AsyncWrite + Send + Unpin> Connection for T {}
 /// A listener that accepts incoming connections.
 pub trait TransportListener: Send {
     /// Accept the next incoming connection.
-    fn accept(&self) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + '_>>;
+    fn accept(&self) -> ConnectFuture<'_>;
 
     /// The local address this listener is bound to.
     fn local_addr(&self) -> TransportAddr;
@@ -51,16 +57,10 @@ pub trait TransportListener: Send {
 /// Factory for creating connections and listeners.
 pub trait Transport: Send + Sync {
     /// Connect to a remote address.
-    fn connect<'a>(
-        &'a self,
-        addr: &'a TransportAddr,
-    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + 'a>>;
+    fn connect<'a>(&'a self, addr: &'a TransportAddr) -> ConnectFuture<'a>;
 
     /// Bind a listener to a local address.
-    fn bind<'a>(
-        &'a self,
-        addr: &'a TransportAddr,
-    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn TransportListener>>> + Send + 'a>>;
+    fn bind<'a>(&'a self, addr: &'a TransportAddr) -> BindFuture<'a>;
 }
 
 // ---------------------------------------------------------------------------
@@ -86,10 +86,7 @@ pub trait LivenessProbe: Send + Sync {
 pub struct UnixTransport;
 
 impl Transport for UnixTransport {
-    fn connect<'a>(
-        &'a self,
-        addr: &'a TransportAddr,
-    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + 'a>> {
+    fn connect<'a>(&'a self, addr: &'a TransportAddr) -> ConnectFuture<'a> {
         Box::pin(async move {
             let path = addr.as_unix_path().ok_or_else(|| {
                 io::Error::new(io::ErrorKind::InvalidInput, "expected Unix address")
@@ -99,10 +96,7 @@ impl Transport for UnixTransport {
         })
     }
 
-    fn bind<'a>(
-        &'a self,
-        addr: &'a TransportAddr,
-    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn TransportListener>>> + Send + 'a>> {
+    fn bind<'a>(&'a self, addr: &'a TransportAddr) -> BindFuture<'a> {
         Box::pin(async move {
             let path = addr.as_unix_path().ok_or_else(|| {
                 io::Error::new(io::ErrorKind::InvalidInput, "expected Unix address")
@@ -123,7 +117,7 @@ struct UnixTransportListener {
 }
 
 impl TransportListener for UnixTransportListener {
-    fn accept(&self) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + '_>> {
+    fn accept(&self) -> ConnectFuture<'_> {
         Box::pin(async move {
             let (stream, _) = self.listener.accept().await?;
             Ok(Box::new(stream) as Box<dyn Connection>)
@@ -160,10 +154,7 @@ impl LivenessProbe for UnixLivenessProbe {
 pub struct TcpTransport;
 
 impl Transport for TcpTransport {
-    fn connect<'a>(
-        &'a self,
-        addr: &'a TransportAddr,
-    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + 'a>> {
+    fn connect<'a>(&'a self, addr: &'a TransportAddr) -> ConnectFuture<'a> {
         Box::pin(async move {
             let (host, port) = addr.as_tcp().ok_or_else(|| {
                 io::Error::new(io::ErrorKind::InvalidInput, "expected TCP address")
@@ -174,10 +165,7 @@ impl Transport for TcpTransport {
         })
     }
 
-    fn bind<'a>(
-        &'a self,
-        addr: &'a TransportAddr,
-    ) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn TransportListener>>> + Send + 'a>> {
+    fn bind<'a>(&'a self, addr: &'a TransportAddr) -> BindFuture<'a> {
         Box::pin(async move {
             let (host, port) = addr.as_tcp().ok_or_else(|| {
                 io::Error::new(io::ErrorKind::InvalidInput, "expected TCP address")
@@ -197,7 +185,7 @@ struct TcpTransportListener {
 }
 
 impl TransportListener for TcpTransportListener {
-    fn accept(&self) -> Pin<Box<dyn Future<Output = io::Result<Box<dyn Connection>>> + Send + '_>> {
+    fn accept(&self) -> ConnectFuture<'_> {
         Box::pin(async move {
             let (stream, _) = self.listener.accept().await?;
             stream.set_nodelay(true)?;
@@ -223,11 +211,10 @@ impl LivenessProbe for TcpLivenessProbe {
                 use std::net::{TcpStream as StdTcpStream, ToSocketAddrs};
                 use std::time::Duration;
                 let addr_str = format!("{}:{}", host, port);
-                if let Ok(mut addrs) = addr_str.to_socket_addrs() {
-                    if let Some(sock_addr) = addrs.next() {
+                if let Ok(mut addrs) = addr_str.to_socket_addrs()
+                    && let Some(sock_addr) = addrs.next() {
                         return StdTcpStream::connect_timeout(&sock_addr, Duration::from_millis(500)).is_ok();
                     }
-                }
                 false
             }
             None => false,

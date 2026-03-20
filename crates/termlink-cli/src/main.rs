@@ -1188,7 +1188,7 @@ async fn cmd_register(
     // Set up session context (with or without PTY)
     let pty_session = if shell {
         // Set data_socket metadata for discoverability
-        let data_path = data_server::data_socket_path(&session.registration.socket_path());
+        let data_path = data_server::data_socket_path(session.registration.socket_path());
         session.registration.metadata.data_socket =
             Some(data_path.to_string_lossy().into_owned());
 
@@ -1232,7 +1232,7 @@ async fn cmd_register(
 
     // Compute data socket path before moving reg
     let data_socket_path = if shell {
-        Some(data_server::data_socket_path(&reg_for_cleanup.socket_path()))
+        Some(data_server::data_socket_path(reg_for_cleanup.socket_path()))
     } else {
         None
     };
@@ -1286,7 +1286,7 @@ async fn cmd_register(
 
             // Clean up registration files
             let json_path = termlink_session::Registration::json_path(&sessions_dir, &session_id);
-            let _ = std::fs::remove_file(&reg_for_cleanup.socket_path());
+            let _ = std::fs::remove_file(reg_for_cleanup.socket_path());
             let _ = std::fs::remove_file(&json_path);
 
             // Clean up data socket if present
@@ -1433,18 +1433,16 @@ async fn cmd_status(target: &str, json: bool) -> Result<()> {
                 let cap_strs: Vec<&str> = caps.iter().filter_map(|c| c.as_str()).collect();
                 println!("  Capabilities: {}", cap_strs.join(", "));
             }
-            if let Some(tags) = result.get("tags").and_then(|t| t.as_array()) {
-                if !tags.is_empty() {
+            if let Some(tags) = result.get("tags").and_then(|t| t.as_array())
+                && !tags.is_empty() {
                     let tag_strs: Vec<&str> = tags.iter().filter_map(|t| t.as_str()).collect();
                     println!("  Tags:        {}", tag_strs.join(", "));
                 }
-            }
-            if let Some(roles) = result.get("roles").and_then(|r| r.as_array()) {
-                if !roles.is_empty() {
+            if let Some(roles) = result.get("roles").and_then(|r| r.as_array())
+                && !roles.is_empty() {
                     let role_strs: Vec<&str> = roles.iter().filter_map(|r| r.as_str()).collect();
                     println!("  Roles:       {}", role_strs.join(", "));
                 }
-            }
             if let Some(mode) = result.get("terminal_mode") {
                 let canonical = mode["canonical"].as_bool().unwrap_or(false);
                 let echo = mode["echo"].as_bool().unwrap_or(false);
@@ -1695,11 +1693,10 @@ async fn cmd_interact(
             // Find the marker line and extract exit code
             let mut exit_code: Option<i32> = None;
             for line in output.lines() {
-                if line.contains(&marker) {
-                    if let Some(exit_str) = line.split("exit=").nth(1) {
+                if line.contains(&marker)
+                    && let Some(exit_str) = line.split("exit=").nth(1) {
                         exit_code = exit_str.trim().parse().ok();
                     }
-                }
             }
 
             // Extract command output from scrollback.
@@ -1750,11 +1747,10 @@ async fn cmd_interact(
                 if !final_output.is_empty() {
                     println!("{final_output}");
                 }
-                if let Some(code) = exit_code {
-                    if code != 0 {
+                if let Some(code) = exit_code
+                    && code != 0 {
                         std::process::exit(code);
                     }
-                }
             }
 
             return Ok(());
@@ -1811,7 +1807,7 @@ fn cmd_discover(
                 // All specified capabilities must be present
                 && caps.iter().all(|c| s.capabilities.contains(c))
                 // Name substring match (case-insensitive)
-                && name.as_ref().map_or(true, |n| {
+                && name.as_ref().is_none_or(|n| {
                     s.display_name.to_lowercase().contains(&n.to_lowercase())
                 })
         })
@@ -2004,6 +2000,7 @@ async fn connect_remote_hub(
     Ok(rpc_client)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn cmd_remote_list(
     hub: &str,
     secret_file: Option<&str>,
@@ -2118,18 +2115,16 @@ async fn cmd_remote_status(
                     println!("  Capabilities: {}", cap_strs.join(", "));
                 }
             }
-            if let Some(tags) = result.get("tags").and_then(|t| t.as_array()) {
-                if !tags.is_empty() {
+            if let Some(tags) = result.get("tags").and_then(|t| t.as_array())
+                && !tags.is_empty() {
                     let tag_strs: Vec<&str> = tags.iter().filter_map(|t| t.as_str()).collect();
                     println!("  Tags:        {}", tag_strs.join(", "));
                 }
-            }
-            if let Some(roles) = result.get("roles").and_then(|r| r.as_array()) {
-                if !roles.is_empty() {
+            if let Some(roles) = result.get("roles").and_then(|r| r.as_array())
+                && !roles.is_empty() {
                     let role_strs: Vec<&str> = roles.iter().filter_map(|r| r.as_str()).collect();
                     println!("  Roles:       {}", role_strs.join(", "));
                 }
-            }
             if let Some(mode) = result.get("terminal_mode") {
                 let raw = mode["raw"].as_bool().unwrap_or(false);
                 let canonical = mode["canonical"].as_bool().unwrap_or(false);
@@ -2143,11 +2138,10 @@ async fn cmd_remote_status(
                 if alt_screen { print!(" (alternate screen)"); }
                 println!();
             }
-            if let Some(meta) = result.get("metadata") {
-                if let Some(shell) = meta.get("shell").and_then(|s| s.as_str()) {
+            if let Some(meta) = result.get("metadata")
+                && let Some(shell) = meta.get("shell").and_then(|s| s.as_str()) {
                     println!("  Shell:       {}", shell);
                 }
-            }
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
@@ -2162,6 +2156,7 @@ async fn cmd_remote_status(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn cmd_remote_inject(
     hub: &str,
     session: &str,
@@ -2216,6 +2211,7 @@ async fn cmd_remote_inject(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn cmd_remote_send_file(
     hub: &str,
     session: &str,
@@ -2241,7 +2237,7 @@ async fn cmd_remote_send_file(
 
     let size = file_data.len() as u64;
     let chunk_sz = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
-    let total_chunks = ((file_data.len() + chunk_sz - 1) / chunk_sz) as u32;
+    let total_chunks = file_data.len().div_ceil(chunk_sz) as u32;
     let transfer_id = generate_request_id().replace("req-", "xfer-");
 
     // Compute SHA-256
@@ -3042,13 +3038,12 @@ async fn cmd_watch(
                             }
                         }
                         // Also update cursor from next_seq if no events
-                        if let Some(next) = result["next_seq"].as_u64() {
-                            if cursors.get(sid).and_then(|c| *c).is_none() && next > 0 {
+                        if let Some(next) = result["next_seq"].as_u64()
+                            && cursors.get(sid).and_then(|c| *c).is_none() && next > 0 {
                                 // First poll returned events, cursor set above.
                                 // If no events, set cursor to next_seq - 1 to avoid re-fetching
                                 cursors.insert(sid.to_string(), Some(next.saturating_sub(1)));
                             }
-                        }
                     }
                 }
             }
@@ -3066,7 +3061,7 @@ async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
         KvAction::Set { key, value } => {
             // Try to parse value as JSON; if that fails, treat as string
             let json_value: serde_json::Value = serde_json::from_str(&value)
-                .unwrap_or_else(|_| serde_json::Value::String(value));
+                .unwrap_or(serde_json::Value::String(value));
 
             let resp = client::rpc_call(
                 reg.socket_path(),
@@ -3237,8 +3232,8 @@ async fn cmd_topics(target: Option<&str>) -> Result<()> {
     for reg in &registrations {
         match client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({})).await {
             Ok(resp) => {
-                if let Ok(result) = client::unwrap_result(resp) {
-                    if let Some(topics) = result["topics"].as_array() {
+                if let Ok(result) = client::unwrap_result(resp)
+                    && let Some(topics) = result["topics"].as_array() {
                         let topic_list: Vec<String> = topics
                             .iter()
                             .filter_map(|t| t.as_str().map(String::from))
@@ -3248,7 +3243,6 @@ async fn cmd_topics(target: Option<&str>) -> Result<()> {
                                 .insert(reg.display_name.clone(), topic_list);
                         }
                     }
-                }
             }
             Err(_) => continue,
         }
@@ -3353,13 +3347,12 @@ async fn cmd_collect(
                     }
 
                     // Update cursors from response
-                    if let Some(new_cursors) = result.get("cursors") {
-                        if let Some(obj) = new_cursors.as_object() {
+                    if let Some(new_cursors) = result.get("cursors")
+                        && let Some(obj) = new_cursors.as_object() {
                             for (k, v) in obj {
                                 cursors[k] = v.clone();
                             }
                         }
-                    }
 
                     // Check count limit
                     if max_count > 0 && total_received >= max_count {
@@ -3446,7 +3439,7 @@ async fn cmd_run(
         &sessions_dir,
         &session_id,
     );
-    let _ = std::fs::remove_file(&reg_for_cleanup.socket_path());
+    let _ = std::fs::remove_file(reg_for_cleanup.socket_path());
     let _ = std::fs::remove_file(&json_path);
     eprintln!("Session {} deregistered", session_id);
 
@@ -3488,11 +3481,10 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
     let mut cursor: Option<u64> = None;
 
     loop {
-        if let Some(dl) = deadline {
-            if tokio::time::Instant::now() >= dl {
+        if let Some(dl) = deadline
+            && tokio::time::Instant::now() >= dl {
                 anyhow::bail!("Timeout waiting for event topic '{}'", topic);
             }
-        }
 
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
@@ -3511,8 +3503,8 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
                 };
 
                 if let Ok(result) = client::unwrap_result(resp) {
-                    if let Some(events) = result["events"].as_array() {
-                        if let Some(event) = events.first() {
+                    if let Some(events) = result["events"].as_array()
+                        && let Some(event) = events.first() {
                             // Found matching event — print payload and exit
                             let payload = &event["payload"];
                             if payload.is_null()
@@ -3525,7 +3517,6 @@ async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64
                             }
                             return Ok(());
                         }
-                    }
                     if let Some(next) = result["next_seq"].as_u64() {
                         cursor = if next > 0 { Some(next - 1) } else { None };
                     }
@@ -3630,13 +3621,11 @@ async fn cmd_request(
                     }
 
                     // Update cursor only when events were received
-                    if let Some(events) = result["events"].as_array() {
-                        if !events.is_empty() {
-                            if let Some(next) = result["next_seq"].as_u64() {
+                    if let Some(events) = result["events"].as_array()
+                        && !events.is_empty()
+                            && let Some(next) = result["next_seq"].as_u64() {
                                 poll_cursor = Some(next);
                             }
-                        }
-                    }
                 }
             }
             Err(e) => {
@@ -3652,6 +3641,7 @@ async fn cmd_request(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn cmd_spawn(
     name: Option<String>,
     roles: Vec<String>,
@@ -4175,13 +4165,11 @@ async fn cmd_agent_ask(
                         }
                     }
 
-                    if let Some(events) = result["events"].as_array() {
-                        if !events.is_empty() {
-                            if let Some(next) = result["next_seq"].as_u64() {
+                    if let Some(events) = result["events"].as_array()
+                        && !events.is_empty()
+                            && let Some(next) = result["next_seq"].as_u64() {
                                 poll_cursor = Some(next);
                             }
-                        }
-                    }
                 }
             }
             Err(e) => {
@@ -4249,13 +4237,11 @@ async fn cmd_agent_listen(
                         }
                     }
 
-                    if let Some(events) = result["events"].as_array() {
-                        if !events.is_empty() {
-                            if let Some(next) = result["next_seq"].as_u64() {
+                    if let Some(events) = result["events"].as_array()
+                        && !events.is_empty()
+                            && let Some(next) = result["next_seq"].as_u64() {
                                 poll_cursor = Some(next);
                             }
-                        }
-                    }
                 }
             }
             Err(e) => {
@@ -4263,12 +4249,11 @@ async fn cmd_agent_listen(
             }
         }
 
-        if let Some(td) = timeout_dur {
-            if start.elapsed() > td {
+        if let Some(td) = timeout_dur
+            && start.elapsed() > td {
                 eprintln!("Listen timeout reached ({}s)", timeout);
                 return Ok(());
             }
-        }
 
         tokio::time::sleep(poll_interval).await;
     }
@@ -4295,7 +4280,7 @@ async fn cmd_file_send(target: &str, path: &str, chunk_size: usize) -> Result<()
 
     let size = file_data.len() as u64;
     let chunk_sz = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
-    let total_chunks = ((file_data.len() + chunk_sz - 1) / chunk_sz) as u32;
+    let total_chunks = file_data.len().div_ceil(chunk_sz) as u32;
 
     let transfer_id = generate_request_id().replace("req-", "xfer-");
 
@@ -4428,11 +4413,10 @@ async fn cmd_file_receive(
                             let mut last_init: Option<FileInit> = None;
                             for event in events.iter() {
                                 let topic = event["topic"].as_str().unwrap_or("");
-                                if topic == file_topic::INIT {
-                                    if let Ok(init) = serde_json::from_value::<FileInit>(event["payload"].clone()) {
+                                if topic == file_topic::INIT
+                                    && let Ok(init) = serde_json::from_value::<FileInit>(event["payload"].clone()) {
                                         last_init = Some(init);
                                     }
-                                }
                             }
                             if let Some(init) = last_init {
                                 transfer_id = Some(init.transfer_id.clone());
@@ -4447,15 +4431,13 @@ async fn cmd_file_receive(
                                 for event in events.iter() {
                                     let topic = event["topic"].as_str().unwrap_or("");
                                     let payload = &event["payload"];
-                                    if topic == file_topic::CHUNK {
-                                        if let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone()) {
-                                            if transfer_id.as_deref() == Some(&chunk.transfer_id) {
+                                    if topic == file_topic::CHUNK
+                                        && let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone())
+                                            && transfer_id.as_deref() == Some(&chunk.transfer_id) {
                                                 let decoded = decoder.decode(&chunk.data)
                                                     .context(format!("Invalid base64 in chunk {}", chunk.index))?;
                                                 chunks.insert(chunk.index, decoded);
                                             }
-                                        }
-                                    }
                                 }
                             }
                             is_first_poll = false;
@@ -4470,9 +4452,9 @@ async fn cmd_file_receive(
                                 for event in events.iter() {
                                     let topic = event["topic"].as_str().unwrap_or("");
                                     let payload = &event["payload"];
-                                    if topic == file_topic::COMPLETE {
-                                        if let Ok(complete) = serde_json::from_value::<FileComplete>(payload.clone()) {
-                                            if transfer_id.as_deref() == Some(&complete.transfer_id) {
+                                    if topic == file_topic::COMPLETE
+                                        && let Ok(complete) = serde_json::from_value::<FileComplete>(payload.clone())
+                                            && transfer_id.as_deref() == Some(&complete.transfer_id) {
                                                 // Reassemble and verify
                                                 let mut file_data = Vec::new();
                                                 for i in 0..expected_chunks {
@@ -4495,8 +4477,6 @@ async fn cmd_file_receive(
                                                 eprintln!("SHA-256 verified: {}", actual_sha256);
                                                 return Ok(());
                                             }
-                                        }
-                                    }
                                 }
                             }
                             continue;
@@ -4520,8 +4500,8 @@ async fn cmd_file_receive(
                                     }
                                 }
                                 t if t == file_topic::CHUNK => {
-                                    if let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone()) {
-                                        if transfer_id.as_deref() == Some(&chunk.transfer_id) {
+                                    if let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone())
+                                        && transfer_id.as_deref() == Some(&chunk.transfer_id) {
                                             let decoded = decoder.decode(&chunk.data)
                                                 .context(format!("Invalid base64 in chunk {}", chunk.index))?;
                                             chunks.insert(chunk.index, decoded);
@@ -4530,11 +4510,10 @@ async fn cmd_file_receive(
                                                 eprint!("\r  Chunk {}/{}", chunks.len(), expected_chunks);
                                             }
                                         }
-                                    }
                                 }
                                 t if t == file_topic::COMPLETE => {
-                                    if let Ok(complete) = serde_json::from_value::<FileComplete>(payload.clone()) {
-                                        if transfer_id.as_deref() == Some(&complete.transfer_id) {
+                                    if let Ok(complete) = serde_json::from_value::<FileComplete>(payload.clone())
+                                        && transfer_id.as_deref() == Some(&complete.transfer_id) {
                                             if expected_chunks > 1 {
                                                 eprintln!();
                                             }
@@ -4570,7 +4549,6 @@ async fn cmd_file_receive(
                                             eprintln!("SHA-256 verified: {}", actual_sha256);
                                             return Ok(());
                                         }
-                                    }
                                 }
                                 t if t == file_topic::ERROR => {
                                     if let Some(msg) = payload.get("message").and_then(|m| m.as_str()) {
@@ -4587,13 +4565,11 @@ async fn cmd_file_receive(
 
                     // Only advance cursor when events were returned — avoids
                     // skipping seq 0 when the bus was empty on first poll.
-                    if let Some(events) = result["events"].as_array() {
-                        if !events.is_empty() {
-                            if let Some(next) = result["next_seq"].as_u64() {
+                    if let Some(events) = result["events"].as_array()
+                        && !events.is_empty()
+                            && let Some(next) = result["next_seq"].as_u64() {
                                 poll_cursor = Some(next);
                             }
-                        }
-                    }
                 }
             }
             Err(e) => {

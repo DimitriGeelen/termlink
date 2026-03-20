@@ -88,7 +88,7 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
                     tag_filter.iter().all(|t| s.tags.contains(t))
                         && role_filter.iter().all(|r| s.roles.contains(r))
                         && cap_filter.iter().all(|c| s.capabilities.contains(c))
-                        && name_filter.map_or(true, |n| {
+                        && name_filter.is_none_or(|n| {
                             s.display_name.to_lowercase().contains(&n.to_lowercase())
                         })
                 })
@@ -114,7 +114,7 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
                         tag_filter.iter().all(|t| e.tags.contains(t))
                             && role_filter.iter().all(|r| e.roles.contains(r))
                             && cap_filter.iter().all(|c| e.capabilities.contains(c))
-                            && name_filter.map_or(true, |n| {
+                            && name_filter.is_none_or(|n| {
                                 e.display_name.to_lowercase().contains(&n.to_lowercase())
                             })
                     })
@@ -249,11 +249,10 @@ async fn handle_event_collect(
     let registrations = if let Some(targets) = params.get("targets").and_then(|t| t.as_array()) {
         let mut regs = Vec::new();
         for t in targets {
-            if let Some(name) = t.as_str() {
-                if let Ok(r) = manager::find_session(name) {
+            if let Some(name) = t.as_str()
+                && let Ok(r) = manager::find_session(name) {
                     regs.push(r);
                 }
-            }
         }
         regs
     } else {

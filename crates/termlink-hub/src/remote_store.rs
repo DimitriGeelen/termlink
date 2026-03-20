@@ -64,6 +64,12 @@ pub struct RemoteStore {
     entries: Arc<RwLock<HashMap<String, RemoteEntry>>>,
 }
 
+impl Default for RemoteStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RemoteStore {
     pub fn new() -> Self {
         Self {
@@ -72,6 +78,7 @@ impl RemoteStore {
     }
 
     /// Register a new remote session. Returns the assigned ID.
+    #[allow(clippy::too_many_arguments)]
     pub fn register(
         &self,
         display_name: String,
@@ -156,6 +163,11 @@ impl RemoteStore {
     /// Number of entries (including expired).
     pub fn len(&self) -> usize {
         self.entries.read().unwrap().len()
+    }
+
+    /// Whether the store is empty.
+    pub fn is_empty(&self) -> bool {
+        self.entries.read().unwrap().is_empty()
     }
 
     /// Remove all entries (used in testing).
