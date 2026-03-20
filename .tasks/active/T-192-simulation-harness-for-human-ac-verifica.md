@@ -89,20 +89,25 @@ simulate the human steps. Research artifact: `docs/reports/T-192-simulation-harn
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Spikes 1-3 pass: dispatch isolation, tl-claude lifecycle, Enter inject all verified programmatically. 9 of 11 human ACs automatable. Build repeatable simulation script.
+
+**Date**: 2026-03-20T07:47:12Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Spikes 1-3 pass: dispatch isolation, tl-claude lifecycle, Enter inject all verified programmatically. 9 of 11 human ACs automatable. Build repeatable simulation script.
+
+**Date**: 2026-03-20T07:47:12Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-20T07:47:12Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Spikes 1-3 pass: dispatch isolation, tl-claude lifecycle, Enter inject all verified programmatically. 9 of 11 human ACs automatable. Build repeatable simulation script.

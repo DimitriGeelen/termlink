@@ -89,6 +89,60 @@ human steps programmatically.
 - Parse evidence report: check all sections, verdict column
 - This replaces subjective "clarity" with measurable "completeness"
 
+## Spike Results
+
+### Spike 1: Dispatch Simulation — PASS (with caveat)
+
+**T-124 (worktree isolation):** PASS
+- `git worktree add -b mesh-sim-worker-1 /tmp/... HEAD` — creates isolated copy
+- Worker writes files to worktree without affecting main
+- Main branch confirms no sim-test files present
+
+**T-126 (auto-commit):** PASS (caveat: pre-commit hook)
+- `git commit -m "mesh(sim-worker): ..."` — BLOCKED by task-ref hook
+- `git commit -m "T-192: mesh(sim-worker): ..."` — succeeds
+- **Finding:** Worktrees inherit git hooks from parent. dispatch.sh uses `--no-gpg-sign`
+  but the task-reference hook still fires. Real dispatch uses `agent-wrapper.sh` which
+  runs inside Claude Code (has its own hook context). Simulation needs task-prefixed commits.
+
+**T-127 (merge orchestration):** PASS
+- `merge-branches.sh --no-test mesh-sim-test` — rebases and ff-merges correctly
+- Merged file appears on main, branch cleaned up
+- **Finding:** merge-branches.sh requires clean working tree. Framework hooks keep
+  modifying `.claude/settings.local.json` and `.context/working/*`. Requires
+  `git checkout` or `git stash` before running.
+
+### Spike 2: tl-claude Lifecycle — PASS
+
+**T-156 (tl-claude launch):**
+- `termlink spawn --name sim-tl-claude --backend tmux -- bash` — spawns tmux session
+- tmux session visible: `tl-sim-tl-claude: 1 windows`
+- TermLink registration: `sim-tl-claude ready PID`
+- **Finding:** tmux backend creates session but NO PTY capture (`pty output` fails).
+  `register --shell` mode provides full PTY I/O.
+
+**T-158 (session persistence):**
+- After `exit` in inner shell, TermLink registration persists (PID still alive)
+- For tmux backend: tmux session stays alive independently
+- Restart = inject new command into existing session
+- **Finding:** PTY sessions die when inner shell exits (I/O error on subsequent inject).
+  tmux sessions persist. tl-claude.sh uses tmux, so persistence works as designed.
+
+### Spike 3: PTY Inject Enter — PASS
+
+**T-178 (Enter key submission):**
+- `termlink pty inject spike3-enter "echo LINE-1" --enter` — text injected, Enter submits
+- Three sequential injects: all three produced correct output
+- `--enter` flag works reliably; `--key Return` sends bare Return (separate from text)
+- **Finding:** `--enter` is the correct mechanism. Split-write (text then Enter with delay)
+  works correctly. Verified against bash shell — program-agnostic.
+
+### Spike 4: Framework Pickup — NOT RUN YET
+Deferred — API cost. Feasibility confirmed: can `fw init` + `termlink spawn`.
+
+### Spike 5: Document Structure — NOT RUN YET
+Trivial to implement. Deferred to build phase.
+
 ## Go/No-Go Criteria
 
 **GO if:**
