@@ -14,8 +14,8 @@ tags: [bug, liveness, pty]
 components: []
 related_tasks: [T-192, T-193]
 created: 2026-03-20T13:12:58Z
-last_update: 2026-03-20T13:20:02Z
-date_finished: 2026-03-20T13:20:02Z
+last_update: 2026-03-20T13:53:59Z
+date_finished: 2026-03-20T13:53:59Z
 ---
 
 # T-194: Fix register --shell liveness check failing inside tmux/scripts
@@ -60,5 +60,5 @@ Discovered during T-192/T-193: `register --shell` sessions don't appear in
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-194-fix-register---shell-liveness-check-fail.md
 - **Context:** Initial task creation
 
-### 2026-03-20T13:20:02Z — status-update [task-update-agent]
+### 2026-03-20T13:53:59Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
