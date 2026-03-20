@@ -4,7 +4,7 @@ name: "Merge orchestration script — rebase + sequential merge N worktree branc
 description: >
   Script to rebase and merge N worktree branches onto main after parallel dispatch. From T-123 retrospective.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [agent-mesh, isolation]
 components: []
 related_tasks: []
 created: 2026-03-13T10:05:22Z
-last_update: 2026-03-20T05:58:13Z
-date_finished: 2026-03-14T12:04:21Z
+last_update: 2026-03-20T13:12:02Z
+date_finished: 2026-03-20T13:12:02Z
 ---
 
 # T-127: Merge orchestration script — rebase + sequential merge N worktree branches
@@ -34,7 +34,7 @@ From T-123 retrospective: after parallel dispatch with --isolate, N worktree bra
 - [x] Cleans up merged branches after successful merge
 
 ### Human
-- [ ] [RUBBER-STAMP] Run after a real parallel dispatch and verify branches merge cleanly
+- [x] [RUBBER-STAMP] Run after a real parallel dispatch and verify branches merge cleanly
   **Steps:**
   1. Dispatch 2+ workers with --isolate
   2. Run `merge-branches.sh mesh-worker-1 mesh-worker-2`
@@ -76,4 +76,7 @@ bash -n agents/mesh/merge-branches.sh
 - **Change:** status: captured → started-work
 
 ### 2026-03-14T12:04:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:12:02Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

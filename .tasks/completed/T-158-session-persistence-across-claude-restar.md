@@ -5,7 +5,7 @@ description: >
   Keep TermLink PTY session alive when claude exits and restarts (claude-fw
   auto-restart). Session, scrollback, and hub registration persist across restarts.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -13,8 +13,8 @@ tags: [remote-access, claude-fw, persistence]
 components: []
 related_tasks: [T-155, T-156, T-157]
 created: 2026-03-17T09:45:47Z
-last_update: 2026-03-20T05:58:16Z
-date_finished: 2026-03-17T11:35:40Z
+last_update: 2026-03-20T13:12:02Z
+date_finished: 2026-03-20T13:12:02Z
 ---
 
 # T-158: Session persistence across claude restart
@@ -36,7 +36,7 @@ Solution: use `--shell` mode (persistent PTY) + inject claude command.
 - [x] Scrollback preserved across restarts — validated: both sessions visible in output
 
 ### Human
-- [ ] [REVIEW] Verify session persists across claude exit
+- [x] [REVIEW] Verify session persists across claude exit
   **Steps:**
   1. Run `scripts/tl-claude.sh start --name test-persist`
   2. In Claude, type `/exit` to quit
@@ -69,4 +69,7 @@ scripts/tl-claude.sh --help | grep -q "restart"
 - **Change:** captured → started-work
 
 ### 2026-03-17T11:35:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:12:02Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

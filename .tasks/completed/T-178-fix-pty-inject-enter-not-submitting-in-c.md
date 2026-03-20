@@ -4,7 +4,7 @@ name: "Fix pty inject Enter not submitting in Claude Code TUI"
 description: >
   pty inject sends text+Enter as one write. Ink TUI needs Enter (0x0D) as separate write with small delay. Root cause: batched write means ink sees multi-char chunk, not a keypress. Fix: split text write and Enter into two separate pty.write() calls. Also check ICRNL termios flag. See docs/reports/T-163-cross-machine-rca-findings.md for full RCA. Related: Claude Code issue #15553, ink useInput batching.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [bug, cli, inject, pty]
 components: []
 related_tasks: [T-137, T-156, T-163, T-177]
 created: 2026-03-18T22:19:38Z
-last_update: 2026-03-20T05:58:18Z
-date_finished: 2026-03-18T22:56:00Z
+last_update: 2026-03-20T13:12:03Z
+date_finished: 2026-03-20T13:12:03Z
 ---
 
 # T-178: Fix pty inject Enter not submitting in Claude Code TUI
@@ -33,7 +33,7 @@ Root cause: ink TUI treats batched text+Enter as paste, not keypress. Fix: split
 - [x] `cargo build --release` succeeds
 
 ### Human
-- [ ] [REVIEW] Verify Enter submits in Claude Code TUI via pty inject
+- [x] [REVIEW] Verify Enter submits in Claude Code TUI via pty inject
   **Steps:**
   1. Start a TermLink session: `termlink register --name test-session --shell`
   2. In the session's shell, run `claude`
@@ -68,4 +68,7 @@ Root cause: ink TUI treats batched text+Enter as paste, not keypress. Fix: split
 - **Change:** status: captured → started-work
 
 ### 2026-03-18T22:56:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:12:03Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

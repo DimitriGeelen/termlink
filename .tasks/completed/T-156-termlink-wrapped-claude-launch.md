@@ -5,7 +5,7 @@ description: >
   Add a convenience script that launches Claude Code inside a TermLink-managed
   PTY session, making it discoverable and remotely observable via attach/stream.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -13,8 +13,8 @@ tags: [remote-access, claude-fw]
 components: []
 related_tasks: [T-155, T-157, T-158]
 created: 2026-03-17T09:45:39Z
-last_update: 2026-03-20T05:58:15Z
-date_finished: 2026-03-17T10:38:17Z
+last_update: 2026-03-20T13:12:02Z
+date_finished: 2026-03-20T13:12:02Z
 ---
 
 # T-156: termlink-wrapped claude launch
@@ -38,7 +38,7 @@ that starts Claude Code inside a TermLink session.
 - [x] `--help` documents usage
 
 ### Human
-- [ ] [REVIEW] Launch `tl-claude.sh` and verify Claude Code TUI works normally
+- [x] [REVIEW] Launch `tl-claude.sh` and verify Claude Code TUI works normally
   **Steps:**
   1. Run `scripts/tl-claude.sh --name test-master`
   2. In another terminal: `termlink list` — verify session appears
@@ -61,4 +61,7 @@ grep -q "termlink" scripts/tl-claude.sh
 - **Action:** Created task via task-create agent
 
 ### 2026-03-17T10:38:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:12:02Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

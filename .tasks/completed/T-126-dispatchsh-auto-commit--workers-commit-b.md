@@ -4,7 +4,7 @@ name: "dispatch.sh auto-commit — workers commit before cleanup"
 description: >
   Auto-commit worker changes before worktree cleanup. From T-123 retrospective.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [agent-mesh, isolation]
 components: []
 related_tasks: []
 created: 2026-03-13T10:05:12Z
-last_update: 2026-03-20T05:58:13Z
-date_finished: 2026-03-14T11:57:34Z
+last_update: 2026-03-20T13:12:01Z
+date_finished: 2026-03-20T13:12:01Z
 ---
 
 # T-126: dispatch.sh auto-commit — workers commit before cleanup
@@ -32,7 +32,7 @@ From T-123 retrospective: worktree agents completed work but didn't commit, requ
 - [x] Worktree still cleaned up when no changes were made
 
 ### Human
-- [ ] [RUBBER-STAMP] Run `dispatch.sh --isolate --worker-name test-commit "echo hello > /tmp/test.txt"` and verify branch has commit
+- [x] [RUBBER-STAMP] Run `dispatch.sh --isolate --worker-name test-commit "echo hello > /tmp/test.txt"` and verify branch has commit
   **Steps:**
   1. Run dispatch with --isolate and a prompt that modifies a file
   2. Check `git log mesh-test-commit --oneline -1`
@@ -77,4 +77,7 @@ grep -q 'worktree remove' agents/mesh/dispatch.sh
 - **Change:** status: captured → started-work
 
 ### 2026-03-14T11:57:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:12:01Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

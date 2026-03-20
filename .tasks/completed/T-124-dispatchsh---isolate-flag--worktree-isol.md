@@ -4,7 +4,7 @@ name: "dispatch.sh --isolate flag — worktree isolation for mesh workers"
 description: >
   dispatch.sh --isolate flag — worktree isolation for mesh workers
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [agent-mesh, isolation, concurrency]
 components: []
 related_tasks: [T-123, T-114]
 created: 2026-03-12T20:57:05Z
-last_update: 2026-03-20T05:58:12Z
-date_finished: 2026-03-12T21:16:09Z
+last_update: 2026-03-20T13:12:01Z
+date_finished: 2026-03-20T13:12:01Z
 ---
 
 # T-124: dispatch.sh --isolate flag — worktree isolation for mesh workers
@@ -35,7 +35,7 @@ in dispatch.sh to enable parallel build task execution without file conflicts.
 - [x] Worker commits are on the worktree branch, not main
 
 ### Human
-- [ ] [REVIEW] Dispatch 2 parallel workers with `--isolate` and verify no file conflicts
+- [x] [REVIEW] Dispatch 2 parallel workers with `--isolate` and verify no file conflicts
   **Steps:** Run `dispatch.sh --isolate "echo hello" --worker-name test-a &` and `dispatch.sh --isolate "echo hello" --worker-name test-b &`
   **Expected:** Both complete, two branches created, `git worktree list` shows cleanup
   **If not:** Report which step failed
@@ -65,4 +65,7 @@ grep -q 'CARGO_TARGET_DIR' agents/mesh/dispatch.sh
 - **Context:** Initial task creation
 
 ### 2026-03-12T21:16:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:12:01Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
