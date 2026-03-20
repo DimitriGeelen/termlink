@@ -12,8 +12,8 @@ tags: [agent-mesh, isolation]
 components: []
 related_tasks: []
 created: 2026-03-13T10:05:12Z
-last_update: 2026-03-20T13:12:01Z
-date_finished: 2026-03-20T13:12:01Z
+last_update: 2026-03-20T13:41:12Z
+date_finished: 2026-03-20T13:41:12Z
 ---
 
 # T-126: dispatch.sh auto-commit — workers commit before cleanup
@@ -80,4 +80,7 @@ grep -q 'worktree remove' agents/mesh/dispatch.sh
 - **Change:** status: started-work → work-completed
 
 ### 2026-03-20T13:12:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:41:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

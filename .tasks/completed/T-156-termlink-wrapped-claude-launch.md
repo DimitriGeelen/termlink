@@ -13,8 +13,8 @@ tags: [remote-access, claude-fw]
 components: []
 related_tasks: [T-155, T-157, T-158]
 created: 2026-03-17T09:45:39Z
-last_update: 2026-03-20T13:12:02Z
-date_finished: 2026-03-20T13:12:02Z
+last_update: 2026-03-20T13:41:12Z
+date_finished: 2026-03-20T13:41:12Z
 ---
 
 # T-156: termlink-wrapped claude launch
@@ -64,4 +64,7 @@ grep -q "termlink" scripts/tl-claude.sh
 - **Change:** status: started-work → work-completed
 
 ### 2026-03-20T13:12:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:41:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

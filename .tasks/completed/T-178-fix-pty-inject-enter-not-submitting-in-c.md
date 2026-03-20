@@ -12,8 +12,8 @@ tags: [bug, cli, inject, pty]
 components: []
 related_tasks: [T-137, T-156, T-163, T-177]
 created: 2026-03-18T22:19:38Z
-last_update: 2026-03-20T13:12:03Z
-date_finished: 2026-03-20T13:12:03Z
+last_update: 2026-03-20T13:41:13Z
+date_finished: 2026-03-20T13:41:13Z
 ---
 
 # T-178: Fix pty inject Enter not submitting in Claude Code TUI
@@ -71,4 +71,7 @@ Root cause: ink TUI treats batched text+Enter as paste, not keypress. Fix: split
 - **Change:** status: started-work → work-completed
 
 ### 2026-03-20T13:12:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:41:13Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

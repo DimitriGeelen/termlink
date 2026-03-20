@@ -12,8 +12,8 @@ tags: [agent-mesh, isolation, concurrency]
 components: []
 related_tasks: [T-123, T-114]
 created: 2026-03-12T20:57:05Z
-last_update: 2026-03-20T13:12:01Z
-date_finished: 2026-03-20T13:12:01Z
+last_update: 2026-03-20T13:41:12Z
+date_finished: 2026-03-20T13:41:12Z
 ---
 
 # T-124: dispatch.sh --isolate flag — worktree isolation for mesh workers
@@ -68,4 +68,7 @@ grep -q 'CARGO_TARGET_DIR' agents/mesh/dispatch.sh
 - **Change:** status: started-work → work-completed
 
 ### 2026-03-20T13:12:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-03-20T13:41:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
