@@ -536,6 +536,27 @@ enum HubAction {
 /// Remote hub operations (cross-machine)
 #[derive(Subcommand)]
 enum RemoteAction {
+    /// Ping a remote hub or session (connectivity + latency check)
+    Ping {
+        /// Remote hub address (e.g., 192.168.10.107:9100)
+        hub: String,
+
+        /// Optional: target session name to ping through the hub
+        session: Option<String>,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "observe")]
+        scope: String,
+    },
+
     /// List sessions on a remote hub
     List {
         /// Remote hub address (e.g., 192.168.10.107:9100)
@@ -1115,6 +1136,9 @@ async fn main() -> Result<()> {
             }
         },
         Command::Remote { action } => match action {
+            RemoteAction::Ping { hub, session, secret_file, secret, scope } => {
+                cmd_remote_ping(&hub, session.as_deref(), secret_file.as_deref(), secret.as_deref(), &scope).await
+            }
             RemoteAction::List { hub, secret_file, secret, scope, name, tags, roles, json } => {
                 cmd_remote_list(&hub, secret_file.as_deref(), secret.as_deref(), &scope, name.as_deref(), tags.as_deref(), roles.as_deref(), json).await
             }
@@ -1998,6 +2022,69 @@ async fn connect_remote_hub(
     }
 
     Ok(rpc_client)
+}
+
+async fn cmd_remote_ping(
+    hub: &str,
+    session: Option<&str>,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+) -> Result<()> {
+    let start = std::time::Instant::now();
+    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let auth_ms = start.elapsed().as_millis();
+
+    match session {
+        Some(target) => {
+            // Ping a specific session through the hub
+            let ping_start = std::time::Instant::now();
+            let params = serde_json::json!({ "target": target });
+            match rpc_client.call("termlink.ping", serde_json::json!("ping"), params).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    let total_ms = start.elapsed().as_millis();
+                    let rpc_ms = ping_start.elapsed().as_millis();
+                    println!(
+                        "PONG from {} ({}) on {} — state: {} — {}ms (auth: {}ms, rpc: {}ms)",
+                        r.result["id"].as_str().unwrap_or("?"),
+                        r.result["display_name"].as_str().unwrap_or("?"),
+                        hub,
+                        r.result["state"].as_str().unwrap_or("?"),
+                        total_ms, auth_ms, rpc_ms,
+                    );
+                    Ok(())
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                        anyhow::bail!("Session '{}' not found on {}", target, hub);
+                    }
+                    anyhow::bail!("Ping failed: {} {}", e.error.code, e.error.message);
+                }
+                Err(e) => anyhow::bail!("Ping error: {}", e),
+            }
+        }
+        None => {
+            // Ping just the hub (auth was the health check)
+            // Also do a quick discover to count sessions
+            let discover_start = std::time::Instant::now();
+            match rpc_client.call("session.discover", serde_json::json!("discover"), serde_json::json!({})).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    let total_ms = start.elapsed().as_millis();
+                    let discover_ms = discover_start.elapsed().as_millis();
+                    let count = r.result["sessions"].as_array().map(|a| a.len()).unwrap_or(0);
+                    println!(
+                        "PONG from hub {} — {} session(s) — {}ms (auth: {}ms, discover: {}ms)",
+                        hub, count, total_ms, auth_ms, discover_ms,
+                    );
+                    Ok(())
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    anyhow::bail!("Hub ping failed: {} {}", e.error.code, e.error.message);
+                }
+                Err(e) => anyhow::bail!("Hub ping error: {}", e),
+            }
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
