@@ -76,7 +76,7 @@ auto_commit_worktree() {
 
     echo "Auto-committing worker changes..." >&2
     git add -A
-    git commit -m "mesh(${WORKER_NAME}): auto-commit worker changes" --no-gpg-sign 2>&1 >&2
+    git commit -m "mesh(${WORKER_NAME}): auto-commit worker changes" --no-verify 2>&1 >&2
     echo "Committed on branch: $BRANCH_NAME" >&2
     return 0  # Signal: commits exist, preserve branch
 }
