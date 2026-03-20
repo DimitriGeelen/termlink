@@ -1,0 +1,25 @@
+task_id: T-099
+task_name: "PR to Anthropic — PostMessage / SessionEnd hook request for Claude Code"
+workflow_type: inception
+date_completed: "2026-03-18"
+duration_category: quick
+outcome: completed
+
+summary: >
+  Investigated whether to submit a feature request PR to Anthropic for PostMessage and
+  SessionEnd hooks in Claude Code. Research revealed both hooks already exist natively
+  (Stop event = PostMessage, SessionEnd already implemented). Decision: NO-GO, no PR needed.
+
+key_artifacts:
+  - docs/reports/T-099-postmessage-sessionend-hook-request.md
+
+challenges:
+  - Initial assumption that hooks were missing proved incorrect after research
+
+successes:
+  - Research-first approach avoided unnecessary PR submission
+  - Discovered existing Claude Code hook capabilities (Stop, SessionEnd)
+
+related_tasks: [T-094, T-095, T-096, T-100, T-101, T-102]
+
+tags: [anthropic, claude-code, hooks, framework, governance]

@@ -1,0 +1,26 @@
+task_id: T-140
+task_name: "Framework upgrade v1.0.0 → v1.2.6"
+workflow_type: build
+date_completed: "2026-03-14"
+duration_category: quick
+outcome: completed
+
+summary: >
+  Upgraded the Agentic Engineering Framework from v1.0.0 to v1.2.6. Updated
+  .framework.yaml version and paths, migrated hook paths to the new framework location,
+  updated CLAUDE.md governance rules via fw upgrade, refreshed the enforcement baseline,
+  and verified fw doctor passes with no failures.
+
+key_artifacts:
+  - .framework.yaml
+  - CLAUDE.md
+
+challenges: []
+
+successes:
+  - Clean upgrade with all checks passing (fw doctor, enforcement baseline)
+  - Completed in ~20 minutes
+
+related_tasks: []
+
+tags: []

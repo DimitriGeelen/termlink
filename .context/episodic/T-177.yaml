@@ -1,0 +1,25 @@
+task_id: T-177
+task_name: "Fix pty inject bytes_written display bug (always shows 0)"
+workflow_type: build
+date_completed: "2026-03-18"
+duration_category: quick
+outcome: completed
+
+summary: >
+  Fixed a one-line bug in main.rs where cmd_inject read the result field bytes_written but the handler returned bytes_len. Changed the field name reference so the inject command correctly displays the number of bytes written to the pty.
+
+key_artifacts:
+  - crates/termlink-cli/src/main.rs
+
+challenges: []
+
+successes:
+  - "Root cause identified immediately from field name mismatch"
+  - "Three-minute fix from task creation to completion"
+
+related_tasks: []
+
+tags:
+  - bug
+  - cli
+  - inject

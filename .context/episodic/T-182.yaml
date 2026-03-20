@@ -1,0 +1,30 @@
+task_id: T-182
+task_name: "Implement TOFU TLS verifier for cross-hub connections"
+workflow_type: build
+date_completed: "2026-03-18"
+duration_category: quick
+outcome: completed
+
+summary: >
+  Implemented a Trust On First Use (TOFU) TLS certificate verifier for cross-hub TCP connections. Created a tofu.rs module in termlink-session with a custom rustls ServerCertVerifier that accepts unknown certificates on first connection and stores their SHA-256 fingerprints in ~/.termlink/known_hubs. Subsequent connections to the same host reject changed certificates. Integrated into Client::connect_addr for TCP connections. Added 7 unit tests covering accept, store, and reject scenarios. All 18 session tests pass.
+
+key_artifacts:
+  - crates/termlink-session/src/tofu.rs
+  - crates/termlink-session/src/client.rs
+
+challenges: []
+
+successes:
+  - "Clean TOFU model following SSH known_hosts pattern"
+  - "7 unit tests covering accept/store/reject lifecycle"
+  - "Seamless integration with existing connect_addr flow"
+
+related_tasks:
+  - T-179
+  - T-163
+
+tags:
+  - security
+  - tls
+  - hub
+  - cross-machine

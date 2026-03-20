@@ -1,0 +1,27 @@
+task_id: T-137
+task_name: "termlink interact — inject + marker + poll wrapper"
+workflow_type: build
+date_completed: "2026-03-14"
+duration_category: medium
+outcome: completed
+
+summary: >
+  Built the `termlink interact` CLI command that wraps inject + marker detection + poll
+  into a single call. Injects a command with a unique UUID marker into a PTY session,
+  polls query.output until the marker appears, and returns the captured output. Supports
+  --strip-ansi, --json structured output, configurable timeout and poll interval.
+  Added 5 unit tests for ANSI stripping. All 249 existing tests pass.
+
+key_artifacts:
+  - crates/termlink-cli/src/commands/interact.rs
+
+challenges: []
+
+successes:
+  - Clean marker-based synchronization using 2-occurrence detection (echo + output)
+  - Comprehensive flags for automation use cases (--json, --strip-ansi, --timeout, --poll-ms)
+  - 5 new unit tests covering ANSI edge cases
+
+related_tasks: [T-136]
+
+tags: [cli, interactive, self-test]

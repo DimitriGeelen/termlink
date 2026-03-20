@@ -1,0 +1,25 @@
+task_id: T-164
+task_name: "Enforce token auth on TCP hub connections"
+workflow_type: build
+date_completed: "2026-03-18"
+duration_category: extended
+outcome: completed
+
+summary: >
+  Closed the TCP auth bypass identified in T-163 research. Hub now generates a token_secret on startup and writes it to hub.secret (mode 600). TCP connections default to zero scope with only hub.auth allowed. After successful token authentication, connections are upgraded to appropriate scope levels. Unix socket connections retain same-UID full access. Added hub-specific method scope mapping and new tests for auth rejection and post-auth access.
+
+key_artifacts:
+  - crates/termlink-hub/src/server.rs
+
+challenges: []
+
+successes:
+  - "Replicated session server auth pattern cleanly to hub"
+  - "Zero-scope default for TCP ensures no unauthenticated access"
+  - "Hub-specific scope mapping (discover=Observe, broadcast/register_remote=Interact)"
+
+related_tasks: []
+
+tags:
+  - security
+  - tcp

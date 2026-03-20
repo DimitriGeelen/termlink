@@ -1,0 +1,24 @@
+task_id: T-161
+task_name: "Critical review and draft README + setup instructions"
+workflow_type: build
+date_completed: "2026-03-17"
+duration_category: quick
+outcome: completed
+
+summary: >
+  Dispatched 5 review agents to critically assess existing documentation, then synthesized findings into a comprehensive README.md. The README covers installation (cargo install), quick start, architecture overview, CLI usage examples, and setup instructions for both macOS and Linux.
+
+key_artifacts:
+  - README.md
+
+challenges: []
+
+successes:
+  - "Multi-agent review produced well-rounded documentation coverage"
+  - "Cross-platform setup instructions for macOS and Linux"
+
+related_tasks: []
+
+tags:
+  - docs
+  - readme

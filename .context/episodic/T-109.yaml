@@ -1,0 +1,26 @@
+task_id: T-109
+task_name: "Framework PR — /capture skill and JSONL transcript reader"
+workflow_type: build
+date_completed: "2026-03-14"
+duration_category: medium
+outcome: completed
+
+summary: >
+  Created a framework PR contribution package for the /capture skill and JSONL transcript
+  reader (built in T-108). Produced a research artifact documenting the skill, a pickup
+  prompt for the framework agent to execute the PR, and drafted the OneDev PR content.
+  Also closed out T-108 by checking its final AC.
+
+key_artifacts:
+  - docs/reports/T-109-capture-skill-framework-pr.md
+  - docs/framework-agent-pickups/T-109-capture-skill-pr.md
+
+challenges: []
+
+successes:
+  - Clean handoff pattern for cross-repo framework contributions
+  - Self-contained pickup prompt enables framework agent to execute independently
+
+related_tasks: [T-108, T-106]
+
+tags: [capture, framework-pr, skill, conversation-capture]

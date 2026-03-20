@@ -1,0 +1,27 @@
+task_id: T-100
+task_name: "Inception — TermLink output capture as conversation logger"
+workflow_type: inception
+date_completed: "2026-03-18"
+duration_category: quick
+outcome: completed
+
+summary: >
+  Explored whether TermLink's terminal output capture could serve as a conversation logger
+  for Claude Code sessions. Analysis showed JSONL transcript approach (T-101) is strictly
+  superior — structured data vs fragile ANSI parsing, version-independent, and already
+  implemented via /capture skill. Decision: NO-GO, TermLink's value is real-time
+  observation/injection, not logging.
+
+key_artifacts:
+  - docs/reports/T-100-termlink-output-capture-conversation-logger.md
+
+challenges:
+  - ANSI escape code parsing would be fragile and version-dependent
+
+successes:
+  - Clean comparison between TermLink capture and JSONL transcript approaches
+  - Correctly identified TermLink's real value proposition (real-time, not logging)
+
+related_tasks: [T-094, T-101, T-102, T-099]
+
+tags: [termlink, output-capture, conversation-logging, exploration]

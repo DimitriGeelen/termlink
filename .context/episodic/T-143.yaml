@@ -1,0 +1,22 @@
+task_id: T-143
+task_name: "TermLink agent dispatch — spawn claude workers in real terminals"
+workflow_type: build
+date_completed: "2026-03-15"
+duration_category: medium
+outcome: completed
+
+summary: >
+  Built tl-dispatch.sh, a shell script that spawns claude -p workers in real TermLink terminal sessions. Each worker gets its own Terminal.app window with an isolated environment. The script supports spawn, status, wait (single or --all), result retrieval, and cleanup subcommands. Worker completion is signaled via TermLink events on the worker.done topic.
+
+key_artifacts:
+  - scripts/tl-dispatch.sh
+
+challenges: []
+
+successes:
+  - "Clean subcommand-based CLI design covering full worker lifecycle"
+  - "TermLink event integration for worker completion signaling"
+
+related_tasks: []
+
+tags: []
