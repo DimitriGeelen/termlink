@@ -223,7 +223,6 @@ pub fn list_sessions_in(
         };
 
         if !include_stale && !liveness::is_alive(&reg) {
-            liveness::cleanup_stale(&reg, sessions_dir);
             continue;
         }
 
