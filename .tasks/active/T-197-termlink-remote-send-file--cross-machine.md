@@ -6,16 +6,16 @@ description: >
   remote hubs via TOFU TLS + auth. Reuses existing FileInit/FileChunk/FileComplete
   event protocol (T-039) with remote hub routing (like remote inject).
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, cross-machine, file-transfer]
 components: []
 related_tasks: [T-163, T-186, T-187]
 created: 2026-03-20T22:24:41Z
-last_update: 2026-03-20T22:24:41Z
-date_finished: null
+last_update: 2026-03-20T22:31:49Z
+date_finished: 2026-03-20T22:31:49Z
 ---
 
 # T-197: termlink remote send-file — cross-machine file transfer via TCP hub
@@ -30,14 +30,14 @@ Discovered during T-196: 13KB pickup prompt too large for PTY inject, needed fil
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `RemoteAction::SendFile` variant added to CLI enum with args: hub, session, path, secret-file/secret, chunk-size, scope, json
-- [ ] `cmd_remote_send_file()` implements: read file → TOFU connect → auth → emit FileInit/FileChunk/FileComplete via hub
-- [ ] Events use `target` param for hub routing (same pattern as remote inject)
-- [ ] SHA-256 verification included in FileComplete
-- [ ] Error handling for: file not found, auth failure, connection refused, session not found
-- [ ] `cargo build --package termlink` compiles clean
-- [ ] `cargo test --package termlink-cli` passes (if tests exist)
-- [ ] Help text: `termlink remote send-file --help` shows usage
+- [x] `RemoteAction::SendFile` variant added to CLI enum with args: hub, session, path, secret-file/secret, chunk-size, scope, json
+- [x] `cmd_remote_send_file()` implements: read file → TOFU connect → auth → emit FileInit/FileChunk/FileComplete via hub
+- [x] Events use `target` param for hub routing (same pattern as remote inject)
+- [x] SHA-256 verification included in FileComplete
+- [x] Error handling for: file not found, auth failure, connection refused, session not found
+- [x] `cargo build --package termlink` compiles clean
+- [x] `cargo test --package termlink` passes (0 failed, 4 ignored integration tests)
+- [x] Help text: `termlink remote send-file --help` shows usage
 
 ### Human
 - [ ] [REVIEW] Test cross-machine: send file from macOS to .107 session
@@ -72,3 +72,6 @@ grep -q "cmd_remote_send_file" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-197-termlink-remote-send-file--cross-machine.md
 - **Context:** Initial task creation
+
+### 2026-03-20T22:31:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
