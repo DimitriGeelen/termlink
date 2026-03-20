@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-194: Fix register --shell liveness check failing inside tmux/scripts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-20T13:57:35Z
+# ============================================================================
+
+task_id: T-194
+task_name: "Fix register --shell liveness check failing inside tmux/scripts"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-20T13:12:58Z
+completed: 2026-03-20T13:53:59Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-20T14:19:54+01:00
+last_commit: 2026-03-20T14:54:16+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix list_sessions auto-cleaning stale sessions (destructive side-effect). Close — list_sessions no longer auto-cleans stale sessions, 18/18 tests pass
+
+# Key outcomes
+outcomes:
+  - "`termlink list` does NOT auto-clean stale sessions (separate from `termlink clean`)"
+  - "`register --shell` works when run as background process with stdout redirected"
+  - "Existing tests pass (`cargo test --package termlink-session`) — 18/18"
+  - "Existing liveness tests already cover alive PID + valid socket scenarios (4 tests in liveness.rs)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix list_sessions auto-cleaning stale sessions (destructive side-effect)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".tasks/active/T-194-fix-register---shell-liveness-check-fail.md"
+  - ".tasks/completed/T-194-fix-register---shell-liveness-check-fail.md"
+  - "crates/termlink-session/src/manager.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-20T14:19:54"
+    action: "T-194: Fix list_sessions auto-cleaning stale sessions (destructive side-effect)"
+  - time: "2026-03-20T14:54:16"
+    action: "T-194: Close — list_sessions no longer auto-cleans stale sessions, 18/18 tests pass"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, liveness, pty]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 4
+  files_changed: 6
+  lines_added: 67
+  lines_removed: 67
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-194-fix-register---shell-liveness-check-fail.md
+generated_by: context-agent-hybrid

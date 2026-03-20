@@ -1,0 +1,111 @@
+# ============================================================================
+# EPISODIC MEMORY - T-193: Build simulation verification script for human ACs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-20T13:57:29Z
+# ============================================================================
+
+task_id: T-193
+task_name: "Build simulation verification script for human ACs"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-20T07:47:37Z
+completed: 2026-03-20T13:10:51Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-20T08:56:56+01:00
+last_commit: 2026-03-20T14:32:55+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  mesh(sim-verify): auto-commit test. Build sim-verify.sh — 8/8 human ACs verified by simulation. Close 8 tasks verified by sim-verify.sh simulation
+
+# Key outcomes
+outcomes:
+  - "`scripts/sim-verify.sh` exists and is executable"
+  - "Spike 1 tests: worktree isolation, auto-commit, merge (T-124/126/127)"
+  - "Spike 2 tests: session spawn, registration, persistence (T-156/158)"
+  - "Spike 3 tests: PTY inject with Enter key submission (T-178)"
+  - "Spike 5 tests: document structure checks (T-188/191)"
+  - "Script outputs PASS/FAIL per task with evidence"
+  - "Script cleans up all test artifacts (worktrees, sessions, temp files)"
+  - "All 8 simulatable tests pass when run"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-192-simulation-harness-for-human-ac-verifica.md"
+  - ".tasks/active/T-193-build-simulation-verification-script-for.md"
+  - ".tasks/completed/T-124-dispatchsh---isolate-flag--worktree-isol.md"
+  - ".tasks/completed/T-126-dispatchsh-auto-commit--workers-commit-b.md"
+  - ".tasks/completed/T-127-merge-orchestration-script--rebase--sequ.md"
+  - ".tasks/completed/T-156-termlink-wrapped-claude-launch.md"
+  - ".tasks/completed/T-158-session-persistence-across-claude-restar.md"
+  - ".tasks/completed/T-178-fix-pty-inject-enter-not-submitting-in-c.md"
+  - ".tasks/completed/T-188-document-upstream-reporting-workflow-dua.md"
+  - ".tasks/completed/T-191-ai-verify-human-acs-with-evidence.md"
+  - ".tasks/completed/T-193-build-simulation-verification-script-for.md"
+  - "scripts/sim-verify.sh"
+  - "sim-verify-commit.txt"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-20T08:56:56"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T08:57:53"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T08:58:44"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T09:06:27"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T09:45:39"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T14:09:22"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T14:09:57"
+    action: "T-193: Build sim-verify.sh — 8/8 human ACs verified by simulation"
+  - time: "2026-03-20T14:10:20"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T14:12:40"
+    action: "T-193: Close 8 tasks verified by sim-verify.sh simulation"
+  - time: "2026-03-20T14:18:57"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+  - time: "2026-03-20T14:32:55"
+    action: "T-193: mesh(sim-verify): auto-commit test"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 11 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [verification, simulation, testing]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 11
+  files_changed: 7
+  lines_added: 566
+  lines_removed: 46
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-193-build-simulation-verification-script-for.md
+generated_by: context-agent-hybrid

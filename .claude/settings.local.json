@@ -245,7 +245,28 @@
       "Bash(TL=\"./target/release/termlink\" && echo \"Binary: $TL\" && $TL --version 2>&1 || echo \"no --version flag\")",
       "Bash(TL=\"./target/release/termlink\" && $TL clean 2>&1)",
       "Bash(TL=\"./target/release/termlink\"\necho \"=== T-169: Agent Ask ===\"\necho \"Sending agent ask to alice with 5s timeout...\"\n$TL agent ask alice --action ping --from bob --timeout 5 2>&1\nEXIT_CODE=$?\necho \"\"\necho \"Exit code: $EXIT_CODE\"\necho \"\\(Expected: non-zero due to timeout — no handler on alice to respond\\)\")",
-      "Bash(TL=\"./target/release/termlink\"\necho \"=== Direct poll test ===\"\necho \"1. Emit a test event:\"\n$TL event emit bob test.ping --payload '{\"hello\":\"world\"}' 2>&1\n\necho \"\"\necho \"2. Poll bob's events:\"\n$TL event poll bob 2>&1\n\necho \"\"\necho \"3. Poll with --since 0:\"\n$TL event poll bob --since 0 2>&1)"
+      "Bash(TL=\"./target/release/termlink\"\necho \"=== Direct poll test ===\"\necho \"1. Emit a test event:\"\n$TL event emit bob test.ping --payload '{\"hello\":\"world\"}' 2>&1\n\necho \"\"\necho \"2. Poll bob's events:\"\n$TL event poll bob 2>&1\n\necho \"\"\necho \"3. Poll with --since 0:\"\n$TL event poll bob --since 0 2>&1)",
+      "Bash(bash scripts/sim-verify.sh --verbose 2>&1)",
+      "Bash(bash scripts/sim-verify.sh 2>&1)",
+      "Bash(bash scripts/sim-verify.sh --verbose --task T-126 2>&1)",
+      "Bash(ssh:*)",
+      "Bash(test_date=\"2026-03-20T15:30:45Z\"; echo \"Test date: $test_date\"; echo \"\"; echo \"1. BSD date -j -f \\(macOS native\\):\"; date -j -f \"%Y-%m-%dT%H:%M:%SZ\" \"$test_date\" +%s 2>&1 || echo \"FAILED\")",
+      "Bash(wc:*)",
+      "Bash(bash --version && /bin/bash --version 2>&1 | head -4)",
+      "Bash(date=\"2026-03-20T15:30:45Z\"; python3 << 'PYSCRIPT'\nimport datetime\ndate_str = \"2026-03-20T15:30:45Z\"\nts = int\\(datetime.datetime.fromisoformat\\(date_str.rstrip\\('Z'\\)\\).timestamp\\(\\)\\)\nprint\\(ts\\)\nPYSCRIPT)",
+      "Bash(perl:*)",
+      "Bash(time bash:*)",
+      "Bash(awk:*)",
+      "Bash(echo:*)",
+      "WebFetch(domain:www.gnu.org)",
+      "Bash(2)",
+      "WebFetch(domain:apple.stackexchange.com)",
+      "Bash(/tmp/bash32_vs_4_features.txt:*)",
+      "Read(//tmp/**)",
+      "WebFetch(domain:mywiki.wooledge.org)",
+      "Bash(cat:*)",
+      "Bash(nc:*)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink remote:*)"
     ]
   }
 }

@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-195: Make dispatch.sh and tl-claude.sh testable with command override
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-20T13:57:40Z
+# ============================================================================
+
+task_id: T-195
+task_name: "Make dispatch.sh and tl-claude.sh testable with command override"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-20T13:26:52Z
+completed: 2026-03-20T13:40:39Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-20T14:33:42+01:00
+last_commit: 2026-03-20T14:41:33+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --command to dispatch.sh, TL_CLAUDE_CMD to tl-claude.sh, update sim-verify. Fix dispatch.sh auto-commit (--no-verify), sim-verify uses real scripts — 8/8 pass. Close T-124/T-126/T-156/T-178/T-195 — all verified with real scripts via sim-verify
+
+# Key outcomes
+outcomes:
+  - "dispatch.sh: `--command CMD` flag overrides agent-wrapper.sh (runs CMD in worktree instead)"
+  - "dispatch.sh: existing behavior unchanged when --command not passed"
+  - "dispatch.sh: auto-commit uses --no-verify (worktree hook propagation fix)"
+  - "tl-claude.sh: `TL_CLAUDE_CMD` env overrides `claude` (for testing with `bash` or `echo`)"
+  - "tl-claude.sh: existing behavior unchanged when env not set"
+  - "sim-verify.sh updated: T-124/T-126 use `dispatch.sh --command` with real parallel dispatch"
+  - "sim-verify.sh updated: T-156 uses `tl-claude.sh` with `TL_CLAUDE_CMD=bash`"
+  - "All 8 sim-verify tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix dispatch.sh auto-commit (--no-verify), sim-verify uses real scripts — 8/8 pass"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-03-20.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-124-dispatchsh---isolate-flag--worktree-isol.md"
+  - ".tasks/active/T-126-dispatchsh-auto-commit--workers-commit-b.md"
+  - ".tasks/active/T-156-termlink-wrapped-claude-launch.md"
+  - ".tasks/active/T-178-fix-pty-inject-enter-not-submitting-in-c.md"
+  - ".tasks/active/T-195-make-dispatchsh-and-tl-claudesh-testable.md"
+  - ".tasks/completed/T-124-dispatchsh---isolate-flag--worktree-isol.md"
+  - ".tasks/completed/T-126-dispatchsh-auto-commit--workers-commit-b.md"
+  - ".tasks/completed/T-156-termlink-wrapped-claude-launch.md"
+  - ".tasks/completed/T-178-fix-pty-inject-enter-not-submitting-in-c.md"
+  - ".tasks/completed/T-194-fix-register---shell-liveness-check-fail.md"
+  - ".tasks/completed/T-195-make-dispatchsh-and-tl-claudesh-testable.md"
+  - "agents/mesh/dispatch.sh"
+  - "scripts/sim-verify.sh"
+  - "scripts/tl-claude.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-20T14:33:42"
+    action: "T-195: Add --command to dispatch.sh, TL_CLAUDE_CMD to tl-claude.sh, update sim-verify"
+  - time: "2026-03-20T14:39:52"
+    action: "T-195: Fix dispatch.sh auto-commit (--no-verify), sim-verify uses real scripts — 8/8 pass"
+  - time: "2026-03-20T14:41:33"
+    action: "T-195: Close T-124/T-126/T-156/T-178/T-195 — all verified with real scripts via sim-verify"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [testability, simulation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 17
+  lines_added: 790
+  lines_removed: 411
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-195-make-dispatchsh-and-tl-claudesh-testable.md
+generated_by: context-agent-hybrid
