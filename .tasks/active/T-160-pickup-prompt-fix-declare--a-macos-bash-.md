@@ -5,7 +5,7 @@ description: >
   Write pickup prompt for framework to fix declare -A (bash 4+ associative arrays)
   failing on macOS bash 3.2. Affects update-task.sh, audit.sh, diagnose.sh.
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -13,7 +13,7 @@ tags: [framework, macos-compat]
 components: []
 related_tasks: [T-141]
 created: 2026-03-17T20:46:25Z
-last_update: 2026-03-18T16:03:56Z
+last_update: 2026-03-20T05:58:17Z
 date_finished: 2026-03-18T16:03:56Z
 ---
 

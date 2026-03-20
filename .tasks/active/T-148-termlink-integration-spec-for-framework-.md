@@ -4,7 +4,7 @@ name: "TermLink integration spec for framework pickup"
 description: >
   Write the TermLink integration specification as a framework pickup prompt — covers session registration, hub management, inject/attach, and agent dispatch via TermLink
 
-status: work-completed
+status: started-work
 workflow_type: specification
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-15T23:27:18Z
-last_update: 2026-03-17T16:25:43Z
+last_update: 2026-03-20T05:58:14Z
 date_finished: 2026-03-17T16:25:43Z
 ---
 

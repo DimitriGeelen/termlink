@@ -5,7 +5,7 @@ description: >
   Add a convenience script that launches Claude Code inside a TermLink-managed
   PTY session, making it discoverable and remotely observable via attach/stream.
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -13,7 +13,7 @@ tags: [remote-access, claude-fw]
 components: []
 related_tasks: [T-155, T-157, T-158]
 created: 2026-03-17T09:45:39Z
-last_update: 2026-03-17T10:38:17Z
+last_update: 2026-03-20T05:58:15Z
 date_finished: 2026-03-17T10:38:17Z
 ---
 

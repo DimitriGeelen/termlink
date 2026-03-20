@@ -6,7 +6,7 @@ description: >
   workflow (TermLink primary, fw upstream fallback) per T-180 GO decision.
   Also send fw upstream proposal to framework agent via termlink remote inject.
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -14,7 +14,7 @@ tags: [docs, upstream, workflow]
 components: []
 related_tasks: [T-180, T-186, T-187]
 created: 2026-03-19T11:44:09Z
-last_update: 2026-03-19T11:46:04Z
+last_update: 2026-03-20T05:58:19Z
 date_finished: 2026-03-19T11:46:04Z
 ---
 

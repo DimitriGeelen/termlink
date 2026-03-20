@@ -4,7 +4,7 @@ name: "dispatch.sh --isolate flag — worktree isolation for mesh workers"
 description: >
   dispatch.sh --isolate flag — worktree isolation for mesh workers
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: [agent-mesh, isolation, concurrency]
 components: []
 related_tasks: [T-123, T-114]
 created: 2026-03-12T20:57:05Z
-last_update: 2026-03-12T21:16:09Z
+last_update: 2026-03-20T05:58:12Z
 date_finished: 2026-03-12T21:16:09Z
 ---
 
