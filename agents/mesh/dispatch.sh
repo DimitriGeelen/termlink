@@ -26,6 +26,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ISOLATE=false
 WORKER_NAME="mesh-worker-$$"
 TIMEOUT="${TERMLINK_DISPATCH_TIMEOUT:-120}"
+CUSTOM_CMD=""
 PROMPT=""
 
 while [[ $# -gt 0 ]]; do
@@ -42,6 +43,10 @@ while [[ $# -gt 0 ]]; do
             TIMEOUT="$2"
             shift 2
             ;;
+        --command)
+            CUSTOM_CMD="$2"
+            shift 2
+            ;;
         *)
             PROMPT="$1"
             shift
@@ -49,8 +54,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ -z "$PROMPT" ]; then
-    echo "Usage: dispatch.sh [--isolate] [--worker-name NAME] [--timeout SECS] \"prompt text\"" >&2
+if [ -z "$PROMPT" ] && [ -z "$CUSTOM_CMD" ]; then
+    echo "Usage: dispatch.sh [--isolate] [--worker-name NAME] [--timeout SECS] [--command CMD] \"prompt text\"" >&2
     exit 1
 fi
 
@@ -127,16 +132,27 @@ echo "Dispatching to worker: $WORKER_NAME" >&2
 echo "Workdir: $WORKDIR" >&2
 echo "Prompt: ${PROMPT:0:80}..." >&2
 
-# Wrap prompt with standard mesh worker instructions
-source "$SCRIPT_DIR/prompt-template.sh"
-WRAPPED_PROMPT=$(cd "$WORKDIR" && wrap_prompt "$PROMPT" "$WORKER_NAME")
+if [ -n "$CUSTOM_CMD" ]; then
+    # Custom command mode: run user-provided command instead of Claude agent
+    echo "Using custom command: $CUSTOM_CMD" >&2
+    termlink run \
+        -n "$WORKER_NAME" \
+        -t "worker,agent-mesh" \
+        --timeout "$TIMEOUT" \
+        -- bash -c "cd '$WORKDIR' && $CUSTOM_CMD" > "$RESULT_FILE" 2>/dev/null &
+    WORKER_PID=$!
+else
+    # Default: wrap prompt with standard mesh worker instructions
+    source "$SCRIPT_DIR/prompt-template.sh"
+    WRAPPED_PROMPT=$(cd "$WORKDIR" && wrap_prompt "$PROMPT" "$WORKER_NAME")
 
-termlink run \
-    -n "$WORKER_NAME" \
-    -t "worker,agent-mesh" \
-    --timeout "$TIMEOUT" \
-    -- "$SCRIPT_DIR/agent-wrapper.sh" "$WRAPPED_PROMPT" "$WORKDIR" > "$RESULT_FILE" 2>/dev/null &
-WORKER_PID=$!
+    termlink run \
+        -n "$WORKER_NAME" \
+        -t "worker,agent-mesh" \
+        --timeout "$TIMEOUT" \
+        -- "$SCRIPT_DIR/agent-wrapper.sh" "$WRAPPED_PROMPT" "$WORKDIR" > "$RESULT_FILE" 2>/dev/null &
+    WORKER_PID=$!
+fi
 
 # --- Step 4: Wait for completion ---
 echo "Worker PID: $WORKER_PID (timeout: ${TIMEOUT}s)" >&2

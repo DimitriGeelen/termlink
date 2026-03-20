@@ -282,35 +282,26 @@ if should_run "T-178"; then
     cd "$PROJECT_ROOT"
 
     if termlink spawn --name "$SIM_PTY" --backend tmux -- bash 2>/dev/null; then
-        sleep 2
+        sleep 3
         TMUX_PTY="tl-$SIM_PTY"
 
         if tmux has-session -t "$TMUX_PTY" 2>/dev/null; then
-            # Use tmux send-keys to inject text + Enter (tests the same Enter mechanism)
-            tmux send-keys -t "$TMUX_PTY" "echo SIM-VERIFY-ENTER-OK" Enter
+            # Clear pane (remove TermLink startup noise)
+            tmux send-keys -t "$TMUX_PTY" "clear" Enter
+            sleep 1
+
+            # Test TermLink's pty inject --enter (the mechanism T-178 fixed)
+            termlink pty inject "$SIM_PTY" "echo SIM-VERIFY-INJECT-OK" --enter 2>/dev/null || true
             sleep 2
 
             # Capture output via tmux
             OUTPUT=$(tmux capture-pane -t "$TMUX_PTY" -p 2>/dev/null || echo "")
 
-            if echo "$OUTPUT" | grep -q "SIM-VERIFY-ENTER-OK"; then
-                vlog "Enter key submitted command via tmux, output verified"
-
-                # Also test TermLink's pty inject --enter against tmux session
-                # (This tests the split-write mechanism even if pty output isn't available)
-                termlink pty inject "$SIM_PTY" "echo SIM-VERIFY-INJECT-OK" --enter 2>/dev/null || true
-                sleep 2
-                OUTPUT2=$(tmux capture-pane -t "$TMUX_PTY" -p 2>/dev/null || echo "")
-
-                if echo "$OUTPUT2" | grep -q "SIM-VERIFY-INJECT-OK"; then
-                    pass "T-178" "PTY inject Enter — both tmux send-keys and TermLink inject submit correctly"
-                else
-                    # TermLink inject may not work on tmux-spawned sessions (no PTY layer)
-                    # But Enter via tmux send-keys works — core AC is satisfied
-                    pass "T-178" "PTY inject Enter — tmux send-keys works (TermLink inject N/A for tmux backend)"
-                fi
+            if echo "$OUTPUT" | grep -q "SIM-VERIFY-INJECT-OK"; then
+                vlog "pty inject --enter submitted command, output verified via tmux capture"
+                pass "T-178" "PTY inject Enter — TermLink pty inject submits in bash (not Claude TUI)"
             else
-                fail "T-178" "Enter key did not submit command"
+                fail "T-178" "pty inject --enter did not submit command"
                 vlog "Output was: $OUTPUT"
             fi
 

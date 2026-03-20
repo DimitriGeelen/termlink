@@ -71,7 +71,7 @@ session_exists() {
 }
 
 build_claude_cmd() {
-    local cmd="claude"
+    local cmd="${TL_CLAUDE_CMD:-claude}"
     for arg in "${CLAUDE_ARGS[@]}"; do
         cmd="$cmd $(printf '%q' "$arg")"
     done
@@ -88,7 +88,7 @@ cmd_oneshot() {
         --name "$SESSION_NAME" \
         --tags "$TAGS" \
         --backend "$BACKEND" \
-        -- claude "${CLAUDE_ARGS[@]}"
+        -- ${TL_CLAUDE_CMD:-claude} "${CLAUDE_ARGS[@]}"
 }
 
 cmd_start() {
@@ -190,7 +190,7 @@ done
 
 # Preflight
 command -v termlink >/dev/null 2>&1 || die "termlink not found on PATH"
-command -v claude >/dev/null 2>&1 || die "claude not found on PATH"
+command -v "${TL_CLAUDE_CMD:-claude}" >/dev/null 2>&1 || die "${TL_CLAUDE_CMD:-claude} not found on PATH"
 
 # Dispatch
 case "$SUBCOMMAND" in
