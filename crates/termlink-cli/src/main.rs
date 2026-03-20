@@ -4221,9 +4221,21 @@ async fn cmd_file_receive(
     let timeout_dur = std::time::Duration::from_secs(timeout);
     let poll_interval = std::time::Duration::from_millis(interval);
 
-    // Start with no cursor — first poll gets all events, then track via next_seq.
-    // (since: 0 would skip seq 0, missing the file.init event)
-    let mut poll_cursor: Option<u64> = None;
+    // Snapshot the current event cursor so we only see NEW events.
+    // Without this, the receiver replays all historical events and picks up
+    // stale transfers from previous runs (T-198).
+    let mut poll_cursor: Option<u64> = match client::rpc_call(
+        reg.socket_path(), "event.poll", serde_json::json!({}),
+    ).await {
+        Ok(resp) => {
+            if let Ok(result) = client::unwrap_result(resp) {
+                result["next_seq"].as_u64()
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    };
 
     // State machine: waiting for init → collecting chunks → complete
     let mut transfer_id: Option<String> = None;
