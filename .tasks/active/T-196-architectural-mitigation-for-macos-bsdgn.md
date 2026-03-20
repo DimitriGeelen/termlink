@@ -14,7 +14,7 @@ tags: [framework, macos-compat, portability]
 components: []
 related_tasks: [T-160]
 created: 2026-03-20T20:19:57Z
-last_update: 2026-03-20T20:19:57Z
+last_update: 2026-03-20T20:34:46Z
 date_finished: null
 ---
 
