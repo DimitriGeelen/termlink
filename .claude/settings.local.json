@@ -266,7 +266,8 @@
       "WebFetch(domain:mywiki.wooledge.org)",
       "Bash(cat:*)",
       "Bash(nc:*)",
-      "Bash(/Users/dimidev32/.cargo/bin/termlink remote:*)"
+      "Bash(/Users/dimidev32/.cargo/bin/termlink remote:*)",
+      "Bash(scp:*)"
     ]
   }
 }
