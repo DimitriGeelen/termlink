@@ -4,7 +4,7 @@ name: "Fix deprecated cargo_bin import in CLI integration tests"
 description: >
   Fix deprecated cargo_bin import in CLI integration tests
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-21T10:38:47Z
-last_update: 2026-03-21T10:38:47Z
-date_finished: null
+last_update: 2026-03-21T10:41:40Z
+date_finished: 2026-03-21T10:41:40Z
 ---
 
 # T-209: Fix deprecated cargo_bin import in CLI integration tests
@@ -30,7 +30,7 @@ date_finished: null
 
 ## Verification
 
-/Users/dimidev32/.cargo/bin/cargo test -p termlink --test cli_integration --no-run --manifest-path /Users/dimidev32/001-projects/010-termlink/Cargo.toml 2>&1 | grep -c 'deprecated' | xargs test 0 -eq
+! /Users/dimidev32/.cargo/bin/cargo test -p termlink --test cli_integration --no-run --manifest-path /Users/dimidev32/001-projects/010-termlink/Cargo.toml 2>&1 | grep -q 'deprecated'
 
 ## Decisions
 
@@ -49,3 +49,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-209-fix-deprecated-cargobin-import-in-cli-in.md
 - **Context:** Initial task creation
+
+### 2026-03-21T10:41:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
