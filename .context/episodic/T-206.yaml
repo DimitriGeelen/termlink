@@ -1,0 +1,68 @@
+# ============================================================================
+# EPISODIC MEMORY - T-206: Remove sudo from installer — PATH-based install
+# ============================================================================
+# STATUS: REQUIRES ENRICHMENT
+# Limited data sources. Review and fill missing sections manually.
+# Generated: 2026-03-21T15:42:47Z
+# ============================================================================
+
+task_id: T-206
+task_name: "Remove sudo from installer — PATH-based install"
+workflow_type: inception
+enrichment_status: pending  # No git commits or AC found — needs manual enrichment
+
+# Timeline
+created: 2026-03-21T15:32:43Z
+completed: 2026-03-21T15:42:46Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - description: "[TODO: What worked well?]"
+    why: "[TODO: Why did it work?]"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimitri/.termlink/.tasks/completed/T-206-remove-sudo-from-installer--path-based-i.md
+generated_by: context-agent-hybrid

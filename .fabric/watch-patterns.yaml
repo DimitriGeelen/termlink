@@ -1,0 +1,15 @@
+# Fabric watch patterns — source files to track for drift detection
+# Generated automatically by fw context init
+# Edit to match your project's source layout
+patterns:
+  - glob: "src/**/*.py"
+  - glob: "src/**/*.rs"
+  - glob: "crates/*/src/**/*.rs"
+  - glob: "lib/**/*.py"
+  - glob: "lib/**/*.sh"
+  - glob: "web/**/*.py"
+  - glob: "agents/**/*.sh"
+  - glob: "agents/**/*.py"
+  - glob: "bin/*"
+  - glob: "**/*.ts"
+  - glob: "**/*.go"
