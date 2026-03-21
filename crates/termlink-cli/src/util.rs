@@ -160,4 +160,143 @@ mod tests {
         let result = strip_ansi_codes(input);
         assert_eq!(result, "fw doctor - Health Check\n  OK  Git hooks\n  WARN  Version mismatch\n");
     }
+
+    // --- truncate tests ---
+
+    #[test]
+    fn truncate_short_string_unchanged() {
+        assert_eq!(truncate("hello", 10), "hello");
+    }
+
+    #[test]
+    fn truncate_exact_length_unchanged() {
+        assert_eq!(truncate("hello", 5), "hello");
+    }
+
+    #[test]
+    fn truncate_long_string_with_ellipsis() {
+        let result = truncate("hello world", 5);
+        assert_eq!(result, "hell…");
+        assert_eq!(result.chars().count(), 5);
+    }
+
+    #[test]
+    fn truncate_empty_string() {
+        assert_eq!(truncate("", 10), "");
+    }
+
+    // --- parse_signal tests ---
+
+    #[test]
+    fn parse_signal_numeric() {
+        assert_eq!(parse_signal("15"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("9"), Some(libc::SIGKILL));
+        assert_eq!(parse_signal("2"), Some(libc::SIGINT));
+    }
+
+    #[test]
+    fn parse_signal_named() {
+        assert_eq!(parse_signal("TERM"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("KILL"), Some(libc::SIGKILL));
+        assert_eq!(parse_signal("INT"), Some(libc::SIGINT));
+        assert_eq!(parse_signal("HUP"), Some(libc::SIGHUP));
+        assert_eq!(parse_signal("QUIT"), Some(libc::SIGQUIT));
+        assert_eq!(parse_signal("USR1"), Some(libc::SIGUSR1));
+        assert_eq!(parse_signal("USR2"), Some(libc::SIGUSR2));
+        assert_eq!(parse_signal("STOP"), Some(libc::SIGSTOP));
+        assert_eq!(parse_signal("CONT"), Some(libc::SIGCONT));
+    }
+
+    #[test]
+    fn parse_signal_with_sig_prefix() {
+        assert_eq!(parse_signal("SIGTERM"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("SIGKILL"), Some(libc::SIGKILL));
+    }
+
+    #[test]
+    fn parse_signal_case_insensitive() {
+        assert_eq!(parse_signal("term"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("sigkill"), Some(libc::SIGKILL));
+        assert_eq!(parse_signal("Hup"), Some(libc::SIGHUP));
+    }
+
+    #[test]
+    fn parse_signal_invalid() {
+        assert_eq!(parse_signal("INVALID"), None);
+        assert_eq!(parse_signal(""), None);
+        assert_eq!(parse_signal("SIGFOO"), None);
+    }
+
+    // --- shell_escape tests ---
+
+    #[test]
+    fn shell_escape_safe_string() {
+        assert_eq!(shell_escape("hello"), "hello");
+        assert_eq!(shell_escape("foo-bar_baz.txt"), "foo-bar_baz.txt");
+    }
+
+    #[test]
+    fn shell_escape_whitespace() {
+        assert_eq!(shell_escape("hello world"), "'hello world'");
+        assert_eq!(shell_escape("a\tb"), "'a\tb'");
+    }
+
+    #[test]
+    fn shell_escape_single_quotes() {
+        assert_eq!(shell_escape("it's"), "'it'\\''s'");
+    }
+
+    #[test]
+    fn shell_escape_special_chars() {
+        assert_eq!(shell_escape("$HOME"), "'$HOME'");
+        assert_eq!(shell_escape("a\\b"), "'a\\b'");
+        assert_eq!(shell_escape("a\"b"), "'a\"b'");
+    }
+
+    // --- resize_payload tests ---
+
+    #[test]
+    fn resize_payload_standard_terminal() {
+        let buf = resize_payload(80, 24);
+        // 80 = 0x0050, 24 = 0x0018
+        assert_eq!(buf, [0x00, 0x50, 0x00, 0x18]);
+    }
+
+    #[test]
+    fn resize_payload_large_terminal() {
+        let buf = resize_payload(300, 100);
+        // 300 = 0x012C, 100 = 0x0064
+        assert_eq!(buf, [0x01, 0x2C, 0x00, 0x64]);
+    }
+
+    #[test]
+    fn resize_payload_roundtrip() {
+        let cols: u16 = 132;
+        let rows: u16 = 43;
+        let buf = resize_payload(cols, rows);
+        let decoded_cols = u16::from_be_bytes([buf[0], buf[1]]);
+        let decoded_rows = u16::from_be_bytes([buf[2], buf[3]]);
+        assert_eq!(decoded_cols, cols);
+        assert_eq!(decoded_rows, rows);
+    }
+
+    // --- generate_request_id tests ---
+
+    #[test]
+    fn generate_request_id_format() {
+        let id = generate_request_id();
+        assert!(id.starts_with("req-"), "Expected 'req-' prefix, got: {}", id);
+        let parts: Vec<&str> = id.splitn(3, '-').collect();
+        assert_eq!(parts.len(), 3, "Expected req-PID-TIMESTAMP format");
+        assert!(parts[1].parse::<u32>().is_ok(), "PID should be numeric");
+        assert!(parts[2].parse::<u128>().is_ok(), "Timestamp should be numeric");
+    }
+
+    #[test]
+    fn generate_request_id_unique_with_delay() {
+        let id1 = generate_request_id();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let id2 = generate_request_id();
+        assert_ne!(id1, id2, "Request IDs with delay should differ");
+    }
 }
