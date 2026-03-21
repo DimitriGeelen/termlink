@@ -4,16 +4,16 @@ name: "termlink hub profiles — save remote hub configs for quick access"
 description: >
   termlink hub profiles — save remote hub configs for quick access
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, cross-machine, ux]
 components: []
 related_tasks: []
 created: 2026-03-21T06:04:50Z
-last_update: 2026-03-21T06:04:50Z
-date_finished: null
+last_update: 2026-03-21T06:14:26Z
+date_finished: 2026-03-21T06:14:26Z
 ---
 
 # T-204: termlink hub profiles — save remote hub configs for quick access
@@ -70,3 +70,6 @@ grep -q "hubs.toml" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-204-termlink-hub-profiles--save-remote-hub-c.md
 - **Context:** Initial task creation
+
+### 2026-03-21T06:14:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
