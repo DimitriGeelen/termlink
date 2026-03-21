@@ -687,6 +687,42 @@ enum RemoteAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Execute a shell command on a remote session via hub routing
+    Exec {
+        /// Remote hub address (e.g., 192.168.10.107:9100)
+        hub: String,
+
+        /// Target session name or ID on the remote hub
+        session: String,
+
+        /// Shell command to execute
+        command: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "execute")]
+        scope: String,
+
+        /// Command timeout in seconds
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+
+        /// Working directory for the command on the remote session
+        #[arg(long)]
+        cwd: Option<String>,
+
+        /// Output result as JSON (exit_code, stdout, stderr)
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Token management actions
@@ -1150,6 +1186,9 @@ async fn main() -> Result<()> {
             }
             RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json } => {
                 cmd_remote_send_file(&hub, &session, &path, secret_file.as_deref(), secret.as_deref(), chunk_size, &scope, json).await
+            }
+            RemoteAction::Exec { hub, session, command, secret_file, secret, scope, timeout, cwd, json } => {
+                cmd_remote_exec(&hub, &session, &command, secret_file.as_deref(), secret.as_deref(), &scope, timeout, cwd.as_deref(), json).await
             }
         },
         Command::Completions { shell } => {
@@ -2431,6 +2470,64 @@ async fn cmd_remote_send_file(
     }
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn cmd_remote_exec(
+    hub: &str,
+    session: &str,
+    command: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    timeout: u64,
+    cwd: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+
+    let mut params = serde_json::json!({
+        "target": session,
+        "command": command,
+        "timeout": timeout,
+    });
+    if let Some(dir) = cwd {
+        params["cwd"] = serde_json::json!(dir);
+    }
+
+    match rpc_client.call("command.execute", serde_json::json!("exec"), params).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+            let result = &r.result;
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(result)?);
+                return Ok(());
+            }
+
+            let exit_code = result["exit_code"].as_i64().unwrap_or(-1);
+            let stdout = result["stdout"].as_str().unwrap_or("");
+            let stderr = result["stderr"].as_str().unwrap_or("");
+
+            if !stdout.is_empty() {
+                print!("{stdout}");
+            }
+            if !stderr.is_empty() {
+                eprint!("{stderr}");
+            }
+
+            if exit_code != 0 {
+                std::process::exit(exit_code as i32);
+            }
+            Ok(())
+        }
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            }
+            anyhow::bail!("Execution failed: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => anyhow::bail!("Execution error: {}", e),
+    }
 }
 
 async fn cmd_signal(target: &str, signal: &str) -> Result<()> {
