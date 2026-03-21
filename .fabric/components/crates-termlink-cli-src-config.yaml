@@ -1,0 +1,19 @@
+id: crates/termlink-cli/src/config.rs
+name: cli-config
+type: source
+subsystem: cli
+location: crates/termlink-cli/src/config.rs
+tags: [cli, config, hub-profiles, toml]
+
+purpose: "Hub profile system — HubProfile, HubsConfig, HubEntry structs; resolve_hub_profile() for CLI-to-profile resolution; ~/.termlink/hubs.toml persistence"
+
+depends_on: []
+
+depended_by:
+  - target: crates/termlink-cli/src/main.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/remote.rs
+    type: uses
+
+last_verified: 2026-03-21
+created_by: T-206

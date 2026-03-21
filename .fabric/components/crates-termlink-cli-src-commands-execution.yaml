@@ -1,0 +1,27 @@
+id: crates/termlink-cli/src/commands/execution.rs
+name: cli-cmd-execution
+type: source
+subsystem: cli
+location: crates/termlink-cli/src/commands/execution.rs
+tags: [cli, commands, run, spawn, request]
+
+purpose: "Execution commands — cmd_run(), cmd_request(), cmd_spawn() with multi-backend spawning (terminal, tmux, background) and shell escaping"
+
+depends_on:
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+  - target: crates/termlink-session/src/handler.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+  - target: crates/termlink-session/src/registration.rs
+    type: calls
+  - target: crates/termlink-session/src/server.rs
+    type: calls
+  - target: crates/termlink-cli/src/cli.rs
+    type: uses
+  - target: crates/termlink-cli/src/util.rs
+    type: uses
+
+last_verified: 2026-03-21
+created_by: T-206

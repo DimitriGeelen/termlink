@@ -1,0 +1,29 @@
+id: crates/termlink-cli/src/util.rs
+name: cli-util
+type: source
+subsystem: cli
+location: crates/termlink-cli/src/util.rs
+tags: [cli, utility, ansi, signals]
+
+purpose: "Shared CLI utilities — strip_ansi_codes(), truncate(), parse_signal(), generate_request_id(), terminal_size(), resize_payload(), shell_escape(), DEFAULT_CHUNK_SIZE"
+
+depends_on: []
+
+depended_by:
+  - target: crates/termlink-cli/src/commands/session.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/pty.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/metadata.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/execution.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/remote.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/agent.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/file.rs
+    type: uses
+
+last_verified: 2026-03-21
+created_by: T-206

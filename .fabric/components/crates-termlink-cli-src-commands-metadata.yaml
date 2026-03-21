@@ -1,0 +1,21 @@
+id: crates/termlink-cli/src/commands/metadata.rs
+name: cli-cmd-metadata
+type: source
+subsystem: cli
+location: crates/termlink-cli/src/commands/metadata.rs
+tags: [cli, commands, tags, discovery, kv]
+
+purpose: "Metadata and discovery commands — cmd_tag(), cmd_discover(), cmd_kv() for session tags, role/cap discovery, and key-value store"
+
+depends_on:
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+  - target: crates/termlink-cli/src/cli.rs
+    type: uses
+  - target: crates/termlink-cli/src/util.rs
+    type: uses
+
+last_verified: 2026-03-21
+created_by: T-206

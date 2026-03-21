@@ -1,0 +1,21 @@
+id: crates/termlink-cli/src/commands/file.rs
+name: cli-cmd-file
+type: source
+subsystem: cli
+location: crates/termlink-cli/src/commands/file.rs
+tags: [cli, commands, file-transfer, events]
+
+purpose: "File transfer commands — cmd_file_send() (chunk + emit via file transfer events) and cmd_file_receive() (poll + reassemble with SHA-256 verification)"
+
+depends_on:
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+  - target: crates/termlink-protocol/src/events.rs
+    type: calls
+  - target: crates/termlink-cli/src/util.rs
+    type: uses
+
+last_verified: 2026-03-21
+created_by: T-206

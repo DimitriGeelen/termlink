@@ -1,0 +1,21 @@
+id: crates/termlink-cli/src/commands/agent.rs
+name: cli-cmd-agent
+type: source
+subsystem: cli
+location: crates/termlink-cli/src/commands/agent.rs
+tags: [cli, commands, agent, events]
+
+purpose: "Agent commands — cmd_agent_ask() (send request, poll for response/status) and cmd_agent_listen() (poll for incoming requests) via agent event topics"
+
+depends_on:
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+  - target: crates/termlink-protocol/src/events.rs
+    type: calls
+  - target: crates/termlink-cli/src/util.rs
+    type: uses
+
+last_verified: 2026-03-21
+created_by: T-206

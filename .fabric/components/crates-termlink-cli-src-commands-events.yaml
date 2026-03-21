@@ -1,0 +1,17 @@
+id: crates/termlink-cli/src/commands/events.rs
+name: cli-cmd-events
+type: source
+subsystem: cli
+location: crates/termlink-cli/src/commands/events.rs
+tags: [cli, commands, events, polling]
+
+purpose: "Event commands — cmd_events(), cmd_emit(), cmd_broadcast(), cmd_watch(), cmd_wait(), cmd_topics(), cmd_collect() with cursor-based polling"
+
+depends_on:
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+
+last_verified: 2026-03-21
+created_by: T-206

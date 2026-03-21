@@ -5,27 +5,15 @@ subsystem: cli
 location: crates/termlink-cli/src/main.rs
 tags: [cli, entry-point, user-facing]
 
-purpose: "CLI entry point — 26 subcommands (register, list, ping, status, send, exec, output, inject, attach, signal, events, emit, broadcast, resize, tag, watch, stream, discover, hub, clean, wait, run, collect, topics, info) with clap argument parsing"
+purpose: "CLI entry point — tracing init, clap parsing, match dispatch to 10 command modules (session, pty, events, metadata, execution, infrastructure, token, remote, agent, file)"
 
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    type: calls
-  - target: crates/termlink-session/src/codec.rs
-    type: calls
-  - target: crates/termlink-session/src/data_server.rs
-    type: calls
-  - target: crates/termlink-session/src/handler.rs
-    type: calls
-  - target: crates/termlink-session/src/manager.rs
-    type: calls
-  - target: crates/termlink-session/src/pty.rs
-    type: calls
-  - target: crates/termlink-session/src/registration.rs
-    type: calls
-  - target: crates/termlink-session/src/server.rs
-    type: calls
-  - target: crates/termlink-protocol/src/data.rs
-    type: calls
+  - target: crates/termlink-cli/src/cli.rs
+    type: uses
+  - target: crates/termlink-cli/src/config.rs
+    type: uses
+  - target: crates/termlink-cli/src/commands/mod.rs
+    type: uses
 
-last_verified: 2026-03-08
+last_verified: 2026-03-21
 created_by: T-043
