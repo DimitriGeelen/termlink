@@ -4,16 +4,16 @@ name: "termlink remote events — watch events on remote hub"
 description: >
   termlink remote events — watch events on remote hub
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cli, cross-machine, remote]
 components: []
 related_tasks: []
 created: 2026-03-21T00:02:27Z
-last_update: 2026-03-21T00:02:27Z
-date_finished: null
+last_update: 2026-03-21T00:06:24Z
+date_finished: 2026-03-21T00:06:24Z
 ---
 
 # T-203: termlink remote events — watch events on remote hub
@@ -67,3 +67,6 @@ grep -q "RemoteAction::Events" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-203-termlink-remote-events--watch-events-on-.md
 - **Context:** Initial task creation
+
+### 2026-03-21T00:06:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
