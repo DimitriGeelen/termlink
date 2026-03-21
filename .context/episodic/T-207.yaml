@@ -1,0 +1,68 @@
+# ============================================================================
+# EPISODIC MEMORY - T-207: Generate 10 missing episodic summaries
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T00:00:00Z
+# ============================================================================
+
+task_id: T-207
+task_name: "Generate 10 missing episodic summaries"
+workflow_type: build
+enrichment_status: auto-complete
+
+created: 2026-03-21T10:27:52Z
+completed: 2026-03-21T10:32:08Z
+duration_days: 0
+updates_count: 2
+first_commit: "2026-03-21T11:31:49+01:00"
+last_commit: "2026-03-21T11:31:49+01:00"
+
+summary: |
+  Generated 10 missing episodic summary YAML files for completed tasks that were blocked by macOS date -d bug in generate-episodic.
+
+outcomes:
+  - "Created 10 episodic summaries in .context/episodic/ (T-124, T-126, T-127, T-156, T-158, T-178, T-188, T-191, T-200, T-205)"
+  - "All 185 episodic files parse as valid YAML"
+
+challenges:
+  # none
+
+decisions:
+  # none
+
+artifacts:
+  - ".context/episodic/T-124.yaml"
+  - ".context/episodic/T-126.yaml"
+  - ".context/episodic/T-127.yaml"
+  - ".context/episodic/T-156.yaml"
+  - ".context/episodic/T-158.yaml"
+  - ".context/episodic/T-178.yaml"
+  - ".context/episodic/T-188.yaml"
+  - ".context/episodic/T-191.yaml"
+  - ".context/episodic/T-200.yaml"
+  - ".context/episodic/T-205.yaml"
+
+git_timeline:
+  - time: "2026-03-21T11:31:49"
+    action: "T-207: Generate 10 missing episodic summaries (T-124, T-126, T-127, T-156, T-158, T-178, T-188, T-191, T-200, T-205)"
+
+successes:
+  - "Bypassed broken generate-episodic agent by writing summaries directly"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: []
+
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 12
+  lines_added: 825
+  lines_removed: 3
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-207-generate-10-missing-episodic-summaries.md
+generated_by: context-agent-hybrid

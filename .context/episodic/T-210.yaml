@@ -1,0 +1,60 @@
+# ============================================================================
+# EPISODIC MEMORY - T-210: Add unit tests for hub profile config module
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T00:00:00Z
+# ============================================================================
+
+task_id: T-210
+task_name: "Add unit tests for hub profile config module"
+workflow_type: test
+enrichment_status: auto-complete
+
+created: 2026-03-21T12:59:56Z
+completed: 2026-03-21T13:01:59Z
+duration_days: 0
+updates_count: 2
+first_commit: "2026-03-21T14:01:51+01:00"
+last_commit: "2026-03-21T14:01:51+01:00"
+
+summary: |
+  Added 8 unit tests for hub profile config module covering resolve_hub_profile, TOML serialization roundtrip, and save/load with temp files.
+
+outcomes:
+  - "8 new config tests added to crates/termlink-cli/src/config.rs"
+  - "Coverage for resolve_hub_profile (direct address, CLI overrides, profile lookup, not-found error)"
+  - "TOML roundtrip and save/load file persistence verified"
+
+challenges:
+  # none
+
+decisions:
+  # none
+
+artifacts:
+  - "crates/termlink-cli/src/config.rs"
+
+git_timeline:
+  - time: "2026-03-21T14:01:51"
+    action: "T-210: Add 8 unit tests for hub profile config module (resolve, TOML roundtrip, save/load)"
+
+successes:
+  - "Comprehensive coverage of config resolution logic including error cases"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: []
+
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 220
+  lines_removed: 5
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-210-add-unit-tests-for-hub-profile-config-mo.md
+generated_by: context-agent-hybrid

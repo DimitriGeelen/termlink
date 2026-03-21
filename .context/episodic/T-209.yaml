@@ -1,0 +1,59 @@
+# ============================================================================
+# EPISODIC MEMORY - T-209: Fix deprecated cargo_bin import in CLI integration tests
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T00:00:00Z
+# ============================================================================
+
+task_id: T-209
+task_name: "Fix deprecated cargo_bin import in CLI integration tests"
+workflow_type: refactor
+enrichment_status: auto-complete
+
+created: 2026-03-21T10:38:47Z
+completed: 2026-03-21T10:41:40Z
+duration_days: 0
+updates_count: 2
+first_commit: "2026-03-21T11:40:31+01:00"
+last_commit: "2026-03-21T11:40:31+01:00"
+
+summary: |
+  Fixed deprecated cargo_bin function import in CLI integration tests to eliminate deprecation warning from cargo test output.
+
+outcomes:
+  - "Deprecation warning eliminated from cargo test -p termlink output"
+  - "All 15 integration tests still pass"
+
+challenges:
+  # none
+
+decisions:
+  # none
+
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+
+git_timeline:
+  - time: "2026-03-21T11:40:31"
+    action: "T-209: Fix deprecated cargo_bin import in CLI integration tests"
+
+successes:
+  - "Clean compiler output with no deprecation warnings"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: []
+
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 3
+  lines_added: 60
+  lines_removed: 6
+
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-209-fix-deprecated-cargobin-import-in-cli-in.md
+generated_by: context-agent-hybrid
