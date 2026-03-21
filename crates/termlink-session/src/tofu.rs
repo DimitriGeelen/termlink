@@ -273,8 +273,8 @@ impl ServerCertVerifier for TofuVerifier {
         ]
     }
 
-    fn root_hint_subjects(&self) -> &[rustls::DistinguishedName] {
-        &[]
+    fn root_hint_subjects(&self) -> Option<&[rustls::DistinguishedName]> {
+        Some(&[])
     }
 }
 

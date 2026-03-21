@@ -213,7 +213,7 @@ pub type TokenSecret = [u8; 32];
 /// Generate a cryptographically random token secret.
 pub fn generate_secret() -> TokenSecret {
     use rand::Rng;
-    rand::thread_rng().gen()
+    rand::thread_rng().r#gen()
 }
 
 /// Token payload that gets serialized and signed.
@@ -282,7 +282,7 @@ pub fn create_token(
         .unwrap_or_default()
         .as_secs();
 
-    let nonce: [u8; 16] = rand::thread_rng().gen();
+    let nonce: [u8; 16] = rand::thread_rng().r#gen();
     let nonce_hex = nonce.iter().map(|b| format!("{b:02x}")).collect::<String>();
 
     let payload = TokenPayload {
