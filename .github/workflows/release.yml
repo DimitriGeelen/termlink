@@ -39,7 +39,7 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release --target ${{ matrix.target }} -p termlink-cli
+          cargo build --release --target ${{ matrix.target }} -p termlink-cli 2>&1 | tee build.log || (tail -100 build.log && false)
           mkdir -p dist
           cp target/${{ matrix.target }}/release/termlink dist/${{ matrix.artifact }}
           chmod +x dist/${{ matrix.artifact }}
@@ -62,7 +62,7 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release -p termlink-cli
+          cargo build --release -p termlink-cli 2>&1 | tee build.log || (tail -100 build.log && false)
           mkdir -p dist
           cp target/release/termlink dist/termlink-linux-x86_64
           chmod +x dist/termlink-linux-x86_64
