@@ -7,13 +7,13 @@
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use assert_cmd::cargo::cargo_bin;
+use assert_cmd::cargo;
 
 use termlink_test_utils::{wait_for_socket, ProcessGuard, TestDir};
 
 /// Build a Command for the `termlink` binary with isolated runtime dir.
 fn termlink_cmd(runtime_dir: &std::path::Path) -> Command {
-    termlink_test_utils::termlink_cmd(&cargo_bin!("termlink"), runtime_dir)
+    termlink_test_utils::termlink_cmd(&cargo::cargo_bin!("termlink"), runtime_dir)
 }
 
 /// Start a `termlink register` process in the background.
