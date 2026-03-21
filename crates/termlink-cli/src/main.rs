@@ -688,6 +688,44 @@ enum RemoteAction {
         json: bool,
     },
 
+    /// Watch events from sessions on a remote hub (continuous polling)
+    Events {
+        /// Remote hub address (e.g., 192.168.10.107:9100)
+        hub: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "observe")]
+        scope: String,
+
+        /// Filter events by topic
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Filter by target session names (comma-separated)
+        #[arg(long)]
+        targets: Option<String>,
+
+        /// Poll interval in milliseconds
+        #[arg(long, default_value = "500")]
+        interval: u64,
+
+        /// Stop after collecting N events (0 = unlimited)
+        #[arg(long, default_value = "0")]
+        count: u64,
+
+        /// Output each event as a JSON line
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Execute a shell command on a remote session via hub routing
     Exec {
         /// Remote hub address (e.g., 192.168.10.107:9100)
@@ -1186,6 +1224,9 @@ async fn main() -> Result<()> {
             }
             RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json } => {
                 cmd_remote_send_file(&hub, &session, &path, secret_file.as_deref(), secret.as_deref(), chunk_size, &scope, json).await
+            }
+            RemoteAction::Events { hub, secret_file, secret, scope, topic, targets, interval, count, json } => {
+                cmd_remote_events(&hub, secret_file.as_deref(), secret.as_deref(), &scope, topic.as_deref(), targets.as_deref(), interval, count, json).await
             }
             RemoteAction::Exec { hub, session, command, secret_file, secret, scope, timeout, cwd, json } => {
                 cmd_remote_exec(&hub, &session, &command, secret_file.as_deref(), secret.as_deref(), &scope, timeout, cwd.as_deref(), json).await
@@ -2467,6 +2508,116 @@ async fn cmd_remote_send_file(
     } else {
         eprintln!("Transfer complete. SHA-256: {}", sha256);
         println!("Sent '{}' ({} bytes) to '{}' on {}", filename, size, session, hub);
+    }
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn cmd_remote_events(
+    hub: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    topic_filter: Option<&str>,
+    targets_csv: Option<&str>,
+    interval_ms: u64,
+    max_count: u64,
+    json: bool,
+) -> Result<()> {
+    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+
+    let targets: Vec<&str> = targets_csv
+        .map(|t| t.split(',').map(|s| s.trim()).collect())
+        .unwrap_or_default();
+
+    eprintln!("Watching events on {}. Press Ctrl+C to stop.", hub);
+    if let Some(t) = topic_filter {
+        eprintln!("  Topic filter: {}", t);
+    }
+    if !targets.is_empty() {
+        eprintln!("  Targets: {}", targets.join(", "));
+    }
+    eprintln!();
+
+    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    let mut cursors = serde_json::json!({});
+    let mut total_received: u64 = 0;
+
+    loop {
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                eprintln!();
+                eprintln!("Stopped. {} event(s) collected.", total_received);
+                break;
+            }
+            _ = tokio::time::sleep(poll_interval) => {
+                let mut params = serde_json::json!({});
+                if !targets.is_empty() {
+                    params["targets"] = serde_json::json!(targets);
+                }
+                if let Some(t) = topic_filter {
+                    params["topic"] = serde_json::json!(t);
+                }
+                if !cursors.as_object().map_or(true, |m| m.is_empty()) {
+                    params["since"] = cursors.clone();
+                }
+
+                match rpc_client.call("event.collect", serde_json::json!("collect"), params).await {
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                        if let Some(events) = r.result["events"].as_array() {
+                            for event in events {
+                                total_received += 1;
+
+                                if json {
+                                    println!("{}", serde_json::to_string(event).unwrap_or_default());
+                                } else {
+                                    let session_name = event["session_name"].as_str().unwrap_or("?");
+                                    let seq = event["seq"].as_u64().unwrap_or(0);
+                                    let topic = event["topic"].as_str().unwrap_or("?");
+                                    let payload = &event["payload"];
+                                    let ts = event["timestamp"].as_u64().unwrap_or(0);
+
+                                    if payload.is_null()
+                                        || (payload.is_object()
+                                            && payload.as_object().unwrap().is_empty())
+                                    {
+                                        println!("[{session_name}#{seq}] {topic} (t={ts})");
+                                    } else {
+                                        println!(
+                                            "[{session_name}#{seq}] {topic}: {} (t={ts})",
+                                            serde_json::to_string(payload).unwrap_or_default()
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update cursors
+                        if let Some(new_cursors) = r.result.get("cursors")
+                            && let Some(obj) = new_cursors.as_object()
+                        {
+                            for (k, v) in obj {
+                                cursors[k] = v.clone();
+                            }
+                        }
+
+                        // Check count limit
+                        if max_count > 0 && total_received >= max_count {
+                            eprintln!();
+                            eprintln!("{} event(s) collected (limit reached).", total_received);
+                            break;
+                        }
+                    }
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                        eprintln!("Collect error: {} {}. Retrying...", e.error.code, e.error.message);
+                    }
+                    Err(e) => {
+                        eprintln!("Hub connection error: {}. Retrying...", e);
+                    }
+                }
+            }
+        }
     }
 
     Ok(())
