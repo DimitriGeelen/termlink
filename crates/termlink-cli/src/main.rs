@@ -19,6 +19,99 @@ use termlink_protocol::events::{
     FileInit, FileChunk, FileComplete, SCHEMA_VERSION,
 };
 
+// ---------------------------------------------------------------------------
+// Hub Profile System
+// ---------------------------------------------------------------------------
+
+/// Resolved hub connection parameters from profile or CLI args.
+struct HubProfile {
+    address: String,
+    secret_file: Option<String>,
+    secret: Option<String>,
+    scope: Option<String>,
+}
+
+/// Hub profiles config file (~/.termlink/hubs.toml)
+#[derive(serde::Deserialize, serde::Serialize, Default)]
+struct HubsConfig {
+    #[serde(default)]
+    hubs: std::collections::HashMap<String, HubEntry>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+struct HubEntry {
+    address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    secret_file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scope: Option<String>,
+}
+
+fn hubs_config_path() -> std::path::PathBuf {
+    termlink_config_dir().join("hubs.toml")
+}
+
+fn termlink_config_dir() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    std::path::PathBuf::from(home).join(".termlink")
+}
+
+fn load_hubs_config() -> HubsConfig {
+    let path = hubs_config_path();
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        toml::from_str(&content).unwrap_or_default()
+    } else {
+        HubsConfig::default()
+    }
+}
+
+fn save_hubs_config(config: &HubsConfig) -> Result<()> {
+    let path = hubs_config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let content = toml::to_string_pretty(config)?;
+    std::fs::write(&path, content)?;
+    Ok(())
+}
+
+/// Resolve hub argument: if it contains `:`, treat as address.
+/// Otherwise look up as a profile name in ~/.termlink/hubs.toml.
+/// CLI-provided secret_file/secret/scope override profile defaults.
+fn resolve_hub_profile(
+    hub_arg: &str,
+    cli_secret_file: Option<&str>,
+    cli_secret: Option<&str>,
+    cli_scope: &str,
+) -> Result<HubProfile> {
+    if hub_arg.contains(':') {
+        // Direct address
+        return Ok(HubProfile {
+            address: hub_arg.to_string(),
+            secret_file: cli_secret_file.map(String::from),
+            secret: cli_secret.map(String::from),
+            scope: Some(cli_scope.to_string()),
+        });
+    }
+
+    // Look up profile
+    let config = load_hubs_config();
+    let entry = config.hubs.get(hub_arg)
+        .ok_or_else(|| anyhow::anyhow!(
+            "Hub profile '{}' not found. Use host:port or add a profile:\n  termlink remote profile add {} <address> --secret-file <path>",
+            hub_arg, hub_arg
+        ))?;
+
+    Ok(HubProfile {
+        address: entry.address.clone(),
+        secret_file: cli_secret_file.map(String::from).or_else(|| entry.secret_file.clone()),
+        secret: cli_secret.map(String::from).or_else(|| entry.secret.clone()),
+        scope: Some(cli_scope.to_string()).or_else(|| entry.scope.clone()),
+    })
+}
+
 #[derive(Parser)]
 #[command(
     name = "termlink",
@@ -726,6 +819,12 @@ enum RemoteAction {
         json: bool,
     },
 
+    /// Manage saved hub profiles (~/.termlink/hubs.toml)
+    Profile {
+        #[command(subcommand)]
+        action: ProfileAction,
+    },
+
     /// Execute a shell command on a remote session via hub routing
     Exec {
         /// Remote hub address (e.g., 192.168.10.107:9100)
@@ -760,6 +859,40 @@ enum RemoteAction {
         /// Output result as JSON (exit_code, stdout, stderr)
         #[arg(long)]
         json: bool,
+    },
+}
+
+/// Profile management actions
+#[derive(Subcommand)]
+enum ProfileAction {
+    /// Add or update a hub profile
+    Add {
+        /// Profile name (e.g., "lab", "prod")
+        name: String,
+
+        /// Hub address (host:port)
+        address: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Default permission scope
+        #[arg(long)]
+        scope: Option<String>,
+    },
+
+    /// List saved hub profiles
+    List,
+
+    /// Remove a hub profile
+    Remove {
+        /// Profile name to remove
+        name: String,
     },
 }
 
@@ -1211,25 +1344,35 @@ async fn main() -> Result<()> {
         },
         Command::Remote { action } => match action {
             RemoteAction::Ping { hub, session, secret_file, secret, scope } => {
-                cmd_remote_ping(&hub, session.as_deref(), secret_file.as_deref(), secret.as_deref(), &scope).await
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                cmd_remote_ping(&p.address, session.as_deref(), p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe")).await
             }
             RemoteAction::List { hub, secret_file, secret, scope, name, tags, roles, json } => {
-                cmd_remote_list(&hub, secret_file.as_deref(), secret.as_deref(), &scope, name.as_deref(), tags.as_deref(), roles.as_deref(), json).await
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                cmd_remote_list(&p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), name.as_deref(), tags.as_deref(), roles.as_deref(), json).await
             }
             RemoteAction::Status { hub, session, secret_file, secret, scope, json } => {
-                cmd_remote_status(&hub, &session, secret_file.as_deref(), secret.as_deref(), &scope, json).await
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                cmd_remote_status(&p.address, &session, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), json).await
             }
             RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json } => {
-                cmd_remote_inject(&hub, &session, &text, secret_file.as_deref(), secret.as_deref(), enter, key.as_deref(), delay_ms, &scope, json).await
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                cmd_remote_inject(&p.address, &session, &text, p.secret_file.as_deref(), p.secret.as_deref(), enter, key.as_deref(), delay_ms, p.scope.as_deref().unwrap_or("control"), json).await
             }
             RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json } => {
-                cmd_remote_send_file(&hub, &session, &path, secret_file.as_deref(), secret.as_deref(), chunk_size, &scope, json).await
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                cmd_remote_send_file(&p.address, &session, &path, p.secret_file.as_deref(), p.secret.as_deref(), chunk_size, p.scope.as_deref().unwrap_or("control"), json).await
             }
             RemoteAction::Events { hub, secret_file, secret, scope, topic, targets, interval, count, json } => {
-                cmd_remote_events(&hub, secret_file.as_deref(), secret.as_deref(), &scope, topic.as_deref(), targets.as_deref(), interval, count, json).await
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                cmd_remote_events(&p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), topic.as_deref(), targets.as_deref(), interval, count, json).await
             }
             RemoteAction::Exec { hub, session, command, secret_file, secret, scope, timeout, cwd, json } => {
-                cmd_remote_exec(&hub, &session, &command, secret_file.as_deref(), secret.as_deref(), &scope, timeout, cwd.as_deref(), json).await
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                cmd_remote_exec(&p.address, &session, &command, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("execute"), timeout, cwd.as_deref(), json).await
+            }
+            RemoteAction::Profile { action } => {
+                cmd_remote_profile(action)
             }
         },
         Command::Completions { shell } => {
@@ -2102,6 +2245,69 @@ async fn connect_remote_hub(
     }
 
     Ok(rpc_client)
+}
+
+fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
+    match action {
+        ProfileAction::Add { name, address, secret_file, secret, scope } => {
+            if !address.contains(':') {
+                anyhow::bail!("Address must be in host:port format (e.g., 192.168.10.107:9100)");
+            }
+            let mut config = load_hubs_config();
+            let is_update = config.hubs.contains_key(&name);
+            config.hubs.insert(name.clone(), HubEntry {
+                address: address.clone(),
+                secret_file,
+                secret,
+                scope,
+            });
+            save_hubs_config(&config)?;
+            if is_update {
+                println!("Updated profile '{}' → {}", name, address);
+            } else {
+                println!("Added profile '{}' → {}", name, address);
+            }
+            println!("  Config: {}", hubs_config_path().display());
+            Ok(())
+        }
+        ProfileAction::List => {
+            let config = load_hubs_config();
+            if config.hubs.is_empty() {
+                println!("No hub profiles configured.");
+                println!("  Add one: termlink remote profile add <name> <address> --secret-file <path>");
+                return Ok(());
+            }
+            println!("{:<12} {:<28} {:<10} SECRET", "NAME", "ADDRESS", "SCOPE");
+            println!("{}", "-".repeat(64));
+            let mut names: Vec<_> = config.hubs.keys().collect();
+            names.sort();
+            for name in names {
+                let entry = &config.hubs[name];
+                let scope = entry.scope.as_deref().unwrap_or("-");
+                let secret_info = if entry.secret_file.is_some() {
+                    "file"
+                } else if entry.secret.is_some() {
+                    "inline"
+                } else {
+                    "none"
+                };
+                println!("{:<12} {:<28} {:<10} {}", name, entry.address, scope, secret_info);
+            }
+            println!();
+            println!("{} profile(s) in {}", config.hubs.len(), hubs_config_path().display());
+            Ok(())
+        }
+        ProfileAction::Remove { name } => {
+            let mut config = load_hubs_config();
+            if config.hubs.remove(&name).is_some() {
+                save_hubs_config(&config)?;
+                println!("Removed profile '{}'", name);
+            } else {
+                println!("Profile '{}' not found", name);
+            }
+            Ok(())
+        }
+    }
 }
 
 async fn cmd_remote_ping(

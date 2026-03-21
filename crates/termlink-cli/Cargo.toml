@@ -18,6 +18,8 @@ serde_json = { workspace = true }
 libc = { workspace = true }
 base64 = { workspace = true }
 sha2 = { workspace = true }
+serde = { workspace = true }
+toml = "0.8"
 
 [dev-dependencies]
 assert_cmd = "2"
