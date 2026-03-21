@@ -4,7 +4,7 @@ name: "Generate 10 missing episodic summaries"
 description: >
   Generate 10 missing episodic summaries
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-21T10:27:52Z
-last_update: 2026-03-21T10:27:52Z
-date_finished: null
+last_update: 2026-03-21T10:32:08Z
+date_finished: 2026-03-21T10:32:08Z
 ---
 
 # T-207: Generate 10 missing episodic summaries
@@ -30,7 +30,7 @@ Handover agent flagged 10 completed tasks missing episodic summaries: T-124, T-1
 
 ## Verification
 
-test $(ls .context/episodic/T-124-*.md .context/episodic/T-126-*.md .context/episodic/T-127-*.md .context/episodic/T-156-*.md .context/episodic/T-158-*.md .context/episodic/T-178-*.md .context/episodic/T-188-*.md .context/episodic/T-191-*.md .context/episodic/T-200-*.md .context/episodic/T-205-*.md 2>/dev/null | wc -l) -eq 10
+test $(ls .context/episodic/T-124.yaml .context/episodic/T-126.yaml .context/episodic/T-127.yaml .context/episodic/T-156.yaml .context/episodic/T-158.yaml .context/episodic/T-178.yaml .context/episodic/T-188.yaml .context/episodic/T-191.yaml .context/episodic/T-200.yaml .context/episodic/T-205.yaml 2>/dev/null | wc -l) -eq 10
 
 ## Decisions
 
@@ -49,3 +49,6 @@ test $(ls .context/episodic/T-124-*.md .context/episodic/T-126-*.md .context/epi
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-207-generate-10-missing-episodic-summaries.md
 - **Context:** Initial task creation
+
+### 2026-03-21T10:32:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
