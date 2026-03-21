@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-124: dispatch.sh --isolate flag — worktree isolation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-124
+task_name: "dispatch.sh --isolate flag — worktree isolation for mesh workers"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-12T20:57:05Z
+completed: 2026-03-20T13:41:12Z
+duration_days: 8
+updates_count: 4
+first_commit: 2026-03-12T21:58:39+01:00
+last_commit: 2026-03-12T21:58:39+01:00
+
+# Summary
+summary: |
+  Added --isolate flag to dispatch.sh enabling worktree-based isolation for parallel mesh workers, preventing file conflicts during concurrent builds.
+
+# Key outcomes
+outcomes:
+  - "dispatch.sh accepts --isolate flag for worktree isolation"
+  - "Creates git worktree on mesh-{worker-name} branch with local CARGO_TARGET_DIR"
+  - "Worktree cleanup on exit via trap (success or failure)"
+  - "Backward compatible — without --isolate, existing behavior unchanged"
+
+# Challenges
+challenges:
+  # Multiple completion attempts before final closure via sim-verify (T-195)
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - "agents/mesh/dispatch.sh"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-12T21:58:39"
+    action: "T-124: dispatch.sh --isolate flag — worktree isolation for mesh workers"
+
+# What worked well
+successes:
+  # Clean implementation building on T-123 inception findings
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [agent-mesh, isolation, concurrency]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 62
+  commits: 1
+  files_changed: 3
+  lines_added: 154
+  lines_removed: 106
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-124-dispatchsh---isolate-flag--worktree-isol.md
+generated_by: context-agent-hybrid

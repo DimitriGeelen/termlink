@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-188: Document upstream reporting workflow (dual-path)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-188
+task_name: "Document upstream reporting workflow (dual-path)"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-19T11:44:09Z
+completed: 2026-03-20T13:12:26Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-03-19T12:45:56+01:00
+last_commit: 2026-03-19T12:45:56+01:00
+
+# Summary
+summary: |
+  Created upstream-reporting.md documenting the dual-path upstream workflow (TermLink primary, fw upstream fallback) and injected fw upstream proposal into framework agent.
+
+# Key outcomes
+outcomes:
+  - "docs/guides/upstream-reporting.md created with both paths documented"
+  - "TermLink primary path: prerequisites, command, prompt template, examples"
+  - "fw upstream fallback path: proposed command spec, output format, delivery"
+  - "fw upstream report proposal injected into framework agent via termlink remote inject"
+
+# Challenges
+challenges:
+  # None recorded
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - "docs/guides/upstream-reporting.md"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-19T12:45:56"
+    action: "T-188: Document dual-path upstream reporting + send fw upstream proposal to framework agent"
+
+# What worked well
+successes:
+  # Clean build from T-180 GO decision and design doc
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [docs, upstream, workflow]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 62
+  commits: 1
+  files_changed: 2
+  lines_added: 260
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-188-document-upstream-reporting-workflow-dua.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-178: Fix pty inject Enter not submitting in Claude Code TUI
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-178
+task_name: "Fix pty inject Enter not submitting in Claude Code TUI"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-18T22:19:38Z
+completed: 2026-03-20T13:41:13Z
+duration_days: 2
+updates_count: 5
+first_commit: 2026-03-18T23:55:34+01:00
+last_commit: 2026-03-18T23:56:08+01:00
+
+# Summary
+summary: |
+  Fixed PTY inject Enter key not submitting in Claude Code TUI by splitting text+Enter into separate pty.write() calls with configurable inter-key delay, preventing ink from treating batched input as paste.
+
+# Key outcomes
+outcomes:
+  - "handle_command_inject writes each KeyEntry separately with delay"
+  - "Delay configurable via inject_delay_ms param (default 10ms)"
+  - "Unit test confirms multi-entry inject produces separate writes"
+  - "All 18 termlink-session tests pass"
+
+# Challenges
+challenges:
+  # Root cause: ink TUI treats batched text+Enter as paste, not keypress
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - "crates/termlink-session/src/handler.rs"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-18T23:55:34"
+    action: "T-178: Split PTY inject writes per KeyEntry with inter-key delay"
+  - time: "2026-03-18T23:56:08"
+    action: "T-178: Complete — split PTY inject writes (agent ACs done, human AC pending)"
+
+# What worked well
+successes:
+  # RCA from T-163 provided clear root cause, enabling targeted fix
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [bug, cli, inject, pty]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 37
+  commits: 2
+  files_changed: 8
+  lines_added: 152
+  lines_removed: 82
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-178-fix-pty-inject-enter-not-submitting-in-c.md
+generated_by: context-agent-hybrid

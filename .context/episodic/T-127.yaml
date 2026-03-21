@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-127: Merge orchestration script
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-127
+task_name: "Merge orchestration script — rebase + sequential merge N worktree branches"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-13T10:05:22Z
+completed: 2026-03-20T13:12:02Z
+duration_days: 7
+updates_count: 4
+first_commit: 2026-03-14T13:04:30+01:00
+last_commit: 2026-03-14T13:04:30+01:00
+
+# Summary
+summary: |
+  Created merge-branches.sh to automate rebasing and sequential merging of N worktree branches onto main after parallel dispatch.
+
+# Key outcomes
+outcomes:
+  - "agents/mesh/merge-branches.sh created and executable"
+  - "Sequential rebase of each branch onto main (conflict-safe)"
+  - "Test suite runs after each merge to catch breakage early"
+  - "Stops on first conflict or test failure with clear error"
+  - "Cleans up merged branches after successful merge"
+
+# Challenges
+challenges:
+  # None recorded
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - "agents/mesh/merge-branches.sh"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-14T13:04:30"
+    action: "T-127: Merge orchestration script — rebase + sequential merge N worktree branches"
+
+# What worked well
+successes:
+  # Fast implementation (~7 min from start to completion)
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [agent-mesh, isolation]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 4
+  lines_added: 210
+  lines_removed: 34
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-127-merge-orchestration-script--rebase--sequ.md
+generated_by: context-agent-hybrid

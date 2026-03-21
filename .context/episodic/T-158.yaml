@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-158: Session persistence across claude restart
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-158
+task_name: "Session persistence across claude restart"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-17T09:45:47Z
+completed: 2026-03-20T13:12:02Z
+duration_days: 3
+updates_count: 4
+first_commit: 2026-03-17T12:35:33+01:00
+last_commit: 2026-03-17T12:35:33+01:00
+
+# Summary
+summary: |
+  Extended tl-claude.sh with persistent session mode (start/restart/status/stop) so the TermLink PTY session survives claude exits and restarts, preserving scrollback.
+
+# Key outcomes
+outcomes:
+  - "tl-claude.sh start subcommand for persistent mode"
+  - "Persistent mode: spawns shell session, then injects claude command"
+  - "tl-claude.sh restart re-injects claude into existing session"
+  - "Session survives claude exit (shell stays alive)"
+  - "Scrollback preserved across restarts"
+
+# Challenges
+challenges:
+  # None recorded
+
+# Decisions
+decisions:
+  - topic: "Persistent session approach"
+    date: "2026-03-17"
+    chose: "Shell session + inject (no Rust changes needed)"
+    why: "termlink spawn --shell keeps PTY alive after command exits; inject new command for restart"
+    rejected: "New --keep-alive flag in Rust (unnecessary complexity)"
+
+# Artifacts
+artifacts:
+  - "scripts/tl-claude.sh"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-17T12:35:33"
+    action: "T-158: Session persistence — tl-claude.sh start/restart/status/stop"
+
+# What worked well
+successes:
+  # Leveraged existing termlink spawn --shell capability, no Rust changes needed
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [remote-access, claude-fw, persistence]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 57
+  commits: 1
+  files_changed: 2
+  lines_added: 204
+  lines_removed: 23
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-158-session-persistence-across-claude-restar.md
+generated_by: context-agent-hybrid

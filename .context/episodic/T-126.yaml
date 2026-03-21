@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-126: dispatch.sh auto-commit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-126
+task_name: "dispatch.sh auto-commit — workers commit before cleanup"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-13T10:05:12Z
+completed: 2026-03-20T13:41:12Z
+duration_days: 7
+updates_count: 7
+first_commit: 2026-03-14T12:57:43+01:00
+last_commit: 2026-03-14T12:57:43+01:00
+
+# Summary
+summary: |
+  Added auto-commit logic to dispatch.sh so worktree workers commit their changes before cleanup, preserving work on the branch for merge orchestration.
+
+# Key outcomes
+outcomes:
+  - "Workers auto-commit changes in worktree before cleanup when --isolate is used"
+  - "Commit message includes worker name and task context"
+  - "No-op when worker made no changes (no empty commits)"
+  - "Worktree branch preserved when commits exist for merge orchestration pickup"
+
+# Challenges
+challenges:
+  # Multiple status transitions before final completion
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - "agents/mesh/dispatch.sh"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-14T12:57:43"
+    action: "T-126: dispatch.sh auto-commit — workers commit before worktree cleanup"
+
+# What worked well
+successes:
+  # Clean integration with existing --isolate worktree flow
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: [agent-mesh, isolation]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 4
+  lines_added: 73
+  lines_removed: 38
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-126-dispatchsh-auto-commit--workers-commit-b.md
+generated_by: context-agent-hybrid

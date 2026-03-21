@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-205: Split CLI main.rs into command modules
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-205
+task_name: "Split CLI main.rs into command modules"
+workflow_type: refactor
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-21T06:22:44Z
+completed: 2026-03-21T06:40:32Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-21T07:40:16+01:00
+last_commit: 2026-03-21T07:40:16+01:00
+
+# Summary
+summary: |
+  Split monolithic CLI main.rs (5183 lines) into 14 focused modules: 10 command modules, cli.rs, config.rs, util.rs, and a reduced main.rs for dispatch only.
+
+# Key outcomes
+outcomes:
+  - "main.rs reduced from 5183 lines to dispatch-only"
+  - "10 command modules: session, pty, events, remote, metadata, execution, infrastructure, token, agent, file"
+  - "config.rs for hub profiles, cli.rs for struct definitions, util.rs for shared helpers"
+  - "cargo build/test/clippy all pass cleanly (297 tests, 0 warnings)"
+
+# Challenges
+challenges:
+  # None recorded
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/config.rs"
+  - "crates/termlink-cli/src/util.rs"
+  - "crates/termlink-cli/src/commands/mod.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/commands/pty.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - "crates/termlink-cli/src/commands/execution.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/commands/token.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/file.rs"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-21T07:40:16"
+    action: "T-205: Split CLI main.rs (5183 lines) into 14 focused modules"
+
+# What worked well
+successes:
+  # Fast execution — 18 minutes from task creation to completion
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: []
+
+# Metrics
+metrics:
+  wall_clock_minutes: 18
+  commits: 1
+  files_changed: 16
+  lines_added: 5080
+  lines_removed: 5051
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-205-split-cli-mainrs-into-command-modules.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-156: termlink-wrapped claude launch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-21T10:30:00Z
+# ============================================================================
+
+task_id: T-156
+task_name: "termlink-wrapped claude launch"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-17T09:45:39Z
+completed: 2026-03-20T13:41:12Z
+duration_days: 3
+updates_count: 4
+first_commit: 2026-03-17T11:38:10+01:00
+last_commit: 2026-03-17T11:38:10+01:00
+
+# Summary
+summary: |
+  Created tl-claude.sh convenience script that launches Claude Code inside a TermLink-managed PTY session, making it discoverable and remotely observable via attach/stream.
+
+# Key outcomes
+outcomes:
+  - "scripts/tl-claude.sh created and executable"
+  - "Launches Claude Code inside a TermLink session using termlink spawn"
+  - "Session named (default: claude-master, overridable with --name)"
+  - "Tags session with master,claude for discovery"
+  - "Supports --backend passthrough and passes remaining args to claude"
+
+# Challenges
+challenges:
+  # None recorded
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - "scripts/tl-claude.sh"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-17T11:38:10"
+    action: "T-156: Add tl-claude.sh — launch Claude Code in TermLink session"
+
+# What worked well
+successes:
+  # Built on validated T-155 inception spike
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-158]
+
+# Tags
+tags: [remote-access, claude-fw]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 53
+  commits: 1
+  files_changed: 2
+  lines_added: 151
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-156-termlink-wrapped-claude-launch.md
+generated_by: context-agent-hybrid
