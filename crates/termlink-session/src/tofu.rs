@@ -272,6 +272,10 @@ impl ServerCertVerifier for TofuVerifier {
             SignatureScheme::ED448,
         ]
     }
+
+    fn root_hint_subjects(&self) -> &[rustls::DistinguishedName] {
+        &[]
+    }
 }
 
 /// Build a TLS connector that uses TOFU verification for a specific host:port.
@@ -279,7 +283,11 @@ pub fn build_tofu_connector(host_port: &str) -> tokio_rustls::TlsConnector {
     let store = KnownHubStore::default_store();
     let verifier = TofuVerifier::new(store, host_port.to_string());
 
-    let config = rustls::ClientConfig::builder()
+    let config = rustls::ClientConfig::builder_with_provider(
+        rustls::crypto::ring::default_provider().into()
+    )
+        .with_safe_default_protocol_versions()
+        .expect("ring provider supports TLS versions")
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(verifier))
         .with_no_client_auth();
