@@ -1,12 +1,11 @@
-timestamp: 2026-03-21T16:04:50Z
+timestamp: 2026-03-21T22:57:09Z
 findings:
   - id: D1
     level: PASS
     check: "D1: Episodic quality — 0% [TODO] (0/185)"
   - id: D2
-    level: FAIL
-    check: "D2: Human review queue — 1 task(s) waiting >72h: T-141(162h)"
-    mitigation: "Review pending tasks at :3000/tasks or run: fw task list --status work-completed"
+    level: PASS
+    check: "D2: Human review queue — 8 task(s) awaiting human action (normal)"
   - id: D8
     level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
@@ -26,10 +25,10 @@ findings:
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — normal (PASS today=25 avg=24 ratio=1.1x)"
+    check: "D3: Commit velocity — normal (PASS today=0 avg=23 ratio=0.0x)"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS 31_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 26_commits_24h_no_bunching)"
   - id: D6
     level: PASS
     check: "D6: Completion velocity — normal (PASS recent=7.0 earlier=10.6)"
@@ -41,7 +40,7 @@ findings:
     check: "D9: Control drift — normal (PASS insufficient_audits)"
 
 summary:
-  pass: 9
+  pass: 10
   warn: 2
-  fail: 1
+  fail: 0
   total: 12
