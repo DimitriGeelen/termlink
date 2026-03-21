@@ -16,6 +16,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake clang
+
       - name: Cargo check
         run: |
           cargo check --workspace 2>&1 || (echo "=== CARGO CHECK FAILED ===" && exit 1)

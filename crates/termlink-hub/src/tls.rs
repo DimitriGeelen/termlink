@@ -72,11 +72,7 @@ fn build_acceptor_from_pem(cert_pem: &str, key_pem: &str) -> std::io::Result<Tls
     let key = rustls_pemfile::private_key(&mut BufReader::new(key_pem.as_bytes()))?
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "no private key found in PEM"))?;
 
-    let config = rustls::ServerConfig::builder_with_provider(
-        rustls::crypto::ring::default_provider().into()
-    )
-        .with_safe_default_protocol_versions()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("TLS config error: {e}")))?
+    let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(certs, key)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("TLS config error: {e}")))?;
@@ -99,11 +95,7 @@ pub fn build_client_connector(cert_pem_path: &Path) -> std::io::Result<tokio_rus
         })?;
     }
 
-    let config = rustls::ClientConfig::builder_with_provider(
-        rustls::crypto::ring::default_provider().into()
-    )
-        .with_safe_default_protocol_versions()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("TLS config error: {e}")))?
+    let config = rustls::ClientConfig::builder()
         .with_root_certificates(root_store)
         .with_no_client_auth();
 

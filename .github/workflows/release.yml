@@ -37,6 +37,9 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install build dependencies
+        run: brew install cmake
+
       - name: Build
         run: |
           cargo build --release --target ${{ matrix.target }} -p termlink-cli 2>&1 | tee build.log || (tail -100 build.log && false)
@@ -59,6 +62,9 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake clang
 
       - name: Build
         run: |

@@ -188,11 +188,7 @@ fn build_tls_connector(cert_pem_path: &Path) -> std::io::Result<tokio_rustls::Tl
         })?;
     }
 
-    let config = rustls::ClientConfig::builder_with_provider(
-        rustls::crypto::ring::default_provider().into()
-    )
-        .with_safe_default_protocol_versions()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("TLS config error: {e}")))?
+    let config = rustls::ClientConfig::builder()
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
