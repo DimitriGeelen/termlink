@@ -15,10 +15,17 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake clang
 
       - name: Cargo check
-        run: |
-          cargo check --workspace 2>&1 || (echo "=== CARGO CHECK FAILED ===" && exit 1)
+        run: cargo check --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
