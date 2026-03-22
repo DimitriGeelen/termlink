@@ -14,3 +14,9 @@ Thumbs.db
 
 # Telemetry (raw session data, not committed)
 .context/telemetry/
+
+# Framework symlink (machine-specific)
+.agentic-framework
+
+# Claude Code backup
+.claude/settings.json.bak
