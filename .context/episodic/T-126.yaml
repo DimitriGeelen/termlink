@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-126: dispatch.sh auto-commit — workers commit before cleanup
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T16:54:56Z
+# ============================================================================
+
+task_id: T-126
+task_name: "dispatch.sh auto-commit — workers commit before cleanup"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-13T10:05:12Z
+completed: 2026-03-20T13:41:12Z
+duration_days: 7
+updates_count: 8
+first_commit: 2026-03-14T12:57:43+01:00
+last_commit: 2026-03-14T12:57:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dispatch.sh auto-commit — workers commit before worktree cleanup
+
+# Key outcomes
+outcomes:
+  - "dispatch.sh auto-commits worker changes in worktree before cleanup (when --isolate)"
+  - "Commit message includes worker name and task context"
+  - "No-op when worker made no changes (no empty commits)"
+  - "Worktree branch preserved (not removed) when commits exist, so merge orchestration can pick it up"
+  - "Worktree still cleaned up when no changes were made"
+  - "[RUBBER-STAMP] Run `dispatch.sh --isolate --worker-name test-commit \"echo hello > /tmp/test.txt\"` and verify branch has commit"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "agents/mesh/dispatch.sh"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-126-dispatchsh-auto-commit--workers-commit-b.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T12:57:43"
+    action: "T-126: dispatch.sh auto-commit — workers commit before worktree cleanup"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10296 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-mesh, isolation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10296
+  commits: 1
+  files_changed: 4
+  lines_added: 73
+  lines_removed: 38
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-126-dispatchsh-auto-commit--workers-commit-b.md
+generated_by: context-agent-hybrid

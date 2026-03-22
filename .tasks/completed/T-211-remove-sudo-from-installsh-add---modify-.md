@@ -1,33 +1,38 @@
 ---
-id: T-210
-name: "Fix aef references in installer, add post-install verification"
+id: T-211
+name: "Remove sudo from install.sh, add --modify-path flag"
 description: >
-  Fix aef references in installer, add post-install verification
+  Remove sudo from install.sh, add --modify-path flag
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-21T15:42:42Z
-last_update: 2026-03-21T15:42:42Z
-date_finished: null
+created: 2026-03-21T15:42:52Z
+last_update: 2026-03-22T17:01:45Z
+date_finished: 2026-03-22T17:01:45Z
 ---
 
-# T-210: Fix aef references in installer, add post-install verification
+# T-211: Remove sudo from install.sh, add --modify-path flag
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Build task for T-206 inception (remove sudo from installer). Resolved upstream — install.sh uses `~/.local/bin` exclusively, no sudo, MODIFY_PATH env var implemented.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] No sudo calls in install.sh (verified upstream)
+- [x] MODIFY_PATH flag implemented for optional PATH modification
+
+## Verification
+
+# Verify no actual sudo commands (comments OK)
+! grep -v "^[[:space:]]*#" /opt/999-Agentic-Engineering-Framework/install.sh | grep -q "sudo"
+grep -q "MODIFY_PATH" /opt/999-Agentic-Engineering-Framework/install.sh
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -68,7 +73,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-21T15:42:42Z — task-created [task-create-agent]
+### 2026-03-21T15:42:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimitri/.termlink/.tasks/active/T-210-fix-aef-references-in-installer-add-post.md
+- **Output:** /Users/dimitri/.termlink/.tasks/active/T-211-remove-sudo-from-installsh-add---modify-.md
 - **Context:** Initial task creation
+
+### 2026-03-22T17:01:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,33 +1,37 @@
 ---
-id: T-211
-name: "Remove sudo from install.sh, add --modify-path flag"
+id: T-210
+name: "Fix aef references in installer, add post-install verification"
 description: >
-  Remove sudo from install.sh, add --modify-path flag
+  Fix aef references in installer, add post-install verification
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-21T15:42:52Z
-last_update: 2026-03-21T15:42:52Z
-date_finished: null
+created: 2026-03-21T15:42:42Z
+last_update: 2026-03-22T17:01:23Z
+date_finished: 2026-03-22T17:01:23Z
 ---
 
-# T-211: Remove sudo from install.sh, add --modify-path flag
+# T-210: Fix aef references in installer, add post-install verification
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Build task for T-207 inception (fix phantom "aef" binary name). Resolved upstream — install.sh already uses `fw` throughout with zero `aef` references and 3-step post-install verification.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Zero "aef" references in install.sh (verified upstream)
+- [x] Post-install verification present in install.sh (3-step: binary, version, doctor)
+
+## Verification
+
+! grep -qi "aef" /opt/999-Agentic-Engineering-Framework/install.sh
+grep -q "Post-install verification" /opt/999-Agentic-Engineering-Framework/install.sh
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -68,7 +72,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-21T15:42:52Z — task-created [task-create-agent]
+### 2026-03-21T15:42:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimitri/.termlink/.tasks/active/T-211-remove-sudo-from-installsh-add---modify-.md
+- **Output:** /Users/dimitri/.termlink/.tasks/active/T-210-fix-aef-references-in-installer-add-post.md
 - **Context:** Initial task creation
+
+### 2026-03-22T17:01:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

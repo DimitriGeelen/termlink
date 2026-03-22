@@ -76,10 +76,10 @@ sudo ln -sf "$fw_path" "$SYMLINK_DIR/fw"   # references fw
 
 ## Acceptance Criteria
 
-- [ ] Zero "aef" references in installer and documentation
-- [ ] Post-install verification checks: `command -v fw`, `fw version`, `fw doctor`
-- [ ] Each verification failure prints the specific manual fix command
-- [ ] Go/No-Go decision made
+- [x] Zero "aef" references in installer and documentation (upstream fix)
+- [x] Post-install verification checks: `command -v fw`, `fw version`, `fw doctor` (upstream T-515)
+- [x] Each verification failure prints the specific manual fix command (upstream install.sh lines 224-267)
+- [x] Go/No-Go decision made (GO)
 
 ## Go/No-Go Criteria
 

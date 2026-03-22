@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-127: Merge orchestration script — rebase + sequential merge N worktree branches
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T16:54:56Z
+# ============================================================================
+
+task_id: T-127
+task_name: "Merge orchestration script — rebase + sequential merge N worktree branches"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-13T10:05:22Z
+completed: 2026-03-20T13:12:02Z
+duration_days: 7
+updates_count: 5
+first_commit: 2026-03-14T13:04:30+01:00
+last_commit: 2026-03-14T13:04:30+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Merge orchestration script — rebase + sequential merge N worktree branches
+
+# Key outcomes
+outcomes:
+  - "`agents/mesh/merge-branches.sh` exists and is executable"
+  - "Accepts branch names as arguments (e.g., `merge-branches.sh mesh-worker-1 mesh-worker-2`)"
+  - "Rebases each branch onto main sequentially (not parallel — conflicts need resolution)"
+  - "Runs test suite after each merge to catch breakage early"
+  - "Stops on first conflict or test failure with clear error message"
+  - "Reports summary: merged count, remaining branches, test results"
+  - "Cleans up merged branches after successful merge"
+  - "[RUBBER-STAMP] Run after a real parallel dispatch and verify branches merge cleanly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "agents/mesh/merge-branches.sh"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-127-merge-orchestration-script--rebase--sequ.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T13:04:30"
+    action: "T-127: Merge orchestration script — rebase + sequential merge N worktree branches"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10266 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-mesh, isolation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10266
+  commits: 1
+  files_changed: 4
+  lines_added: 210
+  lines_removed: 34
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-127-merge-orchestration-script--rebase--sequ.md
+generated_by: context-agent-hybrid

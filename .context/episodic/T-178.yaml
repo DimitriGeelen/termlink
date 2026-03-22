@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-178: Fix pty inject Enter not submitting in Claude Code TUI
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T16:54:57Z
+# ============================================================================
+
+task_id: T-178
+task_name: "Fix pty inject Enter not submitting in Claude Code TUI"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-18T22:19:38Z
+completed: 2026-03-20T13:41:13Z
+duration_days: 2
+updates_count: 5
+first_commit: 2026-03-18T23:55:34+01:00
+last_commit: 2026-03-18T23:56:08+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Split PTY inject writes per KeyEntry with inter-key delay. Complete — split PTY inject writes (agent ACs done, human AC pending)
+
+# Key outcomes
+outcomes:
+  - "`handle_command_inject` writes each KeyEntry separately with delay between non-text entries"
+  - "Delay is configurable via optional `inject_delay_ms` param (default 10ms)"
+  - "Unit test confirms multi-entry inject produces separate writes"
+  - "`cargo test --package termlink-session` passes (18/18)"
+  - "`cargo build --release` succeeds"
+  - "[REVIEW] Verify Enter submits in Claude Code TUI via pty inject"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-03-18.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - "crates/termlink-session/src/handler.rs"
+  - ".tasks/active/T-178-fix-pty-inject-enter-not-submitting-in-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-18T23:55:34"
+    action: "T-178: Split PTY inject writes per KeyEntry with inter-key delay"
+  - time: "2026-03-18T23:56:08"
+    action: "T-178: Complete — split PTY inject writes (agent ACs done, human AC pending)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2361 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, cli, inject, pty]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2361
+  commits: 2
+  files_changed: 7
+  lines_added: 152
+  lines_removed: 82
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-178-fix-pty-inject-enter-not-submitting-in-c.md
+generated_by: context-agent-hybrid

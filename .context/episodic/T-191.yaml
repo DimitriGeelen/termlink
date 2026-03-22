@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-191: AI-verify human ACs with evidence
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T16:54:57Z
+# ============================================================================
+
+task_id: T-191
+task_name: "AI-verify human ACs with evidence"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-19T16:49:24Z
+completed: 2026-03-20T13:12:26Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-03-19T17:52:20+01:00
+last_commit: 2026-03-19T20:31:28+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  AI-verify 12 human ACs with evidence — all pass. Complete evidence report — 14 PASS, 10 structural pass, 1 blocked. Close 14 AI-verified tasks (full pass with evidence). Complete — 14 tasks AI-verified and closed
+
+# Key outcomes
+outcomes:
+  - "Tier 1: Present evidence for T-187, T-182, T-185 (session-proven) — ALL PASS"
+  - "Tier 6: Present evidence for T-099, T-100, T-102, T-119 (inception decisions) — ALL PASS"
+  - "Tier 2: Run automated verification for T-164, T-177, T-140, T-161, T-109 — ALL PASS"
+  - "Evidence report written to docs/reports/T-191-human-ac-verification.md"
+  - "[RUBBER-STAMP] Review evidence report and approve task closures"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-191-human-ac-verification.md"
+  - ".tasks/active/T-180-build-fw-upstream-report-command-for-con.md"
+  - ".tasks/active/T-186-termlink-inject-remote--standard-command.md"
+  - ".tasks/active/T-191-ai-verify-human-acs-with-evidence.md"
+  - ".tasks/completed/T-099-pr-to-anthropic-postmessage-sessionend-hooks.md"
+  - ".tasks/completed/T-100-inception-termlink-output-capture-conv-logger.md"
+  - ".tasks/completed/T-102-inception-orchestrator-mandatory-tool-call.md"
+  - ".tasks/completed/T-109-framework-pr-capture-skill.md"
+  - ".tasks/completed/T-119-agent-mesh-task-gate-bypass--workers-blo.md"
+  - ".tasks/completed/T-137-termlink-interact--inject--marker--poll-.md"
+  - ".tasks/completed/T-140-framework-upgrade-v100--v126.md"
+  - ".tasks/completed/T-143-termlink-agent-dispatch--spawn-claude-wo.md"
+  - ".tasks/completed/T-161-critical-review-and-draft-readme--setup-.md"
+  - ".tasks/completed/T-164-enforce-token-auth-on-tcp-hub-connection.md"
+  - ".tasks/completed/T-177-fix-pty-inject-byteswritten-display-bug-.md"
+  - ".tasks/completed/T-182-implement-tofu-tls-verifier-for-cross-hu.md"
+  - ".tasks/completed/T-185-send-framework-improvement-findings-to-r.md"
+  - ".tasks/completed/T-187-implement-termlink-remote-inject-cli-com.md"
+  - ".tasks/completed/T-189-housekeeping-fabric-card--push.md"
+  - ".tasks/completed/T-190-capture-missing-bugfix-learnings-for-aud.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-19T17:52:20"
+    action: "T-191: AI-verify 12 human ACs with evidence — all pass"
+  - time: "2026-03-19T17:58:43"
+    action: "T-191: Complete evidence report — 14 PASS, 10 structural pass, 1 blocked"
+  - time: "2026-03-19T19:49:58"
+    action: "T-191: Close 14 AI-verified tasks (full pass with evidence)"
+  - time: "2026-03-19T20:31:28"
+    action: "T-191: Complete — 14 tasks AI-verified and closed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1223 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [verification, housekeeping]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1223
+  commits: 4
+  files_changed: 5
+  lines_added: 484
+  lines_removed: 118
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-191-ai-verify-human-acs-with-evidence.md
+generated_by: context-agent-hybrid

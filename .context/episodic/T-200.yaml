@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-200: Fix all clippy warnings across workspace
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T16:54:58Z
+# ============================================================================
+
+task_id: T-200
+task_name: "Fix all clippy warnings across workspace"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-20T23:36:53Z
+completed: 2026-03-20T23:47:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-21T00:47:36+01:00
+last_commit: 2026-03-21T00:48:39+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix all 59 clippy warnings across workspace (0 remaining). Complete — 0 clippy warnings, 297 tests pass, all verification gates pass
+
+# Key outcomes
+outcomes:
+  - "`cargo clippy --workspace` produces 0 warnings"
+  - "`RemoteStore` has `is_empty()` method (clippy::len_without_is_empty)"
+  - "Complex types in `transport.rs` factored into `ConnectFuture`/`BindFuture` type aliases"
+  - "`cargo test --workspace` passes with 0 failures (297 passed)"
+  - "Auto-fixed: 47 warnings (collapsed if statements, simplified map_or, removed unnecessary borrows/derefs, div_ceil, Error::other)"
+  - "Manual fixes: 5 `too_many_arguments` suppressed with targeted `#[allow]`, 1 `is_empty` added, 3 complex types aliased"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix all 59 clippy warnings across workspace (0 remaining)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/remote_store.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/tls.rs"
+  - "crates/termlink-session/src/auth.rs"
+  - "crates/termlink-session/src/handler.rs"
+  - "crates/termlink-session/src/transport.rs"
+  - ".tasks/active/T-200-fix-all-clippy-warnings-across-workspace.md"
+  - ".tasks/completed/T-200-fix-all-clippy-warnings-across-workspace.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-21T00:47:36"
+    action: "T-200: Fix all 59 clippy warnings across workspace (0 remaining)"
+  - time: "2026-03-21T00:48:39"
+    action: "T-200: Complete — 0 clippy warnings, 297 tests pass, all verification gates pass"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [quality, clippy]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 2
+  files_changed: 9
+  lines_added: 166
+  lines_removed: 137
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-200-fix-all-clippy-warnings-across-workspace.md
+generated_by: context-agent-hybrid
