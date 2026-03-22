@@ -98,12 +98,12 @@ Total time to install TermLink: ~15 minutes of troubleshooting across 6 failure 
 
 ## Acceptance Criteria
 
-- [ ] Homebrew tap repo created (`dimitri/homebrew-tap` or `dimitri/homebrew-termlink`)
-- [ ] GitHub Actions workflow builds TermLink for aarch64-apple-darwin and x86_64-apple-darwin
-- [ ] `brew install dimitri/tap/termlink` works on clean macOS
-- [ ] `fw termlink check` passes after brew install
-- [ ] Documentation updated: brew install for users, cargo install for developers
-- [ ] Go/No-Go decision made
+- [ ] Homebrew tap repo created (deferred to T-212 build task)
+- [x] GitHub Actions workflow builds TermLink for aarch64-apple-darwin and x86_64-apple-darwin (.github/workflows/release.yml)
+- [ ] `brew install dimitri/tap/termlink` works on clean macOS (deferred to T-212)
+- [ ] `fw termlink check` passes after brew install (deferred to T-212)
+- [ ] Documentation updated (deferred to T-212)
+- [x] Go/No-Go decision made (GO)
 
 ## Go/No-Go Criteria
 
