@@ -4,15 +4,15 @@ name: "Create Homebrew tap for TermLink distribution"
 description: >
   Create Homebrew tap repo and formula for TermLink distribution — enables `brew install` on macOS without requiring Rust toolchain. Depends on release.yml CI and GitHub release artifacts.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-03-22T17:23:51Z
+last_update: 2026-03-22T21:09:22Z
 date_finished: null
 ---
 
@@ -25,31 +25,49 @@ Build task from T-208 inception (GO). Homebrew tap enables `brew install termlin
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Homebrew formula file created (Formula/termlink.rb)
-- [ ] Formula downloads pre-built binaries from GitHub Releases (aarch64 + x86_64)
-- [ ] Formula includes SHA256 verification of downloaded binaries
-- [ ] README documents `brew install` usage
+- [x] Homebrew formula file created (homebrew/Formula/termlink.rb)
+- [x] Formula downloads pre-built binaries from GitHub Releases (aarch64 + x86_64 + linux)
+- [x] Formula includes SHA256 verification of downloaded binaries
+- [x] README documents `brew install` usage (homebrew/README.md)
+- [x] SHA256 update script for releases (scripts/update-homebrew-sha.sh)
 
 ### Human
 - [ ] [RUBBER-STAMP] Create GitHub repo `DimitriGeelen/homebrew-termlink`
   **Steps:**
   1. Go to github.com/new
   2. Create repo named `homebrew-termlink` (public)
-  3. Push the formula from this task
+  3. Clone the new repo, copy `homebrew/Formula/` and `homebrew/README.md` into it
+  4. Push to GitHub
   **Expected:** Repo exists and contains Formula/termlink.rb
   **If not:** Check repo name matches exactly `homebrew-termlink`
+- [ ] [RUBBER-STAMP] Create a release to generate binaries with real SHA256s
+  **Steps:**
+  1. `git tag v0.1.1 && git push origin v0.1.1` (from termlink repo)
+  2. Wait for GitHub Actions to complete (~5 min)
+  3. `./scripts/update-homebrew-sha.sh v0.1.1`
+  4. Commit and push updated formula to the tap repo
+  **Expected:** Formula has real SHA256 hashes (not PLACEHOLDER)
+  **If not:** Check release artifacts exist at GitHub releases page
 - [ ] [REVIEW] Test `brew install DimitriGeelen/termlink/termlink` on macOS
   **Steps:**
   1. `brew tap DimitriGeelen/termlink`
   2. `brew install termlink`
   3. `termlink --version`
-  **Expected:** termlink 0.1.0 installed, no Gatekeeper warning
+  **Expected:** termlink installed, no Gatekeeper warning
   **If not:** Check formula URL points to valid release artifact
 
 ## Verification
 
-# Formula file exists (will be created when building)
-# Skipped until formula is written — human-blocked on repo creation
+# Formula file exists with correct structure
+test -f homebrew/Formula/termlink.rb
+grep -q 'class Termlink < Formula' homebrew/Formula/termlink.rb
+grep -q 'aarch64' homebrew/Formula/termlink.rb
+grep -q 'x86_64' homebrew/Formula/termlink.rb
+# README exists
+test -f homebrew/README.md
+grep -q 'brew install' homebrew/README.md
+# SHA update script exists and is executable
+test -x scripts/update-homebrew-sha.sh
 
 ## Decisions
 
@@ -74,3 +92,9 @@ Build task from T-208 inception (GO). Homebrew tap enables `brew install termlin
 
 ### 2026-03-22T17:23:11Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-03-22T21:09:22Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-03-22T21:09:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
