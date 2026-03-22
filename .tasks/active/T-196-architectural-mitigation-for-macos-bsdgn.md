@@ -9,12 +9,12 @@ description: >
 status: started-work
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [framework, macos-compat, portability]
 components: []
 related_tasks: [T-160]
 created: 2026-03-20T20:19:57Z
-last_update: 2026-03-20T20:34:46Z
+last_update: 2026-03-22T17:22:24Z
 date_finished: null
 ---
 
@@ -113,3 +113,6 @@ test -f docs/reports/T-196-macos-bsd-gnu-compat-research.md
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Expand lib/compat.sh with 4 portable function families (~130 lines). All GO criteria met: single file, no new deps, hot-path unaffected, Linux primary path maintained. Framework already has the pattern.
+
+### 2026-03-22T17:22:24Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

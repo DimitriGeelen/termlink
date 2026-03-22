@@ -2,17 +2,17 @@
 id: T-212
 name: "Create Homebrew tap for TermLink distribution"
 description: >
-  Create Homebrew tap for TermLink distribution
+  Create Homebrew tap repo and formula for TermLink distribution — enables `brew install` on macOS without requiring Rust toolchain. Depends on release.yml CI and GitHub release artifacts.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-03-21T15:43:46Z
+last_update: 2026-03-22T17:23:11Z
 date_finished: null
 ---
 
@@ -20,40 +20,36 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Build task from T-208 inception (GO). Homebrew tap enables `brew install termlink` on macOS — solving Gatekeeper, PATH, and Rust toolchain barriers. Requires GitHub repo creation (human action) and formula authoring.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Homebrew formula file created (Formula/termlink.rb)
+- [ ] Formula downloads pre-built binaries from GitHub Releases (aarch64 + x86_64)
+- [ ] Formula includes SHA256 verification of downloaded binaries
+- [ ] README documents `brew install` usage
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [RUBBER-STAMP] Create GitHub repo `DimitriGeelen/homebrew-termlink`
+  **Steps:**
+  1. Go to github.com/new
+  2. Create repo named `homebrew-termlink` (public)
+  3. Push the formula from this task
+  **Expected:** Repo exists and contains Formula/termlink.rb
+  **If not:** Check repo name matches exactly `homebrew-termlink`
+- [ ] [REVIEW] Test `brew install DimitriGeelen/termlink/termlink` on macOS
+  **Steps:**
+  1. `brew tap DimitriGeelen/termlink`
+  2. `brew install termlink`
+  3. `termlink --version`
+  **Expected:** termlink 0.1.0 installed, no Gatekeeper warning
+  **If not:** Check formula URL points to valid release artifact
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+# Formula file exists (will be created when building)
+# Skipped until formula is written — human-blocked on repo creation
 
 ## Decisions
 
@@ -75,3 +71,6 @@ date_finished: null
 
 ### 2026-03-21T15:43:46Z — status-update [task-update-agent]
 - **Change:** tags: +homebrew
+
+### 2026-03-22T17:23:11Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

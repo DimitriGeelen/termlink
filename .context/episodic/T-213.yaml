@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-213: Fix CI release workflow: wrong package name termlink-cli → termlink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T17:21:41Z
+# ============================================================================
+
+task_id: T-213
+task_name: "Fix CI release workflow: wrong package name termlink-cli → termlink"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-22T17:08:08Z
+completed: 2026-03-22T17:09:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-22T18:09:00+01:00
+last_commit: 2026-03-22T18:09:25+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix release workflow — wrong package name termlink-cli → termlink. Fix verification grep pattern
+
+# Key outcomes
+outcomes:
+  - "release.yml uses `-p termlink` (not `-p termlink-cli`)"
+  - "`cargo build --release -p termlink` succeeds locally"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification grep pattern"
+    source: git-mined
+  - description: "Fix release workflow — wrong package name termlink-cli → termlink"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".github/workflows/release.yml"
+  - ".tasks/active/T-213-fix-ci-release-workflow-wrong-package-na.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-22T18:09:00"
+    action: "T-213: Fix release workflow — wrong package name termlink-cli → termlink"
+  - time: "2026-03-22T18:09:25"
+    action: "T-213: Fix verification grep pattern"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 2
+  lines_added: 56
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-213-fix-ci-release-workflow-wrong-package-na.md
+generated_by: context-agent-hybrid

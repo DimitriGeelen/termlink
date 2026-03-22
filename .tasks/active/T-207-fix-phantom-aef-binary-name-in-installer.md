@@ -81,6 +81,13 @@ sudo ln -sf "$fw_path" "$SYMLINK_DIR/fw"   # references fw
 - [x] Each verification failure prints the specific manual fix command (upstream install.sh lines 224-267)
 - [x] Go/No-Go decision made (GO)
 
+## Verification
+
+# No "aef" references in installer
+! grep -qi "aef" /opt/999-Agentic-Engineering-Framework/install.sh
+# Post-install verification exists
+grep -q "Post-install verification" /opt/999-Agentic-Engineering-Framework/install.sh
+
 ## Go/No-Go Criteria
 
 **GO if:**

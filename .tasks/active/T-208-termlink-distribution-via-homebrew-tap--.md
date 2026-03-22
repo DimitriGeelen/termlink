@@ -105,6 +105,13 @@ Total time to install TermLink: ~15 minutes of troubleshooting across 6 failure 
 - [ ] Documentation updated (deferred to T-212)
 - [x] Go/No-Go decision made (GO)
 
+## Verification
+
+# Release workflow exists with correct package name
+grep -q -- "-p termlink" .github/workflows/release.yml
+# CI workflow exists
+test -f .github/workflows/ci.yml
+
 ## Go/No-Go Criteria
 
 **GO if:**

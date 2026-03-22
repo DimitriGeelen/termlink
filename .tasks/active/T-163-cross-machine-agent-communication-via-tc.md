@@ -9,12 +9,12 @@ description: >
 status: started-work
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [remote-access, tcp, security, cross-machine]
 components: []
 related_tasks: [T-145, T-146, T-147, T-155, T-157]
 created: 2026-03-18T09:42:29Z
-last_update: 2026-03-18T22:20:24Z
+last_update: 2026-03-22T17:22:24Z
 date_finished: null
 ---
 
@@ -117,3 +117,6 @@ test -f docs/reports/T-163-cross-machine-agent-communication.md
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** TCP hub infrastructure 80% ready. Security hardening (token enforcement + TLS) is non-negotiable prerequisite but additive (2 sessions). Events over TCP need validation but code path exists. File transfer via base64 chunked events feasible. Total effort ~5.5 sessions, each phase independently useful.
+
+### 2026-03-22T17:22:24Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
