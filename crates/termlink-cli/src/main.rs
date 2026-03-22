@@ -2765,7 +2765,7 @@ async fn cmd_remote_events(
                 if let Some(t) = topic_filter {
                     params["topic"] = serde_json::json!(t);
                 }
-                if !cursors.as_object().map_or(true, |m| m.is_empty()) {
+                if !cursors.as_object().is_none_or(|m| m.is_empty()) {
                     params["since"] = cursors.clone();
                 }
 
