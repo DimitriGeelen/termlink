@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-22T17:08:08Z
-last_update: 2026-03-22T17:08:08Z
+last_update: 2026-03-22T17:09:00Z
 date_finished: null
 ---
 
@@ -30,7 +30,7 @@ release.yml uses `-p termlink-cli` but the CLI package is named `termlink` in Ca
 
 ## Verification
 
-grep -q "\-p termlink " .github/workflows/release.yml
+grep -q -- "-p termlink" .github/workflows/release.yml
 ! grep -q "termlink-cli" .github/workflows/release.yml
 
 ## Decisions
