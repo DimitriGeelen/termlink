@@ -4,30 +4,34 @@ name: "Hub orchestrator.route RPC — discover, delegate, relay in one call"
 description: >
   Add orchestrator.route RPC method to TermLink hub. Combines session.discover + delegate + relay into a single call. Agent sends capability slug, hub finds matching specialist, forwards request, relays response. ~100 LOC Rust on existing hub primitives. See T-233 research: Q2b-termlink-mapping.md
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [T-233, orchestration, hub]
 components: []
 related_tasks: [T-233]
 created: 2026-03-23T13:27:16Z
-last_update: 2026-03-23T16:14:26Z
-date_finished: null
+last_update: 2026-03-23T16:21:04Z
+date_finished: 2026-03-23T16:21:04Z
 ---
 
 # T-237: Hub orchestrator.route RPC — discover, delegate, relay in one call
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Hub RPC method per T-233 research (Q2b-termlink-mapping). See docs/reports/T-233-specialist-agent-orchestration.md.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] ORCHESTRATOR_ROUTE constant in termlink-protocol control.rs
+- [x] handle_orchestrator_route handler in hub router.rs
+- [x] Discovers sessions by selector (tags/roles/capabilities/name), local + remote
+- [x] Forwards method+params to first matching candidate with failover
+- [x] Returns routed_to metadata + specialist response
+- [x] 3 tests: success routing, no-match error, missing method error
+- [x] All 49 hub tests pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -46,6 +50,7 @@ date_finished: null
 
 ## Verification
 
+/Users/dimidev32/.cargo/bin/cargo test --package termlink-hub
 <!-- Shell commands that MUST pass before work-completed. One per line.
      Lines starting with # are comments. Empty lines ignored.
      The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -75,3 +80,6 @@ date_finished: null
 
 ### 2026-03-23T16:14:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-23T16:21:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
