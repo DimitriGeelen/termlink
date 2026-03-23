@@ -47,6 +47,7 @@ async fn main() -> Result<()> {
             PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&target, poll_ms).await,
             PtyCommand::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
             PtyCommand::Stream { target } => commands::pty::cmd_stream(&target).await,
+            PtyCommand::Mirror { target, scrollback } => commands::pty::cmd_mirror(&target, scrollback).await,
         },
 
         // Event subcommand group
@@ -80,6 +81,7 @@ async fn main() -> Result<()> {
         Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&target, poll_ms).await,
         Command::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
         Command::Stream { target } => commands::pty::cmd_stream(&target).await,
+        Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&target, scrollback).await,
 
         // Hidden backward-compat aliases (Event)
         Command::Events { target, since, topic, json: _ } => {

@@ -207,6 +207,16 @@ pub(crate) enum Command {
         target: String,
     },
 
+    /// Mirror a PTY session — read-only terminal output
+    Mirror {
+        /// Session ID or display name
+        target: String,
+
+        /// Number of scrollback lines to show on connect (default: 100)
+        #[arg(long, default_value = "100")]
+        scrollback: u64,
+    },
+
     // === Hidden backward-compat aliases for Event commands ===
 
     /// Poll events from a session's event bus
@@ -950,6 +960,16 @@ pub(crate) enum PtyCommand {
     Stream {
         /// Session ID or display name
         target: String,
+    },
+
+    /// Mirror a PTY session — read-only terminal output (no input forwarded)
+    Mirror {
+        /// Session ID or display name
+        target: String,
+
+        /// Number of scrollback lines to show on connect (default: 100)
+        #[arg(long, default_value = "100")]
+        scrollback: u64,
     },
 }
 

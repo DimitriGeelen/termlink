@@ -463,6 +463,97 @@ pub(crate) async fn cmd_stream(target: &str) -> Result<()> {
     result
 }
 
+pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64) -> Result<()> {
+    let reg = manager::find_session(target)
+        .context(format!("Session '{}' not found", target))?;
+
+    // Connect to the data socket
+    let data_socket = data_server::data_socket_path(reg.socket_path());
+    if !data_socket.exists() {
+        anyhow::bail!(
+            "No data plane for '{}'. Start with --shell to enable data plane.",
+            target
+        );
+    }
+
+    // Fetch initial scrollback via control plane
+    let resp = client::rpc_call(
+        reg.socket_path(),
+        "query.output",
+        serde_json::json!({ "lines": scrollback_lines }),
+    )
+    .await
+    .context("Failed to fetch initial scrollback")?;
+    if let Ok(result) = client::unwrap_result(resp) {
+        let output = result["output"].as_str().unwrap_or("");
+        if !output.is_empty() {
+            let stdout = std::io::stdout();
+            let mut out = stdout.lock();
+            std::io::Write::write_all(&mut out, output.as_bytes())?;
+            std::io::Write::flush(&mut out)?;
+        }
+    }
+
+    let stream = tokio::net::UnixStream::connect(&data_socket)
+        .await
+        .context("Failed to connect to data plane")?;
+
+    eprintln!(
+        "Mirroring {} ({}) — read-only. Press Ctrl+C to stop.",
+        reg.display_name, reg.id
+    );
+
+    mirror_loop(stream).await
+}
+
+/// Read-only data plane mirror loop — receives Output frames, ignores everything else.
+async fn mirror_loop(stream: tokio::net::UnixStream) -> Result<()> {
+    let (read_half, _write_half) = tokio::io::split(stream);
+    let mut reader = FrameReader::new(read_half);
+
+    // Handle Ctrl+C gracefully
+    let mut sigint = tokio::signal::unix::signal(
+        tokio::signal::unix::SignalKind::interrupt(),
+    ).context("Failed to register SIGINT handler")?;
+
+    loop {
+        tokio::select! {
+            frame = reader.read_frame() => {
+                match frame {
+                    Ok(Some(frame)) => {
+                        if frame.header.frame_type == FrameType::Output {
+                            let stdout = std::io::stdout();
+                            let mut out = stdout.lock();
+                            std::io::Write::write_all(&mut out, &frame.payload)?;
+                            std::io::Write::flush(&mut out)?;
+                        }
+                        // Silently ignore all other frame types (Pong, Close, etc.)
+                        if frame.header.frame_type == FrameType::Close {
+                            eprintln!("\nSession closed connection.");
+                            break;
+                        }
+                    }
+                    Ok(None) => {
+                        eprintln!("\nData plane disconnected.");
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("\nData plane error: {e}");
+                        break;
+                    }
+                }
+            }
+
+            _ = sigint.recv() => {
+                eprintln!("\nMirror stopped.");
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Real-time data plane streaming loop with SIGWINCH handling.
 async fn stream_loop(stream: tokio::net::UnixStream) -> Result<()> {
     use tokio::io::AsyncReadExt;
