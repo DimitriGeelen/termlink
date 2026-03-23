@@ -4,7 +4,7 @@ name: "Track transport failures in bypass registry"
 description: >
   Connection errors and timeouts in orchestrator.route failover are not recorded in bypass registry. Only RPC-level errors call record_orchestrated_run. Transport failures should count toward bypass stats. See docs/reports/T-247-scenarios-adversarial.md Scenario 3 (lines 119-134).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-247, T-238, orchestration, bypass]
 components: []
 related_tasks: [T-247, T-238, T-233]
 created: 2026-03-23T16:54:22Z
-last_update: 2026-03-23T17:02:41Z
-date_finished: null
+last_update: 2026-03-23T17:09:52Z
+date_finished: 2026-03-23T17:09:52Z
 ---
 
 # T-250: Track transport failures in bypass registry
@@ -54,3 +54,6 @@ Gap in `router.rs` — connection errors and timeouts in the `orchestrator.route
 
 ### 2026-03-23T17:02:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-23T17:09:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

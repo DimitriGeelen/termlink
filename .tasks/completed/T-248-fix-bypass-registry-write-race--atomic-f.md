@@ -4,7 +4,7 @@ name: "Fix bypass registry write race — atomic file operations"
 description: >
   BypassRegistry load/modify/save is not atomic. Concurrent orchestrator.route calls can silently lose promotions. Fix with write-to-temp + atomic rename + file locking. See docs/reports/T-247-scenarios-adversarial.md Scenario 1, T-247-scenarios-code-review.md Scenario 3, T-247-scenarios-research.md Scenario 3.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-247, T-238, orchestration, bypass, bug]
 components: []
 related_tasks: [T-247, T-238, T-233]
 created: 2026-03-23T16:54:17Z
-last_update: 2026-03-23T16:59:20Z
-date_finished: null
+last_update: 2026-03-23T17:02:23Z
+date_finished: 2026-03-23T17:02:23Z
 ---
 
 # T-248: Fix bypass registry write race — atomic file operations
@@ -56,3 +56,6 @@ High-severity bug found by 3/5 scenario agents in T-247 orchestration scenario r
 
 ### 2026-03-23T16:59:20Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-23T17:02:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

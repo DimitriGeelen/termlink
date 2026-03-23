@@ -4,7 +4,7 @@ name: "Bypass eligibility — mutation flag to prevent read-write commands from 
 description: >
   Purely mechanical promotion based on success count cannot distinguish read-only from mutating commands. session.cleanup would be incorrectly promoted to Tier 3. Add mutating flag to orchestrator.route params or command denylist. See docs/reports/T-247-scenarios-framework-maintenance.md Scenario 3.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-247, T-238, orchestration, bypass]
 components: []
 related_tasks: [T-247, T-238, T-233]
 created: 2026-03-23T16:54:24Z
-last_update: 2026-03-23T17:10:10Z
-date_finished: null
+last_update: 2026-03-23T17:13:50Z
+date_finished: 2026-03-23T17:13:50Z
 ---
 
 # T-251: Bypass eligibility — mutation flag to prevent read-write commands from promotion
@@ -55,3 +55,6 @@ Mutating commands like `session.cleanup` would be incorrectly promoted to bypass
 
 ### 2026-03-23T17:10:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-23T17:13:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

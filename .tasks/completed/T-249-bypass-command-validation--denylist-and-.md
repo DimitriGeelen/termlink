@@ -4,7 +4,7 @@ name: "Bypass command validation — denylist and caller identity"
 description: >
   No restrictions on what command strings can be promoted to bypass. Any session can self-promote arbitrary strings including destructive commands. Add command denylist (pattern-based), optional caller diversity requirement, and metadata clarifying bypass != execution authorization. See docs/reports/T-247-scenarios-adversarial.md Scenario 2.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-247, T-238, orchestration, bypass, security]
 components: []
 related_tasks: [T-247, T-238, T-233]
 created: 2026-03-23T16:54:20Z
-last_update: 2026-03-23T20:15:04Z
-date_finished: null
+last_update: 2026-03-23T20:46:51Z
+date_finished: 2026-03-23T20:46:51Z
 ---
 
 # T-249: Bypass command validation — denylist and caller identity
@@ -56,3 +56,6 @@ Security gap found by adversarial scenario agent in T-247. Any session can promo
 
 ### 2026-03-23T20:15:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-23T20:46:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
