@@ -20,43 +20,54 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+An orchestrator agent needs to delegate specialized work (research, infrastructure, design, coding) to specialist agents that have pre-loaded domain context. Today, single agents do everything with no specialization. TermLink can be the coordination layer — spawning specialists, routing questions, collecting results — but the orchestration pattern, specialist context loading, and delegation protocol need to be designed.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-1: Specialist agents provide better results than a generalist when given focused domain context
+- A-2: TermLink's existing primitives (spawn, agent ask/listen, events) are sufficient for orchestration
+- A-3: The overhead of spawning + delegating is worth it vs. doing everything in one context
+- A-4: Specialist context can be pre-loaded via system prompts, CLAUDE.md, or injected files
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Dialogue 1**: Map use cases — what kinds of delegation? (research, infra, design, code, test)
+2. **Dialogue 2**: Architecture options — TermLink-native vs. Claude Agent SDK vs. hybrid
+3. **Spike**: Prototype one delegation pattern (orchestrator → research specialist → result)
+4. **Assessment**: Is this worth building into TermLink, or is it a framework-level concern?
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- Claude Code agents are separate processes (not threads) — each has its own context window
+- TermLink `spawn` creates new terminal sessions but doesn't control what runs inside them
+- `agent ask/listen` provides typed request-response but is event-based (polling)
+- Context loading for specialists requires either custom CLAUDE.md files or prompt injection
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** Mapping delegation scenarios, architectural options, protocol design
+**IN:** One prototype spike to validate feasibility
+**OUT:** Full implementation of orchestration framework
+**OUT:** AI model selection/routing (this is about agent coordination, not model choice)
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
+- [ ] Problem statement validated with human
+- [ ] Use cases mapped (which specialisms, when to delegate)
+- [ ] Architecture options compared
 - [ ] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Clear use cases where specialist delegation beats generalist approach
+- TermLink primitives can support the pattern without major new protocol
+- Prototype demonstrates end-to-end delegation
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Claude Code's built-in Task tool already covers the use cases adequately
+- TermLink overhead (spawn, coordinate, collect) exceeds the benefit of specialization
+- Specialist context loading is infeasible or unreliable
 
 ## Verification
 
