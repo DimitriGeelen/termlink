@@ -630,12 +630,20 @@ async fn handle_orchestrator_route(
 
         match result {
             Ok(Ok(RpcResponse::Success(resp))) => {
-                // Record successful orchestrated run for promotion tracking
-                let mut reg_bypass = crate::bypass::BypassRegistry::load();
-                let promoted = reg_bypass.record_orchestrated_run(&method, true);
-                let _ = reg_bypass.save();
-                if promoted {
-                    tracing::info!(method = %method, "orchestrator.route: command promoted to bypass registry");
+                // Record successful orchestrated run under file lock
+                let reg_path = crate::bypass::registry_path();
+                let method_clone = method.clone();
+                if let Ok(updated) =
+                    crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                        if r.record_orchestrated_run(&method_clone, true) {
+                            tracing::info!(
+                                method = %method_clone,
+                                "orchestrator.route: command promoted to bypass registry"
+                            );
+                        }
+                    })
+                {
+                    let _ = updated;
                 }
                 return Response::success(
                     id,
@@ -651,10 +659,12 @@ async fn handle_orchestrator_route(
                 .into();
             }
             Ok(Ok(RpcResponse::Error(e))) => {
-                // Record failed orchestrated run
-                let mut reg_bypass = crate::bypass::BypassRegistry::load();
-                reg_bypass.record_orchestrated_run(&method, false);
-                let _ = reg_bypass.save();
+                // Record failed orchestrated run under file lock
+                let reg_path = crate::bypass::registry_path();
+                let method_clone = method.clone();
+                let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                    r.record_orchestrated_run(&method_clone, false);
+                });
                 last_error = format!("{}: {}", reg.display_name, e.error.message);
                 tracing::debug!(
                     target = reg.display_name,

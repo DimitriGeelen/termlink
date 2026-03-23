@@ -43,10 +43,20 @@ impl BypassRegistry {
         Self::load_from(&path)
     }
 
-    /// Load from a specific path. Returns empty registry if file doesn't exist.
+    /// Load from a specific path. Returns empty registry if file doesn't exist or is corrupt.
     pub fn load_from(path: &PathBuf) -> Self {
         match std::fs::read_to_string(path) {
-            Ok(data) => serde_json::from_str(&data).unwrap_or_default(),
+            Ok(data) => match serde_json::from_str(&data) {
+                Ok(reg) => reg,
+                Err(e) => {
+                    tracing::warn!(
+                        path = %path.display(),
+                        error = %e,
+                        "Bypass registry corrupt — returning empty registry"
+                    );
+                    Self::default()
+                }
+            },
             Err(_) => Self::default(),
         }
     }
@@ -57,13 +67,17 @@ impl BypassRegistry {
         self.save_to(&path)
     }
 
-    /// Save to a specific path.
+    /// Save to a specific path using atomic write (temp file + rename).
     pub fn save_to(&self, path: &PathBuf) -> std::io::Result<()> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let data = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, data)
+        // Write to temp file in same directory, then atomic rename
+        let tmp_path = path.with_extension("json.tmp");
+        std::fs::write(&tmp_path, &data)?;
+        std::fs::rename(&tmp_path, path)?;
+        Ok(())
     }
 
     /// Check if a command is in the bypass registry (Tier 3 promoted).
@@ -126,15 +140,63 @@ impl BypassRegistry {
         }
         false
     }
+
+    /// Load the registry under an advisory file lock, apply a mutation, save atomically.
+    /// This prevents concurrent load+modify+save races between hub request handlers.
+    pub fn locked_update<F>(path: &PathBuf, f: F) -> std::io::Result<Self>
+    where
+        F: FnOnce(&mut Self),
+    {
+        use std::fs::OpenOptions;
+
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let lock_path = path.with_extension("json.lock");
+        let lock_file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .read(true)
+            .open(&lock_path)?;
+
+        // Acquire exclusive advisory lock
+        flock_exclusive(&lock_file)?;
+
+        // Load current state (under lock)
+        let mut registry = Self::load_from(path);
+
+        // Apply mutation
+        f(&mut registry);
+
+        // Save atomically
+        registry.save_to(path)?;
+
+        // Lock released on drop of lock_file
+        drop(lock_file);
+
+        Ok(registry)
+    }
+}
+
+/// Acquire an exclusive advisory lock (blocking).
+fn flock_exclusive(file: &std::fs::File) -> std::io::Result<()> {
+    use std::os::unix::io::AsRawFd;
+    let fd = file.as_raw_fd();
+    let ret = unsafe { libc::flock(fd, libc::LOCK_EX) };
+    if ret != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
 }
 
 /// Default registry file path.
-fn registry_path() -> PathBuf {
+pub fn registry_path() -> PathBuf {
     termlink_session::discovery::runtime_dir().join("bypass-registry.json")
 }
 
 fn now_iso() -> String {
-    // Simple timestamp — uses system time formatted as ISO 8601
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -252,5 +314,119 @@ mod tests {
         // Failed bypass run — de-promoted
         assert!(reg.record_bypass_run("fw doctor", false));
         assert!(reg.check("fw doctor").is_none());
+    }
+
+    #[test]
+    fn load_corrupt_json_returns_default() {
+        let (_dir, path) = tmp_registry();
+
+        // Write garbage to the registry file
+        std::fs::write(&path, "not valid json {{{").unwrap();
+
+        let reg = BypassRegistry::load_from(&path);
+        assert!(reg.entries.is_empty());
+        assert!(reg.candidates.is_empty());
+    }
+
+    #[test]
+    fn load_empty_file_returns_default() {
+        let (_dir, path) = tmp_registry();
+
+        std::fs::write(&path, "").unwrap();
+
+        let reg = BypassRegistry::load_from(&path);
+        assert!(reg.entries.is_empty());
+    }
+
+    #[test]
+    fn atomic_save_no_partial_file() {
+        let (_dir, path) = tmp_registry();
+
+        let mut reg = BypassRegistry::default();
+        for i in 0..10 {
+            reg.entries.insert(
+                format!("cmd-{i}"),
+                BypassEntry {
+                    command: format!("cmd-{i}"),
+                    tier: 3,
+                    run_count: i as u64,
+                    fail_count: 0,
+                    promoted_at: "100".to_string(),
+                    last_run: None,
+                },
+            );
+        }
+
+        reg.save_to(&path).unwrap();
+
+        // Verify no temp file remains
+        let tmp_path = path.with_extension("json.tmp");
+        assert!(!tmp_path.exists());
+
+        // Verify file is valid JSON
+        let loaded = BypassRegistry::load_from(&path);
+        assert_eq!(loaded.entries.len(), 10);
+    }
+
+    #[test]
+    fn locked_update_serializes_mutations() {
+        let (_dir, path) = tmp_registry();
+
+        // Seed with 4 successes
+        let mut reg = BypassRegistry::default();
+        for _ in 0..4 {
+            reg.record_orchestrated_run("test.cmd", true);
+        }
+        reg.save_to(&path).unwrap();
+
+        // Apply locked update — 5th success triggers promotion
+        let result = BypassRegistry::locked_update(&path, |r| {
+            r.record_orchestrated_run("test.cmd", true);
+        })
+        .unwrap();
+
+        assert!(result.check("test.cmd").is_some());
+        assert_eq!(result.check("test.cmd").unwrap().tier, 3);
+
+        // Verify persisted
+        let loaded = BypassRegistry::load_from(&path);
+        assert!(loaded.check("test.cmd").is_some());
+    }
+
+    #[tokio::test]
+    async fn concurrent_locked_updates_no_data_loss() {
+        let (_dir, path) = tmp_registry();
+
+        // 10 parallel tasks each record a success for a unique command
+        let mut handles = Vec::new();
+        for i in 0..10 {
+            let p = path.clone();
+            handles.push(tokio::task::spawn_blocking(move || {
+                let cmd = format!("concurrent-cmd-{i}");
+                BypassRegistry::locked_update(&p, |r| {
+                    r.record_orchestrated_run(&cmd, true);
+                })
+                .unwrap();
+            }));
+        }
+
+        for h in handles {
+            h.await.unwrap();
+        }
+
+        // All 10 commands should be in candidates with success_count=1
+        let reg = BypassRegistry::load_from(&path);
+        for i in 0..10 {
+            let cmd = format!("concurrent-cmd-{i}");
+            let stats = reg
+                .candidates
+                .get(&cmd)
+                .unwrap_or_else(|| panic!("Missing candidate: {cmd}"));
+            assert_eq!(
+                stats.success_count, 1,
+                "Command {cmd} should have exactly 1 success"
+            );
+        }
+        assert_eq!(reg.candidates.len(), 10);
     }
 }
