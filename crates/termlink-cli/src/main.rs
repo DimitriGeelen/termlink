@@ -8,6 +8,7 @@ use clap::{CommandFactory, Parser};
 
 use cli::*;
 use config::resolve_hub_profile;
+use util::resolve_target;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,12 +27,12 @@ async fn main() -> Result<()> {
             commands::session::cmd_register(name, roles, tags, shell, token_secret, allowed_commands).await
         }
         Command::List { all, json } => commands::session::cmd_list(all, json),
-        Command::Ping { target } => commands::session::cmd_ping(&target).await,
-        Command::Status { target, json } => commands::session::cmd_status(&target, json).await,
+        Command::Ping { target } => commands::session::cmd_ping(&resolve_target(target)?).await,
+        Command::Status { target, json } => commands::session::cmd_status(&resolve_target(target)?, json).await,
         Command::Info { json } => commands::session::cmd_info(json),
         Command::Send { target, method, params } => commands::session::cmd_send(&target, &method, &params).await,
         Command::Interact { target, command, timeout, poll_ms, strip_ansi, json } => {
-            commands::pty::cmd_interact(&target, &command, timeout, poll_ms, strip_ansi, json).await
+            commands::pty::cmd_interact(&resolve_target(target)?, &command, timeout, poll_ms, strip_ansi, json).await
         }
         Command::Exec { target, command, cwd, timeout } => {
             commands::session::cmd_exec(&target, &command, cwd.as_deref(), timeout).await
@@ -40,20 +41,20 @@ async fn main() -> Result<()> {
 
         // PTY subcommand group
         Command::Pty(pty) => match pty {
-            PtyCommand::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&target, lines, bytes, strip_ansi).await,
+            PtyCommand::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
             PtyCommand::Inject { target, text, enter, key } => {
-                commands::pty::cmd_inject(&target, &text, enter, key.as_deref()).await
+                commands::pty::cmd_inject(&resolve_target(target)?, &text, enter, key.as_deref()).await
             }
-            PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&target, poll_ms).await,
+            PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
             PtyCommand::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
-            PtyCommand::Stream { target } => commands::pty::cmd_stream(&target).await,
-            PtyCommand::Mirror { target, scrollback } => commands::pty::cmd_mirror(&target, scrollback).await,
+            PtyCommand::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
+            PtyCommand::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
         },
 
         // Event subcommand group
         Command::Event(ev) => match ev {
             EventCommand::Poll { target, since, topic, json: _ } => {
-                commands::events::cmd_events(&target, since, topic.as_deref()).await
+                commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref()).await
             }
             EventCommand::Watch { targets, interval, topic } => {
                 commands::events::cmd_watch(targets, interval, topic.as_deref()).await
@@ -65,7 +66,7 @@ async fn main() -> Result<()> {
                 commands::events::cmd_broadcast(&topic, &payload, targets).await
             }
             EventCommand::Wait { target, topic, timeout, interval } => {
-                commands::events::cmd_wait(&target, &topic, timeout, interval).await
+                commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval).await
             }
             EventCommand::Topics { target, json: _ } => commands::events::cmd_topics(target.as_deref()).await,
             EventCommand::Collect { targets, topic, interval, count } => {
@@ -74,18 +75,18 @@ async fn main() -> Result<()> {
         },
 
         // Hidden backward-compat aliases (PTY)
-        Command::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&target, lines, bytes, strip_ansi).await,
+        Command::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
         Command::Inject { target, text, enter, key } => {
-            commands::pty::cmd_inject(&target, &text, enter, key.as_deref()).await
+            commands::pty::cmd_inject(&resolve_target(target)?, &text, enter, key.as_deref()).await
         }
-        Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&target, poll_ms).await,
+        Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
         Command::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
-        Command::Stream { target } => commands::pty::cmd_stream(&target).await,
-        Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&target, scrollback).await,
+        Command::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
+        Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
 
         // Hidden backward-compat aliases (Event)
         Command::Events { target, since, topic, json: _ } => {
-            commands::events::cmd_events(&target, since, topic.as_deref()).await
+            commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref()).await
         }
         Command::Broadcast { topic, payload, targets } => {
             commands::events::cmd_broadcast(&topic, &payload, targets).await
@@ -101,7 +102,7 @@ async fn main() -> Result<()> {
             commands::events::cmd_collect(targets, topic.as_deref(), interval, count).await
         }
         Command::Wait { target, topic, timeout, interval } => {
-            commands::events::cmd_wait(&target, &topic, timeout, interval).await
+            commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval).await
         }
 
         // Metadata & Discovery

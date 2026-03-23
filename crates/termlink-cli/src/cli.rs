@@ -55,14 +55,14 @@ pub(crate) enum Command {
 
     /// Ping a session to verify it's alive
     Ping {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
     },
 
     /// Query a session's status
     Status {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Output as JSON
         #[arg(long)]
@@ -93,8 +93,8 @@ pub(crate) enum Command {
 
     /// Run a command interactively in a PTY session — injects, waits for completion, returns output
     Interact {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Shell command to run
         command: String,
@@ -159,8 +159,8 @@ pub(crate) enum Command {
     /// Read terminal output from a PTY-backed session
     #[command(hide = true)]
     Output {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
         #[arg(short, long, default_value = "50")]
         lines: u64,
         #[arg(short, long)]
@@ -173,8 +173,8 @@ pub(crate) enum Command {
     /// Inject keystrokes into a PTY-backed session
     #[command(hide = true)]
     Inject {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
         text: String,
         #[arg(long, short = 'e')]
         enter: bool,
@@ -185,8 +185,8 @@ pub(crate) enum Command {
     /// Attach to a PTY session
     #[command(hide = true)]
     Attach {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
         #[arg(long, default_value = "100")]
         poll_ms: u64,
     },
@@ -203,14 +203,14 @@ pub(crate) enum Command {
     /// Stream a PTY session via data plane
     #[command(hide = true)]
     Stream {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
     },
 
     /// Mirror a PTY session — read-only terminal output
     Mirror {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Number of scrollback lines to show on connect (default: 100)
         #[arg(long, default_value = "100")]
@@ -222,8 +222,8 @@ pub(crate) enum Command {
     /// Poll events from a session's event bus
     #[command(hide = true)]
     Events {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
         #[arg(long)]
         since: Option<u64>,
         #[arg(long)]
@@ -287,7 +287,7 @@ pub(crate) enum Command {
     /// Wait for a session to emit an event matching a topic, then exit
     #[command(hide = true)]
     Wait {
-        target: String,
+        target: Option<String>,
         #[arg(long)]
         topic: String,
         #[arg(long, default_value = "0")]
@@ -901,8 +901,8 @@ pub(crate) enum FileAction {
 pub(crate) enum PtyCommand {
     /// Read terminal output from a PTY-backed session
     Output {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Number of lines to read (default: 50)
         #[arg(short, long, default_value = "50")]
@@ -919,8 +919,8 @@ pub(crate) enum PtyCommand {
 
     /// Inject keystrokes into a PTY-backed session
     Inject {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Text to inject (e.g., "ls -la")
         text: String,
@@ -936,8 +936,8 @@ pub(crate) enum PtyCommand {
 
     /// Attach to a PTY session — live output and keyboard forwarding
     Attach {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Output poll interval in milliseconds (default: 100)
         #[arg(long, default_value = "100")]
@@ -958,14 +958,14 @@ pub(crate) enum PtyCommand {
 
     /// Stream a PTY session via data plane (real-time binary frames, zero polling)
     Stream {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
     },
 
     /// Mirror a PTY session — read-only terminal output (no input forwarded)
     Mirror {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Number of scrollback lines to show on connect (default: 100)
         #[arg(long, default_value = "100")]
@@ -978,8 +978,8 @@ pub(crate) enum PtyCommand {
 pub(crate) enum EventCommand {
     /// Poll events from a session's event bus
     Poll {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Only show events after this sequence number (omit for all)
         #[arg(long)]
@@ -1038,8 +1038,8 @@ pub(crate) enum EventCommand {
 
     /// Wait for a session to emit an event matching a topic, then exit
     Wait {
-        /// Session ID or display name
-        target: String,
+        /// Session ID or display name (omit to pick interactively)
+        target: Option<String>,
 
         /// Event topic to wait for (required)
         #[arg(long)]

@@ -1,3 +1,5 @@
+use std::io::IsTerminal;
+
 /// Strip ANSI escape sequences from a string.
 pub(crate) fn strip_ansi_codes(s: &str) -> String {
     // Match: ESC[ ... final byte (letters), ESC] ... ST, and other OSC/CSI sequences
@@ -116,6 +118,84 @@ pub(crate) fn shell_escape(s: &str) -> String {
     } else {
         s.to_string()
     }
+}
+
+/// Resolve a session target: if provided, return it; if None, prompt the user
+/// to pick from available sessions (interactive picker).
+pub(crate) fn resolve_target(target: Option<String>) -> anyhow::Result<String> {
+    if let Some(t) = target {
+        return Ok(t);
+    }
+    pick_session()
+}
+
+/// Interactive session picker — lists available sessions and lets the user choose.
+/// Auto-selects if only one session exists. Errors if no sessions or stdin is not a TTY.
+fn pick_session() -> anyhow::Result<String> {
+    use termlink_session::manager;
+
+    if !std::io::stdin().is_terminal() {
+        anyhow::bail!("No target specified and stdin is not a terminal (cannot prompt)");
+    }
+
+    let sessions = manager::list_sessions(false)
+        .map_err(|e| anyhow::anyhow!("Failed to list sessions: {}", e))?;
+
+    if sessions.is_empty() {
+        anyhow::bail!("No active sessions found. Register one with: termlink register --name <name> --shell");
+    }
+
+    if sessions.len() == 1 {
+        let s = &sessions[0];
+        eprintln!(
+            "Auto-selecting: {} ({})",
+            s.display_name, s.id
+        );
+        return Ok(s.display_name.clone());
+    }
+
+    // Print numbered list
+    eprintln!("Available sessions:");
+    eprintln!(
+        "  {:<4} {:<20} {:<12} {:<10} {}",
+        "#", "NAME", "STATE", "PID", "TAGS"
+    );
+    eprintln!("  {}", "-".repeat(60));
+    for (i, s) in sessions.iter().enumerate() {
+        let tags = if s.tags.is_empty() {
+            String::new()
+        } else {
+            s.tags.join(", ")
+        };
+        eprintln!(
+            "  {:<4} {:<20} {:<12} {:<10} {}",
+            i + 1,
+            truncate(&s.display_name, 19),
+            format!("{:?}", s.state).to_lowercase(),
+            s.pid,
+            tags
+        );
+    }
+    eprintln!();
+    eprint!("Select session [1-{}]: ", sessions.len());
+
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| anyhow::anyhow!("Failed to read input: {}", e))?;
+
+    let choice: usize = input
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("Invalid selection: '{}'", input.trim()))?;
+
+    if choice < 1 || choice > sessions.len() {
+        anyhow::bail!("Selection out of range: {} (expected 1-{})", choice, sessions.len());
+    }
+
+    let selected = &sessions[choice - 1];
+    eprintln!("→ {} ({})", selected.display_name, selected.id);
+    Ok(selected.display_name.clone())
 }
 
 /// Default chunk size for file transfers (48KB raw → ~64KB base64).
