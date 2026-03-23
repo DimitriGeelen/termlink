@@ -1,3 +1,4 @@
+pub mod bypass;
 pub mod pidfile;
 pub mod remote_store;
 pub mod router;

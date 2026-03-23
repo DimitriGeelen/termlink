@@ -47,6 +47,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
         control::method::ORCHESTRATOR_ROUTE => handle_orchestrator_route(id, &req.params).await,
+        control::method::ORCHESTRATOR_BYPASS_STATUS => handle_bypass_status(id),
         "session.register_remote" => handle_register_remote(id, &req.params),
         "session.heartbeat" => handle_heartbeat(id, &req.params),
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
@@ -507,6 +508,26 @@ async fn handle_orchestrator_route(
         }
     };
 
+    // Check bypass registry before routing to a specialist
+    let registry = crate::bypass::BypassRegistry::load();
+    if let Some(entry) = registry.check(&method) {
+        tracing::info!(
+            method = %method,
+            run_count = entry.run_count,
+            "orchestrator.route: bypass registry hit — command is Tier 3"
+        );
+        return Response::success(
+            id,
+            json!({
+                "bypassed": true,
+                "command": method,
+                "tier": entry.tier,
+                "run_count": entry.run_count,
+            }),
+        )
+        .into();
+    }
+
     let forward_params = params.get("params").cloned().unwrap_or(json!({}));
     let selector = params.get("selector").cloned().unwrap_or(json!({}));
     let timeout_secs = params
@@ -609,6 +630,13 @@ async fn handle_orchestrator_route(
 
         match result {
             Ok(Ok(RpcResponse::Success(resp))) => {
+                // Record successful orchestrated run for promotion tracking
+                let mut reg_bypass = crate::bypass::BypassRegistry::load();
+                let promoted = reg_bypass.record_orchestrated_run(&method, true);
+                let _ = reg_bypass.save();
+                if promoted {
+                    tracing::info!(method = %method, "orchestrator.route: command promoted to bypass registry");
+                }
                 return Response::success(
                     id,
                     json!({
@@ -623,6 +651,10 @@ async fn handle_orchestrator_route(
                 .into();
             }
             Ok(Ok(RpcResponse::Error(e))) => {
+                // Record failed orchestrated run
+                let mut reg_bypass = crate::bypass::BypassRegistry::load();
+                reg_bypass.record_orchestrated_run(&method, false);
+                let _ = reg_bypass.save();
                 last_error = format!("{}: {}", reg.display_name, e.error.message);
                 tracing::debug!(
                     target = reg.display_name,
@@ -655,6 +687,45 @@ async fn handle_orchestrator_route(
             "All {} candidate(s) failed. Last: {}",
             total_candidates, last_error
         ),
+    )
+    .into()
+}
+
+/// Handle `orchestrator.bypass_status` — query the bypass registry contents.
+fn handle_bypass_status(id: serde_json::Value) -> RpcResponse {
+    let registry = crate::bypass::BypassRegistry::load();
+    let entries: Vec<_> = registry
+        .entries
+        .values()
+        .map(|e| {
+            json!({
+                "command": e.command,
+                "tier": e.tier,
+                "run_count": e.run_count,
+                "fail_count": e.fail_count,
+                "promoted_at": e.promoted_at,
+                "last_run": e.last_run,
+            })
+        })
+        .collect();
+    let candidates: Vec<_> = registry
+        .candidates
+        .iter()
+        .map(|(cmd, stats)| {
+            json!({
+                "command": cmd,
+                "success_count": stats.success_count,
+                "fail_count": stats.fail_count,
+                "remaining": crate::bypass::PROMOTION_THRESHOLD.saturating_sub(stats.success_count),
+            })
+        })
+        .collect();
+    Response::success(
+        id,
+        json!({
+            "bypassed_commands": entries,
+            "promotion_candidates": candidates,
+        }),
     )
     .into()
 }

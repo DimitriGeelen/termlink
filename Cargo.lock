@@ -1123,6 +1123,7 @@ dependencies = [
  "rustls-pemfile",
  "serde",
  "serde_json",
+ "tempfile",
  "termlink-protocol",
  "termlink-session",
  "thiserror",

@@ -29,6 +29,7 @@ pub mod method {
     pub const HUB_AUTH: &str = "hub.auth";
     pub const PTY_MODE: &str = "pty.mode";
     pub const ORCHESTRATOR_ROUTE: &str = "orchestrator.route";
+    pub const ORCHESTRATOR_BYPASS_STATUS: &str = "orchestrator.bypass_status";
 }
 
 /// TermLink-specific JSON-RPC error codes (in addition to standard -32700..-32603).
