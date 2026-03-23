@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-216: Strengthen CI — add tests and clippy to workflow
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:08Z
+# ============================================================================
+
+task_id: T-216
+task_name: "Strengthen CI — add tests and clippy to workflow"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-22T21:12:37Z
+completed: 2026-03-22T21:13:31Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-22T22:13:24+01:00
+last_commit: 2026-03-22T22:13:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add clippy and tests to CI workflow
+
+# Key outcomes
+outcomes:
+  - "CI workflow runs `cargo clippy --workspace -- -D warnings`"
+  - "CI workflow runs `cargo test --workspace`"
+  - "Clippy component added to Rust toolchain install step"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".github/workflows/ci.yml"
+  - ".tasks/active/T-216-strengthen-ci--add-tests-and-clippy-to-w.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-22T22:13:24"
+    action: "T-216: Add clippy and tests to CI workflow"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 62
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-216-strengthen-ci--add-tests-and-clippy-to-w.md
+generated_by: context-agent-hybrid

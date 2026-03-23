@@ -284,7 +284,8 @@
       "Bash(TL=\"./target/release/termlink\"\nSECRET=\"/tmp/termlink-107-secret.txt\"\n\n$TL remote send-file 192.168.10.107:9100 fw-agent docs/reports/T-141-upstream-fix-request.md \\\\\n  --secret-file \"$SECRET\" --scope control 2>&1)",
       "Bash(./agents/mesh/dispatch.sh:*)",
       "Bash(/Users/dimidev32/.cargo/bin/termlink list:*)",
-      "Bash(jobs:*)"
+      "Bash(jobs:*)",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/git/git.sh commit -m \"$\\(cat <<'EOF'\nT-233: Inception D1 — 11 research agents dispatched, 10/11 reported\n\nResearch artifacts for specialist agent orchestration inception:\n- Q1 \\(3 agents\\): Lifecycle model — consensus on hybrid hot/warm/cold\n- Q2 \\(5 agents\\): Discovery mechanisms — layered 5-mechanism approach  \n- Q5 \\(2 of 3\\): Architectural ownership — TermLink mechanism + framework policy\n- Dialogue log with human decisions on all 5 inception questions\n- Q4 context loading architecture confirmed \\(static + dynamic + feedback loop\\)\nEOF\n\\)\")"
     ]
   }
 }

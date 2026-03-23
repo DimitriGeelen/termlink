@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-231: Add unit tests for protocol error types
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:13Z
+# ============================================================================
+
+task_id: T-231
+task_name: "Add unit tests for protocol error types"
+workflow_type: test
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T08:05:09Z
+completed: 2026-03-23T08:06:16Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T09:06:10+01:00
+last_commit: 2026-03-23T09:06:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 8 unit tests for protocol error types — all variants covered. Complete — 8 protocol error tests, all variants covered
+
+# Key outcomes
+outcomes:
+  - "Tests cover all 8 ProtocolError variants"
+  - "Tests verify Display formatting for each variant"
+  - "Tests verify From<serde_json::Error> and From<std::io::Error> conversions"
+  - "All tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Complete — 8 protocol error tests, all variants covered"
+    source: git-mined
+  - description: "Add 8 unit tests for protocol error types — all variants covered"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-231-add-unit-tests-for-protocol-error-types.md"
+  - ".tasks/completed/T-231-add-unit-tests-for-protocol-error-types.md"
+  - "crates/termlink-protocol/src/error.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T09:06:10"
+    action: "T-231: Add 8 unit tests for protocol error types — all variants covered"
+  - time: "2026-03-23T09:06:22"
+    action: "T-231: Complete — 8 protocol error tests, all variants covered"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 121
+  lines_removed: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-231-add-unit-tests-for-protocol-error-types.md
+generated_by: context-agent-hybrid

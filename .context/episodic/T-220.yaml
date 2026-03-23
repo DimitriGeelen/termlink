@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-220: Remove stale artifacts from project root
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:10Z
+# ============================================================================
+
+task_id: T-220
+task_name: "Remove stale artifacts from project root"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-22T21:23:54Z
+completed: 2026-03-22T21:24:41Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-22T22:24:35+01:00
+last_commit: 2026-03-22T22:24:35+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Remove stale artifacts (sim-spike-test.txt, CLAUDE.md.bak)
+
+# Key outcomes
+outcomes:
+  - "`sim-spike-test.txt` removed from tracked files"
+  - "`CLAUDE.md.bak` removed from tracked files"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-220-remove-stale-artifacts-from-project-root.md"
+  - ".tasks/completed/T-219-fix-github-repo-url-in-cargotoml-and-add.md"
+  - "CLAUDE.md.bak"
+  - "sim-spike-test.txt"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-22T22:24:35"
+    action: "T-220: Remove stale artifacts (sim-spike-test.txt, CLAUDE.md.bak)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 107
+  lines_removed: 768
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-220-remove-stale-artifacts-from-project-root.md
+generated_by: context-agent-hybrid

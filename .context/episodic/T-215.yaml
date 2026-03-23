@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-215: Add .agentic-framework symlink and settings backup to gitignore
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:07Z
+# ============================================================================
+
+task_id: T-215
+task_name: "Add .agentic-framework symlink and settings backup to gitignore"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-22T17:28:21Z
+completed: 2026-03-22T17:29:02Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-22T18:28:54+01:00
+last_commit: 2026-03-22T18:29:08+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add framework symlink and settings backup to gitignore. Complete — gitignore housekeeping
+
+# Key outcomes
+outcomes:
+  - "`.agentic-framework` in .gitignore"
+  - "`.claude/settings.json.bak` in .gitignore"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".gitignore"
+  - ".tasks/active/T-215-add-agentic-framework-symlink-and-settin.md"
+  - ".tasks/completed/T-215-add-agentic-framework-symlink-and-settin.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-22T18:28:54"
+    action: "T-215: Add framework symlink and settings backup to gitignore"
+  - time: "2026-03-22T18:29:08"
+    action: "T-215: Complete — gitignore housekeeping"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 64
+  lines_removed: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-215-add-agentic-framework-symlink-and-settin.md
+generated_by: context-agent-hybrid

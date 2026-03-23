@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-232: Terminal shadow sessions — read-only monitoring of agent terminals via hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:14Z
+# ============================================================================
+
+task_id: T-232
+task_name: "Terminal shadow sessions — read-only monitoring of agent terminals via hub"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T08:58:57Z
+completed: 2026-03-23T09:09:23Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T10:02:10+01:00
+last_commit: 2026-03-23T10:10:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception setup — problem statement, exploration plan, research artifact. Inception GO — create build tasks T-234 (mirror), T-235 (render research), T-236 (multi-session)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated with human"
+  - "Assumptions tested (A-2 confirmed: broadcast channel natively supports multi-subscriber)"
+  - "Architecture approach decided (data plane mirror mode, skip write loop)"
+  - "Go/No-Go decision made (GO)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-232-terminal-shadow-sessions--read-only-moni.md"
+  - ".tasks/active/T-233-specialist-agent-orchestration--delegate.md"
+  - ".tasks/active/T-234-termlink-mirror--read-only-terminal-mirr.md"
+  - ".tasks/active/T-235-research-clean-terminal-output-rendering.md"
+  - ".tasks/active/T-236-multi-session-mirror--termlink-mirror---.md"
+  - ".tasks/completed/T-232-terminal-shadow-sessions--read-only-moni.md"
+  - "docs/reports/T-232-terminal-shadow-sessions.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T10:02:10"
+    action: "T-232: Inception setup — problem statement, exploration plan, research artifact"
+  - time: "2026-03-23T10:10:41"
+    action: "T-232: Inception GO — create build tasks T-234 (mirror), T-235 (render research), T-236 (multi-session)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 7
+  lines_added: 569
+  lines_removed: 22
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-232-terminal-shadow-sessions--read-only-moni.md
+generated_by: context-agent-hybrid

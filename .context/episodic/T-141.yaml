@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-141: Document pre-push hook isolation bug — audit checks framework instead of project
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T10:53:21Z
+# ============================================================================
+
+task_id: T-141
+task_name: "Document pre-push hook isolation bug — audit checks framework instead of project"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-14T22:20:01Z
+completed: 2026-03-14T22:42:27Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-14T23:26:21+01:00
+last_commit: 2026-03-14T23:42:27+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Document pre-push hook isolation bug — audit checks framework instead of project. Clean TODO placeholders in 6 stale handovers
+
+# Key outcomes
+outcomes:
+  - "Bug documented with root cause, affected files, and fix"
+  - "Feedback memory saved: never edit framework repo from consumer projects"
+  - "[REVIEW] Apply the one-line fix in the framework repo"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Document pre-push hook isolation bug — audit checks framework instead of project"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/handovers/S-2026-0312-2122.md"
+  - ".context/handovers/S-2026-0313-1106.md"
+  - ".context/handovers/S-2026-0314-0913.md"
+  - ".context/handovers/S-2026-0314-0916.md"
+  - ".context/handovers/S-2026-0314-1643.md"
+  - ".context/handovers/S-2026-0314-2051.md"
+  - ".tasks/active/T-141-document-pre-push-hook-isolation-bug--au.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-14T23:26:21"
+    action: "T-141: Document pre-push hook isolation bug — audit checks framework instead of project"
+  - time: "2026-03-14T23:42:27"
+    action: "T-141: Clean TODO placeholders in 6 stale handovers"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 7
+  lines_added: 447
+  lines_removed: 444
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-141-document-pre-push-hook-isolation-bug--au.md
+generated_by: context-agent-hybrid

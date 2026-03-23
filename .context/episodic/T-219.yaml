@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-219: Fix GitHub repo URL in Cargo.toml and add github remote
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:10Z
+# ============================================================================
+
+task_id: T-219
+task_name: "Fix GitHub repo URL in Cargo.toml and add github remote"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-22T21:22:23Z
+completed: 2026-03-22T21:23:10Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-22T22:23:04+01:00
+last_commit: 2026-03-22T22:23:04+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix GitHub repo URL in Cargo.toml (dimidev32 → DimitriGeelen)
+
+# Key outcomes
+outcomes:
+  - "Cargo.toml repository URL matches docs (`DimitriGeelen/termlink`)"
+  - "`github` remote added pointing to `DimitriGeelen/termlink`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix GitHub repo URL in Cargo.toml (dimidev32 → DimitriGeelen)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-219-fix-github-repo-url-in-cargotoml-and-add.md"
+  - ".tasks/completed/T-218-add-cargo-cache-to-ci-and-release-workfl.md"
+  - "Cargo.toml"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-22T22:23:04"
+    action: "T-219: Fix GitHub repo URL in Cargo.toml (dimidev32 → DimitriGeelen)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 108
+  lines_removed: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-219-fix-github-repo-url-in-cargotoml-and-add.md
+generated_by: context-agent-hybrid

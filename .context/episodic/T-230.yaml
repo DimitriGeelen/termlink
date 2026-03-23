@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-230: Fix clippy await_holding_lock warnings and minor lint issues
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:13Z
+# ============================================================================
+
+task_id: T-230
+task_name: "Fix clippy await_holding_lock warnings and minor lint issues"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T07:57:52Z
+completed: 2026-03-23T08:04:52Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T09:03:25+01:00
+last_commit: 2026-03-23T09:04:59+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix 19 await_holding_lock warnings + 5 minor clippy lints — zero warnings. Complete — zero clippy warnings, 323 tests pass
+
+# Key outcomes
+outcomes:
+  - "Zero `await_holding_lock` warnings from `cargo clippy --all-targets`"
+  - "Zero other clippy warnings from `cargo clippy --all-targets`"
+  - "All tests pass (`cargo test --workspace`)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix 19 await_holding_lock warnings + 5 minor clippy lints — zero warnings"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-212-create-homebrew-tap-for-termlink-distrib.md"
+  - ".tasks/active/T-221-commit-cargolock-for-reproducible-builds.md"
+  - ".tasks/completed/T-230-fix-clippy-awaitholdinglock-warnings-and.md"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-cli/tests/interactive_integration.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "crates/termlink-session/src/data_server.rs"
+  - "crates/termlink-session/src/events.rs"
+  - "crates/termlink-session/src/lib.rs"
+  - "crates/termlink-session/src/pty.rs"
+  - "crates/termlink-session/src/registration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T09:03:25"
+    action: "T-230: Fix 19 await_holding_lock warnings + 5 minor clippy lints — zero warnings"
+  - time: "2026-03-23T09:04:59"
+    action: "T-230: Complete — zero clippy warnings, 323 tests pass"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 13
+  lines_added: 90
+  lines_removed: 84
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-230-fix-clippy-awaitholdinglock-warnings-and.md
+generated_by: context-agent-hybrid

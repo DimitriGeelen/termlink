@@ -95,9 +95,13 @@ All produce a unified `specialist.request` event shape — only the `trigger` fi
 |--------|----------|-------------|
 | [Q5-termlink-feature](T-233-Q5-termlink-feature.md) | FOR TermLink native | 80% of primitives exist; `delegate` and `orchestrate` as composites |
 | [Q5-independent](T-233-Q5-independent.md) | Right destination, wrong start | Premature abstraction; start embedded, extract after 20+ tasks |
-| Q5-framework-feature | PENDING | Agent still running |
+| [Q5-framework-feature](T-233-Q5-framework-feature.md) | FOR framework ownership | Framework owns tasks, budgets, governance; TermLink is transport |
 
-**Emerging consensus:** TermLink owns the **mechanism** (spawn, route, collect), framework owns the **policy** (which specialist, what context, how to merge). Start as TermLink feature with framework policy injection via config, extract to independent layer if/when portability is needed.
+**Consensus:** Strong agreement across all three agents on the **separation of concerns**:
+- **TermLink** owns the **mechanism**: spawn, route messages, collect results, session lifecycle
+- **Framework** owns the **policy**: what to delegate, who to delegate to, when to stop, result aggregation
+- **Start embedded in framework**, using TermLink as transport adapter. Extract to independent layer after 20+ real tasks prove the interfaces
+- **Litmus test** (Q5-framework): "If we replaced TermLink with raw Unix pipes, would orchestration still work?" Answer must be yes → orchestration = framework, transport = pluggable
 
 ## Q4: Context Loading Design (from dialogue)
 

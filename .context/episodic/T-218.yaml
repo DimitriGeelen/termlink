@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-218: Add Cargo cache to CI and release workflows
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T11:07:09Z
+# ============================================================================
+
+task_id: T-218
+task_name: "Add Cargo cache to CI and release workflows"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-22T21:15:33Z
+completed: 2026-03-22T21:16:33Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-22T22:16:27+01:00
+last_commit: 2026-03-22T22:16:27+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add Cargo dependency caching to CI and release workflows
+
+# Key outcomes
+outcomes:
+  - "CI workflow uses Swatinem/rust-cache for dependency caching"
+  - "Release workflow uses Swatinem/rust-cache for dependency caching (all 3 jobs)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".github/workflows/ci.yml"
+  - ".github/workflows/release.yml"
+  - ".tasks/active/T-218-add-cargo-cache-to-ci-and-release-workfl.md"
+  - ".tasks/completed/T-217-add-homebrew-install-to-readme.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-22T22:16:27"
+    action: "T-218: Add Cargo dependency caching to CI and release workflows"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 118
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-218-add-cargo-cache-to-ci-and-release-workfl.md
+generated_by: context-agent-hybrid
