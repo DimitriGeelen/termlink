@@ -1,9 +1,9 @@
-# Audit Results - 2026-03-22-0002
-timestamp: 2026-03-21T23:02:05Z
+# Audit Results - 2026-03-22-0010
+timestamp: 2026-03-21T23:10:58Z
 summary:
-  pass: 92
-  warn: 23
-  fail: 2
+  pass: 90
+  warn: 24
+  fail: 1
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -39,7 +39,7 @@ findings:
     check: "Task T-212 has short description (45 chars)"
     mitigation: "Expand description in T-212-create-homebrew-tap-for-termlink-distrib.md"
   - level: PASS
-    check: "Git traceability: 96% (450/464 commits reference tasks)"
+    check: "Git traceability: 96% (451/465 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -110,12 +110,11 @@ findings:
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 2 (last commit: 55 seconds ago)"
+    check: "CTL-004: Tool counter at 15 (last commit: 5 minutes ago)"
+  - level: PASS
+    check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: FAIL
-    check: "CTL-018: Budget status file is not valid JSON or missing 'level' field"
-    mitigation: "Investigate budget-gate.sh output format"
-  - level: FAIL
-    check: "CTL-008: Task reference traceability 65% (7/20 without T-XXX)"
+    check: "CTL-008: Task reference traceability 70% (6/20 without T-XXX)"
     mitigation: "Run: fw git install-hooks"
   - level: WARN
     check: "CTL-020: Cron audit directory missing (/Users/dimidev32/001-projects/010-termlink/.context/audits/cron)"
@@ -135,10 +134,6 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-192 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-205 has decision (4 commits)"
-  - level: PASS
-    check: "CTL-009: Inception T-208 has decision (3 commits)"
-  - level: PASS
     check: "CTL-009: Inception T-002 has decision (4 commits)"
   - level: PASS
     check: "CTL-009: Inception T-003 has decision (3 commits)"
@@ -153,7 +148,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (104 commits)"
+    check: "CTL-009: Inception T-012 has decision (99 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -252,10 +247,11 @@ findings:
   - level: WARN
     check: "D5: Task lifecycle — 11 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) (+1 more)"
     mitigation: "Review flagged tasks for process issues"
+  - level: WARN
+    check: "D3: Commit velocity — WARN drop today=1 avg=25 ratio=0.0x"
+    mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=0 avg=25 ratio=0.0x)"
-  - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 43_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 42_commits_24h)"
   - level: PASS
     check: "D6: Completion velocity — normal (PASS recent=7.3 earlier=10.6)"
   - level: PASS

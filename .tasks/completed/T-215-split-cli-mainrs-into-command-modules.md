@@ -1,5 +1,5 @@
 ---
-id: T-205
+id: T-215
 name: "Split CLI main.rs into command modules"
 description: >
   Split CLI main.rs into command modules
@@ -16,7 +16,7 @@ last_update: 2026-03-21T06:40:32Z
 date_finished: 2026-03-21T06:40:32Z
 ---
 
-# T-205: Split CLI main.rs into command modules
+# T-215: Split CLI main.rs into command modules
 
 ## Context
 
@@ -64,7 +64,7 @@ modules for maintainability, readability, and easier onboarding.
 
 ### 2026-03-21T06:22:44Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-205-split-cli-mainrs-into-command-modules.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-215-split-cli-mainrs-into-command-modules.md
 - **Context:** Initial task creation
 
 ### 2026-03-21T06:40:32Z — status-update [task-update-agent]

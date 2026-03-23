@@ -1,5 +1,5 @@
 ---
-id: T-209
+id: T-219
 name: "Fix deprecated cargo_bin import in CLI integration tests"
 description: >
   Fix deprecated cargo_bin import in CLI integration tests
@@ -16,7 +16,7 @@ last_update: 2026-03-21T10:41:40Z
 date_finished: 2026-03-21T10:41:40Z
 ---
 
-# T-209: Fix deprecated cargo_bin import in CLI integration tests
+# T-219: Fix deprecated cargo_bin import in CLI integration tests
 
 ## Context
 
@@ -47,7 +47,7 @@ date_finished: 2026-03-21T10:41:40Z
 
 ### 2026-03-21T10:38:47Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-209-fix-deprecated-cargobin-import-in-cli-in.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-219-fix-deprecated-cargobin-import-in-cli-in.md
 - **Context:** Initial task creation
 
 ### 2026-03-21T10:41:40Z — status-update [task-update-agent]

@@ -1,12 +1,12 @@
 # ============================================================================
-# EPISODIC MEMORY - T-205: Split CLI main.rs into command modules
+# EPISODIC MEMORY - T-215: Split CLI main.rs into command modules
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
 # Generated: 2026-03-21T10:30:00Z
 # ============================================================================
 
-task_id: T-205
+task_id: T-215
 task_name: "Split CLI main.rs into command modules"
 workflow_type: refactor
 enrichment_status: auto-complete
@@ -59,7 +59,7 @@ artifacts:
 # Timeline
 git_timeline:
   - time: "2026-03-21T07:40:16"
-    action: "T-205: Split CLI main.rs (5183 lines) into 14 focused modules"
+    action: "T-215: Split CLI main.rs (5183 lines) into 14 focused modules"
 
 # What worked well
 successes:
@@ -83,5 +83,5 @@ metrics:
   lines_removed: 5051
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-205-split-cli-mainrs-into-command-modules.md
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-215-split-cli-mainrs-into-command-modules.md
 generated_by: context-agent-hybrid

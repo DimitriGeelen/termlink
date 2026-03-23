@@ -267,7 +267,8 @@
       "Bash(cat:*)",
       "Bash(nc:*)",
       "Bash(/Users/dimidev32/.cargo/bin/termlink remote:*)",
-      "Bash(scp:*)"
+      "Bash(scp:*)",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /Users/dimidev32/.agentic-framework/agents/audit/audit.sh 2>&1 | tail -80)"
     ]
   }
 }

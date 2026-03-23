@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-216: Register fabric cards for 14 new CLI modules
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T00:00:00Z
+# ============================================================================
+
+task_id: T-216
+task_name: "Register fabric cards for 14 new CLI modules"
+workflow_type: build
+enrichment_status: auto-complete
+
+# Timeline
+created: 2026-03-21T07:04:09Z
+completed: 2026-03-21T07:08:36Z
+duration_days: 0
+updates_count: 2
+first_commit: "2026-03-21T08:08:28+01:00"
+last_commit: "2026-03-21T08:08:28+01:00"
+
+# Summary
+summary: |
+  Registered 14 fabric component cards for new CLI modules created by T-215 (CLI main.rs split). Updated existing main.rs card and subsystems.yaml with all 15 component paths.
+
+# Key outcomes
+outcomes:
+  - "14 new fabric cards created in .fabric/components/ (one per new CLI source file)"
+  - "Existing crates-termlink-cli-src-main.yaml card updated to reflect dispatch-only role"
+  - "subsystems.yaml CLI subsystem updated with all 15 component paths"
+  - "All 17 CLI YAML cards parse correctly, fw fabric drift shows 0 unregistered"
+
+# Challenges
+challenges:
+  # None recorded
+
+# Decisions
+decisions:
+  # No explicit decisions recorded
+
+# Artifacts
+artifacts:
+  - ".fabric/components/crates-termlink-cli-src-cli.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-session.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-metadata.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-events.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-file.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-token.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-mod.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-pty.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-agent.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-execution.yaml"
+  - ".fabric/components/crates-termlink-cli-src-util.yaml"
+  - ".fabric/components/crates-termlink-cli-src-config.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-infrastructure.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-remote.yaml"
+  - ".fabric/subsystems.yaml"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-21T08:08:28"
+    action: "T-216: Register 14 fabric cards for new CLI modules + update main.rs card and subsystems"
+
+# What worked well
+successes:
+  - "Fast execution — 4 minutes from task creation to completion"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags
+tags: []
+
+# Metrics
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 18
+  lines_added: 412
+  lines_removed: 26
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-216-register-fabric-cards-for-14-new-cli-mod.md
+generated_by: context-agent-hybrid

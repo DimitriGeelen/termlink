@@ -1,12 +1,12 @@
 # ============================================================================
-# EPISODIC MEMORY - T-210: Add unit tests for hub profile config module
+# EPISODIC MEMORY - T-220: Add unit tests for hub profile config module
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
 # Generated: 2026-03-22T00:00:00Z
 # ============================================================================
 
-task_id: T-210
+task_id: T-220
 task_name: "Add unit tests for hub profile config module"
 workflow_type: test
 enrichment_status: auto-complete
@@ -37,7 +37,7 @@ artifacts:
 
 git_timeline:
   - time: "2026-03-21T14:01:51"
-    action: "T-210: Add 8 unit tests for hub profile config module (resolve, TOML roundtrip, save/load)"
+    action: "T-220: Add 8 unit tests for hub profile config module (resolve, TOML roundtrip, save/load)"
 
 successes:
   - "Comprehensive coverage of config resolution logic including error cases"
@@ -56,5 +56,5 @@ metrics:
   lines_added: 220
   lines_removed: 5
 
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-210-add-unit-tests-for-hub-profile-config-mo.md
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-220-add-unit-tests-for-hub-profile-config-mo.md
 generated_by: context-agent-hybrid

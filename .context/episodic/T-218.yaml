@@ -1,12 +1,12 @@
 # ============================================================================
-# EPISODIC MEMORY - T-208: Add unit tests for CLI utility functions
+# EPISODIC MEMORY - T-218: Add unit tests for CLI utility functions
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
 # Generated: 2026-03-22T00:00:00Z
 # ============================================================================
 
-task_id: T-208
+task_id: T-218
 task_name: "Add unit tests for CLI utility functions"
 workflow_type: test
 enrichment_status: auto-complete
@@ -19,7 +19,7 @@ first_commit: "2026-03-21T11:36:31+01:00"
 last_commit: "2026-03-21T11:36:31+01:00"
 
 summary: |
-  Added 18 unit tests for CLI utility functions extracted in T-205: truncate, parse_signal, shell_escape, resize_payload, and generate_request_id.
+  Added 18 unit tests for CLI utility functions extracted in T-215: truncate, parse_signal, shell_escape, resize_payload, and generate_request_id.
 
 outcomes:
   - "18 new unit tests added to crates/termlink-cli/src/util.rs"
@@ -36,7 +36,7 @@ artifacts:
 
 git_timeline:
   - time: "2026-03-21T11:36:31"
-    action: "T-208: Add 18 unit tests for CLI utility functions (truncate, parse_signal, shell_escape, resize_payload, generate_request_id)"
+    action: "T-218: Add 18 unit tests for CLI utility functions (truncate, parse_signal, shell_escape, resize_payload, generate_request_id)"
 
 successes:
   - "Comprehensive coverage of edge cases: empty inputs, boundary values, case-insensitivity, special characters"
@@ -55,5 +55,5 @@ metrics:
   lines_added: 194
   lines_removed: 0
 
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-208-add-unit-tests-for-cli-utility-functions.md
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-218-add-unit-tests-for-cli-utility-functions.md
 generated_by: context-agent-hybrid
