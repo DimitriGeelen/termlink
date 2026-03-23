@@ -6,13 +6,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-03-22T21:09:22Z
+last_update: 2026-03-23T07:48:24Z
 date_finished: null
 ---
 
@@ -98,3 +98,6 @@ test -x scripts/update-homebrew-sha.sh
 
 ### 2026-03-22T21:09:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-23T07:48:24Z — status-update [task-update-agent]
+- **Change:** owner: agent → human
