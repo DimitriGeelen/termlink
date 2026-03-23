@@ -371,13 +371,22 @@ async fn attach_loop(
                                 let output = result["output"].as_str().unwrap_or("");
                                 let output_bytes = output.as_bytes();
 
-                                let start = output_bytes.len().saturating_sub(delta);
-                                let new_data = &output_bytes[start..];
+                                // delta is computed from total scrollback, but output
+                                // only contains the last N bytes (e.g. 8192). When
+                                // delta exceeds the returned buffer, all returned
+                                // bytes are new — print the whole buffer.
+                                let new_data = if delta >= output_bytes.len() {
+                                    output_bytes
+                                } else {
+                                    &output_bytes[output_bytes.len() - delta..]
+                                };
 
-                                let stdout = std::io::stdout();
-                                let mut out = stdout.lock();
-                                std::io::Write::write_all(&mut out, new_data)?;
-                                std::io::Write::flush(&mut out)?;
+                                if !new_data.is_empty() {
+                                    let stdout = std::io::stdout();
+                                    let mut out = stdout.lock();
+                                    std::io::Write::write_all(&mut out, new_data)?;
+                                    std::io::Write::flush(&mut out)?;
+                                }
                             }
 
                             last_buffered = new_buffered;
