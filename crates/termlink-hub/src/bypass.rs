@@ -197,6 +197,27 @@ impl BypassRegistry {
         false
     }
 
+    /// Invalidate bypass entries matching a pattern (case-insensitive substring match).
+    /// Removes matching entries from `entries` (promoted commands) and `candidates`.
+    /// Returns the number of entries removed.
+    pub fn invalidate(&mut self, pattern: &str) -> usize {
+        let lower = pattern.to_lowercase();
+        let before = self.entries.len() + self.candidates.len();
+        self.entries.retain(|k, _| !k.to_lowercase().contains(&lower));
+        self.candidates.retain(|k, _| !k.to_lowercase().contains(&lower));
+        let after = self.entries.len() + self.candidates.len();
+        before - after
+    }
+
+    /// Clear the entire bypass registry — all entries and candidates.
+    /// Returns the number of entries removed.
+    pub fn invalidate_all(&mut self) -> usize {
+        let count = self.entries.len() + self.candidates.len();
+        self.entries.clear();
+        self.candidates.clear();
+        count
+    }
+
     /// Load the registry under an advisory file lock, apply a mutation, save atomically.
     /// This prevents concurrent load+modify+save races between hub request handlers.
     pub fn locked_update<F>(path: &PathBuf, f: F) -> std::io::Result<Self>
@@ -562,5 +583,87 @@ mod tests {
         let stats = reg.candidates.get("memory.search").unwrap();
         assert_eq!(stats.success_count, 5);
         assert_eq!(stats.fail_count, 1);
+    }
+
+    #[test]
+    fn invalidate_removes_matching_entries() {
+        let mut reg = BypassRegistry::default();
+
+        // Promote 3 commands
+        for cmd in &["lint:termlink-hub", "lint:termlink-cli", "test:termlink-hub"] {
+            reg.entries.insert(
+                cmd.to_string(),
+                BypassEntry {
+                    command: cmd.to_string(),
+                    tier: 3,
+                    run_count: 5,
+                    fail_count: 0,
+                    promoted_at: "100".to_string(),
+                    last_run: None,
+                },
+            );
+        }
+
+        // Add a candidate
+        reg.candidates.insert(
+            "lint:termlink-protocol".to_string(),
+            RunStats { success_count: 3, fail_count: 0 },
+        );
+
+        // Invalidate "lint" — should remove 2 entries + 1 candidate, keep "test:termlink-hub"
+        let removed = reg.invalidate("lint");
+        assert_eq!(removed, 3);
+        assert_eq!(reg.entries.len(), 1);
+        assert!(reg.check("test:termlink-hub").is_some());
+        assert!(reg.check("lint:termlink-hub").is_none());
+        assert!(reg.check("lint:termlink-cli").is_none());
+        assert!(reg.candidates.get("lint:termlink-protocol").is_none());
+    }
+
+    #[test]
+    fn invalidate_all_clears_everything() {
+        let mut reg = BypassRegistry::default();
+
+        reg.entries.insert(
+            "cmd-a".to_string(),
+            BypassEntry {
+                command: "cmd-a".to_string(),
+                tier: 3,
+                run_count: 5,
+                fail_count: 0,
+                promoted_at: "100".to_string(),
+                last_run: None,
+            },
+        );
+        reg.candidates.insert(
+            "cmd-b".to_string(),
+            RunStats { success_count: 2, fail_count: 0 },
+        );
+
+        let removed = reg.invalidate_all();
+        assert_eq!(removed, 2);
+        assert!(reg.entries.is_empty());
+        assert!(reg.candidates.is_empty());
+    }
+
+    #[test]
+    fn invalidate_case_insensitive() {
+        let mut reg = BypassRegistry::default();
+
+        reg.entries.insert(
+            "Review.Lint".to_string(),
+            BypassEntry {
+                command: "Review.Lint".to_string(),
+                tier: 3,
+                run_count: 5,
+                fail_count: 0,
+                promoted_at: "100".to_string(),
+                last_run: None,
+            },
+        );
+
+        let removed = reg.invalidate("review");
+        assert_eq!(removed, 1);
+        assert!(reg.entries.is_empty());
     }
 }

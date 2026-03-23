@@ -30,6 +30,7 @@ pub mod method {
     pub const PTY_MODE: &str = "pty.mode";
     pub const ORCHESTRATOR_ROUTE: &str = "orchestrator.route";
     pub const ORCHESTRATOR_BYPASS_STATUS: &str = "orchestrator.bypass_status";
+    pub const ORCHESTRATOR_BYPASS_INVALIDATE: &str = "orchestrator.bypass_invalidate";
 }
 
 /// TermLink-specific JSON-RPC error codes (in addition to standard -32700..-32603).

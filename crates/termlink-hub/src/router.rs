@@ -48,6 +48,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
         control::method::ORCHESTRATOR_ROUTE => handle_orchestrator_route(id, &req.params).await,
         control::method::ORCHESTRATOR_BYPASS_STATUS => handle_bypass_status(id),
+        control::method::ORCHESTRATOR_BYPASS_INVALIDATE => handle_bypass_invalidate(id, &req.params),
         "session.register_remote" => handle_register_remote(id, &req.params),
         "session.heartbeat" => handle_heartbeat(id, &req.params),
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
@@ -764,6 +765,49 @@ fn handle_bypass_status(id: serde_json::Value) -> RpcResponse {
         }),
     )
     .into()
+}
+
+/// Handle `orchestrator.bypass_invalidate` — remove bypass entries by pattern or all.
+///
+/// Params:
+///   - `pattern` (string, optional): substring pattern to match (case-insensitive).
+///     If omitted, clears the entire registry.
+///   - `all` (bool, optional): if true, clears everything (same as omitting pattern).
+fn handle_bypass_invalidate(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let all = params
+        .get("all")
+        .and_then(|a| a.as_bool())
+        .unwrap_or(false);
+    let pattern = params.get("pattern").and_then(|p| p.as_str());
+
+    let reg_path = crate::bypass::registry_path();
+    let result = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+        let removed = if all || pattern.is_none() {
+            r.invalidate_all()
+        } else {
+            r.invalidate(pattern.unwrap())
+        };
+        tracing::info!(
+            pattern = pattern.unwrap_or("*"),
+            removed,
+            "orchestrator.bypass_invalidate: cleared bypass entries"
+        );
+    });
+
+    match result {
+        Ok(registry) => Response::success(
+            id,
+            json!({
+                "invalidated": true,
+                "remaining_entries": registry.entries.len(),
+                "remaining_candidates": registry.candidates.len(),
+            }),
+        )
+        .into(),
+        Err(e) => {
+            ErrorResponse::internal_error(id, &format!("Failed to update registry: {e}")).into()
+        }
+    }
 }
 
 /// Forward a request to the target session specified in params.target.
