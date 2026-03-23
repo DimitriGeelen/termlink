@@ -4,16 +4,16 @@ name: "Terminal shadow sessions — read-only monitoring of agent terminals via 
 description: >
   Inception: Terminal shadow sessions — read-only monitoring of agent terminals via hub
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T08:58:57Z
-last_update: 2026-03-23T08:58:57Z
-date_finished: null
+last_update: 2026-03-23T09:09:23Z
+date_finished: 2026-03-23T09:09:23Z
 ---
 
 # T-232: Terminal shadow sessions — read-only monitoring of agent terminals via hub
@@ -44,18 +44,18 @@ When multiple agents run through a TermLink hub, the human operator cannot see w
 
 ## Scope Fence
 
-**IN:** Read-only shadow of a single session's terminal output via data plane
-**IN:** CLI command `termlink shadow <session>`
-**OUT:** Multi-session dashboard / TUI grid view (future task)
-**OUT:** Remote shadow via TCP hub (works if TCP data plane works, but not separately scoped)
+**IN:** Read-only mirror of a single session's terminal output via data plane
+**IN:** CLI command `termlink mirror <session>` (local + remote)
+**IN:** Raw output mode (MVP), rendered mode as research + later task
+**OUT:** Multi-session mirror with TUI (later task)
 **OUT:** Recording/replay (different feature)
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated with human
-- [ ] Assumptions tested (especially A-2: broadcast channel multi-subscriber)
-- [ ] Architecture approach decided (data plane mode vs. control plane polling)
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated with human
+- [x] Assumptions tested (A-2 confirmed: broadcast channel natively supports multi-subscriber)
+- [x] Architecture approach decided (data plane mirror mode, skip write loop)
+- [x] Go/No-Go decision made (GO)
 
 ## Go/No-Go Criteria
 
@@ -79,20 +79,47 @@ When multiple agents run through a TermLink hub, the human operator cannot see w
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Broadcast channel natively supports multi-subscriber. ~400 lines, low-medium complexity. Name: mirror. Scope: single session, raw+rendered (selectable), local+remote.
+
+**Date**: 2026-03-23T09:09:23Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Broadcast channel natively supports multi-subscriber. ~400 lines, low-medium complexity. Name: mirror. Scope: single session, raw+rendered (selectable), local+remote.
+
+**Date**: 2026-03-23T09:09:23Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-23T09:08:38Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Broadcast channel natively supports multi-subscriber (no refactor). ~400 lines, low-medium complexity. Clear UX: mirror=read-only vs attach=interactive. Local+remote.
+
+### 2026-03-23T09:08:47Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Broadcast channel natively supports multi-subscriber (no refactor). ~400 lines, low-medium complexity. Clear UX: mirror=read-only vs attach=interactive. Local+remote.
+
+### 2026-03-23T09:08:59Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-03-23T09:08:59Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Broadcast channel natively supports multi-subscriber (no refactor). ~400 lines, low-medium complexity. Clear UX: mirror=read-only vs attach=interactive. Local+remote.
+
+### 2026-03-23T09:09:23Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Broadcast channel natively supports multi-subscriber. ~400 lines, low-medium complexity. Name: mirror. Scope: single session, raw+rendered (selectable), local+remote.
+
+### 2026-03-23T09:09:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
