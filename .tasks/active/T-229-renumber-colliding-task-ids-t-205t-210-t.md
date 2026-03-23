@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-21T23:26:35Z
-last_update: 2026-03-21T23:26:35Z
+last_update: 2026-03-23T07:21:35Z
 date_finished: null
 ---
 
@@ -51,5 +51,5 @@ test "$(cat .tasks/active/*.md .tasks/completed/*.md 2>/dev/null | grep '^id:' |
 
 ### 2026-03-21T23:26:35Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-214-renumber-colliding-task-ids-t-205t-210-t.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-229-renumber-colliding-task-ids-t-205t-210-t.md
 - **Context:** Initial task creation

@@ -52,7 +52,7 @@ grep -q 'budget-status' .context/working/.gitignore
 
 ### 2026-03-21T23:18:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-213-fix-ephemeral-working-files-causing-merg.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-228-fix-ephemeral-working-files-causing-merg.md
 - **Context:** Initial task creation
 
 ### 2026-03-21T23:19:24Z — status-update [task-update-agent]
