@@ -645,7 +645,7 @@ async fn handle_orchestrator_route(
                     let method_clone = method.clone();
                     let _ =
                         crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                            if r.record_orchestrated_run(&method_clone, true) {
+                            if r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::Success) {
                                 tracing::info!(
                                     method = %method_clone,
                                     "orchestrator.route: command promoted to bypass registry"
@@ -667,11 +667,12 @@ async fn handle_orchestrator_route(
                 .into();
             }
             Ok(Ok(RpcResponse::Error(e))) => {
+                // RPC error = command failure (the specialist responded with an error)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
                     let method_clone = method.clone();
                     let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                        r.record_orchestrated_run(&method_clone, false);
+                        r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::CommandFailure);
                     });
                 }
                 last_error = format!("{}: {}", reg.display_name, e.error.message);
@@ -682,11 +683,12 @@ async fn handle_orchestrator_route(
                 );
             }
             Ok(Err(e)) => {
+                // Connection error = infra failure (specialist never received the call)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
                     let method_clone = method.clone();
                     let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                        r.record_orchestrated_run(&method_clone, false);
+                        r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::InfraFailure);
                     });
                 }
                 last_error = format!("{}: {}", reg.display_name, e);
@@ -697,11 +699,12 @@ async fn handle_orchestrator_route(
                 );
             }
             Err(_) => {
+                // Timeout = infra failure (specialist didn't respond in time)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
                     let method_clone = method.clone();
                     let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                        r.record_orchestrated_run(&method_clone, false);
+                        r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::InfraFailure);
                     });
                 }
                 last_error = format!("{}: timeout", reg.display_name);
@@ -1793,21 +1796,20 @@ mod tests {
             }
         }
 
-        // Check bypass registry — should have recorded the transport failure
+        // Check bypass registry — infra failures (connection to dead session) should be
+        // invisible. Only the success from the live session should be recorded.
         let reg_path = dir.join("bypass-registry.json");
         let bypass_reg = crate::bypass::BypassRegistry::load_from(&reg_path);
 
-        // The method should be tracked with at least 1 fail (from dead session)
-        // and 1 success (from live session)
         let stats = bypass_reg.candidates.get("termlink.ping");
         assert!(
             stats.is_some(),
             "termlink.ping should be tracked in bypass candidates"
         );
         let stats = stats.unwrap();
-        assert!(
-            stats.fail_count >= 1,
-            "Should have at least 1 transport failure recorded, got {}",
+        assert_eq!(
+            stats.fail_count, 0,
+            "Infra failures should NOT count against fail_count, got {}",
             stats.fail_count
         );
         assert_eq!(

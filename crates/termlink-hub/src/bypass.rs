@@ -36,6 +36,18 @@ pub struct RunStats {
 /// Number of successful orchestrated runs required for promotion.
 pub const PROMOTION_THRESHOLD: u64 = 5;
 
+/// Outcome of an orchestrated run — distinguishes command failures from infra failures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunOutcome {
+    /// The forwarded RPC succeeded.
+    Success,
+    /// The specialist returned an RPC error (command-level failure).
+    CommandFailure,
+    /// Connection error, timeout, or dead session (infrastructure failure).
+    /// Does not count against promotion — the command itself was never executed.
+    InfraFailure,
+}
+
 /// Default denylist patterns — commands matching any of these are never promotable.
 /// Matches are case-insensitive substring checks.
 const DENYLIST_PATTERNS: &[&str] = &[
@@ -114,7 +126,10 @@ impl BypassRegistry {
     /// Record an orchestrated run for a command (pre-promotion tracking).
     /// Returns `true` if the command was just promoted to bypass.
     /// Denylisted commands are silently ignored (never tracked or promoted).
-    pub fn record_orchestrated_run(&mut self, command: &str, success: bool) -> bool {
+    ///
+    /// `InfraFailure` outcomes are invisible to promotion — they increment neither
+    /// `success_count` nor `fail_count`, because the command was never executed.
+    pub fn record_orchestrated_run(&mut self, command: &str, outcome: RunOutcome) -> bool {
         if is_denylisted(command) {
             tracing::warn!(
                 command = %command,
@@ -126,18 +141,24 @@ impl BypassRegistry {
         // If already promoted, just update stats
         if let Some(entry) = self.entries.get_mut(command) {
             entry.run_count += 1;
-            if !success {
+            if outcome == RunOutcome::CommandFailure {
                 entry.fail_count += 1;
             }
+            // InfraFailure does not count against a promoted command either
             entry.last_run = Some(now_iso());
             return false;
         }
 
+        // InfraFailure is invisible — don't even create a candidate entry
+        if outcome == RunOutcome::InfraFailure {
+            return false;
+        }
+
         let stats = self.candidates.entry(command.to_string()).or_default();
-        if success {
-            stats.success_count += 1;
-        } else {
-            stats.fail_count += 1;
+        match outcome {
+            RunOutcome::Success => stats.success_count += 1,
+            RunOutcome::CommandFailure => stats.fail_count += 1,
+            RunOutcome::InfraFailure => unreachable!(), // handled above
         }
 
         // Check promotion threshold
@@ -302,12 +323,12 @@ mod tests {
 
         // 4 runs — not yet promoted
         for _ in 0..4 {
-            assert!(!reg.record_orchestrated_run("fw metrics", true));
+            assert!(!reg.record_orchestrated_run("fw metrics", RunOutcome::Success));
         }
         assert!(reg.check("fw metrics").is_none());
 
         // 5th run — promoted
-        assert!(reg.record_orchestrated_run("fw metrics", true));
+        assert!(reg.record_orchestrated_run("fw metrics", RunOutcome::Success));
         assert!(reg.check("fw metrics").is_some());
         assert_eq!(reg.check("fw metrics").unwrap().tier, 3);
     }
@@ -317,13 +338,13 @@ mod tests {
         let mut reg = BypassRegistry::default();
 
         for _ in 0..4 {
-            reg.record_orchestrated_run("flaky_cmd", true);
+            reg.record_orchestrated_run("flaky_cmd", RunOutcome::Success);
         }
-        // One failure resets the zero-failure requirement
-        reg.record_orchestrated_run("flaky_cmd", false);
+        // One command failure resets the zero-failure requirement
+        reg.record_orchestrated_run("flaky_cmd", RunOutcome::CommandFailure);
 
         // 5th success — but fail_count > 0, so no promotion
-        reg.record_orchestrated_run("flaky_cmd", true);
+        reg.record_orchestrated_run("flaky_cmd", RunOutcome::Success);
         assert!(reg.check("flaky_cmd").is_none());
     }
 
@@ -410,13 +431,13 @@ mod tests {
         // Seed with 4 successes
         let mut reg = BypassRegistry::default();
         for _ in 0..4 {
-            reg.record_orchestrated_run("test.cmd", true);
+            reg.record_orchestrated_run("test.cmd", RunOutcome::Success);
         }
         reg.save_to(&path).unwrap();
 
         // Apply locked update — 5th success triggers promotion
         let result = BypassRegistry::locked_update(&path, |r| {
-            r.record_orchestrated_run("test.cmd", true);
+            r.record_orchestrated_run("test.cmd", RunOutcome::Success);
         })
         .unwrap();
 
@@ -439,7 +460,7 @@ mod tests {
             handles.push(tokio::task::spawn_blocking(move || {
                 let cmd = format!("concurrent-cmd-{i}");
                 BypassRegistry::locked_update(&p, |r| {
-                    r.record_orchestrated_run(&cmd, true);
+                    r.record_orchestrated_run(&cmd, RunOutcome::Success);
                 })
                 .unwrap();
             }));
@@ -471,7 +492,7 @@ mod tests {
 
         // Try to promote "rm -rf /tmp/data" — should be denylisted
         for _ in 0..10 {
-            assert!(!reg.record_orchestrated_run("rm -rf /tmp/data", true));
+            assert!(!reg.record_orchestrated_run("rm -rf /tmp/data", RunOutcome::Success));
         }
         assert!(reg.candidates.get("rm -rf /tmp/data").is_none());
         assert!(reg.check("rm -rf /tmp/data").is_none());
@@ -493,5 +514,53 @@ mod tests {
         assert!(!is_denylisted("termlink.ping"));
         assert!(!is_denylisted("git status"));
         assert!(!is_denylisted("fw metrics"));
+    }
+
+    #[test]
+    fn infra_failures_invisible_to_promotion() {
+        let mut reg = BypassRegistry::default();
+
+        // 4 infra failures — should not create any candidate entry
+        for _ in 0..4 {
+            assert!(!reg.record_orchestrated_run("search.grep", RunOutcome::InfraFailure));
+        }
+        assert!(reg.candidates.get("search.grep").is_none());
+
+        // 5 successes — should still promote (infra failures don't block)
+        for _ in 0..4 {
+            assert!(!reg.record_orchestrated_run("search.grep", RunOutcome::Success));
+        }
+        assert!(reg.check("search.grep").is_none()); // not yet
+
+        assert!(reg.record_orchestrated_run("search.grep", RunOutcome::Success));
+        assert!(reg.check("search.grep").is_some());
+        assert_eq!(reg.check("search.grep").unwrap().tier, 3);
+    }
+
+    #[test]
+    fn command_failure_blocks_promotion_infra_failure_does_not() {
+        let mut reg = BypassRegistry::default();
+
+        // 4 successes
+        for _ in 0..4 {
+            reg.record_orchestrated_run("memory.search", RunOutcome::Success);
+        }
+
+        // 3 infra failures — should not affect stats
+        for _ in 0..3 {
+            reg.record_orchestrated_run("memory.search", RunOutcome::InfraFailure);
+        }
+
+        // 1 command failure — this blocks promotion
+        reg.record_orchestrated_run("memory.search", RunOutcome::CommandFailure);
+
+        // 5th success — but fail_count > 0, so no promotion
+        assert!(!reg.record_orchestrated_run("memory.search", RunOutcome::Success));
+        assert!(reg.check("memory.search").is_none());
+
+        // Verify stats: 5 successes, 1 command failure (infra invisible)
+        let stats = reg.candidates.get("memory.search").unwrap();
+        assert_eq!(stats.success_count, 5);
+        assert_eq!(stats.fail_count, 1);
     }
 }
