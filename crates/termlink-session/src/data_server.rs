@@ -328,4 +328,63 @@ mod tests {
         let _ = pty.signal(libc::SIGTERM);
         let _ = std::fs::remove_file(&socket);
     }
+
+    #[tokio::test]
+    async fn mirror_mode_receives_output_read_only() {
+        let _guard = PTY_LOCK.lock().await;
+        let socket = test_data_socket();
+        let _ = std::fs::remove_file(&socket);
+
+        let (tx, rx) = broadcast::channel::<Vec<u8>>(64);
+        let pty = Arc::new(PtySession::spawn(None, 1024).unwrap());
+
+        // Start data server
+        let socket_clone = socket.clone();
+        let pty_clone = pty.clone();
+        let server_handle = tokio::spawn(async move {
+            run(&socket_clone, pty_clone, rx).await.unwrap();
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+        // Connect two "mirror" clients (read-only — they never send Input frames)
+        let stream1 = UnixStream::connect(&socket).await.unwrap();
+        let (r1, _w1) = tokio::io::split(stream1);
+        let mut reader1 = FrameReader::new(r1);
+
+        let stream2 = UnixStream::connect(&socket).await.unwrap();
+        let (r2, _w2) = tokio::io::split(stream2);
+        let mut reader2 = FrameReader::new(r2);
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+        // Broadcast output — both mirrors should receive it
+        tx.send(b"mirror test data".to_vec()).unwrap();
+
+        let frame1 = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            reader1.read_frame(),
+        )
+        .await
+        .expect("mirror 1 timed out")
+        .unwrap()
+        .unwrap();
+        assert_eq!(frame1.header.frame_type, FrameType::Output);
+        assert_eq!(frame1.payload, b"mirror test data");
+
+        let frame2 = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            reader2.read_frame(),
+        )
+        .await
+        .expect("mirror 2 timed out")
+        .unwrap()
+        .unwrap();
+        assert_eq!(frame2.header.frame_type, FrameType::Output);
+        assert_eq!(frame2.payload, b"mirror test data");
+
+        server_handle.abort();
+        let _ = pty.signal(libc::SIGTERM);
+        let _ = std::fs::remove_file(&socket);
+    }
 }
