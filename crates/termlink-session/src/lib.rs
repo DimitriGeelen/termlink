@@ -27,5 +27,5 @@ pub use manager::{Session, SessionError};
 pub(crate) mod test_util {
     /// Serialize PTY-allocating tests to prevent device exhaustion under parallel load.
     /// macOS `openpty()` returns ENXIO when too many PTY devices are allocated concurrently.
-    pub static PTY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    pub static PTY_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 }

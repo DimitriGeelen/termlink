@@ -346,7 +346,7 @@ mod tests {
         let read_back = Registration::read_from(&json_path).unwrap();
         // Timestamps are second-resolution, so they may be equal
         // but the write should succeed
-        assert!(read_back.heartbeat_at.len() > 0);
+        assert!(!read_back.heartbeat_at.is_empty());
         let _ = original; // suppress unused warning
     }
 

@@ -411,7 +411,7 @@ mod tests {
 
     #[tokio::test]
     async fn spawn_and_exit() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
 
         session.write(b"exit 0\n").await.unwrap();
@@ -427,7 +427,7 @@ mod tests {
 
     #[tokio::test]
     async fn spawn_echo_and_capture() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let session = PtySession::spawn(Some("/bin/sh"), 4096).unwrap();
 
         session
@@ -455,7 +455,7 @@ mod tests {
 
     #[tokio::test]
     async fn child_pid_is_valid() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
 
         assert!(session.child_pid() > 0);
@@ -467,7 +467,7 @@ mod tests {
 
     #[tokio::test]
     async fn terminal_mode_returns_valid_flags() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         // Verify tcgetattr succeeds and returns a valid TerminalMode struct.
         // Note: the exact flags depend on the shell and OS configuration.
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
@@ -523,7 +523,7 @@ mod tests {
 
     #[tokio::test]
     async fn poll_mode_change_initial_stores_mode() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
@@ -544,7 +544,7 @@ mod tests {
 
     #[tokio::test]
     async fn write_and_read_roundtrip() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let session = PtySession::spawn(Some("/bin/sh"), 8192).unwrap();
 
         session

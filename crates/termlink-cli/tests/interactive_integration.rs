@@ -69,10 +69,8 @@ fn wait_for_data_socket(sessions_dir: &std::path::Path, timeout: Duration) -> Re
         if let Ok(entries) = std::fs::read_dir(sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.ends_with(".sock.data") {
-                        return Ok(path);
-                    }
+                if path.file_name().and_then(|n| n.to_str()).is_some_and(|name| name.ends_with(".sock.data")) {
+                    return Ok(path);
                 }
             }
         }

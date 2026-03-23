@@ -640,7 +640,7 @@ mod tests {
     /// Both require TERMLINK_RUNTIME_DIR to point to the test directory.
     #[tokio::test]
     async fn hub_discover_and_forward() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         // Clear remote store to avoid leakage from other tests
         if let Some(s) = crate::router::remote_store() { s.clear(); }
 

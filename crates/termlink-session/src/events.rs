@@ -262,7 +262,7 @@ mod tests {
 
         // Fill and overflow: seqs 0,1,2,3,4 — buffer holds [2,3,4]
         for i in 0..5 {
-            bus.emit(&format!("e{i}"), json!(i));
+            bus.emit(format!("e{i}"), json!(i));
         }
 
         assert_eq!(bus.oldest_seq(), Some(2));

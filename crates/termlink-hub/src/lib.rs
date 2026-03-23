@@ -10,5 +10,5 @@ pub mod tls;
 pub(crate) mod test_util {
     /// Mutex to serialize all tests that modify TERMLINK_RUNTIME_DIR.
     /// Used by both router::tests and server::tests.
-    pub static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    pub static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 }

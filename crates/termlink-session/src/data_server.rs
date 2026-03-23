@@ -207,7 +207,7 @@ mod tests {
 
     #[tokio::test]
     async fn output_broadcast_to_client() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let socket = test_data_socket();
         let _ = std::fs::remove_file(&socket);
 
@@ -249,7 +249,7 @@ mod tests {
 
     #[tokio::test]
     async fn input_frame_reaches_pty() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let socket = test_data_socket();
         let _ = std::fs::remove_file(&socket);
 
@@ -297,7 +297,7 @@ mod tests {
 
     #[tokio::test]
     async fn ping_pong() {
-        let _guard = PTY_LOCK.lock().unwrap();
+        let _guard = PTY_LOCK.lock().await;
         let socket = test_data_socket();
         let _ = std::fs::remove_file(&socket);
 

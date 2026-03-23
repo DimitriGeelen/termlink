@@ -683,7 +683,7 @@ mod tests {
 
     #[tokio::test]
     async fn broadcast_emits_to_sessions() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
@@ -732,7 +732,7 @@ mod tests {
 
     #[tokio::test]
     async fn broadcast_with_targets_filters() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
@@ -772,7 +772,7 @@ mod tests {
 
     #[tokio::test]
     async fn collect_aggregates_events() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
@@ -826,7 +826,7 @@ mod tests {
 
     #[tokio::test]
     async fn collect_with_since_cursors() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
@@ -881,7 +881,7 @@ mod tests {
 
     #[tokio::test]
     async fn discover_with_filters() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         // Clear remote store to avoid leakage from other tests
         if let Some(s) = super::remote_store() { s.clear(); }
         let dir = test_dir();
@@ -1089,7 +1089,7 @@ mod tests {
         tokio::io::Lines<tokio::io::BufReader<tokio::net::tcp::OwnedReadHalf>>,
         tokio::net::tcp::OwnedWriteHalf,
     ) {
-        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
         let secret_vec: Vec<u8> = (0..secret_hex.len())
             .step_by(2)
@@ -1120,7 +1120,7 @@ mod tests {
 
     #[tokio::test]
     async fn tcp_broadcast_delivers_to_sessions() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
@@ -1192,7 +1192,7 @@ mod tests {
 
     #[tokio::test]
     async fn tcp_collect_aggregates_events() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         let dir = test_dir();
         let sessions_dir = dir.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
@@ -1270,7 +1270,7 @@ mod tests {
 
     #[tokio::test]
     async fn tcp_unauthenticated_broadcast_rejected() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         let dir = test_dir();
         std::fs::create_dir_all(&dir).unwrap();
 
@@ -1321,7 +1321,7 @@ mod tests {
 
     #[tokio::test]
     async fn forward_to_remote_session_via_tcp() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK.lock().await;
         // Start a real session listening on TCP
         let dir = test_dir();
         // Isolate runtime dir so connect_addr won't find a stale hub.cert.pem
