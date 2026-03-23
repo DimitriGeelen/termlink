@@ -33,12 +33,12 @@ codifies the convention and builds a thin dispatch helper. See:
 
 ### Agent
 
-- [ ] Worker completion convention documented: workers emit `task.completed` event with structured payload (task_id, summary, blob_path, status) on their own session
-- [ ] Worker progress convention documented: workers emit `task.progress` events during work (task_id, percent, message)
-- [ ] Orchestrator collect pattern documented: `termlink event collect --topic task.completed --count N --timeout T` as background Bash
-- [ ] E2E test: spawn 3 workers via `termlink spawn`, each emits `task.completed`, orchestrator collects all 3 via `event collect --count 3`
-- [ ] Convention handles partial failure: if 1 of 3 workers dies, collect times out gracefully and reports which workers responded
-- [ ] Parent session ID injection: workers receive `TERMLINK_PARENT_SESSION` env var so they know who spawned them
+- [x] Worker completion convention documented: workers emit `task.completed` event with structured payload (task_id, summary, blob_path, status) on their own session
+- [x] Worker progress convention documented: workers emit `task.progress` events during work (task_id, percent, message)
+- [x] Orchestrator collect pattern documented: `termlink event collect --topic task.completed --count N --timeout T` as background Bash
+- [x] E2E test: spawn 3 workers via `termlink spawn`, each emits `task.completed`, orchestrator collects all 3 via `event collect --count 3`
+- [x] Convention handles partial failure: if 1 of 3 workers dies, collect times out gracefully and reports which workers responded
+- [x] Parent session ID injection: workers receive `TERMLINK_PARENT_SESSION` env var so they know who spawned them
 
 ### Human
 
