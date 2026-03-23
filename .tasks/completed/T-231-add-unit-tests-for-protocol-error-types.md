@@ -4,7 +4,7 @@ name: "Add unit tests for protocol error types"
 description: >
   Add unit tests for protocol error types
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T08:05:09Z
-last_update: 2026-03-23T08:05:09Z
-date_finished: null
+last_update: 2026-03-23T08:06:16Z
+date_finished: 2026-03-23T08:06:16Z
 ---
 
 # T-231: Add unit tests for protocol error types
@@ -51,3 +51,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-231-add-unit-tests-for-protocol-error-types.md
 - **Context:** Initial task creation
+
+### 2026-03-23T08:06:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
