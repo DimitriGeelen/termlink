@@ -12,7 +12,7 @@ tags: [framework, hooks, governance]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:06Z
-last_update: 2026-03-18T22:25:12Z
+last_update: 2026-03-22T17:22:24Z
 date_finished: null
 ---
 
@@ -78,3 +78,6 @@ date_finished: null
 
 ### 2026-03-18T22:25:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
+
+### 2026-03-22T17:22:24Z — status-update [task-update-agent]
+- **Change:** horizon: later → later

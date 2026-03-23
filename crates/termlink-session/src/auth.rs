@@ -351,10 +351,11 @@ pub fn validate_token(
     }
 
     // Check session ID if specified
-    if let Some(expected) = expected_session_id {
-        if !payload.session_id.is_empty() && payload.session_id != expected {
-            return Err(TokenError::SessionMismatch);
-        }
+    if let Some(expected) = expected_session_id
+        && !payload.session_id.is_empty()
+        && payload.session_id != expected
+    {
+        return Err(TokenError::SessionMismatch);
     }
 
     // Parse scope

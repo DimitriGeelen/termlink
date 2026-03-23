@@ -3,13 +3,13 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-21T10:30:00Z
+# Generated: 2026-03-22T16:54:57Z
 # ============================================================================
 
 task_id: T-158
 task_name: "Session persistence across claude restart"
 workflow_type: build
-enrichment_status: auto-complete
+enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-03-17T09:45:47Z
@@ -19,42 +19,43 @@ updates_count: 4
 first_commit: 2026-03-17T12:35:33+01:00
 last_commit: 2026-03-17T12:35:33+01:00
 
-# Summary
+# Summary (auto-generated from git commit messages)
 summary: |
-  Extended tl-claude.sh with persistent session mode (start/restart/status/stop) so the TermLink PTY session survives claude exits and restarts, preserving scrollback.
+  Session persistence — tl-claude.sh start/restart/status/stop
 
 # Key outcomes
 outcomes:
-  - "tl-claude.sh start subcommand for persistent mode"
-  - "Persistent mode: spawns shell session, then injects claude command"
-  - "tl-claude.sh restart re-injects claude into existing session"
-  - "Session survives claude exit (shell stays alive)"
-  - "Scrollback preserved across restarts"
+  - "`tl-claude.sh start` subcommand for persistent mode"
+  - "In persistent mode: spawns shell session, then injects claude command"
+  - "`tl-claude.sh restart` re-injects claude into existing session"
+  - "`tl-claude.sh status` shows session state"
+  - "Session survives claude exit (shell stays alive) — validated in spike"
+  - "Scrollback preserved across restarts — validated: both sessions visible in output"
+  - "[REVIEW] Verify session persists across claude exit"
 
-# Challenges
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
 challenges:
-  # None recorded
+  # No challenges detected in commit messages
 
-# Decisions
+# Decisions (from task file Decisions section)
 decisions:
-  - topic: "Persistent session approach"
-    date: "2026-03-17"
     chose: "Shell session + inject (no Rust changes needed)"
-    why: "termlink spawn --shell keeps PTY alive after command exits; inject new command for restart"
-    rejected: "New --keep-alive flag in Rust (unnecessary complexity)"
+    rationale: "`termlink spawn --shell` keeps PTY alive after command exits; inject new command for restart"
+    alternatives_rejected: ["New `--keep-alive` flag in Rust (unnecessary complexity — shell mode already does this)"]
 
-# Artifacts
+# Artifacts (auto-mined from git --name-only)
 artifacts:
   - "scripts/tl-claude.sh"
+  - ".tasks/active/T-158-session-persistence-across-claude-restar.md"
 
-# Timeline
+# Timeline (auto-mined from git log)
 git_timeline:
   - time: "2026-03-17T12:35:33"
     action: "T-158: Session persistence — tl-claude.sh start/restart/status/stop"
 
-# What worked well
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Leveraged existing termlink spawn --shell capability, no Rust changes needed
+  # Completed successfully in 1 commit(s), 4526 min
 
 # Related tasks
 related_tasks:
@@ -62,17 +63,17 @@ related_tasks:
   absorbed: []
   spawned: []
 
-# Tags
+# Tags for retrieval
 tags: [remote-access, claude-fw, persistence]
 
-# Metrics
+# Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 57
+  wall_clock_minutes: 4526
   commits: 1
   files_changed: 2
   lines_added: 204
   lines_removed: 23
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-158-session-persistence-across-claude-restar.md
+source_file: /opt/termlink/.tasks/completed/T-158-session-persistence-across-claude-restar.md
 generated_by: context-agent-hybrid

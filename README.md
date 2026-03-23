@@ -14,14 +14,12 @@ TermLink lets multiple terminal sessions **discover, message, and control each o
 ## Quick Start
 
 ```bash
-# Install
-cargo install --git https://github.com/DimitriGeelen/termlink.git termlink --force
+# Install via Homebrew (macOS/Linux — recommended)
+brew tap DimitriGeelen/termlink
+brew install termlink
 
-# Or build from source
-git clone https://github.com/DimitriGeelen/termlink.git
-cd termlink
-cargo build --release
-# Binary at target/release/termlink
+# Or install via Cargo
+cargo install --git https://github.com/DimitriGeelen/termlink.git termlink --force
 
 # Start a named session (opens a shell)
 termlink spawn --name demo --tags "test" --shell
@@ -153,6 +151,16 @@ Override with `--backend tmux` or set `TL_DISPATCH_BACKEND=tmux`.
 TermLink requires POSIX PTY support (`openpty`, `fork`, `tcgetattr`). Windows is not supported.
 
 ## Installation
+
+### Homebrew (recommended for macOS/Linux)
+
+```bash
+brew tap DimitriGeelen/termlink
+brew install termlink
+termlink --version
+```
+
+### From source (for development/debugging)
 
 **Requirements:**
 - Rust toolchain (edition 2024) — install via [rustup.rs](https://rustup.rs)

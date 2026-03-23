@@ -6,12 +6,12 @@ description: >
 status: started-work
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [framework, cli, upstream]
 components: []
 related_tasks: []
 created: 2026-03-18T22:25:12Z
-last_update: 2026-03-19T06:04:15Z
+last_update: 2026-03-22T17:22:24Z
 date_finished: null
 ---
 
@@ -111,3 +111,6 @@ test -f docs/reports/T-180-upstream-reporting-design.md
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Primary path (TermLink inject-remote) implemented and proven. Fallback (fw upstream report) design clear. Both documented in research artifact.
+
+### 2026-03-22T17:22:24Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

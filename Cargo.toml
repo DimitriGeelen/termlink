@@ -12,7 +12,7 @@ members = [
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/dimidev32/termlink"
+repository = "https://github.com/DimitriGeelen/termlink"
 description = "Cross-terminal session communication — message bus with terminal endpoints"
 
 [workspace.dependencies]

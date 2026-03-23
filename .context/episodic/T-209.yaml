@@ -1,0 +1,71 @@
+# ============================================================================
+# EPISODIC MEMORY - T-209: Implement fw dispatch — SSH-based cross-machine agent communication
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T17:05:38Z
+# ============================================================================
+
+task_id: T-209
+task_name: "Implement fw dispatch — SSH-based cross-machine agent communication"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-21T15:32:46Z
+completed: 2026-03-22T17:05:37Z
+duration_days: 1
+updates_count: 6
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`fw dispatch send --host HOST --task T-XXX --agent TYPE --summary \"text\"` works over SSH (upstream T-517)"
+  - "`fw bus post --remote HOST` delivers envelope to remote bus (upstream lib/bus.sh)"
+  - "`fw bus receive` reads envelope from stdin and posts to local bus (upstream lib/bus.sh:382)"
+  - "SSH hosts via `~/.ssh/config` as connection registry (upstream lib/dispatch.sh:129)"
+  - "Failure modes handled (SSH timeout check, BatchMode, ConnectTimeout)"
+  - "Go/No-Go decision made (GO)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1532 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1532
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-209-implement-fw-dispatch--ssh-based-cross-m.md
+generated_by: context-agent-hybrid

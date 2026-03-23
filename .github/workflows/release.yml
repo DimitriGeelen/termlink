@@ -37,13 +37,18 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
       - name: Install build dependencies
         run: brew install cmake
 
       - name: Build
         run: |
           rustc --version
-          cargo build --release --target ${{ matrix.target }} -p termlink-cli
+          cargo build --release --target ${{ matrix.target }} -p termlink
           mkdir -p dist
           cp target/${{ matrix.target }}/release/termlink dist/${{ matrix.artifact }}
           chmod +x dist/${{ matrix.artifact }}
@@ -64,13 +69,16 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake clang
 
       - name: Build
         run: |
           rustc --version
-          cargo build --release -p termlink-cli
+          cargo build --release -p termlink
           mkdir -p dist
           cp target/release/termlink dist/termlink-linux-x86_64
           chmod +x dist/termlink-linux-x86_64

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-208: TermLink distribution via Homebrew tap — keep Rust as dev dependency
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-22T21:09:15Z
+# ============================================================================
+
+task_id: T-208
+task_name: "TermLink distribution via Homebrew tap — keep Rust as dev dependency"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-21T15:32:45Z
+completed: 2026-03-22T21:09:14Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-03-21T15:54:01-07:00
+last_commit: 2026-03-21T15:54:01-07:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add inception tasks for framework installer remediation
+
+# Key outcomes
+outcomes:
+  - "GitHub Actions workflow builds TermLink for aarch64-apple-darwin and x86_64-apple-darwin (.github/workflows/release.yml)"
+  - "Go/No-Go decision made (GO)"
+  - "Build task created (T-212: Create Homebrew tap for TermLink distribution)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-206.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".fabric/watch-patterns.yaml"
+  - ".tasks/active/T-205-drop-pyyaml-phantom-dependency-from-inst.md"
+  - ".tasks/active/T-207-fix-phantom-aef-binary-name-in-installer.md"
+  - ".tasks/active/T-208-termlink-distribution-via-homebrew-tap--.md"
+  - ".tasks/active/T-209-implement-fw-dispatch--ssh-based-cross-m.md"
+  - ".tasks/active/T-210-fix-aef-references-in-installer-add-post.md"
+  - ".tasks/active/T-211-remove-sudo-from-installsh-add---modify-.md"
+  - ".tasks/active/T-212-create-homebrew-tap-for-termlink-distrib.md"
+  - ".tasks/completed/T-206-remove-sudo-from-installer--path-based-i.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-21T15:54:01"
+    action: "T-208: Add inception tasks for framework installer remediation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1776 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1776
+  commits: 1
+  files_changed: 12
+  lines_added: 1037
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-208-termlink-distribution-via-homebrew-tap--.md
+generated_by: context-agent-hybrid

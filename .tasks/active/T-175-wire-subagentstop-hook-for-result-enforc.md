@@ -12,7 +12,7 @@ tags: [framework, hooks, dispatch]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:19Z
-last_update: 2026-03-18T21:39:19Z
+last_update: 2026-03-22T17:22:24Z
 date_finished: null
 ---
 
@@ -72,3 +72,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-175-wire-subagentstop-hook-for-result-enforc.md
 - **Context:** Initial task creation
+
+### 2026-03-22T17:22:24Z — status-update [task-update-agent]
+- **Change:** horizon: later → later
