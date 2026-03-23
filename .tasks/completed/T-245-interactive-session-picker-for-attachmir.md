@@ -4,7 +4,7 @@ name: "Interactive session picker for attach/mirror/stream — list and select w
 description: >
   Inception: Interactive session picker for attach/mirror/stream — list and select when no target given
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T15:40:22Z
-last_update: 2026-03-23T15:40:22Z
-date_finished: null
+last_update: 2026-03-23T22:00:27Z
+date_finished: 2026-03-23T22:00:27Z
 ---
 
 # T-245: Interactive session picker for attach/mirror/stream — list and select when no target given
@@ -90,3 +90,6 @@ date_finished: null
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Straightforward UX improvement. When target-requiring commands run without a target and stdin is TTY: list sessions (numbered), auto-select if 1, prompt if 2+. Applies to ~15 interactive commands (attach, mirror, stream, ping, status, watch, topics, output, interact, inject, kv, events, wait, remote ping, remote status). Shared utility function. Works for local and remote (--hub) sessions.
+
+### 2026-03-23T22:00:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

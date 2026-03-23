@@ -12,7 +12,7 @@ tags: [T-233, orchestration, hub]
 components: []
 related_tasks: [T-233]
 created: 2026-03-23T13:27:16Z
-last_update: 2026-03-23T16:21:04Z
+last_update: 2026-03-23T22:00:20Z
 date_finished: 2026-03-23T16:21:04Z
 ---
 
@@ -33,20 +33,6 @@ Hub RPC method per T-233 research (Q2b-termlink-mapping). See docs/reports/T-233
 - [x] 3 tests: success routing, no-match error, missing method error
 - [x] All 49 hub tests pass
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
 
 ## Verification
 
