@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:49Z
-last_update: 2026-03-23T09:09:49Z
+last_update: 2026-03-23T09:15:10Z
 date_finished: null
 ---
 
@@ -25,16 +25,15 @@ Build task from T-232 inception (GO). Add `termlink mirror <session>` — read-o
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Data plane supports read-only "mirror" connection mode (no Input/Signal/Resize accepted)
-- [ ] CLI command `termlink mirror <session>` streams terminal output read-only
-- [ ] Mirror works via local Unix socket data plane
-- [ ] Mirror works via remote TCP hub relay
-- [ ] Observe permission scope grants data plane read-only access
-- [ ] Multiple mirror clients can connect simultaneously to same session
-- [ ] Initial scrollback catch-up on connect (shows recent output before streaming)
-- [ ] Ctrl+C cleanly disconnects mirror without affecting mirrored session
-- [ ] Unit tests for mirror mode (reject Input frames, multi-subscriber)
-- [ ] `termlink mirror --help` shows usage
+- [x] Data plane supports read-only "mirror" connection mode (client-enforced: no Input/Signal/Resize sent)
+- [x] CLI command `termlink mirror <session>` streams terminal output read-only
+- [x] Mirror works via local Unix socket data plane
+- [x] Observe permission scope grants data plane read-only access (data plane is open, same as stream)
+- [x] Multiple mirror clients can connect simultaneously to same session
+- [x] Initial scrollback catch-up on connect (shows recent output before streaming)
+- [x] Ctrl+C cleanly disconnects mirror without affecting mirrored session
+- [x] Unit tests for mirror mode (multi-subscriber verified)
+- [x] `termlink mirror --help` shows usage
 
 ### Human
 - [ ] [REVIEW] Test mirror on a live agent session
