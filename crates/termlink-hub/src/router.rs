@@ -508,24 +508,32 @@ async fn handle_orchestrator_route(
         }
     };
 
-    // Check bypass registry before routing to a specialist
-    let registry = crate::bypass::BypassRegistry::load();
-    if let Some(entry) = registry.check(&method) {
-        tracing::info!(
-            method = %method,
-            run_count = entry.run_count,
-            "orchestrator.route: bypass registry hit — command is Tier 3"
-        );
-        return Response::success(
-            id,
-            json!({
-                "bypassed": true,
-                "command": method,
-                "tier": entry.tier,
-                "run_count": entry.run_count,
-            }),
-        )
-        .into();
+    // Check if this is a mutating command (skip bypass for read-write operations)
+    let mutating = params
+        .get("mutating")
+        .and_then(|m| m.as_bool())
+        .unwrap_or(false);
+
+    // Check bypass registry before routing to a specialist (skip for mutating commands)
+    if !mutating {
+        let registry = crate::bypass::BypassRegistry::load();
+        if let Some(entry) = registry.check(&method) {
+            tracing::info!(
+                method = %method,
+                run_count = entry.run_count,
+                "orchestrator.route: bypass registry hit — command is Tier 3"
+            );
+            return Response::success(
+                id,
+                json!({
+                    "bypassed": true,
+                    "command": method,
+                    "tier": entry.tier,
+                    "run_count": entry.run_count,
+                }),
+            )
+            .into();
+        }
     }
 
     let forward_params = params.get("params").cloned().unwrap_or(json!({}));
@@ -630,20 +638,19 @@ async fn handle_orchestrator_route(
 
         match result {
             Ok(Ok(RpcResponse::Success(resp))) => {
-                // Record successful orchestrated run under file lock
-                let reg_path = crate::bypass::registry_path();
-                let method_clone = method.clone();
-                if let Ok(updated) =
-                    crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                        if r.record_orchestrated_run(&method_clone, true) {
-                            tracing::info!(
-                                method = %method_clone,
-                                "orchestrator.route: command promoted to bypass registry"
-                            );
-                        }
-                    })
-                {
-                    let _ = updated;
+                // Record successful orchestrated run (skip for mutating commands)
+                if !mutating {
+                    let reg_path = crate::bypass::registry_path();
+                    let method_clone = method.clone();
+                    let _ =
+                        crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                            if r.record_orchestrated_run(&method_clone, true) {
+                                tracing::info!(
+                                    method = %method_clone,
+                                    "orchestrator.route: command promoted to bypass registry"
+                                );
+                            }
+                        });
                 }
                 return Response::success(
                     id,
@@ -659,12 +666,13 @@ async fn handle_orchestrator_route(
                 .into();
             }
             Ok(Ok(RpcResponse::Error(e))) => {
-                // Record failed orchestrated run under file lock
-                let reg_path = crate::bypass::registry_path();
-                let method_clone = method.clone();
-                let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                    r.record_orchestrated_run(&method_clone, false);
-                });
+                if !mutating {
+                    let reg_path = crate::bypass::registry_path();
+                    let method_clone = method.clone();
+                    let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                        r.record_orchestrated_run(&method_clone, false);
+                    });
+                }
                 last_error = format!("{}: {}", reg.display_name, e.error.message);
                 tracing::debug!(
                     target = reg.display_name,
@@ -673,12 +681,13 @@ async fn handle_orchestrator_route(
                 );
             }
             Ok(Err(e)) => {
-                // Record transport failure under file lock
-                let reg_path = crate::bypass::registry_path();
-                let method_clone = method.clone();
-                let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                    r.record_orchestrated_run(&method_clone, false);
-                });
+                if !mutating {
+                    let reg_path = crate::bypass::registry_path();
+                    let method_clone = method.clone();
+                    let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                        r.record_orchestrated_run(&method_clone, false);
+                    });
+                }
                 last_error = format!("{}: {}", reg.display_name, e);
                 tracing::debug!(
                     target = reg.display_name,
@@ -687,12 +696,13 @@ async fn handle_orchestrator_route(
                 );
             }
             Err(_) => {
-                // Record timeout failure under file lock
-                let reg_path = crate::bypass::registry_path();
-                let method_clone = method.clone();
-                let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                    r.record_orchestrated_run(&method_clone, false);
-                });
+                if !mutating {
+                    let reg_path = crate::bypass::registry_path();
+                    let method_clone = method.clone();
+                    let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                        r.record_orchestrated_run(&method_clone, false);
+                    });
+                }
                 last_error = format!("{}: timeout", reg.display_name);
                 tracing::debug!(
                     target = reg.display_name,
@@ -1805,6 +1815,99 @@ mod tests {
         );
 
         live_handle.abort();
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_mutating_skips_bypass_tracking() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (handle, _reg) = start_test_session(&sessions_dir, "specialist-mut").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Route 6 times with mutating=true (use termlink.ping — test sessions handle it)
+        for i in 0..6 {
+            let params = json!({
+                "selector": { "name": "specialist" },
+                "method": "termlink.ping",
+                "params": {},
+                "mutating": true,
+            });
+            let resp =
+                handle_orchestrator_route(json!(format!("mut-{i}")), &params).await;
+            assert!(
+                matches!(resp, RpcResponse::Success(_)),
+                "Mutating route should succeed"
+            );
+        }
+
+        // Check bypass registry — should NOT have tracked termlink.ping
+        let reg_path = dir.join("bypass-registry.json");
+        let bypass_reg = crate::bypass::BypassRegistry::load_from(&reg_path);
+        assert!(
+            bypass_reg.candidates.get("termlink.ping").is_none(),
+            "Mutating command should NOT be tracked in bypass candidates"
+        );
+        assert!(
+            bypass_reg.entries.get("termlink.ping").is_none(),
+            "Mutating command should NOT be promoted to bypass"
+        );
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        handle.abort();
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_non_mutating_promotes_normally() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (handle, _reg) = start_test_session(&sessions_dir, "specialist-nm").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Route 5 times without mutating flag (default = false)
+        for i in 0..5 {
+            let params = json!({
+                "selector": { "name": "specialist" },
+                "method": "termlink.ping",
+                "params": {},
+            });
+            let resp =
+                handle_orchestrator_route(json!(format!("nm-{i}")), &params).await;
+            assert!(matches!(resp, RpcResponse::Success(_)));
+        }
+
+        // Should be promoted after 5 successes
+        let reg_path = dir.join("bypass-registry.json");
+        let bypass_reg = crate::bypass::BypassRegistry::load_from(&reg_path);
+        assert!(
+            bypass_reg.entries.get("termlink.ping").is_some(),
+            "Non-mutating command should be promoted to bypass after 5 runs"
+        );
+
+        // 6th call should return bypassed=true
+        let params = json!({
+            "selector": { "name": "specialist" },
+            "method": "termlink.ping",
+            "params": {},
+        });
+        let resp = handle_orchestrator_route(json!("nm-bypass"), &params).await;
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["bypassed"], true);
+        } else {
+            panic!("Expected bypass response");
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        handle.abort();
     }
 
     #[tokio::test]
