@@ -7,16 +7,16 @@ description: >
   hub-level fan-in. No protocol changes needed. Delivers: dispatch convention docs,
   worker completion event convention, orchestrator collect pattern, and E2E test.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [orchestration, dispatch, events, T-256]
 components: []
 related_tasks: [T-256, T-233, T-247]
 created: 2026-03-23T22:41:05Z
-last_update: 2026-03-23T22:41:05Z
-date_finished: null
+last_update: 2026-03-23T22:52:25Z
+date_finished: 2026-03-23T22:52:25Z
 ---
 
 # T-257: Collect-based dispatch — fw dispatch + worker push convention
@@ -66,3 +66,6 @@ test -x tests/e2e/level9-dispatch-collect.sh
 ### 2026-03-23T23:40:00Z — ACs enriched from T-256 research
 - **Action:** Filled acceptance criteria based on Q1/Q2/Q3 research findings
 - **Context:** Option B from T-256 synthesis — zero code changes to TermLink crates
+
+### 2026-03-23T22:52:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
