@@ -4,7 +4,7 @@ name: "Renumber colliding task IDs T-205–T-210 to T-222–T-227"
 description: >
   Renumber colliding task IDs T-205–T-210 to T-222–T-227 to resolve collision with remote tasks
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-21T23:26:35Z
-last_update: 2026-03-23T07:21:35Z
-date_finished: null
+last_update: 2026-03-23T07:47:02Z
+date_finished: 2026-03-23T07:47:02Z
 ---
 
 # T-229: Renumber colliding task IDs T-205–T-210 to T-222–T-227
@@ -30,6 +30,7 @@ After rebasing onto origin/main, tasks T-205–T-210 collide with remote tasks c
 - [x] 14 fabric cards `created_by` updated from T-216 to T-223
 - [x] Handover S-2026-0321-0742 references updated (T-215→T-222)
 - [x] No duplicate task IDs in `.tasks/` (verified: 0 duplicates)
+- [x] 6 stale active/ copies of remote-completed tasks removed (T-208, T-216–T-220)
 
 ## Verification
 
@@ -53,3 +54,6 @@ test "$(cat .tasks/active/*.md .tasks/completed/*.md 2>/dev/null | grep '^id:' |
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-229-renumber-colliding-task-ids-t-205t-210-t.md
 - **Context:** Initial task creation
+
+### 2026-03-23T07:47:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
