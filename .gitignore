@@ -19,4 +19,14 @@ Thumbs.db
 
 # Claude Code backup
 .claude/settings.json.bak
+
+# Framework agent symlinks (machine-specific, point to Homebrew install)
 agents/audit
+agents/context
+agents/git
+agents/task-create
+agents/handover
+agents/healing
+agents/session-capture
+agents/resume
+agents/fabric
