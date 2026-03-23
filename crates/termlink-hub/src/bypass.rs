@@ -36,6 +36,32 @@ pub struct RunStats {
 /// Number of successful orchestrated runs required for promotion.
 pub const PROMOTION_THRESHOLD: u64 = 5;
 
+/// Default denylist patterns — commands matching any of these are never promotable.
+/// Matches are case-insensitive substring checks.
+const DENYLIST_PATTERNS: &[&str] = &[
+    "rm ",
+    "rm\t",
+    "rmdir",
+    "drop ",
+    "delete ",
+    "force-push",
+    "force_push",
+    "--force",
+    "--no-verify",
+    "reset --hard",
+    "clean -f",
+    "truncate",
+    "shutdown",
+    "kill ",
+    "pkill",
+];
+
+/// Check if a command matches any denylist pattern (case-insensitive substring).
+pub fn is_denylisted(command: &str) -> bool {
+    let lower = command.to_lowercase();
+    DENYLIST_PATTERNS.iter().any(|p| lower.contains(p))
+}
+
 impl BypassRegistry {
     /// Load registry from the default path (`{runtime_dir}/bypass-registry.json`).
     pub fn load() -> Self {
@@ -87,7 +113,16 @@ impl BypassRegistry {
 
     /// Record an orchestrated run for a command (pre-promotion tracking).
     /// Returns `true` if the command was just promoted to bypass.
+    /// Denylisted commands are silently ignored (never tracked or promoted).
     pub fn record_orchestrated_run(&mut self, command: &str, success: bool) -> bool {
+        if is_denylisted(command) {
+            tracing::warn!(
+                command = %command,
+                "Bypass registry: denylisted command — not tracking for promotion"
+            );
+            return false;
+        }
+
         // If already promoted, just update stats
         if let Some(entry) = self.entries.get_mut(command) {
             entry.run_count += 1;
@@ -428,5 +463,35 @@ mod tests {
             );
         }
         assert_eq!(reg.candidates.len(), 10);
+    }
+
+    #[test]
+    fn denylisted_command_not_promotable() {
+        let mut reg = BypassRegistry::default();
+
+        // Try to promote "rm -rf /tmp/data" — should be denylisted
+        for _ in 0..10 {
+            assert!(!reg.record_orchestrated_run("rm -rf /tmp/data", true));
+        }
+        assert!(reg.candidates.get("rm -rf /tmp/data").is_none());
+        assert!(reg.check("rm -rf /tmp/data").is_none());
+    }
+
+    #[test]
+    fn denylist_patterns_match_various_commands() {
+        assert!(is_denylisted("rm -rf /"));
+        assert!(is_denylisted("DROP TABLE users"));
+        assert!(is_denylisted("delete /var/data"));
+        assert!(is_denylisted("git push --force"));
+        assert!(is_denylisted("git reset --hard HEAD~1"));
+        assert!(is_denylisted("kill -9 1234"));
+        assert!(is_denylisted("git commit --no-verify"));
+
+        // These should NOT be denylisted
+        assert!(!is_denylisted("fw doctor"));
+        assert!(!is_denylisted("cargo test"));
+        assert!(!is_denylisted("termlink.ping"));
+        assert!(!is_denylisted("git status"));
+        assert!(!is_denylisted("fw metrics"));
     }
 }

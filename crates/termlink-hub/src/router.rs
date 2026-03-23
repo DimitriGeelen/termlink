@@ -530,6 +530,7 @@ async fn handle_orchestrator_route(
                     "command": method,
                     "tier": entry.tier,
                     "run_count": entry.run_count,
+                    "note": "routing shortcut, not execution authorization",
                 }),
             )
             .into();
