@@ -79,38 +79,18 @@ An orchestrator agent needs to delegate specialized work (research, infrastructu
 
 ## Decisions
 
-### 2026-03-23 — Execution model
-- **Chose:** Deterministic-first with stochastic fallback
-- **Why:** System should mature over time (less LLM, more scripts). Aligns with D1 (antifragility).
-- **Rejected:** Hot/warm/cold lifecycle tiers (answered wrong question — resource mgmt vs execution governance)
+**Decision**: GO
 
-### 2026-03-23 — Supervision model
-- **Chose:** Qualitative risk assessment on 3 axes (script maturity, context familiarity, blast radius)
-- **Why:** Run counters are meaningless across projects. A script promoted to a new project resets context familiarity.
-- **Rejected:** Counter-based ramp-down (3-5 runs then autonomous)
+**Rationale**: Decomposition complete: T-237 (orchestrator.route) built and passing, T-238-T-252 bypass registry built with 66 tests, T-255 E2E harness 13/13. All child tasks delivered.
 
-### 2026-03-23 — Capability discovery
-- **Chose:** Progressive dialogue: bypass → cached route → orchestrator → negotiation → cache update
-- **Why:** First interaction is expensive (full round-trip), but investment amortizes quickly via caching.
-- **Rejected:** Static routing table (doesn't learn), pure agent routing (wrong abstraction level)
-
-### 2026-03-23 — Architectural ownership
-- **Chose:** Framework owns policy, TermLink owns transport. Start embedded, extract after 20+ tasks.
-- **Why:** Litmus test: "Replace TermLink with Unix pipes — does orchestration still work?" Must be yes.
-- **Rejected:** TermLink-native (couples policy to transport), independent layer (premature abstraction)
-
-### 2026-03-23 — Supervision foundation
-- **Chose:** Build on enforcement tiers (proven: 3 real blocks, 538 commits)
-- **Why:** Evidence assessment showed healing loop dormant (0 invocations), fabric analysis unused
-- **Rejected:** Building on healing loop or fabric blast-radius (unproven mechanisms)
-
+**Date**: 2026-03-23T21:20:04Z
 ## Decision
 
 **Decision**: GO
 
-**Rationale**: All 3 go criteria met (use cases clear, TermLink primitives sufficient, pattern validated by dogfooding). No no-go criteria triggered. 22 mesh agents across 3 rounds produced 23 research files. Architecture: deterministic-first execution, qualitative trust supervision, progressive capability discovery, framework owns policy / TermLink owns transport. One open problem (script error yielding) captured but non-blocking. Build decomposition: 7 tasks from hub RPC to supervision integration.
+**Rationale**: Decomposition complete: T-237 (orchestrator.route) built and passing, T-238-T-252 bypass registry built with 66 tests, T-255 E2E harness 13/13. All child tasks delivered.
 
-**Date**: 2026-03-23T13:25:22Z
+**Date**: 2026-03-23T21:20:04Z
 
 ## Updates
 
@@ -121,3 +101,8 @@ An orchestrator agent needs to delegate specialized work (research, infrastructu
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** All 3 go criteria met (use cases clear, TermLink primitives sufficient, pattern validated by dogfooding). No no-go criteria triggered. 22 mesh agents across 3 rounds produced 23 research files. Architecture: deterministic-first execution, qualitative trust supervision, progressive capability discovery, framework owns policy / TermLink owns transport. One open problem (script error yielding) captured but non-blocking. Build decomposition: 7 tasks from hub RPC to supervision integration.
+
+### 2026-03-23T21:20:04Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Decomposition complete: T-237 (orchestrator.route) built and passing, T-238-T-252 bypass registry built with 66 tests, T-255 E2E harness 13/13. All child tasks delivered.

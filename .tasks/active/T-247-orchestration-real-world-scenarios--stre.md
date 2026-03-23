@@ -54,14 +54,18 @@ We built `orchestrator.route` (T-237) and bypass registry (T-238) with unit test
 
 ## Decisions
 
-### 2026-03-23 — Semantic failure gap (research scenario 2)
-- **Chose:** Document as caller responsibility, no registry fix
-- **Why:** The registry correctly tracks RPC success. Interpreting result quality is the calling agent's job.
-- **Rejected:** Adding result-quality scoring to the registry — over-engineering, domain-specific
+**Decision**: GO
 
+**Rationale**: 15 scenarios from 5 lenses, 8 gaps found, 7 build tasks completed (T-248-T-252, T-255). E2E harness 13/13.
+
+**Date**: 2026-03-23T21:20:14Z
 ## Decision
 
-GO — 15 scenarios from 5 lenses revealed 8 real architectural gaps (3 high severity). Decomposed into 8 build tasks (T-248..T-255) with suggested build order. See docs/reports/T-247-orchestration-scenarios.md.
+**Decision**: GO
+
+**Rationale**: 15 scenarios from 5 lenses, 8 gaps found, 7 build tasks completed (T-248-T-252, T-255). E2E harness 13/13.
+
+**Date**: 2026-03-23T21:20:14Z
 
 ## Updates
 
@@ -75,3 +79,8 @@ GO — 15 scenarios from 5 lenses revealed 8 real architectural gaps (3 high sev
 ### 2026-03-23T16:54:00Z — task decomposition
 - Created T-248 through T-255 from gap analysis
 - Updated research artifact with gap table and build order
+
+### 2026-03-23T21:20:14Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** 15 scenarios from 5 lenses, 8 gaps found, 7 build tasks completed (T-248-T-252, T-255). E2E harness 13/13.
