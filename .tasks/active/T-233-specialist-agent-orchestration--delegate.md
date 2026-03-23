@@ -55,7 +55,7 @@ An orchestrator agent needs to delegate specialized work (research, infrastructu
 - [x] Problem statement validated with human
 - [x] Use cases mapped (which specialisms, when to delegate)
 - [x] Architecture options compared
-- [ ] Go/No-Go decision made
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -106,9 +106,18 @@ An orchestrator agent needs to delegate specialized work (research, infrastructu
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: All 3 go criteria met (use cases clear, TermLink primitives sufficient, pattern validated by dogfooding). No no-go criteria triggered. 22 mesh agents across 3 rounds produced 23 research files. Architecture: deterministic-first execution, qualitative trust supervision, progressive capability discovery, framework owns policy / TermLink owns transport. One open problem (script error yielding) captured but non-blocking. Build decomposition: 7 tasks from hub RPC to supervision integration.
+
+**Date**: 2026-03-23T13:25:22Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-23T13:25:22Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** All 3 go criteria met (use cases clear, TermLink primitives sufficient, pattern validated by dogfooding). No no-go criteria triggered. 22 mesh agents across 3 rounds produced 23 research files. Architecture: deterministic-first execution, qualitative trust supervision, progressive capability discovery, framework owns policy / TermLink owns transport. One open problem (script error yielding) captured but non-blocking. Build decomposition: 7 tasks from hub RPC to supervision integration.
