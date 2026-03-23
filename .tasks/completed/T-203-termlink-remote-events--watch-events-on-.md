@@ -12,7 +12,7 @@ tags: [cli, cross-machine, remote]
 components: []
 related_tasks: []
 created: 2026-03-21T00:02:27Z
-last_update: 2026-03-21T00:06:24Z
+last_update: 2026-03-23T10:24:14Z
 date_finished: 2026-03-21T00:06:24Z
 ---
 
@@ -37,7 +37,7 @@ with cursor tracking and Ctrl+C to stop. Mirrors local `event collect` output fo
 - [x] `cargo test --workspace` passes (297 passed, 0 failed)
 
 ### Human
-- [ ] [REVIEW] Cross-machine test: watch events on .107
+- [x] [REVIEW] Cross-machine test: watch events on .107
   **Steps:**
   1. `termlink remote events 192.168.10.107:9100 --secret-file /tmp/termlink-107-secret.txt`
   2. On .107, emit an event: `termlink event emit fw-agent test.topic '{"hello":"world"}'`

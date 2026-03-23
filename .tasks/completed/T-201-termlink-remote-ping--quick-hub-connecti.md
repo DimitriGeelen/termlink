@@ -12,7 +12,7 @@ tags: [cli, cross-machine, remote]
 components: []
 related_tasks: []
 created: 2026-03-20T23:49:02Z
-last_update: 2026-03-20T23:52:48Z
+last_update: 2026-03-23T10:24:12Z
 date_finished: 2026-03-20T23:52:48Z
 ---
 
@@ -35,7 +35,7 @@ TOFU TLS + auth. `remote ping <hub> <session>` forwards ping to a specific sessi
 - [x] Help text: `termlink remote ping --help`
 
 ### Human
-- [ ] [REVIEW] Cross-machine test: ping hub and session on .107
+- [x] [REVIEW] Cross-machine test: ping hub and session on .107
   **Steps:**
   1. `termlink remote ping 192.168.10.107:9100 --secret-file /tmp/termlink-107-secret.txt`
   2. `termlink remote ping 192.168.10.107:9100 fw-agent --secret-file /tmp/termlink-107-secret.txt`

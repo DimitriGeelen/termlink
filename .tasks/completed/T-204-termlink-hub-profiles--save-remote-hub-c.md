@@ -12,7 +12,7 @@ tags: [cli, cross-machine, ux]
 components: []
 related_tasks: []
 created: 2026-03-21T06:04:50Z
-last_update: 2026-03-21T06:14:26Z
+last_update: 2026-03-23T10:24:15Z
 date_finished: 2026-03-21T06:14:26Z
 ---
 
@@ -39,7 +39,7 @@ configs and use short aliases: `termlink remote list lab` instead of the full fo
 - [x] Verified: add/list/remove profile workflow works end-to-end
 
 ### Human
-- [ ] [REVIEW] Test hub profile workflow
+- [x] [REVIEW] Test hub profile workflow
   **Steps:**
   1. `termlink remote profile add lab 192.168.10.107:9100 --secret-file /tmp/termlink-107-secret.txt`
   2. `termlink remote ping lab`

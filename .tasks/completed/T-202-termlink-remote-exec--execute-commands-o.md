@@ -12,7 +12,7 @@ tags: [cli, cross-machine, remote]
 components: []
 related_tasks: []
 created: 2026-03-20T23:54:27Z
-last_update: 2026-03-21T00:01:13Z
+last_update: 2026-03-23T10:24:13Z
 date_finished: 2026-03-21T00:01:13Z
 ---
 
@@ -36,7 +36,7 @@ Execute shell commands on remote sessions via hub routing. Forwards `command.exe
 - [x] Help text: `termlink remote exec --help`
 
 ### Human
-- [ ] [REVIEW] Cross-machine test: execute command on .107 session
+- [x] [REVIEW] Cross-machine test: execute command on .107 session
   **Steps:**
   1. `termlink remote exec 192.168.10.107:9100 fw-agent "hostname" --secret-file /tmp/termlink-107-secret.txt`
   2. Verify output shows .107's hostname

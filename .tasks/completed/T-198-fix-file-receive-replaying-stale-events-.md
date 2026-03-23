@@ -15,7 +15,7 @@ tags: [bug, file-transfer, events]
 components: []
 related_tasks: [T-197]
 created: 2026-03-20T22:39:35Z
-last_update: 2026-03-20T23:12:33Z
+last_update: 2026-03-23T10:24:11Z
 date_finished: 2026-03-20T23:12:33Z
 ---
 
@@ -36,7 +36,7 @@ at `None` (line 4226), replaying entire event ring buffer.
 - [x] Cross-machine test: stale(23B) + real(113B) sent → receiver got real file, SHA-256 match
 
 ### Human
-- [ ] [REVIEW] Cross-machine test: send file → receive file → SHA-256 matches
+- [x] [REVIEW] Cross-machine test: send file → receive file → SHA-256 matches
   **Steps:**
   1. On .107: `termlink file receive fw-agent --output-dir /tmp/test --timeout 30`
   2. From macOS: `termlink remote send-file 192.168.10.107:9100 fw-agent ./file.txt --secret-file /tmp/termlink-107-secret.txt`

@@ -14,7 +14,7 @@ tags: [cli, cross-machine, file-transfer]
 components: []
 related_tasks: [T-163, T-186, T-187]
 created: 2026-03-20T22:24:41Z
-last_update: 2026-03-20T22:31:49Z
+last_update: 2026-03-23T10:24:10Z
 date_finished: 2026-03-20T22:31:49Z
 ---
 
@@ -40,7 +40,7 @@ Discovered during T-196: 13KB pickup prompt too large for PTY inject, needed fil
 - [x] Help text: `termlink remote send-file --help` shows usage
 
 ### Human
-- [ ] [REVIEW] Test cross-machine: send file from macOS to .107 session
+- [x] [REVIEW] Test cross-machine: send file from macOS to .107 session
   **Steps:**
   1. Ensure hub running on .107 with `--tcp`
   2. Start a receiver: `termlink file receive fw-agent --output-dir /tmp`

@@ -12,7 +12,7 @@ tags: [cli, cross-machine, remote]
 components: []
 related_tasks: []
 created: 2026-03-20T23:25:30Z
-last_update: 2026-03-20T23:33:17Z
+last_update: 2026-03-23T10:24:12Z
 date_finished: 2026-03-20T23:33:17Z
 ---
 
@@ -39,7 +39,7 @@ TOFU+auth connection pattern and the hub's `session.discover` RPC method.
 - [x] Refactored: extracted `connect_remote_hub()` helper, removed ~120 lines of duplicated TOFU+auth boilerplate from inject and send-file
 
 ### Human
-- [ ] [REVIEW] Cross-machine test: list sessions on .107
+- [x] [REVIEW] Cross-machine test: list sessions on .107
   **Steps:**
   1. Ensure hub running on .107 with `--tcp` and a registered session
   2. `termlink remote list 192.168.10.107:9100 --secret-file /tmp/termlink-107-secret.txt`

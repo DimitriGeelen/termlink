@@ -6,13 +6,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:49Z
-last_update: 2026-03-23T09:15:10Z
+last_update: 2026-03-23T09:56:10Z
 date_finished: null
 ---
 
@@ -72,3 +72,6 @@ grep -rq 'mirror' crates/termlink-session/src/data_server.rs crates/termlink-hub
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-234-termlink-mirror--read-only-terminal-mirr.md
 - **Context:** Initial task creation
+
+### 2026-03-23T09:15:51Z — status-update [task-update-agent]
+- **Change:** owner: agent → human
