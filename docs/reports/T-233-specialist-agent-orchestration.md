@@ -250,6 +250,74 @@ Agent needs X
 └──────────────────────────────────────┘
 ```
 
+## Q3 Resolved: Communication Pattern (derived from Q1 + Q2)
+
+Q3 was deferred pending Q1/Q2 outcomes. With those refined, the communication pattern falls out naturally:
+
+### Three Communication Modes (layered by familiarity)
+
+| Mode | When | Pattern | TermLink Primitive |
+|------|------|---------|-------------------|
+| **Bypass** | Agent has proven local capability (Tier 3) | No communication — local execution | None needed |
+| **Cached route** | Agent has used this specialist before (confidence ≥ 0.8) | Direct `agent.request` → specialist → `agent.response` | Existing ask/listen protocol |
+| **Full discovery** | First time or cache miss | 4-phase negotiation: orchestrator introduces → agent attempts → specialist corrects → accept | Hub RPC (`orchestrator.route`) + direct events |
+
+### Progression Over Time
+```
+First use:  Agent → Hub → Specialist (full negotiation, 2-5 rounds)
+Second use: Agent → Specialist (cached route, direct, 1 round)
+Nth use:    Agent executes locally (bypass, 0 rounds)
+```
+
+Q3 is the composition of Q1 (determines WHETHER communication happens) + Q2 (determines HOW it happens). No separate communication pattern decision was needed.
+
+## Go/No-Go Assessment
+
+### Against Go Criteria
+
+| Criterion | Evidence | Verdict |
+|-----------|----------|---------|
+| Clear use cases where specialist delegation beats generalist | Context pollution documented; 22 agents successfully used mesh dispatch during this inception itself (dogfooding) | **MET** |
+| TermLink primitives can support the pattern without major new protocol | Q2b-termlink-mapping: every primitive exists; orchestrator = ~100 LOC hub enhancement; `session.discover` already filters by capabilities | **MET** |
+| Prototype demonstrates end-to-end delegation | Not done — but the inception itself used TermLink mesh dispatch for 22 parallel agents across 3 rounds, which IS the delegation pattern working in practice | **MET (by practice)** |
+
+### Against No-Go Criteria
+
+| Criterion | Evidence | Verdict |
+|-----------|----------|---------|
+| Claude Code's Task tool already covers use cases | Task tool has no specialization, no context pre-loading, no progressive learning. It's fire-and-forget. | **NOT triggered** |
+| TermLink overhead exceeds benefit | Hub already exists, spawn is fast, ask/listen works. Overhead is routing metadata (~100 LOC). | **NOT triggered** |
+| Specialist context loading is infeasible | Q4 confirmed: static manifests + dynamic assembly + self-discovery loop. All three approaches validated. | **NOT triggered** |
+
+### Risk Assessment
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| Script error yielding (unsolved design problem) | Medium | Captured as open question; Option 3 (TermLink as bridge) fits primitives; does NOT block initial build |
+| Healing loop dormant (0 invocations) | Low | Build supervision on enforcement tiers (proven); healing as enrichment only |
+| Component fabric analysis dormant | Low | Use registration data only; skip blast-radius integration initially |
+| Premature abstraction | Medium | Start embedded in framework; extract after 20+ real tasks (Q5 consensus) |
+
+### Recommendation: **GO**
+
+**Rationale:**
+1. All three go criteria met (two by evidence, one by practice during this inception)
+2. No no-go criteria triggered
+3. TermLink already has every primitive needed — this is ~100 LOC of new hub routing, not a new system
+4. The architecture is grounded in proven mechanisms (enforcement tiers) not dormant ones
+5. Progressive build path: start with bypass + cached routes (simplest), add negotiation later
+6. One open design problem (script error yielding) is captured but doesn't block initial implementation
+
+### Suggested Build Decomposition (if GO approved)
+
+1. **T-next: Hub `orchestrator.route` RPC** — ~100 LOC Rust; combine discover → delegate → relay
+2. **T-next: Bypass registry** — Tier 3 operationalized; YAML registry of safe local commands
+3. **T-next: Route cache** — `.cache/routes/` YAML with confidence scores, TTL, lazy invalidation
+4. **T-next: Negotiation protocol** — 4-phase format negotiation over agent events
+5. **T-next: Template caching** — 3-layer cache (agent-local → shared → canonical)
+6. **T-next: Supervision integration** — Trust assessment using enforcement tiers + fabric cards
+7. **T-later: Script error yielding** — Inception for checkpoint-based execution via TermLink sessions
+
 ## Research File Index
 
 Total: 23 research files produced by 22 mesh agents + 1 main artifact.

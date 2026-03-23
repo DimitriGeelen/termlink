@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T08:59:00Z
-last_update: 2026-03-23T12:04:19Z
+last_update: 2026-03-23T12:36:20Z
 date_finished: null
 ---
 
@@ -52,9 +52,9 @@ An orchestrator agent needs to delegate specialized work (research, infrastructu
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated with human
-- [ ] Use cases mapped (which specialisms, when to delegate)
-- [ ] Architecture options compared
+- [x] Problem statement validated with human
+- [x] Use cases mapped (which specialisms, when to delegate)
+- [x] Architecture options compared
 - [ ] Go/No-Go decision made
 
 ## Go/No-Go Criteria
@@ -79,14 +79,30 @@ An orchestrator agent needs to delegate specialized work (research, infrastructu
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-03-23 — Execution model
+- **Chose:** Deterministic-first with stochastic fallback
+- **Why:** System should mature over time (less LLM, more scripts). Aligns with D1 (antifragility).
+- **Rejected:** Hot/warm/cold lifecycle tiers (answered wrong question — resource mgmt vs execution governance)
+
+### 2026-03-23 — Supervision model
+- **Chose:** Qualitative risk assessment on 3 axes (script maturity, context familiarity, blast radius)
+- **Why:** Run counters are meaningless across projects. A script promoted to a new project resets context familiarity.
+- **Rejected:** Counter-based ramp-down (3-5 runs then autonomous)
+
+### 2026-03-23 — Capability discovery
+- **Chose:** Progressive dialogue: bypass → cached route → orchestrator → negotiation → cache update
+- **Why:** First interaction is expensive (full round-trip), but investment amortizes quickly via caching.
+- **Rejected:** Static routing table (doesn't learn), pure agent routing (wrong abstraction level)
+
+### 2026-03-23 — Architectural ownership
+- **Chose:** Framework owns policy, TermLink owns transport. Start embedded, extract after 20+ tasks.
+- **Why:** Litmus test: "Replace TermLink with Unix pipes — does orchestration still work?" Must be yes.
+- **Rejected:** TermLink-native (couples policy to transport), independent layer (premature abstraction)
+
+### 2026-03-23 — Supervision foundation
+- **Chose:** Build on enforcement tiers (proven: 3 real blocks, 538 commits)
+- **Why:** Evidence assessment showed healing loop dormant (0 invocations), fabric analysis unused
+- **Rejected:** Building on healing loop or fabric blast-radius (unproven mechanisms)
 
 ## Decision
 
