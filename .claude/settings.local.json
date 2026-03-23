@@ -269,7 +269,22 @@
       "Bash(/Users/dimidev32/.cargo/bin/termlink remote:*)",
       "Bash(scp:*)",
       "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /Users/dimidev32/.agentic-framework/agents/audit/audit.sh 2>&1 | tail -80)",
-      "Bash(for id:*)"
+      "Bash(for id:*)",
+      "Bash(head:*)",
+      "Bash(for file:*)",
+      "Bash(ln:*)",
+      "Bash(for dir:*)",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /Users/dimidev32/001-projects/010-termlink/agents/audit/audit.sh 2>&1 | grep -E \"\\\\[FAIL\\\\]\")",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/bin/bash /Users/dimidev32/001-projects/010-termlink/agents/audit/audit.sh 2>&1 | grep -E \"\\\\[FAIL\\\\]\")",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/bin/bash /Users/dimidev32/001-projects/010-termlink/agents/audit/audit.sh 2>&1 | tail -20)",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/bin/bash /Users/dimidev32/001-projects/010-termlink/agents/audit/audit.sh > /tmp/audit-full.txt 2>&1; echo \"EXIT: $?\")",
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/bin/bash /Users/dimidev32/001-projects/010-termlink/agents/audit/audit.sh 2>&1 | grep \"FAIL\")",
+      "Bash(TL=\"./target/release/termlink\"\n$TL remote ping 192.168.10.107:9100 --secret-file /tmp/termlink-107-secret.txt 2>&1)",
+      "Bash(TL=\"./target/release/termlink\"\n$TL remote list 192.168.10.107:9100 --secret-file /tmp/termlink-107-secret.txt 2>&1)",
+      "Bash(TL=\"./target/release/termlink\"\nSECRET=\"/tmp/termlink-107-secret.txt\"\n\n$TL remote send-file 192.168.10.107:9100 fw-agent docs/reports/T-141-upstream-fix-request.md \\\\\n  --secret-file \"$SECRET\" --scope control 2>&1)",
+      "Bash(./agents/mesh/dispatch.sh:*)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink list:*)",
+      "Bash(jobs:*)"
     ]
   }
 }
