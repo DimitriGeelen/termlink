@@ -628,9 +628,24 @@ async fn handle_orchestrator_route(
         .into();
     }
 
-    // Try candidates in order (failover)
+    // Try candidates in order (failover), skipping circuit-opened sessions
+    let cb = crate::circuit_breaker::global();
     let mut last_error = String::new();
+    let mut skipped_count = 0usize;
     for reg in candidates.drain(..) {
+        let session_id = reg.id.as_str().to_string();
+
+        // Skip sessions with open circuits (avoids cascading timeout delays)
+        if cb.should_skip(&session_id) {
+            skipped_count += 1;
+            tracing::debug!(
+                session = %session_id,
+                "orchestrator.route: circuit open — skipping candidate"
+            );
+            last_error = format!("{}: circuit open (skipped)", reg.display_name);
+            continue;
+        }
+
         let addr = reg.addr.to_transport_addr();
         let result = tokio::time::timeout(timeout, async {
             let mut c = client::Client::connect_addr(&addr).await?;
@@ -640,6 +655,7 @@ async fn handle_orchestrator_route(
 
         match result {
             Ok(Ok(RpcResponse::Success(resp))) => {
+                cb.record_success(&session_id);
                 // Record successful orchestrated run (skip for mutating commands)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
@@ -669,6 +685,7 @@ async fn handle_orchestrator_route(
             }
             Ok(Ok(RpcResponse::Error(e))) => {
                 // RPC error = command failure (the specialist responded with an error)
+                // Command failures don't open the circuit (session is alive, just rejected the call)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
                     let method_clone = method.clone();
@@ -684,6 +701,7 @@ async fn handle_orchestrator_route(
                 );
             }
             Ok(Err(e)) => {
+                cb.record_failure(&session_id);
                 // Connection error = infra failure (specialist never received the call)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
@@ -700,6 +718,7 @@ async fn handle_orchestrator_route(
                 );
             }
             Err(_) => {
+                cb.record_failure(&session_id);
                 // Timeout = infra failure (specialist didn't respond in time)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
