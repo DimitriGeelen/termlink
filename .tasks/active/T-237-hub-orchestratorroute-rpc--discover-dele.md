@@ -4,7 +4,7 @@ name: "Hub orchestrator.route RPC — discover, delegate, relay in one call"
 description: >
   Add orchestrator.route RPC method to TermLink hub. Combines session.discover + delegate + relay into a single call. Agent sends capability slug, hub finds matching specialist, forwards request, relays response. ~100 LOC Rust on existing hub primitives. See T-233 research: Q2b-termlink-mapping.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [T-233, orchestration, hub]
 components: []
 related_tasks: [T-233]
 created: 2026-03-23T13:27:16Z
-last_update: 2026-03-23T13:27:16Z
+last_update: 2026-03-23T16:14:26Z
 date_finished: null
 ---
 
@@ -72,3 +72,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-237-hub-orchestratorroute-rpc--discover-dele.md
 - **Context:** Initial task creation
+
+### 2026-03-23T16:14:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

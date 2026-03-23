@@ -46,6 +46,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
+        control::method::ORCHESTRATOR_ROUTE => handle_orchestrator_route(id, &req.params).await,
         "session.register_remote" => handle_register_remote(id, &req.params),
         "session.heartbeat" => handle_heartbeat(id, &req.params),
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
@@ -472,6 +473,190 @@ fn extract_string_array(params: &serde_json::Value, key: &str) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Handle `orchestrator.route` — discover a specialist, forward a method, relay the response.
+///
+/// Combines session.discover + forward into a single atomic call:
+///   1. Find sessions matching the selector (tags/roles/capabilities/name)
+///   2. Forward the specified method+params to the first matching session
+///   3. If the first fails, try the next candidate (failover)
+///   4. Return the specialist's response plus routing metadata
+///
+/// Params: {
+///   selector: { tags?: [...], roles?: [...], capabilities?: [...], name?: string },
+///   method: string,       // RPC method to call on the specialist
+///   params: object,       // params to pass to the specialist
+///   timeout_secs?: number // per-target timeout (default: 5)
+/// }
+///
+/// Response: {
+///   routed_to: { id, display_name },
+///   candidates: number,
+///   result: <specialist's response payload>
+/// }
+async fn handle_orchestrator_route(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+) -> RpcResponse {
+    // Extract required method
+    let method = match params.get("method").and_then(|m| m.as_str()) {
+        Some(m) => m.to_string(),
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing 'method' in params").into();
+        }
+    };
+
+    let forward_params = params.get("params").cloned().unwrap_or(json!({}));
+    let selector = params.get("selector").cloned().unwrap_or(json!({}));
+    let timeout_secs = params
+        .get("timeout_secs")
+        .and_then(|t| t.as_u64())
+        .unwrap_or(5);
+    let timeout = Duration::from_secs(timeout_secs);
+
+    // Discover candidates using same filter logic as session.discover
+    let sessions = match manager::list_sessions(false) {
+        Ok(s) => s,
+        Err(e) => {
+            return ErrorResponse::internal_error(
+                id,
+                &format!("Failed to list sessions: {e}"),
+            )
+            .into();
+        }
+    };
+
+    let tag_filter = extract_string_array(&selector, "tags");
+    let role_filter = extract_string_array(&selector, "roles");
+    let cap_filter = extract_string_array(&selector, "capabilities");
+    let name_filter = selector.get("name").and_then(|n| n.as_str());
+
+    let mut candidates: Vec<_> = sessions
+        .into_iter()
+        .filter(|s| {
+            tag_filter.iter().all(|t| s.tags.contains(t))
+                && role_filter.iter().all(|r| s.roles.contains(r))
+                && cap_filter.iter().all(|c| s.capabilities.contains(c))
+                && name_filter.is_none_or(|n| {
+                    s.display_name.to_lowercase().contains(&n.to_lowercase())
+                })
+        })
+        .collect();
+
+    // Also check remote sessions
+    if let Some(store) = remote_store() {
+        let remote_matches: Vec<_> = store
+            .list_live()
+            .into_iter()
+            .filter(|e| {
+                tag_filter.iter().all(|t| e.tags.contains(t))
+                    && role_filter.iter().all(|r| e.roles.contains(r))
+                    && cap_filter.iter().all(|c| e.capabilities.contains(c))
+                    && name_filter.is_none_or(|n| {
+                        e.display_name.to_lowercase().contains(&n.to_lowercase())
+                    })
+            })
+            .collect();
+
+        // Convert remote entries to a forwarding attempt below
+        for entry in remote_matches {
+            // Try remote candidates after local ones
+            let addr = TransportAddr::Tcp {
+                host: entry.host.clone(),
+                port: entry.port,
+            };
+            let result = tokio::time::timeout(timeout, async {
+                let mut c = client::Client::connect_addr(&addr).await?;
+                c.call(&method, id.clone(), forward_params.clone()).await
+            })
+            .await;
+
+            if let Ok(Ok(RpcResponse::Success(resp))) = result {
+                return Response::success(
+                    id,
+                    json!({
+                        "routed_to": { "id": entry.id, "display_name": entry.display_name },
+                        "candidates": candidates.len() + 1,
+                        "result": resp.result,
+                    }),
+                )
+                .into();
+            }
+        }
+    }
+
+    let total_candidates = candidates.len();
+
+    if candidates.is_empty() {
+        return ErrorResponse::new(
+            id,
+            control::error_code::SESSION_NOT_FOUND,
+            "No sessions match the selector",
+        )
+        .into();
+    }
+
+    // Try candidates in order (failover)
+    let mut last_error = String::new();
+    for reg in candidates.drain(..) {
+        let addr = reg.addr.to_transport_addr();
+        let result = tokio::time::timeout(timeout, async {
+            let mut c = client::Client::connect_addr(&addr).await?;
+            c.call(&method, id.clone(), forward_params.clone()).await
+        })
+        .await;
+
+        match result {
+            Ok(Ok(RpcResponse::Success(resp))) => {
+                return Response::success(
+                    id,
+                    json!({
+                        "routed_to": {
+                            "id": reg.id.as_str(),
+                            "display_name": reg.display_name,
+                        },
+                        "candidates": total_candidates,
+                        "result": resp.result,
+                    }),
+                )
+                .into();
+            }
+            Ok(Ok(RpcResponse::Error(e))) => {
+                last_error = format!("{}: {}", reg.display_name, e.error.message);
+                tracing::debug!(
+                    target = reg.display_name,
+                    error = %e.error.message,
+                    "orchestrator.route: candidate returned error, trying next"
+                );
+            }
+            Ok(Err(e)) => {
+                last_error = format!("{}: {}", reg.display_name, e);
+                tracing::debug!(
+                    target = reg.display_name,
+                    error = %e,
+                    "orchestrator.route: candidate connection failed, trying next"
+                );
+            }
+            Err(_) => {
+                last_error = format!("{}: timeout", reg.display_name);
+                tracing::debug!(
+                    target = reg.display_name,
+                    "orchestrator.route: candidate timed out, trying next"
+                );
+            }
+        }
+    }
+
+    ErrorResponse::new(
+        id,
+        control::error_code::SESSION_NOT_FOUND,
+        &format!(
+            "All {} candidate(s) failed. Last: {}",
+            total_candidates, last_error
+        ),
+    )
+    .into()
 }
 
 /// Forward a request to the target session specified in params.target.
@@ -1394,5 +1579,84 @@ mod tests {
 
         proxy_handle.abort();
         handle.abort();
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_discovers_and_forwards() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        // Start a session that will be our "specialist"
+        let (handle, _reg) = start_test_session(&sessions_dir, "specialist-a").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Route a ping to any session matching the name
+        let params = json!({
+            "selector": { "name": "specialist" },
+            "method": "termlink.ping",
+            "params": {},
+        });
+
+        let resp = handle_orchestrator_route(json!("orch-1"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["routed_to"]["display_name"], "specialist-a");
+            assert_eq!(r.result["candidates"], 1);
+            // The forwarded ping should return the session info
+            assert_eq!(r.result["result"]["display_name"], "specialist-a");
+        } else {
+            panic!("Expected success, got error");
+        }
+
+        handle.abort();
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_no_match_returns_error() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let params = json!({
+            "selector": { "name": "nonexistent" },
+            "method": "termlink.ping",
+            "params": {},
+        });
+
+        let resp = handle_orchestrator_route(json!("orch-2"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Error(e) = resp {
+            assert_eq!(e.error.code, control::error_code::SESSION_NOT_FOUND);
+            assert!(e.error.message.contains("No sessions match"));
+        } else {
+            panic!("Expected error for no matching sessions");
+        }
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_missing_method_returns_error() {
+        let params = json!({
+            "selector": { "name": "anything" },
+        });
+
+        let resp = handle_orchestrator_route(json!("orch-3"), &params).await;
+
+        if let RpcResponse::Error(e) = resp {
+            assert_eq!(e.error.code, -32602);
+            assert!(e.error.message.contains("Missing 'method'"));
+        } else {
+            panic!("Expected error for missing method");
+        }
     }
 }
