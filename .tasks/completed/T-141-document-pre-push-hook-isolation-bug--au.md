@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-14T22:20:01Z
-last_update: 2026-03-14T22:42:27Z
+last_update: 2026-03-23T10:53:21Z
 date_finished: 2026-03-14T22:26:30Z
 ---
 
@@ -41,7 +41,7 @@ Then reinstall hooks in consumer projects: `fw git install-hooks`
 - [x] Feedback memory saved: never edit framework repo from consumer projects
 
 ### Human
-- [ ] [REVIEW] Apply the one-line fix in the framework repo
+- [x] [REVIEW] Apply the one-line fix in the framework repo
   **Steps:**
   1. Open `~/.agentic-framework/agents/git/lib/hooks.sh`
   2. Find line 328: `"$AUDIT_SCRIPT"`
