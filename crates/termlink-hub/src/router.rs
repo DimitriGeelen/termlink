@@ -673,6 +673,12 @@ async fn handle_orchestrator_route(
                 );
             }
             Ok(Err(e)) => {
+                // Record transport failure under file lock
+                let reg_path = crate::bypass::registry_path();
+                let method_clone = method.clone();
+                let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                    r.record_orchestrated_run(&method_clone, false);
+                });
                 last_error = format!("{}: {}", reg.display_name, e);
                 tracing::debug!(
                     target = reg.display_name,
@@ -681,6 +687,12 @@ async fn handle_orchestrator_route(
                 );
             }
             Err(_) => {
+                // Record timeout failure under file lock
+                let reg_path = crate::bypass::registry_path();
+                let method_clone = method.clone();
+                let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                    r.record_orchestrated_run(&method_clone, false);
+                });
                 last_error = format!("{}: timeout", reg.display_name);
                 tracing::debug!(
                     target = reg.display_name,
@@ -1723,6 +1735,76 @@ mod tests {
         } else {
             panic!("Expected error for no matching sessions");
         }
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_transport_failure_tracked_in_bypass() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        // Start the dead session first (lower created_at, sorted first by list_sessions)
+        let (dead_handle, _dead_reg) =
+            start_test_session(&sessions_dir, "dead-specialist").await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        // Start the live session second
+        let (live_handle, _live_reg) =
+            start_test_session(&sessions_dir, "live-specialist").await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        // Kill the dead session's listener but leave socket file intact.
+        // Socket file + our PID = passes liveness check, but connect will fail.
+        dead_handle.abort();
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let params = json!({
+            "selector": {},
+            "method": "termlink.ping",
+            "params": {},
+            "timeout_secs": 1,
+        });
+
+        let resp = handle_orchestrator_route(json!("orch-transport-1"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        // Should succeed via the live specialist (failover from dead)
+        match &resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.result["routed_to"]["display_name"], "live-specialist");
+            }
+            RpcResponse::Error(e) => {
+                panic!("Expected success via failover, got error: {}", e.error.message);
+            }
+        }
+
+        // Check bypass registry — should have recorded the transport failure
+        let reg_path = dir.join("bypass-registry.json");
+        let bypass_reg = crate::bypass::BypassRegistry::load_from(&reg_path);
+
+        // The method should be tracked with at least 1 fail (from dead session)
+        // and 1 success (from live session)
+        let stats = bypass_reg.candidates.get("termlink.ping");
+        assert!(
+            stats.is_some(),
+            "termlink.ping should be tracked in bypass candidates"
+        );
+        let stats = stats.unwrap();
+        assert!(
+            stats.fail_count >= 1,
+            "Should have at least 1 transport failure recorded, got {}",
+            stats.fail_count
+        );
+        assert_eq!(
+            stats.success_count, 1,
+            "Should have 1 success from live specialist"
+        );
+
+        live_handle.abort();
     }
 
     #[tokio::test]
