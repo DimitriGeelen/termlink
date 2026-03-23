@@ -85,6 +85,122 @@ pub(crate) async fn connect_remote_hub(
     Ok(rpc_client)
 }
 
+/// Interactive remote session picker — connects to hub, lists sessions, prompts user.
+/// Returns the selected session name/ID.
+pub(crate) async fn pick_remote_session(
+    hub: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+) -> Result<String> {
+    use std::io::IsTerminal;
+
+    if !std::io::stdin().is_terminal() {
+        anyhow::bail!("No session specified and stdin is not a terminal (cannot prompt)");
+    }
+
+    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+
+    let resp = rpc_client
+        .call("session.discover", serde_json::json!("discover"), serde_json::json!({}))
+        .await;
+
+    let sessions = match resp {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+            r.result["sessions"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+        }
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            anyhow::bail!("Discover failed: {} {}", e.error.code, e.error.message);
+        }
+        Err(e) => {
+            anyhow::bail!("Discover error: {}", e);
+        }
+    };
+
+    if sessions.is_empty() {
+        anyhow::bail!("No active sessions on {}.", hub);
+    }
+
+    if sessions.len() == 1 {
+        let name = sessions[0]["display_name"].as_str().unwrap_or("?");
+        let id = sessions[0]["id"].as_str().unwrap_or("?");
+        eprintln!("Auto-selecting: {} ({})", name, id);
+        return Ok(name.to_string());
+    }
+
+    eprintln!("Sessions on {}:", hub);
+    eprintln!(
+        "  {:<4} {:<20} {:<12} {:<10} {}",
+        "#", "NAME", "STATE", "PID", "TAGS"
+    );
+    eprintln!("  {}", "-".repeat(60));
+    for (i, s) in sessions.iter().enumerate() {
+        let name = s["display_name"].as_str().unwrap_or("?");
+        let state = s["state"].as_str().unwrap_or("?");
+        let pid = s["pid"].as_u64().unwrap_or(0);
+        let tags = s["tags"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .unwrap_or_default();
+        eprintln!(
+            "  {:<4} {:<20} {:<12} {:<10} {}",
+            i + 1,
+            truncate(name, 19),
+            state,
+            pid,
+            tags
+        );
+    }
+    eprintln!();
+    eprint!("Select session [1-{}]: ", sessions.len());
+
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| anyhow::anyhow!("Failed to read input: {}", e))?;
+
+    let choice: usize = input
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("Invalid selection: '{}'", input.trim()))?;
+
+    if choice < 1 || choice > sessions.len() {
+        anyhow::bail!(
+            "Selection out of range: {} (expected 1-{})",
+            choice,
+            sessions.len()
+        );
+    }
+
+    let selected = &sessions[choice - 1];
+    let name = selected["display_name"].as_str().unwrap_or("?");
+    let id = selected["id"].as_str().unwrap_or("?");
+    eprintln!("→ {} ({})", name, id);
+    Ok(name.to_string())
+}
+
+/// Resolve a remote session target: if provided, return it; if None, prompt interactively.
+pub(crate) async fn resolve_remote_target(
+    session: Option<String>,
+    hub: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+) -> Result<String> {
+    if let Some(s) = session {
+        return Ok(s);
+    }
+    pick_remote_session(hub, secret_file, secret_hex, scope).await
+}
+
 pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
     match action {
         ProfileAction::Add { name, address, secret_file, secret, scope } => {
