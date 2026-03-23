@@ -1,12 +1,12 @@
 # ============================================================================
-# EPISODIC MEMORY - T-216: Register fabric cards for 14 new CLI modules
+# EPISODIC MEMORY - T-223: Register fabric cards for 14 new CLI modules
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
 # Generated: 2026-03-23T00:00:00Z
 # ============================================================================
 
-task_id: T-216
+task_id: T-223
 task_name: "Register fabric cards for 14 new CLI modules"
 workflow_type: build
 enrichment_status: auto-complete
@@ -21,7 +21,7 @@ last_commit: "2026-03-21T08:08:28+01:00"
 
 # Summary
 summary: |
-  Registered 14 fabric component cards for new CLI modules created by T-215 (CLI main.rs split). Updated existing main.rs card and subsystems.yaml with all 15 component paths.
+  Registered 14 fabric component cards for new CLI modules created by T-222 (CLI main.rs split). Updated existing main.rs card and subsystems.yaml with all 15 component paths.
 
 # Key outcomes
 outcomes:
@@ -59,7 +59,7 @@ artifacts:
 # Timeline
 git_timeline:
   - time: "2026-03-21T08:08:28"
-    action: "T-216: Register 14 fabric cards for new CLI modules + update main.rs card and subsystems"
+    action: "T-223: Register 14 fabric cards for new CLI modules + update main.rs card and subsystems"
 
 # What worked well
 successes:
@@ -83,5 +83,5 @@ metrics:
   lines_removed: 26
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-216-register-fabric-cards-for-14-new-cli-mod.md
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-223-register-fabric-cards-for-14-new-cli-mod.md
 generated_by: context-agent-hybrid

@@ -1,8 +1,8 @@
 ---
-id: T-214
-name: "Renumber colliding task IDs T-205–T-210 to T-215–T-220"
+id: T-229
+name: "Renumber colliding task IDs T-205–T-210 to T-222–T-227"
 description: >
-  Renumber colliding task IDs T-205–T-210 to T-215–T-220 to resolve collision with remote tasks
+  Renumber colliding task IDs T-205–T-210 to T-222–T-227 to resolve collision with remote tasks
 
 status: started-work
 workflow_type: refactor
@@ -16,19 +16,19 @@ last_update: 2026-03-21T23:26:35Z
 date_finished: null
 ---
 
-# T-214: Renumber colliding task IDs T-205–T-210 to T-214–T-219
+# T-229: Renumber colliding task IDs T-205–T-210 to T-222–T-227
 
 ## Context
 
-After rebasing onto origin/main, tasks T-205–T-210 collide with remote tasks created independently. Our tasks are all completed; remote tasks are active. Renumber ours to T-215–T-220 to resolve. Also register G-007 for framework upstream (task counter not safe for concurrent work).
+After rebasing onto origin/main, tasks T-205–T-210 collide with remote tasks created independently. Our tasks are all completed; remote tasks are active. Renumber ours to T-222–T-227 to resolve. Also register G-007 for framework upstream (task counter not safe for concurrent work).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] 6 task files renamed and IDs updated (T-205→T-215 through T-210→T-220)
-- [x] 6 episodic files renamed and task_ids updated (+ new T-216 episodic created)
-- [x] 14 fabric cards `created_by` updated from T-206 to T-216
-- [x] Handover S-2026-0321-0742 references updated (T-205→T-215)
+- [x] 6 task files renamed and IDs updated (T-215→T-222 through T-220→T-227)
+- [x] 6 episodic files renamed and task_ids updated
+- [x] 14 fabric cards `created_by` updated from T-216 to T-223
+- [x] Handover S-2026-0321-0742 references updated (T-215→T-222)
 - [x] No duplicate task IDs in `.tasks/` (verified: 0 duplicates)
 
 ## Verification

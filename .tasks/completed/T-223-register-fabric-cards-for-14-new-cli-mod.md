@@ -1,5 +1,5 @@
 ---
-id: T-216
+id: T-223
 name: "Register fabric cards for 14 new CLI modules"
 description: >
   Register fabric cards for 14 new CLI modules
@@ -16,11 +16,11 @@ last_update: 2026-03-21T07:08:36Z
 date_finished: 2026-03-21T07:08:36Z
 ---
 
-# T-216: Register fabric cards for 14 new CLI modules
+# T-223: Register fabric cards for 14 new CLI modules
 
 ## Context
 
-T-215 split the CLI monolith (5183 lines) into 14 focused modules. The commit hook flagged that these new files lack fabric component cards. This task registers cards for all 14 files and updates the existing main.rs card and subsystems.yaml.
+T-222 split the CLI monolith (5183 lines) into 14 focused modules. The commit hook flagged that these new files lack fabric component cards. This task registers cards for all 14 files and updates the existing main.rs card and subsystems.yaml.
 
 ## Acceptance Criteria
 
@@ -51,7 +51,7 @@ test $(ls .fabric/components/crates-termlink-cli-*.yaml | wc -l) -ge 15
 
 ### 2026-03-21T07:04:09Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-216-register-fabric-cards-for-14-new-cli-mod.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-223-register-fabric-cards-for-14-new-cli-mod.md
 - **Context:** Initial task creation
 
 ### 2026-03-21T07:08:36Z — status-update [task-update-agent]

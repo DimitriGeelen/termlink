@@ -1,12 +1,12 @@
 # ============================================================================
-# EPISODIC MEMORY - T-219: Fix deprecated cargo_bin import in CLI integration tests
+# EPISODIC MEMORY - T-226: Fix deprecated cargo_bin import in CLI integration tests
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
 # Generated: 2026-03-22T00:00:00Z
 # ============================================================================
 
-task_id: T-219
+task_id: T-226
 task_name: "Fix deprecated cargo_bin import in CLI integration tests"
 workflow_type: refactor
 enrichment_status: auto-complete
@@ -36,7 +36,7 @@ artifacts:
 
 git_timeline:
   - time: "2026-03-21T11:40:31"
-    action: "T-219: Fix deprecated cargo_bin import in CLI integration tests"
+    action: "T-226: Fix deprecated cargo_bin import in CLI integration tests"
 
 successes:
   - "Clean compiler output with no deprecation warnings"
@@ -55,5 +55,5 @@ metrics:
   lines_added: 60
   lines_removed: 6
 
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-219-fix-deprecated-cargobin-import-in-cli-in.md
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-226-fix-deprecated-cargobin-import-in-cli-in.md
 generated_by: context-agent-hybrid

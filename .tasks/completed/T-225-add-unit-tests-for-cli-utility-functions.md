@@ -1,5 +1,5 @@
 ---
-id: T-218
+id: T-225
 name: "Add unit tests for CLI utility functions"
 description: >
   Add unit tests for CLI utility functions
@@ -16,11 +16,11 @@ last_update: 2026-03-21T10:36:52Z
 date_finished: 2026-03-21T10:36:52Z
 ---
 
-# T-218: Add unit tests for CLI utility functions
+# T-225: Add unit tests for CLI utility functions
 
 ## Context
 
-T-215 extracted `util.rs` with 7 utility functions but only 5 ANSI-stripping tests. Add tests for `truncate`, `parse_signal`, `shell_escape`, `resize_payload`, and `generate_request_id`.
+T-222 extracted `util.rs` with 7 utility functions but only 5 ANSI-stripping tests. Add tests for `truncate`, `parse_signal`, `shell_escape`, `resize_payload`, and `generate_request_id`.
 
 ## Acceptance Criteria
 
@@ -51,7 +51,7 @@ T-215 extracted `util.rs` with 7 utility functions but only 5 ANSI-stripping tes
 
 ### 2026-03-21T10:34:47Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-218-add-unit-tests-for-cli-utility-functions.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-225-add-unit-tests-for-cli-utility-functions.md
 - **Context:** Initial task creation
 
 ### 2026-03-21T10:36:52Z — status-update [task-update-agent]

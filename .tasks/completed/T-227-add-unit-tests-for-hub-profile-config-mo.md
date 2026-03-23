@@ -1,5 +1,5 @@
 ---
-id: T-220
+id: T-227
 name: "Add unit tests for hub profile config module"
 description: >
   Add unit tests for hub profile config module
@@ -16,7 +16,7 @@ last_update: 2026-03-21T13:01:59Z
 date_finished: 2026-03-21T13:01:59Z
 ---
 
-# T-220: Add unit tests for hub profile config module
+# T-227: Add unit tests for hub profile config module
 
 ## Context
 
@@ -49,7 +49,7 @@ date_finished: 2026-03-21T13:01:59Z
 
 ### 2026-03-21T12:59:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-220-add-unit-tests-for-hub-profile-config-mo.md
+- **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-227-add-unit-tests-for-hub-profile-config-mo.md
 - **Context:** Initial task creation
 
 ### 2026-03-21T13:01:59Z — status-update [task-update-agent]

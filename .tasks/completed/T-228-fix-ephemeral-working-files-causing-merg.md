@@ -1,5 +1,5 @@
 ---
-id: T-213
+id: T-228
 name: "Fix ephemeral working files causing merge conflicts and audit failures"
 description: >
   Fix ephemeral working files causing merge conflicts and audit failures
@@ -16,7 +16,7 @@ last_update: 2026-03-21T23:19:24Z
 date_finished: 2026-03-21T23:19:24Z
 ---
 
-# T-213: Fix ephemeral working files causing merge conflicts and audit failures
+# T-228: Fix ephemeral working files causing merge conflicts and audit failures
 
 ## Context
 

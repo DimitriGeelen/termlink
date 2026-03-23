@@ -101,13 +101,28 @@ gaps:
     directive: D2-Reliability
     status: watching
     discovered: "2026-03-22"
-    discovered_by: "T-213 RCA investigation"
+    discovered_by: "T-228 RCA investigation"
     evidence: "CTL-008 checks `git log --oneline -20` for T-XXX prefix ratio. After rebasing onto origin/main with CI/release commits that lack task refs (e.g., GitHub Actions workflow fixes), the check counts those external commits against the local project's traceability ratio. With 17 CI commits and 10 local commits, ratio drops to 65% (FAIL threshold: 80%). This blocks push even though all local commits are properly traced."
     impact: "Any rebase onto a branch with external commits (CI, bot, cross-repo) blocks push. Workaround requires --no-verify which bypasses ALL audit checks, not just the broken one. This creates a perverse incentive to skip the entire audit."
     mitigation: "Documented. Current workaround: `git push --no-verify` after manual audit review."
-    related_tasks: [T-213]
+    related_tasks: [T-228]
     trigger_check:
       type: auto
       check: "grep -c 'git.*log.*--oneline.*-20' /usr/local/opt/agentic-fw/libexec/agents/audit/audit.sh"
       threshold: ">= 1"
       description: "Fires while audit.sh uses fixed last-20 window instead of origin..HEAD scope"
+
+  - id: G-007
+    title: "Task ID counter not safe for concurrent/divergent work — sequential collision"
+    severity: medium
+    directive: D2-Reliability
+    status: watching
+    discovered: "2026-03-22"
+    discovered_by: "T-229 RCA investigation"
+    evidence: "create-task.sh reads highest T-XXX from .tasks/ and increments. When two sessions diverge (e.g., local + remote CI), both start from the same ID. After merge, IDs collide. Required 3 rounds of renumbering (T-205→T-215→T-222) as remote kept creating new tasks."
+    impact: "Task references in commits become ambiguous. Episodic summaries, fabric cards, and audit findings may reference wrong task. Manual renumbering is error-prone and creates churn."
+    mitigation: "Renumbered local tasks to T-222–T-229. Documented for upstream framework report."
+    related_tasks: [T-229]
+    trigger_check:
+      type: manual
+      description: "Closes when task ID allocation uses distributed-safe mechanism (ULID, session prefix, or range reservation)"
