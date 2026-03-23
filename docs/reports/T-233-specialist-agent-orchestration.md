@@ -119,6 +119,26 @@ The three-tier lifecycle model (hot/warm/cold) was rejected as answering the wro
 - Script promoted to new project → context resets, maturity carries
 - A script that has **failed and recovered** is MORE trustworthy than one with perfect record (antifragility)
 
+### Supervision Ramp-Down (from dialogue)
+Human challenged the "3-5 runs then autonomous" model:
+- A script that runs 3 times in one project may get promoted as a skill to another project
+- Previous successes in Project A tell you NOTHING about Project B (different env, deps, OS)
+- The ramp-down is NOT a counter — it's contextual and qualitative
+- **Script maturity** (error handling breadth) travels with the script
+- **Context familiarity** (run history in THIS environment) resets on promotion
+- **Blast radius** (what happens if it fails) may differ per project
+
+### Unsolved Design Problem: Script Error Yielding
+How does a deterministic script yield errors to a stochastic agent WITHOUT crashing?
+- Today: binary (exit 0 or non-zero) — script succeeds or fails entirely
+- Desired: script yields mid-execution errors to a supervising agent that can remediate, then script continues
+- Options explored:
+  1. **Checkpoint-based execution** — script runs in steps, supervisor retries failed steps
+  2. **Error stream + remediation loop** — stderr piped to agent, agent injects fixes
+  3. **TermLink as bridge** — script in TermLink session, errors as events, agent remediates via inject
+- Option 3 fits existing primitives but design is incomplete
+- Captured as open question for further exploration
+
 ### Evidence Assessment (6 agents)
 - Enforcement Tiers: **WORKING** (3 real blocks logged, 538 commits survived) — use as supervision foundation
 - Healing Loop: **DORMANT** (0 invocations in 210 tasks) — data structures exist, loop never exercised
@@ -142,6 +162,31 @@ Agent needs to do X
 
 Progressive autonomy: first time = full round-trip, second time = direct, eventually = local bypass.
 
+### Q2b: Detailed Discovery Design (5 agents)
+
+| Report | Aspect | Key Finding |
+|--------|--------|-------------|
+| [Q2b-routing-decision](T-233-Q2b-routing-decision.md) | Pre-execution routing | 3-way branch: bypass registry → route cache → orchestrator. Cache is YAML with confidence scores, TTL, hit counts. Partial match triggers refinement query. |
+| [Q2b-negotiation-protocol](T-233-Q2b-negotiation-protocol.md) | Agent↔specialist dialogue | 4-phase protocol: introduce → attempt → correct → accept. Orchestrator brokers intro then steps back. Max 5 rounds. JSON Schema as wire format. |
+| [Q2b-template-caching](T-233-Q2b-template-caching.md) | Progressive learning | 3-layer cache: agent-local → shared registry → specialist canonical. Promotion at 5 uses/0 corrections. Lazy invalidation via schema hash. Pull-on-miss, not push. |
+| [Q2b-bypass-mechanism](T-233-Q2b-bypass-mechanism.md) | Local execution bypass | Bypass = Tier 3 operationalized. Registry of safe commands. Commands earn bypass via track record. Agents cannot self-promote. Failed bypass → de-promoted. |
+| [Q2b-termlink-mapping](T-233-Q2b-termlink-mapping.md) | TermLink primitives | Every primitive exists. Hub IS the capability registry. Orchestrator = hub enhancement (~100 LOC). New RPC: `orchestrator.route`. |
+
+### Full Discovery Flow (Refined)
+```
+Agent needs X
+  ├─ Bypass registry (Tier 3)? → local execution, no orchestration
+  ├─ Route cache hit (confidence ≥ 0.8, not expired)? → direct to specialist
+  ├─ Partial cache match? → refinement query to orchestrator
+  ├─ Cache miss → orchestrator.route (hub RPC)
+  │    ├─ Hub discovers specialist via session.discover
+  │    ├─ Introduces agent ↔ specialist (negotiate.offer)
+  │    ├─ Agent ↔ specialist negotiate format (2-3 rounds, direct)
+  │    ├─ Agent caches route + template (Layer 1)
+  │    └─ After 5 uses, 0 corrections → promote to Layer 2 (shared)
+  └─ Specialist fails → stochastic agent fallback (Q1 supervision model)
+```
+
 ## Q4: Context Loading Design (from dialogue)
 
 **Architecture confirmed with human:**
@@ -150,36 +195,74 @@ Progressive autonomy: first time = full round-trip, second time = direct, eventu
 - **Self-discovery feedback loop**: Specialist signals orchestrator when it needs additional capabilities → orchestrator codifies into manifest
 - **The manifest is the living brain**: Grows as specialists discover gaps
 
-## Emerging Architecture Summary
+## Emerging Architecture Summary (Refined)
 
 ```
-┌─────────────────────────────────────────────┐
-│  Human / Orchestrator Agent                  │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐ │
-│  │@mention  │  │/delegate │  │ NL routing  │ │
-│  └────┬─────┘  └────┬─────┘  └─────┬──────┘ │
-│       └──────────────┴──────────────┘        │
-│                      │                        │
-│          ┌───────────▼───────────┐            │
-│          │  Routing Engine       │            │
-│          │  (trigger scoring +   │            │
-│          │   manifest lookup)    │            │
-│          └───────────┬───────────┘            │
-└──────────────────────┼────────────────────────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-   ┌────▼────┐   ┌────▼────┐   ┌────▼────┐
-   │ HOT     │   │ WARM    │   │ COLD    │
-   │code-spec│   │test-spec│   │audit-sp │
-   │(persist)│   │(standby)│   │(spawn)  │
-   └─────────┘   └─────────┘   └─────────┘
-        │              │              │
-        └──────────────┼──────────────┘
-                       │
-              ┌────────▼────────┐
-              │  fw bus / events │
-              │  (result ledger) │
-              └─────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│  Agent needs to do X                                        │
+│                                                             │
+│  ┌─────────────┐   ┌──────────────┐   ┌─────────────────┐ │
+│  │ Bypass       │   │ Route Cache  │   │ Orchestrator    │ │
+│  │ Registry     │──►│ (.cache/     │──►│ (Hub RPC:       │ │
+│  │ (Tier 3)     │   │  routes/)    │   │  orchestrator   │ │
+│  │              │   │              │   │  .route)        │ │
+│  └──────┬───────┘   └──────┬───────┘   └───────┬─────────┘ │
+│    local exec         direct to            discover +       │
+│                       specialist           introduce        │
+└─────────┼──────────────┼────────────────────┼──────────────┘
+          │              │                    │
+          │              │         ┌──────────▼──────────┐
+          │              │         │  Negotiation        │
+          │              │         │  Agent ↔ Specialist  │
+          │              │         │  (2-3 rounds)       │
+          │              │         └──────────┬──────────┘
+          │              │                    │
+          ▼              ▼                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  EXECUTION (Deterministic-First)                             │
+│                                                              │
+│  ┌──────────────────┐       ┌──────────────────────────┐    │
+│  │ Script/Skill/Tool │──OK──►│ Result → fw bus / events │    │
+│  │ (deterministic)   │       └──────────────────────────┘    │
+│  │                   │                                       │
+│  │                   │──FAIL──► ┌────────────────────────┐   │
+│  └───────────────────┘          │ Stochastic Agent       │   │
+│                                 │ (diagnose + remediate) │   │
+│                    ┌────────────┤                        │   │
+│                    │            └────────────────────────┘   │
+│               RISK CHECK                                     │
+│            ┌───────┴───────┐                                 │
+│            │ Low risk      │ High risk                       │
+│            │ Auto-fix      │ Human approval                  │
+│            └───────────────┘                                 │
+│                                                              │
+│  SUPERVISION: f(tier, script_maturity, context_familiarity)  │
+│  Trust ledger: Enforcement Tiers (proven) + Fabric cards     │
+└──────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────┐
+│  CODIFICATION (Antifragility Loop)   │
+│  Stochastic fix → new/improved       │
+│  script → deterministic next time    │
+│  Template cache updated              │
+│  Manifest grows                      │
+└──────────────────────────────────────┘
 ```
+
+## Research File Index
+
+Total: 23 research files produced by 22 mesh agents + 1 main artifact.
+
+### Round 1: Initial 5 Questions (11 agents)
+- Q1: [persistent](T-233-Q1-persistent.md), [ondemand](T-233-Q1-ondemand.md), [hybrid](T-233-Q1-hybrid.md)
+- Q2: [interactive](T-233-Q2-interactive.md), [pretool](T-233-Q2-pretool.md), [reactive](T-233-Q2-reactive.md), [domain-triggers](T-233-Q2-domain-triggers.md), [evaluation](T-233-Q2-evaluation.md)
+- Q5: [termlink-feature](T-233-Q5-termlink-feature.md), [framework-feature](T-233-Q5-framework-feature.md), [independent](T-233-Q5-independent.md)
+
+### Round 2: Supervision Design + Evidence (6 agents)
+- Design: [tiers-as-supervision](T-233-Q1b-tiers-as-supervision.md), [healing-as-supervision](T-233-Q1b-healing-as-supervision.md), [fabric-as-trust](T-233-Q1b-fabric-as-trust.md)
+- Evidence: [evidence-tiers](T-233-Q1b-evidence-tiers.md), [evidence-healing](T-233-Q1b-evidence-healing.md), [evidence-fabric](T-233-Q1b-evidence-fabric.md)
+
+### Round 3: Discovery Refinement (5 agents)
+- [routing-decision](T-233-Q2b-routing-decision.md), [negotiation-protocol](T-233-Q2b-negotiation-protocol.md), [template-caching](T-233-Q2b-template-caching.md), [bypass-mechanism](T-233-Q2b-bypass-mechanism.md), [termlink-mapping](T-233-Q2b-termlink-mapping.md)
 
