@@ -103,6 +103,45 @@ All produce a unified `specialist.request` event shape — only the `trigger` fi
 - **Start embedded in framework**, using TermLink as transport adapter. Extract to independent layer after 20+ real tasks prove the interfaces
 - **Litmus test** (Q5-framework): "If we replaced TermLink with raw Unix pipes, would orchestration still work?" Answer must be yes → orchestration = framework, transport = pluggable
 
+## Q1 Refined: Execution Model (from D1 dialogue)
+
+The three-tier lifecycle model (hot/warm/cold) was rejected as answering the wrong question. The real question is about **execution governance**, not resource management.
+
+### Deterministic-First with Stochastic Fallback
+1. Work is executed by **deterministic capabilities** (scripts, skills, tools) whenever possible
+2. When deterministic path **fails**, a stochastic agent remediates
+3. Remediation gets **codified back** into deterministic path (antifragility)
+4. System matures over time: less stochastic, more deterministic
+
+### Supervision Model
+- Not a run counter — a **qualitative risk assessment** every time
+- Three axes: script maturity, context familiarity, blast radius
+- Script promoted to new project → context resets, maturity carries
+- A script that has **failed and recovered** is MORE trustworthy than one with perfect record (antifragility)
+
+### Evidence Assessment (6 agents)
+- Enforcement Tiers: **WORKING** (3 real blocks logged, 538 commits survived) — use as supervision foundation
+- Healing Loop: **DORMANT** (0 invocations in 210 tasks) — data structures exist, loop never exercised
+- Component Fabric: **REGISTRATION strong, ANALYSIS dormant** (65 cards, 0 blast-radius runs)
+- Recommendation: Build supervision on tiers (proven). Use healing/fabric as enrichment data only.
+
+## Q2 Refined: Capability Discovery (from D1 dialogue)
+
+Original Q2 ("how does orchestrator know what to delegate?") reframed:
+- Not "which agent to route to" but "which capability to invoke"
+- The discovery is a **dialogue pattern** between agent, orchestrator, and specialist:
+
+```
+Agent needs to do X
+  ├─ PRE-CHECK: Local template cache → known? → execute directly
+  ├─ CACHE MISS: Ask orchestrator → "here's the specialist + request format"
+  ├─ NEGOTIATION: Agent ↔ specialist back-and-forth (2-3 rounds)
+  ├─ CACHE UPDATE: Agent saves template locally for next time
+  └─ BYPASS: Orchestrator says "do it locally, no specialist needed"
+```
+
+Progressive autonomy: first time = full round-trip, second time = direct, eventually = local bypass.
+
 ## Q4: Context Loading Design (from dialogue)
 
 **Architecture confirmed with human:**
