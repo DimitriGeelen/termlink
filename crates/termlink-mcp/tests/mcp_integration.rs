@@ -3,7 +3,7 @@
 //! Uses rmcp client + real TermLink sessions to verify all MCP tools
 //! produce correct structured responses.
 
-use rmcp::model::CallToolRequestParams;
+use rmcp::model::{CallToolRequestParams, ReadResourceRequestParams, ResourceContents};
 use rmcp::{RoleClient, ServiceExt};
 use serde_json::json;
 use termlink_test_utils::{start_session, TestDir};
@@ -351,6 +351,133 @@ async fn test_tool_schemas_have_descriptions() {
             tool.name
         );
     }
+
+    client.cancel().await.unwrap();
+}
+
+// === Resource tests ===
+
+#[tokio::test]
+async fn test_list_resources_empty() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-res-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = client.list_all_resources().await.unwrap();
+
+    // Should have the sessions list resource even with no sessions
+    assert!(result.iter().any(|r| r.uri == "termlink://sessions"),
+        "missing sessions resource");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_list_resources_with_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-res-sess");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h1, _r1) = start_session(&dir.sessions_dir(), "res-alpha", vec![]).await;
+    let (_h2, _r2) = start_session(&dir.sessions_dir(), "res-beta", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = client.list_all_resources().await.unwrap();
+
+    // 1 sessions list + 2 per-session resources = 3
+    assert!(result.len() >= 3, "expected >= 3 resources, got {}", result.len());
+    assert!(result.iter().any(|r| r.uri == "termlink://sessions"));
+    assert!(result.iter().any(|r| r.uri.contains("res-alpha") || r.name.contains("res-alpha")));
+    assert!(result.iter().any(|r| r.uri.contains("res-beta") || r.name.contains("res-beta")));
+
+    client.cancel().await.unwrap();
+    _h1.abort();
+    _h2.abort();
+}
+
+#[tokio::test]
+async fn test_read_sessions_list_resource() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-res-read-list");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "res-read-tgt", vec!["agent".into()]).await;
+
+    let client = mcp_client().await;
+    let result = client
+        .read_resource(ReadResourceRequestParams::new("termlink://sessions"))
+        .await
+        .unwrap();
+
+    let text = match result.contents.first().expect("expected content") {
+        ResourceContents::TextResourceContents { text, .. } => text.clone(),
+        _ => panic!("expected text content"),
+    };
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed.len(), 1);
+    assert_eq!(parsed[0]["display_name"], "res-read-tgt");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_read_session_detail_resource() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-res-detail");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, reg) = start_session(&dir.sessions_dir(), "res-detail-tgt", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = client
+        .read_resource(ReadResourceRequestParams::new(format!("termlink://sessions/{}", reg.id)))
+        .await
+        .unwrap();
+
+    let text = match result.contents.first().expect("expected content") {
+        ResourceContents::TextResourceContents { text, .. } => text.clone(),
+        _ => panic!("expected text content"),
+    };
+
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert!(parsed.get("state").is_some() || parsed.get("display_name").is_some(),
+        "expected session detail: {text}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_read_resource_unknown_uri() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-res-unknown");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = client
+        .read_resource(ReadResourceRequestParams::new("termlink://nonexistent"))
+        .await;
+
+    assert!(result.is_err(), "expected error for unknown URI");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_list_resource_templates() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-res-templates");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = client.list_resource_templates(None).await.unwrap();
+
+    assert!(!result.resource_templates.is_empty(), "expected at least 1 template");
+    assert!(result.resource_templates.iter().any(|t| t.uri_template.contains("{session_id}")),
+        "expected session_id template");
 
     client.cancel().await.unwrap();
 }

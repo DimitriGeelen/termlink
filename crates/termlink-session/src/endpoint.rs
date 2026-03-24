@@ -21,7 +21,7 @@ use crate::server;
 /// use termlink_session::endpoint::Endpoint;
 /// use termlink_session::registration::SessionConfig;
 ///
-/// # async fn example() -> anyhow::Result<()> {
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let endpoint = Endpoint::start(SessionConfig {
 ///     display_name: Some("my-agent".into()),
 ///     tags: vec!["agent".into()],
