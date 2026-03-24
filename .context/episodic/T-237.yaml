@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-237: Hub orchestrator.route RPC — discover, delegate, relay in one call
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T22:00:20Z
+# ============================================================================
+
+task_id: T-237
+task_name: "Hub orchestrator.route RPC — discover, delegate, relay in one call"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T13:27:16Z
+completed: 2026-03-23T21:58:19Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T14:28:15+01:00
+last_commit: 2026-03-23T17:21:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-233: Create 7 build tasks from inception GO — orchestration decomposition. Hub orchestrator.route RPC — discover, delegate, relay. Complete — hub orchestrator.route RPC with 3 tests
+
+# Key outcomes
+outcomes:
+  - "ORCHESTRATOR_ROUTE constant in termlink-protocol control.rs"
+  - "handle_orchestrator_route handler in hub router.rs"
+  - "Discovers sessions by selector (tags/roles/capabilities/name), local + remote"
+  - "Forwards method+params to first matching candidate with failover"
+  - "Returns routed_to metadata + specialist response"
+  - "3 tests: success routing, no-match error, missing method error"
+  - "All 49 hub tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-237-hub-orchestratorroute-rpc--discover-dele.md"
+  - ".tasks/active/T-238-bypass-registry--tier-3-operationalized-.md"
+  - ".tasks/active/T-239-route-cache--cacheroutes-yaml-with-confi.md"
+  - ".tasks/active/T-240-negotiation-protocol--4-phase-format-neg.md"
+  - ".tasks/active/T-241-template-caching--3-layer-agent-local-sh.md"
+  - ".tasks/active/T-242-supervision-integration--trust-assessmen.md"
+  - ".tasks/active/T-243-script-error-yielding--checkpoint-based-.md"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/control.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T14:28:15"
+    action: "T-233: Create 7 build tasks from inception GO — orchestration decomposition"
+  - time: "2026-03-23T17:20:35"
+    action: "T-237: Hub orchestrator.route RPC — discover, delegate, relay"
+  - time: "2026-03-23T17:21:21"
+    action: "T-237: Complete — hub orchestrator.route RPC with 3 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-233, orchestration, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 9
+  lines_added: 817
+  lines_removed: 10
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-237-hub-orchestratorroute-rpc--discover-dele.md
+generated_by: context-agent-hybrid

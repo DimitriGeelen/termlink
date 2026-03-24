@@ -1,11 +1,11 @@
-timestamp: 2026-03-22T16:52:53Z
+timestamp: 2026-03-23T10:53:34Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (1/176)"
+    check: "D1: Episodic quality — 0% [TODO] (1/199)"
   - id: D2
     level: PASS
-    check: "D2: Human review queue — 8 task(s) awaiting human action (normal)"
+    check: "D2: Human review queue — no aging items"
   - id: D8
     level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
@@ -21,17 +21,17 @@ findings:
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 11 anomaly(s): T-037(1min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-092(1min,human) T-001(0min,human) T-046(3min,human) (+1 more)"
+    check: "D5: Task lifecycle — 11 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) (+1 more)"
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — normal (PASS today=0 avg=24 ratio=0.0x)"
+    check: "D3: Commit velocity — normal (PASS today=21 avg=26 ratio=0.8x)"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 11_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=4.3 earlier=8.3)"
+    check: "D6: Completion velocity — normal (PASS recent=9.7 earlier=10.3)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"

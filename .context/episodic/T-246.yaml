@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-246: Interactive session picker — prompt when no target given
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T22:00:25Z
+# ============================================================================
+
+task_id: T-246
+task_name: "Interactive session picker — prompt when no target given"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T15:54:57Z
+completed: 2026-03-23T21:58:22Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T17:03:48+01:00
+last_commit: 2026-03-23T17:09:37+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Interactive session picker — prompt when no target given. Add remote session picker for hub commands
+
+# Key outcomes
+outcomes:
+  - "resolve_target() utility in util.rs for local sessions"
+  - "resolve_remote_target() utility in remote.rs for hub sessions"
+  - "~15 local commands accept optional target (attach, mirror, stream, ping, status, output, inject, interact, events, wait)"
+  - "4 remote commands accept optional session (status, inject, send-file, exec)"
+  - "Auto-select when 1 session, numbered prompt when 2+"
+  - "Error when no sessions or stdin not a TTY"
+  - "All 297 workspace tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/src/util.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T17:03:48"
+    action: "T-246: Interactive session picker — prompt when no target given"
+  - time: "2026-03-23T17:09:37"
+    action: "T-246: Add remote session picker for hub commands"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [ux, cli, T-245]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 3
+  files_changed: 6
+  lines_added: 289
+  lines_removed: 74
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-246-interactive-session-picker--prompt-when-.md
+generated_by: context-agent-hybrid

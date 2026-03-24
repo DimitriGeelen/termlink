@@ -1,0 +1,13 @@
+id: tests/e2e/level9-dispatch-collect.sh
+name: level9-dispatch-collect
+type: script
+subsystem: unknown
+location: tests/e2e/level9-dispatch-collect.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on: []
+
+last_verified: 2026-03-23
+created_by: unknown

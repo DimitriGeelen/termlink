@@ -1,0 +1,287 @@
+# Audit Results - 2026-03-23-1153
+timestamp: 2026-03-23T10:53:34Z
+summary:
+  pass: 83
+  warn: 38
+  fail: 0
+findings:
+  - level: PASS
+    check: "Tasks directory exists"
+  - level: PASS
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "All 8 project YAML files parse correctly"
+  - level: PASS
+    check: "Fabric: 65 registered, 23 unregistered (coverage growing)"
+  - level: PASS
+    check: "Fabric edges: 55/65 cards enriched (10 without edges)"
+  - level: PASS
+    check: "All 18 active tasks are valid"
+  - level: WARN
+    check: "Task T-233 has no updates but status is started-work"
+    mitigation: "Add update entry to T-233-specialist-agent-orchestration--delegate.md"
+  - level: PASS
+    check: "Git traceability: 97% (491/506 commits reference tasks)"
+  - level: WARN
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
+  - level: WARN
+    check: "Commit 33f523a references non-existent task T-530"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 793c8b9 references non-existent task T-530"
+    mitigation: "Create task or fix commit reference"
+  - level: PASS
+    check: "Bypass log exists"
+  - level: PASS
+    check: "Commit-msg hook installed"
+  - level: PASS
+    check: "No Tier 0 violations detected"
+  - level: PASS
+    check: "Practices documented: 10 practice(s) in practices.yaml"
+  - level: WARN
+    check: "Bugfix-learning coverage: 34% (9/26)"
+    mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX "description""
+  - level: WARN
+    check: "Completed task T-197 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-197"
+  - level: WARN
+    check: "Completed task T-198 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-198"
+  - level: WARN
+    check: "Completed task T-199 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-199"
+  - level: WARN
+    check: "Completed task T-201 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-201"
+  - level: WARN
+    check: "Completed task T-202 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-202"
+  - level: WARN
+    check: "Completed task T-203 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-203"
+  - level: WARN
+    check: "Completed task T-204 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-204"
+  - level: WARN
+    check: "Completed task T-215 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-215"
+  - level: WARN
+    check: "Completed task T-216 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-216"
+  - level: WARN
+    check: "Completed task T-217 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-217"
+  - level: WARN
+    check: "Completed task T-218 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-218"
+  - level: WARN
+    check: "Completed task T-219 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-219"
+  - level: WARN
+    check: "Completed task T-220 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-220"
+  - level: WARN
+    check: "Completed task T-221 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-221"
+  - level: WARN
+    check: "Completed task T-228 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-228"
+  - level: WARN
+    check: "Completed task T-229 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-229"
+  - level: WARN
+    check: "Completed task T-230 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-230"
+  - level: WARN
+    check: "Completed task T-231 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-231"
+  - level: WARN
+    check: "Completed task T-232 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-232"
+  - level: PASS
+    check: "All      199 episodic summaries have quality content"
+  - level: PASS
+    check: "No orphaned episodic files"
+  - level: PASS
+    check: "No observation inbox (not yet initialized)"
+  - level: PASS
+    check: "Handover open questions: none (section empty or template placeholder)"
+  - level: PASS
+    check: "Graduation pipeline: 0 learnings (threshold: 20)"
+  - level: WARN
+    check: "Inception task T-205 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-205-*.md"
+  - level: WARN
+    check: "Inception task T-206 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-206-*.md"
+  - level: WARN
+    check: "Inception task T-208 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-208-*.md"
+  - level: WARN
+    check: "Inception task T-209 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-209-*.md"
+  - level: WARN
+    check: "C-001: Inception T-207 has no research artifact in docs/reports/"
+    mitigation: "Create docs/reports/T-207-*.md — the thinking trail IS the artifact"
+  - level: WARN
+    check: "C-001: Inception T-233 has artifact but task doesn't reference it"
+    mitigation: "Add artifact reference to ## Updates section of T-233"
+  - level: WARN
+    check: "C-001: Inception T-235 has no research artifact in docs/reports/"
+    mitigation: "Create docs/reports/T-235-*.md — the thinking trail IS the artifact"
+  - level: PASS
+    check: "C-002: commit-msg hook has research artifact check"
+  - level: PASS
+    check: "C-002: No research warnings logged (clean or first run)"
+  - level: PASS
+    check: "C-003: Research checkpoint logic present in checkpoint.sh"
+  - level: PASS
+    check: "CTL-001: Focus file has active task (T-233)"
+  - level: PASS
+    check: "CTL-003: Budget status file absent (no active session)"
+  - level: PASS
+    check: "CTL-004: Tool counter at 0 (last commit: 38 seconds ago)"
+  - level: PASS
+    check: "CTL-018: Budget status absent (no active session — expected)"
+  - level: PASS
+    check: "CTL-008: Task reference traceability 95% (1/20 without T-XXX)"
+  - level: WARN
+    check: "CTL-020: Cron audit directory missing (/Users/dimidev32/001-projects/010-termlink/.context/audits/cron)"
+    mitigation: "Run: fw audit schedule install"
+  - level: PASS
+    check: "CTL-002: Tier 0 guard installed and wired in settings.json"
+  - level: PASS
+    check: "CTL-005: Error watchdog installed and wired in settings.json"
+  - level: PASS
+    check: "CTL-006: No compact log (no compactions recorded)"
+  - level: PASS
+    check: "CTL-007: Post-compact resume hook configured in settings.json"
+  - level: PASS
+    check: "CTL-009: Inception T-163 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-180 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-186 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-192 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-002 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-003 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-006 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-008 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-009 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-010 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-011 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-012 has decision (100 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-066 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-073 has decision (9 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-079 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-094 has decision (9 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-099 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-100 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-101 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-102 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-103 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-104 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-105 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-106 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-107 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-114 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-118 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-119 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-123 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-136 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-142 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-144 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-149 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-155 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-205 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-208 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-209 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-010: Bypass log exists but empty (no bypasses detected)"
+  - level: PASS
+    check: "CTL-011: pre-push hook installed and executable"
+  - level: WARN
+    check: "CTL-012: Completed task T-101 has unchecked AC"
+    mitigation: "Review task completion — AC gate may have been bypassed"
+  - level: WARN
+    check: "CTL-012: Completed task T-206 has unchecked AC"
+    mitigation: "Review task completion — AC gate may have been bypassed"
+  - level: WARN
+    check: "CTL-013: T-204 verification re-run: 1 command(s) failing"
+    mitigation: "Review T-204 — environment may have changed"
+  - level: PASS
+    check: "CTL-013: T-203 verification re-run: 2/2 pass"
+  - level: WARN
+    check: "CTL-019: claude-fw wrapper missing or not executable"
+    mitigation: "Auto-restart won't work without claude-fw wrapper"
+  - level: PASS
+    check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
+  - level: PASS
+    check: "D1: Episodic quality — 0% [TODO] (1/199)"
+  - level: PASS
+    check: "D2: Human review queue — no aging items"
+  - level: PASS
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
+  - level: WARN
+    check: "D10: Decision-without-dialogue — 1 task(s): T-101"
+    mitigation: "Review flagged tasks — human dialogue may have been skipped"
+  - level: PASS
+    check: "D11: Gap register staleness — all gaps fresh"
+  - level: PASS
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - level: WARN
+    check: "D5: Task lifecycle — 11 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) T-027(2min,human) (+1 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - level: PASS
+    check: "D3: Commit velocity — normal (PASS today=21 avg=26 ratio=0.8x)"
+  - level: PASS
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
+  - level: PASS
+    check: "D6: Completion velocity — normal (PASS recent=9.7 earlier=10.3)"
+  - level: PASS
+    check: "D12: Bypass log — no log file"
+  - level: PASS
+    check: "D9: Control drift — normal (PASS insufficient_audits)"
+  - level: PASS
+    check: "CTL-016: No failure patterns recorded"

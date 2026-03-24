@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-244: Fix termlink attach output freezing — delta calculation bug
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-23T22:00:22Z
+# ============================================================================
+
+task_id: T-244
+task_name: "Fix termlink attach output freezing — delta calculation bug"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T15:34:16Z
+completed: 2026-03-23T21:58:21Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T16:35:07+01:00
+last_commit: 2026-03-23T16:35:07+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix attach output freezing — delta exceeding buffer size
+
+# Key outcomes
+outcomes:
+  - "Delta calculation handles case where delta >= output buffer length"
+  - "All workspace tests pass (297 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix attach output freezing — delta exceeding buffer size"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-244-fix-termlink-attach-output-freezing--del.md"
+  - "crates/termlink-cli/src/commands/pty.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T16:35:07"
+    action: "T-244: Fix attach output freezing — delta exceeding buffer size"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 90
+  lines_removed: 7
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-244-fix-termlink-attach-output-freezing--del.md
+generated_by: context-agent-hybrid
