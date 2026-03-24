@@ -4,7 +4,7 @@ name: "Template caching — 3-layer agent-local, shared, canonical"
 description: >
   3-layer template cache: Layer 1 agent-local (.context/specialists/<id>/templates/), Layer 2 shared registry (promoted at 5 uses/0 corrections), Layer 3 specialist canonical (source of truth). Lazy invalidation via schema hash. Pull-on-miss. See T-233 research: Q2b-template-caching.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -52,11 +52,20 @@ What specialist infrastructure exists? Can template caching be built without per
 - [x] Each research question answered with evidence
 - [x] All assumptions validated/invalidated with evidence
 - [x] GO/NO-GO decision recorded with rationale
+- [x] `TemplateCache` struct in `crates/termlink-hub/src/template_cache.rs`
+- [x] 3-layer lookup: agent-local → shared → miss (pull from specialist)
+- [x] Template entries: specialist, schema_hash, version, hit_count, correction_count, template data
+- [x] Promotion: 5 uses + 0 corrections → copy to shared layer
+- [x] Schema hash invalidation: mismatch on use → discard + return miss
+- [x] Record template from negotiation accept (NegotiateAccept → cache via record_template)
+- [x] Tests: 3-layer lookup, promotion, invalidation, persistence (13 tests)
 
 ## Verification
 
 test -f docs/reports/T-241-template-caching-inception.md
 grep -q "GO\|NO-GO" docs/reports/T-241-template-caching-inception.md
+test -f crates/termlink-hub/src/template_cache.rs
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-hub template_cache 2>&1 | grep "test result: ok"
 
 ## Decisions
 
