@@ -4,6 +4,7 @@ members = [
     "crates/termlink-protocol",
     "crates/termlink-session",
     "crates/termlink-hub",
+    "crates/termlink-mcp",
     "crates/termlink-cli",
     "crates/termlink-test-utils",
 ]
@@ -62,4 +63,5 @@ libc = "0.2"
 termlink-protocol = { path = "crates/termlink-protocol" }
 termlink-session = { path = "crates/termlink-session" }
 termlink-hub = { path = "crates/termlink-hub" }
+termlink-mcp = { path = "crates/termlink-mcp" }
 termlink-test-utils = { path = "crates/termlink-test-utils" }

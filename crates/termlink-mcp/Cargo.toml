@@ -1,0 +1,21 @@
+[package]
+name = "termlink-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "MCP server for TermLink — expose terminal orchestration as structured tools"
+
+[dependencies]
+rmcp = { version = "1.2", features = ["server", "transport-io", "macros"] }
+schemars = "1"
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+libc = { workspace = true }
+
+termlink-session = { workspace = true }
+termlink-hub = { workspace = true }

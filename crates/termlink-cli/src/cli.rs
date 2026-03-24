@@ -460,6 +460,12 @@ pub(crate) enum Command {
         action: Option<HubAction>,
     },
 
+    /// MCP server — expose TermLink as structured tools for AI agents
+    Mcp {
+        #[command(subcommand)]
+        action: McpAction,
+    },
+
     // === Token Management ===
 
     /// Create or inspect capability tokens for session authentication
@@ -537,6 +543,13 @@ pub(crate) enum HubAction {
     Stop,
     /// Show hub server status
     Status,
+}
+
+/// MCP server actions
+#[derive(Subcommand)]
+pub(crate) enum McpAction {
+    /// Start the MCP server on stdio (for Claude Code, Cursor, etc.)
+    Serve,
 }
 
 /// Remote hub operations (cross-machine)

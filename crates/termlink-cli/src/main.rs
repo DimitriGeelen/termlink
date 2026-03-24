@@ -143,6 +143,9 @@ async fn main() -> Result<()> {
             Some(HubAction::Stop) => commands::infrastructure::cmd_hub_stop(),
             Some(HubAction::Status) => commands::infrastructure::cmd_hub_status(),
         },
+        Command::Mcp { action } => match action {
+            McpAction::Serve => termlink_mcp::server::run_stdio().await,
+        },
         Command::Token { action } => match action {
             TokenAction::Create { target, scope, ttl } => {
                 commands::token::cmd_token_create(&target, &scope, ttl).await
