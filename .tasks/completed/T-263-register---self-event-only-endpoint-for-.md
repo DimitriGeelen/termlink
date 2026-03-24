@@ -4,7 +4,7 @@ name: "register --self: event-only endpoint for existing processes"
 description: >
   Library API + CLI flag: any process becomes a TermLink endpoint (events, KV, discovery) without PTY. From T-262 GO decision.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [cli, session, orchestration]
 components: []
 related_tasks: [T-262, T-233]
 created: 2026-03-24T10:47:34Z
-last_update: 2026-03-24T10:47:34Z
-date_finished: null
+last_update: 2026-03-24T10:53:56Z
+date_finished: 2026-03-24T10:53:56Z
 ---
 
 # T-263: register --self: event-only endpoint for existing processes
@@ -56,3 +56,6 @@ grep -q "self" crates/termlink-cli/src/commands/session.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-263-register---self-event-only-endpoint-for-.md
 - **Context:** Initial task creation
+
+### 2026-03-24T10:53:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
