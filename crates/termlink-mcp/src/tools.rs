@@ -99,6 +99,82 @@ pub struct WaitParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct DiscoverParams {
+    /// Filter by tags (sessions must have ALL specified tags)
+    pub tags: Option<Vec<String>>,
+    /// Filter by roles (sessions must have ALL specified roles)
+    pub roles: Option<Vec<String>>,
+    /// Filter by display name (case-insensitive substring match)
+    pub name: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct SpawnParams {
+    /// Display name for the new session
+    pub name: Option<String>,
+    /// Roles to assign (e.g., "worker", "specialist")
+    pub roles: Option<Vec<String>>,
+    /// Tags to assign
+    pub tags: Option<Vec<String>>,
+    /// Command to run in the session (if empty, starts a shell)
+    pub command: Option<Vec<String>>,
+    /// Wait for session to register before returning (default: true)
+    pub wait: Option<bool>,
+    /// Wait timeout in seconds (default: 10)
+    pub wait_timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RunParams {
+    /// Command to execute in an ephemeral session
+    pub command: String,
+    /// Timeout in seconds (default: 30)
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct KvSetParams {
+    /// Session ID or display name
+    pub target: String,
+    /// Key to set
+    pub key: String,
+    /// Value (any JSON value)
+    pub value: serde_json::Value,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct KvGetParams {
+    /// Session ID or display name
+    pub target: String,
+    /// Key to retrieve
+    pub key: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct KvListParams {
+    /// Session ID or display name
+    pub target: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct KvDelParams {
+    /// Session ID or display name
+    pub target: String,
+    /// Key to delete
+    pub key: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct BroadcastParams {
+    /// Event topic
+    pub topic: String,
+    /// JSON payload (optional)
+    pub payload: Option<serde_json::Value>,
+    /// Target session IDs or names (empty = all sessions)
+    pub targets: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct StatusParams {
     /// Session ID or display name
     pub target: String,
@@ -414,6 +490,351 @@ impl TermLinkTools {
                 Err(e) => format!("Error: {e}"),
             },
             Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_discover",
+        description = "Find TermLink sessions by tag, role, or name. Returns matching sessions with IDs, tags, roles, and capabilities."
+    )]
+    async fn termlink_discover(&self, Parameters(p): Parameters<DiscoverParams>) -> String {
+        let sessions = match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => return format!("Error: {e}"),
+        };
+
+        let tags = p.tags.unwrap_or_default();
+        let roles = p.roles.unwrap_or_default();
+
+        let filtered: Vec<_> = sessions
+            .into_iter()
+            .filter(|s| {
+                tags.iter().all(|t| s.tags.contains(t))
+                    && roles.iter().all(|r| s.roles.contains(r))
+                    && p.name.as_ref().is_none_or(|n| {
+                        s.display_name.to_lowercase().contains(&n.to_lowercase())
+                    })
+            })
+            .collect();
+
+        let items: Vec<serde_json::Value> = filtered
+            .iter()
+            .map(|s| {
+                serde_json::json!({
+                    "id": s.id.as_str(),
+                    "display_name": s.display_name,
+                    "state": s.state.to_string(),
+                    "pid": s.pid,
+                    "tags": s.tags,
+                    "roles": s.roles,
+                    "capabilities": s.capabilities,
+                })
+            })
+            .collect();
+
+        serde_json::to_string_pretty(&items).unwrap_or_else(|_| "[]".into())
+    }
+
+    #[tool(
+        name = "termlink_spawn",
+        description = "Spawn a new TermLink session in the background. Returns the session name. Use with --wait to block until registered."
+    )]
+    async fn termlink_spawn(&self, Parameters(p): Parameters<SpawnParams>) -> String {
+        let session_name = p.name.unwrap_or_else(|| format!("mcp-spawn-{}", std::process::id()));
+        let roles = p.roles.unwrap_or_default();
+        let tags = p.tags.unwrap_or_default();
+        let command = p.command.unwrap_or_default();
+        let wait = p.wait.unwrap_or(true);
+        let wait_timeout = p.wait_timeout.unwrap_or(10);
+
+        let termlink_bin = match std::env::current_exe() {
+            Ok(p) => p.to_string_lossy().to_string(),
+            Err(e) => return format!("Error: cannot determine termlink binary: {e}"),
+        };
+
+        let mut register_args = vec![
+            "register".to_string(),
+            "--name".to_string(),
+            session_name.clone(),
+        ];
+        if !roles.is_empty() {
+            register_args.push("--roles".to_string());
+            register_args.push(roles.join(","));
+        }
+        if !tags.is_empty() {
+            register_args.push("--tags".to_string());
+            register_args.push(tags.join(","));
+        }
+        if command.is_empty() {
+            register_args.push("--shell".to_string());
+        }
+
+        let shell_cmd = if command.is_empty() {
+            let mut parts = vec![termlink_bin];
+            parts.extend(register_args);
+            parts.join(" ")
+        } else {
+            let mut reg_parts = vec![termlink_bin];
+            reg_parts.extend(register_args);
+            let user_cmd = command.join(" ");
+            format!(
+                "{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
+                reg_parts.join(" ")
+            )
+        };
+
+        let child = std::process::Command::new("sh")
+            .args(["-c", &shell_cmd])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .stdin(std::process::Stdio::null())
+            .spawn();
+
+        if let Err(e) = child {
+            return format!("Error: failed to spawn: {e}");
+        }
+
+        if wait {
+            let start = std::time::Instant::now();
+            let timeout = std::time::Duration::from_secs(wait_timeout);
+            loop {
+                if manager::find_session(&session_name).is_ok() {
+                    return format!("Spawned session '{}' (ready)", session_name);
+                }
+                if start.elapsed() > timeout {
+                    return format!("Spawned session '{}' (timeout waiting for registration)", session_name);
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            }
+        }
+
+        format!("Spawned session '{}'", session_name)
+    }
+
+    #[tool(
+        name = "termlink_run",
+        description = "Execute a command in an ephemeral TermLink session and return the output. The session is cleaned up after execution."
+    )]
+    async fn termlink_run(&self, Parameters(p): Parameters<RunParams>) -> String {
+        use termlink_session::executor;
+
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(30));
+
+        match executor::execute(&p.command, None, None, Some(timeout), None).await {
+            Ok(result) => {
+                let mut output = String::new();
+                if !result.stdout.is_empty() {
+                    output.push_str(&result.stdout);
+                }
+                if !result.stderr.is_empty() {
+                    if !output.is_empty() {
+                        output.push('\n');
+                    }
+                    output.push_str(&format!("[stderr] {}", result.stderr));
+                }
+                if result.exit_code != 0 {
+                    output.push_str(&format!("\n[exit_code: {}]", result.exit_code));
+                }
+                if output.is_empty() {
+                    format!("[exit_code: {}]", result.exit_code)
+                } else {
+                    output
+                }
+            }
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_kv_set",
+        description = "Set a key-value pair on a TermLink session's store"
+    )]
+    async fn termlink_kv_set(&self, Parameters(p): Parameters<KvSetParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let params = serde_json::json!({"key": p.key, "value": p.value});
+        match client::rpc_call(reg.socket_path(), "kv.set", params).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => {
+                    let replaced = result["replaced"].as_bool().unwrap_or(false);
+                    format!(
+                        "{} {}={}",
+                        if replaced { "Updated" } else { "Set" },
+                        result["key"].as_str().unwrap_or("?"),
+                        serde_json::to_string(&p.value).unwrap_or_default(),
+                    )
+                }
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_kv_get",
+        description = "Get a value from a TermLink session's key-value store"
+    )]
+    async fn termlink_kv_get(&self, Parameters(p): Parameters<KvGetParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        match client::rpc_call(reg.socket_path(), "kv.get", serde_json::json!({"key": p.key})).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => {
+                    if result["found"].as_bool().unwrap_or(false) {
+                        serde_json::to_string_pretty(&result["value"])
+                            .unwrap_or_else(|_| "null".into())
+                    } else {
+                        format!("Key '{}' not found", p.key)
+                    }
+                }
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_kv_list",
+        description = "List all key-value pairs stored on a TermLink session"
+    )]
+    async fn termlink_kv_list(&self, Parameters(p): Parameters<KvListParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        match client::rpc_call(reg.socket_path(), "kv.list", serde_json::json!({})).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result)
+                    .unwrap_or_else(|e| format!("Error: {e}")),
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_kv_del",
+        description = "Delete a key from a TermLink session's key-value store"
+    )]
+    async fn termlink_kv_del(&self, Parameters(p): Parameters<KvDelParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        match client::rpc_call(reg.socket_path(), "kv.delete", serde_json::json!({"key": p.key})).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => {
+                    if result["deleted"].as_bool().unwrap_or(false) {
+                        format!("Deleted '{}'", p.key)
+                    } else {
+                        format!("Key '{}' not found", p.key)
+                    }
+                }
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_broadcast",
+        description = "Broadcast an event to multiple TermLink sessions via the hub. If no targets specified, broadcasts to all."
+    )]
+    async fn termlink_broadcast(&self, Parameters(p): Parameters<BroadcastParams>) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return "Error: hub is not running. Start it with: termlink hub".into();
+        }
+
+        let mut params = serde_json::json!({
+            "topic": p.topic,
+            "payload": p.payload.unwrap_or(serde_json::json!({})),
+        });
+        if let Some(targets) = &p.targets {
+            if !targets.is_empty() {
+                params["targets"] = serde_json::json!(targets);
+            }
+        }
+
+        match client::rpc_call(&hub_socket, "event.broadcast", params).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => {
+                    let targeted = result["targeted"].as_u64().unwrap_or(0);
+                    let succeeded = result["succeeded"].as_u64().unwrap_or(0);
+                    let failed = result["failed"].as_u64().unwrap_or(0);
+                    format!(
+                        "Broadcast '{}': {}/{} succeeded{}",
+                        result["topic"].as_str().unwrap_or(&p.topic),
+                        succeeded,
+                        targeted,
+                        if failed > 0 { format!(" ({} failed)", failed) } else { String::new() },
+                    )
+                }
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_wait",
+        description = "Wait for a specific event topic to appear on a session's event bus. Blocks until the event arrives or timeout."
+    )]
+    async fn termlink_wait(&self, Parameters(p): Parameters<WaitParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let timeout_secs = p.timeout.unwrap_or(30);
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
+        let poll_interval = tokio::time::Duration::from_millis(500);
+        let mut cursor: Option<u64> = None;
+
+        loop {
+            if tokio::time::Instant::now() >= deadline {
+                return format!("Timeout waiting for event topic '{}' ({}s)", p.topic, timeout_secs);
+            }
+
+            let mut params = serde_json::json!({"topic": p.topic});
+            if let Some(c) = cursor {
+                params["since"] = serde_json::json!(c);
+            }
+
+            match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+                Ok(resp) => {
+                    if let Ok(result) = client::unwrap_result(resp) {
+                        if let Some(events) = result["events"].as_array() {
+                            if let Some(event) = events.first() {
+                                let payload = &event["payload"];
+                                return if payload.is_null()
+                                    || (payload.is_object()
+                                        && payload.as_object().unwrap().is_empty())
+                                {
+                                    format!("Event received: {}", p.topic)
+                                } else {
+                                    serde_json::to_string_pretty(payload)
+                                        .unwrap_or_else(|_| format!("Event received: {}", p.topic))
+                                };
+                            }
+                        }
+                        if let Some(next) = result["next_seq"].as_u64() {
+                            cursor = if next > 0 { Some(next - 1) } else { None };
+                        }
+                    }
+                }
+                Err(e) => return format!("Error: connection lost: {e}"),
+            }
+
+            tokio::time::sleep(poll_interval).await;
         }
     }
 }
