@@ -1,0 +1,17 @@
+id: crates/termlink-hub/src/template_cache.rs
+name: template_cache
+type: module
+subsystem: hub
+location: crates/termlink-hub/src/template_cache.rs
+tags: [orchestration, cache, T-233]
+
+purpose: "3-layer template cache for specialist interaction patterns. Layer 1 agent-local, Layer 2 shared (promoted at 5 uses/0 corrections), Layer 3 specialist canonical. Schema hash invalidation, pull-on-miss propagation."
+
+depends_on:
+  - target: crates/termlink-session/src/discovery.rs
+    type: calls
+  - target: crates/termlink-hub/src/route_cache.rs
+    type: sibling
+
+last_verified: 2026-03-24
+created_by: T-241
