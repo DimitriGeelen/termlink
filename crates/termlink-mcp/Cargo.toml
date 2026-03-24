@@ -19,3 +19,8 @@ libc = { workspace = true }
 
 termlink-session = { workspace = true }
 termlink-hub = { workspace = true }
+
+[dev-dependencies]
+rmcp = { version = "1.2", features = ["client", "server", "transport-io", "macros", "transport-async-rw"] }
+termlink-test-utils = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
