@@ -8,6 +8,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use assert_cmd::cargo;
+use serde_json;
 
 use termlink_test_utils::{wait_for_socket, ProcessGuard, TestDir};
 
@@ -353,6 +354,164 @@ fn cli_list_multiple_sessions() {
     assert!(stdout.contains("alpha"), "Missing alpha: {}", stdout);
     assert!(stdout.contains("beta"), "Missing beta: {}", stdout);
     assert!(stdout.contains("gamma"), "Missing gamma: {}", stdout);
+    assert!(output.status.success());
+}
+
+// ─── Discovery Tests ─────────────────────────────────────────────
+
+#[test]
+fn cli_discover_by_role() {
+    let dir = TestDir::new("discover-role");
+    let _g1 = start_register(&dir.path, "coder-1");
+    let _g2 = start_register(&dir.path, "tester-1");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Wait for both sockets
+    let sessions_dir = dir.sessions_dir();
+    let start = Instant::now();
+    loop {
+        let count = std::fs::read_dir(&sessions_dir)
+            .map(|entries| entries.filter(|e| {
+                e.as_ref().ok().is_some_and(|e| e.path().extension().is_some_and(|x| x == "sock"))
+            }).count())
+            .unwrap_or(0);
+        if count >= 2 { break; }
+        if start.elapsed() > Duration::from_secs(10) {
+            panic!("Only {} of 2 sockets appeared", count);
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    // Discover all — should find both
+    let output = termlink_cmd(&dir.path)
+        .args(["discover"])
+        .output()
+        .expect("Failed to run termlink discover");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("coder-1"), "Missing coder-1: {}", stdout);
+    assert!(stdout.contains("tester-1"), "Missing tester-1: {}", stdout);
+    assert!(output.status.success());
+}
+
+#[test]
+fn cli_discover_by_name() {
+    let dir = TestDir::new("discover-name");
+    let _g1 = start_register(&dir.path, "finder-alpha");
+    let _g2 = start_register(&dir.path, "finder-beta");
+
+    let sessions_dir = dir.sessions_dir();
+    let start = Instant::now();
+    loop {
+        let count = std::fs::read_dir(&sessions_dir)
+            .map(|entries| entries.filter(|e| {
+                e.as_ref().ok().is_some_and(|e| e.path().extension().is_some_and(|x| x == "sock"))
+            }).count())
+            .unwrap_or(0);
+        if count >= 2 { break; }
+        if start.elapsed() > Duration::from_secs(10) {
+            panic!("Only {} of 2 sockets appeared", count);
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    // Discover by name pattern
+    let output = termlink_cmd(&dir.path)
+        .args(["discover", "--name", "alpha"])
+        .output()
+        .expect("Failed to run termlink discover");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("finder-alpha"), "Missing finder-alpha: {}", stdout);
+    assert!(!stdout.contains("finder-beta"), "Should not contain finder-beta: {}", stdout);
+    assert!(output.status.success());
+}
+
+#[test]
+fn cli_discover_json_output() {
+    let dir = TestDir::new("discover-json");
+    let _guard = start_register(&dir.path, "json-disc");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["discover", "--json"])
+        .output()
+        .expect("Failed to run termlink discover --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&stdout)
+        .expect(&format!("Expected JSON array: {}", stdout));
+    assert_eq!(parsed.len(), 1);
+    assert_eq!(parsed[0]["display_name"], "json-disc");
+    assert!(output.status.success());
+}
+
+// ─── Register --self Tests ───────────────────────────────────────
+
+#[test]
+fn cli_register_self_creates_endpoint() {
+    let dir = TestDir::new("reg-self");
+
+    // Start register --self in background
+    let child = termlink_cmd(&dir.path)
+        .args(["register", "--self", "--name", "my-endpoint"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn register --self");
+    let _guard = ProcessGuard::new(child, "my-endpoint");
+
+    // Wait for socket
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Should be listable
+    let output = termlink_cmd(&dir.path)
+        .args(["list"])
+        .output()
+        .expect("Failed to run termlink list");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("my-endpoint"), "Expected 'my-endpoint' in list: {}", stdout);
+
+    // Should be pingable
+    let output = termlink_cmd(&dir.path)
+        .args(["ping", "my-endpoint"])
+        .output()
+        .expect("Failed to run termlink ping");
+    assert!(output.status.success(), "ping failed: {}",
+        String::from_utf8_lossy(&output.stderr));
+}
+
+#[test]
+fn cli_register_self_supports_events() {
+    let dir = TestDir::new("reg-self-ev");
+
+    let child = termlink_cmd(&dir.path)
+        .args(["register", "--self", "--name", "ev-endpoint"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn register --self");
+    let _guard = ProcessGuard::new(child, "ev-endpoint");
+
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Emit event to endpoint
+    let output = termlink_cmd(&dir.path)
+        .args(["emit", "ev-endpoint", "test.ping", "--payload", r#"{"from":"test"}"#])
+        .output()
+        .expect("Failed to emit");
+    assert!(output.status.success(), "emit failed: {}",
+        String::from_utf8_lossy(&output.stderr));
+
+    // Poll events
+    let output = termlink_cmd(&dir.path)
+        .args(["events", "ev-endpoint"])
+        .output()
+        .expect("Failed to poll events");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("test.ping"), "Expected test.ping event: {}", stdout);
     assert!(output.status.success());
 }
 
