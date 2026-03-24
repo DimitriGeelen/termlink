@@ -1,0 +1,65 @@
+id: T-233
+name: "Specialist agent orchestration — delegate to domain experts via TermLink"
+workflow_type: inception
+status: work-completed
+date_finished: 2026-03-23T22:00:26Z
+owner: human
+decision: GO
+tags: [orchestration, architecture, specialist, critical]
+
+summary: >
+  GO decision on specialist agent orchestration. The most architecturally significant
+  inception in the project: 22 mesh agents across 3 research rounds produced 23 research
+  files establishing the layered capability discovery system. Dogfooded TermLink mesh
+  dispatch as the coordination layer during its own research.
+
+architectural_vision: >
+  An orchestrator agent recognizes delegation opportunities and routes to specialist agents
+  pre-loaded with domain context, running as TermLink sessions. Each specialist has its own
+  200K context window (N specialists = N × 200K capacity). The system matures over time:
+  first interactions require full negotiation, subsequent ones use cached routes, eventually
+  work executes locally via bypass.
+
+key_decisions:
+  - decision: "GO on specialist orchestration"
+    rationale: "All 3 go criteria met. No no-go triggered. 22 agents validated pattern in practice."
+
+  - decision: "Deterministic-first execution with stochastic fallback"
+    rationale: "Scripts/skills execute when possible. On failure, stochastic agent remediates and codifies fix back into deterministic path (antifragility)."
+
+  - decision: "Framework owns policy, TermLink owns mechanism"
+    rationale: "Separation of concerns. Litmus test: if we replaced TermLink with Unix pipes, orchestration still works. Transport is pluggable."
+
+  - decision: "Layered capability discovery with progressive autonomy"
+    rationale: "3-layer system — bypass registry (Tier 3 local), route cache (direct to specialist), orchestrator.route hub RPC (full discovery + negotiation). First use = full round-trip, nth use = local bypass."
+
+  - decision: "Qualitative trust supervision, not run counters"
+    rationale: "Three axes: script maturity (travels with script), context familiarity (resets per project), blast radius (varies per project). Failed-and-recovered scripts score HIGHER (antifragility)."
+
+  - decision: "Build on enforcement tiers (proven), not healing loop (dormant)"
+    rationale: "Tiers have 3 real blocks logged across 538 commits. Healing loop has 0 invocations in 210 tasks."
+
+build_decomposition:
+  - "T-237: orchestrator.route hub RPC (DONE — built and passing)"
+  - "T-248-T-255: Bypass registry + E2E harness (DONE — 76 tests, 13 scenarios)"
+  - "T-239: Route cache — .cache/routes/ YAML with confidence, TTL"
+  - "T-240: Negotiation protocol — 4-phase format negotiation"
+  - "T-241: Template caching — 3-layer agent-local → shared → canonical"
+  - "T-242: Supervision integration — trust via enforcement tiers + fabric"
+  - "T-243: Script error yielding — checkpoint-based execution (future)"
+
+open_problems:
+  - "Script error yielding: how does a deterministic script yield mid-execution errors to a stochastic agent? Option 3 (TermLink as bridge) fits but design incomplete."
+
+research_artifacts:
+  - "docs/reports/T-233-specialist-agent-orchestration.md (main synthesis)"
+  - "docs/reports/T-233-Q1-*.md (3 lifecycle reports)"
+  - "docs/reports/T-233-Q2-*.md (5 delegation discovery reports)"
+  - "docs/reports/T-233-Q5-*.md (3 architectural ownership reports)"
+  - "docs/reports/T-233-Q1b-*.md (6 supervision evidence reports)"
+  - "docs/reports/T-233-Q2b-*.md (5 discovery refinement reports)"
+
+learnings:
+  - "TermLink mesh dispatch works for parallel research — 22 agents across 3 rounds validated the coordination pattern"
+  - "Build supervision on proven mechanisms (enforcement tiers), not dormant ones (healing loop)"
+  - "Progressive autonomy reduces overhead over time: full negotiation → cached route → local bypass"
