@@ -4,7 +4,9 @@ use termlink_session::client;
 use termlink_session::manager;
 
 use termlink_protocol::events::{
-    agent_topic, AgentRequest, AgentResponse, AgentStatus, SCHEMA_VERSION,
+    agent_topic, negotiate_topic, AgentRequest, AgentResponse, AgentStatus,
+    NegotiateAttempt, NegotiateCorrection, NegotiateAccept, NegotiationState,
+    NegotiateOffer, SCHEMA_VERSION,
 };
 
 use crate::util::generate_request_id;
@@ -215,4 +217,298 @@ pub(crate) async fn cmd_agent_listen(
 
         tokio::time::sleep(poll_interval).await;
     }
+}
+
+/// Run a 4-phase format negotiation with a specialist session.
+///
+/// Protocol: offer → attempt → correction → accept (max N rounds).
+/// Uses agent.request/response events with negotiate.* actions.
+pub(crate) async fn cmd_agent_negotiate(
+    specialist: &str,
+    schema_str: &str,
+    draft_str: &str,
+    from: Option<&str>,
+    max_rounds: u8,
+    timeout: u64,
+    interval: u64,
+) -> Result<()> {
+    let reg = manager::find_session(specialist)
+        .context(format!("Specialist session '{}' not found", specialist))?;
+
+    let request_id = generate_request_id();
+    let sender = from
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("cli-{}", std::process::id()));
+
+    // Parse schema (support @file syntax)
+    let schema: serde_json::Value = if schema_str.starts_with('@') {
+        let path = &schema_str[1..];
+        let data = std::fs::read_to_string(path)
+            .context(format!("Failed to read schema file: {path}"))?;
+        serde_json::from_str(&data).context("Invalid JSON in schema file")?
+    } else {
+        serde_json::from_str(schema_str).context("Invalid JSON in --schema")?
+    };
+
+    let mut draft: serde_json::Value = if draft_str.starts_with('@') {
+        let path = &draft_str[1..];
+        let data = std::fs::read_to_string(path)
+            .context(format!("Failed to read draft file: {path}"))?;
+        serde_json::from_str(&data).context("Invalid JSON in draft file")?
+    } else {
+        serde_json::from_str(draft_str).context("Invalid JSON in --draft")?
+    };
+
+    // Create offer (Phase 1 — from CLI, acting as orchestrator)
+    let offer = NegotiateOffer {
+        schema_version: SCHEMA_VERSION.to_string(),
+        specialist_id: reg.id.as_str().to_string(),
+        specialist_name: Some(reg.display_name.clone()),
+        format_schema: schema.clone(),
+        example: None,
+        constraints: vec![],
+        format_id: None,
+    };
+
+    let mut state = NegotiationState::from_offer(&request_id, &offer);
+    state.max_rounds = max_rounds;
+
+    eprintln!(
+        "Negotiation started: specialist={}, request_id={}, max_rounds={}",
+        specialist, request_id, max_rounds
+    );
+
+    // Snapshot cursor
+    let cursor: Option<u64> = {
+        let poll_params = serde_json::json!({});
+        match client::rpc_call(reg.socket_path(), "event.poll", poll_params).await {
+            Ok(resp) => {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    result["next_seq"].as_u64()
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
+    };
+    let mut poll_cursor = cursor;
+
+    // Negotiation loop
+    while state.is_active() {
+        // Phase 2: Send attempt
+        if let Err(e) = state.record_attempt() {
+            eprintln!("Negotiation ended: {e}");
+            break;
+        }
+
+        let attempt = NegotiateAttempt {
+            schema_version: SCHEMA_VERSION.to_string(),
+            draft: draft.clone(),
+            questions: vec![],
+            round: state.round,
+        };
+
+        let attempt_request = AgentRequest {
+            schema_version: SCHEMA_VERSION.to_string(),
+            request_id: request_id.clone(),
+            from: sender.clone(),
+            to: specialist.to_string(),
+            action: negotiate_topic::ATTEMPT.to_string(),
+            params: serde_json::to_value(&attempt).context("Failed to serialize attempt")?,
+            timeout_secs: if timeout > 0 { Some(timeout) } else { None },
+        };
+
+        let payload =
+            serde_json::to_value(&attempt_request).context("Failed to serialize request")?;
+        let emit_params = serde_json::json!({
+            "topic": agent_topic::REQUEST,
+            "payload": payload,
+        });
+
+        client::rpc_call(reg.socket_path(), "event.emit", emit_params)
+            .await
+            .context("Failed to emit negotiate.attempt")?;
+
+        eprintln!(
+            "[round {}] Attempt sent, waiting for correction...",
+            state.round
+        );
+
+        // Phase 3: Wait for correction or accept
+        let round_start = std::time::Instant::now();
+        let timeout_dur = std::time::Duration::from_secs(timeout);
+        let poll_interval_dur = std::time::Duration::from_millis(interval);
+        let mut got_response = false;
+
+        while !got_response {
+            let mut poll_params = serde_json::json!({});
+            if let Some(c) = poll_cursor {
+                poll_params["since"] = serde_json::json!(c);
+            }
+
+            if let Ok(resp) =
+                client::rpc_call(reg.socket_path(), "event.poll", poll_params).await
+            {
+                if let Ok(result) = client::unwrap_result(resp) {
+                    if let Some(events) = result["events"].as_array() {
+                        for event in events {
+                            let topic = event["topic"].as_str().unwrap_or("");
+                            let event_payload = &event["payload"];
+
+                            let matches = event_payload
+                                .get("request_id")
+                                .and_then(|r| r.as_str())
+                                .is_some_and(|r| r == request_id);
+
+                            if !matches {
+                                continue;
+                            }
+
+                            let ev_action = event_payload
+                                .get("action")
+                                .and_then(|a| a.as_str())
+                                .unwrap_or("");
+
+                            if ev_action == negotiate_topic::ACCEPT
+                                || ev_action == negotiate_topic::CORRECTION
+                                || topic == agent_topic::RESPONSE
+                            {
+                                let resp_payload = event_payload
+                                    .get("result")
+                                    .or_else(|| event_payload.get("params"))
+                                    .cloned()
+                                    .unwrap_or_default();
+
+                                // Try as NegotiateAccept
+                                if ev_action == negotiate_topic::ACCEPT {
+                                    if let Ok(accept) =
+                                        serde_json::from_value::<NegotiateAccept>(resp_payload.clone())
+                                    {
+                                        state.record_accept(&accept);
+                                        eprintln!("[round {}] Accepted!", state.round);
+                                        println!(
+                                            "{}",
+                                            serde_json::to_string_pretty(&accept.final_schema)?
+                                        );
+                                        got_response = true;
+                                        break;
+                                    }
+                                }
+
+                                // Try as NegotiateCorrection
+                                if let Ok(correction) =
+                                    serde_json::from_value::<NegotiateCorrection>(resp_payload.clone())
+                                {
+                                    let _ = state.record_correction(&correction);
+
+                                    if correction.accepted {
+                                        eprintln!("[round {}] Accepted!", state.round);
+                                        println!(
+                                            "{}",
+                                            serde_json::to_string_pretty(&state.current_schema)?
+                                        );
+                                    } else {
+                                        eprintln!(
+                                            "[round {}] Correction: {} fix(es)",
+                                            state.round,
+                                            correction.fixes.len()
+                                        );
+                                        for fix in &correction.fixes {
+                                            eprintln!(
+                                                "  - {}: expected '{}', got '{}' {}",
+                                                fix.field,
+                                                fix.expected,
+                                                fix.got,
+                                                fix.hint
+                                                    .as_deref()
+                                                    .map(|h| format!("(hint: {h})"))
+                                                    .unwrap_or_default()
+                                            );
+                                        }
+                                        // Apply fixes to draft (best effort: set top-level fields)
+                                        for fix in &correction.fixes {
+                                            if let Some(obj) = draft.as_object_mut() {
+                                                if !fix.field.contains('[') {
+                                                    obj.insert(
+                                                        fix.field.clone(),
+                                                        serde_json::json!(fix.expected),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                    got_response = true;
+                                    break;
+                                }
+
+                                // Generic agent.response fallback
+                                if let Ok(response) =
+                                    serde_json::from_value::<AgentResponse>(event_payload.clone())
+                                {
+                                    if response.status
+                                        == termlink_protocol::events::ResponseStatus::Ok
+                                    {
+                                        eprintln!("[round {}] Response received (treating as accept)", state.round);
+                                        println!(
+                                            "{}",
+                                            serde_json::to_string_pretty(&response.result)?
+                                        );
+                                    } else {
+                                        eprintln!(
+                                            "[round {}] Error: {}",
+                                            state.round,
+                                            response
+                                                .error_message
+                                                .as_deref()
+                                                .unwrap_or("unknown")
+                                        );
+                                    }
+                                    got_response = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if let Some(events) = result["events"].as_array() {
+                        if !events.is_empty() {
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                poll_cursor = Some(next);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if round_start.elapsed() > timeout_dur {
+                eprintln!(
+                    "[round {}] Timeout ({}s) — falling back to best-effort draft",
+                    state.round, timeout
+                );
+                println!("{}", serde_json::to_string_pretty(&draft)?);
+                return Ok(());
+            }
+
+            if !got_response {
+                tokio::time::sleep(poll_interval_dur).await;
+            }
+        }
+    }
+
+    if state.is_accepted() {
+        eprintln!(
+            "Negotiation complete: {} round(s), {} total correction(s)",
+            state.round,
+            state.corrections.len()
+        );
+    } else {
+        eprintln!(
+            "Negotiation failed after {} round(s): {}",
+            state.round, state.phase
+        );
+        std::process::exit(1);
+    }
+
+    Ok(())
 }

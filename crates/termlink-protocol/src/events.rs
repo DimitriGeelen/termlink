@@ -196,6 +196,266 @@ pub struct AgentStatus {
     pub percent: Option<u8>,
 }
 
+// --- Negotiation Protocol (T-240) ---
+// 4-phase format negotiation over agent events.
+// Built on agent.request/response/status — uses the `action` field to distinguish phases.
+// Orchestrator brokers introduction (phase 1), then agent and specialist talk directly (phases 2-4).
+
+/// Topic constants for negotiation protocol.
+///
+/// Negotiation messages are carried as `agent.request`/`agent.response` events
+/// with these action values. The `request_id` ties all phases of one negotiation together.
+pub mod negotiate_topic {
+    /// Orchestrator → Agent: introduce specialist and format schema.
+    pub const OFFER: &str = "negotiate.offer";
+    /// Agent → Specialist: submit a draft for validation.
+    pub const ATTEMPT: &str = "negotiate.attempt";
+    /// Specialist → Agent: accept or correct the draft.
+    pub const CORRECTION: &str = "negotiate.correction";
+    /// Specialist → Agent: negotiation complete, final schema confirmed.
+    pub const ACCEPT: &str = "negotiate.accept";
+}
+
+/// Maximum number of correction rounds before negotiation fails.
+pub const NEGOTIATE_MAX_ROUNDS: u8 = 5;
+
+/// Phase 1: Orchestrator introduces the specialist and expected format.
+///
+/// Sent as an `agent.request` with `action: "negotiate.offer"` in `params`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NegotiateOffer {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Session ID of the specialist to negotiate with.
+    pub specialist_id: String,
+    /// Display name of the specialist.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub specialist_name: Option<String>,
+    /// JSON Schema describing the expected format.
+    pub format_schema: serde_json::Value,
+    /// Example of a valid payload (for the agent to reference).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub example: Option<serde_json::Value>,
+    /// Semantic constraints that can't be expressed in JSON Schema alone.
+    #[serde(default)]
+    pub constraints: Vec<String>,
+    /// Format identifier (e.g., "specialist/report-v2").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format_id: Option<String>,
+}
+
+/// Phase 2: Agent submits a draft to the specialist for validation.
+///
+/// Sent as an `agent.request` with `action: "negotiate.attempt"`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NegotiateAttempt {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// The draft payload for validation.
+    pub draft: serde_json::Value,
+    /// Questions the agent has about the format (optional).
+    #[serde(default)]
+    pub questions: Vec<String>,
+    /// Which round this is (1-based, for tracking convergence).
+    #[serde(default = "default_round")]
+    pub round: u8,
+}
+
+/// A single correction item from the specialist.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CorrectionFix {
+    /// JSON path to the problematic field (e.g., "findings[0].ref").
+    pub field: String,
+    /// What the specialist expected.
+    pub expected: String,
+    /// What the agent provided.
+    pub got: String,
+    /// Hint for how to fix it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+}
+
+/// Phase 3: Specialist corrects the agent's draft.
+///
+/// Sent as an `agent.response` with `action: "negotiate.correction"`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NegotiateCorrection {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// Whether the draft was accepted (true = done, false = revise and resubmit).
+    pub accepted: bool,
+    /// Specific fixes needed (empty if accepted).
+    #[serde(default)]
+    pub fixes: Vec<CorrectionFix>,
+    /// Updated schema if the specialist revised its expectations.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revised_schema: Option<serde_json::Value>,
+    /// Error message if negotiation failed (max rounds exceeded, impasse).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+/// Phase 4: Specialist accepts the draft — negotiation complete.
+///
+/// Sent as an `agent.response` with `action: "negotiate.accept"`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NegotiateAccept {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    /// The final agreed schema (may differ from the original offer).
+    pub final_schema: serde_json::Value,
+    /// Optional template for future interactions (cacheable).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template: Option<serde_json::Value>,
+    /// Format identifier for cache key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format_id: Option<String>,
+}
+
+/// Negotiation state machine — tracks progress through the 4-phase protocol.
+#[derive(Debug, Clone)]
+pub struct NegotiationState {
+    /// Shared request_id across all phases.
+    pub request_id: String,
+    /// Current phase of negotiation.
+    pub phase: NegotiatePhase,
+    /// Number of correction rounds completed.
+    pub round: u8,
+    /// Maximum allowed rounds.
+    pub max_rounds: u8,
+    /// Specialist session ID.
+    pub specialist_id: String,
+    /// Current schema being negotiated.
+    pub current_schema: serde_json::Value,
+    /// Accumulated corrections from all rounds.
+    pub corrections: Vec<CorrectionFix>,
+}
+
+/// Phases of the negotiation protocol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NegotiatePhase {
+    /// Offer received, ready to attempt.
+    OfferReceived,
+    /// Draft submitted, waiting for correction.
+    AttemptSent,
+    /// Correction received, preparing next attempt.
+    CorrectionReceived,
+    /// Negotiation complete — accepted.
+    Accepted,
+    /// Negotiation failed — max rounds or impasse.
+    Failed,
+}
+
+impl std::fmt::Display for NegotiatePhase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OfferReceived => write!(f, "offer-received"),
+            Self::AttemptSent => write!(f, "attempt-sent"),
+            Self::CorrectionReceived => write!(f, "correction-received"),
+            Self::Accepted => write!(f, "accepted"),
+            Self::Failed => write!(f, "failed"),
+        }
+    }
+}
+
+impl NegotiationState {
+    /// Create a new negotiation from an offer.
+    pub fn from_offer(request_id: &str, offer: &NegotiateOffer) -> Self {
+        Self {
+            request_id: request_id.to_string(),
+            phase: NegotiatePhase::OfferReceived,
+            round: 0,
+            max_rounds: NEGOTIATE_MAX_ROUNDS,
+            specialist_id: offer.specialist_id.clone(),
+            current_schema: offer.format_schema.clone(),
+            corrections: Vec::new(),
+        }
+    }
+
+    /// Record that an attempt was sent.
+    pub fn record_attempt(&mut self) -> Result<(), NegotiateError> {
+        if self.phase == NegotiatePhase::Accepted || self.phase == NegotiatePhase::Failed {
+            return Err(NegotiateError::AlreadyTerminated);
+        }
+        if self.round >= self.max_rounds {
+            self.phase = NegotiatePhase::Failed;
+            return Err(NegotiateError::MaxRoundsExceeded);
+        }
+        self.round += 1;
+        self.phase = NegotiatePhase::AttemptSent;
+        Ok(())
+    }
+
+    /// Process a correction from the specialist.
+    pub fn record_correction(&mut self, correction: &NegotiateCorrection) -> Result<(), NegotiateError> {
+        if self.phase != NegotiatePhase::AttemptSent {
+            return Err(NegotiateError::UnexpectedPhase {
+                expected: NegotiatePhase::AttemptSent,
+                got: self.phase,
+            });
+        }
+
+        self.corrections.extend(correction.fixes.clone());
+
+        if correction.accepted {
+            self.phase = NegotiatePhase::Accepted;
+        } else {
+            self.phase = NegotiatePhase::CorrectionReceived;
+            if let Some(ref revised) = correction.revised_schema {
+                self.current_schema = revised.clone();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Process an accept from the specialist.
+    pub fn record_accept(&mut self, accept: &NegotiateAccept) {
+        self.phase = NegotiatePhase::Accepted;
+        self.current_schema = accept.final_schema.clone();
+    }
+
+    /// Check if negotiation is still in progress.
+    pub fn is_active(&self) -> bool {
+        !matches!(self.phase, NegotiatePhase::Accepted | NegotiatePhase::Failed)
+    }
+
+    /// Check if negotiation succeeded.
+    pub fn is_accepted(&self) -> bool {
+        self.phase == NegotiatePhase::Accepted
+    }
+}
+
+/// Errors during negotiation state transitions.
+#[derive(Debug, Clone)]
+pub enum NegotiateError {
+    /// Negotiation already completed (accepted or failed).
+    AlreadyTerminated,
+    /// Exceeded the maximum number of correction rounds.
+    MaxRoundsExceeded,
+    /// Received a message in an unexpected phase.
+    UnexpectedPhase {
+        expected: NegotiatePhase,
+        got: NegotiatePhase,
+    },
+}
+
+impl std::fmt::Display for NegotiateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AlreadyTerminated => write!(f, "negotiation already terminated"),
+            Self::MaxRoundsExceeded => write!(f, "exceeded max negotiation rounds ({NEGOTIATE_MAX_ROUNDS})"),
+            Self::UnexpectedPhase { expected, got } => {
+                write!(f, "unexpected phase: expected {expected}, got {got}")
+            }
+        }
+    }
+}
+
+fn default_round() -> u8 {
+    1
+}
+
 // --- File Transfer Protocol ---
 // Chunked file transfer over events with base64 encoding and SHA-256 integrity.
 
@@ -518,5 +778,254 @@ mod tests {
         assert_eq!(file_topic::CHUNK, "file.chunk");
         assert_eq!(file_topic::COMPLETE, "file.complete");
         assert_eq!(file_topic::ERROR, "file.error");
+    }
+
+    // --- Negotiation Protocol tests ---
+
+    #[test]
+    fn negotiate_topic_constants() {
+        assert_eq!(negotiate_topic::OFFER, "negotiate.offer");
+        assert_eq!(negotiate_topic::ATTEMPT, "negotiate.attempt");
+        assert_eq!(negotiate_topic::CORRECTION, "negotiate.correction");
+        assert_eq!(negotiate_topic::ACCEPT, "negotiate.accept");
+    }
+
+    #[test]
+    fn negotiate_offer_roundtrip() {
+        let offer = NegotiateOffer {
+            schema_version: SCHEMA_VERSION.to_string(),
+            specialist_id: "git-specialist-01".to_string(),
+            specialist_name: Some("git-specialist".to_string()),
+            format_schema: serde_json::json!({
+                "type": "object",
+                "required": ["title", "findings"],
+                "properties": {
+                    "title": {"type": "string"},
+                    "findings": {"type": "array"}
+                }
+            }),
+            example: Some(serde_json::json!({"title": "Report", "findings": []})),
+            constraints: vec!["findings must reference file:line".to_string()],
+            format_id: Some("specialist/report-v2".to_string()),
+        };
+        let json = serde_json::to_string(&offer).unwrap();
+        let parsed: NegotiateOffer = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.specialist_id, "git-specialist-01");
+        assert_eq!(parsed.constraints.len(), 1);
+        assert_eq!(parsed.format_id.as_deref(), Some("specialist/report-v2"));
+    }
+
+    #[test]
+    fn negotiate_attempt_roundtrip() {
+        let attempt = NegotiateAttempt {
+            schema_version: SCHEMA_VERSION.to_string(),
+            draft: serde_json::json!({"title": "My Report", "findings": [{"ref": "main.rs:42"}]}),
+            questions: vec!["Is severity required?".to_string()],
+            round: 1,
+        };
+        let json = serde_json::to_string(&attempt).unwrap();
+        let parsed: NegotiateAttempt = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.round, 1);
+        assert_eq!(parsed.questions.len(), 1);
+    }
+
+    #[test]
+    fn negotiate_correction_reject_roundtrip() {
+        let correction = NegotiateCorrection {
+            schema_version: SCHEMA_VERSION.to_string(),
+            accepted: false,
+            fixes: vec![
+                CorrectionFix {
+                    field: "findings[0].ref".to_string(),
+                    expected: "file:line format".to_string(),
+                    got: "line 42".to_string(),
+                    hint: Some("prefix with filename".to_string()),
+                },
+            ],
+            revised_schema: None,
+            error_message: None,
+        };
+        let json = serde_json::to_string(&correction).unwrap();
+        let parsed: NegotiateCorrection = serde_json::from_str(&json).unwrap();
+        assert!(!parsed.accepted);
+        assert_eq!(parsed.fixes.len(), 1);
+        assert_eq!(parsed.fixes[0].field, "findings[0].ref");
+    }
+
+    #[test]
+    fn negotiate_correction_accept_roundtrip() {
+        let correction = NegotiateCorrection {
+            schema_version: SCHEMA_VERSION.to_string(),
+            accepted: true,
+            fixes: vec![],
+            revised_schema: None,
+            error_message: None,
+        };
+        let json = serde_json::to_string(&correction).unwrap();
+        let parsed: NegotiateCorrection = serde_json::from_str(&json).unwrap();
+        assert!(parsed.accepted);
+        assert!(parsed.fixes.is_empty());
+    }
+
+    #[test]
+    fn negotiate_accept_roundtrip() {
+        let accept = NegotiateAccept {
+            schema_version: SCHEMA_VERSION.to_string(),
+            final_schema: serde_json::json!({"type": "object", "required": ["title"]}),
+            template: Some(serde_json::json!({"title": "{{title}}", "findings": []})),
+            format_id: Some("specialist/report-v2".to_string()),
+        };
+        let json = serde_json::to_string(&accept).unwrap();
+        let parsed: NegotiateAccept = serde_json::from_str(&json).unwrap();
+        assert!(parsed.template.is_some());
+        assert_eq!(parsed.format_id.as_deref(), Some("specialist/report-v2"));
+    }
+
+    #[test]
+    fn negotiation_state_happy_path() {
+        let offer = NegotiateOffer {
+            schema_version: SCHEMA_VERSION.to_string(),
+            specialist_id: "specialist-01".to_string(),
+            specialist_name: None,
+            format_schema: serde_json::json!({"type": "object"}),
+            example: None,
+            constraints: vec![],
+            format_id: None,
+        };
+        let mut state = NegotiationState::from_offer("req-001", &offer);
+        assert_eq!(state.phase, NegotiatePhase::OfferReceived);
+        assert!(state.is_active());
+
+        // Round 1: attempt → correction (rejected)
+        state.record_attempt().unwrap();
+        assert_eq!(state.phase, NegotiatePhase::AttemptSent);
+        assert_eq!(state.round, 1);
+
+        let correction = NegotiateCorrection {
+            schema_version: SCHEMA_VERSION.to_string(),
+            accepted: false,
+            fixes: vec![CorrectionFix {
+                field: "title".to_string(),
+                expected: "string".to_string(),
+                got: "null".to_string(),
+                hint: None,
+            }],
+            revised_schema: None,
+            error_message: None,
+        };
+        state.record_correction(&correction).unwrap();
+        assert_eq!(state.phase, NegotiatePhase::CorrectionReceived);
+        assert_eq!(state.corrections.len(), 1);
+
+        // Round 2: attempt → correction (accepted)
+        state.record_attempt().unwrap();
+        assert_eq!(state.round, 2);
+
+        let accept_correction = NegotiateCorrection {
+            schema_version: SCHEMA_VERSION.to_string(),
+            accepted: true,
+            fixes: vec![],
+            revised_schema: None,
+            error_message: None,
+        };
+        state.record_correction(&accept_correction).unwrap();
+        assert_eq!(state.phase, NegotiatePhase::Accepted);
+        assert!(!state.is_active());
+        assert!(state.is_accepted());
+    }
+
+    #[test]
+    fn negotiation_state_max_rounds() {
+        let offer = NegotiateOffer {
+            schema_version: SCHEMA_VERSION.to_string(),
+            specialist_id: "specialist-01".to_string(),
+            specialist_name: None,
+            format_schema: serde_json::json!({}),
+            example: None,
+            constraints: vec![],
+            format_id: None,
+        };
+        let mut state = NegotiationState::from_offer("req-002", &offer);
+        state.max_rounds = 2; // Override for test
+
+        // Round 1
+        state.record_attempt().unwrap();
+        let reject = NegotiateCorrection {
+            schema_version: SCHEMA_VERSION.to_string(),
+            accepted: false,
+            fixes: vec![],
+            revised_schema: None,
+            error_message: None,
+        };
+        state.record_correction(&reject).unwrap();
+
+        // Round 2
+        state.record_attempt().unwrap();
+        state.record_correction(&reject).unwrap();
+
+        // Round 3 — should fail
+        let result = state.record_attempt();
+        assert!(result.is_err());
+        assert_eq!(state.phase, NegotiatePhase::Failed);
+        assert!(!state.is_active());
+        assert!(!state.is_accepted());
+    }
+
+    #[test]
+    fn negotiation_state_revised_schema() {
+        let offer = NegotiateOffer {
+            schema_version: SCHEMA_VERSION.to_string(),
+            specialist_id: "specialist-01".to_string(),
+            specialist_name: None,
+            format_schema: serde_json::json!({"version": 1}),
+            example: None,
+            constraints: vec![],
+            format_id: None,
+        };
+        let mut state = NegotiationState::from_offer("req-003", &offer);
+
+        state.record_attempt().unwrap();
+        let correction = NegotiateCorrection {
+            schema_version: SCHEMA_VERSION.to_string(),
+            accepted: false,
+            fixes: vec![],
+            revised_schema: Some(serde_json::json!({"version": 2})),
+            error_message: None,
+        };
+        state.record_correction(&correction).unwrap();
+        assert_eq!(state.current_schema, serde_json::json!({"version": 2}));
+    }
+
+    #[test]
+    fn negotiation_state_accept_shortcut() {
+        let offer = NegotiateOffer {
+            schema_version: SCHEMA_VERSION.to_string(),
+            specialist_id: "specialist-01".to_string(),
+            specialist_name: None,
+            format_schema: serde_json::json!({}),
+            example: None,
+            constraints: vec![],
+            format_id: None,
+        };
+        let mut state = NegotiationState::from_offer("req-004", &offer);
+
+        let accept = NegotiateAccept {
+            schema_version: SCHEMA_VERSION.to_string(),
+            final_schema: serde_json::json!({"final": true}),
+            template: None,
+            format_id: None,
+        };
+        state.record_accept(&accept);
+        assert!(state.is_accepted());
+        assert_eq!(state.current_schema, serde_json::json!({"final": true}));
+    }
+
+    #[test]
+    fn negotiate_phase_display() {
+        assert_eq!(NegotiatePhase::OfferReceived.to_string(), "offer-received");
+        assert_eq!(NegotiatePhase::AttemptSent.to_string(), "attempt-sent");
+        assert_eq!(NegotiatePhase::CorrectionReceived.to_string(), "correction-received");
+        assert_eq!(NegotiatePhase::Accepted.to_string(), "accepted");
+        assert_eq!(NegotiatePhase::Failed.to_string(), "failed");
     }
 }

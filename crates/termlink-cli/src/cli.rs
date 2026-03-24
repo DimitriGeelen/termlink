@@ -859,6 +859,36 @@ pub(crate) enum AgentAction {
         #[arg(long, default_value = "250")]
         interval: u64,
     },
+
+    /// Run a 4-phase format negotiation with a specialist session
+    Negotiate {
+        /// Specialist session ID or display name
+        specialist: String,
+
+        /// JSON Schema for the expected format (or @file for file path)
+        #[arg(long)]
+        schema: String,
+
+        /// JSON draft to submit as the initial attempt
+        #[arg(long)]
+        draft: String,
+
+        /// Sender identity (default: CLI-<pid>)
+        #[arg(long)]
+        from: Option<String>,
+
+        /// Maximum correction rounds (default: 5)
+        #[arg(long, default_value = "5")]
+        max_rounds: u8,
+
+        /// Timeout per round in seconds (default: 30)
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+
+        /// Poll interval in milliseconds (default: 250)
+        #[arg(long, default_value = "250")]
+        interval: u64,
+    },
 }
 
 /// File transfer actions

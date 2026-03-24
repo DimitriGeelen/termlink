@@ -4,7 +4,7 @@ name: "Negotiation protocol — 4-phase format negotiation over agent events"
 description: >
   Implement negotiate.offer/attempt/correction/accept protocol. Orchestrator brokers introduction then steps back. Agent and specialist talk directly. Max 5 rounds. JSON Schema as wire format. See T-233 research: Q2b-negotiation-protocol.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -57,6 +57,11 @@ When agents collaborate with specialists (format output, structure configs, prod
 - [x] Problem statement validated with evidence from task history
 - [x] Assumptions A1-A5 tested
 - [x] Go/No-Go decision made
+- [x] Negotiation message types in `termlink-protocol/src/events.rs` (NegotiateOffer, NegotiateAttempt, NegotiateCorrection, NegotiateAccept)
+- [x] Topic constants for `negotiate.*` actions
+- [x] `NegotiationState` tracker: phase, round count, max rounds, timeout, convergence
+- [x] CLI `agent negotiate` command: multi-round offer→attempt→correction→accept loop
+- [x] Tests: message serialization (7), state machine transitions (4), round cap enforcement
 
 ## Go/No-Go Criteria
 
@@ -71,6 +76,12 @@ When agents collaborate with specialists (format output, structure configs, prod
 - The `agent ask` protocol can't support correlated multi-round without new RPCs (too much protocol work)
 
 ## Verification
+
+grep -q "NegotiateOffer" crates/termlink-protocol/src/events.rs
+grep -q "NegotiationState" crates/termlink-protocol/src/events.rs
+grep -q "negotiate_topic" crates/termlink-protocol/src/events.rs
+grep -q "cmd_agent_negotiate" crates/termlink-cli/src/commands/agent.rs
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-protocol negotiate 2>&1 | grep "test result: ok"
 
 ## Decisions
 
