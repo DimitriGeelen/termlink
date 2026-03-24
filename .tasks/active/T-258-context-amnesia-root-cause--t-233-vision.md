@@ -15,7 +15,7 @@ tags: [context, framework, critical]
 components: []
 related_tasks: [T-233, T-247, T-239, T-240, T-241, T-242, T-256]
 created: 2026-03-24T07:25:29Z
-last_update: 2026-03-24T07:25:29Z
+last_update: 2026-03-24T08:05:07Z
 date_finished: null
 ---
 
@@ -47,11 +47,12 @@ Five structural gaps identified:
 
 ## Acceptance Criteria
 
-- [ ] T-233 episodic summary exists in `.context/episodic/`
-- [ ] T-233 architectural decisions captured in `decisions.yaml`
-- [ ] Claude memory file preserves T-233 vision for future sessions
-- [ ] Root cause analysis artifact at `docs/reports/T-258-context-amnesia.md`
-- [ ] Framework fix inception pickup prompts created and ready to dispatch
+- [x] T-233 episodic summary exists in `.context/episodic/`
+- [x] T-233 architectural decisions captured in `decisions.yaml`
+- [x] Claude memory file preserves T-233 vision for future sessions
+- [x] Root cause analysis artifact at `docs/reports/T-258-context-amnesia.md`
+- [x] Framework fix inception pickup prompts created and ready to dispatch
+- [x] 5 incorrectly NO-GO'd tasks reversed to GO with full audit trail
 
 ## Verification
 
