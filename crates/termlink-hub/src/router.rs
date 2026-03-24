@@ -538,6 +538,136 @@ async fn handle_orchestrator_route(
         }
     }
 
+    // Layer 2: Check route cache (between bypass and full discovery)
+    if !mutating {
+        let route_cache = crate::route_cache::RouteCache::load();
+        match route_cache.lookup(&method) {
+            crate::route_cache::CacheLookup::Hit(entry) => {
+                tracing::info!(
+                    method = %method,
+                    specialist = %entry.specialist,
+                    confidence = entry.effective_confidence(),
+                    hit_count = entry.hit_count,
+                    "orchestrator.route: route cache hit"
+                );
+                // Use cached route as selector hint — filter by specialist name
+                let cached_selector = json!({
+                    "name": entry.specialist,
+                });
+                // Fall through to discovery with the cached selector
+                // (we override selector below to prefer the cached specialist)
+                let forward_params_inner = params.get("params").cloned().unwrap_or(json!({}));
+                let timeout_secs_inner = params
+                    .get("timeout_secs")
+                    .and_then(|t| t.as_u64())
+                    .unwrap_or(5);
+                let timeout_inner = Duration::from_secs(timeout_secs_inner);
+
+                let sessions = match manager::list_sessions(false) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        return ErrorResponse::internal_error(
+                            id,
+                            &format!("Failed to list sessions: {e}"),
+                        )
+                        .into();
+                    }
+                };
+
+                let name_filter = cached_selector.get("name").and_then(|n| n.as_str());
+                let candidates: Vec<_> = sessions
+                    .into_iter()
+                    .filter(|s| {
+                        name_filter.is_none_or(|n| {
+                            s.display_name.to_lowercase().contains(&n.to_lowercase())
+                        })
+                    })
+                    .collect();
+
+                if let Some(reg) = candidates.first() {
+                    let addr = reg.addr.to_transport_addr();
+                    let session_id = reg.id.as_str().to_string();
+                    let result = tokio::time::timeout(timeout_inner, async {
+                        let mut c = client::Client::connect_addr(&addr).await?;
+                        c.call(&method, id.clone(), forward_params_inner.clone()).await
+                    })
+                    .await;
+
+                    match result {
+                        Ok(Ok(RpcResponse::Success(resp))) => {
+                            // Record cache hit
+                            let cache_path = crate::route_cache::cache_path();
+                            let method_clone = method.clone();
+                            if let Ok(mut cache) = std::fs::read_to_string(&cache_path)
+                                .ok()
+                                .and_then(|d| serde_json::from_str::<crate::route_cache::RouteCache>(&d).ok())
+                                .ok_or(())
+                                .or_else(|_| Ok::<_, ()>(crate::route_cache::RouteCache::default()))
+                            {
+                                cache.record_hit(&method_clone);
+                                let _ = cache.save_to(&cache_path);
+                            }
+
+                            // Also record in bypass registry
+                            if !mutating {
+                                let reg_path = crate::bypass::registry_path();
+                                let method_clone2 = method.clone();
+                                let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
+                                    let _ = r.record_orchestrated_run(&method_clone2, crate::bypass::RunOutcome::Success);
+                                });
+                            }
+
+                            return Response::success(
+                                id,
+                                json!({
+                                    "routed_to": {
+                                        "id": session_id,
+                                        "display_name": reg.display_name,
+                                    },
+                                    "cached_route": true,
+                                    "candidates": 1,
+                                    "result": resp.result,
+                                }),
+                            )
+                            .into();
+                        }
+                        _ => {
+                            // Cache route failed — invalidate and fall through to full discovery
+                            tracing::warn!(
+                                method = %method,
+                                "orchestrator.route: cached route failed, falling through to full discovery"
+                            );
+                            let cache_path = crate::route_cache::cache_path();
+                            let method_clone = method.clone();
+                            if let Ok(mut cache) = std::fs::read_to_string(&cache_path)
+                                .ok()
+                                .and_then(|d| serde_json::from_str::<crate::route_cache::RouteCache>(&d).ok())
+                                .ok_or(())
+                                .or_else(|_| Ok::<_, ()>(crate::route_cache::RouteCache::default()))
+                            {
+                                cache.invalidate(&method_clone);
+                                let _ = cache.save_to(&cache_path);
+                            }
+                        }
+                    }
+                }
+                // Cached specialist not found or failed — fall through to normal discovery
+            }
+            crate::route_cache::CacheLookup::Stale(entry) => {
+                tracing::debug!(
+                    method = %method,
+                    specialist = %entry.specialist,
+                    confidence = entry.effective_confidence(),
+                    "orchestrator.route: route cache stale, proceeding to full discovery"
+                );
+                // Fall through to normal discovery (stale hint logged but not used)
+            }
+            crate::route_cache::CacheLookup::Miss => {
+                // No cache entry — normal discovery
+            }
+        }
+    }
+
     let forward_params = params.get("params").cloned().unwrap_or(json!({}));
     let selector = params.get("selector").cloned().unwrap_or(json!({}));
     let timeout_secs = params
@@ -669,6 +799,23 @@ async fn handle_orchestrator_route(
                                 );
                             }
                         });
+
+                    // Record route in cache (Layer 2) for future lookups
+                    let cache_path = crate::route_cache::cache_path();
+                    let method_for_cache = method.clone();
+                    let specialist_name = reg.display_name.clone();
+                    let mut route_cache = crate::route_cache::RouteCache::load_from(&cache_path);
+                    route_cache.record_route(
+                        &method_for_cache,
+                        &specialist_name,
+                        crate::route_cache::RequestSchema::default(),
+                    );
+                    let _ = route_cache.save_to(&cache_path);
+                    tracing::debug!(
+                        method = %method_for_cache,
+                        specialist = %specialist_name,
+                        "orchestrator.route: recorded route in cache"
+                    );
                 }
                 return Response::success(
                     id,

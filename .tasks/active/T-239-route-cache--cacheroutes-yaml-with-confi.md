@@ -4,7 +4,7 @@ name: "Route cache — .cache/routes/ YAML with confidence, TTL, lazy invalidati
 description: >
   Per-agent route cache in .cache/routes/ keyed by capability slug. YAML entries with confidence scores, TTL, hit counts, schema validation. 3-way branch: hit+valid -> direct, partial match -> refinement query, miss -> orchestrator. See T-233 research: Q2b-routing-decision.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -31,11 +31,21 @@ Is a per-agent route cache needed when the routing infrastructure it caches from
 ### Agent
 - [x] Research artifact created at `docs/reports/T-239-route-cache-inception.md`
 - [x] GO/NO-GO decision recorded with rationale
+- [x] `RouteCache` struct in `crates/termlink-hub/src/route_cache.rs` with JSON persistence
+- [x] Cache entries: capability slug, specialist, confidence, TTL, hit_count, last_used, request_schema
+- [x] 3-way lookup: hit+valid → CacheHit, expired/low-confidence → Stale, miss → CacheMiss
+- [x] Confidence decay: 0.05/week of non-use
+- [x] Record successful route (from orchestrator.route response) into cache
+- [x] Invalidate on specialist rejection (schema mismatch or RPC error)
+- [x] Integration: `handle_orchestrator_route` checks route cache between bypass and discovery
+- [x] Tests: hit, miss, stale, confidence decay, invalidation, persistence round-trip (17 tests)
 
 ## Verification
 
 test -f docs/reports/T-239-route-cache-inception.md
 grep -q "GO\|NO-GO" docs/reports/T-239-route-cache-inception.md
+test -f crates/termlink-hub/src/route_cache.rs
+/Users/dimidev32/.cargo/bin/cargo test route_cache 2>&1 | grep -q "test result: ok"
 
 ## Decisions
 

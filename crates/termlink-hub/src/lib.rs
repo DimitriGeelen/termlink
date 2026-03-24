@@ -2,6 +2,7 @@ pub mod bypass;
 pub mod circuit_breaker;
 pub mod pidfile;
 pub mod remote_store;
+pub mod route_cache;
 pub mod router;
 pub mod server;
 pub mod supervisor;
