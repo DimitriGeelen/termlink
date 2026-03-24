@@ -4,7 +4,7 @@ name: "Supervision integration — trust assessment via enforcement tiers + fabr
 description: >
   Integrate supervision into orchestration. Trust = f(script_maturity, context_familiarity, blast_radius). Build on enforcement tiers (proven). Fabric cards as enrichment data. Failed-and-recovered scripts score higher (antifragility). See T-233 research: Q1b evidence reports.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -52,11 +52,19 @@ Concrete scenarios where trust scoring would produce different behavior than cur
 - [x] Each research question answered with evidence
 - [x] All assumptions validated/invalidated with evidence
 - [x] GO/NO-GO decision recorded with rationale
+- [x] `TrustAssessment` struct in `crates/termlink-hub/src/trust.rs` with 3-axis qualitative model
+- [x] Three axes: script_maturity (Hardened/Proven/Developing/Unknown), context_familiarity (High/Medium/Low/New), blast_radius (High/Medium/Low/None)
+- [x] `SupervisionLevel` enum: Unsupervised, Monitored, Supervised, Blocked
+- [x] Assessment function: `TrustAssessment::assess()` + `from_bypass_stats()` convenience
+- [x] Integration ready: trust module callable from `handle_orchestrator_route` via bypass registry stats
+- [x] Tests: 14 tests covering scoring, level determination, antifragility (hardened), denylists, familiarity thresholds
 
 ## Verification
 
 test -f docs/reports/T-242-supervision-inception.md
 grep -q "GO\|NO-GO" docs/reports/T-242-supervision-inception.md
+test -f crates/termlink-hub/src/trust.rs
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-hub trust 2>&1 | grep "test result: ok"
 
 ## Decisions
 
