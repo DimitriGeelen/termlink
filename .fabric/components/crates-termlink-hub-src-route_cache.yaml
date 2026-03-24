@@ -1,0 +1,17 @@
+id: crates/termlink-hub/src/route_cache.rs
+name: route_cache
+type: module
+subsystem: hub
+location: crates/termlink-hub/src/route_cache.rs
+tags: [orchestration, cache, T-233]
+
+purpose: "Layer 2 capability discovery cache — maps capability slugs to specialist sessions with confidence decay, TTL, and lazy invalidation. Sits between bypass registry (Layer 1) and orchestrator.route RPC (Layer 3)."
+
+depends_on:
+  - target: crates/termlink-session/src/discovery.rs
+    type: calls
+  - target: crates/termlink-hub/src/bypass.rs
+    type: sibling
+
+last_verified: 2026-03-24
+created_by: T-239
