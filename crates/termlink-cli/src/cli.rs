@@ -252,6 +252,17 @@ pub(crate) enum Command {
         payload: String,
     },
 
+    /// Push an event to a target session's event bus via the hub
+    #[command(name = "emit-to", hide = true)]
+    EmitTo {
+        target: String,
+        topic: String,
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+        #[arg(long)]
+        from: Option<String>,
+    },
+
     /// Watch events from one or more sessions in real-time
     #[command(hide = true)]
     Watch {
@@ -1050,6 +1061,24 @@ pub(crate) enum EventCommand {
         /// JSON payload (optional, defaults to {})
         #[arg(short, long, default_value = "{}")]
         payload: String,
+    },
+
+    /// Push an event to a target session's event bus via the hub
+    #[command(name = "emit-to")]
+    EmitTo {
+        /// Target session ID or display name
+        target: String,
+
+        /// Event topic (e.g., "task.result", "negotiate.offer")
+        topic: String,
+
+        /// JSON payload (optional, defaults to {})
+        #[arg(short, long, default_value = "{}")]
+        payload: String,
+
+        /// Sender session ID (for traceability)
+        #[arg(long)]
+        from: Option<String>,
     },
 
     /// Broadcast an event to multiple sessions via the hub

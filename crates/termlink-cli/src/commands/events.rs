@@ -124,6 +124,49 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     }
 }
 
+pub(crate) async fn cmd_emit_to(
+    target: &str,
+    topic: &str,
+    payload_str: &str,
+    from: Option<&str>,
+) -> Result<()> {
+    let payload: serde_json::Value =
+        serde_json::from_str(payload_str).context("Invalid JSON payload")?;
+
+    let hub_socket = termlink_hub::server::hub_socket_path();
+    if !hub_socket.exists() {
+        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+    }
+
+    let mut params = serde_json::json!({
+        "target": target,
+        "topic": topic,
+        "payload": payload,
+    });
+    if let Some(sender) = from {
+        params["from"] = serde_json::json!(sender);
+    }
+
+    let resp = client::rpc_call(&hub_socket, "event.emit_to", params)
+        .await
+        .context("Failed to connect to hub")?;
+
+    match client::unwrap_result(resp) {
+        Ok(result) => {
+            println!(
+                "Pushed to {}: {} (seq: {})",
+                result["target"].as_str().unwrap_or(target),
+                result["topic"].as_str().unwrap_or(topic),
+                result["seq"].as_u64().unwrap_or(0),
+            );
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("emit-to failed: {}", e);
+        }
+    }
+}
+
 pub(crate) async fn cmd_watch(
     targets: Vec<String>,
     interval_ms: u64,

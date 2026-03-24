@@ -7,15 +7,16 @@ description: >
   Option B (collect fan-in) ships as T-257 with no code changes. This inception evaluates whether
   true push (Option A) is worth the protocol change.
 
-status: captured
+status: started-work
 workflow_type: build
+build_phase: true
 owner: agent
 horizon: now
 tags: [orchestration, protocol, events]
 components: []
 related_tasks: [T-257, T-233, T-247]
 created: 2026-03-23T22:15:21Z
-last_update: 2026-03-24T08:05:00Z
+last_update: 2026-03-24T09:51:14Z
 date_finished: null
 ---
 
@@ -60,9 +61,19 @@ investment for true push is justified or if collect-based fan-in is good enough.
 
 ## Acceptance Criteria
 
+### Inception (done)
 - [x] Problem statement validated
 - [x] Assumptions A1-A4 tested with evidence
 - [x] Go/No-Go decision made
+
+### Agent
+- [ ] `EVENT_EMIT_TO` constant in `control.rs`
+- [ ] `handle_event_emit_to` hub RPC handler — resolve target session, forward `event.emit`, return result
+- [ ] Backward-compatible: sender field included in emitted event payload so target knows origin
+- [ ] `termlink event emit-to <target> <topic> [--payload JSON] [--from SESSION]` CLI command
+- [ ] Top-level `termlink emit-to` alias
+- [ ] Hub tests: target resolution, emit forwarding, unknown target error, sender enrichment
+- [ ] Fabric card registered
 
 ## Go/No-Go Criteria
 
@@ -77,6 +88,8 @@ investment for true push is justified or if collect-based fan-in is good enough.
 - Protocol change introduces backward-compatibility risk that outweighs latency gain
 
 ## Verification
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-hub emit_to 2>&1 | grep "test result: ok"
+grep -q "EVENT_EMIT_TO" crates/termlink-protocol/src/control.rs
 
 ## Decisions
 
@@ -114,3 +127,6 @@ investment for true push is justified or if collect-based fan-in is good enough.
 - **Action:** NO-GO reversed to GO by human
 - **Reason:** Push messaging is important. Enables real-time bidirectional agent communication, required by negotiation protocol (T-240), scales better than poll-based collection. User's original feature request.
 - **Context:** T-258 context amnesia investigation revealed NO-GO was based on missing architectural context + dismissing user's feature request
+
+### 2026-03-24T09:51:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

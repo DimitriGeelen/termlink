@@ -46,6 +46,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
+        control::method::EVENT_EMIT_TO => handle_event_emit_to(id, &req.params).await,
         control::method::ORCHESTRATOR_ROUTE => handle_orchestrator_route(id, &req.params).await,
         control::method::ORCHESTRATOR_BYPASS_STATUS => handle_bypass_status(id),
         control::method::ORCHESTRATOR_BYPASS_INVALIDATE => handle_bypass_invalidate(id, &req.params),
@@ -238,6 +239,135 @@ async fn handle_event_broadcast(
         }),
     )
     .into()
+}
+
+/// Handle `event.emit_to` — push an event directly to a target session's event bus.
+///
+/// Params: { target: string, topic: string, payload?: value, from?: string }
+/// The hub resolves the target session, enriches the payload with sender info,
+/// and forwards an `event.emit` RPC to the target's socket. This is a unicast
+/// push — the sender does not need to know the target's socket path.
+async fn handle_event_emit_to(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+) -> RpcResponse {
+    let target = match params.get("target").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => {
+            return ErrorResponse::new(
+                id,
+                -32602,
+                "Missing 'target' in params",
+            )
+            .into();
+        }
+    };
+
+    let topic = match params.get("topic").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => {
+            return ErrorResponse::new(
+                id,
+                -32602,
+                "Missing 'topic' in params",
+            )
+            .into();
+        }
+    };
+
+    let payload = params
+        .get("payload")
+        .cloned()
+        .unwrap_or(json!({}));
+
+    let from = params.get("from").and_then(|f| f.as_str());
+
+    // Resolve target session (local first, then remote)
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(_) => {
+            // Check remote store
+            if let Some(store) = remote_store() {
+                if let Some(_remote) = store.get(target) {
+                    return ErrorResponse::new(
+                        id,
+                        control::error_code::CAPABILITY_NOT_SUPPORTED,
+                        "emit_to for remote (TCP) sessions is not yet supported",
+                    )
+                    .into();
+                }
+            }
+            return ErrorResponse::new(
+                id,
+                control::error_code::SESSION_NOT_FOUND,
+                &format!("Target session '{}' not found", target),
+            )
+            .into();
+        }
+    };
+
+    // Enrich payload with sender info for traceability
+    let enriched_payload = if let Some(sender) = from {
+        let mut p = payload.clone();
+        if let Some(obj) = p.as_object_mut() {
+            obj.insert("_from".to_string(), json!(sender));
+        } else {
+            p = json!({ "_data": payload, "_from": sender });
+        }
+        p
+    } else {
+        payload
+    };
+
+    let emit_params = json!({
+        "topic": topic,
+        "payload": enriched_payload,
+    });
+
+    let addr = reg.addr.to_transport_addr();
+    let result = tokio::time::timeout(
+        PER_TARGET_TIMEOUT,
+        client::rpc_call_addr(&addr, control::method::EVENT_EMIT, emit_params),
+    )
+    .await;
+
+    match result {
+        Ok(Ok(resp)) => {
+            match client::unwrap_result(resp) {
+                Ok(mut result) => {
+                    // Add target info to response
+                    if let Some(obj) = result.as_object_mut() {
+                        obj.insert("target".to_string(), json!(target));
+                        if let Some(sender) = from {
+                            obj.insert("from".to_string(), json!(sender));
+                        }
+                    }
+                    Response::success(id, result).into()
+                }
+                Err(e) => {
+                    ErrorResponse::internal_error(
+                        id,
+                        &format!("Target session rejected emit: {e}"),
+                    )
+                    .into()
+                }
+            }
+        }
+        Ok(Err(e)) => {
+            ErrorResponse::internal_error(
+                id,
+                &format!("Failed to connect to target session '{}': {e}", target),
+            )
+            .into()
+        }
+        Err(_) => {
+            ErrorResponse::internal_error(
+                id,
+                &format!("Timeout emitting to target session '{}'", target),
+            )
+            .into()
+        }
+    }
 }
 
 /// Handle `event.collect` — poll events from multiple sessions (fan-in).
@@ -2137,6 +2267,134 @@ mod tests {
             assert!(e.error.message.contains("Missing 'method'"));
         } else {
             panic!("Expected error for missing method");
+        }
+    }
+
+    // === event.emit_to tests ===
+
+    #[tokio::test]
+    async fn emit_to_pushes_event_to_target() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (h1, r1) = start_test_session(&sessions_dir, "emit-to-target").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let params = json!({
+            "target": r1.id.as_str(),
+            "topic": "task.result",
+            "payload": {"status": "done", "output": "42"},
+        });
+
+        let resp = handle_event_emit_to(json!("eto-1"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["topic"], "task.result");
+            assert_eq!(r.result["target"], r1.id.as_str());
+            assert!(r.result["seq"].as_u64().is_some());
+        } else {
+            panic!("Expected success response, got: {resp:?}");
+        }
+
+        // Verify event landed on target
+        let resp = client::rpc_call(r1.socket_path(), "event.poll", json!({})).await.unwrap();
+        let result = client::unwrap_result(resp).unwrap();
+        let events = result["events"].as_array().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["topic"], "task.result");
+        assert_eq!(events[0]["payload"]["status"], "done");
+
+        h1.abort();
+    }
+
+    #[tokio::test]
+    async fn emit_to_enriches_with_sender() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (h1, r1) = start_test_session(&sessions_dir, "emit-to-sender").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let params = json!({
+            "target": r1.id.as_str(),
+            "topic": "negotiate.offer",
+            "payload": {"format": "json"},
+            "from": "worker-1",
+        });
+
+        let resp = handle_event_emit_to(json!("eto-2"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["from"], "worker-1");
+        } else {
+            panic!("Expected success response, got: {resp:?}");
+        }
+
+        // Verify sender info is in the event payload
+        let resp = client::rpc_call(r1.socket_path(), "event.poll", json!({})).await.unwrap();
+        let result = client::unwrap_result(resp).unwrap();
+        let events = result["events"].as_array().unwrap();
+        assert_eq!(events[0]["payload"]["_from"], "worker-1");
+        assert_eq!(events[0]["payload"]["format"], "json");
+
+        h1.abort();
+    }
+
+    #[tokio::test]
+    async fn emit_to_unknown_target_returns_error() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        std::fs::create_dir_all(dir.join("sessions")).unwrap();
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let params = json!({
+            "target": "nonexistent-session",
+            "topic": "test.ping",
+        });
+
+        let resp = handle_event_emit_to(json!("eto-3"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Error(e) = resp {
+            assert_eq!(e.error.code, control::error_code::SESSION_NOT_FOUND);
+            assert!(e.error.message.contains("nonexistent-session"));
+        } else {
+            panic!("Expected error response");
+        }
+    }
+
+    #[tokio::test]
+    async fn emit_to_missing_params_returns_error() {
+        // Missing target
+        let params = json!({"topic": "test"});
+        let resp = handle_event_emit_to(json!("eto-4a"), &params).await;
+        if let RpcResponse::Error(e) = resp {
+            assert!(e.error.message.contains("target"));
+        } else {
+            panic!("Expected error for missing target");
+        }
+
+        // Missing topic
+        let params = json!({"target": "some-session"});
+        let resp = handle_event_emit_to(json!("eto-4b"), &params).await;
+        if let RpcResponse::Error(e) = resp {
+            assert!(e.error.message.contains("topic"));
+        } else {
+            panic!("Expected error for missing topic");
         }
     }
 }

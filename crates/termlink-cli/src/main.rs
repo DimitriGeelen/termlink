@@ -62,6 +62,9 @@ async fn main() -> Result<()> {
             EventCommand::Emit { target, topic, payload } => {
                 commands::events::cmd_emit(&target, &topic, &payload).await
             }
+            EventCommand::EmitTo { target, topic, payload, from } => {
+                commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref()).await
+            }
             EventCommand::Broadcast { topic, payload, targets } => {
                 commands::events::cmd_broadcast(&topic, &payload, targets).await
             }
@@ -93,6 +96,9 @@ async fn main() -> Result<()> {
         }
         Command::Emit { target, topic, payload } => {
             commands::events::cmd_emit(&target, &topic, &payload).await
+        }
+        Command::EmitTo { target, topic, payload, from } => {
+            commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref()).await
         }
         Command::Watch { targets, interval, topic } => {
             commands::events::cmd_watch(targets, interval, topic.as_deref()).await
