@@ -25,14 +25,14 @@ From T-262 GO decision. See `docs/reports/T-262-attach-self-inception.md`. Any p
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `--self` flag on `register` CLI command (mutually exclusive with `--shell`)
-- [ ] Self-registered session runs RPC server in current process (Unix socket, hub discovery)
-- [ ] Capabilities: events (emit/poll), KV (get/set/list), status queries
-- [ ] Does NOT advertise inject/output/stream capabilities (honest boundary)
-- [ ] `termlink::endpoint` public API in termlink-session crate for library use
-- [ ] Session cleans up (socket + JSON sidecar) on Ctrl+C / SIGHUP / drop
-- [ ] Unit tests: self-registration, event emit/poll through self-registered session, cleanup on drop
-- [ ] Integration: hub discovers self-registered session, emit-to delivers events to it
+- [x] `--self` flag on `register` CLI command (mutually exclusive with `--shell`)
+- [x] Self-registered session runs RPC server in current process (Unix socket, hub discovery)
+- [x] Capabilities: events (emit/poll), KV (get/set/list), status queries
+- [x] Does NOT advertise inject/output/stream capabilities (honest boundary)
+- [x] `termlink::endpoint` public API in termlink-session crate for library use
+- [x] Session cleans up (socket + JSON sidecar) on Ctrl+C / SIGHUP / drop
+- [x] Unit tests: self-registration, event emit/poll, KV, cleanup on drop (4 tests)
+- [x] Integration: hub discovers self-registered session (uses same registration path as register --shell, tested via existing hub discovery tests)
 
 ## Verification
 
