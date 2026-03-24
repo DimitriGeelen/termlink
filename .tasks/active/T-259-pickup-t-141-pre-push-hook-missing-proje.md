@@ -27,9 +27,9 @@ Pickup from framework agent (T-546 on .107). Two TermLink-side fixes needed for 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Flaky test `router::tests::register_remote_and_discover` fixed with ENV_LOCK guard
-- [ ] Release workflow macOS x86_64 target uses `macos-14` instead of deprecated `macos-13`
-- [ ] Tests pass: `cargo test register_remote_and_discover`
+- [x] Flaky test `router::tests::register_remote_and_discover` fixed with ENV_LOCK guard
+- [x] Release workflow macOS x86_64 target uses `macos-14` instead of deprecated `macos-13`
+- [x] Tests pass: `cargo test register_remote_and_discover`
 
 ## Verification
 

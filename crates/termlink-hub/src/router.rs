@@ -1322,6 +1322,7 @@ mod tests {
 
     #[tokio::test]
     async fn register_remote_and_discover() {
+        let _lock = ENV_LOCK.lock().await;
         // Initialize the remote store for this test (clear any leftovers)
         let _store = super::init_remote_store();
         if let Some(s) = super::remote_store() { s.clear(); }
