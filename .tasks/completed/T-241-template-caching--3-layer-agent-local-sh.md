@@ -4,7 +4,7 @@ name: "Template caching — 3-layer agent-local, shared, canonical"
 description: >
   3-layer template cache: Layer 1 agent-local (.context/specialists/<id>/templates/), Layer 2 shared registry (promoted at 5 uses/0 corrections), Layer 3 specialist canonical (source of truth). Lazy invalidation via schema hash. Pull-on-miss. See T-233 research: Q2b-template-caching.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-233, orchestration, cache]
 components: []
 related_tasks: [T-233, T-240]
 created: 2026-03-23T13:27:50Z
-last_update: 2026-03-24T07:50:00Z
-date_finished: null
+last_update: 2026-03-24T09:34:41Z
+date_finished: 2026-03-24T09:34:41Z
 ---
 
 # T-241: Template caching — 3-layer agent-local, shared, canonical
@@ -103,3 +103,6 @@ test -f crates/termlink-hub/src/template_cache.rs
 - **Action:** NO-GO reversed to GO by human
 - **Reason:** T-241 is the progressive learning layer of T-233 architecture (D-007). Template caching enables the system to learn and get faster over time.
 - **Context:** T-258 context amnesia investigation revealed NO-GO was based on missing architectural context
+
+### 2026-03-24T09:34:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -12,7 +12,7 @@ tags: [pickup, mcp]
 components: []
 related_tasks: []
 created: 2026-03-24T09:27:23Z
-last_update: 2026-03-24T09:27:23Z
+last_update: 2026-03-24T09:28:15Z
 date_finished: null
 ---
 

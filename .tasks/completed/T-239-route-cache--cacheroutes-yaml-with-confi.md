@@ -4,7 +4,7 @@ name: "Route cache — .cache/routes/ YAML with confidence, TTL, lazy invalidati
 description: >
   Per-agent route cache in .cache/routes/ keyed by capability slug. YAML entries with confidence scores, TTL, hit counts, schema validation. 3-way branch: hit+valid -> direct, partial match -> refinement query, miss -> orchestrator. See T-233 research: Q2b-routing-decision.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-233, orchestration, cache]
 components: []
 related_tasks: [T-233, T-237]
 created: 2026-03-23T13:27:32Z
-last_update: 2026-03-24T08:00:00Z
-date_finished: null
+last_update: 2026-03-24T09:03:06Z
+date_finished: 2026-03-24T09:03:06Z
 ---
 
 # T-239: Route cache — .cache/routes/ YAML with confidence, TTL, lazy invalidation
@@ -45,7 +45,7 @@ Is a per-agent route cache needed when the routing infrastructure it caches from
 test -f docs/reports/T-239-route-cache-inception.md
 grep -q "GO\|NO-GO" docs/reports/T-239-route-cache-inception.md
 test -f crates/termlink-hub/src/route_cache.rs
-/Users/dimidev32/.cargo/bin/cargo test route_cache 2>&1 | grep -q "test result: ok"
+/Users/dimidev32/.cargo/bin/cargo test -p termlink-hub route_cache 2>&1 | grep "test result: ok"
 
 ## Decisions
 
@@ -83,3 +83,6 @@ test -f crates/termlink-hub/src/route_cache.rs
 - **Action:** NO-GO reversed to GO by human
 - **Reason:** T-239 is the middle layer of T-233 capability discovery (D-007). Completes the progressive autonomy path between bypass registry (done) and orchestrator.route RPC (done).
 - **Context:** T-258 context amnesia investigation revealed NO-GO was based on missing architectural context
+
+### 2026-03-24T09:03:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

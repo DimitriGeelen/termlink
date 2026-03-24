@@ -4,7 +4,7 @@ name: "Supervision integration — trust assessment via enforcement tiers + fabr
 description: >
   Integrate supervision into orchestration. Trust = f(script_maturity, context_familiarity, blast_radius). Build on enforcement tiers (proven). Fabric cards as enrichment data. Failed-and-recovered scripts score higher (antifragility). See T-233 research: Q1b evidence reports.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-233, orchestration, supervision]
 components: []
 related_tasks: [T-233, T-237, T-238]
 created: 2026-03-23T13:27:59Z
-last_update: 2026-03-24T07:55:00Z
-date_finished: null
+last_update: 2026-03-24T09:39:00Z
+date_finished: 2026-03-24T09:39:00Z
 ---
 
 # T-242: Supervision integration — trust assessment via enforcement tiers + fabric cards
@@ -103,3 +103,6 @@ test -f crates/termlink-hub/src/trust.rs
 - **Action:** NO-GO reversed to GO by human
 - **Reason:** T-242 is the governance layer of T-233 architecture (D-008). Current bypass-everything is a shortcut, not the end state. Trust scoring infrastructure is needed to enable graduated autonomy.
 - **Context:** T-258 context amnesia investigation revealed NO-GO was based on missing architectural context
+
+### 2026-03-24T09:39:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

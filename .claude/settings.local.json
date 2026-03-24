@@ -285,7 +285,24 @@
       "Bash(./agents/mesh/dispatch.sh:*)",
       "Bash(/Users/dimidev32/.cargo/bin/termlink list:*)",
       "Bash(jobs:*)",
-      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/git/git.sh commit -m \"$\\(cat <<'EOF'\nT-233: Inception D1 — 11 research agents dispatched, 10/11 reported\n\nResearch artifacts for specialist agent orchestration inception:\n- Q1 \\(3 agents\\): Lifecycle model — consensus on hybrid hot/warm/cold\n- Q2 \\(5 agents\\): Discovery mechanisms — layered 5-mechanism approach  \n- Q5 \\(2 of 3\\): Architectural ownership — TermLink mechanism + framework policy\n- Dialogue log with human decisions on all 5 inception questions\n- Q4 context loading architecture confirmed \\(static + dynamic + feedback loop\\)\nEOF\n\\)\")"
+      "Bash(PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/agents/git/git.sh commit -m \"$\\(cat <<'EOF'\nT-233: Inception D1 — 11 research agents dispatched, 10/11 reported\n\nResearch artifacts for specialist agent orchestration inception:\n- Q1 \\(3 agents\\): Lifecycle model — consensus on hybrid hot/warm/cold\n- Q2 \\(5 agents\\): Discovery mechanisms — layered 5-mechanism approach  \n- Q5 \\(2 of 3\\): Architectural ownership — TermLink mechanism + framework policy\n- Dialogue log with human decisions on all 5 inception questions\n- Q4 context loading architecture confirmed \\(static + dynamic + feedback loop\\)\nEOF\n\\)\")",
+      "Bash(timeout:*)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink help:*)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink agent:*)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink event:*)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink status:*)",
+      "Bash(bash tests/e2e/level9-dispatch-collect.sh 2>&1)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink output:*)",
+      "Bash(/Users/dimidev32/.cargo/bin/termlink signal:*)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL discover --help 2>&1)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL remote --help 2>&1)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL remote inject --help 2>&1)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL send --help 2>&1)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL file --help 2>&1)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL file send --help 2>&1)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL register --help 2>&1)",
+      "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\nSECRET_FILE=\"$HOME/.termlink/remote-107.secret\"\nHUB=\"192.168.10.107:9100\"\n\n$TL remote inject --secret-file \"$SECRET_FILE\" \"$HUB\" fw-agent \\\\\n  \"Do you have any pickup prompts or tasks for the TermLink project \\(010-termlink\\)? List anything pending that needs to be sent to the termlink agent.\" --enter 2>&1)",
+      "Bash(ipconfig getifaddr:*)"
     ]
   }
 }

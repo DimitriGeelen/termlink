@@ -4,7 +4,7 @@ name: "Negotiation protocol — 4-phase format negotiation over agent events"
 description: >
   Implement negotiate.offer/attempt/correction/accept protocol. Orchestrator brokers introduction then steps back. Agent and specialist talk directly. Max 5 rounds. JSON Schema as wire format. See T-233 research: Q2b-negotiation-protocol.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [T-233, orchestration, protocol]
 components: []
 related_tasks: [T-233, T-237]
 created: 2026-03-23T13:27:41Z
-last_update: 2026-03-24T07:45:00Z
-date_finished: null
+last_update: 2026-03-24T09:12:37Z
+date_finished: 2026-03-24T09:12:37Z
 ---
 
 # T-240: Negotiation protocol — 4-phase format negotiation over agent events
@@ -110,3 +110,6 @@ grep -q "cmd_agent_negotiate" crates/termlink-cli/src/commands/agent.rs
 - **Action:** NO-GO reversed to GO by human
 - **Reason:** T-240 is a building block of T-233 approved architecture (D-007), not an isolated feature. Moved back to active as build task.
 - **Context:** T-258 context amnesia investigation revealed the NO-GO was based on missing architectural context
+
+### 2026-03-24T09:12:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
