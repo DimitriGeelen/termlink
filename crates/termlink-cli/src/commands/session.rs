@@ -174,6 +174,35 @@ pub(crate) async fn cmd_register(
     Ok(())
 }
 
+pub(crate) async fn cmd_register_self(
+    name: Option<String>,
+    roles: Vec<String>,
+    tags: Vec<String>,
+) -> Result<()> {
+    let config = SessionConfig {
+        display_name: name,
+        roles,
+        tags,
+        ..Default::default()
+    };
+
+    let endpoint = termlink_session::endpoint::Endpoint::start(config)
+        .await
+        .context("Failed to register endpoint")?;
+
+    println!("Endpoint registered (event-only, no PTY):");
+    println!("  ID:      {}", endpoint.id());
+    println!("  Socket:  {}", endpoint.socket_path().display());
+    println!("  Capabilities: events, kv, status");
+    println!();
+    println!("Listening... (Ctrl+C to stop)");
+
+    endpoint.run_until_shutdown().await;
+
+    println!("Endpoint deregistered.");
+    Ok(())
+}
+
 pub(crate) fn cmd_list(include_stale: bool, json: bool) -> Result<()> {
     let sessions = manager::list_sessions(include_stale)
         .context("Failed to list sessions")?;

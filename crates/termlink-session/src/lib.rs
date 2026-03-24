@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod endpoint;
 pub mod identity;
 pub mod discovery;
 pub mod lifecycle;

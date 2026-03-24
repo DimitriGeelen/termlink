@@ -30,8 +30,12 @@ pub(crate) enum Command {
         tags: Vec<String>,
 
         /// Start a PTY-backed session (full bidirectional I/O)
-        #[arg(long)]
+        #[arg(long, conflicts_with = "self_mode")]
         shell: bool,
+
+        /// Register current process as event-only endpoint (no PTY)
+        #[arg(long = "self", id = "self_mode")]
+        self_mode: bool,
 
         /// Enable token-based authentication (generates a random secret)
         #[arg(long)]

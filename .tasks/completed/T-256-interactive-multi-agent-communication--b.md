@@ -7,7 +7,7 @@ description: >
   Option B (collect fan-in) ships as T-257 with no code changes. This inception evaluates whether
   true push (Option A) is worth the protocol change.
 
-status: started-work
+status: work-completed
 workflow_type: build
 build_phase: true
 owner: agent
@@ -16,8 +16,8 @@ tags: [orchestration, protocol, events]
 components: []
 related_tasks: [T-257, T-233, T-247]
 created: 2026-03-23T22:15:21Z
-last_update: 2026-03-24T09:51:14Z
-date_finished: null
+last_update: 2026-03-24T09:59:13Z
+date_finished: 2026-03-24T09:59:13Z
 ---
 
 # T-256: Inception — True push messaging (emit-to-target RPC)
@@ -67,13 +67,13 @@ investment for true push is justified or if collect-based fan-in is good enough.
 - [x] Go/No-Go decision made
 
 ### Agent
-- [ ] `EVENT_EMIT_TO` constant in `control.rs`
-- [ ] `handle_event_emit_to` hub RPC handler — resolve target session, forward `event.emit`, return result
-- [ ] Backward-compatible: sender field included in emitted event payload so target knows origin
-- [ ] `termlink event emit-to <target> <topic> [--payload JSON] [--from SESSION]` CLI command
-- [ ] Top-level `termlink emit-to` alias
-- [ ] Hub tests: target resolution, emit forwarding, unknown target error, sender enrichment
-- [ ] Fabric card registered
+- [x] `EVENT_EMIT_TO` constant in `control.rs`
+- [x] `handle_event_emit_to` hub RPC handler — resolve target session, forward `event.emit`, return result
+- [x] Backward-compatible: sender field included in emitted event payload so target knows origin (`_from`)
+- [x] `termlink event emit-to <target> <topic> [--payload JSON] [--from SESSION]` CLI command
+- [x] Top-level `termlink emit-to` alias
+- [x] Hub tests: target resolution, emit forwarding, unknown target error, sender enrichment (4 tests)
+- [x] N/A — handler lives in existing router.rs component card
 
 ## Go/No-Go Criteria
 
@@ -130,3 +130,6 @@ grep -q "EVENT_EMIT_TO" crates/termlink-protocol/src/control.rs
 
 ### 2026-03-24T09:51:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-24T09:59:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
