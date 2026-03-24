@@ -1089,7 +1089,7 @@ dependencies = [
 
 [[package]]
 name = "termlink"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1115,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "termlink-hub"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "libc",
  "rcgen",
@@ -1133,7 +1133,7 @@ dependencies = [
 
 [[package]]
 name = "termlink-protocol"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bitflags 2.11.0",
  "bytes",
@@ -1145,7 +1145,7 @@ dependencies = [
 
 [[package]]
 name = "termlink-session"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64",
  "hmac",
@@ -1166,7 +1166,7 @@ dependencies = [
 
 [[package]]
 name = "termlink-test-utils"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "libc",
  "serde_json",
