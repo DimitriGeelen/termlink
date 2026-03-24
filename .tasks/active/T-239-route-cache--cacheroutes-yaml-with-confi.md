@@ -12,7 +12,7 @@ tags: [T-233, orchestration, cache]
 components: []
 related_tasks: [T-233, T-237]
 created: 2026-03-23T13:27:32Z
-last_update: 2026-03-23T13:27:32Z
+last_update: 2026-03-24T08:00:00Z
 date_finished: null
 ---
 
@@ -20,36 +20,35 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Evaluate whether a route cache is needed given: (1) T-237 orchestrator.route RPC exists but no orchestrator dispatches routes yet, (2) T-240/T-241/T-242 all NO-GO due to absent specialist ecosystem, (3) current dispatch is direct (human/agent names target explicitly). Research: `docs/reports/T-233-Q2b-routing-decision.md`.
+
+## Problem Statement
+
+Is a per-agent route cache needed when the routing infrastructure it caches from (orchestrator.route, specialist discovery) doesn't exist?
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Research artifact created at `docs/reports/T-239-route-cache-inception.md`
+- [x] GO/NO-GO decision recorded with rationale
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+test -f docs/reports/T-239-route-cache-inception.md
+grep -q "GO\|NO-GO" docs/reports/T-239-route-cache-inception.md
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-03-24T06:33:29Z — Original NO-GO (REVERSED)
+- **Decision:** NO-GO (now overridden)
+- **Original rationale:** No routing lookups exist to cache. Dispatch is direct. Same root cause as T-240/T-241/T-242.
+- **Research:** `docs/reports/T-239-route-cache-inception.md` — found zero orchestrator.route queries in project history, current dispatch is human-directed (names target explicitly), T-237 RPC exists but unused
+- **Valid finding preserved:** T-237 orchestrator.route RPC is built and passing — the upstream that the cache caches FROM is already in place
+
+### 2026-03-24T08:00:00Z — Reversed to GO (human decision)
+- **Chose:** GO — build the route cache
+- **Why:** T-239 is the middle layer of the T-233 capability discovery system (D-007): bypass registry (done) → **route cache** → orchestrator.route (done). Without the cache, every non-bypass interaction hits the orchestrator RPC — no learning, no progressive autonomy. The 3-way branch (hit → direct, partial match → refinement query, miss → full discovery) is what makes the system practical at scale. T-237 RPC is already built; the cache completes the progressive autonomy path: first use = full discovery, second use = cached route, nth use = local bypass. Design validated in T-233 Q2b-routing-decision.md: YAML entries with confidence scores, TTL, hit counts, lazy invalidation via schema validation, confidence decay (0.05/week of non-use).
+- **Rejected:** Original NO-GO — treated absence of current routing lookups as evidence they'll never exist, rather than recognizing the cache as infrastructure that enables them. Evaluated T-239 as isolated feature rather than building block of approved architecture (T-258 root cause analysis).
 
 ## Updates
 
@@ -57,3 +56,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-239-route-cache--cacheroutes-yaml-with-confi.md
 - **Context:** Initial task creation
+
+### 2026-03-24T06:32:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-03-24T06:33:29Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** No routing lookups exist to cache. Dispatch is direct. Same root cause as T-240/T-241/T-242.
+
+### 2026-03-24T06:33:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO
+
+### 2026-03-24T08:00:00Z — reopened [human decision]
+- **Action:** NO-GO reversed to GO by human
+- **Reason:** T-239 is the middle layer of T-233 capability discovery (D-007). Completes the progressive autonomy path between bypass registry (done) and orchestrator.route RPC (done).
+- **Context:** T-258 context amnesia investigation revealed NO-GO was based on missing architectural context

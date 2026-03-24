@@ -7,15 +7,15 @@ description: >
   Option B (collect fan-in) ships as T-257 with no code changes. This inception evaluates whether
   true push (Option A) is worth the protocol change.
 
-status: started-work
-workflow_type: inception
+status: captured
+workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [orchestration, protocol, events]
 components: []
 related_tasks: [T-257, T-233, T-247]
 created: 2026-03-23T22:15:21Z
-last_update: 2026-03-23T23:40:00Z
+last_update: 2026-03-24T08:05:00Z
 date_finished: null
 ---
 
@@ -60,9 +60,9 @@ investment for true push is justified or if collect-based fan-in is good enough.
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions A1-A4 tested with evidence
-- [ ] Go/No-Go decision made
+- [x] Problem statement validated
+- [x] Assumptions A1-A4 tested with evidence
+- [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria
 
@@ -80,14 +80,16 @@ investment for true push is justified or if collect-based fan-in is good enough.
 
 ## Decisions
 
-### 2026-03-23 — Split into Option A (inception) and Option B (build)
-- **Chose:** Two tasks: T-257 (build, ships now) for collect-based fan-in convention; T-256 (inception) for true push evaluation
-- **Why:** Option B requires zero code changes and solves the user-visible problem immediately. Option A is a protocol investment that needs evidence of necessity.
-- **Rejected:** Single monolithic task covering both — violates "one task = one deliverable"
+### 2026-03-24T07:08:21Z — Original NO-GO (REVERSED)
+- **Decision:** NO-GO (now overridden)
+- **Original rationale:** T-257 collect fan-in solved the immediate problem. 500ms poll latency negligible for minute-long agent tasks. Ring buffer has 34x headroom at current worker counts.
+- **Research:** `docs/reports/T-256-inception-decision.md` + 3 mesh agent reports (`T-256-q1-primitives.md`, `T-256-q2-dispatch.md`, `T-256-q3-execution-model.md`). Q1 cataloged 15+ messaging commands, identified 6 gaps (G1/G5 "no push notification" rated High severity). Q2 documented the dormant `bus-handler.sh` inbox designed for push but never activated. Q3 found `collect --count N` as background Bash = ~800 tokens vs polling loop = ~10K-18K tokens.
+- **Valid findings preserved:** T-257 collect fan-in works today and is a valid Layer 1. A3 (backward-compatible) LIKELY VALID — optional `target` field on emit. The protocol change is non-trivial but bounded (~new handler in control.rs + target socket resolution).
 
-## Decision
-
-<!-- Filled at completion via: fw inception decide T-256 go|no-go --rationale "..." -->
+### 2026-03-24T08:05:00Z — Reversed to GO (human decision)
+- **Chose:** GO — build emit-to-target push RPC
+- **Why:** Push messaging is important. This was the user's original feature request, born from real frustration with the fire-and-forget polling model. Push enables communication patterns that poll cannot support: real-time bidirectional dialogue between agents (the negotiation protocol T-240 needs this), streaming progress updates without poll overhead, interactive correction mid-task. As agent count scales beyond 10+ workers, poll-based collection becomes a throughput bottleneck (hub polls each worker at 500ms intervals = O(N) poll load). Push is O(1) per event — worker emits directly to orchestrator's bus. The research confirmed the protocol supports it (A3 backward-compatible) and the design is bounded. T-256 is also foundational for the T-233 architecture — the negotiation protocol (T-240) assumes agents can talk directly to each other, not just emit to their own bus.
+- **Rejected:** Original NO-GO — dismissed the user's feature request by framing current workaround (collect) as sufficient. Evaluated latency only for current scale (minute-long tasks, 3-10 workers) rather than the architecture being built.
 
 ## Updates
 
@@ -98,3 +100,17 @@ investment for true push is justified or if collect-based fan-in is good enough.
 - **Action:** Q1 (primitives), Q2 (dispatch architecture), Q3 (execution model) research delivered
 - **Output:** docs/reports/T-256-q1-primitives.md, T-256-q2-dispatch.md, T-256-q3-execution-model.md
 - **Key finding:** Collect-based fan-in works today (Option B). True push needs protocol change (Option A).
+
+### 2026-03-24T07:08:21Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** T-257 collect fan-in solved the problem. 500ms poll latency negligible for minute-long agent tasks. Ring buffer has 34x headroom.
+
+### 2026-03-24T07:08:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO
+
+### 2026-03-24T08:05:00Z — reopened [human decision]
+- **Action:** NO-GO reversed to GO by human
+- **Reason:** Push messaging is important. Enables real-time bidirectional agent communication, required by negotiation protocol (T-240), scales better than poll-based collection. User's original feature request.
+- **Context:** T-258 context amnesia investigation revealed NO-GO was based on missing architectural context + dismissing user's feature request

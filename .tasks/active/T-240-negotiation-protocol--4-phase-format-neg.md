@@ -4,16 +4,16 @@ name: "Negotiation protocol — 4-phase format negotiation over agent events"
 description: >
   Implement negotiate.offer/attempt/correction/accept protocol. Orchestrator brokers introduction then steps back. Agent and specialist talk directly. Max 5 rounds. JSON Schema as wire format. See T-233 research: Q2b-negotiation-protocol.md
 
-status: work-completed
-workflow_type: inception
+status: captured
+workflow_type: build
 owner: agent
 horizon: now
 tags: [T-233, orchestration, protocol]
 components: []
 related_tasks: [T-233, T-237]
 created: 2026-03-23T13:27:41Z
-last_update: 2026-03-23T23:05:15Z
-date_finished: 2026-03-23T23:05:15Z
+last_update: 2026-03-24T07:45:00Z
+date_finished: null
 ---
 
 # T-240: Negotiation protocol — 4-phase format negotiation over agent events
@@ -74,11 +74,10 @@ When agents collaborate with specialists (format output, structure configs, prod
 
 ## Decisions
 
-**Decision**: NO-GO
-
-**Rationale**: Zero instances of iterative format correction in 233 tasks. Schema-in-prompt (Layer 1) delivers 85-90% coverage at 5% complexity. 4-phase negotiation is premature — save for when evidence shows Layers 1+2 are insufficient (>10% failure rate signal).
-
-**Date**: 2026-03-23T23:05:14Z
+### 2026-03-24 — Reversed NO-GO to GO
+- **Chose:** GO — build the 4-phase negotiation protocol
+- **Why:** T-240 is Layer 3 of the T-233 approved architecture (D-007). The original NO-GO applied YAGNI reasoning ("specialists don't exist yet") to infrastructure whose purpose is to BUILD the specialist ecosystem. The research artifacts remain valid — the protocol maps cleanly to existing primitives.
+- **Rejected:** Original NO-GO reasoning — evaluated T-240 as isolated feature rather than building block of approved architecture
 
 ## Updates
 
@@ -95,3 +94,8 @@ When agents collaborate with specialists (format output, structure configs, prod
 ### 2026-03-23T23:05:15Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: NO-GO
+
+### 2026-03-24T07:45:00Z — reopened [human decision]
+- **Action:** NO-GO reversed to GO by human
+- **Reason:** T-240 is a building block of T-233 approved architecture (D-007), not an isolated feature. Moved back to active as build task.
+- **Context:** T-258 context amnesia investigation revealed the NO-GO was based on missing architectural context
