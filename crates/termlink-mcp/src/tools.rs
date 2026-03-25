@@ -193,6 +193,18 @@ pub struct StatusParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct TagParams {
+    /// Session ID or display name
+    pub target: String,
+    /// Replace all tags with this list (mutually exclusive with add/remove)
+    pub set: Option<Vec<String>>,
+    /// Tags to add to the session
+    pub add: Option<Vec<String>>,
+    /// Tags to remove from the session
+    pub remove: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct EventPollParams {
     /// Session ID or display name
     pub target: String,
@@ -1129,6 +1141,54 @@ impl TermLinkTools {
             "total": cleaned_sessions.len() as u32 + cleaned_sockets + if cleaned_hub { 1 } else { 0 },
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_tag",
+        description = "Manage tags on a TermLink session. Use 'add' to append tags, 'remove' to delete tags, or 'set' to replace all tags. Returns the updated tag list. Tags enable discovery-based orchestration — tag sessions by role, project, or task, then use termlink_discover to find them."
+    )]
+    async fn termlink_tag(&self, Parameters(p): Parameters<TagParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let mut params = serde_json::json!({});
+        if let Some(set) = &p.set {
+            params["tags"] = serde_json::json!(set);
+        }
+        if let Some(add) = &p.add {
+            params["add_tags"] = serde_json::json!(add);
+        }
+        if let Some(remove) = &p.remove {
+            params["remove_tags"] = serde_json::json!(remove);
+        }
+
+        if params.as_object().unwrap().is_empty() {
+            return "Error: specify at least one of: set, add, or remove".into();
+        }
+
+        match client::rpc_call(reg.socket_path(), "session.update", params).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => {
+                    let tags = result["tags"]
+                        .as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|t| t.as_str())
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    format!(
+                        "Updated {}: tags=[{}]",
+                        result["display_name"].as_str().unwrap_or(&p.target),
+                        tags.join(", "),
+                    )
+                }
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
     }
 
     #[tool(

@@ -67,10 +67,11 @@ async fn test_list_tools() {
         "termlink_kv_list", "termlink_kv_del", "termlink_broadcast",
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
         "termlink_interact", "termlink_doctor", "termlink_clean",
+        "termlink_tag",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 22, "expected at least 22 tools, got {}", tools.len());
+    assert!(tools.len() >= 23, "expected at least 23 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -741,6 +742,92 @@ async fn test_clean_removes_orphaned_socket() {
     let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
     assert_eq!(parsed["cleaned_sockets"].as_u64().unwrap(), 1, "should clean 1 orphaned socket");
     assert!(!sessions_dir.join("orphan.sock").exists(), "socket should be removed");
+
+    client.cancel().await.unwrap();
+}
+
+// === Tag tool tests ===
+
+#[tokio::test]
+async fn test_tag_add() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-tag-add");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "tag-target", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_tag", json!({
+        "target": "tag-target",
+        "add": ["project:alpha", "env:staging"]
+    })).await;
+
+    assert!(result.contains("Updated"), "should confirm update: {result}");
+    assert!(result.contains("project:alpha"), "should include added tag: {result}");
+    assert!(result.contains("env:staging"), "should include added tag: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_tag_set_and_remove() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-tag-set-rm");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "tag-setrm", vec![]).await;
+
+    let client = mcp_client().await;
+
+    // Set tags
+    let result = call(&client, "termlink_tag", json!({
+        "target": "tag-setrm",
+        "set": ["a", "b", "c"]
+    })).await;
+    assert!(result.contains("Updated"), "set should work: {result}");
+
+    // Remove one
+    let result = call(&client, "termlink_tag", json!({
+        "target": "tag-setrm",
+        "remove": ["b"]
+    })).await;
+    assert!(result.contains("Updated"), "remove should work: {result}");
+    assert!(!result.contains(", b,") && !result.contains("[b]"), "b should be removed: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_tag_no_params() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-tag-nop");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "tag-nop", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_tag", json!({
+        "target": "tag-nop"
+    })).await;
+
+    assert!(result.contains("Error"), "should error with no operation: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_tag_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-tag-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_tag", json!({
+        "target": "nonexistent",
+        "add": ["test"]
+    })).await;
+
+    assert!(result.contains("Error"), "should error for missing session: {result}");
 
     client.cancel().await.unwrap();
 }
