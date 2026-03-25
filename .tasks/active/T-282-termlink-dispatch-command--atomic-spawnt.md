@@ -4,16 +4,16 @@ name: "termlink dispatch command — atomic spawn+tag+collect"
 description: >
   New CLI command: termlink dispatch --count N --timeout T -- <cmd>. Atomic spawn+tag+collect wrapper. Structural guarantee replacing 40-line manual orchestration scripts. ~350 LOC new dispatch.rs.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [dispatch, cli, T-280]
 components: []
 related_tasks: [T-280, T-281, T-257]
 created: 2026-03-25T15:08:54Z
-last_update: 2026-03-25T15:19:14Z
-date_finished: null
+last_update: 2026-03-25T15:24:47Z
+date_finished: 2026-03-25T15:24:47Z
 ---
 
 # T-282: termlink dispatch command — atomic spawn+tag+collect
@@ -72,3 +72,6 @@ T-281 added `session.exited` lifecycle events as the crash safety net.
 
 ### 2026-03-25T15:19:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-25T15:24:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

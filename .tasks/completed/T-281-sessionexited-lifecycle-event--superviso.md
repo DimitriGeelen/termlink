@@ -4,7 +4,7 @@ name: "session.exited lifecycle event — supervisor emits before cleanup"
 description: >
   Hub supervisor emits session.exited event before removing dead sessions. Crash safety net for dispatch orchestration. ~80 LOC across supervisor.rs, router.rs, protocol.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [dispatch, lifecycle, T-280]
 components: []
 related_tasks: [T-280, T-257, T-256]
 created: 2026-03-25T15:08:31Z
-last_update: 2026-03-25T15:08:31Z
-date_finished: null
+last_update: 2026-03-25T15:18:27Z
+date_finished: 2026-03-25T15:18:27Z
 ---
 
 # T-281: session.exited lifecycle event — supervisor emits before cleanup
@@ -57,3 +57,6 @@ before cleanup, giving orchestrators a reliable crash-detection signal.
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-281-sessionexited-lifecycle-event--superviso.md
 - **Context:** Initial task creation
+
+### 2026-03-25T15:18:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
