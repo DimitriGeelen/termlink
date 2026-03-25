@@ -4,16 +4,16 @@ name: "termlink vendor — per-project binary isolation (same pattern as framewo
 description: >
   termlink vendor — per-project binary isolation (same pattern as framework .agentic-framework/)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T22:13:57Z
-last_update: 2026-03-25T22:13:57Z
-date_finished: null
+last_update: 2026-03-25T22:30:08Z
+date_finished: 2026-03-25T22:30:08Z
 ---
 
 # T-288: termlink vendor — per-project binary isolation (same pattern as framework .agentic-framework/)
@@ -66,3 +66,6 @@ T-287 inception found TermLink has no path isolation — one global binary share
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-288-termlink-vendor--per-project-binary-isol.md
 - **Context:** Initial task creation
+
+### 2026-03-25T22:30:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

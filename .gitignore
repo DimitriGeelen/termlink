@@ -17,6 +17,9 @@ Thumbs.db
 # Framework symlink (machine-specific)
 .agentic-framework
 
+# Vendored TermLink binary (machine-specific, per-project isolation)
+.termlink/bin/
+
 # Claude Code backup
 .claude/settings.json.bak
 
