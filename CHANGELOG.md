@@ -18,7 +18,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - MCP prompts: `debug_session`, `session_overview`, `orchestrate`
 - `termlink doctor` CLI command with 6 health checks (runtime dir, sessions, hub, sockets, version)
 - `termlink doctor --fix` for auto-remediation of stale sessions, orphaned sockets, stale hub
-- 41 MCP integration tests, 472 total tests
+- `termlink dispatch` — atomic spawn+tag+collect for multi-worker orchestration
+- `session.exited` lifecycle events — hub supervisor emits before cleanup, enabling crash detection
+- 41 MCP integration tests, 474 total tests
 
 ## [0.7.0] - 2026-03-23
 

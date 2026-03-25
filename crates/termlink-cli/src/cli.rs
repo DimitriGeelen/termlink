@@ -445,6 +445,41 @@ pub(crate) enum Command {
         command: Vec<String>,
     },
 
+    /// Dispatch N workers and collect results (atomic spawn+tag+collect)
+    Dispatch {
+        /// Number of workers to spawn
+        #[arg(short = 'n', long)]
+        count: u32,
+
+        /// Timeout in seconds for result collection (default: 300)
+        #[arg(long, default_value = "300")]
+        timeout: u64,
+
+        /// Event topic to collect (default: task.completed)
+        #[arg(long, default_value = "task.completed")]
+        topic: String,
+
+        /// Worker name prefix (workers will be named prefix-1, prefix-2, ...)
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Tags for workers (comma-separated; dispatch metadata tags added automatically)
+        #[arg(short, long, value_delimiter = ',')]
+        tags: Vec<String>,
+
+        /// Spawn backend: auto, terminal, tmux, background
+        #[arg(long, default_value = "auto")]
+        backend: SpawnBackend,
+
+        /// Output results as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Command for each worker to run (after --)
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+
     // === Infrastructure ===
 
     /// Remove stale (dead) session registrations from the runtime directory

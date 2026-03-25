@@ -3,6 +3,7 @@ pub(crate) mod pty;
 pub(crate) mod events;
 pub(crate) mod metadata;
 pub(crate) mod execution;
+pub(crate) mod dispatch;
 pub(crate) mod infrastructure;
 pub(crate) mod token;
 pub(crate) mod remote;

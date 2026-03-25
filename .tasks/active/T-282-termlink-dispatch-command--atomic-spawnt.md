@@ -4,15 +4,15 @@ name: "termlink dispatch command — atomic spawn+tag+collect"
 description: >
   New CLI command: termlink dispatch --count N --timeout T -- <cmd>. Atomic spawn+tag+collect wrapper. Structural guarantee replacing 40-line manual orchestration scripts. ~350 LOC new dispatch.rs.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
 tags: [dispatch, cli, T-280]
 components: []
-related_tasks: []
+related_tasks: [T-280, T-281, T-257]
 created: 2026-03-25T15:08:54Z
-last_update: 2026-03-25T15:08:54Z
+last_update: 2026-03-25T15:19:14Z
 date_finished: null
 ---
 
@@ -20,40 +20,37 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+From T-280 inception (GO). T-257 collect-based dispatch convention fails in practice because
+agents forget to wire spawn+collect. This command provides a structural guarantee: one CLI
+command that atomically spawns N workers, tags them with a dispatch ID, and collects results.
+T-281 added `session.exited` lifecycle events as the crash safety net.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] New `termlink dispatch` CLI command exists with `--count`, `--timeout`, and `-- <cmd>` arguments
+- [x] Command spawns N worker sessions, each tagged with `_dispatch.id` and `_dispatch.orchestrator`
+- [x] Command runs `event collect --topic task.completed --count N` after all workers register
+- [x] Workers receive `TERMLINK_DISPATCH_ID` and `TERMLINK_ORCHESTRATOR` env vars
+- [x] Timeout handling: exits with code 1 and reports which workers responded if collect times out
+- [x] `--topic` flag allows customizing the collection topic (default: `task.completed`)
+- [x] `--json` flag outputs structured JSON results
+- [x] `termlink dispatch --help` shows usage
+- [x] All existing tests pass (0 regressions)
+- [x] `cargo test --workspace` passes with 0 warnings
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Dispatch 3 real Claude workers using the command, verify results arrive
+  **Steps:**
+  1. Start hub: `termlink hub start`
+  2. Run: `termlink dispatch --count 3 --timeout 60 -- bash -c 'echo "Worker reporting"; termlink emit self task.completed --payload "{\"status\":\"done\"}"'`
+  3. Observe output
+  **Expected:** All 3 workers spawn, run, emit task.completed, dispatch collects all 3 and exits 0
+  **If not:** Check `termlink list` for worker sessions, check logs
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+/Users/dimidev32/.cargo/bin/cargo test --workspace
 
 ## Decisions
 
@@ -72,3 +69,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-282-termlink-dispatch-command--atomic-spawnt.md
 - **Context:** Initial task creation
+
+### 2026-03-25T15:19:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
