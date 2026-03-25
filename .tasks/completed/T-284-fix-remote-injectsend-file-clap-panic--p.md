@@ -4,16 +4,16 @@ name: "Fix remote inject/send-file clap panic — positional argument ordering"
 description: >
   Fix remote inject/send-file clap panic — positional argument ordering
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-25T19:49:58Z
-last_update: 2026-03-25T19:49:58Z
-date_finished: null
+last_update: 2026-03-25T19:54:17Z
+date_finished: 2026-03-25T19:54:17Z
 ---
 
 # T-284: Fix remote inject/send-file clap panic — positional argument ordering
@@ -53,3 +53,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-284-fix-remote-injectsend-file-clap-panic--p.md
 - **Context:** Initial task creation
+
+### 2026-03-25T19:54:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

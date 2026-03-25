@@ -1,6 +1,8 @@
 # Agentic Engineering Framework - Project Configuration
-project_name: 010-Ag-Framework-Brew-Test
-framework_path: /opt/999-Agentic-Engineering-Framework
-version: 1.2.6
+# framework_path removed (T-498) — fw resolves from .agentic-framework/bin/fw location
+project_name: 010-termlink
+version: 1.3.0
 provider: generic
-initialized_at: 2026-03-08T13:47:19Z
+initialized_at: 2026-03-25T17:34:50Z
+
+upstream_repo: DimitriGeelen/agentic-engineering-framework

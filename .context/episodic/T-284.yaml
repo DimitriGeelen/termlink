@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-284: Fix remote inject/send-file clap panic — positional argument ordering
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-25T19:54:59Z
+# ============================================================================
+
+task_id: T-284
+task_name: "Fix remote inject/send-file clap panic — positional argument ordering"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T19:49:58Z
+completed: 2026-03-25T19:54:17Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T20:54:04+01:00
+last_commit: 2026-03-25T20:54:04+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix remote inject/send-file clap panic — positional arg ordering
+
+# Key outcomes
+outcomes:
+  - "`termlink remote inject --help` runs without panic"
+  - "`termlink remote send-file --help` runs without panic"
+  - "`termlink remote inject mint fw-agent \"test\" --enter --secret <secret>` executes successfully"
+  - "`termlink remote send-file mint fw-agent /tmp/test.txt --secret <secret>` executes successfully"
+  - "All existing tests pass (`cargo test --workspace`)"
+  - "0 compiler warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix remote inject/send-file clap panic — positional arg ordering"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-284-fix-remote-injectsend-file-clap-panic--p.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T20:54:04"
+    action: "T-284: Fix remote inject/send-file clap panic — positional arg ordering"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 59
+  lines_removed: 6
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-284-fix-remote-injectsend-file-clap-panic--p.md
+generated_by: context-agent-hybrid
