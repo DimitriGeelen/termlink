@@ -190,12 +190,10 @@ async fn main() -> Result<()> {
             }
             RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let session = commands::remote::resolve_remote_target(session, &p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("control")).await?;
                 commands::remote::cmd_remote_inject(&p.address, &session, &text, p.secret_file.as_deref(), p.secret.as_deref(), enter, key.as_deref(), delay_ms, p.scope.as_deref().unwrap_or("control"), json).await
             }
             RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let session = commands::remote::resolve_remote_target(session, &p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("control")).await?;
                 commands::remote::cmd_remote_send_file(&p.address, &session, &path, p.secret_file.as_deref(), p.secret.as_deref(), chunk_size, p.scope.as_deref().unwrap_or("control"), json).await
             }
             RemoteAction::Events { hub, secret_file, secret, scope, topic, targets, interval, count, json } => {

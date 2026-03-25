@@ -686,8 +686,8 @@ pub(crate) enum RemoteAction {
         /// Remote hub address (e.g., 192.168.10.107:9100)
         hub: String,
 
-        /// Target session name or ID (omit to pick interactively)
-        session: Option<String>,
+        /// Target session name or ID
+        session: String,
 
         /// Text to inject
         text: String,
@@ -726,8 +726,8 @@ pub(crate) enum RemoteAction {
         /// Remote hub address (e.g., 192.168.10.107:9100)
         hub: String,
 
-        /// Target session name or ID (omit to pick interactively)
-        session: Option<String>,
+        /// Target session name or ID
+        session: String,
 
         /// Path to the local file to send
         path: String,
