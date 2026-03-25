@@ -6,6 +6,7 @@
 use rmcp::model::{CallToolRequestParams, GetPromptRequestParams, ReadResourceRequestParams, ResourceContents};
 use rmcp::{RoleClient, ServiceExt};
 use serde_json::json;
+use termlink_session::client;
 use termlink_test_utils::{start_session, TestDir};
 use tokio::sync::Mutex;
 
@@ -67,11 +68,11 @@ async fn test_list_tools() {
         "termlink_kv_list", "termlink_kv_del", "termlink_broadcast",
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
         "termlink_interact", "termlink_doctor", "termlink_clean",
-        "termlink_tag",
+        "termlink_tag", "termlink_request",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 23, "expected at least 23 tools, got {}", tools.len());
+    assert!(tools.len() >= 24, "expected at least 24 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -828,6 +829,97 @@ async fn test_tag_nonexistent_session() {
     })).await;
 
     assert!(result.contains("Error"), "should error for missing session: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+// === Request tool tests ===
+
+#[tokio::test]
+async fn test_request_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-req-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_request", json!({
+        "target": "nonexistent",
+        "topic": "task.run",
+        "reply_topic": "task.result"
+    })).await;
+
+    assert!(result.contains("Error"), "should error for missing session: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_request_with_reply() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-req-reply");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, reg) = start_session(&dir.sessions_dir(), "req-target", vec![]).await;
+
+    let client = mcp_client().await;
+
+    // Spawn a task that emits a reply after a short delay
+    let socket = reg.socket_path().to_path_buf();
+    tokio::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+        // Poll to find the request_id
+        let poll_resp = client::rpc_call(&socket, "event.poll", serde_json::json!({"topic": "task.run"})).await;
+        if let Ok(resp) = poll_resp {
+            if let Ok(result) = client::unwrap_result(resp) {
+                if let Some(events) = result["events"].as_array() {
+                    if let Some(event) = events.first() {
+                        let req_id = event["payload"]["request_id"].as_str().unwrap_or("unknown");
+                        // Emit the reply
+                        let _ = client::rpc_call(
+                            &socket,
+                            "event.emit",
+                            serde_json::json!({
+                                "topic": "task.result",
+                                "payload": {"request_id": req_id, "status": "done", "value": 42}
+                            }),
+                        ).await;
+                    }
+                }
+            }
+        }
+    });
+
+    let result = call(&client, "termlink_request", json!({
+        "target": "req-target",
+        "topic": "task.run",
+        "payload": {"action": "compute"},
+        "reply_topic": "task.result",
+        "timeout": 5
+    })).await;
+
+    assert!(result.contains("done") || result.contains("42"), "should contain reply data: {result}");
+    assert!(!result.contains("Timeout"), "should not timeout: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_request_timeout() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-req-timeout");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "req-timeout", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_request", json!({
+        "target": "req-timeout",
+        "topic": "task.run",
+        "reply_topic": "task.result",
+        "timeout": 1
+    })).await;
+
+    assert!(result.contains("Timeout"), "should timeout: {result}");
 
     client.cancel().await.unwrap();
 }

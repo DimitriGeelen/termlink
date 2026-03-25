@@ -205,6 +205,20 @@ pub struct TagParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct RequestParams {
+    /// Session ID or display name to send the request to
+    pub target: String,
+    /// Event topic for the request (e.g., "task.run")
+    pub topic: String,
+    /// JSON payload to include in the request
+    pub payload: Option<serde_json::Value>,
+    /// Topic to wait for the reply on (e.g., "task.result")
+    pub reply_topic: String,
+    /// Timeout in seconds (default: 30)
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct EventPollParams {
     /// Session ID or display name
     pub target: String,
@@ -1141,6 +1155,114 @@ impl TermLinkTools {
             "total": cleaned_sessions.len() as u32 + cleaned_sockets + if cleaned_hub { 1 } else { 0 },
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_request",
+        description = "Send a request event to a TermLink session and wait for a reply. Emits an event with a unique request_id on the specified topic, then polls for a reply event on reply_topic with matching request_id. Use this for request-reply coordination between sessions (e.g., send 'task.run', wait for 'task.result')."
+    )]
+    async fn termlink_request(&self, Parameters(p): Parameters<RequestParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let timeout_secs = p.timeout.unwrap_or(30);
+
+        // Generate unique request ID
+        let request_id = format!(
+            "req-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        );
+
+        // Build payload with request_id
+        let mut payload = p.payload.unwrap_or(serde_json::json!({}));
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert("request_id".to_string(), serde_json::json!(&request_id));
+        }
+
+        // Snapshot cursor before emitting
+        let cursor: Option<u64> = {
+            match client::rpc_call(reg.socket_path(), "event.poll", serde_json::json!({})).await {
+                Ok(resp) => {
+                    if let Ok(result) = client::unwrap_result(resp) {
+                        result["next_seq"].as_u64()
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            }
+        };
+
+        // Emit the request event
+        let emit_params = serde_json::json!({
+            "topic": p.topic,
+            "payload": payload,
+        });
+
+        match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+            Ok(resp) => {
+                if let Err(e) = client::unwrap_result(resp) {
+                    return format!("Error: failed to emit request: {e}");
+                }
+            }
+            Err(e) => return format!("Error: connection failed: {e}"),
+        }
+
+        // Poll for reply
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
+        let poll_interval = tokio::time::Duration::from_millis(500);
+        let mut poll_cursor = cursor;
+
+        loop {
+            if tokio::time::Instant::now() >= deadline {
+                return format!(
+                    "Timeout: no reply on '{}' within {}s (request_id: {})",
+                    p.reply_topic, timeout_secs, request_id
+                );
+            }
+
+            tokio::time::sleep(poll_interval).await;
+
+            let mut params = serde_json::json!({ "topic": p.reply_topic });
+            if let Some(c) = poll_cursor {
+                params["since"] = serde_json::json!(c);
+            }
+
+            match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+                Ok(resp) => {
+                    if let Ok(result) = client::unwrap_result(resp) {
+                        if let Some(events) = result["events"].as_array() {
+                            for event in events {
+                                let event_payload = &event["payload"];
+                                let matches = event_payload
+                                    .get("request_id")
+                                    .and_then(|r| r.as_str())
+                                    .map(|r| r == request_id)
+                                    .unwrap_or(true);
+
+                                if matches {
+                                    return serde_json::to_string_pretty(event_payload)
+                                        .unwrap_or_else(|_| "Reply received".into());
+                                }
+                            }
+
+                            if !events.is_empty() {
+                                if let Some(next) = result["next_seq"].as_u64() {
+                                    poll_cursor = Some(next);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => return format!("Error: connection lost during poll: {e}"),
+            }
+        }
     }
 
     #[tool(
