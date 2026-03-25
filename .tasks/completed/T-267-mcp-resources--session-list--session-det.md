@@ -4,7 +4,7 @@ name: "MCP resources — session list + session detail as read-only data"
 description: >
   MCP resources — session list + session detail as read-only data
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [mcp]
 components: []
 related_tasks: []
 created: 2026-03-24T20:57:05Z
-last_update: 2026-03-24T20:57:05Z
-date_finished: null
+last_update: 2026-03-24T21:32:45Z
+date_finished: 2026-03-24T21:32:45Z
 ---
 
 # T-267: MCP resources — session list + session detail as read-only data
@@ -57,3 +57,6 @@ grep -q "termlink://sessions" crates/termlink-mcp/src/server.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-267-mcp-resources--session-list--session-det.md
 - **Context:** Initial task creation
+
+### 2026-03-24T21:32:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

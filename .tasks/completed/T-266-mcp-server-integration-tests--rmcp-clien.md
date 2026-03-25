@@ -4,7 +4,7 @@ name: "MCP server integration tests — rmcp client + TermLink sessions"
 description: >
   MCP server integration tests — rmcp client + TermLink sessions
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [mcp, testing]
 components: []
 related_tasks: []
 created: 2026-03-24T17:56:33Z
-last_update: 2026-03-24T17:56:33Z
-date_finished: null
+last_update: 2026-03-24T18:13:51Z
+date_finished: 2026-03-24T18:13:51Z
 ---
 
 # T-266: MCP server integration tests — rmcp client + TermLink sessions
@@ -53,3 +53,6 @@ Programmatic integration tests for the MCP server (T-264, T-265). Uses rmcp clie
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-266-mcp-server-integration-tests--rmcp-clien.md
 - **Context:** Initial task creation
+
+### 2026-03-24T18:13:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

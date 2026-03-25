@@ -4,7 +4,7 @@ name: "CLI integration tests for emit-to, discover, spawn, register --self"
 description: >
   CLI integration tests for emit-to, discover, spawn, register --self
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [testing, cli]
 components: []
 related_tasks: []
 created: 2026-03-24T21:38:02Z
-last_update: 2026-03-24T21:38:02Z
-date_finished: null
+last_update: 2026-03-24T21:41:13Z
+date_finished: 2026-03-24T21:41:13Z
 ---
 
 # T-268: CLI integration tests for emit-to, discover, spawn, register --self
@@ -50,3 +50,6 @@ Add CLI integration tests for features added in T-256, T-263 that lacked E2E cov
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-268-cli-integration-tests-for-emit-to-discov.md
 - **Context:** Initial task creation
+
+### 2026-03-24T21:41:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
