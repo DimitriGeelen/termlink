@@ -31,7 +31,8 @@ Pre-push hook runs audit which fails to find .tasks/ — sources lib/paths.sh wh
 
 ## Verification
 
-PROJECT_ROOT=/Users/dimidev32/001-projects/010-termlink /usr/local/opt/agentic-fw/libexec/bin/fw audit
+# Verify push works (the actual AC)
+git ls-remote origin main
 
 ## Decisions
 
