@@ -4,7 +4,7 @@ name: "MCP prompts — debug_session, orchestrate, session_overview"
 description: >
   MCP prompts — debug_session, orchestrate, session_overview
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T11:46:25Z
-last_update: 2026-03-25T11:46:25Z
-date_finished: null
+last_update: 2026-03-25T11:51:52Z
+date_finished: 2026-03-25T11:51:52Z
 ---
 
 # T-271: MCP prompts — debug_session, orchestrate, session_overview
@@ -52,3 +52,6 @@ grep -q "test_list_prompts" crates/termlink-mcp/tests/mcp_integration.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-271-mcp-prompts--debugsession-orchestrate-se.md
 - **Context:** Initial task creation
+
+### 2026-03-25T11:51:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
