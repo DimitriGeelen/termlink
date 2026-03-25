@@ -66,11 +66,11 @@ async fn test_list_tools() {
         "termlink_event_poll", "termlink_kv_set", "termlink_kv_get",
         "termlink_kv_list", "termlink_kv_del", "termlink_broadcast",
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
-        "termlink_interact",
+        "termlink_interact", "termlink_doctor", "termlink_clean",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 20, "expected at least 20 tools, got {}", tools.len());
+    assert!(tools.len() >= 22, "expected at least 22 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -655,6 +655,92 @@ async fn test_get_prompt_unknown() {
         .await;
 
     assert!(result.is_err(), "expected error for unknown prompt");
+
+    client.cancel().await.unwrap();
+}
+
+// === Doctor & Clean tool tests ===
+
+#[tokio::test]
+async fn test_doctor_empty_env() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-doctor-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_doctor", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("doctor should return valid JSON");
+    assert!(parsed["checks"].is_array(), "should have checks array");
+    assert!(parsed["summary"]["pass"].is_number(), "should have pass count");
+    assert!(parsed["summary"]["warn"].is_number(), "should have warn count");
+    assert!(parsed["summary"]["fail"].is_number(), "should have fail count");
+
+    // In empty env: runtime_dir fail, sessions_dir warn, sessions pass, hub pass, version pass
+    let total = parsed["summary"]["pass"].as_u64().unwrap_or(0)
+        + parsed["summary"]["warn"].as_u64().unwrap_or(0)
+        + parsed["summary"]["fail"].as_u64().unwrap_or(0);
+    assert!(total >= 4, "expected at least 4 checks, got {total}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_doctor_with_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-doctor-sessions");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "doctor-test", vec!["worker".into()]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_doctor", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    // With a live session, sessions check should show 1 registered
+    let checks = parsed["checks"].as_array().unwrap();
+    let session_check = checks.iter().find(|c| c["check"] == "sessions").unwrap();
+    let msg = session_check["message"].as_str().unwrap();
+    assert!(msg.contains("1 registered"), "should show 1 registered session, got: {msg}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_clean_empty_env() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-clean-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_clean", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("clean should return valid JSON");
+    assert_eq!(parsed["total"].as_u64().unwrap_or(999), 0, "nothing to clean in empty env");
+    assert!(parsed["cleaned_sessions"].as_array().unwrap().is_empty());
+    assert_eq!(parsed["cleaned_sockets"].as_u64().unwrap(), 0);
+    assert_eq!(parsed["cleaned_hub"].as_bool().unwrap(), false);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_clean_removes_orphaned_socket() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-clean-orphan");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Create sessions dir with an orphaned socket (no matching .json)
+    let sessions_dir = dir.path.join("sessions");
+    std::fs::create_dir_all(&sessions_dir).unwrap();
+    std::fs::write(sessions_dir.join("orphan.sock"), b"").unwrap();
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_clean", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["cleaned_sockets"].as_u64().unwrap(), 1, "should clean 1 orphaned socket");
+    assert!(!sessions_dir.join("orphan.sock").exists(), "socket should be removed");
 
     client.cancel().await.unwrap();
 }

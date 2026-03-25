@@ -941,6 +941,197 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_doctor",
+        description = "Run health checks on the TermLink environment. Returns a structured JSON report with pass/warn/fail status for: runtime directory, sessions directory, session liveness, hub status, orphaned sockets, and version. Use this to diagnose connectivity or infrastructure issues before attempting operations."
+    )]
+    async fn termlink_doctor(&self) -> String {
+        use termlink_session::{discovery, liveness};
+
+        let mut checks: Vec<serde_json::Value> = Vec::new();
+        let mut pass_count = 0u32;
+        let mut warn_count = 0u32;
+        let mut fail_count = 0u32;
+
+        macro_rules! check {
+            ($name:expr, pass, $msg:expr) => {{
+                pass_count += 1;
+                checks.push(serde_json::json!({"check": $name, "status": "pass", "message": $msg}));
+            }};
+            ($name:expr, warn, $msg:expr) => {{
+                warn_count += 1;
+                checks.push(serde_json::json!({"check": $name, "status": "warn", "message": $msg}));
+            }};
+            ($name:expr, fail, $msg:expr) => {{
+                fail_count += 1;
+                checks.push(serde_json::json!({"check": $name, "status": "fail", "message": $msg}));
+            }};
+        }
+
+        // 1. Runtime directory
+        let runtime_dir = discovery::runtime_dir();
+        if runtime_dir.exists() {
+            check!("runtime_dir", pass, format!("{}", runtime_dir.display()));
+        } else {
+            check!("runtime_dir", fail, format!("{} does not exist", runtime_dir.display()));
+        }
+
+        // 2. Sessions directory
+        let sessions_dir = discovery::sessions_dir();
+        if sessions_dir.exists() {
+            check!("sessions_dir", pass, format!("{}", sessions_dir.display()));
+        } else {
+            check!("sessions_dir", warn, format!("{} does not exist (no sessions yet)", sessions_dir.display()));
+        }
+
+        // 3. Session health
+        let sessions = manager::list_sessions(true).unwrap_or_default();
+        let total = sessions.len();
+        let mut alive = 0u32;
+        let mut dead = 0u32;
+        let mut stale_names: Vec<String> = Vec::new();
+
+        for s in &sessions {
+            if liveness::process_exists(s.pid) {
+                match client::rpc_call(s.socket_path(), "termlink.ping", serde_json::json!({})).await {
+                    Ok(_) => alive += 1,
+                    Err(_) => {
+                        dead += 1;
+                        stale_names.push(s.display_name.clone());
+                    }
+                }
+            } else {
+                dead += 1;
+                stale_names.push(s.display_name.clone());
+            }
+        }
+
+        if total == 0 {
+            check!("sessions", pass, "no sessions registered");
+        } else if dead == 0 {
+            check!("sessions", pass, format!("{total} registered, all responding"));
+        } else {
+            check!("sessions", warn, format!("{total} registered, {alive} alive, {dead} dead/stale: {}", stale_names.join(", ")));
+        }
+
+        // 4. Hub status
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+        match termlink_hub::pidfile::check(&pidfile_path) {
+            termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+                match client::rpc_call(&hub_socket, "termlink.ping", serde_json::json!({})).await {
+                    Ok(_) => check!("hub", pass, format!("running (PID {pid}), responding")),
+                    Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding")),
+                }
+            }
+            termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
+                check!("hub", warn, format!("stale pidfile (PID {pid} is dead)"));
+            }
+            termlink_hub::pidfile::PidfileStatus::NotRunning => {
+                check!("hub", pass, "not running");
+            }
+        }
+
+        // 5. Orphaned sockets
+        if sessions_dir.exists() {
+            let mut orphan_count = 0u32;
+            if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(ext) = path.extension() {
+                        if ext == "sock" {
+                            let json_path = path.with_extension("json");
+                            if !json_path.exists() {
+                                orphan_count += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            if orphan_count > 0 {
+                check!("sockets", warn, format!("{orphan_count} orphaned socket(s)"));
+            } else {
+                check!("sockets", pass, "no orphaned sockets");
+            }
+        }
+
+        // 6. Version
+        let version = env!("CARGO_PKG_VERSION");
+        check!("version", pass, format!("termlink-mcp {version}"));
+
+        let result = serde_json::json!({
+            "checks": checks,
+            "summary": {
+                "pass": pass_count,
+                "warn": warn_count,
+                "fail": fail_count,
+            }
+        });
+        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_clean",
+        description = "Remove stale TermLink sessions (dead processes) and orphaned sockets. Returns a report of what was cleaned. Use this to recover from crashed sessions or fix issues found by termlink_doctor."
+    )]
+    async fn termlink_clean(&self) -> String {
+        use termlink_session::discovery;
+
+        let sessions_dir = discovery::sessions_dir();
+        let mut cleaned_sessions: Vec<String> = Vec::new();
+        let mut cleaned_sockets = 0u32;
+        let mut cleaned_hub = false;
+
+        // 1. Clean stale sessions
+        match manager::clean_stale_sessions(&sessions_dir, true) {
+            Ok(stale) => {
+                for s in &stale {
+                    cleaned_sessions.push(s.display_name.clone());
+                }
+            }
+            Err(e) => {
+                return format!("Error scanning sessions: {e}");
+            }
+        }
+
+        // 2. Clean orphaned sockets
+        if sessions_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(ext) = path.extension() {
+                        if ext == "sock" {
+                            let json_path = path.with_extension("json");
+                            if !json_path.exists() {
+                                let _ = std::fs::remove_file(&path);
+                                let data_path = path.with_extension("sock.data");
+                                let _ = std::fs::remove_file(&data_path);
+                                cleaned_sockets += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Clean stale hub pidfile
+        let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+        if let termlink_hub::pidfile::PidfileStatus::Stale(_pid) = termlink_hub::pidfile::check(&pidfile_path) {
+            termlink_hub::pidfile::remove(&pidfile_path);
+            let hub_socket = termlink_hub::server::hub_socket_path();
+            let _ = std::fs::remove_file(&hub_socket);
+            cleaned_hub = true;
+        }
+
+        let result = serde_json::json!({
+            "cleaned_sessions": cleaned_sessions,
+            "cleaned_sockets": cleaned_sockets,
+            "cleaned_hub": cleaned_hub,
+            "total": cleaned_sessions.len() as u32 + cleaned_sockets + if cleaned_hub { 1 } else { 0 },
+        });
+        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
         name = "termlink_wait",
         description = "Wait for a specific event topic to appear on a session's event bus. Blocks until the event arrives or timeout."
     )]
