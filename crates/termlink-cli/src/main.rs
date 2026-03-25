@@ -208,7 +208,7 @@ async fn main() -> Result<()> {
                 commands::remote::cmd_remote_profile(action)
             }
         },
-        Command::Doctor { json } => commands::infrastructure::cmd_doctor(json).await,
+        Command::Doctor { json, fix } => commands::infrastructure::cmd_doctor(json, fix).await,
         Command::Completions { shell } => {
             clap_complete::generate(
                 shell,

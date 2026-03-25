@@ -40,7 +40,7 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn cmd_doctor(json_output: bool) -> Result<()> {
+pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
     use termlink_session::{client, discovery, liveness, manager};
 
     let mut checks: Vec<serde_json::Value> = Vec::new();
@@ -121,8 +121,14 @@ pub(crate) async fn cmd_doctor(json_output: bool) -> Result<()> {
                 println!("      stale: {name}");
             }
         }
-        if !stale_sockets.is_empty() && !json_output {
-            println!("      Run 'termlink clean' to remove stale sessions");
+        if fix {
+            let cleaned = manager::clean_stale_sessions(&sessions_dir, true)
+                .unwrap_or_default();
+            if !json_output && !cleaned.is_empty() {
+                println!("      \x1b[32mfixed:\x1b[0m removed {} stale session(s)", cleaned.len());
+            }
+        } else if !stale_sockets.is_empty() && !json_output {
+            println!("      Run 'termlink doctor --fix' to auto-clean");
         }
     }
 
@@ -138,7 +144,13 @@ pub(crate) async fn cmd_doctor(json_output: bool) -> Result<()> {
             }
         }
         termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
-            check!("hub", warn, format!("stale pidfile (PID {pid} is dead). Run 'termlink hub stop' to clean up"));
+            if fix {
+                termlink_hub::pidfile::remove(&pidfile_path);
+                let _ = std::fs::remove_file(&hub_socket);
+                check!("hub", warn, format!("stale pidfile (PID {pid}) — fixed: removed pidfile and socket"));
+            } else {
+                check!("hub", warn, format!("stale pidfile (PID {pid} is dead). Run 'termlink doctor --fix' to clean up"));
+            }
         }
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
             check!("hub", pass, "not running (optional — needed for multi-session routing)");
@@ -148,22 +160,33 @@ pub(crate) async fn cmd_doctor(json_output: bool) -> Result<()> {
     // 5. Orphaned sockets (sockets without matching registration JSON)
     if sessions_dir.exists() {
         let mut orphan_count = 0u32;
+        let mut orphan_paths: Vec<std::path::PathBuf> = Vec::new();
         if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
                     if ext == "sock" {
-                        // Check if there's a matching .json file
                         let json_path = path.with_extension("json");
                         if !json_path.exists() {
                             orphan_count += 1;
+                            orphan_paths.push(path);
                         }
                     }
                 }
             }
         }
         if orphan_count > 0 {
-            check!("sockets", warn, format!("{orphan_count} orphaned socket(s) without registration"));
+            if fix {
+                for p in &orphan_paths {
+                    let _ = std::fs::remove_file(p);
+                    // Also remove .sock.data if it exists
+                    let data_path = p.with_extension("sock.data");
+                    let _ = std::fs::remove_file(&data_path);
+                }
+                check!("sockets", warn, format!("{orphan_count} orphaned socket(s) — fixed: removed"));
+            } else {
+                check!("sockets", warn, format!("{orphan_count} orphaned socket(s) without registration"));
+            }
         } else {
             check!("sockets", pass, "no orphaned sockets");
         }

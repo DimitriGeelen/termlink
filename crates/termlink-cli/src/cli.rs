@@ -503,6 +503,10 @@ pub(crate) enum Command {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Auto-fix issues (clean stale sessions, remove orphaned sockets/pidfiles)
+        #[arg(long)]
+        fix: bool,
     },
 
     /// Generate shell completions
