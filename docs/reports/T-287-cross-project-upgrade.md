@@ -141,3 +141,29 @@ For cross-project agent communication to work, Claude Code sessions MUST be disc
 5. ~~Should this be a one-off or a repeatable `termlink upgrade` command?~~ → **Test first, build later** (decided)
 6. **NEW:** How do Claude sessions register with TermLink at startup? SessionStart hook? CLAUDE.md protocol? MCP?
 7. **NEW:** Should `termlink push` detect that the target is a bash shell (not AI) and warn?
+8. **NEW:** TermLink path isolation — vendor binary per-project like framework does (see below)
+9. **NEW:** .107 runs all agents as root — no privilege separation
+
+## Critical Gap: TermLink Path Isolation (Missing)
+
+**Framework model (works):** `fw vendor` copies the full framework into `.agentic-framework/` per project. All hooks reference `.agentic-framework/bin/fw` (relative). Each project is self-contained, can be on a different version. Upgrade = re-vendor.
+
+**TermLink model (broken):** One global binary on PATH. All projects, all sessions share it. .107 has v0.1.0 globally — 200+ tasks behind our v0.8.0 dev build. Upgrading the global binary affects all 14 sessions simultaneously with no testing, no rollback, no isolation.
+
+**Required — same pattern as framework:**
+1. `termlink vendor` — copies binary into `.termlink/bin/termlink` per project
+2. All TermLink commands in hooks/scripts use `.termlink/bin/termlink` (relative to project root)
+3. Each project can run a different TermLink version
+4. `termlink upgrade` syncs vendored binary from source (Homebrew, cargo build, or remote push)
+5. Hub startup uses the vendored binary, not the global one
+
+**Why this blocks T-287:** We can't push our v0.8.0 features (push, register --self, MCP interact) to .107 without affecting all 14 sessions. Path isolation is a prerequisite for safe cross-project upgrades.
+
+## Security Finding: Root Privilege on .107
+
+All Claude sessions and TermLink processes on .107 run as root:
+- `/root/.cargo/bin/termlink` (root-owned install)
+- `/root/.termlink/known_hubs` (root-owned TOFU store)
+- `remote exec` runs commands as root
+
+This means any agent with execute scope has unrestricted root access to the machine. No privilege separation between projects, no audit trail for privileged operations.
