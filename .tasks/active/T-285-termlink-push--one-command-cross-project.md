@@ -25,16 +25,16 @@ T-283 investigation revealed cross-project notification is broken: 3-4 fragile c
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink push --help` shows usage
-- [ ] `termlink push <hub-or-profile> <session> <file>` delivers file to target's inbox via `remote exec`
-- [ ] After delivery, injects one-line PTY notification: `[TERMLINK] Received: <filename> — cat <path>`
-- [ ] Reports delivery confirmation to sender (file path, size, target)
-- [ ] `--message` flag allows inline text push without a file
-- [ ] `--json` flag for structured output
-- [ ] Uses profile-based auth (resolves hub profiles like other remote commands)
-- [ ] Inbox path is `/tmp/termlink-inbox/` on target (created if missing)
-- [ ] All existing tests pass (`cargo test --workspace`)
-- [ ] 0 compiler warnings
+- [x] `termlink push --help` shows usage
+- [x] `termlink push <hub-or-profile> <session> <file>` delivers file to target's inbox via `remote exec`
+- [x] After delivery, injects one-line PTY notification: `[TERMLINK] Received: <filename> — cat <path>`
+- [x] Reports delivery confirmation to sender (file path, size, target)
+- [x] `--message` flag allows inline text push without a file
+- [x] `--json` flag for structured output
+- [x] Uses profile-based auth (resolves hub profiles like other remote commands)
+- [x] Inbox path is `/tmp/termlink-inbox/` on target (created if missing)
+- [x] All existing tests pass (`cargo test --workspace`)
+- [x] 0 compiler warnings
 
 ### Human
 - [ ] [REVIEW] Push a file from .112 to fw-agent on .107, verify file arrives and agent sees notification

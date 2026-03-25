@@ -791,6 +791,38 @@ pub(crate) enum RemoteAction {
         json: bool,
     },
 
+    /// Push a file or message to a remote session's inbox with PTY notification
+    Push {
+        /// Remote hub address or profile name
+        hub: String,
+
+        /// Target session name or ID
+        session: String,
+
+        /// File to push (omit for --message only)
+        file: Option<String>,
+
+        /// Inline text message (alternative to file)
+        #[arg(long, short)]
+        message: Option<String>,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "execute")]
+        scope: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Manage saved hub profiles (~/.termlink/hubs.toml)
     Profile {
         #[command(subcommand)]

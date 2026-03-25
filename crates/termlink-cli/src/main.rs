@@ -205,6 +205,10 @@ async fn main() -> Result<()> {
                 let session = commands::remote::resolve_remote_target(session, &p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("execute")).await?;
                 commands::remote::cmd_remote_exec(&p.address, &session, &command, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("execute"), timeout, cwd.as_deref(), json).await
             }
+            RemoteAction::Push { hub, session, file, message, secret_file, secret, scope, json } => {
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                commands::push::cmd_push(&p.address, &session, file.as_deref(), message.as_deref(), p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("execute"), json).await
+            }
             RemoteAction::Profile { action } => {
                 commands::remote::cmd_remote_profile(action)
             }
