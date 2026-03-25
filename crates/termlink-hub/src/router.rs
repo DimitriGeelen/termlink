@@ -892,6 +892,7 @@ async fn handle_orchestrator_route(
     let cb = crate::circuit_breaker::global();
     let mut last_error = String::new();
     let mut skipped_count = 0usize;
+    let mut tried_count = 0usize;
     for reg in candidates.drain(..) {
         let session_id = reg.id.as_str().to_string();
 
@@ -906,6 +907,7 @@ async fn handle_orchestrator_route(
             continue;
         }
 
+        tried_count += 1;
         let addr = reg.addr.to_transport_addr();
         let result = tokio::time::timeout(timeout, async {
             let mut c = client::Client::connect_addr(&addr).await?;
@@ -1017,8 +1019,8 @@ async fn handle_orchestrator_route(
         id,
         control::error_code::SESSION_NOT_FOUND,
         &format!(
-            "All {} candidate(s) failed. Last: {}",
-            total_candidates, last_error
+            "All {} candidate(s) failed ({} tried, {} circuit-open skipped). Last: {}",
+            total_candidates, tried_count, skipped_count, last_error
         ),
     )
     .into()
