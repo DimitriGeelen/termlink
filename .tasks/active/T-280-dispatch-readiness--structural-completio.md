@@ -142,20 +142,25 @@ Skip C — opt-in flags repeat the convention problem that caused this gap.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: 5-agent research validates B+A path: dispatch command (4.7/5 on directives) + lifecycle events as crash safety net. ~430 LOC, no new RPC methods, composes existing primitives.
+
+**Date**: 2026-03-25T14:30:07Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: 5-agent research validates B+A path: dispatch command (4.7/5 on directives) + lifecycle events as crash safety net. ~430 LOC, no new RPC methods, composes existing primitives.
+
+**Date**: 2026-03-25T14:30:07Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-03-25T14:30:07Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** 5-agent research validates B+A path: dispatch command (4.7/5 on directives) + lifecycle events as crash safety net. ~430 LOC, no new RPC methods, composes existing primitives.
