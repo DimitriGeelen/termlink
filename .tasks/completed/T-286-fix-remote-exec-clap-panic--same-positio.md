@@ -4,16 +4,16 @@ name: "Fix remote exec clap panic — same positional arg bug as T-284"
 description: >
   Fix remote exec clap panic — same positional arg bug as T-284
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-25T20:25:29Z
-last_update: 2026-03-25T20:25:29Z
-date_finished: null
+last_update: 2026-03-25T20:28:27Z
+date_finished: 2026-03-25T20:28:27Z
 ---
 
 # T-286: Fix remote exec clap panic — same positional arg bug as T-284
@@ -72,3 +72,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-286-fix-remote-exec-clap-panic--same-positio.md
 - **Context:** Initial task creation
+
+### 2026-03-25T20:28:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

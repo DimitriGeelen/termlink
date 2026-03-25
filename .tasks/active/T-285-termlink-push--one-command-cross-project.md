@@ -4,16 +4,16 @@ name: "termlink push — one-command cross-project file delivery with PTY notifi
 description: >
   termlink push — one-command cross-project file delivery with PTY notification
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T20:02:11Z
-last_update: 2026-03-25T20:02:11Z
-date_finished: null
+last_update: 2026-03-25T20:27:38Z
+date_finished: 2026-03-25T20:27:38Z
 ---
 
 # T-285: termlink push — one-command cross-project file delivery with PTY notification
@@ -66,3 +66,6 @@ T-283 investigation revealed cross-project notification is broken: 3-4 fragile c
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-285-termlink-push--one-command-cross-project.md
 - **Context:** Initial task creation
+
+### 2026-03-25T20:27:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

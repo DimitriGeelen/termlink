@@ -8,7 +8,7 @@ plus Claude Code-specific integration notes.
 
 ## Project Overview
 
-**Project:** 010-Ag-Framework-Brew-Test
+**Project:** 010-termlink
 
 <!-- Add your project description, tech stack, and conventions below -->
 
@@ -19,6 +19,7 @@ plus Claude Code-specific integration notes.
 ## Project-Specific Rules
 
 <!-- Add any project-specific rules that agents must follow -->
+
 ## Core Principle
 
 **Nothing gets done without a task.** This is enforced structurally by the framework, not by agent discipline.

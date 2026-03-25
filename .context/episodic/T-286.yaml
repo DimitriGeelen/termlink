@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-286: Fix remote exec clap panic — same positional arg bug as T-284
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-25T20:28:33Z
+# ============================================================================
+
+task_id: T-286
+task_name: "Fix remote exec clap panic — same positional arg bug as T-284"
+workflow_type: build
+enrichment_status: git-derived  # Auto-filled from git; AC/decisions not in task file
+
+# Timeline
+created: 2026-03-25T20:25:29Z
+completed: 2026-03-25T20:28:27Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T21:27:03+01:00
+last_commit: 2026-03-25T21:27:03+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix remote exec clap panic — Option<String> before required positional
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix remote exec clap panic — Option<String> before required positional"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-286-fix-remote-exec-clap-panic--same-positio.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T21:27:03"
+    action: "T-286: Fix remote exec clap panic — Option<String> before required positional"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 76
+  lines_removed: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-286-fix-remote-exec-clap-panic--same-positio.md
+generated_by: context-agent-hybrid
