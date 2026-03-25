@@ -4,7 +4,7 @@ name: "MCP interact tool — atomic inject+wait+output for AI agents"
 description: >
   MCP interact tool — atomic inject+wait+output for AI agents
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T09:58:25Z
-last_update: 2026-03-25T09:58:25Z
-date_finished: null
+last_update: 2026-03-25T10:03:50Z
+date_finished: 2026-03-25T10:03:50Z
 ---
 
 # T-270: MCP interact tool — atomic inject+wait+output for AI agents
@@ -52,3 +52,6 @@ grep -q "test_interact" crates/termlink-mcp/tests/mcp_integration.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-270-mcp-interact-tool--atomic-injectwaitoutp.md
 - **Context:** Initial task creation
+
+### 2026-03-25T10:03:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
