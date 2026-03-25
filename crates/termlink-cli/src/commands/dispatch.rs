@@ -70,14 +70,16 @@ pub(crate) async fn cmd_dispatch(
             .context("Failed to determine termlink binary path")?;
         let termlink_path = termlink_bin.to_string_lossy().to_string();
 
-        let mut register_args = vec![
+        let register_args = vec![
             "register".to_string(),
             "--name".to_string(),
             worker_name.clone(),
             "--tags".to_string(),
             worker_tags.join(","),
         ];
-        register_args.push("--shell".to_string());
+        // Note: no --shell flag. Dispatch workers are event-only sessions
+        // (no PTY needed). This avoids PTY exhaustion on macOS when spawning
+        // many workers simultaneously.
 
         let user_cmd = command
             .iter()
@@ -101,14 +103,20 @@ pub(crate) async fn cmd_dispatch(
                 "export TERMLINK_ORCHESTRATOR={}; ",
                 shell_escape(&format!("{}", std::process::id()))
             ));
+            env.push_str(&format!(
+                "export TERMLINK_WORKER_NAME={}; ",
+                shell_escape(&worker_name)
+            ));
             env
         };
 
         let mut reg_parts = vec![termlink_path.clone()];
         reg_parts.extend(register_args);
 
+        // Worker keeps register alive after user_cmd finishes. Dispatch
+        // sends SIGTERM to all workers after collection completes.
         let shell_cmd = format!(
-            "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
+            "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nwait $TL_PID",
             reg_parts.join(" ")
         );
 
@@ -244,16 +252,33 @@ pub(crate) async fn cmd_dispatch(
                 }
             }
 
-            if let Some(new_cursors) = result.get("cursors")
-                && let Some(obj) = new_cursors.as_object()
-            {
-                for (k, v) in obj {
-                    cursors[k] = v.clone();
+            // Only advance cursors when events were actually returned.
+            // Hub returns cursors even for empty polls (next_seq from sessions),
+            // which would cause us to skip seq 0 events on the next poll.
+            let has_events = result["events"]
+                .as_array()
+                .map_or(false, |a| !a.is_empty());
+            if has_events {
+                if let Some(new_cursors) = result.get("cursors")
+                    && let Some(obj) = new_cursors.as_object()
+                {
+                    for (k, v) in obj {
+                        cursors[k] = v.clone();
+                    }
                 }
             }
         }
 
         tokio::time::sleep(poll_interval).await;
+    }
+
+    // Cleanup: signal all workers to exit
+    for name in &worker_names {
+        if let Ok(reg) = manager::find_session(name) {
+            unsafe {
+                libc::kill(reg.pid as i32, libc::SIGTERM);
+            }
+        }
     }
 
     // Output results
