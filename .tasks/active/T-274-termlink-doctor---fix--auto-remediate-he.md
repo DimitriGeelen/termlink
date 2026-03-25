@@ -31,7 +31,7 @@ date_finished: null
 
 ## Verification
 
-grep -q "fix" crates/termlink-cli/src/cli.rs
+grep -q "Auto-fix" crates/termlink-cli/src/cli.rs
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
      Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
