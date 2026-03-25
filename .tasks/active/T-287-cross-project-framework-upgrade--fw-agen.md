@@ -105,7 +105,15 @@ Framework agent on .107 has governance fixes. Applying them to consumer projects
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**GO** (2026-03-25, human-approved)
+
+Bidirectional TermLink connectivity proven. 4 blockers identified:
+1. fw upgrade broken (T-615, framework-side)
+2. Claude sessions unregistered with TermLink (register --self needed)
+3. No TermLink path isolation (new build task — termlink vendor)
+4. .107 root privilege (ops)
+
+Create child tasks for path isolation and register --self integration.
 
 ## Updates
 
