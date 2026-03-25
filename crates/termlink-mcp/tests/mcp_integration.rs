@@ -3,7 +3,7 @@
 //! Uses rmcp client + real TermLink sessions to verify all MCP tools
 //! produce correct structured responses.
 
-use rmcp::model::{CallToolRequestParams, ReadResourceRequestParams, ResourceContents};
+use rmcp::model::{CallToolRequestParams, GetPromptRequestParams, ReadResourceRequestParams, ResourceContents};
 use rmcp::{RoleClient, ServiceExt};
 use serde_json::json;
 use termlink_test_utils::{start_session, TestDir};
@@ -514,6 +514,147 @@ async fn test_list_resource_templates() {
     assert!(!result.resource_templates.is_empty(), "expected at least 1 template");
     assert!(result.resource_templates.iter().any(|t| t.uri_template.contains("{session_id}")),
         "expected session_id template");
+
+    client.cancel().await.unwrap();
+}
+
+// === Prompt tests ===
+
+#[tokio::test]
+async fn test_list_prompts() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-prompts-list");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = client.list_all_prompts().await.unwrap();
+
+    let names: Vec<&str> = result.iter().map(|p| p.name.as_str()).collect();
+    assert!(names.contains(&"debug_session"), "missing debug_session prompt");
+    assert!(names.contains(&"session_overview"), "missing session_overview prompt");
+    assert!(names.contains(&"orchestrate"), "missing orchestrate prompt");
+    assert_eq!(result.len(), 3, "expected 3 prompts");
+
+    // Check debug_session has required argument
+    let debug = result.iter().find(|p| p.name == "debug_session").unwrap();
+    let args = debug.arguments.as_ref().unwrap();
+    assert!(args.iter().any(|a| a.name == "session" && a.required == Some(true)));
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_get_prompt_session_overview_empty() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-prompt-overview-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = client
+        .get_prompt(GetPromptRequestParams::new("session_overview"))
+        .await
+        .unwrap();
+
+    assert!(!result.messages.is_empty(), "expected at least 1 message");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_get_prompt_session_overview_with_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-prompt-overview-sess");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h1, _r1) = start_session(&dir.sessions_dir(), "prompt-alpha", vec!["coder".into()]).await;
+    let (_h2, _r2) = start_session(&dir.sessions_dir(), "prompt-beta", vec!["tester".into()]).await;
+
+    let client = mcp_client().await;
+    let result = client
+        .get_prompt(GetPromptRequestParams::new("session_overview"))
+        .await
+        .unwrap();
+
+    let text = format!("{:?}", result.messages);
+    assert!(text.contains("prompt-alpha"), "should mention alpha: {text}");
+    assert!(text.contains("prompt-beta"), "should mention beta: {text}");
+
+    client.cancel().await.unwrap();
+    _h1.abort();
+    _h2.abort();
+}
+
+#[tokio::test]
+async fn test_get_prompt_debug_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-prompt-debug");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "debug-target", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = client
+        .get_prompt(
+            GetPromptRequestParams::new("debug_session")
+                .with_arguments({
+                    let mut m = serde_json::Map::new();
+                    m.insert("session".into(), json!("debug-target"));
+                    m
+                })
+        )
+        .await
+        .unwrap();
+
+    let text = format!("{:?}", result.messages);
+    assert!(text.contains("debug-target"), "should mention session name: {text}");
+    assert!(text.contains("alive") || text.contains("Live Status"), "should include process status: {text}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_get_prompt_orchestrate() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-prompt-orch");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "orch-worker", vec!["worker".into()]).await;
+
+    let client = mcp_client().await;
+    let result = client
+        .get_prompt(
+            GetPromptRequestParams::new("orchestrate")
+                .with_arguments({
+                    let mut m = serde_json::Map::new();
+                    m.insert("task".into(), json!("Run tests on all workers"));
+                    m.insert("role".into(), json!("worker"));
+                    m
+                })
+        )
+        .await
+        .unwrap();
+
+    let text = format!("{:?}", result.messages);
+    assert!(text.contains("Run tests"), "should include task: {text}");
+    assert!(text.contains("orch-worker"), "should include matching session: {text}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_get_prompt_unknown() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-prompt-unknown");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = client
+        .get_prompt(GetPromptRequestParams::new("nonexistent"))
+        .await;
+
+    assert!(result.is_err(), "expected error for unknown prompt");
 
     client.cancel().await.unwrap();
 }
