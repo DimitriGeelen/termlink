@@ -219,6 +219,16 @@ pub struct RequestParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ResizeParams {
+    /// Session ID or display name
+    pub target: String,
+    /// Number of columns (width)
+    pub cols: u16,
+    /// Number of rows (height)
+    pub rows: u16,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct EventPollParams {
     /// Session ID or display name
     pub target: String,
@@ -1155,6 +1165,33 @@ impl TermLinkTools {
             "total": cleaned_sessions.len() as u32 + cleaned_sockets + if cleaned_hub { 1 } else { 0 },
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_resize",
+        description = "Resize a PTY-backed TermLink session's terminal dimensions. Useful when you need specific column width for parsing command output or formatting."
+    )]
+    async fn termlink_resize(&self, Parameters(p): Parameters<ResizeParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        match client::rpc_call(
+            reg.socket_path(),
+            "command.resize",
+            serde_json::json!({ "cols": p.cols, "rows": p.rows }),
+        ).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => format!(
+                    "Resized to {}x{}",
+                    result["cols"].as_u64().unwrap_or(p.cols as u64),
+                    result["rows"].as_u64().unwrap_or(p.rows as u64),
+                ),
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
     }
 
     #[tool(

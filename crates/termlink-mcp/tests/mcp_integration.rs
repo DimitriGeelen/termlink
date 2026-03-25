@@ -68,11 +68,11 @@ async fn test_list_tools() {
         "termlink_kv_list", "termlink_kv_del", "termlink_broadcast",
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
         "termlink_interact", "termlink_doctor", "termlink_clean",
-        "termlink_tag", "termlink_request",
+        "termlink_tag", "termlink_request", "termlink_resize",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 24, "expected at least 24 tools, got {}", tools.len());
+    assert!(tools.len() >= 25, "expected at least 25 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -920,6 +920,47 @@ async fn test_request_timeout() {
     })).await;
 
     assert!(result.contains("Timeout"), "should timeout: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+// === Resize tool tests ===
+
+#[tokio::test]
+async fn test_resize_non_pty() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-resize-nopty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // start_session creates non-PTY sessions — resize should fail gracefully
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "resize-nopty", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_resize", json!({
+        "target": "resize-nopty",
+        "cols": 120,
+        "rows": 40
+    })).await;
+
+    assert!(result.contains("Error"), "non-PTY resize should error: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_resize_nonexistent() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-resize-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_resize", json!({
+        "target": "nonexistent",
+        "cols": 80,
+        "rows": 24
+    })).await;
+
+    assert!(result.contains("Error"), "should error for missing session: {result}");
 
     client.cancel().await.unwrap();
 }
