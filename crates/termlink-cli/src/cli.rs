@@ -498,6 +498,13 @@ pub(crate) enum Command {
         action: RemoteAction,
     },
 
+    /// Check TermLink runtime health — validates dirs, sessions, hub, sockets
+    Doctor {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Generate shell completions
     Completions {
         /// Shell to generate completions for

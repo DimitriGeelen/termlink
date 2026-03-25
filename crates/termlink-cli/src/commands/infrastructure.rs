@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use serde_json::json;
 
 pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
     let socket_path = termlink_hub::server::hub_socket_path();
@@ -36,6 +37,167 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     println!("Hub stopped.");
 
+    Ok(())
+}
+
+pub(crate) async fn cmd_doctor(json_output: bool) -> Result<()> {
+    use termlink_session::{client, discovery, liveness, manager};
+
+    let mut checks: Vec<serde_json::Value> = Vec::new();
+    let mut pass_count = 0u32;
+    let mut warn_count = 0u32;
+    let mut fail_count = 0u32;
+
+    macro_rules! check {
+        ($name:expr, pass, $msg:expr) => {{
+            pass_count += 1;
+            checks.push(json!({"check": $name, "status": "pass", "message": $msg}));
+            if !json_output { println!("  \x1b[32m✓\x1b[0m {}: {}", $name, $msg); }
+        }};
+        ($name:expr, warn, $msg:expr) => {{
+            warn_count += 1;
+            checks.push(json!({"check": $name, "status": "warn", "message": $msg}));
+            if !json_output { println!("  \x1b[33m!\x1b[0m {}: {}", $name, $msg); }
+        }};
+        ($name:expr, fail, $msg:expr) => {{
+            fail_count += 1;
+            checks.push(json!({"check": $name, "status": "fail", "message": $msg}));
+            if !json_output { println!("  \x1b[31m✗\x1b[0m {}: {}", $name, $msg); }
+        }};
+    }
+
+    if !json_output {
+        println!("TermLink Doctor");
+        println!("===============\n");
+    }
+
+    // 1. Runtime directory
+    let runtime_dir = discovery::runtime_dir();
+    if runtime_dir.exists() {
+        check!("runtime_dir", pass, format!("{}", runtime_dir.display()));
+    } else {
+        check!("runtime_dir", fail, format!("{} does not exist", runtime_dir.display()));
+    }
+
+    // 2. Sessions directory
+    let sessions_dir = discovery::sessions_dir();
+    if sessions_dir.exists() {
+        check!("sessions_dir", pass, format!("{}", sessions_dir.display()));
+    } else {
+        check!("sessions_dir", warn, format!("{} does not exist (no sessions registered yet)", sessions_dir.display()));
+    }
+
+    // 3. Session health
+    let sessions = manager::list_sessions(true).unwrap_or_default();
+    let total = sessions.len();
+    let mut alive = 0u32;
+    let mut dead = 0u32;
+    let mut stale_sockets: Vec<String> = Vec::new();
+
+    for s in &sessions {
+        if liveness::process_exists(s.pid) {
+            // Try actual ping
+            match client::rpc_call(s.socket_path(), "termlink.ping", json!({})).await {
+                Ok(_) => alive += 1,
+                Err(_) => {
+                    dead += 1;
+                    stale_sockets.push(s.display_name.clone());
+                }
+            }
+        } else {
+            dead += 1;
+            stale_sockets.push(s.display_name.clone());
+        }
+    }
+
+    if total == 0 {
+        check!("sessions", pass, "no sessions registered");
+    } else if dead == 0 {
+        check!("sessions", pass, format!("{total} registered, all responding"));
+    } else {
+        check!("sessions", warn, format!("{total} registered, {alive} alive, {dead} dead/stale"));
+        for name in &stale_sockets {
+            if !json_output {
+                println!("      stale: {name}");
+            }
+        }
+        if !stale_sockets.is_empty() && !json_output {
+            println!("      Run 'termlink clean' to remove stale sessions");
+        }
+    }
+
+    // 4. Hub status
+    let hub_socket = termlink_hub::server::hub_socket_path();
+    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+    match termlink_hub::pidfile::check(&pidfile_path) {
+        termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+            // Verify the socket is actually responsive
+            match client::rpc_call(&hub_socket, "termlink.ping", json!({})).await {
+                Ok(_) => check!("hub", pass, format!("running (PID {pid}), responding")),
+                Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding on socket")),
+            }
+        }
+        termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
+            check!("hub", warn, format!("stale pidfile (PID {pid} is dead). Run 'termlink hub stop' to clean up"));
+        }
+        termlink_hub::pidfile::PidfileStatus::NotRunning => {
+            check!("hub", pass, "not running (optional — needed for multi-session routing)");
+        }
+    }
+
+    // 5. Orphaned sockets (sockets without matching registration JSON)
+    if sessions_dir.exists() {
+        let mut orphan_count = 0u32;
+        if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext == "sock" {
+                        // Check if there's a matching .json file
+                        let json_path = path.with_extension("json");
+                        if !json_path.exists() {
+                            orphan_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        if orphan_count > 0 {
+            check!("sockets", warn, format!("{orphan_count} orphaned socket(s) without registration"));
+        } else {
+            check!("sockets", pass, "no orphaned sockets");
+        }
+    }
+
+    // 6. Version
+    let version = env!("CARGO_PKG_VERSION");
+    check!("version", pass, format!("termlink {version}"));
+
+    // Summary
+    if json_output {
+        let result = json!({
+            "checks": checks,
+            "summary": {
+                "pass": pass_count,
+                "warn": warn_count,
+                "fail": fail_count,
+            }
+        });
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        println!();
+        if fail_count > 0 {
+            println!("\x1b[31m{fail_count} failed\x1b[0m, {warn_count} warnings, {pass_count} passed");
+        } else if warn_count > 0 {
+            println!("{warn_count} warnings, \x1b[32m{pass_count} passed\x1b[0m");
+        } else {
+            println!("\x1b[32mAll {pass_count} checks passed\x1b[0m");
+        }
+    }
+
+    if fail_count > 0 {
+        std::process::exit(1);
+    }
     Ok(())
 }
 
