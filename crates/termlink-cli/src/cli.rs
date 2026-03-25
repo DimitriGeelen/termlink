@@ -544,11 +544,40 @@ pub(crate) enum Command {
         fix: bool,
     },
 
+    /// Vendor TermLink binary into project for path isolation
+    Vendor {
+        #[command(subcommand)]
+        action: Option<VendorAction>,
+
+        /// Source binary path (default: current executable)
+        #[arg(long)]
+        source: Option<String>,
+
+        /// Target project directory (default: current directory)
+        #[arg(long)]
+        target: Option<String>,
+
+        /// Show what would happen without copying
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Generate shell completions
     Completions {
         /// Shell to generate completions for
         #[arg(value_enum)]
         shell: clap_complete::Shell,
+    },
+}
+
+/// Vendor subcommands
+#[derive(Subcommand)]
+pub(crate) enum VendorAction {
+    /// Show vendor status (version, path, drift from global)
+    Status {
+        /// Target project directory (default: current directory)
+        #[arg(long)]
+        target: Option<String>,
     },
 }
 

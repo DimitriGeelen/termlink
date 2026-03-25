@@ -213,6 +213,15 @@ async fn main() -> Result<()> {
             }
         },
         Command::Doctor { json, fix } => commands::infrastructure::cmd_doctor(json, fix).await,
+        Command::Vendor { action, source, target, dry_run } => {
+            if let Some(action) = action {
+                match action {
+                    VendorAction::Status { target } => commands::vendor::cmd_vendor_status(target.as_deref()),
+                }
+            } else {
+                commands::vendor::cmd_vendor(source.as_deref(), target.as_deref(), dry_run)
+            }
+        }
         Command::Completions { shell } => {
             clap_complete::generate(
                 shell,
