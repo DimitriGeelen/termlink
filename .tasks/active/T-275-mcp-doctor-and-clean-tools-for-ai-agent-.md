@@ -33,7 +33,7 @@ Add `termlink_doctor` and `termlink_clean` MCP tools so AI agents can self-diagn
 
 ## Verification
 
-/Users/dimidev32/.cargo/bin/cargo test --workspace 2>&1 | grep -q "0 failed"
+/Users/dimidev32/.cargo/bin/cargo test --workspace
 grep -q "termlink_doctor" crates/termlink-mcp/src/tools.rs
 grep -q "termlink_clean" crates/termlink-mcp/src/tools.rs
 grep -q "test_doctor" crates/termlink-mcp/tests/mcp_integration.rs
