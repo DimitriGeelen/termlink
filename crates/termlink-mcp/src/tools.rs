@@ -175,6 +175,18 @@ pub struct BroadcastParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct InteractParams {
+    /// Session ID or display name (must be a PTY session)
+    pub target: String,
+    /// Shell command to run in the PTY (e.g., "ls -la", "git status")
+    pub command: String,
+    /// Timeout in seconds (default: 30)
+    pub timeout: Option<u64>,
+    /// Poll interval in milliseconds (default: 200)
+    pub poll_ms: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct StatusParams {
     /// Session ID or display name
     pub target: String,
@@ -781,6 +793,150 @@ impl TermLinkTools {
                 Err(e) => format!("Error: {e}"),
             },
             Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_interact",
+        description = "Run a shell command in a PTY session and return its output. Injects the command, waits for completion via a unique marker, and returns clean output with exit code. This is the preferred tool for running commands in terminal sessions — it handles injection, waiting, and output capture atomically."
+    )]
+    async fn termlink_interact(&self, Parameters(p): Parameters<InteractParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let timeout_secs = p.timeout.unwrap_or(30);
+        let poll_ms = p.poll_ms.unwrap_or(200);
+
+        // Unique marker for this invocation
+        let marker = format!(
+            "___TERMLINK_DONE_{:x}_{:x}___",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        );
+
+        // Snapshot scrollback before injection
+        let pre_resp = match client::rpc_call(
+            reg.socket_path(),
+            "query.output",
+            serde_json::json!({ "bytes": 131072, "strip_ansi": true }),
+        ).await {
+            Ok(r) => r,
+            Err(e) => return format!("Error: not a PTY session or connection failed: {e}"),
+        };
+
+        let pre_output = match client::unwrap_result(pre_resp) {
+            Ok(r) => r["output"].as_str().unwrap_or("").to_string(),
+            Err(e) => return format!("Error: session has no PTY: {e}"),
+        };
+        let pre_len = pre_output.len();
+
+        // Inject command + marker on one line
+        let inject_line = format!("{}; echo \"{marker} exit=$?\"", p.command);
+        let keys = serde_json::json!([
+            { "type": "text", "value": inject_line },
+            { "type": "key", "value": "Enter" }
+        ]);
+        if let Err(e) = client::rpc_call(
+            reg.socket_path(),
+            "command.inject",
+            serde_json::json!({ "keys": keys }),
+        ).await {
+            return format!("Error: failed to inject command: {e}");
+        }
+
+        // Poll until marker appears
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
+        let poll_interval = tokio::time::Duration::from_millis(poll_ms);
+
+        loop {
+            if tokio::time::Instant::now() >= deadline {
+                return format!("Error: timeout after {}s waiting for command to complete", timeout_secs);
+            }
+
+            tokio::time::sleep(poll_interval).await;
+
+            let resp = match client::rpc_call(
+                reg.socket_path(),
+                "query.output",
+                serde_json::json!({ "bytes": 131072, "strip_ansi": true }),
+            ).await {
+                Ok(r) => r,
+                Err(e) => return format!("Error: connection lost: {e}"),
+            };
+
+            let full_output = match client::unwrap_result(resp) {
+                Ok(r) => r["output"].as_str().unwrap_or("").to_string(),
+                Err(e) => return format!("Error: poll failed: {e}"),
+            };
+
+            // Diff against pre-injection snapshot
+            let output = if full_output.len() > pre_len {
+                &full_output[pre_len..]
+            } else {
+                &full_output
+            };
+
+            let marker_with_exit = format!("{marker} exit=");
+            let has_marker = output.contains(&marker_with_exit) && {
+                output.lines().any(|line| {
+                    if let Some(pos) = line.find(&marker_with_exit) {
+                        let after = &line[pos + marker_with_exit.len()..];
+                        after.starts_with(|c: char| c.is_ascii_digit())
+                    } else {
+                        false
+                    }
+                })
+            };
+
+            if has_marker {
+                // Extract exit code
+                let mut exit_code: Option<i32> = None;
+                for line in output.lines() {
+                    if line.contains(&marker) {
+                        if let Some(exit_str) = line.split("exit=").nth(1) {
+                            exit_code = exit_str.trim().parse().ok();
+                        }
+                    }
+                }
+
+                // Clean output: skip the command echo line, stop before marker line
+                let clean_output = {
+                    let after_cmd_echo = output.find('\n')
+                        .map(|pos| &output[pos + 1..])
+                        .unwrap_or(output);
+
+                    if let Some(pos) = after_cmd_echo.find(&marker_with_exit) {
+                        let before = &after_cmd_echo[..pos];
+                        before.rfind('\n')
+                            .map(|nl| &after_cmd_echo[..nl])
+                            .unwrap_or("")
+                    } else {
+                        after_cmd_echo
+                    }
+                };
+
+                let trimmed = clean_output.trim();
+                let exit = exit_code.unwrap_or(-1);
+
+                return if exit != 0 {
+                    if trimmed.is_empty() {
+                        format!("[exit_code: {}]", exit)
+                    } else {
+                        format!("{}\n[exit_code: {}]", trimmed, exit)
+                    }
+                } else {
+                    if trimmed.is_empty() {
+                        "[ok]".to_string()
+                    } else {
+                        trimmed.to_string()
+                    }
+                };
+            }
         }
     }
 

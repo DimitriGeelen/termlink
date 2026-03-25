@@ -66,10 +66,11 @@ async fn test_list_tools() {
         "termlink_event_poll", "termlink_kv_set", "termlink_kv_get",
         "termlink_kv_list", "termlink_kv_del", "termlink_broadcast",
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
+        "termlink_interact",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 19, "expected at least 19 tools, got {}", tools.len());
+    assert!(tools.len() >= 20, "expected at least 20 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -351,6 +352,41 @@ async fn test_tool_schemas_have_descriptions() {
             tool.name
         );
     }
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_interact_non_pty_returns_error() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-interact-nopty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // start_session creates a non-PTY endpoint — interact should fail gracefully
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "interact-nopty", vec![]).await;
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_interact",
+        json!({"target": "interact-nopty", "command": "echo hello"})).await;
+
+    assert!(text.contains("Error"), "expected PTY error for non-PTY session: {text}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_interact_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-interact-bad");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_interact",
+        json!({"target": "no-such-session", "command": "echo hello"})).await;
+
+    assert!(text.contains("Error") && text.contains("not found"),
+        "expected not found error: {text}");
 
     client.cancel().await.unwrap();
 }
