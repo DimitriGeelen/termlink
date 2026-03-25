@@ -4,7 +4,7 @@ name: "termlink doctor — runtime health check command"
 description: >
   termlink doctor — runtime health check command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T11:55:53Z
-last_update: 2026-03-25T11:55:53Z
-date_finished: null
+last_update: 2026-03-25T11:58:51Z
+date_finished: 2026-03-25T11:58:51Z
 ---
 
 # T-273: termlink doctor — runtime health check command
@@ -65,3 +65,6 @@ grep -q "Doctor" crates/termlink-cli/src/cli.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-273-termlink-doctor--runtime-health-check-co.md
 - **Context:** Initial task creation
+
+### 2026-03-25T11:58:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
