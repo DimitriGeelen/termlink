@@ -4,7 +4,7 @@ name: "Retroactive version history — CHANGELOG and proper semver"
 description: >
   Retroactive version history — CHANGELOG and proper semver
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T14:03:40Z
-last_update: 2026-03-25T14:03:40Z
-date_finished: null
+last_update: 2026-03-25T14:07:22Z
+date_finished: 2026-03-25T14:07:22Z
 ---
 
 # T-279: Retroactive version history — CHANGELOG and proper semver
@@ -53,3 +53,6 @@ test -f CHANGELOG.md
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-279-retroactive-version-history--changelog-a.md
 - **Context:** Initial task creation
+
+### 2026-03-25T14:07:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

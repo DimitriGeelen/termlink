@@ -4,7 +4,7 @@ name: "MCP request tool — request-reply pattern for inter-session coordination
 description: >
   MCP request tool — request-reply pattern for inter-session coordination
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T13:52:02Z
-last_update: 2026-03-25T13:52:02Z
-date_finished: null
+last_update: 2026-03-25T13:55:16Z
+date_finished: 2026-03-25T13:55:16Z
 ---
 
 # T-277: MCP request tool — request-reply pattern for inter-session coordination
@@ -52,3 +52,6 @@ grep -q "test_request" crates/termlink-mcp/tests/mcp_integration.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-277-mcp-request-tool--request-reply-pattern-.md
 - **Context:** Initial task creation
+
+### 2026-03-25T13:55:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

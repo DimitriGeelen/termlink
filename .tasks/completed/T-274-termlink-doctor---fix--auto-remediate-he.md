@@ -4,7 +4,7 @@ name: "termlink doctor --fix — auto-remediate health issues"
 description: >
   termlink doctor --fix — auto-remediate health issues
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T12:15:58Z
-last_update: 2026-03-25T12:15:58Z
-date_finished: null
+last_update: 2026-03-25T12:19:42Z
+date_finished: 2026-03-25T12:19:42Z
 ---
 
 # T-274: termlink doctor --fix — auto-remediate health issues
@@ -73,3 +73,6 @@ grep -q "Auto-fix" crates/termlink-cli/src/cli.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-274-termlink-doctor---fix--auto-remediate-he.md
 - **Context:** Initial task creation
+
+### 2026-03-25T12:19:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

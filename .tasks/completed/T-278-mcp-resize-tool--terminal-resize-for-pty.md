@@ -4,7 +4,7 @@ name: "MCP resize tool — terminal resize for PTY sessions"
 description: >
   MCP resize tool — terminal resize for PTY sessions
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T13:56:52Z
-last_update: 2026-03-25T13:56:52Z
-date_finished: null
+last_update: 2026-03-25T13:59:18Z
+date_finished: 2026-03-25T13:59:18Z
 ---
 
 # T-278: MCP resize tool — terminal resize for PTY sessions
@@ -51,3 +51,6 @@ grep -q "termlink_resize" crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-278-mcp-resize-tool--terminal-resize-for-pty.md
 - **Context:** Initial task creation
+
+### 2026-03-25T13:59:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
