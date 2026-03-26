@@ -92,10 +92,10 @@ both readable from this file with a simple Python parser.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] JSONL format fully understood and documented
-- [ ] All key questions above answered
-- [ ] Comparison with T-100 completed
-- [ ] Go/no-go framed for discussion
+- [x] JSONL format fully understood and documented
+- [x] All key questions above answered
+- [x] Comparison with T-100 completed
+- [x] Go/no-go framed for discussion
 
 ### Human
 - [ ] Findings discussed and direction decided

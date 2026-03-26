@@ -150,3 +150,10 @@ decisions:
     origin_task: T-109
     rationale: "Formalizes write-to-disk convention. 2KB gating prevents context explosion (~97% savings in simulation)."
     directives_served: [D1, D2]
+
+  - id: PD-001
+    decision: "T-233 Specialist Orchestration — layered agent routing with bypass registry, route cache, negotiation, and template caching"
+    scope: project
+    origin_task: T-233
+    rationale: "GO decision after comprehensive inception. Five architectural principles: bypass-first (sub-50ms), lazy learning, format negotiation, trust-aware supervision, zero-config defaults. Child tasks T-239-T-242, T-256 are building blocks — never evaluate them as isolated features."
+    directives_served: [D1, D3, D4]
