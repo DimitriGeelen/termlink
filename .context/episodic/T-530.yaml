@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-530: Use stable toolchain for release builds
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T15:51:44Z
+# ============================================================================
+
+task_id: T-530
+task_name: "Use stable toolchain for release builds"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-20T00:00:00Z
+completed: 2026-03-26T14:00:00Z
+duration_days: 6
+updates_count: 1
+first_commit: 2026-03-21T23:45:51+01:00
+last_commit: 2026-03-21T23:48:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Use Rust 1.85 for release builds (edition 2024 support). Use stable toolchain for release builds (matches CI)
+
+# Key outcomes
+outcomes:
+  - "Commits reference a valid task ID"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".github/workflows/release.yml"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-21T23:45:51"
+    action: "T-530: Use Rust 1.85 for release builds (edition 2024 support)"
+  - time: "2026-03-21T23:48:43"
+    action: "T-530: Use stable toolchain for release builds (matches CI)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9480 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [ci, rust, stub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9480
+  commits: 2
+  files_changed: 1
+  lines_added: 13
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-530-use-stable-toolchain-for-release-builds.md
+generated_by: context-agent-hybrid
