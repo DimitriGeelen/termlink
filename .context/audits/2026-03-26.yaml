@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-26-2222
-timestamp: 2026-03-26T21:22:02Z
+# Audit Results - 2026-03-26-2302
+timestamp: 2026-03-26T22:02:33Z
 summary:
-  pass: 110
-  warn: 2
+  pass: 109
+  warn: 3
   fail: 0
 findings:
   - level: PASS
@@ -28,7 +28,7 @@ findings:
   - level: PASS
     check: "All active tasks meet quality thresholds"
   - level: PASS
-    check: "Git traceability: 97% (628/643 commits reference tasks)"
+    check: "Git traceability: 97% (630/645 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -69,11 +69,12 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: PASS
-    check: "CTL-001: Focus file empty (no recent activity — expected)"
+    check: "CTL-001: Focus file has active task (T-289)"
+  - level: WARN
+    check: "CTL-003: Budget status file stale (38min old)"
+    mitigation: "Check PreToolUse hook wiring for budget-gate.sh"
   - level: PASS
-    check: "CTL-003: Budget status file fresh (< 5min old)"
-  - level: PASS
-    check: "CTL-004: Tool counter at 29 (last commit: 5 hours ago)"
+    check: "CTL-004: Tool counter at 5 (last commit: 37 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -105,7 +106,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-283 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-287 has decision (6 commits)"
+    check: "CTL-009: Inception T-287 has decision (7 commits)"
   - level: PASS
     check: "CTL-009: Inception T-002 has decision (4 commits)"
   - level: PASS
@@ -220,9 +221,9 @@ findings:
     check: "D5: Task lifecycle — 15 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+5 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=16 avg=36 ratio=0.4x)"
+    check: "D3: Commit velocity — normal (PASS today=18 avg=36 ratio=0.5x)"
   - level: PASS
-    check: "D7: Commit bunching — none (PASS 23_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 24_commits_24h_no_bunching)"
   - level: PASS
     check: "D6: Completion velocity — normal (PASS recent=10.7 earlier=12.7)"
   - level: PASS
