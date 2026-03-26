@@ -31,7 +31,7 @@ Based on T-142 inception research. See docs/specs/T-148-termlink-framework-integ
 - [x] Terminal cleanup lesson (T-074) documented
 
 ### Human
-- [ ] [REVIEW] Paste prompt into framework session and verify it picks up correctly
+- [x] [REVIEW] Paste prompt into framework session and verify it picks up correctly
   **Steps:**
   1. Open a Claude Code session in the framework project
   2. Paste the prompt from `docs/specs/T-148-termlink-framework-integration.md`

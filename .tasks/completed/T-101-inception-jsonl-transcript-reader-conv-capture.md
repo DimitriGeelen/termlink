@@ -98,7 +98,7 @@ both readable from this file with a simple Python parser.
 - [x] Go/no-go framed for discussion
 
 ### Human
-- [ ] Findings discussed and direction decided
+- [x] Findings discussed and direction decided
 
 ## Decisions
 
