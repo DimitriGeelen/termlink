@@ -4,7 +4,7 @@ name: "Fix pre-push audit context — hook cannot find tasks dir, blocks git pus
 description: >
   Fix pre-push audit context — hook cannot find tasks dir, blocks git push
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T22:49:16Z
-last_update: 2026-03-25T22:49:16Z
-date_finished: null
+last_update: 2026-03-25T23:08:03Z
+date_finished: 2026-03-25T23:08:03Z
 ---
 
 # T-290: Fix pre-push audit context — hook cannot find tasks dir, blocks git push
@@ -51,3 +51,6 @@ git ls-remote origin main
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-290-fix-pre-push-audit-context--hook-cannot-.md
 - **Context:** Initial task creation
+
+### 2026-03-25T23:08:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

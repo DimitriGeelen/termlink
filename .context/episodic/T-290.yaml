@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-290: Fix pre-push audit context — hook cannot find tasks dir, blocks git push
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-25T23:08:06Z
+# ============================================================================
+
+task_id: T-290
+task_name: "Fix pre-push audit context — hook cannot find tasks dir, blocks git push"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T22:49:16Z
+completed: 2026-03-25T23:08:03Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T23:57:07+01:00
+last_commit: 2026-03-26T00:07:57+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix pre-push audit — resolve symlink so audit finds framework root. Fix verification command — use git ls-remote instead of fw audit
+
+# Key outcomes
+outcomes:
+  - "`git push origin main` succeeds without `--no-verify`"
+  - "Pre-push hook correctly resolves PROJECT_ROOT and finds .tasks/"
+  - "`fw audit` still passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification command — use git ls-remote instead of fw audit"
+    source: git-mined
+  - description: "Fix pre-push audit — resolve symlink so audit finds framework root"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-290-fix-pre-push-audit-context--hook-cannot-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T23:57:07"
+    action: "T-290: Fix pre-push audit — resolve symlink so audit finds framework root"
+  - time: "2026-03-26T00:07:57"
+    action: "T-290: Fix verification command — use git ls-remote instead of fw audit"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 1
+  lines_added: 54
+  lines_removed: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-290-fix-pre-push-audit-context--hook-cannot-.md
+generated_by: context-agent-hybrid
