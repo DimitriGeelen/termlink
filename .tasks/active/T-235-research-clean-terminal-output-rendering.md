@@ -86,5 +86,8 @@ date_finished: null
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
 
+### 2026-03-26 — research-artifact [agent]
+- **Artifact:** `docs/reports/T-235-terminal-output-rendering.md`
+
 ### 2026-03-23T09:10:09Z — status-update [task-update-agent]
 - **Change:** horizon: now → later

@@ -160,6 +160,9 @@ Skip C — opt-in flags repeat the convention problem that caused this gap.
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
 
+### 2026-03-26 — research-artifact [agent]
+- **Artifact:** `docs/reports/T-280-dispatch-readiness.md`
+
 ### 2026-03-25T14:30:07Z — inception-decision [inception-workflow]
 - **Action:** Recorded inception decision
 - **Decision:** GO

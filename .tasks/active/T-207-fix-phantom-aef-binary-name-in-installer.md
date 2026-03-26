@@ -118,6 +118,9 @@ grep -q "Post-install verification" /opt/999-Agentic-Engineering-Framework/insta
 - 2026-03-21: Critical review confirmed zero "aef" references in codebase — phantom name
 - 2026-03-21: Recommendation: find-replace in installer, add 3-step verification, effort ~5 minutes
 
+### 2026-03-26 — research-artifact [agent]
+- **Artifact:** `docs/reports/T-207-phantom-aef-binary.md`
+
 ### 2026-03-21T15:42:20Z — inception-decision [inception-workflow]
 - **Action:** Recorded inception decision
 - **Decision:** GO
