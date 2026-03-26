@@ -3,13 +3,17 @@ name: executor
 type: module
 subsystem: session
 location: crates/termlink-session/src/executor.rs
-tags: [execution, key-resolution, signals]
-
-purpose: "Command execution — spawn shell commands with timeout/env/cwd, resolve KeyEntry to bytes, send POSIX signals"
-
+tags:
+- execution
+- key-resolution
+- signals
+purpose: Command execution — spawn shell commands with timeout/env/cwd, resolve KeyEntry to bytes, send POSIX signals
 depends_on:
-  - target: crates/termlink-protocol/src/control.rs
-    type: calls
-
+- target: crates/termlink-protocol/src/control.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-session/src/handler.rs
+  type: called_by
+last_enriched: '2026-03-26'

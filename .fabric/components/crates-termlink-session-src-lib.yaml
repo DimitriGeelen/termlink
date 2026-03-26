@@ -3,28 +3,31 @@ name: session-lib
 type: library
 subsystem: session
 location: crates/termlink-session/src/lib.rs
-tags: [foundation, re-exports]
-
-purpose: "Session crate root — re-exports all modules, pub types SessionId, SessionState, Registration, Session, SessionError"
-
+tags:
+- foundation
+- re-exports
+purpose: Session crate root — re-exports all modules, pub types SessionId, SessionState, Registration, Session, SessionError
 depends_on:
-  - crates/termlink-session/src/auth.rs
-  - crates/termlink-session/src/identity.rs
-  - crates/termlink-session/src/discovery.rs
-  - crates/termlink-session/src/lifecycle.rs
-  - crates/termlink-session/src/liveness.rs
-  - crates/termlink-session/src/registration.rs
-  - crates/termlink-session/src/manager.rs
-  - crates/termlink-session/src/client.rs
-  - crates/termlink-session/src/codec.rs
-  - crates/termlink-session/src/data_server.rs
-  - crates/termlink-session/src/events.rs
-  - crates/termlink-session/src/executor.rs
-  - crates/termlink-session/src/handler.rs
-  - crates/termlink-session/src/pty.rs
-  - crates/termlink-session/src/scrollback.rs
-  - crates/termlink-session/src/server.rs
-  - crates/termlink-session/src/transport.rs
-
+- crates/termlink-session/src/auth.rs
+- crates/termlink-session/src/identity.rs
+- crates/termlink-session/src/discovery.rs
+- crates/termlink-session/src/lifecycle.rs
+- crates/termlink-session/src/liveness.rs
+- crates/termlink-session/src/registration.rs
+- crates/termlink-session/src/manager.rs
+- crates/termlink-session/src/client.rs
+- crates/termlink-session/src/codec.rs
+- crates/termlink-session/src/data_server.rs
+- crates/termlink-session/src/events.rs
+- crates/termlink-session/src/executor.rs
+- crates/termlink-session/src/handler.rs
+- crates/termlink-session/src/pty.rs
+- crates/termlink-session/src/scrollback.rs
+- crates/termlink-session/src/server.rs
+- crates/termlink-session/src/transport.rs
 last_verified: 2026-03-14
 created_by: T-043
+depended_by:
+- target: crates/termlink-session/src/auth.rs
+  type: exports-via_by
+last_enriched: '2026-03-26'

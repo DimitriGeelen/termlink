@@ -3,21 +3,29 @@ name: cli-cmd-remote
 type: source
 subsystem: cli
 location: crates/termlink-cli/src/commands/remote.rs
-tags: [cli, commands, remote, hub, tcp, tls]
-
-purpose: "Remote hub commands — connect_remote_hub() shared connector, cmd_remote_ping/list/status/inject/send_file/events/exec/profile() for cross-machine operations via TCP hub with TOFU TLS + HMAC auth"
-
+tags:
+- cli
+- commands
+- remote
+- hub
+- tcp
+- tls
+purpose: Remote hub commands — connect_remote_hub() shared connector, cmd_remote_ping/list/status/inject/send_file/events/exec/profile()
+  for cross-machine operations via TCP hub with TOFU TLS + HMAC auth
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    type: calls
-  - target: crates/termlink-protocol/src/events.rs
-    type: calls
-  - target: crates/termlink-cli/src/cli.rs
-    type: uses
-  - target: crates/termlink-cli/src/config.rs
-    type: uses
-  - target: crates/termlink-cli/src/util.rs
-    type: uses
-
+- target: crates/termlink-session/src/client.rs
+  type: calls
+- target: crates/termlink-protocol/src/events.rs
+  type: calls
+- target: crates/termlink-cli/src/cli.rs
+  type: uses
+- target: crates/termlink-cli/src/config.rs
+  type: uses
+- target: crates/termlink-cli/src/util.rs
+  type: uses
 last_verified: 2026-03-21
 created_by: T-223
+depended_by:
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: declares_by
+last_enriched: '2026-03-26'

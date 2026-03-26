@@ -3,11 +3,16 @@ name: identity
 type: module
 subsystem: session
 location: crates/termlink-session/src/identity.rs
-tags: [identity, ulid]
-
-purpose: "SessionId type — ULID-based unique identifier with Display, FromStr, filesystem-safe formatting"
-
+tags:
+- identity
+- ulid
+purpose: SessionId type — ULID-based unique identifier with Display, FromStr, filesystem-safe formatting
 depends_on: []
-
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-session/src/manager.rs
+  type: called_by
+- target: crates/termlink-session/src/registration.rs
+  type: called_by
+last_enriched: '2026-03-26'

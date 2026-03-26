@@ -3,19 +3,26 @@ name: router
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/router.rs
-tags: [routing, discovery, broadcast, collect, core]
-
-purpose: "Request router — dispatches session.discover (with filters), event.broadcast (fan-out), event.collect (fan-in), forwards other RPCs to target sessions"
-
+tags:
+- routing
+- discovery
+- broadcast
+- collect
+- core
+purpose: Request router — dispatches session.discover (with filters), event.broadcast (fan-out), event.collect (fan-in), forwards
+  other RPCs to target sessions
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    type: calls
-  - target: crates/termlink-session/src/manager.rs
-    type: calls
-  - target: crates/termlink-protocol/src/control.rs
-    type: calls
-  - target: crates/termlink-protocol/src/jsonrpc.rs
-    type: calls
-
+- target: crates/termlink-session/src/client.rs
+  type: calls
+- target: crates/termlink-session/src/manager.rs
+  type: calls
+- target: crates/termlink-protocol/src/control.rs
+  type: calls
+- target: crates/termlink-protocol/src/jsonrpc.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-hub/src/server.rs
+  type: called_by
+last_enriched: '2026-03-26'

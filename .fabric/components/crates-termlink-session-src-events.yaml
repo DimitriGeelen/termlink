@@ -3,11 +3,16 @@ name: events
 type: module
 subsystem: session
 location: crates/termlink-session/src/events.rs
-tags: [events, ring-buffer, messaging]
-
-purpose: "EventBus — ring buffer with sequence tracking, topic filtering, emit/poll/poll_topic/all_by_topic for structured cross-session messaging"
-
+tags:
+- events
+- ring-buffer
+- messaging
+purpose: EventBus — ring buffer with sequence tracking, topic filtering, emit/poll/poll_topic/all_by_topic for structured
+  cross-session messaging
 depends_on: []
-
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-session/src/handler.rs
+  type: called_by
+last_enriched: '2026-03-26'

@@ -3,15 +3,20 @@ name: cli-cmd-infrastructure
 type: source
 subsystem: cli
 location: crates/termlink-cli/src/commands/infrastructure.rs
-tags: [cli, commands, hub, infrastructure]
-
-purpose: "Infrastructure commands — cmd_hub_start(), cmd_hub_stop(), cmd_hub_status() for local hub lifecycle management"
-
+tags:
+- cli
+- commands
+- hub
+- infrastructure
+purpose: Infrastructure commands — cmd_hub_start(), cmd_hub_stop(), cmd_hub_status() for local hub lifecycle management
 depends_on:
-  - target: crates/termlink-hub/src/server.rs
-    type: calls
-  - target: crates/termlink-hub/src/pidfile.rs
-    type: calls
-
+- target: crates/termlink-hub/src/server.rs
+  type: calls
+- target: crates/termlink-hub/src/pidfile.rs
+  type: calls
 last_verified: 2026-03-21
 created_by: T-223
+depended_by:
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: declares_by
+last_enriched: '2026-03-26'

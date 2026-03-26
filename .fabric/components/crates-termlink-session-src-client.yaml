@@ -3,17 +3,41 @@ name: client
 type: module
 subsystem: session
 location: crates/termlink-session/src/client.rs
-tags: [client, rpc, unix-socket, tcp]
-
-purpose: "JSON-RPC client — connects to session via Unix socket or TCP, sends requests, reads responses; connect_addr() for TransportAddr, rpc_call_addr() convenience"
-
+tags:
+- client
+- rpc
+- unix-socket
+- tcp
+purpose: JSON-RPC client — connects to session via Unix socket or TCP, sends requests, reads responses; connect_addr() for
+  TransportAddr, rpc_call_addr() convenience
 depends_on:
-  - target: crates/termlink-protocol/src/jsonrpc.rs
-    type: calls
-  - target: crates/termlink-protocol/src/control.rs
-    type: calls
-  - target: crates/termlink-protocol/src/transport.rs
-    type: calls
-
+- target: crates/termlink-protocol/src/jsonrpc.rs
+  type: calls
+- target: crates/termlink-protocol/src/control.rs
+  type: calls
+- target: crates/termlink-protocol/src/transport.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
+depended_by:
+- target: crates/termlink-cli/src/commands/agent.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/events.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/file.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/metadata.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/pty.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/remote.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/session.rs
+  type: called_by
+- target: crates/termlink-hub/src/router.rs
+  type: called_by
+- target: crates/termlink-session/src/tofu.rs
+  type: consumed-by_by
+last_enriched: '2026-03-26'

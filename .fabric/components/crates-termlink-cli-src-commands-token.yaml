@@ -3,15 +3,20 @@ name: cli-cmd-token
 type: source
 subsystem: cli
 location: crates/termlink-cli/src/commands/token.rs
-tags: [cli, commands, auth, tokens]
-
-purpose: "Token commands — cmd_token_create(), cmd_token_inspect() for HMAC-based session authentication tokens"
-
+tags:
+- cli
+- commands
+- auth
+- tokens
+purpose: Token commands — cmd_token_create(), cmd_token_inspect() for HMAC-based session authentication tokens
 depends_on:
-  - target: crates/termlink-session/src/manager.rs
-    type: calls
-  - target: crates/termlink-session/src/auth.rs
-    type: calls
-
+- target: crates/termlink-session/src/manager.rs
+  type: calls
+- target: crates/termlink-session/src/auth.rs
+  type: calls
 last_verified: 2026-03-21
 created_by: T-223
+depended_by:
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: declares_by
+last_enriched: '2026-03-26'

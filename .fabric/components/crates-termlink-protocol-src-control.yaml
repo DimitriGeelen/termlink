@@ -3,11 +3,21 @@ name: control
 type: module
 subsystem: protocol
 location: crates/termlink-protocol/src/control.rs
-tags: [control-plane, rpc-methods, types]
-
-purpose: "Control plane definitions — RPC method constants, error codes, KeyEntry, Capabilities, TerminalInfo, CommonParams"
-
+tags:
+- control-plane
+- rpc-methods
+- types
+purpose: Control plane definitions — RPC method constants, error codes, KeyEntry, Capabilities, TerminalInfo, CommonParams
 depends_on: []
-
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-hub/src/router.rs
+  type: called_by
+- target: crates/termlink-session/src/client.rs
+  type: called_by
+- target: crates/termlink-session/src/executor.rs
+  type: called_by
+- target: crates/termlink-session/src/handler.rs
+  type: called_by
+last_enriched: '2026-03-26'

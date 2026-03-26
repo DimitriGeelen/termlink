@@ -3,25 +3,38 @@ name: handler
 type: module
 subsystem: session
 location: crates/termlink-session/src/handler.rs
-tags: [rpc-handler, dispatch, core]
-
-purpose: "RPC dispatch — SessionContext struct, dispatch/dispatch_mut for read/write handlers, all control plane RPC implementations (ping, query, execute, inject, signal, resize, events, session.update)"
-
+tags:
+- rpc-handler
+- dispatch
+- core
+purpose: RPC dispatch — SessionContext struct, dispatch/dispatch_mut for read/write handlers, all control plane RPC implementations
+  (ping, query, execute, inject, signal, resize, events, session.update)
 depends_on:
-  - target: crates/termlink-session/src/registration.rs
-    type: calls
-  - target: crates/termlink-session/src/events.rs
-    type: calls
-  - target: crates/termlink-session/src/executor.rs
-    type: calls
-  - target: crates/termlink-session/src/pty.rs
-    type: calls
-  - target: crates/termlink-session/src/scrollback.rs
-    type: calls
-  - target: crates/termlink-protocol/src/control.rs
-    type: calls
-  - target: crates/termlink-protocol/src/jsonrpc.rs
-    type: calls
-
+- target: crates/termlink-session/src/registration.rs
+  type: calls
+- target: crates/termlink-session/src/events.rs
+  type: calls
+- target: crates/termlink-session/src/executor.rs
+  type: calls
+- target: crates/termlink-session/src/pty.rs
+  type: calls
+- target: crates/termlink-session/src/scrollback.rs
+  type: calls
+- target: crates/termlink-protocol/src/control.rs
+  type: calls
+- target: crates/termlink-protocol/src/jsonrpc.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/session.rs
+  type: called_by
+- target: crates/termlink-session/src/endpoint.rs
+  type: called_by
+- target: crates/termlink-session/src/server.rs
+  type: called_by
+- target: crates/termlink-test-utils/src/lib.rs
+  type: called_by
+last_enriched: '2026-03-26'

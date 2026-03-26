@@ -3,23 +3,26 @@ name: pidfile
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/pidfile.rs
-tags: [daemon, pidfile, lifecycle]
-
-purpose: "Hub pidfile management — write/read/validate/remove PID file for daemon lifecycle. Prevents double-start, cleans stale pidfiles from crashed hubs."
-
+tags:
+- daemon
+- pidfile
+- lifecycle
+purpose: Hub pidfile management — write/read/validate/remove PID file for daemon lifecycle. Prevents double-start, cleans
+  stale pidfiles from crashed hubs.
 depends_on:
-  - target: crates/termlink-session/src/liveness.rs
-    type: calls
-  - target: crates/termlink-session/src/discovery.rs
-    type: calls
-  - target: crates/termlink-hub/src/lib.rs
-    type: exports-via
-
+- target: crates/termlink-session/src/liveness.rs
+  type: calls
+- target: crates/termlink-session/src/discovery.rs
+  type: calls
+- target: crates/termlink-hub/src/lib.rs
+  type: exports-via
 depended_by:
-  - target: crates/termlink-hub/src/server.rs
-    type: calls
-  - target: crates/termlink-cli/src/main.rs
-    type: calls
-
+- target: crates/termlink-hub/src/server.rs
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/infrastructure.rs
+  type: called_by
 last_verified: 2026-03-10
 created_by: T-080
+last_enriched: '2026-03-26'

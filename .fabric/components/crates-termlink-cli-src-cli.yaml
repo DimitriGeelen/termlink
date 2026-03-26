@@ -3,21 +3,31 @@ name: cli-types
 type: source
 subsystem: cli
 location: crates/termlink-cli/src/cli.rs
-tags: [cli, clap, types, argument-parsing]
-
-purpose: "Clap type definitions — Cli, Command (26+ variants), SpawnBackend, HubAction, RemoteAction, ProfileAction, TokenAction, AgentAction, FileAction, PtyCommand, EventCommand, KvAction"
-
+tags:
+- cli
+- clap
+- types
+- argument-parsing
+purpose: Clap type definitions — Cli, Command (26+ variants), SpawnBackend, HubAction, RemoteAction, ProfileAction, TokenAction,
+  AgentAction, FileAction, PtyCommand, EventCommand, KvAction
 depends_on: []
-
 depended_by:
-  - target: crates/termlink-cli/src/main.rs
-    type: uses
-  - target: crates/termlink-cli/src/commands/metadata.rs
-    type: uses
-  - target: crates/termlink-cli/src/commands/execution.rs
-    type: uses
-  - target: crates/termlink-cli/src/commands/remote.rs
-    type: uses
-
+- target: crates/termlink-cli/src/main.rs
+  type: uses
+- target: crates/termlink-cli/src/commands/metadata.rs
+  type: uses
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: uses
+- target: crates/termlink-cli/src/commands/remote.rs
+  type: uses
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: uses_by
+- target: crates/termlink-cli/src/commands/metadata.rs
+  type: uses_by
+- target: crates/termlink-cli/src/commands/remote.rs
+  type: uses_by
+- target: crates/termlink-cli/src/main.rs
+  type: uses_by
 last_verified: 2026-03-21
 created_by: T-223
+last_enriched: '2026-03-26'

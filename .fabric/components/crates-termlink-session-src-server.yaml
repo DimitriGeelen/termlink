@@ -3,15 +3,26 @@ name: server
 type: module
 subsystem: session
 location: crates/termlink-session/src/server.rs
-tags: [server, control-plane, unix-socket]
-
-purpose: "Control plane server — handle_connection reads JSON-RPC over Unix socket, dispatches to handler with read/write lock branching, run_accept_loop spawns per-connection tasks"
-
+tags:
+- server
+- control-plane
+- unix-socket
+purpose: Control plane server — handle_connection reads JSON-RPC over Unix socket, dispatches to handler with read/write lock
+  branching, run_accept_loop spawns per-connection tasks
 depends_on:
-  - target: crates/termlink-session/src/handler.rs
-    type: calls
-  - target: crates/termlink-protocol/src/jsonrpc.rs
-    type: calls
-
+- target: crates/termlink-session/src/handler.rs
+  type: calls
+- target: crates/termlink-protocol/src/jsonrpc.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/session.rs
+  type: called_by
+- target: crates/termlink-session/src/endpoint.rs
+  type: called_by
+- target: crates/termlink-test-utils/src/lib.rs
+  type: called_by
+last_enriched: '2026-03-26'

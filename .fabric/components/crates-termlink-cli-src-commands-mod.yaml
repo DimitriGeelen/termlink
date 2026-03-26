@@ -3,35 +3,37 @@ name: cli-commands-mod
 type: source
 subsystem: cli
 location: crates/termlink-cli/src/commands/mod.rs
-tags: [cli, module-root]
-
-purpose: "Module declarations for 10 command modules — session, pty, events, metadata, execution, infrastructure, token, remote, agent, file"
-
+tags:
+- cli
+- module-root
+purpose: Module declarations for 10 command modules — session, pty, events, metadata, execution, infrastructure, token, remote,
+  agent, file
 depends_on:
-  - target: crates/termlink-cli/src/commands/session.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/pty.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/events.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/metadata.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/execution.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/infrastructure.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/token.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/remote.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/agent.rs
-    type: declares
-  - target: crates/termlink-cli/src/commands/file.rs
-    type: declares
-
+- target: crates/termlink-cli/src/commands/session.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/pty.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/events.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/metadata.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/infrastructure.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/token.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/remote.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/agent.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/file.rs
+  type: declares
 depended_by:
-  - target: crates/termlink-cli/src/main.rs
-    type: uses
-
+- target: crates/termlink-cli/src/main.rs
+  type: uses
+- target: crates/termlink-cli/src/main.rs
+  type: uses_by
 last_verified: 2026-03-21
 created_by: T-223
+last_enriched: '2026-03-26'

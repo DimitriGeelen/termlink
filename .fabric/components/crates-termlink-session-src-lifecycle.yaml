@@ -3,11 +3,16 @@ name: lifecycle
 type: module
 subsystem: session
 location: crates/termlink-session/src/lifecycle.rs
-tags: [state-machine, lifecycle]
-
-purpose: "SessionState enum — Initializing/Ready/Busy/Draining/Gone with acceptance rules for commands vs messages"
-
+tags:
+- state-machine
+- lifecycle
+purpose: SessionState enum — Initializing/Ready/Busy/Draining/Gone with acceptance rules for commands vs messages
 depends_on: []
-
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-session/src/manager.rs
+  type: called_by
+- target: crates/termlink-session/src/registration.rs
+  type: called_by
+last_enriched: '2026-03-26'

@@ -3,11 +3,22 @@ name: discovery
 type: module
 subsystem: session
 location: crates/termlink-session/src/discovery.rs
-tags: [discovery, runtime-dir]
-
-purpose: "Runtime directory resolution — sessions_dir() using TERMLINK_RUNTIME_DIR env or XDG default"
-
+tags:
+- discovery
+- runtime-dir
+purpose: Runtime directory resolution — sessions_dir() using TERMLINK_RUNTIME_DIR env or XDG default
 depends_on: []
-
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-hub/src/pidfile.rs
+  type: called_by
+- target: crates/termlink-hub/src/route_cache.rs
+  type: called_by
+- target: crates/termlink-hub/src/server.rs
+  type: called_by
+- target: crates/termlink-hub/src/template_cache.rs
+  type: called_by
+- target: crates/termlink-session/src/manager.rs
+  type: called_by
+last_enriched: '2026-03-26'

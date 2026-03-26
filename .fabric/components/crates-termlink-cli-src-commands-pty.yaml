@@ -3,23 +3,30 @@ name: cli-cmd-pty
 type: source
 subsystem: cli
 location: crates/termlink-cli/src/commands/pty.rs
-tags: [cli, commands, pty, terminal, streaming]
-
-purpose: "PTY commands — cmd_interact(), cmd_output(), cmd_inject(), cmd_resize(), cmd_attach(), cmd_stream() with binary frame streaming"
-
+tags:
+- cli
+- commands
+- pty
+- terminal
+- streaming
+purpose: PTY commands — cmd_interact(), cmd_output(), cmd_inject(), cmd_resize(), cmd_attach(), cmd_stream() with binary frame
+  streaming
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    type: calls
-  - target: crates/termlink-session/src/codec.rs
-    type: calls
-  - target: crates/termlink-session/src/data_server.rs
-    type: calls
-  - target: crates/termlink-session/src/manager.rs
-    type: calls
-  - target: crates/termlink-protocol/src/data.rs
-    type: calls
-  - target: crates/termlink-cli/src/util.rs
-    type: uses
-
+- target: crates/termlink-session/src/client.rs
+  type: calls
+- target: crates/termlink-session/src/codec.rs
+  type: calls
+- target: crates/termlink-session/src/data_server.rs
+  type: calls
+- target: crates/termlink-session/src/manager.rs
+  type: calls
+- target: crates/termlink-protocol/src/data.rs
+  type: calls
+- target: crates/termlink-cli/src/util.rs
+  type: uses
 last_verified: 2026-03-21
 created_by: T-223
+depended_by:
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: declares_by
+last_enriched: '2026-03-26'

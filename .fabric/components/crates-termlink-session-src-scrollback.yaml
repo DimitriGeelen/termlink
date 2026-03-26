@@ -3,11 +3,17 @@ name: scrollback
 type: module
 subsystem: session
 location: crates/termlink-session/src/scrollback.rs
-tags: [buffer, output-capture]
-
-purpose: "ScrollbackBuffer — ring buffer for PTY output capture, last_n_lines/last_n_bytes queries, configurable capacity (default 1MiB)"
-
+tags:
+- buffer
+- output-capture
+purpose: ScrollbackBuffer — ring buffer for PTY output capture, last_n_lines/last_n_bytes queries, configurable capacity (default
+  1MiB)
 depends_on: []
-
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-session/src/handler.rs
+  type: called_by
+- target: crates/termlink-session/src/pty.rs
+  type: called_by
+last_enriched: '2026-03-26'

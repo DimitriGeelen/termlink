@@ -3,21 +3,46 @@ name: manager
 type: module
 subsystem: session
 location: crates/termlink-session/src/manager.rs
-tags: [session-management, discovery, query]
-
-purpose: "Session manager — register/deregister, list/find sessions, query by ID/name/tag/role/capability, name conflict detection, stale session cleanup"
-
+tags:
+- session-management
+- discovery
+- query
+purpose: Session manager — register/deregister, list/find sessions, query by ID/name/tag/role/capability, name conflict detection,
+  stale session cleanup
 depends_on:
-  - target: crates/termlink-session/src/identity.rs
-    type: calls
-  - target: crates/termlink-session/src/lifecycle.rs
-    type: calls
-  - target: crates/termlink-session/src/liveness.rs
-    type: calls
-  - target: crates/termlink-session/src/registration.rs
-    type: calls
-  - target: crates/termlink-session/src/discovery.rs
-    type: calls
-
+- target: crates/termlink-session/src/identity.rs
+  type: calls
+- target: crates/termlink-session/src/lifecycle.rs
+  type: calls
+- target: crates/termlink-session/src/liveness.rs
+  type: calls
+- target: crates/termlink-session/src/registration.rs
+  type: calls
+- target: crates/termlink-session/src/discovery.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-cli/src/commands/agent.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/events.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/file.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/metadata.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/pty.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/session.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/token.rs
+  type: called_by
+- target: crates/termlink-hub/src/router.rs
+  type: called_by
+- target: crates/termlink-hub/src/supervisor.rs
+  type: called_by
+- target: crates/termlink-session/src/endpoint.rs
+  type: called_by
+last_enriched: '2026-03-26'

@@ -3,19 +3,25 @@ name: auth
 type: module
 subsystem: session
 location: crates/termlink-session/src/auth.rs
-tags: [security, auth, credentials, unix-socket]
-
-purpose: "Peer credential extraction and UID-based authentication for Unix sockets. Extracts peer UID/GID/PID via SO_PEERCRED (Linux) / LOCAL_PEERCRED+LOCAL_PEERPID (macOS) on socket accept."
-
+tags:
+- security
+- auth
+- credentials
+- unix-socket
+purpose: Peer credential extraction and UID-based authentication for Unix sockets. Extracts peer UID/GID/PID via SO_PEERCRED
+  (Linux) / LOCAL_PEERCRED+LOCAL_PEERPID (macOS) on socket accept.
 depends_on:
-  - target: crates/termlink-session/src/lib.rs
-    type: exports-via
-
+- target: crates/termlink-session/src/lib.rs
+  type: exports-via
 depended_by:
-  - target: crates/termlink-session/src/server.rs
-    type: calls
-  - target: crates/termlink-hub/src/server.rs
-    type: calls
-
+- target: crates/termlink-session/src/server.rs
+  type: calls
+- target: crates/termlink-hub/src/server.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/token.rs
+  type: called_by
+- target: crates/termlink-hub/src/tls.rs
+  type: called_by
 last_verified: 2026-03-10
 created_by: T-077
+last_enriched: '2026-03-26'

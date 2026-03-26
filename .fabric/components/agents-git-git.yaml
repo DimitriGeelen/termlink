@@ -1,0 +1,14 @@
+id: agents/git/git.sh
+name: git
+type: script
+subsystem: git-traceability
+location: agents/git/git.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on: []
+depended_by:
+- target: agents/handover/handover.sh
+  type: called_by
+last_verified: 2026-03-26
+created_by: unknown
+last_enriched: '2026-03-26'

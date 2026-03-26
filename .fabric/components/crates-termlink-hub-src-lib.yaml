@@ -3,15 +3,20 @@ name: hub-lib
 type: library
 subsystem: hub
 location: crates/termlink-hub/src/lib.rs
-tags: [foundation, re-exports]
-
-purpose: "Hub crate root — re-exports router and server modules, test_util for shared ENV_LOCK"
-
+tags:
+- foundation
+- re-exports
+purpose: Hub crate root — re-exports router and server modules, test_util for shared ENV_LOCK
 depends_on:
-  - crates/termlink-hub/src/pidfile.rs
-  - crates/termlink-hub/src/router.rs
-  - crates/termlink-hub/src/server.rs
-  - crates/termlink-hub/src/supervisor.rs
-
+- crates/termlink-hub/src/pidfile.rs
+- crates/termlink-hub/src/router.rs
+- crates/termlink-hub/src/server.rs
+- crates/termlink-hub/src/supervisor.rs
 last_verified: 2026-03-14
 created_by: T-043
+depended_by:
+- target: crates/termlink-hub/src/pidfile.rs
+  type: exports-via_by
+- target: crates/termlink-hub/src/supervisor.rs
+  type: exports-via_by
+last_enriched: '2026-03-26'

@@ -3,21 +3,27 @@ name: transport-addr
 type: module
 subsystem: protocol
 location: crates/termlink-protocol/src/transport.rs
-tags: [transport, address, tcp, unix]
-
-purpose: "Transport address abstraction — TransportAddr enum (Unix/Tcp), parsing, display, serde, is_unix/is_tcp/as_unix_path/as_tcp accessors"
-
+tags:
+- transport
+- address
+- tcp
+- unix
+purpose: Transport address abstraction — TransportAddr enum (Unix/Tcp), parsing, display, serde, is_unix/is_tcp/as_unix_path/as_tcp
+  accessors
 depends_on: []
-
 depended_by:
-  - target: crates/termlink-session/src/transport.rs
-    type: calls
-  - target: crates/termlink-session/src/client.rs
-    type: calls
-  - target: crates/termlink-session/src/registration.rs
-    type: calls
-  - target: crates/termlink-hub/src/router.rs
-    type: calls
-
+- target: crates/termlink-session/src/transport.rs
+  type: calls
+- target: crates/termlink-session/src/client.rs
+  type: calls
+- target: crates/termlink-session/src/registration.rs
+  type: calls
+- target: crates/termlink-hub/src/router.rs
+  type: calls
+- target: crates/termlink-session/src/client.rs
+  type: called_by
+- target: crates/termlink-session/src/transport.rs
+  type: called_by
 last_verified: 2026-03-14
 created_by: T-135
+last_enriched: '2026-03-26'

@@ -3,13 +3,20 @@ name: liveness
 type: module
 subsystem: session
 location: crates/termlink-session/src/liveness.rs
-tags: [liveness, health-check]
-
-purpose: "Process liveness checking — is_alive() via kill(pid, 0) + socket existence, cleanup_stale() removes dead sessions"
-
+tags:
+- liveness
+- health-check
+purpose: Process liveness checking — is_alive() via kill(pid, 0) + socket existence, cleanup_stale() removes dead sessions
 depends_on:
-  - target: crates/termlink-session/src/registration.rs
-    type: calls
-
+- target: crates/termlink-session/src/registration.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
+depended_by:
+- target: crates/termlink-hub/src/pidfile.rs
+  type: called_by
+- target: crates/termlink-hub/src/supervisor.rs
+  type: called_by
+- target: crates/termlink-session/src/manager.rs
+  type: called_by
+last_enriched: '2026-03-26'
