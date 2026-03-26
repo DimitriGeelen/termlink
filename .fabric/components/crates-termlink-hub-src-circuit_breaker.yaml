@@ -1,20 +1,19 @@
 id: crates/termlink-hub/src/circuit_breaker.rs
 name: circuit_breaker
-type: script
-subsystem: unknown
+type: module
+subsystem: hub
 location: crates/termlink-hub/src/circuit_breaker.rs
-tags: []
+tags: [reliability, circuit-breaker, fault-tolerance]
 
-purpose: "TODO: describe what this component does"
+purpose: "Per-session circuit breaker — opens after 3 consecutive transport failures, enters half-open after 60s cooldown. Global singleton registry keyed by session ID."
 
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+depends_on: []  # No imports from registered components — uses only std
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-hub/src/lib.rs
+    relationship: declared_by
+  - target: crates/termlink-hub/src/router.rs
+    relationship: called_by
 
 last_verified: 2026-03-26
 created_by: unknown

@@ -12,6 +12,13 @@ depends_on:
 - crates/termlink-hub/src/router.rs
 - crates/termlink-hub/src/server.rs
 - crates/termlink-hub/src/supervisor.rs
+- crates/termlink-hub/src/bypass.rs
+- crates/termlink-hub/src/circuit_breaker.rs
+- crates/termlink-hub/src/remote_store.rs
+- crates/termlink-hub/src/trust.rs
+- crates/termlink-hub/src/route_cache.rs
+- crates/termlink-hub/src/template_cache.rs
+- crates/termlink-hub/src/tls.rs
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:

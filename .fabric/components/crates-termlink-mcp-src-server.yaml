@@ -1,20 +1,23 @@
 id: crates/termlink-mcp/src/server.rs
-name: server
-type: script
-subsystem: unknown
+name: mcp-server
+type: module
+subsystem: mcp
 location: crates/termlink-mcp/src/server.rs
-tags: []
+tags: [mcp, server, resources, prompts, stdio]
 
-purpose: "TODO: describe what this component does"
+purpose: "MCP ServerHandler implementation — exposes sessions as resources, provides debug/overview/orchestrate prompts, runs on stdio transport"
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+  - target: crates/termlink-mcp/src/tools.rs
+    relationship: imports
+  - target: crates/termlink-session/src/client.rs
+    relationship: uses
+  - target: crates/termlink-session/src/manager.rs
+    relationship: uses
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-mcp/src/lib.rs
+    relationship: declared_by
 
 last_verified: 2026-03-26
 created_by: unknown

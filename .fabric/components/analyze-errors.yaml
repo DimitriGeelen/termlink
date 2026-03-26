@@ -12,7 +12,9 @@ interfaces:
     commands: [--store, --session, --json]
   - type: output
     format: Terminal report or JSON
-depends_on: []
+depends_on:
+  - target: extract-tool-calls
+    relationship: reads
 depended_by: []
 tags: [telemetry, errors, escalation-ladder, antifragility, analysis]
 created: 2026-03-12

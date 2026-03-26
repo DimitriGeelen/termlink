@@ -6,8 +6,8 @@ location: crates/termlink-cli/src/commands/mod.rs
 tags:
 - cli
 - module-root
-purpose: Module declarations for 10 command modules — session, pty, events, metadata, execution, infrastructure, token, remote,
-  agent, file
+purpose: Module declarations for 13 command modules — session, pty, events, metadata, execution, dispatch, infrastructure, token,
+  remote, agent, file, push, vendor
 depends_on:
 - target: crates/termlink-cli/src/commands/session.rs
   type: declares
@@ -28,6 +28,12 @@ depends_on:
 - target: crates/termlink-cli/src/commands/agent.rs
   type: declares
 - target: crates/termlink-cli/src/commands/file.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/dispatch.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/push.rs
+  type: declares
+- target: crates/termlink-cli/src/commands/vendor.rs
   type: declares
 depended_by:
 - target: crates/termlink-cli/src/main.rs

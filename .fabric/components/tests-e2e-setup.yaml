@@ -7,7 +7,11 @@ tags: [e2e, test, portability]
 
 purpose: "Shared E2E setup — portable binary resolution, build, orchestrator registration helpers"
 
-depends_on: []
+depends_on: []  # Sources e2e-helpers.sh (no card) and builds termlink binary
+
+depended_by:
+  - target: tests/e2e/level9-dispatch-collect.sh
+    relationship: sourced_by
 
 last_verified: 2026-03-12
 created_by: unknown

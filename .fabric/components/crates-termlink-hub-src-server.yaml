@@ -14,9 +14,15 @@ depends_on:
   type: calls
 - target: crates/termlink-protocol/src/jsonrpc.rs
   type: calls
+- target: crates/termlink-hub/src/remote_store.rs
+  type: uses
 last_verified: 2026-03-08
 created_by: T-043
 depended_by:
 - target: crates/termlink-cli/src/commands/infrastructure.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/dispatch.rs
+  type: called_by
+- target: crates/termlink-mcp/src/tools.rs
   type: called_by
 last_enriched: '2026-03-26'

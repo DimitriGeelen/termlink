@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-26-1354
-timestamp: 2026-03-26T12:54:42Z
+# Audit Results - 2026-03-26-1409
+timestamp: 2026-03-26T13:09:54Z
 summary:
-  pass: 102
-  warn: 15
+  pass: 105
+  warn: 12
   fail: 0
 findings:
   - level: PASS
@@ -19,9 +19,8 @@ findings:
     check: "All 8 project YAML files parse correctly"
   - level: PASS
     check: "Fabric: 79 registered, 0 unregistered"
-  - level: WARN
-    check: "Fabric: 15/79 cards have no edges"
-    mitigation: "Run: fw fabric enrich"
+  - level: PASS
+    check: "Fabric edges: 78/79 cards enriched (1 without edges)"
   - level: PASS
     check: "Fabric drift: All watched source files registered (79 cards)"
   - level: PASS
@@ -29,7 +28,7 @@ findings:
   - level: PASS
     check: "All active tasks meet quality thresholds"
   - level: PASS
-    check: "Git traceability: 97% (622/637 commits reference tasks)"
+    check: "Git traceability: 97% (623/638 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -78,14 +77,14 @@ findings:
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 154 (last commit: 41 minutes ago)"
+    check: "CTL-004: Tool counter at 98 (last commit: 11 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: WARN
-    check: "CTL-020: Cron audit directory missing (/opt/termlink/.context/audits/cron)"
-    mitigation: "Run: fw audit schedule install"
+    check: "CTL-020: No cron audit files in last hour"
+    mitigation: "Check cron schedule: crontab -l "
   - level: PASS
     check: "CTL-002: Tier 0 guard installed and wired in settings.json"
   - level: PASS
@@ -202,9 +201,6 @@ findings:
     check: "CTL-012: Completed task T-157 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: WARN
-    check: "CTL-012: Completed task T-206 has unchecked AC"
-    mitigation: "Review task completion — AC gate may have been bypassed"
-  - level: WARN
     check: "CTL-012: Completed task T-257 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: WARN
@@ -213,6 +209,8 @@ findings:
   - level: WARN
     check: "CTL-012: Completed task T-265 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
+  - level: PASS
+    check: "CTL-013: T-157 verification re-run: 2/2 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -241,11 +239,10 @@ findings:
   - level: WARN
     check: "D5: Task lifecycle — 15 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+5 more)"
     mitigation: "Review flagged tasks for process issues"
-  - level: WARN
-    check: "D3: Commit velocity — WARN drop today=10 avg=36 ratio=0.3x"
-    mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
+    check: "D3: Commit velocity — normal (PASS today=11 avg=36 ratio=0.3x)"
+  - level: PASS
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 39_commits_24h)"
   - level: PASS
     check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=12.6)"
   - level: PASS

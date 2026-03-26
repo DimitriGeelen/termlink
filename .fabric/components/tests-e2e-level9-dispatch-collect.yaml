@@ -1,13 +1,15 @@
 id: tests/e2e/level9-dispatch-collect.sh
 name: level9-dispatch-collect
-type: script
-subsystem: unknown
+type: test
+subsystem: e2e
 location: tests/e2e/level9-dispatch-collect.sh
-tags: []
+tags: [e2e, test, dispatch, collect, orchestration, workers]
 
-purpose: "TODO: describe what this component does"
+purpose: "E2E test for dispatch-collect pattern — spawns workers, collects events via hub fan-in, tests partial failure, parent session injection, topic filtering, tag discovery"
 
-depends_on: []
+depends_on:
+  - target: tests/e2e/setup.sh
+    relationship: sources
 
 last_verified: 2026-03-23
 created_by: unknown

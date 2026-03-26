@@ -10,8 +10,8 @@ purpose: >
 interfaces:
   - CLI: ./agents/transcripts/transcripts.sh size
   - CLI: ./agents/transcripts/transcripts.sh clean [--older-than N] [--dry-run]
-depends_on: []
-depended_by: []
+depends_on: []  # Standalone script — no imports from registered components
+depended_by: []  # Leaf node — invoked manually by human, not called by other components
 tags: [maintenance, transcripts, retention, cleanup, storage]
 created: 2026-03-12
 task: T-110

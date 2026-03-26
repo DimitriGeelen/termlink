@@ -1,20 +1,19 @@
 id: crates/termlink-cli/src/commands/vendor.rs
 name: vendor
-type: script
-subsystem: unknown
+type: module
+subsystem: cli
 location: crates/termlink-cli/src/commands/vendor.rs
-tags: []
+tags: [cli, vendor, portability]
 
-purpose: "TODO: describe what this component does"
+purpose: "Vendor the TermLink binary into a project directory for path isolation — copies binary, writes VERSION file, checks .gitignore"
 
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+depends_on: []  # No imports from registered components — uses only anyhow + std
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-cli/src/commands/mod.rs
+    relationship: declared_by
+  - target: crates/termlink-cli/src/main.rs
+    relationship: called_by
 
 last_verified: 2026-03-26
 created_by: unknown

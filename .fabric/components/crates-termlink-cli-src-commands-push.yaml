@@ -1,20 +1,25 @@
 id: crates/termlink-cli/src/commands/push.rs
 name: push
-type: script
-subsystem: unknown
+type: module
+subsystem: cli
 location: crates/termlink-cli/src/commands/push.rs
-tags: []
+tags: [cli, remote, push, inbox]
 
-purpose: "TODO: describe what this component does"
+purpose: "Push file or message to a remote session's inbox with PTY notification — atomic write via command.execute + PTY inject"
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+  - target: crates/termlink-protocol/src/jsonrpc.rs
+    relationship: imports
+  - target: crates/termlink-session/src/client.rs
+    relationship: uses
+  - target: crates/termlink-cli/src/commands/remote.rs
+    relationship: calls
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-cli/src/commands/mod.rs
+    relationship: declared_by
+  - target: crates/termlink-cli/src/main.rs
+    relationship: called_by
 
 last_verified: 2026-03-26
 created_by: unknown

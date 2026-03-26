@@ -1,20 +1,21 @@
 id: crates/termlink-mcp/src/lib.rs
-name: lib
-type: script
-subsystem: unknown
+name: mcp-lib
+type: library
+subsystem: mcp
 location: crates/termlink-mcp/src/lib.rs
-tags: []
+tags: [mcp, foundation, re-exports]
 
-purpose: "TODO: describe what this component does"
+purpose: "MCP crate root — declares tools and server modules, re-exports TermLinkTools"
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+  - target: crates/termlink-mcp/src/tools.rs
+    relationship: declares
+  - target: crates/termlink-mcp/src/server.rs
+    relationship: declares
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-cli/src/main.rs
+    relationship: used_by
 
 last_verified: 2026-03-26
 created_by: unknown

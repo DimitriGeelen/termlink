@@ -11,7 +11,9 @@ interfaces:
     commands: [--store, --session, --compact, --json]
   - type: output
     format: Terminal report, one-line compact, or JSON
-depends_on: []
+depends_on:
+  - target: extract-tool-calls
+    relationship: reads
 depended_by: []
 tags: [telemetry, reporting, statistics, tool-calls]
 created: 2026-03-12

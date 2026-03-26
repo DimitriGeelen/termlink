@@ -1,20 +1,23 @@
 id: crates/termlink-hub/src/bypass.rs
 name: bypass
-type: script
-subsystem: unknown
+type: module
+subsystem: hub
 location: crates/termlink-hub/src/bypass.rs
-tags: []
+tags: [orchestration, bypass, tier3, promotion, denylist]
 
-purpose: "TODO: describe what this component does"
+purpose: "Bypass registry — tracks commands promoted to Tier 3 (autonomous execution) after PROMOTION_THRESHOLD successful orchestrated runs. Supports denylist, locked updates, atomic save, invalidation."
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+  - target: crates/termlink-session/src/discovery.rs
+    relationship: calls
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-hub/src/lib.rs
+    relationship: declared_by
+  - target: crates/termlink-hub/src/router.rs
+    relationship: used_by
+  - target: crates/termlink-hub/src/trust.rs
+    relationship: called_by
 
 last_verified: 2026-03-26
 created_by: unknown
