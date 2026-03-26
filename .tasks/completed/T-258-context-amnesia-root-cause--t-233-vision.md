@@ -63,7 +63,7 @@ test -f docs/reports/T-258-context-amnesia.md
 ## Decisions
 
 ### 2026-03-24 — Root cause analysis scope
-- **Chose:** Fix what we can locally (episodics, decisions.yaml, memory) + dispatch framework fixes as inception pickup prompts
+- **Decision:** GO — Fix what we can locally (episodics, decisions.yaml, memory) + dispatch framework fixes as inception pickup prompts
 - **Why:** Framework repo is a separate project — can't edit directly from TermLink consumer
 - **Rejected:** Waiting for framework fixes first (would block reversal of 5 incorrectly NO-GO'd tasks)
 
