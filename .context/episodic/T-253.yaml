@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-253: Bypass invalidation signals — config-change-aware cache busting
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:57Z
+# ============================================================================
+
+task_id: T-253
+task_name: "Bypass invalidation signals — config-change-aware cache busting"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T16:54:29Z
+completed: 2026-03-23T21:34:44Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T22:34:22+01:00
+last_commit: 2026-03-23T22:34:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Bypass invalidation signals — pattern and full cache busting
+
+# Key outcomes
+outcomes:
+  - "`BypassRegistry::invalidate(pattern)` method removes entries matching a case-insensitive substring pattern"
+  - "`BypassRegistry::invalidate_all()` clears entire registry"
+  - "`orchestrator.bypass_invalidate` RPC endpoint exposed through hub router (with locked_update)"
+  - "Test: `invalidate` removes matching entries and preserves non-matching entries"
+  - "Test: `invalidate_all` clears everything"
+  - "All hub tests pass (`cargo test --package termlink-hub` — 69 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/bypass.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/control.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T22:34:22"
+    action: "T-253: Bypass invalidation signals — pattern and full cache busting"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-247, T-238, orchestration, bypass]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 148
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-253-bypass-invalidation-signals--config-chan.md
+generated_by: context-agent-hybrid

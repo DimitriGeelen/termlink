@@ -1,8 +1,8 @@
-timestamp: 2026-03-25T23:13:19Z
+timestamp: 2026-03-26T10:56:20Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (1/216)"
+    check: "D1: Episodic quality — 0% [TODO] (2/247)"
   - id: D2
     level: PASS
     check: "D2: Human review queue — 3 task(s) awaiting human action (normal)"
@@ -21,18 +21,18 @@ findings:
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 14 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-272(0min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) (+4 more)"
+    check: "D5: Task lifecycle — 15 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-272(0min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) (+5 more)"
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: WARN
-    check: "D3: Commit velocity — WARN drop today=1 avg=36 ratio=0.0x"
+    check: "D3: Commit velocity — WARN drop today=3 avg=36 ratio=0.1x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 39_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=17.3 earlier=10.9)"
+    check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=12.6)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"

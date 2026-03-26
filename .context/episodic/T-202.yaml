@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-202: termlink remote exec — execute commands on remote sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:21Z
+# ============================================================================
+
+task_id: T-202
+task_name: "termlink remote exec — execute commands on remote sessions"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-20T23:54:27Z
+completed: 2026-03-23T10:24:13Z
+duration_days: 3
+updates_count: 0
+first_commit: 2026-03-21T01:01:06+01:00
+last_commit: 2026-03-21T01:01:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add remote exec — execute commands on remote sessions. Complete — remote exec, human AC pending cross-machine test
+
+# Key outcomes
+outcomes:
+  - "`RemoteAction::Exec` variant with args: hub, session, command, secret-file/secret, scope, timeout, cwd, json"
+  - "`cmd_remote_exec()` connects, authenticates, forwards `command.execute` with target routing"
+  - "stdout/stderr printed to respective streams"
+  - "Process exits with remote command's exit code on non-zero"
+  - "`--json` outputs full result (exit_code, stdout, stderr)"
+  - "`cargo build --package termlink` compiles clean"
+  - "`cargo test --workspace` passes (297 passed, 0 failed)"
+  - "Help text: `termlink remote exec --help`"
+  - "[REVIEW] Cross-machine test: execute command on .107 session"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-202-termlink-remote-exec--execute-commands-o.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-21T01:01:06"
+    action: "T-202: Add remote exec — execute commands on remote sessions"
+  - time: "2026-03-21T01:01:21"
+    action: "T-202: Complete — remote exec, human AC pending cross-machine test"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3509 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, cross-machine, remote]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3509
+  commits: 2
+  files_changed: 2
+  lines_added: 171
+  lines_removed: 4
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-202-termlink-remote-exec--execute-commands-o.md
+generated_by: context-agent-hybrid

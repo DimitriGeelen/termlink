@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-251: Bypass eligibility — mutation flag to prevent read-write commands from promotion
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:56Z
+# ============================================================================
+
+task_id: T-251
+task_name: "Bypass eligibility — mutation flag to prevent read-write commands from promotion"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T16:54:24Z
+completed: 2026-03-23T17:13:50Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T18:13:43+01:00
+last_commit: 2026-03-23T18:13:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Bypass eligibility — mutation flag prevents r/w command promotion
+
+# Key outcomes
+outcomes:
+  - "`orchestrator.route` accepts optional `mutating: true` param"
+  - "When `mutating=true`, bypass check is skipped and orchestrated runs are not tracked for promotion"
+  - "Test: mutating command not tracked in candidates after 6 successful runs"
+  - "Test: non-mutating command promotes normally after 5 runs, 6th returns bypassed=true"
+  - "All 62 hub tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-251-bypass-eligibility--mutation-flag-to-pre.md"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T18:13:43"
+    action: "T-251: Bypass eligibility — mutation flag prevents r/w command promotion"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-247, T-238, orchestration, bypass]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 163
+  lines_removed: 57
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-251-bypass-eligibility--mutation-flag-to-pre.md
+generated_by: context-agent-hybrid

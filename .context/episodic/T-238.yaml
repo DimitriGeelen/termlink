@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-238: Bypass registry — Tier 3 operationalized for local execution
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:48Z
+# ============================================================================
+
+task_id: T-238
+task_name: "Bypass registry — Tier 3 operationalized for local execution"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T13:27:24Z
+completed: 2026-03-23T16:41:58Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T14:28:15+01:00
+last_commit: 2026-03-23T17:41:50+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-233: Create 7 build tasks from inception GO — orchestration decomposition. Bypass registry — Tier 3 operationalized for local execution
+
+# Key outcomes
+outcomes:
+  - "`bypass.rs` module in termlink-hub with BypassRegistry struct"
+  - "JSON registry file at `{runtime_dir}/bypass-registry.json` with entries: command, tier, run_count, fail_count, promoted_at, last_run"
+  - "`load()` / `save()` / `check(command)` / `record_orchestrated_run(command, success)` / `record_bypass_run(command, success)` API"
+  - "Promotion: command auto-added to registry after 5+ successful orchestrated runs with 0 failures"
+  - "De-promotion: entry removed from registry when a bypass execution fails"
+  - "`orchestrator.route` checks bypass registry before routing — returns `{ bypassed: true, command, tier, run_count }` for hits"
+  - "`orchestrator.bypass_status` RPC to query registry contents (bypassed commands + promotion candidates)"
+  - "5 tests: load/save round-trip, check hit/miss, promotion threshold, promotion blocked by failure, de-promotion on failure"
+  - "All 54 hub tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-237-hub-orchestratorroute-rpc--discover-dele.md"
+  - ".tasks/active/T-238-bypass-registry--tier-3-operationalized-.md"
+  - ".tasks/active/T-239-route-cache--cacheroutes-yaml-with-confi.md"
+  - ".tasks/active/T-240-negotiation-protocol--4-phase-format-neg.md"
+  - ".tasks/active/T-241-template-caching--3-layer-agent-local-sh.md"
+  - ".tasks/active/T-242-supervision-integration--trust-assessmen.md"
+  - ".tasks/active/T-243-script-error-yielding--checkpoint-based-.md"
+  - "Cargo.lock"
+  - "crates/termlink-hub/Cargo.toml"
+  - "crates/termlink-hub/src/bypass.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/control.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T14:28:15"
+    action: "T-233: Create 7 build tasks from inception GO — orchestration decomposition"
+  - time: "2026-03-23T17:41:50"
+    action: "T-238: Bypass registry — Tier 3 operationalized for local execution"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-233, orchestration, bypass]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 13
+  lines_added: 880
+  lines_removed: 29
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-238-bypass-registry--tier-3-operationalized-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-265: MCP server phase 2 — discover, spawn, run, kv, broadcast, wait tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:06Z
+# ============================================================================
+
+task_id: T-265
+task_name: "MCP server phase 2 — discover, spawn, run, kv, broadcast, wait tools"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-24T17:52:21Z
+completed: 2026-03-24T17:55:26Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-24T18:55:18+01:00
+last_commit: 2026-03-24T18:55:18+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP server phase 2 — 10 new tools (discover, spawn, run, kv, broadcast, wait)
+
+# Key outcomes
+outcomes:
+  - "`termlink_discover` tool — find sessions by tag, role, name filter"
+  - "`termlink_spawn` tool — create new TermLink session (background backend for MCP)"
+  - "`termlink_run` tool — execute command in ephemeral session, return output"
+  - "`termlink_kv_get` / `termlink_kv_set` / `termlink_kv_list` / `termlink_kv_del` tools — per-session key-value store"
+  - "`termlink_broadcast` tool — emit event to multiple sessions via hub"
+  - "`termlink_wait` tool — block until event topic appears (with timeout)"
+  - "`cargo check -p termlink-mcp` compiles clean"
+  - "All param types derive JsonSchema for auto-schema generation"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-265-mcp-server-phase-2--discover-spawn-run-k.md"
+  - "crates/termlink-mcp/src/tools.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-24T18:55:18"
+    action: "T-265: MCP server phase 2 — 10 new tools (discover, spawn, run, kv, broadcast, wait)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 493
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-265-mcp-server-phase-2--discover-spawn-run-k.md
+generated_by: context-agent-hybrid

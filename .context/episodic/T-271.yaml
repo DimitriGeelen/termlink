@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-271: MCP prompts — debug_session, orchestrate, session_overview
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:10Z
+# ============================================================================
+
+task_id: T-271
+task_name: "MCP prompts — debug_session, orchestrate, session_overview"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T11:46:25Z
+completed: 2026-03-25T11:51:52Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T12:51:45+01:00
+last_commit: 2026-03-25T12:51:45+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP prompts — debug_session, orchestrate, session_overview
+
+# Key outcomes
+outcomes:
+  - "3 MCP prompts: debug_session, session_overview, orchestrate"
+  - "Prompts capability enabled in ServerCapabilities"
+  - "6 integration tests for prompts (list, get each, unknown error)"
+  - "All 459 workspace tests pass, zero warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "MCP prompts — debug_session, orchestrate, session_overview"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-271-mcp-prompts--debugsession-orchestrate-se.md"
+  - "crates/termlink-mcp/src/server.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T12:51:45"
+    action: "T-271: MCP prompts — debug_session, orchestrate, session_overview"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 444
+  lines_removed: 3
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-271-mcp-prompts--debugsession-orchestrate-se.md
+generated_by: context-agent-hybrid

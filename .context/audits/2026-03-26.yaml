@@ -1,5 +1,5 @@
-# Audit Results - 2026-03-26-0013
-timestamp: 2026-03-25T23:13:19Z
+# Audit Results - 2026-03-26-1156
+timestamp: 2026-03-26T10:56:20Z
 summary:
   pass: 91
   warn: 84
@@ -34,7 +34,7 @@ findings:
     check: "Task T-186 is 8 days old with only 1 updates"
     mitigation: "Add progress updates to T-186-termlink-inject-remote--standard-command.md"
   - level: PASS
-    check: "Git traceability: 97% (613/628 commits reference tasks)"
+    check: "Git traceability: 97% (615/630 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -256,14 +256,14 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: WARN
-    check: "CTL-001: Focus file empty but 3 commit(s) in last 30min"
+    check: "CTL-001: Focus file empty but 1 commit(s) in last 30min"
     mitigation: "Check .claude/settings.json hook configuration for check-active-task"
   - level: PASS
-    check: "CTL-003: Budget status file fresh (< 5min old)"
+    check: "CTL-003: Budget status file stale (29575377min — no active session)"
   - level: PASS
-    check: "CTL-004: Tool counter at 11 (last commit: 6 minutes ago)"
+    check: "CTL-004: Tool counter at 3 (last commit: 7 minutes ago)"
   - level: PASS
-    check: "CTL-018: Budget status valid JSON (level: urgent)"
+    check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: WARN
@@ -274,7 +274,7 @@ findings:
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (68 handovers, 1 compactions)"
+    check: "CTL-006: Handover coverage for compactions (69 handovers, 2 compactions)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
   - level: PASS
@@ -304,7 +304,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (112 commits)"
+    check: "CTL-009: Inception T-012 has decision (114 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -411,7 +411,7 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (1/216)"
+    check: "D1: Episodic quality — 0% [TODO] (2/247)"
   - level: PASS
     check: "D2: Human review queue — 3 task(s) awaiting human action (normal)"
   - level: PASS
@@ -426,15 +426,15 @@ findings:
   - level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - level: WARN
-    check: "D5: Task lifecycle — 14 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-272(0min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) (+4 more)"
+    check: "D5: Task lifecycle — 15 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-272(0min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) (+5 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: WARN
-    check: "D3: Commit velocity — WARN drop today=1 avg=36 ratio=0.0x"
+    check: "D3: Commit velocity — WARN drop today=3 avg=36 ratio=0.1x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 39_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=17.3 earlier=10.9)"
+    check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=12.6)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS

@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-198: Fix file receive replaying stale events from ring buffer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:18Z
+# ============================================================================
+
+task_id: T-198
+task_name: "Fix file receive replaying stale events from ring buffer"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-20T22:39:35Z
+completed: 2026-03-23T10:24:11Z
+duration_days: 3
+updates_count: 0
+first_commit: 2026-03-20T23:41:26+01:00
+last_commit: 2026-03-21T00:12:45+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix file receive replaying stale events from ring buffer. Fix file receive — latch onto last FileInit, skip stale transfers. Close — file receive stale event fix verified cross-machine
+
+# Key outcomes
+outcomes:
+  - "`cmd_file_receive()` first-poll pre-scan finds the LAST FileInit (most recent transfer)"
+  - "Receiver skips stale transfers and delivers the correct file"
+  - "`cargo build --package termlink` compiles clean"
+  - "Cross-machine test: stale(23B) + real(113B) sent → receiver got real file, SHA-256 match"
+  - "[REVIEW] Cross-machine test: send file → receive file → SHA-256 matches"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Close — file receive stale event fix verified cross-machine"
+    source: git-mined
+  - description: "Fix file receive — latch onto last FileInit, skip stale transfers"
+    source: git-mined
+  - description: "Fix file receive replaying stale events from ring buffer"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-198-fix-file-receive-replaying-stale-events-.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-20T23:41:26"
+    action: "T-198: Fix file receive replaying stale events from ring buffer"
+  - time: "2026-03-21T00:12:15"
+    action: "T-198: Fix file receive — latch onto last FileInit, skip stale transfers"
+  - time: "2026-03-21T00:12:45"
+    action: "T-198: Close — file receive stale event fix verified cross-machine"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3584 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, file-transfer, events]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3584
+  commits: 3
+  files_changed: 2
+  lines_added: 181
+  lines_removed: 26
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-198-fix-file-receive-replaying-stale-events-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-273: termlink doctor — runtime health check command
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:12Z
+# ============================================================================
+
+task_id: T-273
+task_name: "termlink doctor — runtime health check command"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T11:55:53Z
+completed: 2026-03-25T11:58:51Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T12:58:45+01:00
+last_commit: 2026-03-25T12:58:45+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink doctor — runtime health check command
+
+# Key outcomes
+outcomes:
+  - "`termlink doctor` command added with 6 health checks"
+  - "Checks: runtime_dir, sessions_dir, session liveness (ping), hub status, orphaned sockets, version"
+  - "Human-readable output with colored pass/warn/fail markers"
+  - "`--json` flag for machine-readable output"
+  - "Exit code 1 on failures, 0 on pass/warn"
+  - "All 459 workspace tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-273-termlink-doctor--runtime-health-check-co.md"
+  - ".tasks/completed/T-272-hub-remote-session-reaper--ttl-enforceme.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T12:58:45"
+    action: "T-273: termlink doctor — runtime health check command"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 5
+  lines_added: 314
+  lines_removed: 0
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-273-termlink-doctor--runtime-health-check-co.md
+generated_by: context-agent-hybrid

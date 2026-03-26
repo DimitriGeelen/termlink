@@ -4,11 +4,3 @@
 session.yaml
 focus.yaml
 tier0-approval
-
-# Ephemeral state files — session-local, cause merge conflicts if tracked
-.budget-status
-.budget-gate-counter
-.compact-log
-.handover-cooldown
-.restart-requested
-.tier0-approval.pending

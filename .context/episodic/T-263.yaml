@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-263: register --self: event-only endpoint for existing processes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:04Z
+# ============================================================================
+
+task_id: T-263
+task_name: "register --self: event-only endpoint for existing processes"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-24T10:47:34Z
+completed: 2026-03-24T10:53:56Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-24T11:52:59+01:00
+last_commit: 2026-03-24T11:53:49+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  register --self: event-only endpoint for existing processes. Register endpoint fabric card + update ACs
+
+# Key outcomes
+outcomes:
+  - "`--self` flag on `register` CLI command (mutually exclusive with `--shell`)"
+  - "Self-registered session runs RPC server in current process (Unix socket, hub discovery)"
+  - "Capabilities: events (emit/poll), KV (get/set/list), status queries"
+  - "Does NOT advertise inject/output/stream capabilities (honest boundary)"
+  - "`termlink::endpoint` public API in termlink-session crate for library use"
+  - "Session cleans up (socket + JSON sidecar) on Ctrl+C / SIGHUP / drop"
+  - "Unit tests: self-registration, event emit/poll, KV, cleanup on drop (4 tests)"
+  - "Integration: hub discovers self-registered session (uses same registration path as register --shell, tested via existing hub discovery tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-session-src-endpoint.yaml"
+  - ".tasks/active/T-262-inception-attach-self--register-existing.md"
+  - ".tasks/active/T-263-register---self-event-only-endpoint-for-.md"
+  - ".tasks/completed/T-256-interactive-multi-agent-communication--b.md"
+  - ".tasks/completed/T-262-inception-attach-self--register-existing.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-session/src/endpoint.rs"
+  - "crates/termlink-session/src/lib.rs"
+  - "docs/reports/T-262-attach-self-inception.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-24T11:52:59"
+    action: "T-263: register --self: event-only endpoint for existing processes"
+  - time: "2026-03-24T11:53:49"
+    action: "T-263: Register endpoint fabric card + update ACs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, session, orchestration]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 11
+  lines_added: 737
+  lines_removed: 109
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-263-register---self-event-only-endpoint-for-.md
+generated_by: context-agent-hybrid

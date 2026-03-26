@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-239: Route cache — .cache/routes/ YAML with confidence, TTL, lazy invalidation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:24Z
+# ============================================================================
+
+task_id: T-239
+task_name: "Route cache — .cache/routes/ YAML with confidence, TTL, lazy invalidation"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T13:27:32Z
+completed: 2026-03-24T09:03:06Z
+duration_days: 1
+updates_count: 0
+first_commit: 2026-03-23T14:28:15+01:00
+last_commit: 2026-03-24T10:02:35+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-233: Create 7 build tasks from inception GO — orchestration decomposition. NO-GO — route cache has nothing to cache, dispatch is direct. Route cache — Layer 2 capability discovery with confidence decay and TTL. Register route_cache fabric card
+
+# Key outcomes
+outcomes:
+  - "Research artifact created at `docs/reports/T-239-route-cache-inception.md`"
+  - "GO/NO-GO decision recorded with rationale"
+  - "`RouteCache` struct in `crates/termlink-hub/src/route_cache.rs` with JSON persistence"
+  - "Cache entries: capability slug, specialist, confidence, TTL, hit_count, last_used, request_schema"
+  - "3-way lookup: hit+valid → CacheHit, expired/low-confidence → Stale, miss → CacheMiss"
+  - "Confidence decay: 0.05/week of non-use"
+  - "Record successful route (from orchestrator.route response) into cache"
+  - "Invalidate on specialist rejection (schema mismatch or RPC error)"
+  - "Integration: `handle_orchestrator_route` checks route cache between bypass and discovery"
+  - "Tests: hit, miss, stale, confidence decay, invalidation, persistence round-trip (17 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-hub-src-route_cache.yaml"
+  - ".tasks/active/T-237-hub-orchestratorroute-rpc--discover-dele.md"
+  - ".tasks/active/T-238-bypass-registry--tier-3-operationalized-.md"
+  - ".tasks/active/T-239-route-cache--cacheroutes-yaml-with-confi.md"
+  - ".tasks/active/T-240-negotiation-protocol--4-phase-format-neg.md"
+  - ".tasks/active/T-241-template-caching--3-layer-agent-local-sh.md"
+  - ".tasks/active/T-242-supervision-integration--trust-assessmen.md"
+  - ".tasks/active/T-243-script-error-yielding--checkpoint-based-.md"
+  - ".tasks/completed/T-239-route-cache--cacheroutes-yaml-with-confi.md"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/route_cache.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "docs/reports/T-239-route-cache-inception.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T14:28:15"
+    action: "T-233: Create 7 build tasks from inception GO — orchestration decomposition"
+  - time: "2026-03-24T07:33:38"
+    action: "T-239: NO-GO — route cache has nothing to cache, dispatch is direct"
+  - time: "2026-03-24T10:02:07"
+    action: "T-239: Route cache — Layer 2 capability discovery with confidence decay and TTL"
+  - time: "2026-03-24T10:02:35"
+    action: "T-239: Register route_cache fabric card"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 1175 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-233, orchestration, cache]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1175
+  commits: 5
+  files_changed: 18
+  lines_added: 1636
+  lines_removed: 439
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-239-route-cache--cacheroutes-yaml-with-confi.md
+generated_by: context-agent-hybrid

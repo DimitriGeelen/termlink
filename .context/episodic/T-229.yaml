@@ -1,0 +1,119 @@
+# ============================================================================
+# EPISODIC MEMORY - T-229: Renumber colliding task IDs T-205–T-210 to T-222–T-227
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:24Z
+# ============================================================================
+
+task_id: T-229
+task_name: "Renumber colliding task IDs T-205–T-210 to T-222–T-227"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-21T23:26:35Z
+completed: 2026-03-23T07:47:02Z
+duration_days: 2
+updates_count: 0
+first_commit: 2026-03-23T08:21:34+01:00
+last_commit: 2026-03-23T08:47:19+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Final renumber T-213→T-228, T-214→T-229, T-215–T-220→T-222–T-227 + merge origin/main + register G-007. Fix 2 stale output paths in T-228/T-229 update logs. Remove 6 stale active/ copies of remote-completed tasks. Complete — task ID collision resolution verified clean
+
+# Key outcomes
+outcomes:
+  - "6 task files renamed and IDs updated (T-215→T-222 through T-220→T-227)"
+  - "6 episodic files renamed and task_ids updated"
+  - "14 fabric cards `created_by` updated from T-216 to T-223"
+  - "Handover S-2026-0321-0742 references updated (T-215→T-222)"
+  - "No duplicate task IDs in `.tasks/` (verified: 0 duplicates)"
+  - "6 stale active/ copies of remote-completed tasks removed (T-208, T-216–T-220)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix 2 stale output paths in T-228/T-229 update logs"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/settings.local.json"
+  - ".context/episodic/T-222.yaml"
+  - ".context/episodic/T-223.yaml"
+  - ".context/episodic/T-224.yaml"
+  - ".context/episodic/T-225.yaml"
+  - ".context/episodic/T-226.yaml"
+  - ".context/episodic/T-227.yaml"
+  - ".context/handovers/S-2026-0321-0742.md"
+  - ".context/project/gaps.yaml"
+  - ".fabric/components/crates-termlink-cli-src-cli.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-agent.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-events.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-execution.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-file.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-infrastructure.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-metadata.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-mod.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-pty.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-remote.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-session.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-token.yaml"
+  - ".fabric/components/crates-termlink-cli-src-config.yaml"
+  - ".fabric/components/crates-termlink-cli-src-util.yaml"
+  - ".tasks/active/T-208-termlink-distribution-via-homebrew-tap--.md"
+  - ".tasks/active/T-216-strengthen-ci--add-tests-and-clippy-to-w.md"
+  - ".tasks/active/T-217-add-homebrew-install-to-readme.md"
+  - ".tasks/active/T-218-add-cargo-cache-to-ci-and-release-workfl.md"
+  - ".tasks/active/T-219-fix-github-repo-url-in-cargotoml-and-add.md"
+  - ".tasks/active/T-220-remove-stale-artifacts-from-project-root.md"
+  - ".tasks/active/T-229-renumber-colliding-task-ids-t-205t-210-t.md"
+  - ".tasks/completed/T-222-split-cli-mainrs-into-command-modules.md"
+  - ".tasks/completed/T-223-register-fabric-cards-for-14-new-cli-mod.md"
+  - ".tasks/completed/T-224-generate-10-missing-episodic-summaries.md"
+  - ".tasks/completed/T-225-add-unit-tests-for-cli-utility-functions.md"
+  - ".tasks/completed/T-226-fix-deprecated-cargobin-import-in-cli-in.md"
+  - ".tasks/completed/T-227-add-unit-tests-for-hub-profile-config-mo.md"
+  - ".tasks/completed/T-228-fix-ephemeral-working-files-causing-merg.md"
+  - ".tasks/completed/T-229-renumber-colliding-task-ids-t-205t-210-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T08:21:34"
+    action: "T-229: Final renumber T-213→T-228, T-214→T-229, T-215–T-220→T-222–T-227 + merge origin/main + register G-007"
+  - time: "2026-03-23T08:30:03"
+    action: "T-229: Fix 2 stale output paths in T-228/T-229 update logs"
+  - time: "2026-03-23T08:46:56"
+    action: "T-229: Remove 6 stale active/ copies of remote-completed tasks"
+  - time: "2026-03-23T08:47:19"
+    action: "T-229: Complete — task ID collision resolution verified clean"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1940 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1940
+  commits: 4
+  files_changed: 40
+  lines_added: 107
+  lines_removed: 507
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-229-renumber-colliding-task-ids-t-205t-210-t.md
+generated_by: context-agent-hybrid

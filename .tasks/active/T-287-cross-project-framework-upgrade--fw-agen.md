@@ -122,3 +122,7 @@ Create child tasks for path isolation and register --self integration.
 
 ### 2026-03-25T20:34:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-25T21:00:00Z — research-artifact [agent]
+- **Artifact:** `docs/reports/T-287-cross-project-upgrade.md`
+- **Content:** Full inception research — 5 spikes, dialogue log, design decisions, path isolation gap, security findings

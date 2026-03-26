@@ -1,0 +1,109 @@
+# ============================================================================
+# EPISODIC MEMORY - T-258: Context amnesia root cause — T-233 vision lost across sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:01Z
+# ============================================================================
+
+task_id: T-258
+task_name: "Context amnesia root cause — T-233 vision lost across sessions"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-24T07:25:29Z
+completed: 2026-03-24T08:22:16Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-24T08:36:31+01:00
+last_commit: 2026-03-24T09:22:27+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix context amnesia — restore T-233 vision to framework memory. Reverse 5 NO-GO decisions to GO — restore T-233 architecture build queue. Stale task cleanup — close T-148, T-157 (superseded), park T-207. Framework fix pickup prompts (F1-F5) for context amnesia. Complete — context amnesia diagnosed, fixed, and dispatched to framework
+
+# Key outcomes
+outcomes:
+  - "T-233 episodic summary exists in `.context/episodic/`"
+  - "T-233 architectural decisions captured in `decisions.yaml`"
+  - "Claude memory file preserves T-233 vision for future sessions"
+  - "Root cause analysis artifact at `docs/reports/T-258-context-amnesia.md`"
+  - "Framework fix inception pickup prompts created and ready to dispatch"
+  - "5 incorrectly NO-GO'd tasks reversed to GO with full audit trail"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Complete — context amnesia diagnosed, fixed, and dispatched to framework"
+    source: git-mined
+  - description: "Framework fix pickup prompts (F1-F5) for context amnesia"
+    source: git-mined
+  - description: "Fix context amnesia — restore T-233 vision to framework memory"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-233.yaml"
+  - ".context/project/decisions.yaml"
+  - ".tasks/active/T-207-fix-phantom-aef-binary-name-in-installer.md"
+  - ".tasks/active/T-239-route-cache--cacheroutes-yaml-with-confi.md"
+  - ".tasks/active/T-240-negotiation-protocol--4-phase-format-neg.md"
+  - ".tasks/active/T-241-template-caching--3-layer-agent-local-sh.md"
+  - ".tasks/active/T-242-supervision-integration--trust-assessmen.md"
+  - ".tasks/active/T-256-interactive-multi-agent-communication--b.md"
+  - ".tasks/active/T-258-context-amnesia-root-cause--t-233-vision.md"
+  - ".tasks/completed/T-148-termlink-integration-spec-for-framework-.md"
+  - ".tasks/completed/T-157-claude-fw---termlink-flag.md"
+  - ".tasks/completed/T-239-route-cache--cacheroutes-yaml-with-confi.md"
+  - ".tasks/completed/T-241-template-caching--3-layer-agent-local-sh.md"
+  - ".tasks/completed/T-242-supervision-integration--trust-assessmen.md"
+  - ".tasks/completed/T-256-interactive-multi-agent-communication--b.md"
+  - ".tasks/completed/T-258-context-amnesia-root-cause--t-233-vision.md"
+  - "docs/reports/T-258-context-amnesia.md"
+  - "docs/specs/T-258-F1-episodic-sovereignty-gate.md"
+  - "docs/specs/T-258-F2-decision-auto-promotion.md"
+  - "docs/specs/T-258-F3-handover-architectural-context.md"
+  - "docs/specs/T-258-F4-resume-loads-decisions.md"
+  - "docs/specs/T-258-F5-handover-inception-validation.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-24T08:36:31"
+    action: "T-258: Fix context amnesia — restore T-233 vision to framework memory"
+  - time: "2026-03-24T09:00:28"
+    action: "T-258: Reverse 5 NO-GO decisions to GO — restore T-233 architecture build queue"
+  - time: "2026-03-24T09:03:38"
+    action: "T-258: Stale task cleanup — close T-148, T-157 (superseded), park T-207"
+  - time: "2026-03-24T09:08:51"
+    action: "T-258: Framework fix pickup prompts (F1-F5) for context amnesia"
+  - time: "2026-03-24T09:22:27"
+    action: "T-258: Complete — context amnesia diagnosed, fixed, and dispatched to framework"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [context, framework, critical]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 5
+  files_changed: 22
+  lines_added: 992
+  lines_removed: 446
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-258-context-amnesia-root-cause--t-233-vision.md
+generated_by: context-agent-hybrid

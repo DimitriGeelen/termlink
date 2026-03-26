@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-252: Distinguish infrastructure vs command failure in bypass tracking
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:57Z
+# ============================================================================
+
+task_id: T-252
+task_name: "Distinguish infrastructure vs command failure in bypass tracking"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T16:54:27Z
+completed: 2026-03-23T21:00:36Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T22:00:09+01:00
+last_commit: 2026-03-23T22:00:09+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Distinguish infrastructure vs command failure in bypass tracking
+
+# Key outcomes
+outcomes:
+  - "`record_orchestrated_run` accepts a third variant: `infra_failure` (does not count against promotion)"
+  - "Router uses `infra_failure` for connection errors and timeouts, `command_failure` for RPC errors"
+  - "Test: 4 infra failures + 5 successes still promotes (infra failures are invisible to promotion)"
+  - "Test: 1 command failure + 5 successes does NOT promote (`fail_count > 0`)"
+  - "All hub tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/bypass.rs"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T22:00:09"
+    action: "T-252: Distinguish infrastructure vs command failure in bypass tracking"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-247, T-238, orchestration, bypass]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 97
+  lines_removed: 26
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-252-distinguish-infrastructure-vs-command-fa.md
+generated_by: context-agent-hybrid

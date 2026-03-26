@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-279: Retroactive version history — CHANGELOG and proper semver
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:16Z
+# ============================================================================
+
+task_id: T-279
+task_name: "Retroactive version history — CHANGELOG and proper semver"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T14:03:40Z
+completed: 2026-03-25T14:07:22Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T15:07:16+01:00
+last_commit: 2026-03-25T15:07:16+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Retroactive version history — bump to 0.8.0 with full CHANGELOG
+
+# Key outcomes
+outcomes:
+  - "CHANGELOG.md created with all 8 version milestones from git history"
+  - "Cargo.toml workspace version bumped to 0.8.0"
+  - "`cargo build --workspace` passes with new version"
+  - "All tests pass (472 pass, 0 fail)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-279-retroactive-version-history--changelog-a.md"
+  - "CHANGELOG.md"
+  - "Cargo.lock"
+  - "Cargo.toml"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T15:07:16"
+    action: "T-279: Retroactive version history — bump to 0.8.0 with full CHANGELOG"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 181
+  lines_removed: 7
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-279-retroactive-version-history--changelog-a.md
+generated_by: context-agent-hybrid

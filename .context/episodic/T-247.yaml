@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-247: Orchestration real-world scenarios — stress-test orchestrator.route + bypass registry
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:52Z
+# ============================================================================
+
+task_id: T-247
+task_name: "Orchestration real-world scenarios — stress-test orchestrator.route + bypass registry"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T16:43:45Z
+completed: 2026-03-23T22:00:28Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T17:53:52+01:00
+last_commit: 2026-03-23T17:58:46+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — 15 orchestration scenarios from 5 agent lenses. Create 8 build tasks from scenario gap analysis + enrich with ACs
+
+# Key outcomes
+outcomes:
+  - "15 scenarios from 5 perspectives documented"
+  - "Architectural gaps identified and severity-ranked"
+  - "Build tasks created with ACs and artifact links (T-248..T-255)"
+  - "Go/No-Go decision made"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-247-orchestration-real-world-scenarios--stre.md"
+  - ".tasks/active/T-248-fix-bypass-registry-write-race--atomic-f.md"
+  - ".tasks/active/T-249-bypass-command-validation--denylist-and-.md"
+  - ".tasks/active/T-250-track-transport-failures-in-bypass-regis.md"
+  - ".tasks/active/T-251-bypass-eligibility--mutation-flag-to-pre.md"
+  - ".tasks/active/T-252-distinguish-infrastructure-vs-command-fa.md"
+  - ".tasks/active/T-253-bypass-invalidation-signals--config-chan.md"
+  - ".tasks/active/T-254-failover-optimization--parallel-probe-or.md"
+  - ".tasks/active/T-255-live-orchestration-test-harness--opencla.md"
+  - ".tasks/completed/T-238-bypass-registry--tier-3-operationalized-.md"
+  - "docs/reports/T-247-orchestration-scenarios.md"
+  - "docs/reports/T-247-scenarios-adversarial.md"
+  - "docs/reports/T-247-scenarios-code-review.md"
+  - "docs/reports/T-247-scenarios-framework-maintenance.md"
+  - "docs/reports/T-247-scenarios-infrastructure.md"
+  - "docs/reports/T-247-scenarios-research.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T17:53:52"
+    action: "T-247: Inception — 15 orchestration scenarios from 5 agent lenses"
+  - time: "2026-03-23T17:58:46"
+    action: "T-247: Create 8 build tasks from scenario gap analysis + enrich with ACs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-233, T-238, T-237, orchestration, bypass, testing]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 16
+  lines_added: 1544
+  lines_removed: 40
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-247-orchestration-real-world-scenarios--stre.md
+generated_by: context-agent-hybrid

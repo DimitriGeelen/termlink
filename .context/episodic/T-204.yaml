@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-204: termlink hub profiles — save remote hub configs for quick access
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:22Z
+# ============================================================================
+
+task_id: T-204
+task_name: "termlink hub profiles — save remote hub configs for quick access"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-21T06:04:50Z
+completed: 2026-03-23T10:24:15Z
+duration_days: 2
+updates_count: 0
+first_commit: 2026-03-21T07:14:18+01:00
+last_commit: 2026-03-21T07:14:35+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add hub profiles — save remote hub configs for quick access. Complete — hub profiles, human AC pending cross-machine test
+
+# Key outcomes
+outcomes:
+  - "`resolve_hub_profile()` function resolves hub arg: if it contains `:`, treat as address; otherwise look up in `~/.termlink/hubs.toml`"
+  - "TOML config format: `[hubs.name]` with `address`, `secret_file`, optional `secret`, `scope`"
+  - "All 7 remote commands use `resolve_hub_profile()` — profile names work everywhere"
+  - "CLI-provided `--secret-file`/`--secret`/`--scope` override profile defaults"
+  - "`termlink remote profile add <name> <address> --secret-file <path>` creates/updates profiles"
+  - "`termlink remote profile list` shows saved profiles in table format"
+  - "`termlink remote profile remove <name>` deletes profiles"
+  - "`cargo build --package termlink` compiles clean"
+  - "`cargo test --workspace` passes (297 passed, 0 failed)"
+  - "Verified: add/list/remove profile workflow works end-to-end"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-204-termlink-hub-profiles--save-remote-hub-c.md"
+  - "crates/termlink-cli/Cargo.toml"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-21T07:14:18"
+    action: "T-204: Add hub profiles — save remote hub configs for quick access"
+  - time: "2026-03-21T07:14:35"
+    action: "T-204: Complete — hub profiles, human AC pending cross-machine test"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3139 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, cross-machine, ux]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3139
+  commits: 2
+  files_changed: 3
+  lines_added: 294
+  lines_removed: 11
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-204-termlink-hub-profiles--save-remote-hub-c.md
+generated_by: context-agent-hybrid

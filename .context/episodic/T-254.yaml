@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-254: Failover optimization — parallel probe or circuit breaker for dead candidates
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:58Z
+# ============================================================================
+
+task_id: T-254
+task_name: "Failover optimization — parallel probe or circuit breaker for dead candidates"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T16:54:31Z
+completed: 2026-03-23T21:37:43Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T22:37:22+01:00
+last_commit: 2026-03-23T22:37:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Circuit breaker for dead session failover optimization
+
+# Key outcomes
+outcomes:
+  - "Circuit breaker state tracked per session: after 3 consecutive transport failures, mark session as \"open\" (skip for 60s)"
+  - "`orchestrator.route` skips open-circuit sessions during candidate iteration"
+  - "Circuit breaker auto-resets after cooldown period (half-open state: try one request, close circuit on success)"
+  - "Test: dead session gets circuit-opened after 3 consecutive failures; subsequent routes skip it"
+  - "Test: circuit auto-resets after cooldown; session is tried again and circuit closes on success"
+  - "All hub tests pass (`cargo test --package termlink-hub` — 76 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/circuit_breaker.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T22:37:22"
+    action: "T-254: Circuit breaker for dead session failover optimization"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-247, orchestration, routing]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 6
+  lines_added: 305
+  lines_removed: 50
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-254-failover-optimization--parallel-probe-or.md
+generated_by: context-agent-hybrid

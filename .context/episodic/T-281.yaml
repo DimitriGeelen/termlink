@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-281: session.exited lifecycle event — supervisor emits before cleanup
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:17Z
+# ============================================================================
+
+task_id: T-281
+task_name: "session.exited lifecycle event — supervisor emits before cleanup"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T15:08:31Z
+completed: 2026-03-25T15:18:27Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T16:15:00+01:00
+last_commit: 2026-03-25T16:15:00+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session.exited lifecycle event — supervisor emits before cleanup
+
+# Key outcomes
+outcomes:
+  - "Hub supervisor emits `session.exited` event (with session_id, display_name, pid) before removing dead sessions"
+  - "Event is broadcast to all live sessions via hub router (fan-out)"
+  - "Event includes exit reason field distinguishing clean exit vs process death"
+  - "Integration test: spawn session, kill its PID, verify `session.exited` event appears on another session's event bus"
+  - "Integration test: verify no event emitted for sessions that are still alive"
+  - "All existing tests pass (0 regressions)"
+  - "`cargo test --workspace` passes with 0 warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-280-dispatch-readiness--structural-completio.md"
+  - ".tasks/active/T-281-sessionexited-lifecycle-event--superviso.md"
+  - ".tasks/active/T-282-termlink-dispatch-command--atomic-spawnt.md"
+  - "crates/termlink-hub/src/supervisor.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T16:15:00"
+    action: "T-281: session.exited lifecycle event — supervisor emits before cleanup"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [dispatch, lifecycle, T-280]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 343
+  lines_removed: 37
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-281-sessionexited-lifecycle-event--superviso.md
+generated_by: context-agent-hybrid

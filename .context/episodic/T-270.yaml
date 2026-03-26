@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-270: MCP interact tool — atomic inject+wait+output for AI agents
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:09Z
+# ============================================================================
+
+task_id: T-270
+task_name: "MCP interact tool — atomic inject+wait+output for AI agents"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T09:58:25Z
+completed: 2026-03-25T10:03:50Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T11:03:42+01:00
+last_commit: 2026-03-25T11:03:42+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP interact tool — atomic inject+wait+output for AI agents
+
+# Key outcomes
+outcomes:
+  - "`termlink_interact` MCP tool added with inject+poll+output logic"
+  - "ANSI stripping enabled by default (AI agents want clean text)"
+  - "Integration tests for interact tool (non-PTY error + nonexistent session)"
+  - "All 453 workspace tests pass, zero warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-270-mcp-interact-tool--atomic-injectwaitoutp.md"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T11:03:42"
+    action: "T-270: MCP interact tool — atomic inject+wait+output for AI agents"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 247
+  lines_removed: 1
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-270-mcp-interact-tool--atomic-injectwaitoutp.md
+generated_by: context-agent-hybrid

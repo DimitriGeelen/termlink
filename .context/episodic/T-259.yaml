@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-259: Pickup from fw T-546: Release build fixes — flaky test ENV_LOCK + macOS runner
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:02Z
+# ============================================================================
+
+task_id: T-259
+task_name: "Pickup from fw T-546: Release build fixes — flaky test ENV_LOCK + macOS runner"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-24T08:41:40Z
+completed: 2026-03-24T08:52:52Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-24T09:52:45+01:00
+last_commit: 2026-03-24T09:52:45+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix flaky test ENV_LOCK guard + macOS CI runner macos-13 to macos-14
+
+# Key outcomes
+outcomes:
+  - "Flaky test `router::tests::register_remote_and_discover` fixed with ENV_LOCK guard"
+  - "Release workflow macOS x86_64 target uses `macos-14` instead of deprecated `macos-13`"
+  - "Tests pass: `cargo test register_remote_and_discover`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix flaky test ENV_LOCK guard + macOS CI runner macos-13 to macos-14"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".github/workflows/release.yml"
+  - ".tasks/active/T-259-pickup-t-141-pre-push-hook-missing-proje.md"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-24T09:52:45"
+    action: "T-259: Fix flaky test ENV_LOCK guard + macOS CI runner macos-13 to macos-14"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, release, ci]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 4
+  lines_added: 89
+  lines_removed: 4
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-259-pickup-t-141-pre-push-hook-missing-proje.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-197: termlink remote send-file — cross-machine file transfer via TCP hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:17Z
+# ============================================================================
+
+task_id: T-197
+task_name: "termlink remote send-file — cross-machine file transfer via TCP hub"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-20T22:24:41Z
+completed: 2026-03-23T10:24:10Z
+duration_days: 3
+updates_count: 0
+first_commit: 2026-03-20T23:29:29+01:00
+last_commit: 2026-03-20T23:37:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Implement termlink remote send-file for cross-machine file transfer. Complete — remote send-file verified (94B + 13KB cross-machine). Verify end-to-end cross-machine file transfer (SHA-256 match)
+
+# Key outcomes
+outcomes:
+  - "`RemoteAction::SendFile` variant added to CLI enum with args: hub, session, path, secret-file/secret, chunk-size, scope, json"
+  - "`cmd_remote_send_file()` implements: read file → TOFU connect → auth → emit FileInit/FileChunk/FileComplete via hub"
+  - "Events use `target` param for hub routing (same pattern as remote inject)"
+  - "SHA-256 verification included in FileComplete"
+  - "Error handling for: file not found, auth failure, connection refused, session not found"
+  - "`cargo build --package termlink` compiles clean"
+  - "`cargo test --package termlink` passes (0 failed, 4 ignored integration tests)"
+  - "Help text: `termlink remote send-file --help` shows usage"
+  - "[REVIEW] Test cross-machine: send file from macOS to .107 session"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/settings.local.json"
+  - ".context/audits/2026-03-20.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/episodic/T-193.yaml"
+  - ".context/episodic/T-194.yaml"
+  - ".context/episodic/T-195.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".tasks/active/T-197-termlink-remote-send-file--cross-machine.md"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-20T23:29:29"
+    action: "T-197: Implement termlink remote send-file for cross-machine file transfer"
+  - time: "2026-03-20T23:32:06"
+    action: "T-197: Complete — remote send-file verified (94B + 13KB cross-machine)"
+  - time: "2026-03-20T23:37:41"
+    action: "T-197: Verify end-to-end cross-machine file transfer (SHA-256 match)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3599 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, cross-machine, file-transfer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3599
+  commits: 3
+  files_changed: 11
+  lines_added: 673
+  lines_removed: 63
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-197-termlink-remote-send-file--cross-machine.md
+generated_by: context-agent-hybrid

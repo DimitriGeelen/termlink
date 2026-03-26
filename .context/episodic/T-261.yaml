@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-261: Inception: MCP server for TermLink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:03Z
+# ============================================================================
+
+task_id: T-261
+task_name: "Inception: MCP server for TermLink"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-24T09:27:23Z
+completed: 2026-03-24T11:47:56Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-24T12:48:06+01:00
+last_commit: 2026-03-24T12:48:06+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP server inception — GO, build as termlink-mcp crate with rmcp
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested (A1-A4 via research)"
+  - "Go/No-Go decision made"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-261-inception-mcp-server-for-termlink.md"
+  - ".tasks/completed/T-261-inception-mcp-server-for-termlink.md"
+  - ".tasks/completed/T-263-register---self-event-only-endpoint-for-.md"
+  - "docs/reports/T-261-mcp-server-inception.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-24T12:48:06"
+    action: "T-261: MCP server inception — GO, build as termlink-mcp crate with rmcp"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, mcp]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 185
+  lines_removed: 91
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-261-inception-mcp-server-for-termlink.md
+generated_by: context-agent-hybrid

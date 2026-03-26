@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-257: Collect-based dispatch — fw dispatch + worker push convention
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:00Z
+# ============================================================================
+
+task_id: T-257
+task_name: "Collect-based dispatch — fw dispatch + worker push convention"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T22:41:05Z
+completed: 2026-03-23T22:52:25Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T23:41:58+01:00
+last_commit: 2026-03-23T23:52:16+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-256, T-257: Split interactive comms into inception (push RPC) + build (collect fan-in). Collect-based dispatch convention + E2E test (12/12 passing)
+
+# Key outcomes
+outcomes:
+  - "Worker completion convention documented: workers emit `task.completed` event with structured payload (task_id, summary, blob_path, status) on their own session"
+  - "Worker progress convention documented: workers emit `task.progress` events during work (task_id, percent, message)"
+  - "Orchestrator collect pattern documented: `termlink event collect --topic task.completed --count N --timeout T` as background Bash"
+  - "E2E test: spawn 3 workers via `termlink spawn`, each emits `task.completed`, orchestrator collects all 3 via `event collect --count 3`"
+  - "Convention handles partial failure: if 1 of 3 workers dies, collect times out gracefully and reports which workers responded"
+  - "Parent session ID injection: workers receive `TERMLINK_PARENT_SESSION` env var so they know who spawned them"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-256-interactive-multi-agent-communication--b.md"
+  - ".tasks/active/T-257-collect-based-dispatch--fw-dispatch--wor.md"
+  - "docs/dispatch-collect-convention.md"
+  - "tests/e2e/level9-dispatch-collect.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T23:41:58"
+    action: "T-256, T-257: Split interactive comms into inception (push RPC) + build (collect fan-in)"
+  - time: "2026-03-23T23:52:16"
+    action: "T-257: Collect-based dispatch convention + E2E test (12/12 passing)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [orchestration, dispatch, events, T-256]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 4
+  lines_added: 635
+  lines_removed: 6
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-257-collect-based-dispatch--fw-dispatch--wor.md
+generated_by: context-agent-hybrid

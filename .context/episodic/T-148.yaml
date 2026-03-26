@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-148: TermLink integration spec for framework pickup
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:10Z
+# ============================================================================
+
+task_id: T-148
+task_name: "TermLink integration spec for framework pickup"
+workflow_type: specification
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-15T23:27:18Z
+completed: 2026-03-24T08:03:15Z
+duration_days: 9
+updates_count: 0
+first_commit: 2026-03-16T00:28:26+01:00
+last_commit: 2026-03-16T08:19:54+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  TermLink integration spec for framework pickup. Self-contained framework pickup prompt. Add OneDev repo URL + install instructions to pickup prompt. Add OneDev buildspec for GitHub mirror. Add GitHub repo URL to pickup prompt. Update framework pickup prompt with multi-backend spawn
+
+# Key outcomes
+outcomes:
+  - "Spec document written with Phase 0 details, primitives table, phased rollout"
+  - "Console-ready prompt for framework session included"
+  - "Terminal cleanup lesson (T-074) documented"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".onedev-buildspec.yml"
+  - ".tasks/active/T-148-termlink-integration-spec-for-framework-.md"
+  - "docs/specs/T-148-framework-pickup-prompt.md"
+  - "docs/specs/T-148-termlink-framework-integration.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-16T00:28:26"
+    action: "T-148: TermLink integration spec for framework pickup"
+  - time: "2026-03-16T00:35:50"
+    action: "T-148: Self-contained framework pickup prompt"
+  - time: "2026-03-16T00:38:31"
+    action: "T-148: Add OneDev repo URL + install instructions to pickup prompt"
+  - time: "2026-03-16T06:26:29"
+    action: "T-148: Add OneDev buildspec for GitHub mirror"
+  - time: "2026-03-16T06:27:12"
+    action: "T-148: Add GitHub repo URL to pickup prompt"
+  - time: "2026-03-16T08:19:54"
+    action: "T-148: Update framework pickup prompt with multi-backend spawn"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 7 commit(s), 12035 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12035
+  commits: 7
+  files_changed: 7
+  lines_added: 824
+  lines_removed: 279
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-148-termlink-integration-spec-for-framework-.md
+generated_by: context-agent-hybrid

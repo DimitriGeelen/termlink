@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-157: claude-fw --termlink flag
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:17Z
+# ============================================================================
+
+task_id: T-157
+task_name: "claude-fw --termlink flag"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-17T09:45:45Z
+completed: 2026-03-20T05:58:16Z
+duration_days: 3
+updates_count: 0
+first_commit: 2026-03-17T12:37:13+01:00
+last_commit: 2026-03-17T12:37:13+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Framework pickup prompt for claude-fw --termlink flag
+
+# Key outcomes
+outcomes:
+  - "Pickup prompt written at `docs/specs/T-157-claude-fw-termlink-pickup.md`"
+  - "Prompt includes exact code changes for claude-fw"
+  - "Prompt includes CLAUDE.md section addition"
+  - "Prompt includes testing steps"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-157-claude-fw---termlink-flag.md"
+  - "docs/specs/T-157-claude-fw-termlink-pickup.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-17T12:37:13"
+    action: "T-157: Framework pickup prompt for claude-fw --termlink flag"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4092 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [remote-access, claude-fw, framework]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4092
+  commits: 2
+  files_changed: 5
+  lines_added: 301
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-157-claude-fw---termlink-flag.md
+generated_by: context-agent-hybrid

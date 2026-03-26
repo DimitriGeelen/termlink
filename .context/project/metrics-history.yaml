@@ -92,16 +92,6 @@ entries:
   traceability_pct: 100
   episodic_quality_pct: 32
   open_gaps: 1
-- timestamp: '2026-03-18T23:21:31Z'
-  pass: 106
-  warn: 10
-  fail: 0
-  active_tasks: 28
-  completed_tasks: 156
-  velocity: 48
-  traceability_pct: 100
-  episodic_quality_pct: 34
-  open_gaps: 1
 - timestamp: '2026-03-20T21:22:08Z'
   pass: 89
   warn: 14
@@ -261,4 +251,14 @@ entries:
   velocity: 39
   traceability_pct: 92
   episodic_quality_pct: 33
+  open_gaps: 0
+- timestamp: '2026-03-26T11:00:30Z'
+  pass: 91
+  warn: 84
+  fail: 1
+  active_tasks: 24
+  completed_tasks: 266
+  velocity: 38
+  traceability_pct: 92
+  episodic_quality_pct: 29
   open_gaps: 0

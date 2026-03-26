@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-274: termlink doctor --fix — auto-remediate health issues
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:12Z
+# ============================================================================
+
+task_id: T-274
+task_name: "termlink doctor --fix — auto-remediate health issues"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T12:15:58Z
+completed: 2026-03-25T12:19:42Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T13:18:25+01:00
+last_commit: 2026-03-25T13:19:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink doctor --fix — auto-remediate health issues. Fix verification command in task file
+
+# Key outcomes
+outcomes:
+  - "`--fix` flag added to `termlink doctor`"
+  - "Fixes: stale sessions (clean), stale hub pidfile+socket, orphaned sockets"
+  - "All 459 workspace tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification command in task file"
+    source: git-mined
+  - description: "termlink doctor --fix — auto-remediate health issues"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-274-termlink-doctor---fix--auto-remediate-he.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T13:18:25"
+    action: "T-274: termlink doctor --fix — auto-remediate health issues"
+  - time: "2026-03-25T13:19:24"
+    action: "T-274: Fix verification command in task file"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 4
+  lines_added: 110
+  lines_removed: 8
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-274-termlink-doctor---fix--auto-remediate-he.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-249: Bypass command validation — denylist and caller identity
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:53Z
+# ============================================================================
+
+task_id: T-249
+task_name: "Bypass command validation — denylist and caller identity"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T16:54:20Z
+completed: 2026-03-23T20:46:51Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T21:45:16+01:00
+last_commit: 2026-03-23T21:45:16+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Bypass command validation — denylist and authorization note
+
+# Key outcomes
+outcomes:
+  - "Command denylist in BypassRegistry (15 case-insensitive substring patterns: rm, drop, delete, force-push, reset --hard, kill, etc.)"
+  - "`record_orchestrated_run` rejects denylisted commands (returns false, logs warning)"
+  - "Bypass response includes `note: \"routing shortcut, not execution authorization\"` metadata"
+  - "Test: denylisted command not promotable after 10+ successful runs"
+  - "Test: denylist patterns match 7 dangerous commands, reject 5 safe commands"
+  - "All 64 hub tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-249-bypass-command-validation--denylist-and-.md"
+  - "crates/termlink-hub/src/bypass.rs"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T21:45:16"
+    action: "T-249: Bypass command validation — denylist and authorization note"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-247, T-238, orchestration, bypass, security]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 77
+  lines_removed: 8
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-249-bypass-command-validation--denylist-and-.md
+generated_by: context-agent-hybrid

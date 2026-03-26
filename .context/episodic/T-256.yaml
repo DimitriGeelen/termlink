@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-256: Inception: True push messaging — emit-to-target RPC for zero-poll agent communication
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:02:28Z
+# ============================================================================
+
+task_id: T-256
+task_name: "Inception: True push messaging — emit-to-target RPC for zero-poll agent communication"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T22:15:21Z
+completed: 2026-03-24T09:59:13Z
+duration_days: 1
+updates_count: 0
+first_commit: 2026-03-23T23:37:26+01:00
+last_commit: 2026-03-24T10:58:51+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Research — interactive multi-agent communication primitives. T-256, T-257: Split interactive comms into inception (push RPC) + build (collect fan-in). NO-GO — push messaging premature, collect fan-in (T-257) sufficient. Push messaging — event.emit_to RPC for direct session-to-session event delivery
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions A1-A4 tested with evidence"
+  - "Go/No-Go decision made"
+  - "`EVENT_EMIT_TO` constant in `control.rs`"
+  - "`handle_event_emit_to` hub RPC handler — resolve target session, forward `event.emit`, return result"
+  - "Backward-compatible: sender field included in emitted event payload so target knows origin (`_from`)"
+  - "`termlink event emit-to <target> <topic> [--payload JSON] [--from SESSION]` CLI command"
+  - "Top-level `termlink emit-to` alias"
+  - "Hub tests: target resolution, emit forwarding, unknown target error, sender enrichment (4 tests)"
+  - "N/A — handler lives in existing router.rs component card"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-256-interactive-multi-agent-communication--b.md"
+  - ".tasks/active/T-257-collect-based-dispatch--fw-dispatch--wor.md"
+  - ".tasks/completed/T-256-interactive-multi-agent-communication--b.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - "docs/reports/T-256-inception-decision.md"
+  - "docs/reports/T-256-interactive-multi-agent-comms.md"
+  - "docs/reports/T-256-q1-primitives.md"
+  - "docs/reports/T-256-q2-dispatch.md"
+  - "docs/reports/T-256-q3-execution-model.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T23:37:26"
+    action: "T-256: Research — interactive multi-agent communication primitives"
+  - time: "2026-03-23T23:41:58"
+    action: "T-256, T-257: Split interactive comms into inception (push RPC) + build (collect fan-in)"
+  - time: "2026-03-24T08:08:29"
+    action: "T-256: NO-GO — push messaging premature, collect fan-in (T-257) sufficient"
+  - time: "2026-03-24T10:58:51"
+    action: "T-256: Push messaging — event.emit_to RPC for direct session-to-session event delivery"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 703 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [orchestration, protocol, events]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 703
+  commits: 5
+  files_changed: 20
+  lines_added: 1483
+  lines_removed: 440
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-256-interactive-multi-agent-communication--b.md
+generated_by: context-agent-hybrid

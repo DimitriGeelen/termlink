@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-277: MCP request tool — request-reply pattern for inter-session coordination
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:15Z
+# ============================================================================
+
+task_id: T-277
+task_name: "MCP request tool — request-reply pattern for inter-session coordination"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T13:52:02Z
+completed: 2026-03-25T13:55:16Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T14:55:09+01:00
+last_commit: 2026-03-25T14:55:09+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP request tool — request-reply pattern for inter-session coordination
+
+# Key outcomes
+outcomes:
+  - "`termlink_request` tool emits event with request_id and polls for matching reply"
+  - "MCP integration tests pass (3 new: nonexistent, with-reply, timeout)"
+  - "All tests pass (cargo test --workspace — 470 pass, 0 fail)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-277-mcp-request-tool--request-reply-pattern-.md"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T14:55:09"
+    action: "T-277: MCP request tool — request-reply pattern for inter-session coordination"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 270
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-277-mcp-request-tool--request-reply-pattern-.md
+generated_by: context-agent-hybrid

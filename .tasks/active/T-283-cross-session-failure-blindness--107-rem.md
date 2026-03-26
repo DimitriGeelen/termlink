@@ -98,3 +98,7 @@ date_finished: null
 
 ### 2026-03-25T17:50:32Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-25T18:00:00Z — research-artifact [agent]
+- **Artifact:** `docs/reports/T-283-synthesis.md`
+- **Content:** 5-agent investigation synthesis — cross-session failure blindness on .107

@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-269: Fix hub router compiler warnings + cleanup
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:09Z
+# ============================================================================
+
+task_id: T-269
+task_name: "Fix hub router compiler warnings + cleanup"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-25T09:53:33Z
+completed: 2026-03-25T09:57:29Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-25T10:55:43+01:00
+last_commit: 2026-03-25T10:55:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix hub router compiler warnings — use skipped_count in error message
+
+# Key outcomes
+outcomes:
+  - "Zero compiler warnings in `cargo test --workspace`"
+  - "All 451 tests pass"
+  - "`skipped_count` used in orchestrator.route error message"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix hub router compiler warnings — use skipped_count in error message"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T10:55:43"
+    action: "T-269: Fix hub router compiler warnings — use skipped_count in error message"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 1
+  lines_added: 4
+  lines_removed: 2
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-269-fix-hub-router-compiler-warnings--cleanu.md
+generated_by: context-agent-hybrid

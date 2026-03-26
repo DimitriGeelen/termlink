@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-255: Live orchestration test harness — OpenClaw-style observe-inject-iterate loop
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T10:59:59Z
+# ============================================================================
+
+task_id: T-255
+task_name: "Live orchestration test harness — OpenClaw-style observe-inject-iterate loop"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-23T16:54:33Z
+completed: 2026-03-23T21:14:05Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-23T22:13:20+01:00
+last_commit: 2026-03-23T22:13:20+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Live orchestration test harness — 13 scenarios, all real sessions
+
+# Key outcomes
+outcomes:
+  - "Shell script `tests/e2e/level8-orchestration-harness.sh` spawns hub + 3 specialist sessions with distinct roles/capabilities"
+  - "Specialists use built-in `termlink.ping` handler (real sessions, no mocks needed)"
+  - "Harness runs 6 scenario categories: health-check routing, bypass promotion lifecycle, failover with dead specialists, mutation flag, denylist enforcement, observability"
+  - "Harness outputs structured results (pass/fail per scenario — 13/13 passing)"
+  - "Sessions are observable via `termlink list` / `termlink discover` during harness run"
+  - "Cleanup: harness tears down all sessions and hub on exit (trap handler via e2e-helpers.sh)"
+  - "All workspace tests still pass (`cargo test --package termlink-hub` — 66 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "tests/e2e/level8-orchestration-harness.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T22:13:20"
+    action: "T-255: Live orchestration test harness — 13 scenarios, all real sessions"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-247, orchestration, testing, termlink]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 3
+  lines_added: 477
+  lines_removed: 99
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-255-live-orchestration-test-harness--opencla.md
+generated_by: context-agent-hybrid

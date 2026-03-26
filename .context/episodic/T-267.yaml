@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-267: MCP resources — session list + session detail as read-only data
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T11:00:07Z
+# ============================================================================
+
+task_id: T-267
+task_name: "MCP resources — session list + session detail as read-only data"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-03-24T20:57:05Z
+completed: 2026-03-24T21:32:45Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-03-24T22:32:04+01:00
+last_commit: 2026-03-24T22:32:36+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP resources — session list + session detail as read-only data. Update task ACs
+
+# Key outcomes
+outcomes:
+  - "`termlink://sessions` resource — JSON list of all active sessions"
+  - "`termlink://sessions/{id}` resource — live session detail via RPC"
+  - "Resource template for `{session_id}` URI pattern"
+  - "Graceful fallback when session is unreachable (returns registration data)"
+  - "Resources enabled in ServerCapabilities"
+  - "6 resource integration tests pass (20 total)"
+  - "`cargo check -p termlink-mcp` compiles clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-267-mcp-resources--session-list--session-det.md"
+  - "crates/termlink-mcp/src/server.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - "crates/termlink-session/src/endpoint.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-24T22:32:04"
+    action: "T-267: MCP resources — session list + session detail as read-only data"
+  - time: "2026-03-24T22:32:36"
+    action: "T-267: Update task ACs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 2
+  files_changed: 4
+  lines_added: 351
+  lines_removed: 7
+
+# Metadata
+source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-267-mcp-resources--session-list--session-det.md
+generated_by: context-agent-hybrid
