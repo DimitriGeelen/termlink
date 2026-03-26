@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-26-1650
-timestamp: 2026-03-26T15:50:22Z
+# Audit Results - 2026-03-26-1652
+timestamp: 2026-03-26T15:52:10Z
 summary:
-  pass: 108
-  warn: 3
+  pass: 109
+  warn: 2
   fail: 0
 findings:
   - level: PASS
@@ -28,7 +28,7 @@ findings:
   - level: PASS
     check: "All active tasks meet quality thresholds"
   - level: PASS
-    check: "Git traceability: 97% (626/641 commits reference tasks)"
+    check: "Git traceability: 97% (627/642 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -44,11 +44,10 @@ findings:
     check: "Practices documented: 10 practice(s) in practices.yaml"
   - level: PASS
     check: "Bugfix-learning coverage: 80% (28/35 bugfixes have learnings)"
-  - level: WARN
-    check: "Completed task T-530 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-530"
   - level: PASS
-    check: "All 266 episodic summaries have quality content"
+    check: "All completed tasks have episodic summaries"
+  - level: PASS
+    check: "All 267 episodic summaries have quality content"
   - level: PASS
     check: "No orphaned episodic files"
   - level: PASS
@@ -74,7 +73,7 @@ findings:
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 3 (last commit: 35 seconds ago)"
+    check: "CTL-004: Tool counter at 1 (last commit: 23 seconds ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -202,7 +201,7 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (2/266)"
+    check: "D1: Episodic quality — 0% [TODO] (2/267)"
   - level: PASS
     check: "D2: Human review queue — 3 task(s) awaiting human action (normal)"
   - level: PASS
@@ -219,9 +218,9 @@ findings:
     check: "D5: Task lifecycle — 15 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+5 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=14 avg=36 ratio=0.4x)"
+    check: "D3: Commit velocity — normal (PASS today=15 avg=36 ratio=0.4x)"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 31_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 32_commits_24h)"
   - level: PASS
     check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=12.7)"
   - level: PASS

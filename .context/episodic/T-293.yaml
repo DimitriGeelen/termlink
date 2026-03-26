@@ -1,0 +1,162 @@
+# ============================================================================
+# EPISODIC MEMORY - T-293: Remediate all audit warnings — fabric drift, version pin, stale tasks, T-530 refs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T16:03:46Z
+# ============================================================================
+
+task_id: T-293
+task_name: "Remediate all audit warnings — fabric drift, version pin, stale tasks, T-530 refs"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-26T12:37:39Z
+completed: 2026-03-26T16:02:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-26T13:59:19+01:00
+last_commit: 2026-03-26T16:52:06+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Remediate audit warnings — remove 29 orphaned fabric cards, fix 9 stale edges, register 6 missing source files, restore 35 bugfix learnings, update stale tasks, sync global fw to 1.3.0. Enrich 15 edgeless fabric cards — 53 edges across 19 files, add cron audit dir. Install audit cron schedule for CTL-020 compliance. Fix Human ACs (T-101, T-148), create T-530 stub, update T-037 T-038 T-051 T-027 T-031 T-092 T-115 T-177 T-265 T-272: audit lifecycle remediation. Generate T-530 episodic, commit audit artifacts
+
+# Key outcomes
+outcomes:
+  - "Version pin mismatch resolved (global fw synced to 1.3.0)"
+  - "29 orphaned fabric cards removed"
+  - "9 stale fabric edges fixed"
+  - "6 unregistered source files registered"
+  - "15 edgeless fabric cards enriched (53 new edges)"
+  - "Bugfix-learning coverage raised from 0% to 80%"
+  - "Stale tasks T-176, T-186 updated"
+  - "T-530 stub task created for orphaned commit refs"
+  - "CTL-020 cron audit schedule installed"
+  - "CTL-012 framework audit fix — skip Human AC subsection"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix Human ACs (T-101, T-148), create T-530 stub, update T-037 T-038 T-051 T-027 T-031 T-092 T-115 T-177 T-265 T-272: audit lifecycle remediation"
+    source: git-mined
+  - description: "Remediate audit warnings — remove 29 orphaned fabric cards, fix 9 stale edges, register 6 missing source files, restore 35 bugfix learnings, update stale tasks, sync global fw to 1.3.0"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-03-26.yaml"
+  - ".context/audits/cron/2026032613.txt"
+  - ".context/audits/cron/2026-03-26-1615.yaml"
+  - ".context/audits/cron/2026-03-26-1630.yaml"
+  - ".context/audits/cron/2026-03-26-1645.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/cron/agentic-audit.crontab"
+  - ".context/episodic/T-530.yaml"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.new-file-counter"
+  - ".context/working/.onboarding-complete"
+  - ".fabric/components/agents-audit-audit.yaml"
+  - ".fabric/components/agents-context-budget-gate.yaml"
+  - ".fabric/components/agents-context-check-active-task.yaml"
+  - ".fabric/components/agents-context-check-agent-dispatch.yaml"
+  - ".fabric/components/agents-context-check-dispatch-pre.yaml"
+  - ".fabric/components/agents-context-check-dispatch.yaml"
+  - ".fabric/components/agents-context-check-fabric-new-file.yaml"
+  - ".fabric/components/agents-context-checkpoint.yaml"
+  - ".fabric/components/agents-context-check-project-boundary.yaml"
+  - ".fabric/components/agents-context-check-tier0.yaml"
+  - ".fabric/components/agents-context-commit-cadence.yaml"
+  - ".fabric/components/agents-context-consolidate.yaml"
+  - ".fabric/components/agents-context-context.yaml"
+  - ".fabric/components/agents-context-error-watchdog.yaml"
+  - ".fabric/components/agents-context-loop-detect.yaml"
+  - ".fabric/components/agents-context-post-compact-resume.yaml"
+  - ".fabric/components/agents-context-pre-compact.yaml"
+  - ".fabric/components/agents-context-test-tier0-patterns.yaml"
+  - ".fabric/components/agents-fabric-fabric.yaml"
+  - ".fabric/components/agents-git-git.yaml"
+  - ".fabric/components/agents-handover-handover.yaml"
+  - ".fabric/components/agents-healing-healing.yaml"
+  - ".fabric/components/agents-task-create-create-task.yaml"
+  - ".fabric/components/agents-task-create-update-task.yaml"
+  - ".fabric/components/analyze-errors.yaml"
+  - ".fabric/components/capture-on-compact.yaml"
+  - ".fabric/components/capture-skill.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-dispatch.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-mod.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-push.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-vendor.yaml"
+  - ".fabric/components/crates-termlink-hub-src-bypass.yaml"
+  - ".fabric/components/crates-termlink-hub-src-circuit_breaker.yaml"
+  - ".fabric/components/crates-termlink-hub-src-lib.yaml"
+  - ".fabric/components/crates-termlink-hub-src-remote_store.yaml"
+  - ".fabric/components/crates-termlink-hub-src-route_cache.yaml"
+  - ".fabric/components/crates-termlink-hub-src-router.yaml"
+  - ".fabric/components/crates-termlink-hub-src-server.yaml"
+  - ".fabric/components/crates-termlink-hub-src-trust.yaml"
+  - ".fabric/components/crates-termlink-mcp-src-lib.yaml"
+  - ".fabric/components/crates-termlink-mcp-src-server.yaml"
+  - ".fabric/components/crates-termlink-mcp-src-tools.yaml"
+  - ".fabric/components/extract-tool-calls.yaml"
+  - ".fabric/components/tests-e2e-level9-dispatch-collect.yaml"
+  - ".fabric/components/tests-e2e-setup.yaml"
+  - ".fabric/components/tool-stats.yaml"
+  - ".fabric/components/transcripts-agent.yaml"
+  - ".tasks/active/T-176-audit-framework-hook-config-against-24-a.md"
+  - ".tasks/active/T-186-termlink-inject-remote--standard-command.md"
+  - ".tasks/active/T-293-remediate-all-audit-warnings--fabric-dri.md"
+  - ".tasks/completed/T-101-inception-jsonl-transcript-reader-conv-capture.md"
+  - ".tasks/completed/T-148-termlink-integration-spec-for-framework-.md"
+  - ".tasks/completed/T-157-claude-fw---termlink-flag.md"
+  - ".tasks/completed/T-206-remove-sudo-from-installer--path-based-i.md"
+  - ".tasks/completed/T-530-use-stable-toolchain-for-release-builds.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-26T13:59:19"
+    action: "T-293: Remediate audit warnings — remove 29 orphaned fabric cards, fix 9 stale edges, register 6 missing source files, restore 35 bugfix learnings, update stale tasks, sync global fw to 1.3.0"
+  - time: "2026-03-26T14:11:12"
+    action: "T-293: Enrich 15 edgeless fabric cards — 53 edges across 19 files, add cron audit dir"
+  - time: "2026-03-26T16:15:09"
+    action: "T-293: Install audit cron schedule for CTL-020 compliance"
+  - time: "2026-03-26T16:50:06"
+    action: "T-293: Fix Human ACs (T-101, T-148), create T-530 stub, update T-037 T-038 T-051 T-027 T-031 T-092 T-115 T-177 T-265 T-272: audit lifecycle remediation"
+  - time: "2026-03-26T16:52:06"
+    action: "T-293: Generate T-530 episodic, commit audit artifacts"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 205 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 205
+  commits: 5
+  files_changed: 75
+  lines_added: 1140
+  lines_removed: 751
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-293-remediate-all-audit-warnings--fabric-dri.md
+generated_by: context-agent-hybrid
