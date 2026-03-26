@@ -1,8 +1,8 @@
-id: agents/context/check-dispatch-pre.sh
-name: check-dispatch-pre
+id: crates/termlink-hub/src/bypass.rs
+name: bypass
 type: script
-subsystem: context-fabric
-location: agents/context/check-dispatch-pre.sh
+subsystem: unknown
+location: crates/termlink-hub/src/bypass.rs
 tags: []
 
 purpose: "TODO: describe what this component does"

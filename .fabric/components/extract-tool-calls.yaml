@@ -11,11 +11,7 @@ interfaces:
     commands: [--session, --task, --project-dir, --include-sidechains, --stats]
   - type: output
     format: JSONL to stdout (one record per tool call)
-depends_on:
-  - target: "~/.claude/projects/*//*.jsonl"
-    type: reads
-  - target: "~/.claude/projects/*/*/subagents/agent-*.jsonl"
-    type: reads
+depends_on: []
 depended_by:
   - target: ".context/telemetry/tool-calls.jsonl"
     type: produces

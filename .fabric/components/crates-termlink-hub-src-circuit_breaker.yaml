@@ -1,8 +1,8 @@
-id: agents/context/test-tier0-patterns.py
-name: test-tier0-patterns
+id: crates/termlink-hub/src/circuit_breaker.rs
+name: circuit_breaker
 type: script
-subsystem: context-fabric
-location: agents/context/test-tier0-patterns.py
+subsystem: unknown
+location: crates/termlink-hub/src/circuit_breaker.rs
 tags: []
 
 purpose: "TODO: describe what this component does"

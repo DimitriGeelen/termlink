@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-26-1243
-timestamp: 2026-03-26T11:43:05Z
+# Audit Results - 2026-03-26-1354
+timestamp: 2026-03-26T12:54:42Z
 summary:
-  pass: 97
-  warn: 22
+  pass: 102
+  warn: 15
   fail: 0
 findings:
   - level: PASS
@@ -18,23 +18,18 @@ findings:
   - level: PASS
     check: "All 8 project YAML files parse correctly"
   - level: PASS
-    check: "Fabric: 70 registered, 32 unregistered (coverage growing)"
+    check: "Fabric: 79 registered, 0 unregistered"
   - level: WARN
-    check: "Fabric: 11/70 cards have no edges"
+    check: "Fabric: 15/79 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: WARN
-    check: "Fabric drift: 63 source file(s) have no fabric card"
-    mitigation: "Run: fw fabric scan"
   - level: PASS
-    check: "All 25 active tasks are valid"
-  - level: WARN
-    check: "Task T-176 is 8 days old with only 1 updates"
-    mitigation: "Add progress updates to T-176-audit-framework-hook-config-against-24-a.md"
-  - level: WARN
-    check: "Task T-186 is 8 days old with only 1 updates"
-    mitigation: "Add progress updates to T-186-termlink-inject-remote--standard-command.md"
+    check: "Fabric drift: All watched source files registered (79 cards)"
   - level: PASS
-    check: "Git traceability: 97% (618/633 commits reference tasks)"
+    check: "All 27 active tasks are valid"
+  - level: PASS
+    check: "All active tasks meet quality thresholds"
+  - level: PASS
+    check: "Git traceability: 97% (622/637 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -52,13 +47,12 @@ findings:
     check: "No Tier 0 violations detected"
   - level: PASS
     check: "Practices documented: 10 practice(s) in practices.yaml"
-  - level: WARN
-    check: "Bugfix-learning coverage: 0% (0/35)"
-    mitigation: "See CLAUDE.md Bug-Fix Learning Checkpoint — use: fw fix-learned T-XXX \"description\""
+  - level: PASS
+    check: "Bugfix-learning coverage: 80% (28/35 bugfixes have learnings)"
   - level: PASS
     check: "All completed tasks have episodic summaries"
   - level: PASS
-    check: "All      266 episodic summaries have quality content"
+    check: "All 266 episodic summaries have quality content"
   - level: PASS
     check: "No orphaned episodic files"
   - level: PASS
@@ -71,17 +65,8 @@ findings:
     check: "Graduation pipeline: 0 learnings (threshold: 20)"
   - level: PASS
     check: "All 47 completed inceptions have research artifacts"
-  - level: WARN
-    check: "C-001: Inception T-207 has artifact but task doesn't reference it"
-    mitigation: "Add artifact reference to ## Updates section of T-207"
-  - level: WARN
-    check: "C-001: Inception T-235 has artifact but task doesn't reference it"
-    mitigation: "Add artifact reference to ## Updates section of T-235"
-  - level: WARN
-    check: "C-001: Inception T-280 has artifact but task doesn't reference it"
-    mitigation: "Add artifact reference to ## Updates section of T-280"
   - level: PASS
-    check: "C-001: All 10 active inceptions have research artifacts"
+    check: "C-001: All 11 active inceptions have research artifacts"
   - level: PASS
     check: "C-002: commit-msg hook has research artifact check"
   - level: PASS
@@ -89,24 +74,24 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-291)"
+    check: "CTL-001: Focus file has active task (T-293)"
   - level: PASS
-    check: "CTL-003: Budget status file stale (29575423min — no active session)"
+    check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 4 (last commit: 6 minutes ago)"
+    check: "CTL-004: Tool counter at 154 (last commit: 41 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: WARN
-    check: "CTL-020: No cron audit files in last hour"
-    mitigation: "Check cron schedule: crontab -l "
+    check: "CTL-020: Cron audit directory missing (/opt/termlink/.context/audits/cron)"
+    mitigation: "Run: fw audit schedule install"
   - level: PASS
     check: "CTL-002: Tier 0 guard installed and wired in settings.json"
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (69 handovers, 2 compactions)"
+    check: "CTL-006: No compact log (no compactions recorded)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
   - level: PASS
@@ -118,7 +103,11 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-192 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-207 has decision (4 commits)"
+    check: "CTL-009: Inception T-207 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-235 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-280 has decision (3 commits)"
   - level: PASS
     check: "CTL-009: Inception T-283 has decision (3 commits)"
   - level: PASS
@@ -250,13 +239,13 @@ findings:
   - level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - level: WARN
-    check: "D5: Task lifecycle — 15 anomaly(s): T-037(1min,human) T-001(0min,human) T-031(2min,human) T-051(1min,human) T-177(3min,human) T-093(4min,human) T-272(0min,human) T-038(2min,human) T-115(0min,human) T-046(3min,human) (+5 more)"
+    check: "D5: Task lifecycle — 15 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+5 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: WARN
-    check: "D3: Commit velocity — WARN drop today=6 avg=36 ratio=0.2x"
+    check: "D3: Commit velocity — WARN drop today=10 avg=36 ratio=0.3x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 40_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 38_commits_24h)"
   - level: PASS
     check: "D6: Completion velocity — normal (PASS recent=10.3 earlier=12.6)"
   - level: PASS

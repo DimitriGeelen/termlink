@@ -1,3 +1,248 @@
 # Project Learnings - Knowledge gained during development
 # Added via: fw context add-learning "description" --task T-XXX
 learnings:
+- id: L-001
+  learning: "Component fabric requires explicit initialization per project — no structural gate catches empty fabric. When starting a new project: create subsystems.yaml, register source files as cards with typed edges (target+type format), and create watch-patterns.yaml. Audit should check for drift."
+  source: P-002
+  task: T-043
+  date: 2026-03-08
+  context: Added via context agent
+  application: TBD
+- id: L-002
+  learning: "Always run fw fix-learned after completing bugfix tasks — captures the root cause and mitigation as a pattern for future debugging"
+  source: unknown
+  task: T-064
+  date: 2026-03-10
+  context: Added via context agent
+  application: TBD
+- id: L-003
+  learning: "Watcher scripts must capture subprocess exit codes explicitly — the || pattern swallows non-zero exits and causes false success reporting"
+  source: unknown
+  task: T-065
+  date: 2026-03-10
+  context: Added via context agent
+  application: TBD
+- id: L-004
+  learning: "Shell commands accepting user input must escape arguments before passing to sh -c — use single-quote wrapping with internal quote escaping"
+  source: unknown
+  task: T-064
+  date: 2026-03-10
+  context: Added via context agent
+  application: TBD
+- id: L-005
+  learning: "CLI field name must match RPC response field exactly — bytes_written vs bytes_len mismatch caused silent display bug (always showed 0)"
+  source: P-001
+  task: T-177
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-006
+  learning: "Hub tests that set TERMLINK_RUNTIME_DIR must use ENV_LOCK and isolated temp dirs — without isolation, TLS cert from another test leaks and causes handshake failures"
+  source: P-001
+  task: T-172
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-007
+  learning: "Newer Rust editions require unsafe block around std::env::set_var — test code that sets env vars needs explicit unsafe with SAFETY comment explaining single-threaded access"
+  source: P-001
+  task: T-172
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-008
+  learning: "ink TUI (React terminal) treats multi-byte writes as paste — Enter (0x0D) must be sent as separate pty.write() with delay for keypress detection"
+  source: P-001
+  task: T-178
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-009
+  learning: "Framework task gate check-active-task.sh blocks worker agents in mesh dispatch — workers need bypass or separate task assignment before they can write files"
+  source: P-001
+  task: T-119
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-010
+  learning: "Cross-machine prompt injection via TermLink TOFU is the preferred path for consumer-to-framework upstream reports — faster and richer than file-based handoff"
+  source: P-001
+  task: T-185
+  date: 2026-03-18
+  context: Added via context agent
+  application: TBD
+- id: L-011
+  learning: "CLI parameter defaults: None (omitted) and zero-value are semantically different. since=0 means 'after event 0' not 'from the start'. Test boundary conditions explicitly."
+  source: P-001
+  task: T-056
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-012
+  learning: "Framework hook paths must reference final installation directory (symlinks), not version-specific paths. Test hook paths immediately after tool upgrades."
+  source: P-001
+  task: T-020
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-013
+  learning: "Add state transition guards to prevent invalid state changes. Always implement Drop for resource cleanup. Document known race conditions (TOCTOU) with mitigation paths even if not fully resolved."
+  source: P-001
+  task: T-067
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-014
+  learning: "Avoid hardcoding context window thresholds. Use configurable environment variables (CONTEXT_WINDOW, THRESHOLD_LEVELS) so framework tools scale with model capability changes."
+  source: P-001
+  task: T-131
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-015
+  learning: "PTY tests under parallel execution: always implement Drop for PTY devices and child processes. Reduce timeouts to free resources faster. Shared test state (ENV_LOCK) prevents resource contention."
+  source: P-001
+  task: T-170
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-016
+  learning: "Delegate complex platform-specific logic (osascript, tmux, background PTY) to a single source of truth (termlink spawn). Use override mechanisms (env vars + flags) for testing and CI."
+  source: P-001
+  task: T-154
+  date: 2026-03-19
+  context: Added via context agent
+  application: TBD
+- id: L-017
+  learning: "When renaming CLI tools or binaries, grep all config files, hooks, and CI workflows for old name references — stale references cause silent failures in consumer projects."
+  source: P-001
+  task: T-037
+  date: 2026-03-26
+  context: Hook paths referenced old fw binary name after rename
+  application: TBD
+- id: L-018
+  learning: "Event poll cursors must start as None (meaning 'give me everything'), not 0. Passing since=0 to an exclusive-lower-bound API skips the first event — an off-by-one that recurs across every new poll consumer."
+  source: P-001
+  task: T-171
+  date: 2026-03-26
+  context: Same off-by-one as T-056 but in file-receive and agent-listen commands
+  application: TBD
+- id: L-019
+  learning: "Read-list commands must not have destructive side effects. termlink list auto-cleaned sessions it considered stale, making debugging invisible. Separate query operations from mutation operations."
+  source: P-001
+  task: T-194
+  date: 2026-03-26
+  context: list_sessions auto-cleaned stale sessions, hiding liveness check failures
+  application: TBD
+- id: L-020
+  learning: "Event-driven receivers must snapshot next_seq on startup and poll only from that point — polling from seq 0 replays stale events from the ring buffer, causing ghost triggers from old transfers."
+  source: P-001
+  task: T-198
+  date: 2026-03-26
+  context: file receive picked up 30-min-old FileInit events
+  application: TBD
+- id: L-021
+  learning: "Run clippy in CI with --all-targets to catch await_holding_lock warnings in test code — holding std::sync::Mutex guards across .await points risks deadlocks that only manifest under load."
+  source: P-001
+  task: T-230
+  date: 2026-03-26
+  context: 19 await_holding_lock warnings in router.rs and pty.rs tests
+  application: TBD
+- id: L-022
+  learning: "Scrollback buffer delta calculations must handle wraparound: when delta >= buffer length, send the full buffer instead of computing a negative or zero-length slice."
+  source: P-001
+  task: T-244
+  date: 2026-03-26
+  context: attach output froze when scrollback exceeded 8192 bytes
+  application: TBD
+- id: L-023
+  learning: "File-based registries (JSON/YAML) under concurrent access need atomic write (write-to-temp + rename) and advisory file locking — truncate+write races silently lose data under parallel calls."
+  source: P-001
+  task: T-248
+  date: 2026-03-26
+  context: Bypass registry lost promotion data under concurrent orchestrator.route calls
+  application: TBD
+- id: L-024
+  learning: "CI workflow package names must match Cargo.toml [package] name exactly — cargo -p uses the package name, not the directory or crate name. Verify with cargo metadata before writing CI config."
+  source: P-001
+  task: T-213
+  date: 2026-03-26
+  context: release.yml used -p termlink-cli but package is named termlink
+  application: TBD
+- id: L-025
+  learning: "Clap positional arguments: optional positional args must come AFTER required ones. An Option<String> before a required String causes panics on every invocation including --help."
+  source: P-001
+  task: T-284
+  date: 2026-03-26
+  context: remote inject/send-file/exec all panicked due to same positional ordering bug
+  application: TBD
+- id: L-026
+  learning: "When the same bug pattern appears in multiple subcommands (T-284 and T-286 had identical clap positional arg bugs), grep the entire CLI definition for the same anti-pattern before closing the first fix."
+  source: P-001
+  task: T-286
+  date: 2026-03-26
+  context: T-284 fixed inject/send-file but missed exec with same bug
+  application: TBD
+- id: L-027
+  learning: "Consumer project hooks must pass PROJECT_ROOT explicitly when invoking framework scripts — framework scripts fall back to git rev-parse which resolves to the framework repo, not the consumer project."
+  source: P-001
+  task: T-290
+  date: 2026-03-26
+  context: Pre-push audit blocked git push because it checked framework tasks dir instead of termlink tasks dir
+  application: TBD
+- id: L-028
+  learning: "Ephemeral session-state files (focus, budget-status, counters) must be gitignored from the start — tracking them causes merge conflicts, corrupted JSON, and false audit failures on every stash/rebase."
+  source: P-001
+  task: T-228
+  date: 2026-03-26
+  context: 6 ephemeral files in .context/working/ caused push-blocking failure chain
+  application: TBD
+- id: L-029
+  learning: "Cargo.toml repository URLs, README references, and CI config must all reference the same canonical repo URL — mismatches between Cargo.toml, docs, and Homebrew formula cause broken links on crates.io and release failures."
+  source: P-001
+  task: T-219
+  date: 2026-03-26
+  context: Cargo.toml had dimidev32/termlink but docs had DimitriGeelen/termlink
+  application: TBD
+- id: L-030
+  learning: "Pre-push hooks that invoke audit in consumer projects need isolation: the hook must set PROJECT_ROOT to the consumer repo and source paths.sh from the correct location, not fall back to framework defaults."
+  source: P-001
+  task: T-141
+  date: 2026-03-26
+  context: Pre-push hook ran audit against framework repo instead of termlink
+  application: TBD
+- id: L-031
+  learning: "When adding new subsystems or capabilities to a fabric registry, update all summary metadata (counts, descriptions) in the same commit — stale metadata causes drift warnings that block audit."
+  source: P-001
+  task: T-117
+  date: 2026-03-26
+  context: Added agent-mesh subsystem but CLI description still said 20 commands instead of 26
+  application: TBD
+- id: L-032
+  learning: "Deprecated API imports in test code emit warnings that pollute CI output and can mask real issues. Pin to non-deprecated alternatives (e.g., cargo_bin! macro instead of cargo_bin function) when upgrading test dependencies."
+  source: P-001
+  task: T-226
+  date: 2026-03-26
+  context: assert_cmd cargo_bin function deprecated, macro replacement available
+  application: TBD
+- id: L-033
+  learning: "All clippy warnings across workspace should be fixed in bulk periodically and enforced via CI deny — letting warnings accumulate makes it hard to spot new issues in PRs."
+  source: P-001
+  task: T-200
+  date: 2026-03-26
+  context: 59 clippy warnings accumulated across 4 crates before bulk cleanup
+  application: TBD
+- id: L-034
+  learning: "After fixing remaining clippy warnings, add clippy::all deny attribute or CI --deny warnings flag to prevent regression — without enforcement, warnings reappear within days."
+  source: P-001
+  task: T-214
+  date: 2026-03-26
+  context: Rust 1.94 introduced new unnecessary_map_or lint immediately after T-200 cleanup
+  application: TBD
+- id: L-035
+  learning: "Flaky tests that pass locally but fail in CI often need ENV_LOCK guards — tests that mutate shared state (env vars, global config) race under parallel test execution."
+  source: P-001
+  task: T-259
+  date: 2026-03-26
+  context: register_remote_and_discover test flaked in CI without ENV_LOCK
+  application: TBD

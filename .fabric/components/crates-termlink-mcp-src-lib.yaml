@@ -1,8 +1,8 @@
-id: agents/context/block-plan-mode.sh
-name: block-plan-mode
+id: crates/termlink-mcp/src/lib.rs
+name: lib
 type: script
-subsystem: context-fabric
-location: agents/context/block-plan-mode.sh
+subsystem: unknown
+location: crates/termlink-mcp/src/lib.rs
 tags: []
 
 purpose: "TODO: describe what this component does"

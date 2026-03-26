@@ -12,7 +12,7 @@ tags: [framework, hooks, audit]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:25Z
-last_update: 2026-03-22T17:22:24Z
+last_update: 2026-03-26T13:30:00Z
 date_finished: null
 ---
 
@@ -88,3 +88,6 @@ date_finished: null
 
 ### 2026-03-22T17:22:24Z — status-update [task-update-agent]
 - **Change:** horizon: later → later
+
+### 2026-03-26T13:30:00Z — staleness-review [T-293]
+- **Status:** Parked inception awaiting human prioritization. Framework now uses 11 hooks (up from 4 when captured). Re-evaluate scope when ready.

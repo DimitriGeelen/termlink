@@ -1,8 +1,8 @@
-id: agents/resume/resume.sh
-name: resume
+id: crates/termlink-mcp/src/server.rs
+name: server
 type: script
 subsystem: unknown
-location: agents/resume/resume.sh
+location: crates/termlink-mcp/src/server.rs
 tags: []
 
 purpose: "TODO: describe what this component does"

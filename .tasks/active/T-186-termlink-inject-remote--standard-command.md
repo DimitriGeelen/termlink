@@ -11,7 +11,7 @@ tags: [cli, cross-machine, ux]
 components: []
 related_tasks: [T-182, T-183, T-184, T-185]
 created: 2026-03-18T23:28:42Z
-last_update: 2026-03-18T23:47:58Z
+last_update: 2026-03-26T13:30:00Z
 date_finished: null
 ---
 
@@ -111,3 +111,6 @@ test -f docs/reports/T-186-inject-remote-cli-design.md
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** All primitives proven (TOFU, auth, hub routing, split-write). Variant D (remote subcommand family) chosen. ~150 lines, no new deps.
+
+### 2026-03-26T13:30:00Z — staleness-review [T-293]
+- **Status:** Inception GO decided. All ACs checked. Awaiting human to complete or spawn build task. `termlink push` (T-285) now covers part of the use case.

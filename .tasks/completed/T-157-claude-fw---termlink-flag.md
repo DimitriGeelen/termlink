@@ -5,7 +5,7 @@ description: >
   Add opt-in --termlink flag to claude-fw wrapper so every session auto-registers
   as a TermLink session, enabling remote observation and input injection.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now

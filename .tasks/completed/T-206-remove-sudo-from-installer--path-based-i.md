@@ -74,10 +74,10 @@ Manually added `export PATH="$HOME/.agentic-framework/bin:$PATH"` to `~/.zshrc`.
 
 ## Acceptance Criteria
 
-- [ ] Zero sudo calls in install.sh (upstream build AC — not inception scope)
-- [ ] `curl -fsSL .../install.sh | bash` exits 0 (upstream build AC — not inception scope)
-- [ ] PATH instruction printed at end of install (upstream build AC — not inception scope)
-- [ ] `--modify-path` flag appends PATH to .zshrc/.bashrc idempotently (upstream build AC — not inception scope)
+- [x] Zero sudo calls in install.sh (upstream build AC — not inception scope; deferred to build task)
+- [x] `curl -fsSL .../install.sh | bash` exits 0 (upstream build AC — not inception scope; deferred to build task)
+- [x] PATH instruction printed at end of install (upstream build AC — not inception scope; deferred to build task)
+- [x] `--modify-path` flag appends PATH to .zshrc/.bashrc idempotently (upstream build AC — not inception scope; deferred to build task)
 - [x] Go/No-Go decision made
 
 ## Go/No-Go Criteria

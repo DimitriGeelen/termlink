@@ -12,9 +12,7 @@ interfaces:
     commands: [--store, --session, --json]
   - type: output
     format: Terminal report or JSON
-depends_on:
-  - target: .context/telemetry/tool-calls.jsonl
-    type: reads
+depends_on: []
 depended_by: []
 tags: [telemetry, errors, escalation-ladder, antifragility, analysis]
 created: 2026-03-12

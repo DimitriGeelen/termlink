@@ -7,9 +7,7 @@ tags: [e2e, test, portability]
 
 purpose: "Shared E2E setup — portable binary resolution, build, orchestrator registration helpers"
 
-depends_on:
-  - target: tests/e2e/e2e-helpers.sh
-    type: sources
+depends_on: []
 
 last_verified: 2026-03-12
 created_by: unknown
