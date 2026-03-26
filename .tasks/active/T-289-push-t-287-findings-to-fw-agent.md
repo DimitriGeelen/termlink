@@ -4,7 +4,7 @@ name: "Push T-287 findings to fw-agent"
 description: >
   Push T-287 inception findings to framework agent on .107 — confirm upgrade.sh bugs, request register --self in Session Start Protocol
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T22:16:19Z
-last_update: 2026-03-25T22:16:19Z
+last_update: 2026-03-26T21:24:13Z
 date_finished: null
 ---
 
@@ -20,40 +20,19 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Push T-287 inception findings (cross-project framework upgrade via TermLink) and T-160 pickup prompt (declare -A macOS fix) to fw-agent on .107 via TermLink push.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] T-287 findings pushed to fw-agent via `termlink file send` (1048 bytes, SHA-256: 6177eaf8)
+- [x] T-160 pickup prompt pushed to fw-agent via `termlink file send` (4465 bytes, SHA-256: 3b84ce31)
+- [x] Push delivery confirmed (non-zero bytes written)
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+test -f docs/reports/T-287-cross-project-upgrade.md
+test -f docs/specs/T-160-declare-A-macos-fix-pickup.md
 
 ## Decisions
 
@@ -72,3 +51,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /Users/dimidev32/001-projects/010-termlink/.tasks/active/T-289-push-t-287-findings-to-fw-agent.md
 - **Context:** Initial task creation
+
+### 2026-03-26T21:24:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
