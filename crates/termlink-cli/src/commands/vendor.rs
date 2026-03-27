@@ -169,6 +169,18 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>) -> Result<()> {
         println!("  MCP:     NOT configured (run: termlink vendor)");
     }
 
+    // Check .gitignore
+    let gitignore = project_dir.join(".gitignore");
+    let gi_ok = std::fs::read_to_string(&gitignore)
+        .ok()
+        .map(|c| c.contains(".termlink"))
+        .unwrap_or(false);
+    if gi_ok {
+        println!("  Ignore:  .termlink in .gitignore");
+    } else {
+        println!("  Ignore:  NOT in .gitignore (run: termlink vendor)");
+    }
+
     Ok(())
 }
 
