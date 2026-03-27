@@ -571,3 +571,118 @@ fn cli_request_timeout() {
 
     assert!(!output.status.success(), "Expected non-zero exit on timeout");
 }
+
+// ─── Vendor Tests ─────────────────────────────────────────────────
+
+/// Helper: create a temp dir with git init for vendor tests.
+fn vendor_project(name: &str) -> tempfile::TempDir {
+    let dir = tempfile::Builder::new().prefix(name).tempdir().unwrap();
+    Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(dir.path())
+        .output()
+        .expect("Failed to git init");
+    dir
+}
+
+#[test]
+fn cli_vendor_fresh_project() {
+    let project = vendor_project("vendor-fresh");
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run termlink vendor");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "vendor failed: {}", stdout);
+    assert!(stdout.contains("Vendored"), "Expected 'Vendored' in output: {}", stdout);
+
+    // Binary exists
+    assert!(project.path().join(".termlink/bin/termlink").exists());
+    // VERSION exists
+    assert!(project.path().join(".termlink/VERSION").exists());
+    // .gitignore created with .termlink entry
+    let gi = std::fs::read_to_string(project.path().join(".gitignore")).unwrap();
+    assert!(gi.contains(".termlink"), "Expected .termlink in .gitignore: {}", gi);
+    // MCP config created
+    let settings = std::fs::read_to_string(project.path().join(".claude/settings.local.json")).unwrap();
+    assert!(settings.contains("termlink"), "Expected termlink in MCP settings: {}", settings);
+}
+
+#[test]
+fn cli_vendor_idempotent() {
+    let project = vendor_project("vendor-idem");
+
+    // First vendor
+    Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .unwrap();
+
+    // Second vendor
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to re-vendor");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Updated"), "Expected 'Updated' on re-vendor: {}", stdout);
+
+    // .gitignore should NOT have duplicate .termlink entries
+    let gi = std::fs::read_to_string(project.path().join(".gitignore")).unwrap();
+    let count = gi.matches(".termlink").count();
+    assert_eq!(count, 1, "Expected exactly 1 .termlink entry, got {}: {}", count, gi);
+}
+
+#[test]
+fn cli_vendor_status() {
+    let project = vendor_project("vendor-stat");
+
+    // Not vendored yet
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "status", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to check vendor status");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Not vendored"), "Expected 'Not vendored': {}", stdout);
+
+    // Vendor it
+    Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .unwrap();
+
+    // Now status should show version
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "status", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to check vendor status");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Version:"), "Expected version in status: {}", stdout);
+    assert!(stdout.contains("MCP:"), "Expected MCP status: {}", stdout);
+    assert!(stdout.contains("Ignore:"), "Expected gitignore status: {}", stdout);
+}
+
+#[test]
+fn cli_vendor_dry_run() {
+    let project = vendor_project("vendor-dry");
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--dry-run", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run vendor --dry-run");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Would"), "Expected 'Would' in dry-run output: {}", stdout);
+
+    // Nothing should be created
+    assert!(!project.path().join(".termlink").exists(), "Vendor dir should not exist in dry-run");
+}
