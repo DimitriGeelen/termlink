@@ -20,15 +20,22 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Cross-session failures are invisible because every observability mechanism is session-scoped. The .107 remote access failure recurred 3+ times across sessions (T-163, T-209, 2026-03-25) with zero escalation, zero patterns registered, and zero learnings captured. The escalation ladder (A→B→C→D) is a markdown rule, not a structural gate — violating the framework's own P-002 ("Structural Enforcement Over Agent Discipline").
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+1. **Cross-session failures recur because observability is session-scoped** — VALIDATED: loop-detect.json destroyed between sessions, error-watchdog findings not persisted, handover agent never checks recurring patterns
+2. **Memory system should prevent recurrence** — PARTIALLY VALIDATED: reference memory exists but lacks actionable commands; learnings.yaml EMPTY; concerns.yaml EMPTY; patterns.yaml seeded-only
+3. **A persistent failure register checked at session start would prevent recurrence** — UNTESTED but scored highest (4.1) in remediation analysis
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+5-agent parallel investigation (completed):
+1. Agent 1: Evidence gathering — documented 3+ occurrences, 8 tasks with unchecked .107 ACs
+2. Agent 2: Memory system audit — found empty learnings, patterns, concerns
+3. Agent 3: Hook/observability audit — confirmed within-session detection functional, cross-session ABSENT
+4. Agent 4: Escalation ladder audit — confirmed P-002 violation (aspirational rule, not structural gate)
+5. Agent 5: Remediation scoring — scored 5 options against 4 directives
 
 ## Technical Constraints
 
@@ -45,9 +52,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +68,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Root cause is systemic (not just a one-off .107 config issue)
+- At least one structural fix exists that prevents cross-session blindness
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Problem is only agent discipline (it's also missing structural enforcement)
+- No feasible structural mitigation identified
 
 ## Verification
 

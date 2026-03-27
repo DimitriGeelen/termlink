@@ -58,11 +58,11 @@ simulate the human steps. Research artifact: `docs/reports/T-192-simulation-harn
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Research artifact created with 5 spike plans
-- [ ] Spikes 1-3 executed (free, no API cost)
-- [ ] Spike 4 feasibility assessed (framework session spawn)
-- [ ] Spike 5 executed (document structure checks)
-- [ ] Go/No-Go decision made with evidence
+- [x] Research artifact created with 5 spike plans
+- [x] Spikes 1-3 executed (free, no API cost)
+- [x] Spike 4 feasibility assessed (framework session spawn)
+- [x] Spike 5 executed (document structure checks)
+- [x] Go/No-Go decision made with evidence
 
 ### Human
 - [ ] [REVIEW] Review spike results and approve direction

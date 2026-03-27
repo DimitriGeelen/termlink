@@ -140,8 +140,17 @@ human steps programmatically.
 ### Spike 4: Framework Pickup — NOT RUN YET
 Deferred — API cost. Feasibility confirmed: can `fw init` + `termlink spawn`.
 
-### Spike 5: Document Structure — NOT RUN YET
-Trivial to implement. Deferred to build phase.
+### Spike 5: Document Structure — PASS
+
+**T-188 (upstream-reporting.md clarity proxy):**
+- `docs/reports/T-180-upstream-reporting-design.md`: 18 headings, 6 sections, 6 code blocks, 0 TODOs
+- Structurally complete — no placeholder sections
+
+**T-191 (evidence report completeness):**
+- `docs/reports/T-191-human-ac-verification.md`: 37 headings, 7 sections, 16 tables, 0 TODOs
+- All sections present, no TODO placeholders
+
+**Finding:** Document structure checks (heading count, section count, TODO absence, table presence) are a reliable proxy for "completeness" — the measurable aspect of "clarity". Subjective tone/style assessment remains human-only.
 
 ## Go/No-Go Criteria
 
