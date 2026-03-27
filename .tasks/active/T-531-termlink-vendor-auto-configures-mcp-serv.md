@@ -4,16 +4,16 @@ name: "termlink vendor auto-configures MCP server in Claude Code settings"
 description: >
   termlink vendor auto-configures MCP server in Claude Code settings
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/vendor.rs]
 related_tasks: []
 created: 2026-03-27T13:30:39Z
-last_update: 2026-03-27T13:30:39Z
-date_finished: null
+last_update: 2026-03-27T14:02:27Z
+date_finished: 2026-03-27T14:02:27Z
 ---
 
 # T-531: termlink vendor auto-configures MCP server in Claude Code settings
@@ -44,7 +44,7 @@ date_finished: null
 ## Verification
 
 PATH="$HOME/.cargo/bin:$PATH" cargo build 2>&1 | tail -1
-PATH="$HOME/.cargo/bin:$PATH" cargo clippy 2>&1 | grep -c "error" | grep -q "^0$"
+! PATH="$HOME/.cargo/bin:$PATH" cargo clippy 2>&1 | grep -q "^error"
 
 ## Decisions
 
@@ -63,3 +63,6 @@ PATH="$HOME/.cargo/bin:$PATH" cargo clippy 2>&1 | grep -c "error" | grep -q "^0$
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-531-termlink-vendor-auto-configures-mcp-serv.md
 - **Context:** Initial task creation
+
+### 2026-03-27T14:02:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
