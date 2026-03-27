@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-27T19:15:59Z
-last_update: 2026-03-27T19:15:59Z
+last_update: 2026-03-27T19:16:31Z
 date_finished: null
 ---
 
@@ -32,10 +32,9 @@ date_finished: null
 
 ## Verification
 
-cargo build 2>&1 | grep -c "^error" | grep -q "^0$"
-cargo test 2>&1 | tail -1 | grep -q "ok\|passed"
-# Only async fn warnings should remain
-cargo clippy 2>&1 | grep "^warning:" | grep -v "generated\|async fn" | wc -l | grep -q "^0$"
+cargo build 2>&1
+cargo test 2>&1
+! cargo clippy 2>&1 | grep "^warning:" | grep -v "generated\|async fn" | grep -q "."
 
 <!-- Shell commands that MUST pass before work-completed. One per line.
      Lines starting with # are comments. Empty lines ignored.
