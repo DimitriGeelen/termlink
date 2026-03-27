@@ -21,3 +21,13 @@ bypasses:
   command_hash: 77f6ea36af4e6d3a17144e11cce1be6f477ce7b74ac0ae37d5a0e6110ad5e103
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-03-27T18:19:04Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: 'fw inception decide T-534 go --rationale "4 root causes found.
+    M-1 done (memory updated). M-2 needed: document mirror ch'
+  command_hash: 9be7add5dcfe8fbc4a31f98e0db7f05b58670e3d454a14a4614d5fda00a92354
+  authorized_by: human
+  mechanism: fw tier0 approve

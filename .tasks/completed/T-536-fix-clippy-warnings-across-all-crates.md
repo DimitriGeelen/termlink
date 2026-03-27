@@ -4,16 +4,16 @@ name: "Fix clippy warnings across all crates"
 description: >
   Fix clippy warnings across all crates
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/util.rs, crates/termlink-hub/src/circuit_breaker.rs, crates/termlink-hub/src/route_cache.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/template_cache.rs, crates/termlink-hub/src/trust.rs, crates/termlink-mcp/src/server.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-03-27T19:15:59Z
-last_update: 2026-03-27T19:16:31Z
-date_finished: null
+last_update: 2026-03-27T19:17:39Z
+date_finished: 2026-03-27T19:17:39Z
 ---
 
 # T-536: Fix clippy warnings across all crates
@@ -62,3 +62,6 @@ cargo test 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-536-fix-clippy-warnings-across-all-crates.md
 - **Context:** Initial task creation
+
+### 2026-03-27T19:17:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

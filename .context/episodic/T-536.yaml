@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-536: Fix clippy warnings across all crates
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-27T19:17:56Z
+# ============================================================================
+
+task_id: T-536
+task_name: "Fix clippy warnings across all crates"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-27T19:15:59Z
+completed: 2026-03-27T19:17:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-27T20:16:30+01:00
+last_commit: 2026-03-27T20:17:34+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix clippy warnings — empty doc lines, loop var, unwrap, collapsible if, print_literal. Fix verification commands (pipe exit code issue)
+
+# Key outcomes
+outcomes:
+  - "`cargo build` succeeds with no errors"
+  - "`cargo test` passes"
+  - "Non-async-fn clippy warnings resolved (empty doc lines, loop var, unwrap, collapsible if, print_literal)"
+  - "5 async fn trait method warnings remain (cosmetic, rmcp trait signature constraint)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification commands (pipe exit code issue)"
+    source: git-mined
+  - description: "Fix clippy warnings — empty doc lines, loop var, unwrap, collapsible if, print_literal"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/util.rs"
+  - "crates/termlink-hub/src/circuit_breaker.rs"
+  - "crates/termlink-hub/src/route_cache.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/template_cache.rs"
+  - "crates/termlink-hub/src/trust.rs"
+  - "crates/termlink-mcp/src/server.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-260-pickup-from-fw-t-141-pre-push-hook-missi.md"
+  - ".tasks/active/T-536-fix-clippy-warnings-across-all-crates.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-27T20:16:30"
+    action: "T-536: Fix clippy warnings — empty doc lines, loop var, unwrap, collapsible if, print_literal"
+  - time: "2026-03-27T20:17:34"
+    action: "T-536: Fix verification commands (pipe exit code issue)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 14
+  lines_added: 148
+  lines_removed: 106
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-536-fix-clippy-warnings-across-all-crates.md
+generated_by: context-agent-hybrid

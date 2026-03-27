@@ -1,4 +1,13 @@
 {
+  "mcpServers": {
+    "termlink": {
+      "args": [
+        "mcp",
+        "serve"
+      ],
+      "command": ".termlink/bin/termlink"
+    }
+  },
   "permissions": {
     "allow": [
       "Bash(brew info:*)",

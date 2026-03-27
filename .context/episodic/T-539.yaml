@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-539: Add CLI integration tests for vendor command
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-27T19:33:22Z
+# ============================================================================
+
+task_id: T-539
+task_name: "Add CLI integration tests for vendor command"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-27T19:31:16Z
+completed: 2026-03-27T19:33:21Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-27T20:33:14+01:00
+last_commit: 2026-03-27T20:33:14+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 4 vendor CLI integration tests (fresh, idempotent, status, dry-run)
+
+# Key outcomes
+outcomes:
+  - "Tests for fresh vendor (binary + VERSION + .gitignore + MCP config)"
+  - "Tests for idempotent re-vendor (no duplicate .gitignore entries)"
+  - "Tests for vendor status output"
+  - "Tests for dry-run mode (no files created)"
+  - "All tests pass: `cargo test --test cli_integration`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-539-add-cli-integration-tests-for-vendor-com.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-27T20:33:14"
+    action: "T-539: Add 4 vendor CLI integration tests (fresh, idempotent, status, dry-run)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 169
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-539-add-cli-integration-tests-for-vendor-com.md
+generated_by: context-agent-hybrid
