@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-27T19:24:45Z
-last_update: 2026-03-27T19:24:45Z
+last_update: 2026-03-27T19:26:12Z
 date_finished: null
 ---
 
@@ -34,7 +34,7 @@ date_finished: null
 
 cargo build 2>&1
 # Test: vendor into fresh dir creates .gitignore
-rm -rf /tmp/tl-gi-test && mkdir -p /tmp/tl-gi-test && cd /tmp/tl-gi-test && git init && /opt/termlink/target/debug/termlink vendor && grep -q '.termlink/bin' .gitignore
+rm -rf /tmp/tl-gi-test && mkdir -p /tmp/tl-gi-test && cd /tmp/tl-gi-test && git init -q && /opt/termlink/target/debug/termlink vendor && grep -q '.termlink' .gitignore
 
 <!-- Shell commands that MUST pass before work-completed. One per line.
      Lines starting with # are comments. Empty lines ignored.
