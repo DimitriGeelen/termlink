@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T20:34:23Z
-last_update: 2026-03-25T20:34:34Z
+last_update: 2026-03-26T22:45:41Z
 date_finished: null
 ---
 
@@ -59,9 +59,9 @@ Framework agent on .107 has governance fixes. Applying them to consumer projects
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (5 spikes completed, bidirectional connectivity proven)
+- [x] Assumptions tested (fw upgrade broken confirmed, T-615/T-617/T-618 now landed in framework)
+- [x] Recommendation written with rationale (GO — see research artifact + decision)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -94,26 +94,18 @@ Framework agent on .107 has governance fixes. Applying them to consumer projects
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Bidirectional connectivity proven, framework blockers T-615/T-617/T-618 landed
+
+**Date**: 2026-03-27T06:45:05Z
 ## Decision
 
-**GO** (2026-03-25, human-approved)
+**Decision**: GO
 
-Bidirectional TermLink connectivity proven. 4 blockers identified:
-1. fw upgrade broken (T-615, framework-side)
-2. Claude sessions unregistered with TermLink (register --self needed)
-3. No TermLink path isolation (new build task — termlink vendor)
-4. .107 root privilege (ops)
+**Rationale**: Bidirectional connectivity proven, framework blockers T-615/T-617/T-618 landed
 
-Create child tasks for path isolation and register --self integration.
+**Date**: 2026-03-27T06:45:05Z
 
 ## Updates
 
@@ -126,3 +118,14 @@ Create child tasks for path isolation and register --self integration.
 ### 2026-03-25T21:00:00Z — research-artifact [agent]
 - **Artifact:** `docs/reports/T-287-cross-project-upgrade.md`
 - **Content:** Full inception research — 5 spikes, dialogue log, design decisions, path isolation gap, security findings
+
+### 2026-03-26T23:30:00Z — framework-resolution [T-293 session]
+- **Finding:** Priority 1 (T-615 hook enumeration) already landed in framework (commit d24bc1e)
+- **Finding:** T-617 (upgrade audit trail) and T-618 (fleet upgrade to v1.3.0) also landed
+- **Status:** Framework-side blockers 1-2 from pickup are resolved. Remaining: register --self integration, CLAUDE.md sync validation
+- **Pushed:** T-287 findings + T-160 pickup delivered to fw-agent via TermLink file send
+
+### 2026-03-27T06:45:05Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Bidirectional connectivity proven, framework blockers T-615/T-617/T-618 landed
