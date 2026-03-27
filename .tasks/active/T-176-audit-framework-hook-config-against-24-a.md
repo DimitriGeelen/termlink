@@ -20,15 +20,20 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Framework uses 4 of ~24 available Claude Code hook types (11 matchers). Are we missing enforcement opportunities? Specifically: response-level governance (Stop), session exit (SessionEnd), and sub-agent result validation (SubagentStop) are not wired. The 4 configured types cover tool boundaries well but leave gaps between tool calls.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+1. More hook types = better enforcement — PARTIALLY TRUE: Stop and SessionEnd add real value; others are marginal
+2. Claude Code hook API is stable and documented — PARTIALLY TRUE: known reliability bugs in SessionEnd (#17885, #20197)
+3. Adding hooks has negligible performance overhead — UNTESTED: PostToolUse hooks already fire on every tool call
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Inventory all available Claude Code hook types from docs and T-099 report
+2. Map current usage from .claude/settings.json
+3. Assess value of each unused hook for agentic framework enforcement
+4. Prioritize by enforcement gap severity
 
 ## Technical Constraints
 
@@ -44,19 +49,29 @@ date_finished: null
 
 ## Acceptance Criteria
 
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Go/No-Go decision made
+### Agent
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale (see `docs/reports/T-176-hook-audit.md`)
+
+### Human
+- [ ] [REVIEW] Review hook audit findings and confirm priority order
+  **Steps:**
+  1. Read `docs/reports/T-176-hook-audit.md`
+  2. Confirm Stop (T-173), SessionEnd (T-174), SubagentStop (T-175) priority
+  3. Run: `fw inception decide T-176 go|no-go --rationale "your rationale"`
+  **Expected:** Decision confirms priority order for hook wiring
+  **If not:** Adjust priority based on your operational experience
 
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- At least one unused hook type adds enforcement value
+- Framework can wire new hooks without breaking existing configuration
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- All useful hooks are already configured
+- Hook API is too unreliable for production use
 
 ## Verification
 
