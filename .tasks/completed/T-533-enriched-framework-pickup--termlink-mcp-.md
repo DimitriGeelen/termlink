@@ -4,7 +4,7 @@ name: "Enriched framework pickup — TermLink MCP in fw init + versioning patter
 description: >
   Enriched framework pickup — TermLink MCP in fw init + versioning pattern
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-27T17:31:50Z
-last_update: 2026-03-27T17:31:50Z
-date_finished: null
+last_update: 2026-03-27T17:33:01Z
+date_finished: 2026-03-27T17:33:01Z
 ---
 
 # T-533: Enriched framework pickup — TermLink MCP in fw init + versioning pattern
@@ -49,3 +49,6 @@ test -f docs/specs/T-532-framework-termlink-mcp-and-versioning-pickup.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-533-enriched-framework-pickup--termlink-mcp-.md
 - **Context:** Initial task creation
+
+### 2026-03-27T17:33:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Git-derived versioning for TermLink via build.rs"
 description: >
   Git-derived versioning for TermLink via build.rs
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-27T17:26:25Z
-last_update: 2026-03-27T17:30:06Z
-date_finished: null
+last_update: 2026-03-27T17:30:46Z
+date_finished: 2026-03-27T17:30:46Z
 ---
 
 # T-532: Git-derived versioning for TermLink via build.rs
@@ -56,3 +56,6 @@ PATH="$HOME/.cargo/bin:$PATH" cargo run -- --version 2>&1 | grep -qE '^termlink 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-532-git-derived-versioning-for-termlink-via-.md
 - **Context:** Initial task creation
+
+### 2026-03-27T17:30:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

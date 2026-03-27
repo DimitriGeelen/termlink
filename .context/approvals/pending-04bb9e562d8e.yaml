@@ -1,0 +1,6 @@
+timestamp: "2026-03-27T06:43:48Z"
+type: tier0
+risk: "INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your recommendation and rationale, then ask the human to run: fw inception decide T-XXX go|no-go --rationale "...""
+command_preview: "fw inception decide T-287 go --rationale "Bidirectional TermLink connectivity proven. Framework blockers T-615/T-617/T-618 now resolved. GO confirmed from prior session." 2>&1 | tail -5"
+command_hash: "04bb9e562d8e7e72cf60cd286ed204b66762260796432ea5fdbfcb46062f08da"
+status: pending

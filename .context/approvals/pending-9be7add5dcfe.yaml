@@ -1,0 +1,10 @@
+command_hash: 9be7add5dcfe8fbc4a31f98e0db7f05b58670e3d454a14a4614d5fda00a92354
+command_preview: 'fw inception decide T-534 go --rationale "4 root causes found. M-1
+  done (memory updated). M-2 needed: document mirror chain in CLAUDE.md so every session
+  knows the flow structurally." 2>&1'
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: pending
+timestamp: '2026-03-27T18:02:28Z'
+type: tier0

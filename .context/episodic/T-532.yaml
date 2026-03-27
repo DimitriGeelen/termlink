@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-532: Git-derived versioning for TermLink via build.rs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-27T17:58:08Z
+# ============================================================================
+
+task_id: T-532
+task_name: "Git-derived versioning for TermLink via build.rs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-27T17:26:25Z
+completed: 2026-03-27T17:30:46Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-27T18:30:06+01:00
+last_commit: 2026-03-27T18:30:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Git-derived versioning via build.rs + tag v0.9.0. Check ACs — versioning verified
+
+# Key outcomes
+outcomes:
+  - "`crates/termlink-cli/build.rs` exists and derives version from `git describe`"
+  - "Tagged commit `v0.9.0` produces version `0.9.0`"
+  - "N commits after tag produces `major.minor.N` (verified: 1 commit → `0.9.1`)"
+  - "Falls back to Cargo.toml version when no git tags exist"
+  - "`cargo build` succeeds"
+  - "`cargo clippy` has no errors in build.rs"
+  - "`termlink --version` outputs the git-derived version"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "Cargo.toml"
+  - "crates/termlink-cli/build.rs"
+  - ".tasks/active/T-532-git-derived-versioning-for-termlink-via-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-27T18:30:06"
+    action: "T-532: Git-derived versioning via build.rs + tag v0.9.0"
+  - time: "2026-03-27T18:30:41"
+    action: "T-532: Check ACs — versioning verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 3
+  lines_added: 113
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-532-git-derived-versioning-for-termlink-via-.md
+generated_by: context-agent-hybrid
