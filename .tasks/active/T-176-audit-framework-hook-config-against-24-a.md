@@ -4,7 +4,7 @@ name: "Audit framework hook config against 24 available Claude Code hooks"
 description: >
   Framework uses only 4 of 24 available Claude Code hooks. Audit which new hooks (PostCompact, PostToolUseFailure, ConfigChange, InstructionsLoaded, etc.) would improve enforcement. See docs/reports/T-099 for full hook inventory.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: later
@@ -68,18 +68,18 @@ date_finished: null
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-03-27 — Go/No-Go
+- **Chose:** GO — proceed with hook audit
+- **Why:** Framework now uses 11 hooks (up from 4). Worth auditing remaining 13 for enforcement gaps.
+- **Rejected:** NO-GO — hooks are sufficient as-is
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Framework uses 11/24 available hooks. Audit remaining 13 for enforcement value.
+
+**Date**: 2026-03-27T12:56:46Z
 
 ## Updates
 
@@ -91,3 +91,6 @@ date_finished: null
 
 ### 2026-03-26T13:30:00Z — staleness-review [T-293]
 - **Status:** Parked inception awaiting human prioritization. Framework now uses 11 hooks (up from 4 when captured). Re-evaluate scope when ready.
+
+### 2026-03-27T12:56:46Z — inception-decision [inception-workflow]
+- **Action:** GO decision recorded via Watchtower (human-approved)
