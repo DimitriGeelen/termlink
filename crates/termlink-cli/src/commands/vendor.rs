@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 const VENDOR_DIR: &str = ".termlink";
@@ -64,6 +65,7 @@ pub(crate) fn cmd_vendor(
             println!("  Current: (not vendored)");
         }
         println!("\nWould copy binary and write VERSION file.");
+        println!("Would configure MCP server in .claude/settings.local.json");
         return Ok(());
     }
 
@@ -105,6 +107,9 @@ pub(crate) fn cmd_vendor(
 
     // Check if .gitignore has the vendor binary
     check_gitignore(&project_dir, &dest_dir);
+
+    // Configure MCP server in Claude Code settings
+    configure_mcp(&project_dir);
 
     Ok(())
 }
@@ -149,6 +154,21 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>) -> Result<()> {
         }
     }
 
+    // Check MCP configuration
+    let settings_path = project_dir.join(".claude/settings.local.json");
+    let mcp_configured = settings_path.exists()
+        && std::fs::read_to_string(&settings_path)
+            .ok()
+            .and_then(|c| serde_json::from_str::<Value>(&c).ok())
+            .and_then(|v| v.get("mcpServers")?.get("termlink").cloned())
+            .is_some();
+
+    if mcp_configured {
+        println!("  MCP:     configured in .claude/settings.local.json");
+    } else {
+        println!("  MCP:     NOT configured (run: termlink vendor)");
+    }
+
     Ok(())
 }
 
@@ -180,6 +200,84 @@ fn check_gitignore(project_dir: &Path, vendor_dir: &Path) {
         if !content.contains(&vendor_rel) && !content.contains(".termlink/bin") {
             println!("\nWARN: .gitignore does not exclude vendored binary.");
             println!("  Add: .termlink/bin/");
+        }
+    }
+}
+
+/// Configure TermLink MCP server in `.claude/settings.local.json`.
+///
+/// Merges the termlink MCP entry into existing settings, preserving all other content.
+fn configure_mcp(project_dir: &Path) {
+    let claude_dir = project_dir.join(".claude");
+    let settings_path = claude_dir.join("settings.local.json");
+
+    // Read existing settings or start with empty object
+    let mut settings: Value = if settings_path.exists() {
+        match std::fs::read_to_string(&settings_path) {
+            Ok(content) => match serde_json::from_str(&content) {
+                Ok(v) => v,
+                Err(e) => {
+                    println!("\nWARN: Cannot parse {}: {e}", settings_path.display());
+                    println!("  MCP server not configured. Add manually to .claude/settings.local.json");
+                    return;
+                }
+            },
+            Err(e) => {
+                println!("\nWARN: Cannot read {}: {e}", settings_path.display());
+                return;
+            }
+        }
+    } else {
+        serde_json::json!({})
+    };
+
+    // Build the expected MCP entry
+    let expected = serde_json::json!({
+        "command": ".termlink/bin/termlink",
+        "args": ["mcp", "serve"]
+    });
+
+    // Check if already configured correctly
+    let already_configured = settings
+        .get("mcpServers")
+        .and_then(|s| s.get("termlink"))
+        == Some(&expected);
+
+    if already_configured {
+        println!("\nMCP server: already configured in .claude/settings.local.json");
+        return;
+    }
+
+    // Merge the entry
+    let mcp_servers = settings
+        .as_object_mut()
+        .expect("settings is an object")
+        .entry("mcpServers")
+        .or_insert_with(|| serde_json::json!({}));
+
+    mcp_servers
+        .as_object_mut()
+        .expect("mcpServers is an object")
+        .insert("termlink".to_string(), expected);
+
+    // Ensure .claude/ directory exists
+    if let Err(e) = std::fs::create_dir_all(&claude_dir) {
+        println!("\nWARN: Cannot create {}: {e}", claude_dir.display());
+        return;
+    }
+
+    // Write back with pretty formatting
+    match serde_json::to_string_pretty(&settings) {
+        Ok(json) => {
+            if let Err(e) = std::fs::write(&settings_path, format!("{json}\n")) {
+                println!("\nWARN: Cannot write {}: {e}", settings_path.display());
+            } else {
+                println!("\nMCP server: configured in .claude/settings.local.json");
+                println!("  Claude Code will load TermLink tools on next session start.");
+            }
+        }
+        Err(e) => {
+            println!("\nWARN: Cannot serialize settings: {e}");
         }
     }
 }
