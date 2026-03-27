@@ -10,19 +10,12 @@ const COOLDOWN: Duration = Duration::from_secs(60);
 
 /// Per-session circuit breaker state.
 #[derive(Debug, Clone)]
+#[derive(Default)]
 struct CircuitState {
     consecutive_failures: u32,
     opened_at: Option<Instant>,
 }
 
-impl Default for CircuitState {
-    fn default() -> Self {
-        Self {
-            consecutive_failures: 0,
-            opened_at: None,
-        }
-    }
-}
 
 impl CircuitState {
     /// Is the circuit open (skip this session)?
@@ -47,11 +40,10 @@ impl CircuitState {
     /// Record a transport failure. Opens circuit after threshold.
     fn record_failure(&mut self) {
         self.consecutive_failures += 1;
-        if self.consecutive_failures >= FAILURE_THRESHOLD {
-            if self.opened_at.is_none() {
+        if self.consecutive_failures >= FAILURE_THRESHOLD
+            && self.opened_at.is_none() {
                 self.opened_at = Some(Instant::now());
             }
-        }
     }
 }
 
@@ -60,6 +52,12 @@ impl CircuitState {
 /// Thread-safe via internal `Mutex`. Keyed by session ID.
 pub struct CircuitBreakerRegistry {
     states: Mutex<HashMap<String, CircuitState>>,
+}
+
+impl Default for CircuitBreakerRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CircuitBreakerRegistry {

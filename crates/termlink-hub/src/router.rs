@@ -287,8 +287,8 @@ async fn handle_event_emit_to(
         Ok(r) => r,
         Err(_) => {
             // Check remote store
-            if let Some(store) = remote_store() {
-                if let Some(_remote) = store.get(target) {
+            if let Some(store) = remote_store()
+                && let Some(_remote) = store.get(target) {
                     return ErrorResponse::new(
                         id,
                         control::error_code::CAPABILITY_NOT_SUPPORTED,
@@ -296,7 +296,6 @@ async fn handle_event_emit_to(
                     )
                     .into();
                 }
-            }
             return ErrorResponse::new(
                 id,
                 control::error_code::SESSION_NOT_FOUND,
@@ -1082,8 +1081,10 @@ fn handle_bypass_invalidate(id: serde_json::Value, params: &serde_json::Value) -
     let result = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
         let removed = if all || pattern.is_none() {
             r.invalidate_all()
+        } else if let Some(pat) = pattern {
+            r.invalidate(pat)
         } else {
-            r.invalidate(pattern.unwrap())
+            unreachable!()
         };
         tracing::info!(
             pattern = pattern.unwrap_or("*"),

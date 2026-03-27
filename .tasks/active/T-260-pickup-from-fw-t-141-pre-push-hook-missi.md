@@ -6,7 +6,7 @@ description: >
   script. Also: declare -A breaks on macOS bash 3.2, D2 should be WARN not FAIL for
   upstream-blocked tasks. This is a framework repo fix — track here, dispatch back to .107.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: later
@@ -14,7 +14,7 @@ tags: [pickup, framework]
 components: []
 related_tasks: [T-160]
 created: 2026-03-24T08:42:18Z
-last_update: 2026-03-24T08:42:18Z
+last_update: 2026-03-27T19:10:23Z
 date_finished: null
 ---
 
@@ -31,10 +31,13 @@ Pre-push hook doesn't pass PROJECT_ROOT to audit script. One-line fix in `agents
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Pickup dispatched to framework agent on .107 (already sent as part of T-258)
+- [x] Pickup dispatched to framework agent on .107 (already sent as part of T-258)
 
 ## Updates
 
 ### 2026-03-24T08:42:18Z — task-created [pickup from fw-agent on .107]
 - **Source:** `/pickup T-141` via termlink remote inject output read
 - **Note:** Framework-side fix, not TermLink code. Related to T-160 (declare -A).
+
+### 2026-03-27T19:10:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

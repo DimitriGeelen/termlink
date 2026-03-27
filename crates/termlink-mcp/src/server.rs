@@ -282,26 +282,20 @@ async fn build_debug_session_prompt(
     }
 
     // Try to get recent output (if PTY session)
-    match client::rpc_call(
+    if let Ok(resp) = client::rpc_call(
         reg.socket_path(),
         "query.output",
         serde_json::json!({"lines": 20, "strip_ansi": true}),
     )
     .await
+        && let Ok(result) = client::unwrap_result(resp)
+        && let Some(output) = result["output"].as_str()
+        && !output.trim().is_empty()
     {
-        Ok(resp) => {
-            if let Ok(result) = client::unwrap_result(resp) {
-                if let Some(output) = result["output"].as_str() {
-                    if !output.trim().is_empty() {
-                        diagnostics.push_str(&format!(
-                            "\n## Recent Terminal Output (last 20 lines)\n```\n{}\n```\n",
-                            output.trim()
-                        ));
-                    }
-                }
-            }
-        }
-        Err(_) => {} // Not a PTY session, skip
+        diagnostics.push_str(&format!(
+            "\n## Recent Terminal Output (last 20 lines)\n```\n{}\n```\n",
+            output.trim()
+        ));
     }
 
     // Check if process is alive
@@ -400,16 +394,14 @@ async fn build_orchestrate_prompt(
         context.push_str("*No sessions match the filter criteria.*\n");
     }
 
-    context.push_str(&format!(
-        "\n## Available TermLink Tools\n\
+    context.push_str("\n## Available TermLink Tools\n\
          - `termlink_interact` — run a command in a PTY session and get output\n\
          - `termlink_exec` — execute a command on a session (non-PTY)\n\
          - `termlink_emit` / `termlink_emit_to` — send events between sessions\n\
          - `termlink_broadcast` — send events to multiple sessions\n\
          - `termlink_wait` — wait for an event on a session\n\
          - `termlink_spawn` — create new sessions\n\
-         - `termlink_kv_set/get` — store metadata on sessions\n"
-    ));
+         - `termlink_kv_set/get` — store metadata on sessions\n");
 
     Ok(GetPromptResult::new(vec![PromptMessage::new_text(
         PromptMessageRole::User,

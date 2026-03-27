@@ -157,8 +157,8 @@ fn pick_session() -> anyhow::Result<String> {
     // Print numbered list
     eprintln!("Available sessions:");
     eprintln!(
-        "  {:<4} {:<20} {:<12} {:<10} {}",
-        "#", "NAME", "STATE", "PID", "TAGS"
+        "  {:<4} {:<20} {:<12} {:<10} TAGS",
+        "#", "NAME", "STATE", "PID"
     );
     eprintln!("  {}", "-".repeat(60));
     for (i, s) in sessions.iter().enumerate() {

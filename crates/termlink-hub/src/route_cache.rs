@@ -250,8 +250,8 @@ fn now_iso() -> String {
         .unwrap_or_default();
     let secs = now.as_secs();
     // Simple ISO-ish format: enough for ordering and human readability
-    let dt = time_from_epoch(secs);
-    dt
+    
+    time_from_epoch(secs)
 }
 
 fn time_from_epoch(secs: u64) -> String {
@@ -349,8 +349,8 @@ fn parse_iso_epoch(iso: &str) -> u64 {
     } else {
         &[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     };
-    for i in 0..(m as usize - 1) {
-        days += months_days[i];
+    for md in &months_days[..(m as usize - 1)] {
+        days += md;
     }
     days += d - 1;
 

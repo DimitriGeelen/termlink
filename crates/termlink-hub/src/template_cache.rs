@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 /// Lookup order: agent-local → shared → miss (triggers specialist round-trip).
 /// Promotion: 5 uses + 0 corrections → auto-promote from Layer 1 to Layer 2.
 /// Invalidation: schema hash mismatch on use → discard + return miss.
-
 /// Promotion threshold: uses required before a local template is promoted to shared.
 pub const PROMOTION_THRESHOLD: u64 = 5;
 
@@ -72,22 +71,20 @@ impl TemplateCache {
     ) -> TemplateLookup<'a> {
         // Layer 1: agent-local
         if let Some(entry) = self.local.get(format_id) {
-            if let Some(hash) = current_schema_hash {
-                if entry.schema_hash != hash {
+            if let Some(hash) = current_schema_hash
+                && entry.schema_hash != hash {
                     // Schema mismatch — stale, treat as miss
                     return TemplateLookup::Miss;
                 }
-            }
             return TemplateLookup::LocalHit(entry);
         }
 
         // Layer 2: shared
         if let Some(entry) = self.shared.get(format_id) {
-            if let Some(hash) = current_schema_hash {
-                if entry.schema_hash != hash {
+            if let Some(hash) = current_schema_hash
+                && entry.schema_hash != hash {
                     return TemplateLookup::Miss;
                 }
-            }
             return TemplateLookup::SharedHit(entry);
         }
 

@@ -12,6 +12,12 @@ pub struct TermLinkTools {
     pub tool_router: ToolRouter<Self>,
 }
 
+impl Default for TermLinkTools {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TermLinkTools {
     pub fn new() -> Self {
         Self {
@@ -806,11 +812,10 @@ impl TermLinkTools {
             "topic": p.topic,
             "payload": p.payload.unwrap_or(serde_json::json!({})),
         });
-        if let Some(targets) = &p.targets {
-            if !targets.is_empty() {
+        if let Some(targets) = &p.targets
+            && !targets.is_empty() {
                 params["targets"] = serde_json::json!(targets);
             }
-        }
 
         match client::rpc_call(&hub_socket, "event.broadcast", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
@@ -933,11 +938,10 @@ impl TermLinkTools {
                 // Extract exit code
                 let mut exit_code: Option<i32> = None;
                 for line in output.lines() {
-                    if line.contains(&marker) {
-                        if let Some(exit_str) = line.split("exit=").nth(1) {
+                    if line.contains(&marker)
+                        && let Some(exit_str) = line.split("exit=").nth(1) {
                             exit_code = exit_str.trim().parse().ok();
                         }
-                    }
                 }
 
                 // Clean output: skip the command echo line, stop before marker line
@@ -1073,14 +1077,13 @@ impl TermLinkTools {
             if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if let Some(ext) = path.extension() {
-                        if ext == "sock" {
+                    if let Some(ext) = path.extension()
+                        && ext == "sock" {
                             let json_path = path.with_extension("json");
                             if !json_path.exists() {
                                 orphan_count += 1;
                             }
                         }
-                    }
                 }
             }
             if orphan_count > 0 {
@@ -1130,12 +1133,12 @@ impl TermLinkTools {
         }
 
         // 2. Clean orphaned sockets
-        if sessions_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+        if sessions_dir.exists()
+            && let Ok(entries) = std::fs::read_dir(&sessions_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if let Some(ext) = path.extension() {
-                        if ext == "sock" {
+                    if let Some(ext) = path.extension()
+                        && ext == "sock" {
                             let json_path = path.with_extension("json");
                             if !json_path.exists() {
                                 let _ = std::fs::remove_file(&path);
@@ -1144,10 +1147,8 @@ impl TermLinkTools {
                                 cleaned_sockets += 1;
                             }
                         }
-                    }
                 }
             }
-        }
 
         // 3. Clean stale hub pidfile
         let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
@@ -1273,8 +1274,8 @@ impl TermLinkTools {
 
             match client::rpc_call(reg.socket_path(), "event.poll", params).await {
                 Ok(resp) => {
-                    if let Ok(result) = client::unwrap_result(resp) {
-                        if let Some(events) = result["events"].as_array() {
+                    if let Ok(result) = client::unwrap_result(resp)
+                        && let Some(events) = result["events"].as_array() {
                             for event in events {
                                 let event_payload = &event["payload"];
                                 let matches = event_payload
@@ -1289,13 +1290,11 @@ impl TermLinkTools {
                                 }
                             }
 
-                            if !events.is_empty() {
-                                if let Some(next) = result["next_seq"].as_u64() {
+                            if !events.is_empty()
+                                && let Some(next) = result["next_seq"].as_u64() {
                                     poll_cursor = Some(next);
                                 }
-                            }
                         }
-                    }
                 }
                 Err(e) => return format!("Error: connection lost during poll: {e}"),
             }
@@ -1378,8 +1377,8 @@ impl TermLinkTools {
             match client::rpc_call(reg.socket_path(), "event.poll", params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp) {
-                        if let Some(events) = result["events"].as_array() {
-                            if let Some(event) = events.first() {
+                        if let Some(events) = result["events"].as_array()
+                            && let Some(event) = events.first() {
                                 let payload = &event["payload"];
                                 return if payload.is_null()
                                     || (payload.is_object()
@@ -1391,7 +1390,6 @@ impl TermLinkTools {
                                         .unwrap_or_else(|_| format!("Event received: {}", p.topic))
                                 };
                             }
-                        }
                         if let Some(next) = result["next_seq"].as_u64() {
                             cursor = if next > 0 { Some(next - 1) } else { None };
                         }

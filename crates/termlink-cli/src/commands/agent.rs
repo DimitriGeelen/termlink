@@ -241,8 +241,7 @@ pub(crate) async fn cmd_agent_negotiate(
         .unwrap_or_else(|| format!("cli-{}", std::process::id()));
 
     // Parse schema (support @file syntax)
-    let schema: serde_json::Value = if schema_str.starts_with('@') {
-        let path = &schema_str[1..];
+    let schema: serde_json::Value = if let Some(path) = schema_str.strip_prefix('@') {
         let data = std::fs::read_to_string(path)
             .context(format!("Failed to read schema file: {path}"))?;
         serde_json::from_str(&data).context("Invalid JSON in schema file")?
@@ -250,8 +249,7 @@ pub(crate) async fn cmd_agent_negotiate(
         serde_json::from_str(schema_str).context("Invalid JSON in --schema")?
     };
 
-    let mut draft: serde_json::Value = if draft_str.starts_with('@') {
-        let path = &draft_str[1..];
+    let mut draft: serde_json::Value = if let Some(path) = draft_str.strip_prefix('@') {
         let data = std::fs::read_to_string(path)
             .context(format!("Failed to read draft file: {path}"))?;
         serde_json::from_str(&data).context("Invalid JSON in draft file")?
@@ -349,8 +347,7 @@ pub(crate) async fn cmd_agent_negotiate(
 
             if let Ok(resp) =
                 client::rpc_call(reg.socket_path(), "event.poll", poll_params).await
-            {
-                if let Ok(result) = client::unwrap_result(resp) {
+                && let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
                         for event in events {
                             let topic = event["topic"].as_str().unwrap_or("");
@@ -381,8 +378,8 @@ pub(crate) async fn cmd_agent_negotiate(
                                     .unwrap_or_default();
 
                                 // Try as NegotiateAccept
-                                if ev_action == negotiate_topic::ACCEPT {
-                                    if let Ok(accept) =
+                                if ev_action == negotiate_topic::ACCEPT
+                                    && let Ok(accept) =
                                         serde_json::from_value::<NegotiateAccept>(resp_payload.clone())
                                     {
                                         state.record_accept(&accept);
@@ -394,7 +391,6 @@ pub(crate) async fn cmd_agent_negotiate(
                                         got_response = true;
                                         break;
                                     }
-                                }
 
                                 // Try as NegotiateCorrection
                                 if let Ok(correction) =
@@ -428,14 +424,13 @@ pub(crate) async fn cmd_agent_negotiate(
                                         }
                                         // Apply fixes to draft (best effort: set top-level fields)
                                         for fix in &correction.fixes {
-                                            if let Some(obj) = draft.as_object_mut() {
-                                                if !fix.field.contains('[') {
+                                            if let Some(obj) = draft.as_object_mut()
+                                                && !fix.field.contains('[') {
                                                     obj.insert(
                                                         fix.field.clone(),
                                                         serde_json::json!(fix.expected),
                                                     );
                                                 }
-                                            }
                                         }
                                     }
                                     got_response = true;
@@ -471,15 +466,12 @@ pub(crate) async fn cmd_agent_negotiate(
                         }
                     }
 
-                    if let Some(events) = result["events"].as_array() {
-                        if !events.is_empty() {
-                            if let Some(next) = result["next_seq"].as_u64() {
+                    if let Some(events) = result["events"].as_array()
+                        && !events.is_empty()
+                            && let Some(next) = result["next_seq"].as_u64() {
                                 poll_cursor = Some(next);
                             }
-                        }
-                    }
                 }
-            }
 
             if round_start.elapsed() > timeout_dur {
                 eprintln!(

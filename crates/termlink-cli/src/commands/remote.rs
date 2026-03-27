@@ -133,8 +133,8 @@ pub(crate) async fn pick_remote_session(
 
     eprintln!("Sessions on {}:", hub);
     eprintln!(
-        "  {:<4} {:<20} {:<12} {:<10} {}",
-        "#", "NAME", "STATE", "PID", "TAGS"
+        "  {:<4} {:<20} {:<12} {:<10} TAGS",
+        "#", "NAME", "STATE", "PID"
     );
     eprintln!("  {}", "-".repeat(60));
     for (i, s) in sessions.iter().enumerate() {

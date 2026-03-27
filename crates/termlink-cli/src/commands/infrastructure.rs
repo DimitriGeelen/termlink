@@ -164,15 +164,14 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
         if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(ext) = path.extension() {
-                    if ext == "sock" {
+                if let Some(ext) = path.extension()
+                    && ext == "sock" {
                         let json_path = path.with_extension("json");
                         if !json_path.exists() {
                             orphan_count += 1;
                             orphan_paths.push(path);
                         }
                     }
-                }
             }
         }
         if orphan_count > 0 {

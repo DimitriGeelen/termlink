@@ -257,16 +257,15 @@ pub(crate) async fn cmd_dispatch(
             // which would cause us to skip seq 0 events on the next poll.
             let has_events = result["events"]
                 .as_array()
-                .map_or(false, |a| !a.is_empty());
-            if has_events {
-                if let Some(new_cursors) = result.get("cursors")
+                .is_some_and(|a| !a.is_empty());
+            if has_events
+                && let Some(new_cursors) = result.get("cursors")
                     && let Some(obj) = new_cursors.as_object()
                 {
                     for (k, v) in obj {
                         cursors[k] = v.clone();
                     }
                 }
-            }
         }
 
         tokio::time::sleep(poll_interval).await;

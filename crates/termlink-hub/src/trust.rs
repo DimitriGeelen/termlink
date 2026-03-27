@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 /// Trust is NOT a single number — it's a qualitative assessment across three
 /// independent axes. A mature script in an unfamiliar context still needs oversight.
 /// A low-blast command from an immature script may be safe to run unsupervised.
-
 /// Supervision levels — graduated autonomy from full bypass to blocked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
