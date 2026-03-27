@@ -16,6 +16,27 @@ plus Claude Code-specific integration notes.
 
 <!-- Define your project's tech stack, coding standards, and conventions here -->
 
+## CI / Release Flow
+
+**NEVER push to GitHub.** Only push to OneDev (`git push origin`). The rest is automated:
+
+```
+git push origin main --tags          # OneDev (only manual step)
+        ↓
+.onedev-buildspec.yml                # auto-mirrors all branches + tags to GitHub
+        ↓
+.github/workflows/release.yml       # GitHub Actions triggers on v* tags
+        ↓
+GitHub Releases                      # macOS + Linux binaries + checksums published
+        ↓
+Homebrew formula                     # brew install works (downloads from GitHub Releases)
+```
+
+- **OneDev** is the source of truth. Push here only.
+- **GitHub** is a read-only mirror. OneDev's `PushRepository` buildspec job handles sync automatically using `github-push-token`.
+- **Releases** happen when you tag (`git tag v0.X.0`) and push to OneDev. GitHub Actions builds the binaries.
+- **Versioning** is git-derived via `build.rs`: tag = exact version, N commits after tag = `major.minor.N`.
+
 ## Project-Specific Rules
 
 <!-- Add any project-specific rules that agents must follow -->
