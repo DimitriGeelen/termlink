@@ -12,7 +12,7 @@ tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-03-23T07:48:24Z
+last_update: 2026-03-27T17:57:12Z
 date_finished: null
 ---
 
@@ -42,9 +42,9 @@ Build task from T-208 inception (GO). Homebrew tap enables `brew install termlin
   **If not:** Check repo name matches exactly `homebrew-termlink`
 - [ ] [RUBBER-STAMP] Create a release to generate binaries with real SHA256s
   **Steps:**
-  1. `git tag v0.1.1 && git push origin v0.1.1` (from termlink repo)
+  1. `git push github main --tags` (pushes v0.9.0 tag to GitHub)
   2. Wait for GitHub Actions to complete (~5 min)
-  3. `./scripts/update-homebrew-sha.sh v0.1.1`
+  3. `./scripts/update-homebrew-sha.sh v0.9.0`
   4. Commit and push updated formula to the tap repo
   **Expected:** Formula has real SHA256 hashes (not PLACEHOLDER)
   **If not:** Check release artifacts exist at GitHub releases page

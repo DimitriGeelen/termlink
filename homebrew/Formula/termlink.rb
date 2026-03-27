@@ -8,7 +8,7 @@
 class Termlink < Formula
   desc "Cross-terminal session communication — message bus with terminal endpoints"
   homepage "https://github.com/DimitriGeelen/termlink"
-  version "0.1.0"
+  version "0.9.0"
   license "MIT"
 
   on_macos do
