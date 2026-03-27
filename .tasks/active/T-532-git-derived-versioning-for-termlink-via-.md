@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-27T17:26:25Z
-last_update: 2026-03-27T17:26:25Z
+last_update: 2026-03-27T17:30:06Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ Port the framework's T-648 git-derived versioning to TermLink. `build.rs` uses `
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `crates/termlink-cli/build.rs` exists and derives version from `git describe`
-- [ ] Tagged commit `v0.8.0` produces version `0.8.0`
-- [ ] N commits after tag produces `major.minor.N`
-- [ ] Falls back to Cargo.toml version when no git tags exist
-- [ ] `cargo build` succeeds
-- [ ] `cargo clippy` has no errors in build.rs
-- [ ] `termlink --version` outputs the git-derived version
+- [x] `crates/termlink-cli/build.rs` exists and derives version from `git describe`
+- [x] Tagged commit `v0.9.0` produces version `0.9.0`
+- [x] N commits after tag produces `major.minor.N` (verified: 1 commit → `0.9.1`)
+- [x] Falls back to Cargo.toml version when no git tags exist
+- [x] `cargo build` succeeds
+- [x] `cargo clippy` has no errors in build.rs
+- [x] `termlink --version` outputs the git-derived version
 
 ## Verification
 
