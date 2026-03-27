@@ -188,18 +188,40 @@ fn get_binary_version(path: &Path) -> Option<String> {
         })
 }
 
-/// Warn if .gitignore doesn't exclude the vendored binary.
+/// Ensure .gitignore excludes the vendored binary. Creates or appends as needed.
 fn check_gitignore(project_dir: &Path, vendor_dir: &Path) {
     let gitignore = project_dir.join(".gitignore");
-    if let Ok(content) = std::fs::read_to_string(&gitignore) {
-        let vendor_rel = vendor_dir
-            .strip_prefix(project_dir)
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|_| VENDOR_DIR.to_string());
+    let vendor_rel = vendor_dir
+        .strip_prefix(project_dir)
+        .map(|p| format!("{}/", p.display()))
+        .unwrap_or_else(|_| format!("{VENDOR_DIR}/"));
 
-        if !content.contains(&vendor_rel) && !content.contains(".termlink/bin") {
-            println!("\nWARN: .gitignore does not exclude vendored binary.");
-            println!("  Add: .termlink/bin/");
+    let content = std::fs::read_to_string(&gitignore).unwrap_or_default();
+
+    if content.contains(&vendor_rel) || content.contains(".termlink/bin") {
+        return;
+    }
+
+    // Append entry (create file if needed)
+    let entry = if content.is_empty() || content.ends_with('\n') {
+        format!("{vendor_rel}\n")
+    } else {
+        format!("\n{vendor_rel}\n")
+    };
+
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&gitignore)
+    {
+        Ok(mut f) => {
+            use std::io::Write;
+            let _ = f.write_all(entry.as_bytes());
+            println!("\n.gitignore: added {vendor_rel}");
+        }
+        Err(e) => {
+            println!("\nWARN: Cannot update .gitignore: {e}");
+            println!("  Add manually: {vendor_rel}");
         }
     }
 }
