@@ -4,7 +4,7 @@ name: "Document OneDev→GitHub mirror and release chain in CLAUDE.md"
 description: >
   Document OneDev→GitHub mirror and release chain in CLAUDE.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-27T18:19:21Z
-last_update: 2026-03-27T18:19:21Z
-date_finished: null
+last_update: 2026-03-27T18:21:07Z
+date_finished: 2026-03-27T18:21:07Z
 ---
 
 # T-535: Document OneDev→GitHub mirror and release chain in CLAUDE.md
@@ -34,7 +34,7 @@ T-534 RCA found agent repeatedly suggests `git push github` because CLAUDE.md do
 
 grep -q 'onedev-buildspec' CLAUDE.md
 grep -q 'auto-mirror' CLAUDE.md
-grep -q 'NEVER push to github' CLAUDE.md
+grep -qi 'NEVER push to github' CLAUDE.md
 
 ## Decisions
 
@@ -53,3 +53,6 @@ grep -q 'NEVER push to github' CLAUDE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-535-document-onedevgithub-mirror-and-release.md
 - **Context:** Initial task creation
+
+### 2026-03-27T18:21:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

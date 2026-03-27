@@ -1,0 +1,284 @@
+# ============================================================================
+# EPISODIC MEMORY - T-291: Housekeeping — fix all audit warnings before push to origin
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-26T22:05:05Z
+# ============================================================================
+
+task_id: T-291
+task_name: "Housekeeping — fix all audit warnings before push to origin"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-26T11:04:11Z
+completed: 2026-03-26T22:05:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-26T12:22:43+01:00
+last_commit: 2026-03-26T23:05:00+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix all audit warnings — episodics, research artifacts, T-258 decision, gaps.yaml. Fix CTL-009 T-258 decision format to match audit pattern. Fix remaining audit warnings — ACs, research artifacts, T-233 decision. Add research artifact references to T-207, T-235, T-280. Fix fabric drift — scan 32 new cards, enrich 62, add 149 edges. Update audit history and metrics. Check ACs — all audit housekeeping verified by T-293. Complete — all ACs verified, pushed to origin with 0 FAILs
+
+# Key outcomes
+outcomes:
+  - "CTL-009 FAIL on T-258 resolved (decision added — prior session)"
+  - "All missing episodic summaries generated (0 missing now)"
+  - "5 inception research artifacts created (T-205, T-206, T-208, T-209, T-245 — all exist)"
+  - "Stale gaps.yaml removed (no longer present)"
+  - "T-283 and T-287 research artifact references added to task Updates (prior session)"
+  - "Pre-push audit passes with 0 FAILs (T-293 resolved all)"
+  - "All changes committed and pushed to origin (f0879af pushed to onedev)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix fabric drift — scan 32 new cards, enrich 62, add 149 edges"
+    source: git-mined
+  - description: "Fix remaining audit warnings — ACs, research artifacts, T-233 decision"
+    source: git-mined
+  - description: "Fix CTL-009 T-258 decision format to match audit pattern"
+    source: git-mined
+  - description: "Fix all audit warnings — episodics, research artifacts, T-258 decision, gaps.yaml"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-03-26.yaml"
+  - ".context/audits/cron/2026-03-26-1715.yaml"
+  - ".context/audits/cron/2026-03-26-1730.yaml"
+  - ".context/audits/cron/2026-03-26-1745.yaml"
+  - ".context/audits/cron/2026-03-26-1800.yaml"
+  - ".context/audits/cron/2026-03-26-1815.yaml"
+  - ".context/audits/cron/2026-03-26-1830.yaml"
+  - ".context/audits/cron/2026-03-26-1845.yaml"
+  - ".context/audits/cron/2026-03-26-1900.yaml"
+  - ".context/audits/cron/2026-03-26-1915.yaml"
+  - ".context/audits/cron/2026-03-26-1930.yaml"
+  - ".context/audits/cron/2026-03-26-1945.yaml"
+  - ".context/audits/cron/2026-03-26-2000.yaml"
+  - ".context/audits/cron/2026-03-26-2015.yaml"
+  - ".context/audits/cron/2026-03-26-2030.yaml"
+  - ".context/audits/cron/2026-03-26-2045.yaml"
+  - ".context/audits/cron/2026-03-26-2100.yaml"
+  - ".context/audits/cron/2026-03-26-2115.yaml"
+  - ".context/audits/cron/2026-03-26-2130.yaml"
+  - ".context/audits/cron/2026-03-26-2145.yaml"
+  - ".context/audits/cron/2026-03-26-2200.yaml"
+  - ".context/audits/cron/2026-03-26-2215.yaml"
+  - ".context/audits/cron/2026-03-26-2230.yaml"
+  - ".context/audits/cron/2026-03-26-2245.yaml"
+  - ".context/audits/cron/2026-03-26-2300.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/episodic/T-148.yaml"
+  - ".context/episodic/T-157.yaml"
+  - ".context/episodic/T-197.yaml"
+  - ".context/episodic/T-198.yaml"
+  - ".context/episodic/T-199.yaml"
+  - ".context/episodic/T-201.yaml"
+  - ".context/episodic/T-202.yaml"
+  - ".context/episodic/T-203.yaml"
+  - ".context/episodic/T-204.yaml"
+  - ".context/episodic/T-221.yaml"
+  - ".context/episodic/T-229.yaml"
+  - ".context/episodic/T-238.yaml"
+  - ".context/episodic/T-239.yaml"
+  - ".context/episodic/T-240.yaml"
+  - ".context/episodic/T-241.yaml"
+  - ".context/episodic/T-242.yaml"
+  - ".context/episodic/T-245.yaml"
+  - ".context/episodic/T-247.yaml"
+  - ".context/episodic/T-248.yaml"
+  - ".context/episodic/T-249.yaml"
+  - ".context/episodic/T-250.yaml"
+  - ".context/episodic/T-251.yaml"
+  - ".context/episodic/T-252.yaml"
+  - ".context/episodic/T-253.yaml"
+  - ".context/episodic/T-254.yaml"
+  - ".context/episodic/T-255.yaml"
+  - ".context/episodic/T-256.yaml"
+  - ".context/episodic/T-257.yaml"
+  - ".context/episodic/T-258.yaml"
+  - ".context/episodic/T-259.yaml"
+  - ".context/episodic/T-261.yaml"
+  - ".context/episodic/T-262.yaml"
+  - ".context/episodic/T-263.yaml"
+  - ".context/episodic/T-264.yaml"
+  - ".context/episodic/T-265.yaml"
+  - ".context/episodic/T-266.yaml"
+  - ".context/episodic/T-267.yaml"
+  - ".context/episodic/T-268.yaml"
+  - ".context/episodic/T-269.yaml"
+  - ".context/episodic/T-270.yaml"
+  - ".context/episodic/T-271.yaml"
+  - ".context/episodic/T-272.yaml"
+  - ".context/episodic/T-273.yaml"
+  - ".context/episodic/T-274.yaml"
+  - ".context/episodic/T-275.yaml"
+  - ".context/episodic/T-276.yaml"
+  - ".context/episodic/T-277.yaml"
+  - ".context/episodic/T-278.yaml"
+  - ".context/episodic/T-279.yaml"
+  - ".context/episodic/T-281.yaml"
+  - ".context/project/decisions.yaml"
+  - ".context/project/gaps.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.gitignore"
+  - "docs/reports/T-205-pyyaml-phantom-dependency.md"
+  - "docs/reports/T-206-remove-sudo-from-installer.md"
+  - "docs/reports/T-207-phantom-aef-binary.md"
+  - "docs/reports/T-208-homebrew-tap-distribution.md"
+  - "docs/reports/T-209-ssh-dispatch.md"
+  - "docs/reports/T-235-terminal-output-rendering.md"
+  - "docs/reports/T-245-interactive-session-picker.md"
+  - "docs/reports/T-280-dispatch-readiness.md"
+  - ".fabric/components/agents-audit-audit.yaml"
+  - ".fabric/components/agents-audit-plugin-audit.yaml"
+  - ".fabric/components/agents-audit-self-audit.yaml"
+  - ".fabric/components/agents-context-block-plan-mode.yaml"
+  - ".fabric/components/agents-context-budget-gate.yaml"
+  - ".fabric/components/agents-context-bus-handler.yaml"
+  - ".fabric/components/agents-context-check-active-task.yaml"
+  - ".fabric/components/agents-context-check-agent-dispatch.yaml"
+  - ".fabric/components/agents-context-check-dispatch-pre.yaml"
+  - ".fabric/components/agents-context-check-dispatch.yaml"
+  - ".fabric/components/agents-context-check-fabric-new-file.yaml"
+  - ".fabric/components/agents-context-checkpoint.yaml"
+  - ".fabric/components/agents-context-check-project-boundary.yaml"
+  - ".fabric/components/agents-context-check-tier0.yaml"
+  - ".fabric/components/agents-context-commit-cadence.yaml"
+  - ".fabric/components/agents-context-consolidate.yaml"
+  - ".fabric/components/agents-context-context.yaml"
+  - ".fabric/components/agents-context-error-watchdog.yaml"
+  - ".fabric/components/agents-context-loop-detect.yaml"
+  - ".fabric/components/agents-context-post-compact-resume.yaml"
+  - ".fabric/components/agents-context-pre-compact.yaml"
+  - ".fabric/components/agents-context-test-tier0-patterns.yaml"
+  - ".fabric/components/agents-fabric-fabric.yaml"
+  - ".fabric/components/agents-git-git.yaml"
+  - ".fabric/components/agents-handover-handover.yaml"
+  - ".fabric/components/agents-healing-healing.yaml"
+  - ".fabric/components/agents-mesh-agent-wrapper.yaml"
+  - ".fabric/components/agents-mesh-dispatch.yaml"
+  - ".fabric/components/agents-mesh-prompt-template.yaml"
+  - ".fabric/components/agents-mesh-worker.yaml"
+  - ".fabric/components/agents-resume-resume.yaml"
+  - ".fabric/components/agents-task-create-create-task.yaml"
+  - ".fabric/components/agents-task-create-update-task.yaml"
+  - ".fabric/components/crates-termlink-cli-src-cli.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-agent.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-dispatch.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-events.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-execution.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-file.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-infrastructure.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-metadata.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-mod.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-pty.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-push.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-remote.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-session.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-token.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-vendor.yaml"
+  - ".fabric/components/crates-termlink-cli-src-config.yaml"
+  - ".fabric/components/crates-termlink-cli-src-main.yaml"
+  - ".fabric/components/crates-termlink-cli-src-util.yaml"
+  - ".fabric/components/crates-termlink-cli-tests-cli_integration.yaml"
+  - ".fabric/components/crates-termlink-hub-src-lib.yaml"
+  - ".fabric/components/crates-termlink-hub-src-pidfile.yaml"
+  - ".fabric/components/crates-termlink-hub-src-route_cache.yaml"
+  - ".fabric/components/crates-termlink-hub-src-router.yaml"
+  - ".fabric/components/crates-termlink-hub-src-server.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-control.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-data.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-error.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-events.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-jsonrpc.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-lib.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-transport.yaml"
+  - ".fabric/components/crates-termlink-session-src-auth.yaml"
+  - ".fabric/components/crates-termlink-session-src-client.yaml"
+  - ".fabric/components/crates-termlink-session-src-codec.yaml"
+  - ".fabric/components/crates-termlink-session-src-data_server.yaml"
+  - ".fabric/components/crates-termlink-session-src-discovery.yaml"
+  - ".fabric/components/crates-termlink-session-src-events.yaml"
+  - ".fabric/components/crates-termlink-session-src-executor.yaml"
+  - ".fabric/components/crates-termlink-session-src-handler.yaml"
+  - ".fabric/components/crates-termlink-session-src-identity.yaml"
+  - ".fabric/components/crates-termlink-session-src-lib.yaml"
+  - ".fabric/components/crates-termlink-session-src-lifecycle.yaml"
+  - ".fabric/components/crates-termlink-session-src-liveness.yaml"
+  - ".fabric/components/crates-termlink-session-src-manager.yaml"
+  - ".fabric/components/crates-termlink-session-src-pty.yaml"
+  - ".fabric/components/crates-termlink-session-src-registration.yaml"
+  - ".fabric/components/crates-termlink-session-src-scrollback.yaml"
+  - ".fabric/components/crates-termlink-session-src-server.yaml"
+  - ".tasks/active/T-207-fix-phantom-aef-binary-name-in-installer.md"
+  - ".tasks/active/T-235-research-clean-terminal-output-rendering.md"
+  - ".tasks/active/T-280-dispatch-readiness--structural-completio.md"
+  - ".tasks/active/T-283-cross-session-failure-blindness--107-rem.md"
+  - ".tasks/active/T-287-cross-project-framework-upgrade--fw-agen.md"
+  - ".tasks/active/T-289-push-t-287-findings-to-fw-agent.md"
+  - ".tasks/active/T-291-housekeeping--fix-all-audit-warnings-bef.md"
+  - ".tasks/completed/T-101-inception-jsonl-transcript-reader-conv-capture.md"
+  - ".tasks/completed/T-206-remove-sudo-from-installer--path-based-i.md"
+  - ".tasks/completed/T-245-interactive-session-picker-for-attachmir.md"
+  - ".tasks/completed/T-258-context-amnesia-root-cause--t-233-vision.md"
+  - ".tasks/completed/T-272-hub-remote-session-reaper--ttl-enforceme.md"
+  - ".tasks/completed/T-286-fix-remote-exec-clap-panic--same-positio.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-26T12:22:43"
+    action: "T-291: Fix all audit warnings — episodics, research artifacts, T-258 decision, gaps.yaml"
+  - time: "2026-03-26T12:33:44"
+    action: "T-291: Fix CTL-009 T-258 decision format to match audit pattern"
+  - time: "2026-03-26T12:37:59"
+    action: "T-291: Fix remaining audit warnings — ACs, research artifacts, T-233 decision"
+  - time: "2026-03-26T12:53:10"
+    action: "T-291: Add research artifact references to T-207, T-235, T-280"
+  - time: "2026-03-26T12:54:22"
+    action: "T-291: Fix fabric drift — scan 32 new cards, enrich 62, add 149 edges"
+  - time: "2026-03-26T12:54:35"
+    action: "T-291: Update audit history and metrics"
+  - time: "2026-03-26T22:25:59"
+    action: "T-291: Check ACs — all audit housekeeping verified by T-293"
+  - time: "2026-03-26T23:05:00"
+    action: "T-291: Complete — all ACs verified, pushed to origin with 0 FAILs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 660 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 660
+  commits: 8
+  files_changed: 185
+  lines_added: 7261
+  lines_removed: 1028
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-291-housekeeping--fix-all-audit-warnings-bef.md
+generated_by: context-agent-hybrid
