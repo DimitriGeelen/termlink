@@ -13,12 +13,28 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let file_path = std::path::Path::new(path);
-    let file_data = std::fs::read(file_path)
-        .context(format!("Failed to read file: {}", path))?;
+    let file_data = match std::fs::read(file_path) {
+        Ok(d) => d,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to read file '{}': {}", path, e)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Failed to read file '{}': {}", path, e);
+        }
+    };
 
     let filename = file_path
         .file_name()
