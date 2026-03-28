@@ -33,6 +33,10 @@ pub(crate) async fn cmd_tag(
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => result.context("Failed to connect to session")?,
         Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Tag update timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Tag update timed out after {}s", timeout_secs);
         }
     };
@@ -60,6 +64,10 @@ pub(crate) async fn cmd_tag(
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Tag update failed: {}", e);
         }
     }
@@ -154,7 +162,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
                 Ok(r) => r.context("Failed to connect to session")?,
-                Err(_) => anyhow::bail!("kv.set timed out after {}s", timeout_secs),
+                Err(_) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.set timed out after {}s", timeout_secs)}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.set timed out after {}s", timeout_secs);
+                }
             };
 
             match client::unwrap_result(resp) {
@@ -171,7 +185,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
                         );
                     }
                 }
-                Err(e) => anyhow::bail!("kv.set failed: {}", e),
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.set failed: {}", e);
+                }
             }
         }
         KvAction::Get { key } => {
@@ -182,7 +202,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
                 Ok(r) => r.context("Failed to connect to session")?,
-                Err(_) => anyhow::bail!("kv.get timed out after {}s", timeout_secs),
+                Err(_) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.get timed out after {}s", timeout_secs)}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.get timed out after {}s", timeout_secs);
+                }
             };
 
             match client::unwrap_result(resp) {
@@ -196,7 +222,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
                         std::process::exit(1);
                     }
                 }
-                Err(e) => anyhow::bail!("kv.get failed: {}", e),
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.get failed: {}", e);
+                }
             }
         }
         KvAction::List => {
@@ -207,7 +239,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
                 Ok(r) => r.context("Failed to connect to session")?,
-                Err(_) => anyhow::bail!("kv.list timed out after {}s", timeout_secs),
+                Err(_) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.list timed out after {}s", timeout_secs)}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.list timed out after {}s", timeout_secs);
+                }
             };
 
             match client::unwrap_result(resp) {
@@ -231,7 +269,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
                         }
                     }
                 }
-                Err(e) => anyhow::bail!("kv.list failed: {}", e),
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.list failed: {}", e);
+                }
             }
         }
         KvAction::Del { key } => {
@@ -242,7 +286,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
                 Ok(r) => r.context("Failed to connect to session")?,
-                Err(_) => anyhow::bail!("kv.delete timed out after {}s", timeout_secs),
+                Err(_) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.delete timed out after {}s", timeout_secs)}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.delete timed out after {}s", timeout_secs);
+                }
             };
 
             match client::unwrap_result(resp) {
@@ -256,7 +306,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
                         std::process::exit(1);
                     }
                 }
-                Err(e) => anyhow::bail!("kv.delete failed: {}", e),
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("kv.delete failed: {}", e);
+                }
             }
         }
     }
