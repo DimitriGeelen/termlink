@@ -434,6 +434,7 @@ pub(crate) async fn cmd_remote_list(
     roles: Option<&str>,
     cap: Option<&str>,
     count: bool,
+    first: bool,
     no_header: bool,
     json: bool,
 ) -> Result<()> {
@@ -469,6 +470,22 @@ pub(crate) async fn cmd_remote_list(
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
             let sessions = r.result["sessions"].as_array();
             let sessions = sessions.map(|a| a.as_slice()).unwrap_or(&[]);
+
+            if first {
+                if let Some(s) = sessions.first() {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(s)?);
+                    } else {
+                        println!("{}", s["display_name"].as_str().unwrap_or("?"));
+                    }
+                } else {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "error": "No matching sessions"}));
+                    }
+                    std::process::exit(1);
+                }
+                return Ok(());
+            }
 
             if count {
                 if json {

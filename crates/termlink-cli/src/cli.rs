@@ -937,6 +937,10 @@ pub(crate) enum RemoteAction {
         #[arg(long)]
         count: bool,
 
+        /// Output only the first matching session's display name (exits 1 if none)
+        #[arg(long)]
+        first: bool,
+
         /// Suppress table header and footer
         #[arg(long)]
         no_header: bool,
