@@ -1,0 +1,10 @@
+# Upgrade audit trail (T-617)
+upgrades:
+  - timestamp: 2026-03-28T16:03:09Z
+    from_version: "1.3.0"
+    to_version: "1.4.73"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-03-28T16:29:52Z
+    from_version: "1.4.73"
+    to_version: "1.4.86"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"

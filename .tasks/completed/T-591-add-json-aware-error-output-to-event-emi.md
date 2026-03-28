@@ -1,22 +1,22 @@
 ---
-id: T-594
-name: "Add RPC-level timeout wrapping to exec command"
+id: T-591
+name: "Add JSON-aware error output to event emit, emit-to, broadcast, and poll commands"
 description: >
-  Add RPC-level timeout wrapping to exec command
+  Add JSON-aware error output to event emit, emit-to, broadcast, and poll commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/events.rs]
 related_tasks: []
-created: 2026-03-28T16:25:10Z
-last_update: 2026-03-28T16:25:10Z
-date_finished: null
+created: 2026-03-28T16:19:07Z
+last_update: 2026-03-28T16:20:41Z
+date_finished: 2026-03-28T16:20:41Z
 ---
 
-# T-594: Add RPC-level timeout wrapping to exec command
+# T-591: Add JSON-aware error output to event emit, emit-to, broadcast, and poll commands
 
 ## Context
 
@@ -25,7 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] cmd_exec wraps RPC call in tokio::time::timeout (uses existing --timeout value + 5s buffer)
+- [x] cmd_emit error paths emit JSON when --json is passed
+- [x] cmd_emit_to error paths emit JSON when --json is passed
+- [x] cmd_broadcast error paths emit JSON when --json is passed
+- [x] cmd_events (poll) error paths emit JSON when --json is passed
 - [x] cargo build succeeds
 
 ### Human
@@ -67,7 +70,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T16:25:10Z — task-created [task-create-agent]
+### 2026-03-28T16:19:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-594-add-rpc-level-timeout-wrapping-to-exec-c.md
+- **Output:** /opt/termlink/.tasks/active/T-591-add-json-aware-error-output-to-event-emi.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:20:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

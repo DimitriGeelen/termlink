@@ -1,22 +1,22 @@
 ---
-id: T-586
-name: "Add --timeout to pty inject, resize, and output commands"
+id: T-594
+name: "Add RPC-level timeout wrapping to exec command"
 description: >
-  Add --timeout to pty inject, resize, and output commands
+  Add RPC-level timeout wrapping to exec command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
-created: 2026-03-28T15:58:00Z
-last_update: 2026-03-28T15:58:00Z
-date_finished: null
+created: 2026-03-28T16:25:10Z
+last_update: 2026-03-28T16:26:05Z
+date_finished: 2026-03-28T16:26:05Z
 ---
 
-# T-586: Add --timeout to pty inject, resize, and output commands
+# T-594: Add RPC-level timeout wrapping to exec command
 
 ## Context
 
@@ -25,9 +25,7 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --timeout added to PtyCommand::Inject, Resize, Output and their hidden aliases
-- [x] main.rs passes timeout to cmd_inject, cmd_resize, cmd_output
-- [x] All three commands wrap RPC calls in tokio::time::timeout
+- [x] cmd_exec wraps RPC call in tokio::time::timeout (uses existing --timeout value + 5s buffer)
 - [x] cargo build succeeds
 
 ### Human
@@ -69,7 +67,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:58:00Z — task-created [task-create-agent]
+### 2026-03-28T16:25:10Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-586-add---timeout-to-pty-inject-resize-and-o.md
+- **Output:** /opt/termlink/.tasks/active/T-594-add-rpc-level-timeout-wrapping-to-exec-c.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:26:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

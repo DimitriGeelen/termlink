@@ -1,22 +1,22 @@
 ---
-id: T-591
-name: "Add JSON-aware error output to event emit, emit-to, broadcast, and poll commands"
+id: T-592
+name: "Add JSON-aware error output to tag and kv commands"
 description: >
-  Add JSON-aware error output to event emit, emit-to, broadcast, and poll commands
+  Add JSON-aware error output to tag and kv commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/metadata.rs]
 related_tasks: []
-created: 2026-03-28T16:19:07Z
-last_update: 2026-03-28T16:19:07Z
-date_finished: null
+created: 2026-03-28T16:20:50Z
+last_update: 2026-03-28T16:22:29Z
+date_finished: 2026-03-28T16:22:29Z
 ---
 
-# T-591: Add JSON-aware error output to event emit, emit-to, broadcast, and poll commands
+# T-592: Add JSON-aware error output to tag and kv commands
 
 ## Context
 
@@ -25,10 +25,8 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] cmd_emit error paths emit JSON when --json is passed
-- [x] cmd_emit_to error paths emit JSON when --json is passed
-- [x] cmd_broadcast error paths emit JSON when --json is passed
-- [x] cmd_events (poll) error paths emit JSON when --json is passed
+- [x] cmd_tag error paths emit JSON when --json is passed
+- [x] cmd_kv error paths emit JSON when --json is passed (all 4 subcommands)
 - [x] cargo build succeeds
 
 ### Human
@@ -70,7 +68,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T16:19:07Z — task-created [task-create-agent]
+### 2026-03-28T16:20:50Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-591-add-json-aware-error-output-to-event-emi.md
+- **Output:** /opt/termlink/.tasks/active/T-592-add-json-aware-error-output-to-tag-and-k.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:22:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-586: Add --timeout to pty inject, resize, and output commands
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T16:15:58Z
+# ============================================================================
+
+task_id: T-586
+task_name: "Add --timeout to pty inject, resize, and output commands"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T15:58:00Z
+completed: 2026-03-28T16:07:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-28T17:07:10+01:00
+last_commit: 2026-03-28T17:07:10+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --timeout to pty inject, resize, and output commands
+
+# Key outcomes
+outcomes:
+  - "--timeout added to PtyCommand::Inject, Resize, Output and their hidden aliases"
+  - "main.rs passes timeout to cmd_inject, cmd_resize, cmd_output"
+  - "All three commands wrap RPC calls in tokio::time::timeout"
+  - "cargo build succeeds"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/pty.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-586-add---timeout-to-pty-inject-resize-and-o.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-28T17:07:10"
+    action: "T-586: Add --timeout to pty inject, resize, and output commands"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 4
+  lines_added: 44
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-586-add---timeout-to-pty-inject-resize-and-o.md
+generated_by: context-agent-hybrid

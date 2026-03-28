@@ -60,6 +60,24 @@
         ]
       },
       {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".agentic-framework/bin/fw hook check-agent-dispatch"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".agentic-framework/bin/fw hook check-project-boundary"
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit|Bash",
         "hooks": [
           {
@@ -98,11 +116,29 @@
         ]
       },
       {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".agentic-framework/bin/fw hook loop-detect"
+          }
+        ]
+      },
+      {
         "matcher": "Write",
         "hooks": [
           {
             "type": "command",
             "command": ".agentic-framework/bin/fw hook check-fabric-new-file"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".agentic-framework/bin/fw hook commit-cadence"
           }
         ]
       }

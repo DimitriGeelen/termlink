@@ -1,22 +1,22 @@
 ---
-id: T-587
-name: "Add --timeout to event topics command"
+id: T-597
+name: "Add --count flag to discover command for scripting"
 description: >
-  Add --timeout to event topics command
+  Add --count flag to discover command for scripting
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T16:10:40Z
-last_update: 2026-03-28T16:10:40Z
-date_finished: null
+created: 2026-03-28T16:30:02Z
+last_update: 2026-03-28T16:31:52Z
+date_finished: 2026-03-28T16:31:52Z
 ---
 
-# T-587: Add --timeout to event topics command
+# T-597: Add --count flag to discover command for scripting
 
 ## Context
 
@@ -25,9 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --timeout added to EventCommand::Topics and hidden Topics alias in cli.rs
-- [x] main.rs passes timeout to cmd_topics
-- [x] cmd_topics wraps RPC calls in tokio::time::timeout
+- [x] --count flag added to Discover command in cli.rs
+- [x] main.rs passes count to cmd_discover
+- [x] cmd_discover outputs just the count when --count is passed
 - [x] cargo build succeeds
 
 ### Human
@@ -69,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T16:10:40Z — task-created [task-create-agent]
+### 2026-03-28T16:30:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-587-add---timeout-to-event-topics-command.md
+- **Output:** /opt/termlink/.tasks/active/T-597-add---count-flag-to-discover-command-for.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:31:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

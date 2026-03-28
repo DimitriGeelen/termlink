@@ -1,0 +1,3 @@
+# Cron Registry — Structured source of truth for scheduled jobs (T-448)
+# Read by web/blueprints/cron.py and fw cron generate.
+jobs: []

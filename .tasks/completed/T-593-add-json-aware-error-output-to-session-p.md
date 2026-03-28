@@ -1,22 +1,22 @@
 ---
-id: T-595
-name: "Add JSON-aware error output to file send and file receive commands"
+id: T-593
+name: "Add JSON-aware error output to session ping, status, signal, exec, and send commands"
 description: >
-  Add JSON-aware error output to file send and file receive commands
+  Add JSON-aware error output to session ping, status, signal, exec, and send commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
-created: 2026-03-28T16:26:23Z
-last_update: 2026-03-28T16:26:23Z
-date_finished: null
+created: 2026-03-28T16:22:41Z
+last_update: 2026-03-28T16:24:15Z
+date_finished: 2026-03-28T16:24:15Z
 ---
 
-# T-595: Add JSON-aware error output to file send and file receive commands
+# T-593: Add JSON-aware error output to session ping, status, signal, exec, and send commands
 
 ## Context
 
@@ -25,8 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] cmd_file_send error paths emit JSON when --json is passed (timeout, RPC errors)
-- [x] cmd_file_receive error paths emit JSON when --json is passed (timeout, SHA mismatch, missing chunks)
+- [x] cmd_status error paths emit JSON when --json is passed (timeout and RPC error)
+- [x] cmd_signal error paths emit JSON when --json is passed (timeout and RPC error)
+- [x] cmd_exec error paths emit JSON when --json is passed (RPC error)
 - [x] cargo build succeeds
 
 ### Human
@@ -68,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T16:26:23Z — task-created [task-create-agent]
+### 2026-03-28T16:22:41Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-595-add-json-aware-error-output-to-file-send.md
+- **Output:** /opt/termlink/.tasks/active/T-593-add-json-aware-error-output-to-session-p.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:24:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

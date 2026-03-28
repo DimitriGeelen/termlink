@@ -1,22 +1,22 @@
 ---
-id: T-592
-name: "Add JSON-aware error output to tag and kv commands"
+id: T-587
+name: "Add --timeout to event topics command"
 description: >
-  Add JSON-aware error output to tag and kv commands
+  Add --timeout to event topics command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T16:20:50Z
-last_update: 2026-03-28T16:20:50Z
-date_finished: null
+created: 2026-03-28T16:10:40Z
+last_update: 2026-03-28T16:12:43Z
+date_finished: 2026-03-28T16:12:43Z
 ---
 
-# T-592: Add JSON-aware error output to tag and kv commands
+# T-587: Add --timeout to event topics command
 
 ## Context
 
@@ -25,8 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] cmd_tag error paths emit JSON when --json is passed
-- [x] cmd_kv error paths emit JSON when --json is passed (all 4 subcommands)
+- [x] --timeout added to EventCommand::Topics and hidden Topics alias in cli.rs
+- [x] main.rs passes timeout to cmd_topics
+- [x] cmd_topics wraps RPC calls in tokio::time::timeout
 - [x] cargo build succeeds
 
 ### Human
@@ -68,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T16:20:50Z — task-created [task-create-agent]
+### 2026-03-28T16:10:40Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-592-add-json-aware-error-output-to-tag-and-k.md
+- **Output:** /opt/termlink/.tasks/active/T-587-add---timeout-to-event-topics-command.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:12:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

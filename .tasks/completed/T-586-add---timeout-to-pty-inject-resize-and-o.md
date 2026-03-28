@@ -1,22 +1,22 @@
 ---
-id: T-597
-name: "Add --count flag to discover command for scripting"
+id: T-586
+name: "Add --timeout to pty inject, resize, and output commands"
 description: >
-  Add --count flag to discover command for scripting
+  Add --timeout to pty inject, resize, and output commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-28T16:30:02Z
-last_update: 2026-03-28T16:30:02Z
-date_finished: null
+created: 2026-03-28T15:58:00Z
+last_update: 2026-03-28T16:07:16Z
+date_finished: 2026-03-28T16:07:16Z
 ---
 
-# T-597: Add --count flag to discover command for scripting
+# T-586: Add --timeout to pty inject, resize, and output commands
 
 ## Context
 
@@ -25,9 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --count flag added to Discover command in cli.rs
-- [x] main.rs passes count to cmd_discover
-- [x] cmd_discover outputs just the count when --count is passed
+- [x] --timeout added to PtyCommand::Inject, Resize, Output and their hidden aliases
+- [x] main.rs passes timeout to cmd_inject, cmd_resize, cmd_output
+- [x] All three commands wrap RPC calls in tokio::time::timeout
 - [x] cargo build succeeds
 
 ### Human
@@ -69,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T16:30:02Z — task-created [task-create-agent]
+### 2026-03-28T15:58:00Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-597-add---count-flag-to-discover-command-for.md
+- **Output:** /opt/termlink/.tasks/active/T-586-add---timeout-to-pty-inject-resize-and-o.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:07:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

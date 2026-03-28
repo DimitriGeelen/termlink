@@ -1,8 +1,8 @@
-timestamp: 2026-03-28T15:54:10Z
+timestamp: 2026-03-28T16:30:01Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (2/323)"
+    check: "D1: Episodic quality — 0% [TODO] (2/335)"
   - id: D2
     level: PASS
     check: "D2: Human review queue — 5 task(s) awaiting human action (normal)"
@@ -15,31 +15,9 @@ findings:
   - id: D11
     level: PASS
     check: "D11: Gap register staleness — all gaps fresh"
-  - id: D4
-    level: PASS
-    check: "D4: Audit trend — insufficient history (<3 entries)"
-  - id: D5
-    level: WARN
-    check: "D5: Task lifecycle — 19 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+9 more)"
-    mitigation: "Review flagged tasks for process issues"
-  - id: D3
-    level: PASS
-    check: "D3: Commit velocity — normal (PASS today=54 avg=36 ratio=1.5x)"
-  - id: D7
-    level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 74_commits_24h)"
-  - id: D6
-    level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=18.0 earlier=13.7)"
-  - id: D12
-    level: PASS
-    check: "D12: Bypass log — no log file"
-  - id: D9
-    level: PASS
-    check: "D9: Control drift — normal (PASS 10_audits_checked)"
 
 summary:
-  pass: 11
-  warn: 1
+  pass: 5
+  warn: 0
   fail: 0
-  total: 12
+  total: 5

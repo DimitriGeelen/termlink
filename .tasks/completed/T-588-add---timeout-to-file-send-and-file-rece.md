@@ -4,16 +4,16 @@ name: "Add --timeout to file send and file receive commands"
 description: >
   Add --timeout to file send and file receive commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-28T16:13:31Z
-last_update: 2026-03-28T16:13:31Z
-date_finished: null
+last_update: 2026-03-28T16:15:44Z
+date_finished: 2026-03-28T16:15:44Z
 ---
 
 # T-588: Add --timeout to file send and file receive commands
@@ -74,3 +74,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-588-add---timeout-to-file-send-and-file-rece.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:15:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "Add per-RPC timeout to doctor command session and hub pings"
 description: >
   Add per-RPC timeout to doctor command session and hub pings
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: []
 created: 2026-03-28T16:16:24Z
-last_update: 2026-03-28T16:16:24Z
-date_finished: null
+last_update: 2026-03-28T16:17:28Z
+date_finished: 2026-03-28T16:17:28Z
 ---
 
 # T-589: Add per-RPC timeout to doctor command session and hub pings
@@ -72,3 +72,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-589-add-per-rpc-timeout-to-doctor-command-se.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:17:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

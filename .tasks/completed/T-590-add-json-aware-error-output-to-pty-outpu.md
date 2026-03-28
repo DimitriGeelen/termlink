@@ -1,22 +1,22 @@
 ---
-id: T-596
-name: "Add JSON-aware error output to interact command timeout"
+id: T-590
+name: "Add JSON-aware error output to pty output and pty resize commands"
 description: >
-  Add JSON-aware error output to interact command timeout
+  Add JSON-aware error output to pty output and pty resize commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/pty.rs]
 related_tasks: []
-created: 2026-03-28T16:28:18Z
-last_update: 2026-03-28T16:28:18Z
-date_finished: null
+created: 2026-03-28T16:17:39Z
+last_update: 2026-03-28T16:19:00Z
+date_finished: 2026-03-28T16:19:00Z
 ---
 
-# T-596: Add JSON-aware error output to interact command timeout
+# T-590: Add JSON-aware error output to pty output and pty resize commands
 
 ## Context
 
@@ -25,7 +25,8 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] cmd_interact timeout and error bail! paths emit JSON when --json is passed
+- [x] cmd_output error paths emit JSON when --json is passed (timeout, RPC error, unwrap_result error)
+- [x] cmd_resize error paths emit JSON when --json is passed (timeout, RPC error, unwrap_result error)
 - [x] cargo build succeeds
 
 ### Human
@@ -67,7 +68,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T16:28:18Z — task-created [task-create-agent]
+### 2026-03-28T16:17:39Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-596-add-json-aware-error-output-to-interact-.md
+- **Output:** /opt/termlink/.tasks/active/T-590-add-json-aware-error-output-to-pty-outpu.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:19:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

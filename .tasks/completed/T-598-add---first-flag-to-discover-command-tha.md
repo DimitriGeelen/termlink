@@ -4,16 +4,16 @@ name: "Add --first flag to discover command that outputs just the first matching
 description: >
   Add --first flag to discover command that outputs just the first matching session ID
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-28T16:32:08Z
-last_update: 2026-03-28T16:32:08Z
-date_finished: null
+last_update: 2026-03-28T16:33:31Z
+date_finished: 2026-03-28T16:33:31Z
 ---
 
 # T-598: Add --first flag to discover command that outputs just the first matching session ID
@@ -73,3 +73,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-598-add---first-flag-to-discover-command-tha.md
 - **Context:** Initial task creation
+
+### 2026-03-28T16:33:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

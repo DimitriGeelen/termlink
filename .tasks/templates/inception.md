@@ -53,7 +53,7 @@ date_finished: null
   **Steps:**
   1. Read the research artifact and recommendation in this task
   2. Evaluate go/no-go criteria against findings
-  3. Run: `fw inception decide T-XXX go|no-go --rationale "your rationale"`
+  3. Run: `cd /opt/999-Agentic-Engineering-Framework && bin/fw inception decide T-XXX go|no-go --rationale "your rationale"`
   **Expected:** Decision recorded, task completed
   **If not:** Ask agent for clarification on specific findings
 
