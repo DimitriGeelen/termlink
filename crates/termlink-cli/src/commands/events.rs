@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use termlink_session::client;
 use termlink_session::manager;
 
-pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>) -> Result<()> {
+pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -21,6 +21,10 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
 
     match client::unwrap_result(resp) {
         Ok(result) => {
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+                return Ok(());
+            }
             let events = result["events"].as_array().unwrap();
             if events.is_empty() {
                 println!("No events (next_seq: {})", result["next_seq"]);
@@ -49,7 +53,7 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
     }
 }
 
-pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str) -> Result<()> {
+pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json: bool) -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_str(payload_str).context("Invalid JSON payload")?;
 
@@ -66,11 +70,15 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str) -> Re
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            println!(
-                "Event emitted: {} (seq: {})",
-                result["topic"].as_str().unwrap_or("?"),
-                result["seq"].as_u64().unwrap_or(0),
-            );
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                println!(
+                    "Event emitted: {} (seq: {})",
+                    result["topic"].as_str().unwrap_or("?"),
+                    result["seq"].as_u64().unwrap_or(0),
+                );
+            }
             Ok(())
         }
         Err(e) => {
@@ -79,7 +87,7 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str) -> Re
     }
 }
 
-pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<String>) -> Result<()> {
+pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<String>, json: bool) -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_str(payload_str).context("Invalid JSON payload")?;
 
@@ -102,20 +110,24 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            let targeted = result["targeted"].as_u64().unwrap_or(0);
-            let succeeded = result["succeeded"].as_u64().unwrap_or(0);
-            let failed = result["failed"].as_u64().unwrap_or(0);
-            println!(
-                "Broadcast '{}': {}/{} succeeded{}",
-                result["topic"].as_str().unwrap_or(topic),
-                succeeded,
-                targeted,
-                if failed > 0 {
-                    format!(" ({} failed)", failed)
-                } else {
-                    String::new()
-                },
-            );
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                let targeted = result["targeted"].as_u64().unwrap_or(0);
+                let succeeded = result["succeeded"].as_u64().unwrap_or(0);
+                let failed = result["failed"].as_u64().unwrap_or(0);
+                println!(
+                    "Broadcast '{}': {}/{} succeeded{}",
+                    result["topic"].as_str().unwrap_or(topic),
+                    succeeded,
+                    targeted,
+                    if failed > 0 {
+                        format!(" ({} failed)", failed)
+                    } else {
+                        String::new()
+                    },
+                );
+            }
             Ok(())
         }
         Err(e) => {
@@ -129,6 +141,7 @@ pub(crate) async fn cmd_emit_to(
     topic: &str,
     payload_str: &str,
     from: Option<&str>,
+    json: bool,
 ) -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_str(payload_str).context("Invalid JSON payload")?;
@@ -153,12 +166,16 @@ pub(crate) async fn cmd_emit_to(
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            println!(
-                "Pushed to {}: {} (seq: {})",
-                result["target"].as_str().unwrap_or(target),
-                result["topic"].as_str().unwrap_or(topic),
-                result["seq"].as_u64().unwrap_or(0),
-            );
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                println!(
+                    "Pushed to {}: {} (seq: {})",
+                    result["target"].as_str().unwrap_or(target),
+                    result["topic"].as_str().unwrap_or(topic),
+                    result["seq"].as_u64().unwrap_or(0),
+                );
+            }
             Ok(())
         }
         Err(e) => {

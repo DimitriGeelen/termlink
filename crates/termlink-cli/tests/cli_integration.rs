@@ -1193,3 +1193,54 @@ fn cli_inject_json_output() {
     assert!(parsed["bytes_injected"].is_number(), "Expected bytes_injected field");
     assert_eq!(parsed["target"], "injectbox");
 }
+
+// ─── Event emit --json Tests ────────────────────────────────────────
+
+#[test]
+fn cli_event_emit_json_output() {
+    let dir = TestDir::new("emit-json");
+    let _guard = start_register(&dir.path, "emitbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["event", "emit", "emitbox", "test.hello", "--payload", r#"{"msg":"hi"}"#, "--json"])
+        .output()
+        .expect("Failed to run event emit --json");
+
+    assert!(output.status.success(), "event emit --json failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from event emit --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["topic"], "test.hello");
+    assert!(parsed["seq"].is_number(), "Expected seq field");
+}
+
+#[test]
+fn cli_event_poll_json_output() {
+    let dir = TestDir::new("poll-json");
+    let _guard = start_register(&dir.path, "pollbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Emit an event first
+    let _ = termlink_cmd(&dir.path)
+        .args(["event", "emit", "pollbox", "test.data", "--payload", r#"{"val":42}"#])
+        .output()
+        .expect("Failed to emit event");
+
+    // Poll with --json
+    let output = termlink_cmd(&dir.path)
+        .args(["event", "poll", "pollbox", "--json"])
+        .output()
+        .expect("Failed to run event poll --json");
+
+    assert!(output.status.success(), "event poll --json failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from event poll --json: {e}\nGot: {stdout}"));
+
+    assert!(parsed["events"].is_array(), "Expected events array");
+    assert!(parsed["next_seq"].is_number(), "Expected next_seq field");
+}

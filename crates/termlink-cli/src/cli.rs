@@ -296,6 +296,8 @@ pub(crate) enum Command {
         payload: String,
         #[arg(long, value_delimiter = ',')]
         targets: Vec<String>,
+        #[arg(long)]
+        json: bool,
     },
 
     /// Emit an event to a session's event bus
@@ -306,6 +308,8 @@ pub(crate) enum Command {
         topic: String,
         #[arg(short, long, default_value = "{}")]
         payload: String,
+        #[arg(long)]
+        json: bool,
     },
 
     /// Push an event to a target session's event bus via the hub
@@ -317,6 +321,8 @@ pub(crate) enum Command {
         payload: String,
         #[arg(long)]
         from: Option<String>,
+        #[arg(long)]
+        json: bool,
     },
 
     /// Watch events from one or more sessions in real-time
@@ -1280,6 +1286,10 @@ pub(crate) enum EventCommand {
         /// JSON payload (optional, defaults to {})
         #[arg(short, long, default_value = "{}")]
         payload: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Push an event to a target session's event bus via the hub
@@ -1298,6 +1308,10 @@ pub(crate) enum EventCommand {
         /// Sender session ID (for traceability)
         #[arg(long)]
         from: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Broadcast an event to multiple sessions via the hub
@@ -1312,6 +1326,10 @@ pub(crate) enum EventCommand {
         /// Target specific sessions (omit for all)
         #[arg(long, value_delimiter = ',')]
         targets: Vec<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Wait for a session to emit an event matching a topic, then exit

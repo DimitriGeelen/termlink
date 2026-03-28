@@ -57,20 +57,20 @@ async fn main() -> Result<()> {
 
         // Event subcommand group
         Command::Event(ev) => match ev {
-            EventCommand::Poll { target, since, topic, json: _ } => {
-                commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref()).await
+            EventCommand::Poll { target, since, topic, json } => {
+                commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json).await
             }
             EventCommand::Watch { targets, interval, topic } => {
                 commands::events::cmd_watch(targets, interval, topic.as_deref()).await
             }
-            EventCommand::Emit { target, topic, payload } => {
-                commands::events::cmd_emit(&target, &topic, &payload).await
+            EventCommand::Emit { target, topic, payload, json } => {
+                commands::events::cmd_emit(&target, &topic, &payload, json).await
             }
-            EventCommand::EmitTo { target, topic, payload, from } => {
-                commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref()).await
+            EventCommand::EmitTo { target, topic, payload, from, json } => {
+                commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json).await
             }
-            EventCommand::Broadcast { topic, payload, targets } => {
-                commands::events::cmd_broadcast(&topic, &payload, targets).await
+            EventCommand::Broadcast { topic, payload, targets, json } => {
+                commands::events::cmd_broadcast(&topic, &payload, targets, json).await
             }
             EventCommand::Wait { target, topic, timeout, interval } => {
                 commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval).await
@@ -92,17 +92,17 @@ async fn main() -> Result<()> {
         Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
 
         // Hidden backward-compat aliases (Event)
-        Command::Events { target, since, topic, json: _ } => {
-            commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref()).await
+        Command::Events { target, since, topic, json } => {
+            commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json).await
         }
-        Command::Broadcast { topic, payload, targets } => {
-            commands::events::cmd_broadcast(&topic, &payload, targets).await
+        Command::Broadcast { topic, payload, targets, json } => {
+            commands::events::cmd_broadcast(&topic, &payload, targets, json).await
         }
-        Command::Emit { target, topic, payload } => {
-            commands::events::cmd_emit(&target, &topic, &payload).await
+        Command::Emit { target, topic, payload, json } => {
+            commands::events::cmd_emit(&target, &topic, &payload, json).await
         }
-        Command::EmitTo { target, topic, payload, from } => {
-            commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref()).await
+        Command::EmitTo { target, topic, payload, from, json } => {
+            commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json).await
         }
         Command::Watch { targets, interval, topic } => {
             commands::events::cmd_watch(targets, interval, topic.as_deref()).await
