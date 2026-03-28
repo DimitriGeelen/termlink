@@ -420,13 +420,18 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
     }
 }
 
-pub(crate) async fn cmd_status(target: &str, json: bool) -> Result<()> {
+pub(crate) async fn cmd_status(target: &str, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let resp = client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({}))
-        .await
-        .context("Failed to connect to session")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc_future = client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({}));
+    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            anyhow::bail!("Status query timed out after {}s", timeout_secs);
+        }
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {
