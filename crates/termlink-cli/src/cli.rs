@@ -503,6 +503,10 @@ pub(crate) enum Command {
         /// Show what would be removed without actually removing
         #[arg(long)]
         dry_run: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Hub server management (routes requests between sessions)

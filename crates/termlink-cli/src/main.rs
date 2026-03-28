@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
         }
 
         // Infrastructure
-        Command::Clean { dry_run } => commands::session::cmd_clean(dry_run),
+        Command::Clean { dry_run, json } => commands::session::cmd_clean(dry_run, json),
         Command::Hub { action } => match action {
             None | Some(HubAction::Start { tcp: None }) => commands::infrastructure::cmd_hub_start(None).await,
             Some(HubAction::Start { tcp: Some(ref addr) }) => commands::infrastructure::cmd_hub_start(Some(addr)).await,

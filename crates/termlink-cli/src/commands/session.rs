@@ -265,10 +265,28 @@ pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>
     Ok(())
 }
 
-pub(crate) fn cmd_clean(dry_run: bool) -> Result<()> {
+pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
     let sessions_dir = termlink_session::discovery::sessions_dir();
     let stale = manager::clean_stale_sessions(&sessions_dir, !dry_run)
         .context("Failed to scan for stale sessions")?;
+
+    if json {
+        let items: Vec<serde_json::Value> = stale.iter().map(|s| {
+            serde_json::json!({
+                "id": s.id,
+                "display_name": s.display_name,
+                "pid": s.pid,
+                "created_at": s.created_at,
+            })
+        }).collect();
+        println!("{}", serde_json::json!({
+            "dry_run": dry_run,
+            "action": if dry_run { "would_remove" } else { "removed" },
+            "count": stale.len(),
+            "sessions": items,
+        }));
+        return Ok(());
+    }
 
     if stale.is_empty() {
         println!("No stale sessions found.");
