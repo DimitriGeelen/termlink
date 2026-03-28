@@ -188,6 +188,7 @@ pub(crate) async fn cmd_watch(
     targets: Vec<String>,
     interval_ms: u64,
     topic_filter: Option<&str>,
+    json: bool,
 ) -> Result<()> {
     use std::collections::HashMap;
 
@@ -218,16 +219,18 @@ pub(crate) async fn cmd_watch(
         .map(|r| (r.id.as_str().to_string(), r.display_name.clone()))
         .collect();
 
-    eprintln!(
-        "Watching {} session(s): {}. Press Ctrl+C to stop.",
-        registrations.len(),
-        registrations
-            .iter()
-            .map(|r| r.display_name.as_str())
-            .collect::<Vec<_>>()
-            .join(", "),
-    );
-    eprintln!();
+    if !json {
+        eprintln!(
+            "Watching {} session(s): {}. Press Ctrl+C to stop.",
+            registrations.len(),
+            registrations
+                .iter()
+                .map(|r| r.display_name.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        eprintln!();
+    }
 
     let mut cursors: HashMap<String, Option<u64>> = registrations
         .iter()
@@ -239,8 +242,10 @@ pub(crate) async fn cmd_watch(
     loop {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
-                eprintln!();
-                eprintln!("Stopped watching.");
+                if !json {
+                    eprintln!();
+                    eprintln!("Stopped watching.");
+                }
                 break;
             }
             _ = tokio::time::sleep(poll_interval) => {
@@ -271,7 +276,16 @@ pub(crate) async fn cmd_watch(
                                 let payload = &event["payload"];
                                 let ts = event["timestamp"].as_u64().unwrap_or(0);
 
-                                if payload.is_null()
+                                if json {
+                                    println!("{}", serde_json::json!({
+                                        "session": name,
+                                        "session_id": sid,
+                                        "seq": seq,
+                                        "topic": topic,
+                                        "payload": payload,
+                                        "timestamp": ts,
+                                    }));
+                                } else if payload.is_null()
                                     || (payload.is_object()
                                         && payload.as_object().unwrap().is_empty())
                                 {

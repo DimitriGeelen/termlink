@@ -334,6 +334,8 @@ pub(crate) enum Command {
         interval: u64,
         #[arg(long)]
         topic: Option<String>,
+        #[arg(long)]
+        json: bool,
     },
 
     /// List event topics from one or all sessions
@@ -1287,6 +1289,10 @@ pub(crate) enum EventCommand {
         /// Filter by event topic
         #[arg(long)]
         topic: Option<String>,
+
+        /// Output each event as a JSON line (NDJSON)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Emit an event to a session's event bus

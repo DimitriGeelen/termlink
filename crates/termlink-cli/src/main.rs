@@ -60,8 +60,8 @@ async fn main() -> Result<()> {
             EventCommand::Poll { target, since, topic, json } => {
                 commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json).await
             }
-            EventCommand::Watch { targets, interval, topic } => {
-                commands::events::cmd_watch(targets, interval, topic.as_deref()).await
+            EventCommand::Watch { targets, interval, topic, json } => {
+                commands::events::cmd_watch(targets, interval, topic.as_deref(), json).await
             }
             EventCommand::Emit { target, topic, payload, json } => {
                 commands::events::cmd_emit(&target, &topic, &payload, json).await
@@ -104,8 +104,8 @@ async fn main() -> Result<()> {
         Command::EmitTo { target, topic, payload, from, json } => {
             commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json).await
         }
-        Command::Watch { targets, interval, topic } => {
-            commands::events::cmd_watch(targets, interval, topic.as_deref()).await
+        Command::Watch { targets, interval, topic, json } => {
+            commands::events::cmd_watch(targets, interval, topic.as_deref(), json).await
         }
         Command::Topics { target, json } => commands::events::cmd_topics(target.as_deref(), json).await,
         Command::Collect { targets, topic, interval, count } => {
