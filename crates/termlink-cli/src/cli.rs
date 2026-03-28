@@ -929,6 +929,10 @@ pub(crate) enum RemoteAction {
         #[arg(long)]
         roles: Option<String>,
 
+        /// Filter by capabilities (comma-separated, all must match)
+        #[arg(long)]
+        cap: Option<String>,
+
         /// Output result as JSON
         #[arg(long)]
         json: bool,

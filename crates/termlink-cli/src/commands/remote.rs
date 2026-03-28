@@ -432,6 +432,7 @@ pub(crate) async fn cmd_remote_list(
     name: Option<&str>,
     tags: Option<&str>,
     roles: Option<&str>,
+    cap: Option<&str>,
     json: bool,
 ) -> Result<()> {
     let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
@@ -456,6 +457,10 @@ pub(crate) async fn cmd_remote_list(
     if let Some(r) = roles {
         let role_list: Vec<&str> = r.split(',').map(|s| s.trim()).collect();
         params["roles"] = serde_json::json!(role_list);
+    }
+    if let Some(c) = cap {
+        let cap_list: Vec<&str> = c.split(',').map(|s| s.trim()).collect();
+        params["capabilities"] = serde_json::json!(cap_list);
     }
 
     match rpc_client.call("session.discover", serde_json::json!("discover"), params).await {
