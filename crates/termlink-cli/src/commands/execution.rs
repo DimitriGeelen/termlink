@@ -144,6 +144,7 @@ pub(crate) async fn cmd_request(
     reply_topic: &str,
     timeout: u64,
     interval: u64,
+    json: bool,
 ) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
@@ -182,17 +183,21 @@ pub(crate) async fn cmd_request(
 
     match client::unwrap_result(emit_resp) {
         Ok(result) => {
-            println!("Request sent: {} (seq: {}, request_id: {})",
-                topic,
-                result["seq"].as_u64().unwrap_or(0),
-                request_id);
+            if !json {
+                println!("Request sent: {} (seq: {}, request_id: {})",
+                    topic,
+                    result["seq"].as_u64().unwrap_or(0),
+                    request_id);
+            }
         }
         Err(e) => {
             anyhow::bail!("Failed to emit request: {}", e);
         }
     }
 
-    println!("Waiting for reply on topic '{}' (timeout: {}s)...", reply_topic, timeout);
+    if !json {
+        println!("Waiting for reply on topic '{}' (timeout: {}s)...", reply_topic, timeout);
+    }
 
     let start = std::time::Instant::now();
     let timeout_dur = std::time::Duration::from_secs(timeout);
@@ -218,8 +223,16 @@ pub(crate) async fn cmd_request(
                                 .unwrap_or(true);
 
                             if matches {
-                                println!("Reply received:");
-                                println!("{}", serde_json::to_string_pretty(event_payload)?);
+                                if json {
+                                    println!("{}", serde_json::json!({
+                                        "request_id": request_id,
+                                        "topic": reply_topic,
+                                        "payload": event_payload,
+                                    }));
+                                } else {
+                                    println!("Reply received:");
+                                    println!("{}", serde_json::to_string_pretty(event_payload)?);
+                                }
                                 return Ok(());
                             }
                         }

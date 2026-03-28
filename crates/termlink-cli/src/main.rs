@@ -128,8 +128,8 @@ async fn main() -> Result<()> {
         Command::Run { name, tags, timeout, json, command } => {
             commands::execution::cmd_run(name, tags, timeout, json, command).await
         }
-        Command::Request { target, topic, payload, reply_topic, timeout, interval } => {
-            commands::execution::cmd_request(&target, &topic, &payload, &reply_topic, timeout, interval).await
+        Command::Request { target, topic, payload, reply_topic, timeout, interval, json } => {
+            commands::execution::cmd_request(&target, &topic, &payload, &reply_topic, timeout, interval, json).await
         }
         Command::Spawn { name, roles, tags, wait, wait_timeout, shell, backend, json, command } => {
             commands::execution::cmd_spawn(name, roles, tags, wait, wait_timeout, shell, backend, json, command).await
