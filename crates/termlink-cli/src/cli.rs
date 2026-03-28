@@ -113,8 +113,8 @@ pub(crate) enum Command {
 
     /// Run a command interactively in a PTY session — injects, waits for completion, returns output
     Interact {
-        /// Session ID or display name (omit to pick interactively)
-        target: Option<String>,
+        /// Session ID or display name
+        target: String,
 
         /// Shell command to run
         command: String,
@@ -201,8 +201,8 @@ pub(crate) enum Command {
     /// Inject keystrokes into a PTY-backed session
     #[command(hide = true)]
     Inject {
-        /// Session ID or display name (omit to pick interactively)
-        target: Option<String>,
+        /// Session ID or display name
+        target: String,
         text: String,
         #[arg(long, short = 'e')]
         enter: bool,
@@ -1127,8 +1127,8 @@ pub(crate) enum PtyCommand {
 
     /// Inject keystrokes into a PTY-backed session
     Inject {
-        /// Session ID or display name (omit to pick interactively)
-        target: Option<String>,
+        /// Session ID or display name
+        target: String,
 
         /// Text to inject (e.g., "ls -la")
         text: String,

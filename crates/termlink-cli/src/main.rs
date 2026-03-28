@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
         Command::Info { json } => commands::session::cmd_info(json),
         Command::Send { target, method, params } => commands::session::cmd_send(&target, &method, &params).await,
         Command::Interact { target, command, timeout, poll_ms, strip_ansi, json } => {
-            commands::pty::cmd_interact(&resolve_target(target)?, &command, timeout, poll_ms, strip_ansi, json).await
+            commands::pty::cmd_interact(&target, &command, timeout, poll_ms, strip_ansi, json).await
         }
         Command::Exec { target, command, cwd, timeout, json } => {
             commands::session::cmd_exec(&target, &command, cwd.as_deref(), timeout, json).await
@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
         Command::Pty(pty) => match pty {
             PtyCommand::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
             PtyCommand::Inject { target, text, enter, key } => {
-                commands::pty::cmd_inject(&resolve_target(target)?, &text, enter, key.as_deref()).await
+                commands::pty::cmd_inject(&target, &text, enter, key.as_deref()).await
             }
             PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
             PtyCommand::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
@@ -84,7 +84,7 @@ async fn main() -> Result<()> {
         // Hidden backward-compat aliases (PTY)
         Command::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
         Command::Inject { target, text, enter, key } => {
-            commands::pty::cmd_inject(&resolve_target(target)?, &text, enter, key.as_deref()).await
+            commands::pty::cmd_inject(&target, &text, enter, key.as_deref()).await
         }
         Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
         Command::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
