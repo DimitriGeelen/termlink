@@ -80,6 +80,7 @@ pub(crate) fn cmd_discover(
     name: Option<String>,
     json: bool,
     count: bool,
+    first: bool,
 ) -> Result<()> {
     let sessions = manager::list_sessions(false)
         .context("Failed to discover sessions")?;
@@ -100,6 +101,15 @@ pub(crate) fn cmd_discover(
 
     if count {
         println!("{}", filtered.len());
+        return Ok(());
+    }
+
+    if first {
+        if let Some(s) = filtered.first() {
+            println!("{}", s.display_name);
+        } else {
+            std::process::exit(1);
+        }
         return Ok(());
     }
 

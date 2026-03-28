@@ -119,8 +119,8 @@ async fn main() -> Result<()> {
         Command::Tag { target, set, add, remove, json, timeout } => {
             commands::metadata::cmd_tag(&target, set, add, remove, json, timeout).await
         }
-        Command::Discover { tag, role, cap, name, json, count } => {
-            commands::metadata::cmd_discover(tag, role, cap, name, json, count)
+        Command::Discover { tag, role, cap, name, json, count, first } => {
+            commands::metadata::cmd_discover(tag, role, cap, name, json, count, first)
         }
         Command::Kv { target, json, timeout, action } => commands::metadata::cmd_kv(&target, action, json, timeout).await,
 

@@ -450,6 +450,10 @@ pub(crate) enum Command {
         /// Only print the session count (useful for scripting)
         #[arg(long)]
         count: bool,
+
+        /// Print only the first matching session's display name (for piping)
+        #[arg(long)]
+        first: bool,
     },
 
     /// Manage key-value metadata on a session
