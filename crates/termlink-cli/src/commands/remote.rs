@@ -467,12 +467,22 @@ pub(crate) async fn cmd_remote_status(
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                format!("Session '{}' not found on {}", session, hub)
+            } else {
+                format!("Status query failed: {} {}", e.error.code, e.error.message)
+            };
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
+                std::process::exit(1);
             }
-            anyhow::bail!("Status query failed: {} {}", e.error.code, e.error.message);
+            anyhow::bail!("{}", msg);
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Status query error: {e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Status query error: {}", e);
         }
     }
@@ -520,12 +530,22 @@ pub(crate) async fn cmd_remote_inject(
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                format!("Session '{}' not found on {}", session, hub)
+            } else {
+                format!("Inject failed: {} {}", e.error.code, e.error.message)
+            };
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
+                std::process::exit(1);
             }
-            anyhow::bail!("Inject failed: {} {}", e.error.code, e.error.message);
+            anyhow::bail!("{}", msg);
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Inject error: {e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Inject error: {}", e);
         }
     }
@@ -818,11 +838,23 @@ pub(crate) async fn cmd_remote_exec(
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                format!("Session '{}' not found on {}", session, hub)
+            } else {
+                format!("Execution failed: {} {}", e.error.code, e.error.message)
+            };
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
+                std::process::exit(1);
             }
-            anyhow::bail!("Execution failed: {} {}", e.error.code, e.error.message);
+            anyhow::bail!("{}", msg);
         }
-        Err(e) => anyhow::bail!("Execution error: {}", e),
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Execution error: {e}")}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Execution error: {}", e);
+        }
     }
 }
