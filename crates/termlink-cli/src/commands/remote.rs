@@ -270,9 +270,19 @@ pub(crate) async fn cmd_remote_ping(
     secret_file: Option<&str>,
     secret_hex: Option<&str>,
     scope: &str,
+    json: bool,
 ) -> Result<()> {
     let start = std::time::Instant::now();
-    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+        Ok(c) => c,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to connect to hub");
+        }
+    };
     let auth_ms = start.elapsed().as_millis();
 
     match session {
@@ -283,23 +293,49 @@ pub(crate) async fn cmd_remote_ping(
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
                     let total_ms = start.elapsed().as_millis();
                     let rpc_ms = ping_start.elapsed().as_millis();
-                    println!(
-                        "PONG from {} ({}) on {} — state: {} — {}ms (auth: {}ms, rpc: {}ms)",
-                        r.result["id"].as_str().unwrap_or("?"),
-                        r.result["display_name"].as_str().unwrap_or("?"),
-                        hub,
-                        r.result["state"].as_str().unwrap_or("?"),
-                        total_ms, auth_ms, rpc_ms,
-                    );
+                    if json {
+                        println!("{}", serde_json::json!({
+                            "ok": true,
+                            "hub": hub,
+                            "session": target,
+                            "id": r.result["id"],
+                            "display_name": r.result["display_name"],
+                            "state": r.result["state"],
+                            "total_ms": total_ms as u64,
+                            "auth_ms": auth_ms as u64,
+                            "rpc_ms": rpc_ms as u64,
+                        }));
+                    } else {
+                        println!(
+                            "PONG from {} ({}) on {} — state: {} — {}ms (auth: {}ms, rpc: {}ms)",
+                            r.result["id"].as_str().unwrap_or("?"),
+                            r.result["display_name"].as_str().unwrap_or("?"),
+                            hub,
+                            r.result["state"].as_str().unwrap_or("?"),
+                            total_ms, auth_ms, rpc_ms,
+                        );
+                    }
                     Ok(())
                 }
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                    if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                        anyhow::bail!("Session '{}' not found on {}", target, hub);
+                    let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                        format!("Session '{}' not found on {}", target, hub)
+                    } else {
+                        format!("Ping failed: {} {}", e.error.code, e.error.message)
+                    };
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": target, "error": msg}));
+                        std::process::exit(1);
                     }
-                    anyhow::bail!("Ping failed: {} {}", e.error.code, e.error.message);
+                    anyhow::bail!("{}", msg);
                 }
-                Err(e) => anyhow::bail!("Ping error: {}", e),
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": target, "error": format!("Ping error: {e}")}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("Ping error: {}", e);
+                }
             }
         }
         None => {
@@ -309,16 +345,38 @@ pub(crate) async fn cmd_remote_ping(
                     let total_ms = start.elapsed().as_millis();
                     let discover_ms = discover_start.elapsed().as_millis();
                     let count = r.result["sessions"].as_array().map(|a| a.len()).unwrap_or(0);
-                    println!(
-                        "PONG from hub {} — {} session(s) — {}ms (auth: {}ms, discover: {}ms)",
-                        hub, count, total_ms, auth_ms, discover_ms,
-                    );
+                    if json {
+                        println!("{}", serde_json::json!({
+                            "ok": true,
+                            "hub": hub,
+                            "sessions": count,
+                            "total_ms": total_ms as u64,
+                            "auth_ms": auth_ms as u64,
+                            "discover_ms": discover_ms as u64,
+                        }));
+                    } else {
+                        println!(
+                            "PONG from hub {} — {} session(s) — {}ms (auth: {}ms, discover: {}ms)",
+                            hub, count, total_ms, auth_ms, discover_ms,
+                        );
+                    }
                     Ok(())
                 }
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                    anyhow::bail!("Hub ping failed: {} {}", e.error.code, e.error.message);
+                    let msg = format!("Hub ping failed: {} {}", e.error.code, e.error.message);
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": msg}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("{}", msg);
                 }
-                Err(e) => anyhow::bail!("Hub ping error: {}", e),
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Hub ping error: {e}")}));
+                        std::process::exit(1);
+                    }
+                    anyhow::bail!("Hub ping error: {}", e);
+                }
             }
         }
     }

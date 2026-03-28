@@ -866,6 +866,10 @@ pub(crate) enum RemoteAction {
         /// Permission scope: observe, interact, control, execute
         #[arg(long, default_value = "observe")]
         scope: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// List sessions on a remote hub
