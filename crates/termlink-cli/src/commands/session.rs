@@ -91,8 +91,16 @@ pub(crate) async fn cmd_register(
         session.registration.metadata.data_socket =
             Some(data_path.to_string_lossy().into_owned());
 
-        let pty = PtySession::spawn(None, 1024 * 1024)
-            .context("Failed to spawn PTY session")?;
+        let pty = match PtySession::spawn(None, 1024 * 1024) {
+            Ok(p) => p,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to spawn PTY session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to spawn PTY session");
+            }
+        };
         if !json {
             println!("  PTY:     yes (shell: {})",
                 std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into()));
@@ -107,8 +115,13 @@ pub(crate) async fn cmd_register(
 
     // Persist updated registration (capabilities + metadata + auth + allowlist)
     if shell || enable_token_secret || session.registration.allowed_commands.is_some() {
-        session.persist_registration()
-            .context("Failed to persist updated registration")?;
+        if let Err(e) = session.persist_registration() {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to persist updated registration: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to persist updated registration");
+        }
     }
 
     if !json {
@@ -381,8 +394,16 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
 
 pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
     let sessions_dir = termlink_session::discovery::sessions_dir();
-    let stale = manager::clean_stale_sessions(&sessions_dir, !dry_run)
-        .context("Failed to scan for stale sessions")?;
+    let stale = match manager::clean_stale_sessions(&sessions_dir, !dry_run) {
+        Ok(s) => s,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to scan for stale sessions: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to scan for stale sessions");
+        }
+    };
 
     if json {
         let items: Vec<serde_json::Value> = stale.iter().map(|s| {
@@ -800,8 +821,17 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
         }
     };
 
-    let sig_num = parse_signal(signal)
-        .context(format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal))?;
+    let sig_num = match parse_signal(signal) {
+        Some(n) => n,
+        None => {
+            let msg = format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal);
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("{}", msg);
+        }
+    };
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(
