@@ -245,7 +245,7 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
     }
 }
 
-pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16) -> Result<()> {
+pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -259,11 +259,20 @@ pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16) -> Result<()>
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            println!(
-                "Resized to {}x{}",
-                result["cols"].as_u64().unwrap_or(cols as u64),
-                result["rows"].as_u64().unwrap_or(rows as u64),
-            );
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": true,
+                    "target": target,
+                    "cols": result["cols"].as_u64().unwrap_or(cols as u64),
+                    "rows": result["rows"].as_u64().unwrap_or(rows as u64),
+                }));
+            } else {
+                println!(
+                    "Resized to {}x{}",
+                    result["cols"].as_u64().unwrap_or(cols as u64),
+                    result["rows"].as_u64().unwrap_or(rows as u64),
+                );
+            }
             Ok(())
         }
         Err(e) => {

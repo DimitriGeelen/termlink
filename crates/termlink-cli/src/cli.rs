@@ -252,6 +252,8 @@ pub(crate) enum Command {
         target: String,
         cols: u16,
         rows: u16,
+        #[arg(long)]
+        json: bool,
     },
 
     /// Stream a PTY session via data plane
@@ -1208,6 +1210,10 @@ pub(crate) enum PtyCommand {
 
         /// Number of rows
         rows: u16,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Stream a PTY session via data plane (real-time binary frames, zero polling)

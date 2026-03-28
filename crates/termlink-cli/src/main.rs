@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
                 commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
             }
             PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
-            PtyCommand::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
+            PtyCommand::Resize { target, cols, rows, json } => commands::pty::cmd_resize(&target, cols, rows, json).await,
             PtyCommand::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
             PtyCommand::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
         },
@@ -87,7 +87,7 @@ async fn main() -> Result<()> {
             commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
         }
         Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
-        Command::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
+        Command::Resize { target, cols, rows, json } => commands::pty::cmd_resize(&target, cols, rows, json).await,
         Command::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
         Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
 
