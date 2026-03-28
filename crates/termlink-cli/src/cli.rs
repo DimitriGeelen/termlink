@@ -854,6 +854,10 @@ pub(crate) enum HubAction {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// One-line status output (for scripting)
+        #[arg(long)]
+        short: bool,
     },
 }
 

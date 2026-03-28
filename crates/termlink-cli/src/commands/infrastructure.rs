@@ -307,7 +307,7 @@ pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn cmd_hub_status(json_output: bool) -> Result<()> {
+pub(crate) fn cmd_hub_status(json_output: bool, short: bool) -> Result<()> {
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
     let socket_path = termlink_hub::server::hub_socket_path();
 
@@ -315,6 +315,8 @@ pub(crate) fn cmd_hub_status(json_output: bool) -> Result<()> {
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
             if json_output {
                 println!("{}", json!({"status": "not_running"}));
+            } else if short {
+                println!("not_running");
             } else {
                 println!("Hub: not running");
             }
@@ -322,6 +324,8 @@ pub(crate) fn cmd_hub_status(json_output: bool) -> Result<()> {
         termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
             if json_output {
                 println!("{}", json!({"status": "stale", "pid": pid}));
+            } else if short {
+                println!("stale {pid}");
             } else {
                 println!("Hub: stale (PID {pid} is dead, pidfile needs cleanup)");
                 println!("  Run 'termlink hub stop' to clean up.");
@@ -335,6 +339,8 @@ pub(crate) fn cmd_hub_status(json_output: bool) -> Result<()> {
                     "socket": socket_path.display().to_string(),
                     "pidfile": pidfile_path.display().to_string(),
                 }));
+            } else if short {
+                println!("running {pid}");
             } else {
                 println!("Hub: running (PID {pid})");
                 println!("  Socket: {}", socket_path.display());
