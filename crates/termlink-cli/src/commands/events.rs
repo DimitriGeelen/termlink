@@ -19,7 +19,13 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
     let rpc = client::rpc_call(reg.socket_path(), "event.poll", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
         Ok(r) => r.context("Failed to connect to session")?,
-        Err(_) => anyhow::bail!("Event poll timed out after {}s", timeout_secs),
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Event poll timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Event poll timed out after {}s", timeout_secs);
+        }
     };
 
     match client::unwrap_result(resp) {
@@ -51,6 +57,10 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Event poll failed: {}", e);
         }
     }
@@ -71,7 +81,13 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
     );
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
         Ok(r) => r.context("Failed to connect to session")?,
-        Err(_) => anyhow::bail!("Event emit timed out after {}s", timeout_secs),
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Event emit timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Event emit timed out after {}s", timeout_secs);
+        }
     };
 
     match client::unwrap_result(resp) {
@@ -88,6 +104,10 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Event emit failed: {}", e);
         }
     }
@@ -114,7 +134,13 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     let rpc = client::rpc_call(&hub_socket, "event.broadcast", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
         Ok(r) => r.context("Failed to connect to hub")?,
-        Err(_) => anyhow::bail!("Broadcast timed out after {}s", timeout_secs),
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "topic": topic, "error": format!("Broadcast timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Broadcast timed out after {}s", timeout_secs);
+        }
     };
 
     match client::unwrap_result(resp) {
@@ -140,6 +166,10 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "topic": topic, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Broadcast failed: {}", e);
         }
     }
@@ -174,7 +204,13 @@ pub(crate) async fn cmd_emit_to(
     let rpc = client::rpc_call(&hub_socket, "event.emit_to", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
         Ok(r) => r.context("Failed to connect to hub")?,
-        Err(_) => anyhow::bail!("emit-to timed out after {}s", timeout_secs),
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("emit-to timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("emit-to timed out after {}s", timeout_secs);
+        }
     };
 
     match client::unwrap_result(resp) {
@@ -192,6 +228,10 @@ pub(crate) async fn cmd_emit_to(
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("emit-to failed: {}", e);
         }
     }
