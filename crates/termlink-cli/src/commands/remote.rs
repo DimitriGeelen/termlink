@@ -335,7 +335,16 @@ pub(crate) async fn cmd_remote_list(
     roles: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+        Ok(c) => c,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to connect to hub");
+        }
+    };
 
     let mut params = serde_json::json!({});
     if let Some(n) = name {
@@ -394,9 +403,18 @@ pub(crate) async fn cmd_remote_list(
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            anyhow::bail!("Discover failed: {} {}", e.error.code, e.error.message);
+            let msg = format!("Discover failed: {} {}", e.error.code, e.error.message);
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": msg}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("{}", msg);
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Discover error: {e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Discover error: {}", e);
         }
     }
@@ -410,7 +428,16 @@ pub(crate) async fn cmd_remote_status(
     scope: &str,
     json: bool,
 ) -> Result<()> {
-    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+        Ok(c) => c,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to connect to hub");
+        }
+    };
 
     let params = serde_json::json!({
         "target": session,
@@ -501,7 +528,16 @@ pub(crate) async fn cmd_remote_inject(
     scope: &str,
     json: bool,
 ) -> Result<()> {
-    let mut client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+        Ok(c) => c,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to connect to hub");
+        }
+    };
 
     let mut keys = Vec::new();
     if let Some(key_name) = key {
@@ -566,8 +602,16 @@ pub(crate) async fn cmd_remote_send_file(
     use sha2::{Digest, Sha256};
 
     let file_path = std::path::Path::new(path);
-    let file_data = std::fs::read(file_path)
-        .context(format!("Failed to read file: {}", path))?;
+    let file_data = match std::fs::read(file_path) {
+        Ok(d) => d,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to read file: {path}: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Failed to read file: {}", path));
+        }
+    };
 
     let filename = file_path
         .file_name()
@@ -583,7 +627,16 @@ pub(crate) async fn cmd_remote_send_file(
     hasher.update(&file_data);
     let sha256 = format!("{:x}", hasher.finalize());
 
-    let mut client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+        Ok(c) => c,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to connect to hub");
+        }
+    };
 
     eprintln!(
         "Sending '{}' ({} bytes, {} chunks) to '{}' on {}",
@@ -607,12 +660,24 @@ pub(crate) async fn cmd_remote_send_file(
     match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                anyhow::bail!("Session '{}' not found on {}", session, hub);
+            let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
+                format!("Session '{}' not found on {}", session, hub)
+            } else {
+                format!("Failed to emit file.init: {} {}", e.error.code, e.error.message)
+            };
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
+                std::process::exit(1);
             }
-            anyhow::bail!("Failed to emit file.init: {} {}", e.error.code, e.error.message);
+            anyhow::bail!("{}", msg);
         }
-        Err(e) => anyhow::bail!("Failed to emit file.init: {}", e),
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.init: {e}")}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Failed to emit file.init: {}", e);
+        }
     }
 
     let encoder = base64::engine::general_purpose::STANDARD;
@@ -632,9 +697,20 @@ pub(crate) async fn cmd_remote_send_file(
         match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
             Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
             Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                anyhow::bail!("Failed to emit chunk {}/{}: {} {}", i + 1, total_chunks, e.error.code, e.error.message);
+                let msg = format!("Failed to emit chunk {}/{}: {} {}", i + 1, total_chunks, e.error.code, e.error.message);
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("{}", msg);
             }
-            Err(e) => anyhow::bail!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e),
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e)}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e);
+            }
         }
         if total_chunks > 1 {
             eprint!("\r  Chunk {}/{}", i + 1, total_chunks);
@@ -658,9 +734,20 @@ pub(crate) async fn cmd_remote_send_file(
     match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            anyhow::bail!("Failed to emit file.complete: {} {}", e.error.code, e.error.message);
+            let msg = format!("Failed to emit file.complete: {} {}", e.error.code, e.error.message);
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("{}", msg);
         }
-        Err(e) => anyhow::bail!("Failed to emit file.complete: {}", e),
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.complete: {e}")}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Failed to emit file.complete: {}", e);
+        }
     }
 
     if json {
@@ -693,7 +780,16 @@ pub(crate) async fn cmd_remote_events(
     max_count: u64,
     json: bool,
 ) -> Result<()> {
-    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+        Ok(c) => c,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to connect to hub");
+        }
+    };
 
     let targets: Vec<&str> = targets_csv
         .map(|t| t.split(',').map(|s| s.trim()).collect())
@@ -801,7 +897,16 @@ pub(crate) async fn cmd_remote_exec(
     cwd: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+        Ok(c) => c,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to connect to hub");
+        }
+    };
 
     let mut params = serde_json::json!({
         "target": session,

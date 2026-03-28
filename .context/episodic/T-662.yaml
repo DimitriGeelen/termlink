@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-662: Add JSON error output to remote command connection and RPC errors
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T21:22:39Z
+# ============================================================================
+
+task_id: T-662
+task_name: "Add JSON error output to remote command connection and RPC errors"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T21:20:38Z
+completed: 2026-03-28T21:22:38Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "JSON error for connect_remote_hub failure in cmd_remote_list"
+  - "JSON error for discover RPC failure in cmd_remote_list"
+  - "JSON error for connect_remote_hub failure in cmd_remote_status"
+  - "JSON error for connect_remote_hub failure in cmd_remote_inject"
+  - "JSON error for connect_remote_hub failure in cmd_remote_send_file"
+  - "JSON error for file read failure in cmd_remote_send_file"
+  - "JSON error for file.init/chunk/complete emit failures in cmd_remote_send_file"
+  - "JSON error for connect_remote_hub failure in cmd_remote_exec"
+  - "JSON error for connect_remote_hub failure in cmd_remote_events"
+  - "Project compiles with `cargo check`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-662-add-json-error-output-to-remote-command-.md
+generated_by: context-agent-hybrid
