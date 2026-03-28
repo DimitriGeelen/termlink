@@ -505,8 +505,15 @@ pub(crate) fn cmd_info(json: bool) -> Result<()> {
         .unwrap_or(0);
     let stale = all - live;
 
+    let version = env!("CARGO_PKG_VERSION");
+    let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
+    let target = option_env!("BUILD_TARGET").unwrap_or("unknown");
+
     if json {
         println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+            "version": version,
+            "commit": commit,
+            "target": target,
             "runtime_dir": runtime_dir.to_string_lossy(),
             "sessions_dir": sessions_dir.to_string_lossy(),
             "hub_socket": hub_socket.to_string_lossy(),
@@ -522,6 +529,7 @@ pub(crate) fn cmd_info(json: bool) -> Result<()> {
 
     println!("TermLink Runtime");
     println!("{}", "-".repeat(40));
+    println!("  Version:      {version} ({commit}) [{target}]");
     println!("  Runtime dir:  {}", runtime_dir.display());
     println!("  Sessions dir: {}", sessions_dir.display());
     println!("  Hub socket:   {}", hub_socket.display());
