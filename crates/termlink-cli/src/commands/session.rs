@@ -429,6 +429,10 @@ pub(crate) async fn cmd_status(target: &str, json: bool, timeout_secs: u64) -> R
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => result.context("Failed to connect to session")?,
         Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Status query timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Status query timed out after {}s", timeout_secs);
         }
     };
@@ -496,6 +500,10 @@ pub(crate) async fn cmd_status(target: &str, json: bool, timeout_secs: u64) -> R
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Status query failed: {}", e);
         }
     }
@@ -545,6 +553,10 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Execution failed: {}", e);
         }
     }
@@ -627,6 +639,10 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => result.context("Failed to connect to session")?,
         Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Signal timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Signal timed out after {}s", timeout_secs);
         }
     };
@@ -650,6 +666,10 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Signal failed: {}", e);
         }
     }
