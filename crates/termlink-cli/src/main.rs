@@ -57,8 +57,8 @@ async fn main() -> Result<()> {
 
         // Event subcommand group
         Command::Event(ev) => match ev {
-            EventCommand::Poll { target, since, topic, json, timeout } => {
-                commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json, timeout).await
+            EventCommand::Poll { target, since, topic, json, timeout, payload_only } => {
+                commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json, timeout, payload_only).await
             }
             EventCommand::Watch { targets, interval, topic, json } => {
                 commands::events::cmd_watch(targets, interval, topic.as_deref(), json).await
@@ -92,8 +92,8 @@ async fn main() -> Result<()> {
         Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
 
         // Hidden backward-compat aliases (Event)
-        Command::Events { target, since, topic, json, timeout } => {
-            commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json, timeout).await
+        Command::Events { target, since, topic, json, timeout, payload_only } => {
+            commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json, timeout, payload_only).await
         }
         Command::Broadcast { topic, payload, targets, json, timeout } => {
             commands::events::cmd_broadcast(&topic, &payload, targets, json, timeout).await

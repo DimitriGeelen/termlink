@@ -304,6 +304,8 @@ pub(crate) enum Command {
         json: bool,
         #[arg(long, default_value = "5")]
         timeout: u64,
+        #[arg(long)]
+        payload_only: bool,
     },
 
     /// Broadcast an event to multiple sessions via the hub
@@ -1382,6 +1384,10 @@ pub(crate) enum EventCommand {
         /// Timeout in seconds (default: 5)
         #[arg(long, default_value = "5")]
         timeout: u64,
+
+        /// Output only event payloads (one JSON object per line, for piping)
+        #[arg(long)]
+        payload_only: bool,
     },
 
     /// Watch events from one or more sessions in real-time

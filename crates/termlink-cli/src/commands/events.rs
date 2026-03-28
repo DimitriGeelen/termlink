@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use termlink_session::client;
 use termlink_session::manager;
 
-pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
+pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool, timeout_secs: u64, payload_only: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -35,6 +35,17 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
                 return Ok(());
             }
             let events = result["events"].as_array().unwrap();
+
+            if payload_only {
+                for event in events {
+                    let payload = &event["payload"];
+                    if !payload.is_null() {
+                        println!("{}", serde_json::to_string(payload)?);
+                    }
+                }
+                return Ok(());
+            }
+
             if events.is_empty() {
                 println!("No events (next_seq: {})", result["next_seq"]);
                 return Ok(());
