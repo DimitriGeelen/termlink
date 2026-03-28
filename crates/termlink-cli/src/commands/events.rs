@@ -262,6 +262,7 @@ pub(crate) async fn cmd_watch(
     topic_filter: Option<&str>,
     json: bool,
     timeout_secs: u64,
+    max_count: u64,
 ) -> Result<()> {
     use std::collections::HashMap;
 
@@ -327,6 +328,7 @@ pub(crate) async fn cmd_watch(
     } else {
         None
     };
+    let mut total_received: u64 = 0;
 
     loop {
         if let Some(dl) = deadline {
@@ -397,6 +399,7 @@ pub(crate) async fn cmd_watch(
                                 }
 
                                 cursors.insert(sid.to_string(), Some(seq));
+                                total_received += 1;
                             }
                         }
                         if let Some(next) = result["next_seq"].as_u64()
@@ -404,6 +407,14 @@ pub(crate) async fn cmd_watch(
                                 cursors.insert(sid.to_string(), Some(next.saturating_sub(1)));
                             }
                     }
+                }
+
+                if max_count > 0 && total_received >= max_count {
+                    if !json {
+                        eprintln!();
+                        eprintln!("{} event(s) received (limit reached).", total_received);
+                    }
+                    break;
                 }
             }
         }
