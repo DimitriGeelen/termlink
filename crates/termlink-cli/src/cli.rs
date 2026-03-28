@@ -784,6 +784,10 @@ pub(crate) enum Command {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Output only the version number (for scripting)
+        #[arg(long)]
+        short: bool,
     },
 }
 
