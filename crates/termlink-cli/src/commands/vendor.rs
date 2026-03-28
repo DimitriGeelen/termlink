@@ -191,7 +191,7 @@ pub(crate) fn cmd_vendor(
 }
 
 /// Check TermLink vendor status for a project directory.
-pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool) -> Result<()> {
+pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool, check: bool) -> Result<()> {
     let project_dir = if let Some(t) = target {
         PathBuf::from(t)
     } else {
@@ -203,9 +203,16 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool) -> Result<()> 
 
     if !dest_bin.exists() {
         if json {
-            println!("{}", serde_json::json!({"vendored": false}));
+            let mut obj = serde_json::json!({"vendored": false});
+            if check {
+                obj["needs_update"] = serde_json::json!(true);
+            }
+            println!("{}", obj);
         } else {
             println!("Not vendored. Run: termlink vendor");
+        }
+        if check {
+            std::process::exit(1);
         }
         return Ok(());
     }
@@ -247,9 +254,11 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool) -> Result<()> 
         .map(|c| c.contains(".termlink"))
         .unwrap_or(false);
 
+    let version_matches = current_version.as_ref().map(|cv| *cv == version).unwrap_or(false);
+    let needs_update = !version_matches || !mcp_configured || !gi_ok;
+
     if json {
-        let version_matches = current_version.as_ref().map(|cv| *cv == version);
-        println!("{}", serde_json::json!({
+        let mut obj = serde_json::json!({
             "vendored": true,
             "binary": dest_bin.display().to_string(),
             "version": version,
@@ -258,7 +267,11 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool) -> Result<()> 
             "version_matches": version_matches,
             "mcp_configured": mcp_configured,
             "gitignore_ok": gi_ok,
-        }));
+        });
+        if check {
+            obj["needs_update"] = serde_json::json!(needs_update);
+        }
+        println!("{}", obj);
     } else {
         println!("TermLink vendor status");
         println!("  Binary:  {} ({:.1} MB)", dest_bin.display(), size as f64 / 1_048_576.0);
@@ -283,6 +296,10 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool) -> Result<()> 
         } else {
             println!("  Ignore:  NOT in .gitignore (run: termlink vendor)");
         }
+    }
+
+    if check && needs_update {
+        std::process::exit(1);
     }
 
     Ok(())

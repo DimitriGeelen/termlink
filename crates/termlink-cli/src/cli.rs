@@ -787,6 +787,10 @@ pub(crate) enum VendorAction {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Exit non-zero if vendor is outdated or misconfigured
+        #[arg(long)]
+        check: bool,
     },
 }
 
