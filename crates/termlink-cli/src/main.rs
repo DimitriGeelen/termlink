@@ -159,8 +159,8 @@ async fn main() -> Result<()> {
             AgentAction::Ask { target, action, params, from, timeout, interval, json } => {
                 commands::agent::cmd_agent_ask(&target, &action, &params, from.as_deref(), timeout, interval, json).await
             }
-            AgentAction::Listen { target, timeout, interval } => {
-                commands::agent::cmd_agent_listen(&target, timeout, interval).await
+            AgentAction::Listen { target, timeout, interval, json } => {
+                commands::agent::cmd_agent_listen(&target, timeout, interval, json).await
             }
             AgentAction::Negotiate { specialist, schema, draft, from, max_rounds, timeout, interval } => {
                 commands::agent::cmd_agent_negotiate(&specialist, &schema, &draft, from.as_deref(), max_rounds, timeout, interval).await

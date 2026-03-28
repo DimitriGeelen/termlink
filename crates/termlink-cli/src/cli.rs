@@ -1108,6 +1108,10 @@ pub(crate) enum AgentAction {
         /// Poll interval in milliseconds (default: 250)
         #[arg(long, default_value = "250")]
         interval: u64,
+
+        /// Output each request as a JSON line (NDJSON)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Run a 4-phase format negotiation with a specialist session

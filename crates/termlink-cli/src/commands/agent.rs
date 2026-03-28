@@ -191,15 +191,18 @@ pub(crate) async fn cmd_agent_listen(
     target: &str,
     timeout: u64,
     interval: u64,
+    json: bool,
 ) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    eprintln!("Listening for agent requests on '{}' (topic: {})...", target, agent_topic::REQUEST);
-    if timeout > 0 {
-        eprintln!("Timeout: {}s", timeout);
-    } else {
-        eprintln!("Press Ctrl+C to stop");
+    if !json {
+        eprintln!("Listening for agent requests on '{}' (topic: {})...", target, agent_topic::REQUEST);
+        if timeout > 0 {
+            eprintln!("Timeout: {}s", timeout);
+        } else {
+            eprintln!("Press Ctrl+C to stop");
+        }
     }
 
     let start = std::time::Instant::now();
@@ -224,7 +227,16 @@ pub(crate) async fn cmd_agent_listen(
                     if let Some(events) = result["events"].as_array() {
                         for event in events {
                             let event_payload = &event["payload"];
-                            if let Ok(req) = serde_json::from_value::<AgentRequest>(event_payload.clone()) {
+                            if json {
+                                println!("{}", serde_json::json!({
+                                    "seq": event["seq"],
+                                    "from": event_payload["from"],
+                                    "action": event_payload["action"],
+                                    "request_id": event_payload["request_id"],
+                                    "params": event_payload["params"],
+                                    "timeout_secs": event_payload["timeout_secs"],
+                                }));
+                            } else if let Ok(req) = serde_json::from_value::<AgentRequest>(event_payload.clone()) {
                                 println!("[{}] from={} action={} request_id={}",
                                     event["seq"].as_u64().unwrap_or(0),
                                     req.from, req.action, req.request_id);
@@ -251,7 +263,9 @@ pub(crate) async fn cmd_agent_listen(
 
         if let Some(td) = timeout_dur
             && start.elapsed() > td {
-                eprintln!("Listen timeout reached ({}s)", timeout);
+                if !json {
+                    eprintln!("Listen timeout reached ({}s)", timeout);
+                }
                 return Ok(());
             }
 
