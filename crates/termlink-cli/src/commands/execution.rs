@@ -191,6 +191,10 @@ pub(crate) async fn cmd_request(
             }
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit request: {e}")}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Failed to emit request: {}", e);
         }
     }
@@ -251,6 +255,10 @@ pub(crate) async fn cmd_request(
         }
 
         if start.elapsed() > timeout_dur {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout)}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout);
         }
 
