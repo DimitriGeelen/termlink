@@ -521,9 +521,19 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
         params["cwd"] = serde_json::json!(dir);
     }
 
-    let resp = client::rpc_call(reg.socket_path(), "command.execute", params)
-        .await
-        .context("Failed to connect to session")?;
+    // RPC timeout = command timeout + 5s buffer for connection/response overhead
+    let rpc_timeout = std::time::Duration::from_secs(timeout + 5);
+    let rpc_future = client::rpc_call(reg.socket_path(), "command.execute", params);
+    let resp = match tokio::time::timeout(rpc_timeout, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Exec RPC timed out after {}s", timeout + 5)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Exec RPC timed out after {}s (command timeout: {}s)", timeout + 5, timeout);
+        }
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {
