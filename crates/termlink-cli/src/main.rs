@@ -46,8 +46,8 @@ async fn main() -> Result<()> {
         // PTY subcommand group
         Command::Pty(pty) => match pty {
             PtyCommand::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
-            PtyCommand::Inject { target, text, enter, key } => {
-                commands::pty::cmd_inject(&target, &text, enter, key.as_deref()).await
+            PtyCommand::Inject { target, text, enter, key, json } => {
+                commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
             }
             PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
             PtyCommand::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,
@@ -83,8 +83,8 @@ async fn main() -> Result<()> {
 
         // Hidden backward-compat aliases (PTY)
         Command::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
-        Command::Inject { target, text, enter, key } => {
-            commands::pty::cmd_inject(&target, &text, enter, key.as_deref()).await
+        Command::Inject { target, text, enter, key, json } => {
+            commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
         }
         Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
         Command::Resize { target, cols, rows } => commands::pty::cmd_resize(&target, cols, rows).await,

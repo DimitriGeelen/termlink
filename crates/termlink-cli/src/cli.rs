@@ -232,6 +232,8 @@ pub(crate) enum Command {
         enter: bool,
         #[arg(long, short)]
         key: Option<String>,
+        #[arg(long)]
+        json: bool,
     },
 
     /// Attach to a PTY session
@@ -1180,6 +1182,10 @@ pub(crate) enum PtyCommand {
         /// Send a named key instead of text (e.g., Escape, Tab, Up, Down)
         #[arg(long, short)]
         key: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Attach to a PTY session — live output and keyboard forwarding

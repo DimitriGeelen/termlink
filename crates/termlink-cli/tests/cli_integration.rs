@@ -28,6 +28,17 @@ fn start_register(runtime_dir: &std::path::Path, name: &str) -> ProcessGuard {
     ProcessGuard::new(child, name)
 }
 
+/// Start a `termlink register --shell` process in the background (PTY-backed).
+fn start_register_shell(runtime_dir: &std::path::Path, name: &str) -> ProcessGuard {
+    let child = termlink_cmd(runtime_dir)
+        .args(["register", "--name", name, "--shell"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn termlink register --shell");
+    ProcessGuard::new(child, name)
+}
+
 // ─── Registration & Lifecycle Tests ────────────────────────────────
 
 #[test]
@@ -1154,4 +1165,31 @@ fn cli_ping_with_timeout() {
 
     assert_eq!(parsed["status"], "ok");
     assert!(parsed["latency_ms"].is_number());
+}
+
+// ─── Inject --json Tests ────────────────────────────────────────────
+
+#[test]
+fn cli_inject_json_output() {
+    let dir = TestDir::new("inject-json");
+    let _guard = start_register_shell(&dir.path, "injectbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Give the PTY a moment to initialize
+    std::thread::sleep(Duration::from_millis(200));
+
+    let output = termlink_cmd(&dir.path)
+        .args(["pty", "inject", "injectbox", "echo hello", "--enter", "--json"])
+        .output()
+        .expect("Failed to run termlink pty inject --json");
+
+    assert!(output.status.success(), "inject --json failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from inject --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true);
+    assert!(parsed["bytes_injected"].is_number(), "Expected bytes_injected field");
+    assert_eq!(parsed["target"], "injectbox");
 }

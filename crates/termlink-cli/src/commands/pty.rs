@@ -195,7 +195,7 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
     }
 }
 
-pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>) -> Result<()> {
+pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -220,10 +220,26 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
     match client::unwrap_result(resp) {
         Ok(result) => {
             let bytes = result["bytes_len"].as_u64().unwrap_or(0);
-            println!("Injected {bytes} bytes");
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": true,
+                    "target": target,
+                    "bytes_injected": bytes,
+                }));
+            } else {
+                println!("Injected {bytes} bytes");
+            }
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "target": target,
+                    "error": format!("{e}"),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Inject failed: {}", e);
         }
     }
