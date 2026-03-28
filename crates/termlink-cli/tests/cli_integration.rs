@@ -789,3 +789,57 @@ fn cli_completions_fish() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("termlink"), "Expected fish completion for termlink");
 }
+
+// ─── More JSON Output Tests ─────────────────────────────────────────
+
+#[test]
+fn cli_exec_json_output() {
+    let dir = TestDir::new("exec-json");
+    let _guard = start_register(&dir.path, "execbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["exec", "execbox", "echo hello-json-test", "--json"])
+        .output()
+        .expect("Failed to run termlink exec --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("exec --json should output valid JSON");
+
+    assert_eq!(json["exit_code"], 0);
+    assert!(json["stdout"].as_str().unwrap().contains("hello-json-test"));
+}
+
+#[test]
+fn cli_version_json_output() {
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["version", "--json"])
+        .output()
+        .expect("Failed to run termlink version --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("version --json should output valid JSON");
+
+    assert!(json["version"].is_string(), "Expected version string");
+    assert!(json["commit"].is_string(), "Expected commit string");
+    assert!(json["target"].is_string(), "Expected target string");
+}
+
+#[test]
+fn cli_hub_status_json_output() {
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["hub", "status", "--json"])
+        .output()
+        .expect("Failed to run termlink hub status --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("hub status --json should output valid JSON");
+
+    assert!(json["status"].is_string(), "Expected status string");
+}
