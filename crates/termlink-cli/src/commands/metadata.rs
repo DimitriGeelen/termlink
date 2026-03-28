@@ -39,7 +39,16 @@ pub(crate) async fn cmd_tag(
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(reg.socket_path(), "session.update", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => result.context("Failed to connect to session")?,
+        Ok(result) => match result {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Tag update timed out after {}s", timeout_secs)}));
@@ -232,7 +241,16 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 serde_json::json!({"key": key, "value": json_value}),
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => r.context("Failed to connect to session")?,
+                Ok(r) => match r {
+                    Ok(v) => v,
+                    Err(e) => {
+                        if json {
+                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                            std::process::exit(1);
+                        }
+                        return Err(e).context("Failed to connect to session");
+                    }
+                },
                 Err(_) => {
                     if json {
                         println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.set timed out after {}s", timeout_secs)}));
@@ -272,7 +290,16 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 serde_json::json!({"key": key}),
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => r.context("Failed to connect to session")?,
+                Ok(r) => match r {
+                    Ok(v) => v,
+                    Err(e) => {
+                        if json {
+                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                            std::process::exit(1);
+                        }
+                        return Err(e).context("Failed to connect to session");
+                    }
+                },
                 Err(_) => {
                     if json {
                         println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.get timed out after {}s", timeout_secs)}));
@@ -318,7 +345,16 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 serde_json::json!({}),
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => r.context("Failed to connect to session")?,
+                Ok(r) => match r {
+                    Ok(v) => v,
+                    Err(e) => {
+                        if json {
+                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                            std::process::exit(1);
+                        }
+                        return Err(e).context("Failed to connect to session");
+                    }
+                },
                 Err(_) => {
                     if json {
                         println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.list timed out after {}s", timeout_secs)}));
@@ -371,7 +407,16 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 serde_json::json!({"key": key}),
             );
             let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => r.context("Failed to connect to session")?,
+                Ok(r) => match r {
+                    Ok(v) => v,
+                    Err(e) => {
+                        if json {
+                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                            std::process::exit(1);
+                        }
+                        return Err(e).context("Failed to connect to session");
+                    }
+                },
                 Err(_) => {
                     if json {
                         println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.delete timed out after {}s", timeout_secs)}));
