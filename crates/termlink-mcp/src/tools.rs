@@ -252,6 +252,8 @@ pub struct SessionInfo {
     pub display_name: String,
     pub state: String,
     pub pid: u32,
+    pub created_at: String,
+    pub heartbeat_at: String,
     pub tags: Vec<String>,
     pub roles: Vec<String>,
 }
@@ -305,6 +307,8 @@ impl TermLinkTools {
                         display_name: s.display_name.clone(),
                         state: s.state.to_string(),
                         pid: s.pid,
+                        created_at: s.created_at.clone(),
+                        heartbeat_at: s.heartbeat_at.clone(),
                         tags: s.tags.clone(),
                         roles: s.roles.clone(),
                     })
@@ -579,6 +583,8 @@ impl TermLinkTools {
                     "display_name": s.display_name,
                     "state": s.state.to_string(),
                     "pid": s.pid,
+                    "created_at": s.created_at,
+                    "heartbeat_at": s.heartbeat_at,
                     "tags": s.tags,
                     "roles": s.roles,
                     "capabilities": s.capabilities,

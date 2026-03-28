@@ -344,6 +344,8 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
                 "display_name": s.display_name,
                 "state": s.state.to_string(),
                 "pid": s.pid,
+                "created_at": s.created_at,
+                "heartbeat_at": s.heartbeat_at,
                 "tags": s.tags,
                 "roles": s.roles,
                 "capabilities": s.capabilities,
