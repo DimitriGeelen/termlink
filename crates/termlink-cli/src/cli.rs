@@ -364,6 +364,8 @@ pub(crate) enum Command {
         target: Option<String>,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Collect events from multiple sessions via hub (fan-in)
@@ -1460,6 +1462,10 @@ pub(crate) enum EventCommand {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Collect events from multiple sessions via hub (fan-in)

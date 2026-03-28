@@ -427,7 +427,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
     }
 }
 
-pub(crate) async fn cmd_topics(target: Option<&str>, json: bool) -> Result<()> {
+pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
     use std::collections::BTreeMap;
 
     let registrations = if let Some(t) = target {
@@ -445,11 +445,13 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool) -> Result<()> {
         return Ok(());
     }
 
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let mut session_topics: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for reg in &registrations {
-        match client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({})).await {
-            Ok(resp) => {
+        let rpc_future = client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({}));
+        match tokio::time::timeout(timeout_dur, rpc_future).await {
+            Ok(Ok(resp)) => {
                 if let Ok(result) = client::unwrap_result(resp)
                     && let Some(topics) = result["topics"].as_array() {
                         let topic_list: Vec<String> = topics
@@ -462,7 +464,7 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool) -> Result<()> {
                         }
                     }
             }
-            Err(_) => continue,
+            Ok(Err(_)) | Err(_) => continue,
         }
     }
 
