@@ -299,11 +299,13 @@ pub(crate) async fn cmd_watch(
     Ok(())
 }
 
-pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64) -> Result<()> {
+pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    eprintln!("Waiting for event topic '{}' from {}...", topic, reg.display_name);
+    if !json {
+        eprintln!("Waiting for event topic '{}' from {}...", topic, reg.display_name);
+    }
 
     let poll_interval = tokio::time::Duration::from_millis(interval_ms);
     let deadline = if timeout_secs > 0 {
@@ -317,11 +319,30 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
     loop {
         if let Some(dl) = deadline
             && tokio::time::Instant::now() >= dl {
+                if json {
+                    println!("{}", serde_json::json!({
+                        "matched": false,
+                        "topic": topic,
+                        "target": target,
+                        "reason": "timeout",
+                        "timeout_secs": timeout_secs,
+                    }));
+                    std::process::exit(1);
+                }
                 anyhow::bail!("Timeout waiting for event topic '{}'", topic);
             }
 
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
+                if json {
+                    println!("{}", serde_json::json!({
+                        "matched": false,
+                        "topic": topic,
+                        "target": target,
+                        "reason": "interrupted",
+                    }));
+                    std::process::exit(1);
+                }
                 anyhow::bail!("Interrupted");
             }
             _ = tokio::time::sleep(poll_interval) => {
@@ -332,6 +353,15 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                 let resp = match client::rpc_call(reg.socket_path(), "event.poll", params).await {
                     Ok(r) => r,
                     Err(_) => {
+                        if json {
+                            println!("{}", serde_json::json!({
+                                "matched": false,
+                                "topic": topic,
+                                "target": target,
+                                "reason": "disconnected",
+                            }));
+                            std::process::exit(1);
+                        }
                         anyhow::bail!("Session '{}' disconnected while waiting", target);
                     }
                 };
@@ -339,14 +369,25 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array()
                         && let Some(event) = events.first() {
-                            let payload = &event["payload"];
-                            if payload.is_null()
-                                || (payload.is_object()
-                                    && payload.as_object().unwrap().is_empty())
-                            {
-                                println!("{}", topic);
+                            if json {
+                                println!("{}", serde_json::json!({
+                                    "matched": true,
+                                    "topic": event["topic"],
+                                    "seq": event["seq"],
+                                    "timestamp": event["timestamp"],
+                                    "payload": event["payload"],
+                                    "target": target,
+                                }));
                             } else {
-                                println!("{}", serde_json::to_string(payload)?);
+                                let payload = &event["payload"];
+                                if payload.is_null()
+                                    || (payload.is_object()
+                                        && payload.as_object().unwrap().is_empty())
+                                {
+                                    println!("{}", topic);
+                                } else {
+                                    println!("{}", serde_json::to_string(payload)?);
+                                }
                             }
                             return Ok(());
                         }

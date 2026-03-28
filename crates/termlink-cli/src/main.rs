@@ -72,8 +72,8 @@ async fn main() -> Result<()> {
             EventCommand::Broadcast { topic, payload, targets, json } => {
                 commands::events::cmd_broadcast(&topic, &payload, targets, json).await
             }
-            EventCommand::Wait { target, topic, timeout, interval } => {
-                commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval).await
+            EventCommand::Wait { target, topic, timeout, interval, json } => {
+                commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json).await
             }
             EventCommand::Topics { target, json } => commands::events::cmd_topics(target.as_deref(), json).await,
             EventCommand::Collect { targets, topic, interval, count } => {
@@ -111,8 +111,8 @@ async fn main() -> Result<()> {
         Command::Collect { targets, topic, interval, count } => {
             commands::events::cmd_collect(targets, topic.as_deref(), interval, count).await
         }
-        Command::Wait { target, topic, timeout, interval } => {
-            commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval).await
+        Command::Wait { target, topic, timeout, interval, json } => {
+            commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json).await
         }
 
         // Metadata & Discovery

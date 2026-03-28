@@ -367,6 +367,8 @@ pub(crate) enum Command {
         timeout: u64,
         #[arg(long, default_value = "250")]
         interval: u64,
+        #[arg(long)]
+        json: bool,
     },
 
     // === Metadata & Discovery ===
@@ -1360,6 +1362,10 @@ pub(crate) enum EventCommand {
         /// Poll interval in milliseconds (default: 250)
         #[arg(long, default_value = "250")]
         interval: u64,
+
+        /// Output matched event as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// List event topics from one or all sessions
