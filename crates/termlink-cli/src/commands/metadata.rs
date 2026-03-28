@@ -73,7 +73,7 @@ pub(crate) async fn cmd_tag(
     }
 }
 
-pub(crate) fn cmd_discover(
+pub(crate) async fn cmd_discover(
     tags: Vec<String>,
     roles: Vec<String>,
     caps: Vec<String>,
@@ -81,23 +81,49 @@ pub(crate) fn cmd_discover(
     json: bool,
     count: bool,
     first: bool,
+    wait: bool,
+    wait_timeout: u64,
 ) -> Result<()> {
-    let sessions = manager::list_sessions(false)
-        .context("Failed to discover sessions")?;
-
     let has_filters = !tags.is_empty() || !roles.is_empty() || !caps.is_empty() || name.is_some();
 
-    let filtered: Vec<_> = sessions
-        .into_iter()
-        .filter(|s| {
-            tags.iter().all(|t| s.tags.contains(t))
-                && roles.iter().all(|r| s.roles.contains(r))
-                && caps.iter().all(|c| s.capabilities.contains(c))
-                && name.as_ref().is_none_or(|n| {
-                    s.display_name.to_lowercase().contains(&n.to_lowercase())
-                })
-        })
-        .collect();
+    let do_filter = |sessions: Vec<termlink_session::registration::Registration>| -> Vec<termlink_session::registration::Registration> {
+        sessions
+            .into_iter()
+            .filter(|s| {
+                tags.iter().all(|t| s.tags.contains(t))
+                    && roles.iter().all(|r| s.roles.contains(r))
+                    && caps.iter().all(|c| s.capabilities.contains(c))
+                    && name.as_ref().is_none_or(|n| {
+                        s.display_name.to_lowercase().contains(&n.to_lowercase())
+                    })
+            })
+            .collect()
+    };
+
+    let filtered = if wait {
+        let start = std::time::Instant::now();
+        let timeout_dur = std::time::Duration::from_secs(wait_timeout);
+        loop {
+            let sessions = manager::list_sessions(false)
+                .context("Failed to discover sessions")?;
+            let result = do_filter(sessions);
+            if !result.is_empty() {
+                break result;
+            }
+            if start.elapsed() > timeout_dur {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("No matching sessions found within {}s", wait_timeout);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+    } else {
+        let sessions = manager::list_sessions(false)
+            .context("Failed to discover sessions")?;
+        do_filter(sessions)
+    };
 
     if count {
         println!("{}", filtered.len());

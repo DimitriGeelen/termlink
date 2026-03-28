@@ -454,6 +454,14 @@ pub(crate) enum Command {
         /// Print only the first matching session's display name (for piping)
         #[arg(long)]
         first: bool,
+
+        /// Block until at least one session matches the filters
+        #[arg(long)]
+        wait: bool,
+
+        /// Timeout in seconds when --wait is used (default: 30)
+        #[arg(long, default_value = "30")]
+        wait_timeout: u64,
     },
 
     /// Manage key-value metadata on a session
