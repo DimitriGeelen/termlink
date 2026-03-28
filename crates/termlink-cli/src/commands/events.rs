@@ -95,8 +95,16 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
 }
 
 pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json: bool, timeout_secs: u64) -> Result<()> {
-    let payload: serde_json::Value =
-        serde_json::from_str(payload_str).context("Invalid JSON payload")?;
+    let payload: serde_json::Value = match serde_json::from_str(payload_str) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
 
     let reg = match manager::find_session(target) {
         Ok(r) => r,
@@ -159,8 +167,16 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
 }
 
 pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<String>, json: bool, timeout_secs: u64) -> Result<()> {
-    let payload: serde_json::Value =
-        serde_json::from_str(payload_str).context("Invalid JSON payload")?;
+    let payload: serde_json::Value = match serde_json::from_str(payload_str) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
 
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
@@ -241,8 +257,16 @@ pub(crate) async fn cmd_emit_to(
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
-    let payload: serde_json::Value =
-        serde_json::from_str(payload_str).context("Invalid JSON payload")?;
+    let payload: serde_json::Value = match serde_json::from_str(payload_str) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
 
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {

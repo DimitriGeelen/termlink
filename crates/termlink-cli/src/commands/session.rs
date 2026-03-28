@@ -703,8 +703,16 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
 }
 
 pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json: bool, timeout_secs: u64) -> Result<()> {
-    let params: serde_json::Value =
-        serde_json::from_str(params_str).context("Invalid JSON params")?;
+    let params: serde_json::Value = match serde_json::from_str(params_str) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON params: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
 
     let reg = match manager::find_session(target) {
         Ok(r) => r,

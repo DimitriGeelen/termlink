@@ -34,8 +34,16 @@ pub(crate) async fn cmd_agent_ask(
     let request_id = generate_request_id();
     let sender = from.map(|s| s.to_string()).unwrap_or_else(|| format!("cli-{}", std::process::id()));
 
-    let params: serde_json::Value = serde_json::from_str(params_str)
-        .context("Invalid JSON in --params")?;
+    let params: serde_json::Value = match serde_json::from_str(params_str) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON in --params: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
 
     let request = AgentRequest {
         schema_version: SCHEMA_VERSION.to_string(),

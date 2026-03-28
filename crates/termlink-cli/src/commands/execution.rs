@@ -162,8 +162,16 @@ pub(crate) async fn cmd_request(
         .unwrap_or_default()
         .as_millis());
 
-    let mut payload_json: serde_json::Value = serde_json::from_str(payload)
-        .context("Invalid JSON payload")?;
+    let mut payload_json: serde_json::Value = match serde_json::from_str(payload) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
     if let Some(obj) = payload_json.as_object_mut() {
         obj.insert("request_id".to_string(), serde_json::json!(request_id));
     }
