@@ -296,6 +296,7 @@ pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>
                 "pid": s.pid,
                 "tags": s.tags,
                 "roles": s.roles,
+                "capabilities": s.capabilities,
             })
         }).collect();
         println!("{}", serde_json::to_string_pretty(&items)?);
