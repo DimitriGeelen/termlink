@@ -246,14 +246,26 @@ pub(crate) async fn cmd_file_receive(
                                                 for i in 0..expected_chunks {
                                                     match chunks.get(&i) {
                                                         Some(data) => file_data.extend_from_slice(data),
-                                                        None => anyhow::bail!("Missing chunk {} of {}", i, expected_chunks),
+                                                        None => {
+                                                            let msg = format!("Missing chunk {} of {}", i, expected_chunks);
+                                                            if json {
+                                                                println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
+                                                                std::process::exit(1);
+                                                            }
+                                                            anyhow::bail!("{}", msg);
+                                                        }
                                                     }
                                                 }
                                                 let mut hasher = Sha256::new();
                                                 hasher.update(&file_data);
                                                 let actual_sha256 = format!("{:x}", hasher.finalize());
                                                 if actual_sha256 != complete.sha256 {
-                                                    anyhow::bail!("SHA-256 mismatch! Expected: {}, Got: {}", complete.sha256, actual_sha256);
+                                                    let msg = format!("SHA-256 mismatch! Expected: {}, Got: {}", complete.sha256, actual_sha256);
+                                                    if json {
+                                                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
+                                                        std::process::exit(1);
+                                                    }
+                                                    anyhow::bail!("{}", msg);
                                                 }
                                                 let fname = filename.as_deref().unwrap_or("received-file");
                                                 let dest = out_path.join(fname);
@@ -322,7 +334,14 @@ pub(crate) async fn cmd_file_receive(
                                             for i in 0..expected_chunks {
                                                 match chunks.get(&i) {
                                                     Some(data) => file_data.extend_from_slice(data),
-                                                    None => anyhow::bail!("Missing chunk {} of {}", i, expected_chunks),
+                                                    None => {
+                                                        let msg = format!("Missing chunk {} of {}", i, expected_chunks);
+                                                        if json {
+                                                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
+                                                            std::process::exit(1);
+                                                        }
+                                                        anyhow::bail!("{}", msg);
+                                                    }
                                                 }
                                             }
 
@@ -331,10 +350,15 @@ pub(crate) async fn cmd_file_receive(
                                             let actual_sha256 = format!("{:x}", hasher.finalize());
 
                                             if actual_sha256 != complete.sha256 {
-                                                anyhow::bail!(
+                                                let msg = format!(
                                                     "SHA-256 mismatch! Expected: {}, Got: {}",
                                                     complete.sha256, actual_sha256
                                                 );
+                                                if json {
+                                                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
+                                                    std::process::exit(1);
+                                                }
+                                                anyhow::bail!("{}", msg);
                                             }
 
                                             let fname = filename.as_deref().unwrap_or("received-file");
@@ -363,7 +387,12 @@ pub(crate) async fn cmd_file_receive(
                                     if let Some(msg) = payload.get("message").and_then(|m| m.as_str()) {
                                         let xfer = payload.get("transfer_id").and_then(|t| t.as_str()).unwrap_or("?");
                                         if transfer_id.as_deref() == Some(xfer) || transfer_id.is_none() {
-                                            anyhow::bail!("Transfer error: {}", msg);
+                                            let err_msg = format!("Transfer error: {}", msg);
+                                            if json {
+                                                println!("{}", serde_json::json!({"ok": false, "target": target, "error": err_msg}));
+                                                std::process::exit(1);
+                                            }
+                                            anyhow::bail!("{}", err_msg);
                                         }
                                     }
                                 }
