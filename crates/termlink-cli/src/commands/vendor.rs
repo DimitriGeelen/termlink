@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -20,8 +20,16 @@ pub(crate) fn cmd_vendor(
     let source_path = if let Some(s) = source {
         PathBuf::from(s)
     } else {
-        std::env::current_exe()
-            .context("Cannot determine current binary path")?
+        match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot determine current binary path: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e.into());
+            }
+        }
     };
 
     if !source_path.exists() {
@@ -36,8 +44,16 @@ pub(crate) fn cmd_vendor(
     let project_dir = if let Some(t) = target {
         PathBuf::from(t)
     } else {
-        std::env::current_dir()
-            .context("Cannot determine current directory")?
+        match std::env::current_dir() {
+            Ok(p) => p,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot determine current directory: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e.into());
+            }
+        }
     };
 
     let dest_bin = project_dir.join(VENDOR_BIN);
@@ -45,8 +61,16 @@ pub(crate) fn cmd_vendor(
     let dest_dir = project_dir.join(VENDOR_DIR);
 
     // Get source binary metadata
-    let source_meta = std::fs::metadata(&source_path)
-        .context("Cannot read source binary metadata")?;
+    let source_meta = match std::fs::metadata(&source_path) {
+        Ok(m) => m,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot read source binary metadata: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
     let source_size = source_meta.len();
 
     // Get version from running the binary
@@ -76,25 +100,45 @@ pub(crate) fn cmd_vendor(
 
     // Create directory structure
     let bin_dir = project_dir.join(".termlink/bin");
-    std::fs::create_dir_all(&bin_dir)
-        .context(format!("Cannot create {}", bin_dir.display()))?;
+    if let Err(e) = std::fs::create_dir_all(&bin_dir) {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot create {}: {}", bin_dir.display(), e)}));
+            std::process::exit(1);
+        }
+        return Err(e.into());
+    }
 
     // Copy binary
-    std::fs::copy(&source_path, &dest_bin)
-        .context(format!("Cannot copy binary to {}", dest_bin.display()))?;
+    if let Err(e) = std::fs::copy(&source_path, &dest_bin) {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot copy binary to {}: {}", dest_bin.display(), e)}));
+            std::process::exit(1);
+        }
+        return Err(e.into());
+    }
 
     // Set executable permission
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&dest_bin, std::fs::Permissions::from_mode(0o755))
-            .context("Cannot set executable permission")?;
+        if let Err(e) = std::fs::set_permissions(&dest_bin, std::fs::Permissions::from_mode(0o755)) {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot set executable permission: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
     }
 
     // Write VERSION file
     if let Some(ref v) = source_version {
-        std::fs::write(&dest_version, format!("{v}\n"))
-            .context("Cannot write VERSION file")?;
+        if let Err(e) = std::fs::write(&dest_version, format!("{v}\n")) {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot write VERSION file: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
     }
 
     // Check if .gitignore has the vendor binary
