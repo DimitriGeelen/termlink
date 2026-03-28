@@ -182,8 +182,16 @@ pub(crate) async fn cmd_interact(
 }
 
 pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, strip_ansi: bool, json: bool, timeout_secs: u64) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let mut params = if let Some(b) = bytes {
         serde_json::json!({ "bytes": b })
@@ -242,8 +250,16 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
 }
 
 pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let mut keys = Vec::new();
 
@@ -301,8 +317,16 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
 }
 
 pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool, timeout_secs: u64) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(
