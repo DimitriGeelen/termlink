@@ -185,9 +185,13 @@ pub(crate) async fn cmd_discover(
                 "display_name": s.display_name,
                 "state": s.state.to_string(),
                 "pid": s.pid,
+                "uid": s.uid,
+                "created_at": s.created_at,
+                "heartbeat_at": s.heartbeat_at,
                 "tags": s.tags,
                 "roles": s.roles,
                 "capabilities": s.capabilities,
+                "metadata": s.metadata,
                 "socket_path": s.socket_path().display().to_string(),
             })
         }).collect();
