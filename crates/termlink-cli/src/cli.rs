@@ -374,6 +374,8 @@ pub(crate) enum Command {
         topic: Option<String>,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "0")]
+        timeout: u64,
     },
 
     /// List event topics from one or all sessions
@@ -1425,6 +1427,10 @@ pub(crate) enum EventCommand {
         /// Output each event as a JSON line (NDJSON)
         #[arg(long)]
         json: bool,
+
+        /// Exit after N seconds (0 = no timeout)
+        #[arg(long, default_value = "0")]
+        timeout: u64,
     },
 
     /// Emit an event to a session's event bus

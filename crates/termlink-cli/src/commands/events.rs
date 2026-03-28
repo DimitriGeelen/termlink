@@ -261,6 +261,7 @@ pub(crate) async fn cmd_watch(
     interval_ms: u64,
     topic_filter: Option<&str>,
     json: bool,
+    timeout_secs: u64,
 ) -> Result<()> {
     use std::collections::HashMap;
 
@@ -309,6 +310,9 @@ pub(crate) async fn cmd_watch(
                 .collect::<Vec<_>>()
                 .join(", "),
         );
+        if timeout_secs > 0 {
+            eprintln!("  Timeout: {}s", timeout_secs);
+        }
         eprintln!();
     }
 
@@ -318,8 +322,23 @@ pub(crate) async fn cmd_watch(
         .collect();
 
     let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    let deadline = if timeout_secs > 0 {
+        Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs))
+    } else {
+        None
+    };
 
     loop {
+        if let Some(dl) = deadline {
+            if std::time::Instant::now() >= dl {
+                if !json {
+                    eprintln!();
+                    eprintln!("Stopped watching (timeout after {}s).", timeout_secs);
+                }
+                break;
+            }
+        }
+
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
                 if !json {
