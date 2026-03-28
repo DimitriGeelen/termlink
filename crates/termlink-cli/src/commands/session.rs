@@ -298,25 +298,47 @@ pub(crate) fn cmd_clean(dry_run: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn cmd_ping(target: &str) -> Result<()> {
+pub(crate) async fn cmd_ping(target: &str, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
+    let start = std::time::Instant::now();
     let resp = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}))
         .await
         .context("Failed to connect to session")?;
+    let latency_ms = start.elapsed().as_millis();
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            println!(
-                "PONG from {} ({}) — state: {}",
-                result["id"].as_str().unwrap_or("?"),
-                result["display_name"].as_str().unwrap_or("?"),
-                result["state"].as_str().unwrap_or("?"),
-            );
+            if json {
+                println!("{}", serde_json::json!({
+                    "status": "ok",
+                    "target": target,
+                    "id": result["id"],
+                    "display_name": result["display_name"],
+                    "state": result["state"],
+                    "latency_ms": latency_ms,
+                }));
+            } else {
+                println!(
+                    "PONG from {} ({}) — state: {}, latency: {}ms",
+                    result["id"].as_str().unwrap_or("?"),
+                    result["display_name"].as_str().unwrap_or("?"),
+                    result["state"].as_str().unwrap_or("?"),
+                    latency_ms,
+                );
+            }
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "status": "error",
+                    "target": target,
+                    "error": format!("{e}"),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Ping failed: {}", e);
         }
     }

@@ -73,6 +73,10 @@ pub(crate) enum Command {
     Ping {
         /// Session ID or display name (omit to pick interactively)
         target: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Query a session's status
