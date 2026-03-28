@@ -83,6 +83,7 @@ pub(crate) async fn cmd_discover(
     first: bool,
     wait: bool,
     wait_timeout: u64,
+    id: bool,
 ) -> Result<()> {
     let has_filters = !tags.is_empty() || !roles.is_empty() || !caps.is_empty() || name.is_some();
 
@@ -132,7 +133,11 @@ pub(crate) async fn cmd_discover(
 
     if first {
         if let Some(s) = filtered.first() {
-            println!("{}", s.display_name);
+            if id {
+                println!("{}", s.id.as_str());
+            } else {
+                println!("{}", s.display_name);
+            }
         } else {
             std::process::exit(1);
         }

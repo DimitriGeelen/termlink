@@ -462,6 +462,10 @@ pub(crate) enum Command {
         /// Timeout in seconds when --wait is used (default: 30)
         #[arg(long, default_value = "30")]
         wait_timeout: u64,
+
+        /// Output session ID instead of display name (with --first)
+        #[arg(long)]
+        id: bool,
     },
 
     /// Manage key-value metadata on a session
