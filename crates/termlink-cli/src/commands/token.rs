@@ -94,12 +94,27 @@ pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
         anyhow::bail!("Invalid token format (expected payload.signature)");
     }
 
-    let payload_json = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(parts[0])
-        .context("Invalid base64 in token payload")?;
+    let payload_json = match base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[0]) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid base64 in token payload: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
 
-    let payload: serde_json::Value =
-        serde_json::from_slice(&payload_json).context("Invalid JSON in token payload")?;
+    let payload: serde_json::Value = match serde_json::from_slice(&payload_json) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON in token payload: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
 
     if json {
         let now = std::time::SystemTime::now()
