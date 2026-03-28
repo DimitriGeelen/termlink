@@ -54,7 +54,13 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
     match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => { result.context("Failed to emit file.init")?; }
-        Err(_) => { anyhow::bail!("file.init timed out after {}s", timeout_secs); }
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("file.init timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("file.init timed out after {}s", timeout_secs);
+        }
     }
 
     if !json {
@@ -81,7 +87,13 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
         match tokio::time::timeout(timeout_dur, rpc_future).await {
             Ok(result) => { result.context(format!("Failed to emit chunk {}/{}", i + 1, total_chunks))?; }
-            Err(_) => { anyhow::bail!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs); }
+            Err(_) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs)}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs);
+            }
         }
 
         if !json && total_chunks > 1 {
@@ -106,7 +118,13 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
     match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => { result.context("Failed to emit file.complete")?; }
-        Err(_) => { anyhow::bail!("file.complete timed out after {}s", timeout_secs); }
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("file.complete timed out after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("file.complete timed out after {}s", timeout_secs);
+        }
     }
 
     if json {
@@ -365,12 +383,19 @@ pub(crate) async fn cmd_file_receive(
 
         if start.elapsed() > timeout_dur {
             if transfer_id.is_some() {
-                anyhow::bail!(
-                    "Timeout: received {}/{} chunks before timeout ({}s)",
-                    chunks.len(), expected_chunks, timeout
-                );
+                let msg = format!("Timeout: received {}/{} chunks before timeout ({}s)", chunks.len(), expected_chunks, timeout);
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg, "chunks_received": chunks.len(), "chunks_expected": expected_chunks}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("{}", msg);
             } else {
-                anyhow::bail!("Timeout waiting for file transfer ({}s)", timeout);
+                let msg = format!("Timeout waiting for file transfer ({}s)", timeout);
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("{}", msg);
             }
         }
 
