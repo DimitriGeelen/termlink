@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use termlink_session::client;
 use termlink_session::manager;
 
-pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool) -> Result<()> {
+pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -15,9 +15,12 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
         params["topic"] = serde_json::json!(t);
     }
 
-    let resp = client::rpc_call(reg.socket_path(), "event.poll", params)
-        .await
-        .context("Failed to connect to session")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc = client::rpc_call(reg.socket_path(), "event.poll", params);
+    let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+        Ok(r) => r.context("Failed to connect to session")?,
+        Err(_) => anyhow::bail!("Event poll timed out after {}s", timeout_secs),
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {

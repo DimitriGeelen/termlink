@@ -292,6 +292,8 @@ pub(crate) enum Command {
         topic: Option<String>,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Broadcast an event to multiple sessions via the hub
@@ -1316,6 +1318,10 @@ pub(crate) enum EventCommand {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Watch events from one or more sessions in real-time
