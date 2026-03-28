@@ -88,6 +88,10 @@ pub(crate) enum Command {
         #[arg(long)]
         ids: bool,
 
+        /// Output only the first matching session (exits 1 if none)
+        #[arg(long)]
+        first: bool,
+
         /// Suppress table header and footer (for piping/awk)
         #[arg(long)]
         no_header: bool,
