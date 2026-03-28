@@ -187,7 +187,7 @@ pub(crate) async fn cmd_discover(
     Ok(())
 }
 
-pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_secs: u64) -> Result<()> {
+pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
@@ -258,7 +258,16 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_s
                     if json {
                         println!("{}", serde_json::to_string_pretty(&result)?);
                     } else if result["found"].as_bool().unwrap_or(false) {
-                        println!("{}", serde_json::to_string_pretty(&result["value"])?);
+                        let value = &result["value"];
+                        if raw {
+                            if let Some(s) = value.as_str() {
+                                println!("{}", s);
+                            } else {
+                                println!("{}", serde_json::to_string(value)?);
+                            }
+                        } else {
+                            println!("{}", serde_json::to_string_pretty(value)?);
+                        }
                     } else {
                         eprintln!("Key '{}' not found", key);
                         std::process::exit(1);

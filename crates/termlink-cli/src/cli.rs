@@ -477,6 +477,10 @@ pub(crate) enum Command {
         #[arg(long, default_value = "5")]
         timeout: u64,
 
+        /// Output raw value (strings without quotes, for piping)
+        #[arg(long)]
+        raw: bool,
+
         #[command(subcommand)]
         action: KvAction,
     },

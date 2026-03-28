@@ -122,7 +122,7 @@ async fn main() -> Result<()> {
         Command::Discover { tag, role, cap, name, json, count, first, wait, wait_timeout } => {
             commands::metadata::cmd_discover(tag, role, cap, name, json, count, first, wait, wait_timeout).await
         }
-        Command::Kv { target, json, timeout, action } => commands::metadata::cmd_kv(&target, action, json, timeout).await,
+        Command::Kv { target, json, timeout, raw, action } => commands::metadata::cmd_kv(&target, action, json, raw, timeout).await,
 
         // Execution
         Command::Run { name, tags, timeout, json, command } => {
