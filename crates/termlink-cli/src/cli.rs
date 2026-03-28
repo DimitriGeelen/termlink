@@ -1141,7 +1141,11 @@ pub(crate) enum ProfileAction {
     },
 
     /// List saved hub profiles
-    List,
+    List {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 
     /// Remove a hub profile
     Remove {

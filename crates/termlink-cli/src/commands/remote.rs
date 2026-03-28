@@ -224,8 +224,27 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
             println!("  Config: {}", hubs_config_path().display());
             Ok(())
         }
-        ProfileAction::List => {
+        ProfileAction::List { json } => {
             let config = load_hubs_config();
+            if json {
+                let profiles: Vec<serde_json::Value> = {
+                    let mut names: Vec<_> = config.hubs.keys().collect();
+                    names.sort();
+                    names.iter().map(|name| {
+                        let entry = &config.hubs[*name];
+                        serde_json::json!({
+                            "name": name,
+                            "address": entry.address,
+                            "scope": entry.scope,
+                            "secret_type": if entry.secret_file.is_some() { "file" }
+                                else if entry.secret.is_some() { "inline" }
+                                else { "none" },
+                        })
+                    }).collect()
+                };
+                println!("{}", serde_json::to_string_pretty(&profiles)?);
+                return Ok(());
+            }
             if config.hubs.is_empty() {
                 println!("No hub profiles configured.");
                 println!("  Add one: termlink remote profile add <name> <address> --secret-file <path>");
