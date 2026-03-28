@@ -368,15 +368,25 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     }
 
     if names {
-        for s in &sessions {
-            println!("{}", s.display_name);
+        if json {
+            let items: Vec<&str> = sessions.iter().map(|s| s.display_name.as_str()).collect();
+            println!("{}", serde_json::json!(items));
+        } else {
+            for s in &sessions {
+                println!("{}", s.display_name);
+            }
         }
         return Ok(());
     }
 
     if ids {
-        for s in &sessions {
-            println!("{}", s.id.as_str());
+        if json {
+            let items: Vec<&str> = sessions.iter().map(|s| s.id.as_str()).collect();
+            println!("{}", serde_json::json!(items));
+        } else {
+            for s in &sessions {
+                println!("{}", s.id.as_str());
+            }
         }
         return Ok(());
     }
