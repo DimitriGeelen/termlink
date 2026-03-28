@@ -481,6 +481,10 @@ pub(crate) enum Command {
         #[arg(long)]
         raw: bool,
 
+        /// List only key names (one per line, for scripting)
+        #[arg(long)]
+        keys: bool,
+
         #[command(subcommand)]
         action: KvAction,
     },
