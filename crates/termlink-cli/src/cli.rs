@@ -55,6 +55,14 @@ pub(crate) enum Command {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Filter by tag (sessions must have this tag)
+        #[arg(long)]
+        tag: Option<String>,
+
+        /// Filter by name (substring match)
+        #[arg(long)]
+        name: Option<String>,
     },
 
     /// Ping a session to verify it's alive
