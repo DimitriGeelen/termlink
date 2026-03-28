@@ -116,8 +116,8 @@ async fn main() -> Result<()> {
         }
 
         // Metadata & Discovery
-        Command::Tag { target, set, add, remove } => {
-            commands::metadata::cmd_tag(&target, set, add, remove).await
+        Command::Tag { target, set, add, remove, json } => {
+            commands::metadata::cmd_tag(&target, set, add, remove, json).await
         }
         Command::Discover { tag, role, cap, name, json } => {
             commands::metadata::cmd_discover(tag, role, cap, name, json)

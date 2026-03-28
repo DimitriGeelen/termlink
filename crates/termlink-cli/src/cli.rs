@@ -345,6 +345,10 @@ pub(crate) enum Command {
         /// Remove tags
         #[arg(long, value_delimiter = ',')]
         remove: Vec<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Discover sessions by tag, role, capability, or name pattern

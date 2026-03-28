@@ -11,6 +11,7 @@ pub(crate) async fn cmd_tag(
     set: Vec<String>,
     add: Vec<String>,
     remove: Vec<String>,
+    json: bool,
 ) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
@@ -32,20 +33,24 @@ pub(crate) async fn cmd_tag(
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            let tags = result["tags"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|t| t.as_str())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-                .unwrap_or_default();
-            println!(
-                "Updated {}: tags=[{}]",
-                result["display_name"].as_str().unwrap_or(target),
-                tags,
-            );
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                let tags = result["tags"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|t| t.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .unwrap_or_default();
+                println!(
+                    "Updated {}: tags=[{}]",
+                    result["display_name"].as_str().unwrap_or(target),
+                    tags,
+                );
+            }
             Ok(())
         }
         Err(e) => {
