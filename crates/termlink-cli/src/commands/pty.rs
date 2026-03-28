@@ -44,8 +44,17 @@ pub(crate) async fn cmd_interact(
         "query.output",
         serde_json::json!({ "bytes": 131072 }),
     )
-    .await
-    .context("Failed to query output (is this a PTY session?)")?;
+    .await;
+    let pre_resp = match pre_resp {
+        Ok(r) => r,
+        Err(e) => {
+            if json_output {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to query output (is this a PTY session?): {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to query output (is this a PTY session?)");
+        }
+    };
 
     let pre_output = match client::unwrap_result(pre_resp) {
         Ok(r) => r["output"].as_str().unwrap_or("").to_string(),
@@ -65,13 +74,19 @@ pub(crate) async fn cmd_interact(
         { "type": "text", "value": inject_line },
         { "type": "key", "value": "Enter" }
     ]);
-    client::rpc_call(
+    if let Err(e) = client::rpc_call(
         reg.socket_path(),
         "command.inject",
         serde_json::json!({ "keys": keys }),
     )
     .await
-    .context("Failed to inject command")?;
+    {
+        if json_output {
+            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to inject command: {}", e)}));
+            std::process::exit(1);
+        }
+        return Err(e).context("Failed to inject command");
+    }
 
     let start = std::time::Instant::now();
     let deadline = std::time::Duration::from_secs(timeout);
