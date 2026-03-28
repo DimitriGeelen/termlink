@@ -1132,3 +1132,26 @@ fn cli_send_json_output() {
     assert_eq!(parsed["method"], "termlink.ping");
     assert!(parsed["result"].is_object(), "Expected result object");
 }
+
+// ─── Ping --timeout Tests ───────────────────────────────────────────
+
+#[test]
+fn cli_ping_with_timeout() {
+    let dir = TestDir::new("ping-timeout");
+    let _guard = start_register(&dir.path, "pingbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["ping", "pingbox", "--timeout", "10", "--json"])
+        .output()
+        .expect("Failed to run termlink ping --timeout");
+
+    assert!(output.status.success(), "ping --timeout failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["status"], "ok");
+    assert!(parsed["latency_ms"].is_number());
+}

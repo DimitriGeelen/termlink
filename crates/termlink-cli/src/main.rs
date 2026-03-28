@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
             }
         }
         Command::List { all, json, tag, name, role, count } => commands::session::cmd_list(all, json, tag.as_deref(), name.as_deref(), role.as_deref(), count),
-        Command::Ping { target, json } => commands::session::cmd_ping(&resolve_target(target)?, json).await,
+        Command::Ping { target, json, timeout } => commands::session::cmd_ping(&resolve_target(target)?, json, timeout).await,
         Command::Status { target, json } => commands::session::cmd_status(&resolve_target(target)?, json).await,
         Command::Info { json } => commands::session::cmd_info(json),
         Command::Send { target, method, params, json } => commands::session::cmd_send(&target, &method, &params, json).await,

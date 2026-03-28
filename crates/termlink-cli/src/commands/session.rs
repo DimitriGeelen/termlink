@@ -359,14 +359,29 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn cmd_ping(target: &str, json: bool) -> Result<()> {
+pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
     let start = std::time::Instant::now();
-    let resp = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}))
-        .await
-        .context("Failed to connect to session")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc_future = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}));
+    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            let latency_ms = start.elapsed().as_millis();
+            if json {
+                println!("{}", serde_json::json!({
+                    "status": "timeout",
+                    "target": target,
+                    "timeout_ms": timeout_secs * 1000,
+                    "latency_ms": latency_ms,
+                }));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Ping timed out after {}s", timeout_secs);
+        }
+    };
     let latency_ms = start.elapsed().as_millis();
 
     match client::unwrap_result(resp) {
