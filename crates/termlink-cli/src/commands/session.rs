@@ -332,6 +332,37 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         return Ok(());
     }
 
+    if first {
+        if let Some(s) = sessions.first() {
+            if json {
+                println!("{}", serde_json::json!({
+                    "id": s.id.as_str(),
+                    "display_name": s.display_name,
+                    "state": s.state.to_string(),
+                    "pid": s.pid,
+                    "uid": s.uid,
+                    "created_at": s.created_at,
+                    "heartbeat_at": s.heartbeat_at,
+                    "tags": s.tags,
+                    "roles": s.roles,
+                    "capabilities": s.capabilities,
+                    "metadata": s.metadata,
+                    "socket_path": s.socket_path().display().to_string(),
+                }));
+            } else if ids {
+                println!("{}", s.id.as_str());
+            } else {
+                println!("{}", s.display_name);
+            }
+        } else {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": "No matching sessions"}));
+            }
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
     if names {
         for s in &sessions {
             println!("{}", s.display_name);
@@ -342,15 +373,6 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     if ids {
         for s in &sessions {
             println!("{}", s.id.as_str());
-        }
-        return Ok(());
-    }
-
-    if first {
-        if let Some(s) = sessions.first() {
-            println!("{}", s.display_name);
-        } else {
-            std::process::exit(1);
         }
         return Ok(());
     }
