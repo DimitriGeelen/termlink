@@ -480,6 +480,10 @@ pub(crate) enum Command {
         #[arg(long, default_value = "auto")]
         backend: SpawnBackend,
 
+        /// Output result as JSON (session_name, backend)
+        #[arg(long)]
+        json: bool,
+
         /// Command to run in the spawned terminal (after --)
         #[arg(trailing_var_arg = true)]
         command: Vec<String>,

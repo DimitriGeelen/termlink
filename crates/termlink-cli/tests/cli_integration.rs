@@ -1034,3 +1034,26 @@ fn cli_run_json_nonzero_exit() {
     assert_eq!(parsed["exit_code"], 42);
     assert!(parsed["stderr"].as_str().unwrap().contains("err"), "Expected stderr to contain 'err'");
 }
+
+// ─── Spawn --json Tests ─────────────────────────────────────────────
+
+#[test]
+fn cli_spawn_json_output() {
+    let dir = TestDir::new("spawn-json");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["spawn", "--name", "spawntest", "--backend", "background", "--wait", "--wait-timeout", "5", "--json", "--", "sleep", "10"])
+        .output()
+        .expect("Failed to run termlink spawn --json");
+
+    assert!(output.status.success(), "spawn --json failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from spawn --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["session_name"], "spawntest");
+    assert_eq!(parsed["backend"], "background");
+    assert_eq!(parsed["ready"], true);
+    assert!(parsed["session_id"].is_string(), "Expected session_id field");
+}

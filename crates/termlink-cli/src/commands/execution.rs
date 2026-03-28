@@ -254,6 +254,7 @@ pub(crate) async fn cmd_spawn(
     wait_timeout: u64,
     shell: bool,
     backend: SpawnBackend,
+    json: bool,
     command: Vec<String>,
 ) -> Result<()> {
     let session_name = name.clone().unwrap_or_else(|| {
@@ -270,19 +271,41 @@ pub(crate) async fn cmd_spawn(
         SpawnBackend::Auto => unreachable!("resolve_spawn_backend always resolves Auto"),
     }
 
-    println!("Spawned session '{}' via {} backend", session_name, resolved);
+    if !json {
+        println!("Spawned session '{}' via {} backend", session_name, resolved);
+    }
 
     if wait {
-        println!("Waiting for session to register (timeout: {}s)...", wait_timeout);
+        if !json {
+            println!("Waiting for session to register (timeout: {}s)...", wait_timeout);
+        }
         let start = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(wait_timeout);
 
         loop {
-            if manager::find_session(&session_name).is_ok() {
-                println!("Session '{}' is ready", session_name);
+            if let Ok(reg) = manager::find_session(&session_name) {
+                if json {
+                    println!("{}", serde_json::json!({
+                        "session_name": session_name,
+                        "backend": resolved.to_string(),
+                        "ready": true,
+                        "session_id": reg.id.as_str(),
+                    }));
+                } else {
+                    println!("Session '{}' is ready", session_name);
+                }
                 return Ok(());
             }
             if start.elapsed() > timeout {
+                if json {
+                    println!("{}", serde_json::json!({
+                        "session_name": session_name,
+                        "backend": resolved.to_string(),
+                        "ready": false,
+                        "error": format!("Timeout waiting for session to register ({}s)", wait_timeout),
+                    }));
+                    std::process::exit(1);
+                }
                 anyhow::bail!(
                     "Timeout waiting for session '{}' to register ({}s)",
                     session_name,
@@ -291,6 +314,13 @@ pub(crate) async fn cmd_spawn(
             }
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         }
+    }
+
+    if json {
+        println!("{}", serde_json::json!({
+            "session_name": session_name,
+            "backend": resolved.to_string(),
+        }));
     }
 
     Ok(())
