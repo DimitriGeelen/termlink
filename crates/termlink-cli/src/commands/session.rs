@@ -473,6 +473,7 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
             })
         }).collect();
         println!("{}", serde_json::json!({
+            "ok": true,
             "dry_run": dry_run,
             "action": if dry_run { "would_remove" } else { "removed" },
             "count": stale.len(),
