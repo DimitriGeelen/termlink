@@ -350,6 +350,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
                 "tags": s.tags,
                 "roles": s.roles,
                 "capabilities": s.capabilities,
+                "metadata": s.metadata,
                 "socket_path": s.socket_path().display().to_string(),
             })
         }).collect();
