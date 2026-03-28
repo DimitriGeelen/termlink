@@ -115,7 +115,7 @@ pub(crate) fn cmd_vendor(
 }
 
 /// Check TermLink vendor status for a project directory.
-pub(crate) fn cmd_vendor_status(target: Option<&str>) -> Result<()> {
+pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool) -> Result<()> {
     let project_dir = if let Some(t) = target {
         PathBuf::from(t)
     } else {
@@ -126,7 +126,11 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>) -> Result<()> {
     let dest_version = project_dir.join(VENDOR_VERSION);
 
     if !dest_bin.exists() {
-        println!("Not vendored. Run: termlink vendor");
+        if json {
+            println!("{}", serde_json::json!({"vendored": false}));
+        } else {
+            println!("Not vendored. Run: termlink vendor");
+        }
         return Ok(());
     }
 
@@ -142,18 +146,6 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>) -> Result<()> {
     let current_exe = std::env::current_exe().ok();
     let current_version = current_exe.as_ref().and_then(|p| get_binary_version(p));
 
-    println!("TermLink vendor status");
-    println!("  Binary:  {} ({:.1} MB)", dest_bin.display(), size as f64 / 1_048_576.0);
-    println!("  Version: {version}");
-
-    if let Some(ref cv) = current_version {
-        if *cv != version {
-            println!("  Global:  {cv} (DIFFERS — run: termlink vendor)");
-        } else {
-            println!("  Global:  {cv} (matches)");
-        }
-    }
-
     // Check MCP configuration
     let settings_path = project_dir.join(".claude/settings.local.json");
     let mcp_configured = settings_path.exists()
@@ -163,22 +155,49 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>) -> Result<()> {
             .and_then(|v| v.get("mcpServers")?.get("termlink").cloned())
             .is_some();
 
-    if mcp_configured {
-        println!("  MCP:     configured in .claude/settings.local.json");
-    } else {
-        println!("  MCP:     NOT configured (run: termlink vendor)");
-    }
-
     // Check .gitignore
     let gitignore = project_dir.join(".gitignore");
     let gi_ok = std::fs::read_to_string(&gitignore)
         .ok()
         .map(|c| c.contains(".termlink"))
         .unwrap_or(false);
-    if gi_ok {
-        println!("  Ignore:  .termlink in .gitignore");
+
+    if json {
+        let version_matches = current_version.as_ref().map(|cv| *cv == version);
+        println!("{}", serde_json::json!({
+            "vendored": true,
+            "binary": dest_bin.display().to_string(),
+            "version": version,
+            "size_bytes": size,
+            "global_version": current_version,
+            "version_matches": version_matches,
+            "mcp_configured": mcp_configured,
+            "gitignore_ok": gi_ok,
+        }));
     } else {
-        println!("  Ignore:  NOT in .gitignore (run: termlink vendor)");
+        println!("TermLink vendor status");
+        println!("  Binary:  {} ({:.1} MB)", dest_bin.display(), size as f64 / 1_048_576.0);
+        println!("  Version: {version}");
+
+        if let Some(ref cv) = current_version {
+            if *cv != version {
+                println!("  Global:  {cv} (DIFFERS — run: termlink vendor)");
+            } else {
+                println!("  Global:  {cv} (matches)");
+            }
+        }
+
+        if mcp_configured {
+            println!("  MCP:     configured in .claude/settings.local.json");
+        } else {
+            println!("  MCP:     NOT configured (run: termlink vendor)");
+        }
+
+        if gi_ok {
+            println!("  Ignore:  .termlink in .gitignore");
+        } else {
+            println!("  Ignore:  NOT in .gitignore (run: termlink vendor)");
+        }
     }
 
     Ok(())

@@ -216,7 +216,7 @@ async fn main() -> Result<()> {
         Command::Vendor { action, source, target, dry_run } => {
             if let Some(action) = action {
                 match action {
-                    VendorAction::Status { target } => commands::vendor::cmd_vendor_status(target.as_deref()),
+                    VendorAction::Status { target, json } => commands::vendor::cmd_vendor_status(target.as_deref(), json),
                 }
             } else {
                 commands::vendor::cmd_vendor(source.as_deref(), target.as_deref(), dry_run)

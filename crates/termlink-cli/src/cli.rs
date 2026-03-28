@@ -667,6 +667,10 @@ pub(crate) enum VendorAction {
         /// Target project directory (default: current directory)
         #[arg(long)]
         target: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 }
 

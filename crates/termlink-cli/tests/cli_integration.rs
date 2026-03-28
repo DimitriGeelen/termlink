@@ -1244,3 +1244,54 @@ fn cli_event_poll_json_output() {
     assert!(parsed["events"].is_array(), "Expected events array");
     assert!(parsed["next_seq"].is_number(), "Expected next_seq field");
 }
+
+// ─── Vendor status --json Tests ─────────────────────────────────────
+
+#[test]
+fn cli_vendor_status_json_not_vendored() {
+    let dir = TestDir::new("vendor-json");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["vendor", "status", "--target", &dir.path.display().to_string(), "--json"])
+        .output()
+        .expect("Failed to run vendor status --json");
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from vendor status --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["vendored"], false);
+}
+
+#[test]
+fn cli_vendor_status_json_vendored() {
+    let dir = TestDir::new("vendor-json-v");
+
+    // Vendor first
+    let output = termlink_cmd(&dir.path)
+        .args(["vendor", "--target", &dir.path.display().to_string()])
+        .output()
+        .expect("Failed to run vendor");
+    assert!(output.status.success(), "vendor failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    // Check status --json
+    let output = termlink_cmd(&dir.path)
+        .args(["vendor", "status", "--target", &dir.path.display().to_string(), "--json"])
+        .output()
+        .expect("Failed to run vendor status --json");
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from vendor status --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["vendored"], true);
+    assert!(parsed["version"].is_string(), "Expected version field");
+    assert!(parsed["binary"].is_string(), "Expected binary field");
+    assert!(parsed["size_bytes"].is_number(), "Expected size_bytes field");
+    assert!(parsed["mcp_configured"].is_boolean(), "Expected mcp_configured field");
+    assert!(parsed["gitignore_ok"].is_boolean(), "Expected gitignore_ok field");
+}
