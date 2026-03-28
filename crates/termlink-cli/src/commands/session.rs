@@ -505,7 +505,7 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str) -> Re
     Ok(())
 }
 
-pub(crate) async fn cmd_signal(target: &str, signal: &str) -> Result<()> {
+pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -522,11 +522,20 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str) -> Result<()> {
 
     match client::unwrap_result(resp) {
         Ok(result) => {
-            println!(
-                "Signal {} sent to PID {}",
-                result["signal"].as_i64().unwrap_or(sig_num as i64),
-                result["pid"].as_u64().unwrap_or(0),
-            );
+            if json {
+                println!("{}", serde_json::json!({
+                    "status": "ok",
+                    "target": target,
+                    "signal": result["signal"],
+                    "pid": result["pid"],
+                }));
+            } else {
+                println!(
+                    "Signal {} sent to PID {}",
+                    result["signal"].as_i64().unwrap_or(sig_num as i64),
+                    result["pid"].as_u64().unwrap_or(0),
+                );
+            }
             Ok(())
         }
         Err(e) => {

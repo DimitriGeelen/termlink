@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
         Command::Exec { target, command, cwd, timeout } => {
             commands::session::cmd_exec(&target, &command, cwd.as_deref(), timeout).await
         }
-        Command::Signal { target, signal } => commands::session::cmd_signal(&target, &signal).await,
+        Command::Signal { target, signal, json } => commands::session::cmd_signal(&target, &signal, json).await,
 
         // PTY subcommand group
         Command::Pty(pty) => match pty {

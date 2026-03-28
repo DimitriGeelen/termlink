@@ -160,6 +160,10 @@ pub(crate) enum Command {
 
         /// Signal name or number (e.g., TERM, INT, KILL, HUP, 15)
         signal: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     // === PTY Operations (grouped) ===
