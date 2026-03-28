@@ -146,8 +146,16 @@ pub(crate) async fn cmd_request(
     interval: u64,
     json: bool,
 ) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let request_id = format!("req-{}-{}", std::process::id(), std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
