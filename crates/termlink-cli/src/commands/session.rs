@@ -203,7 +203,7 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
-pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>) -> Result<()> {
+pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>) -> Result<()> {
     let mut sessions = manager::list_sessions(include_stale)
         .context("Failed to list sessions")?;
 
@@ -213,6 +213,9 @@ pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>
     if let Some(name) = name_filter {
         let name_lower = name.to_lowercase();
         sessions.retain(|s| s.display_name.to_lowercase().contains(&name_lower));
+    }
+    if let Some(role) = role_filter {
+        sessions.retain(|s| s.roles.iter().any(|r| r == role));
     }
 
     if json {

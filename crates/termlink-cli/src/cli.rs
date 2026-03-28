@@ -63,6 +63,10 @@ pub(crate) enum Command {
         /// Filter by name (substring match)
         #[arg(long)]
         name: Option<String>,
+
+        /// Filter by role
+        #[arg(long)]
+        role: Option<String>,
     },
 
     /// Ping a session to verify it's alive

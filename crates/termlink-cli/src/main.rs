@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
                 commands::session::cmd_register(name, roles, tags, shell, token_secret, allowed_commands).await
             }
         }
-        Command::List { all, json, tag, name } => commands::session::cmd_list(all, json, tag.as_deref(), name.as_deref()),
+        Command::List { all, json, tag, name, role } => commands::session::cmd_list(all, json, tag.as_deref(), name.as_deref(), role.as_deref()),
         Command::Ping { target } => commands::session::cmd_ping(&resolve_target(target)?).await,
         Command::Status { target, json } => commands::session::cmd_status(&resolve_target(target)?, json).await,
         Command::Info { json } => commands::session::cmd_info(json),
