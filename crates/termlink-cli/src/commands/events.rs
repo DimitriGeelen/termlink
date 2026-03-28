@@ -26,7 +26,16 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc = client::rpc_call(reg.socket_path(), "event.poll", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-        Ok(r) => r.context("Failed to connect to session")?,
+        Ok(r) => match r {
+            Ok(v) => v,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Event poll timed out after {}s", timeout_secs)}));
@@ -107,7 +116,16 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
         serde_json::json!({ "topic": topic, "payload": payload }),
     );
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-        Ok(r) => r.context("Failed to connect to session")?,
+        Ok(r) => match r {
+            Ok(v) => v,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Event emit timed out after {}s", timeout_secs)}));
@@ -164,7 +182,16 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc = client::rpc_call(&hub_socket, "event.broadcast", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-        Ok(r) => r.context("Failed to connect to hub")?,
+        Ok(r) => match r {
+            Ok(v) => v,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to hub");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "topic": topic, "error": format!("Broadcast timed out after {}s", timeout_secs)}));
@@ -238,7 +265,16 @@ pub(crate) async fn cmd_emit_to(
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc = client::rpc_call(&hub_socket, "event.emit_to", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-        Ok(r) => r.context("Failed to connect to hub")?,
+        Ok(r) => match r {
+            Ok(v) => v,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to hub");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("emit-to timed out after {}s", timeout_secs)}));
