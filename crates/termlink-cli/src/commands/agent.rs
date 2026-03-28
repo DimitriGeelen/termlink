@@ -69,16 +69,31 @@ pub(crate) async fn cmd_agent_ask(
     };
 
     // Emit the agent.request event
-    let payload = serde_json::to_value(&request)
-        .context("Failed to serialize AgentRequest")?;
+    let payload = match serde_json::to_value(&request) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to serialize AgentRequest: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e.into());
+        }
+    };
     let emit_params = serde_json::json!({
         "topic": agent_topic::REQUEST,
         "payload": payload,
     });
 
-    let emit_resp = client::rpc_call(reg.socket_path(), "event.emit", emit_params)
-        .await
-        .context("Failed to emit agent request")?;
+    let emit_resp = match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit agent request: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to emit agent request");
+        }
+    };
 
     match client::unwrap_result(emit_resp) {
         Ok(result) => {
