@@ -686,3 +686,68 @@ fn cli_vendor_dry_run() {
     // Nothing should be created
     assert!(!project.path().join(".termlink").exists(), "Vendor dir should not exist in dry-run");
 }
+
+// ─── JSON Output Tests ──────────────────────────────────────────────
+
+#[test]
+fn cli_ping_json_output() {
+    let dir = TestDir::new("ping-json");
+    let _guard = start_register(&dir.path, "jsonping");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["ping", "jsonping", "--json"])
+        .output()
+        .expect("Failed to run termlink ping --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("ping --json should output valid JSON");
+
+    assert_eq!(json["status"], "ok");
+    assert!(json["latency_ms"].is_number(), "Expected latency_ms number");
+    assert!(json["display_name"].as_str().unwrap().contains("jsonping"));
+}
+
+#[test]
+fn cli_clean_json_output() {
+    let dir = TestDir::new("clean-json");
+
+    // No sessions — clean should output JSON with count 0
+    let output = termlink_cmd(&dir.path)
+        .args(["clean", "--json"])
+        .output()
+        .expect("Failed to run termlink clean --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("clean --json should output valid JSON");
+
+    assert_eq!(json["count"], 0);
+    assert_eq!(json["dry_run"], false);
+    assert!(json["sessions"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn cli_tag_json_output() {
+    let dir = TestDir::new("tag-json");
+    let _guard = start_register(&dir.path, "tagbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["tag", "tagbox", "--add", "dev,test", "--json"])
+        .output()
+        .expect("Failed to run termlink tag --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("tag --json should output valid JSON");
+
+    let tags = json["tags"].as_array().expect("Expected tags array");
+    let tag_strs: Vec<&str> = tags.iter().filter_map(|t| t.as_str()).collect();
+    assert!(tag_strs.contains(&"dev"), "Expected 'dev' in tags: {:?}", tag_strs);
+    assert!(tag_strs.contains(&"test"), "Expected 'test' in tags: {:?}", tag_strs);
+}
