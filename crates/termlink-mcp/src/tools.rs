@@ -110,6 +110,8 @@ pub struct DiscoverParams {
     pub tags: Option<Vec<String>>,
     /// Filter by roles (sessions must have ALL specified roles)
     pub roles: Option<Vec<String>>,
+    /// Filter by capabilities (sessions must have ALL specified capabilities)
+    pub cap: Option<Vec<String>>,
     /// Filter by display name (case-insensitive substring match)
     pub name: Option<String>,
 }
@@ -258,6 +260,7 @@ pub struct SessionInfo {
     pub tags: Vec<String>,
     pub roles: Vec<String>,
     pub capabilities: Vec<String>,
+    pub metadata: serde_json::Value,
 }
 
 // === Tool implementations ===
@@ -315,6 +318,7 @@ impl TermLinkTools {
                         tags: s.tags.clone(),
                         roles: s.roles.clone(),
                         capabilities: s.capabilities.clone(),
+                        metadata: serde_json::to_value(&s.metadata).unwrap_or_default(),
                     })
                     .collect();
                 serde_json::to_string_pretty(&infos).unwrap_or_else(|_| "[]".into())
@@ -567,12 +571,14 @@ impl TermLinkTools {
 
         let tags = p.tags.unwrap_or_default();
         let roles = p.roles.unwrap_or_default();
+        let caps = p.cap.unwrap_or_default();
 
         let filtered: Vec<_> = sessions
             .into_iter()
             .filter(|s| {
                 tags.iter().all(|t| s.tags.contains(t))
                     && roles.iter().all(|r| s.roles.contains(r))
+                    && caps.iter().all(|c| s.capabilities.contains(c))
                     && p.name.as_ref().is_none_or(|n| {
                         s.display_name.to_lowercase().contains(&n.to_lowercase())
                     })
