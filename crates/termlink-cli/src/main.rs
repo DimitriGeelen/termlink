@@ -167,8 +167,8 @@ async fn main() -> Result<()> {
             }
         },
         Command::File { action } => match action {
-            FileAction::Send { target, path, chunk_size, json } => {
-                commands::file::cmd_file_send(&target, &path, chunk_size, json).await
+            FileAction::Send { target, path, chunk_size, json, timeout } => {
+                commands::file::cmd_file_send(&target, &path, chunk_size, json, timeout).await
             }
             FileAction::Receive { target, output_dir, timeout, interval, json } => {
                 commands::file::cmd_file_receive(&target, &output_dir, timeout, interval, json).await

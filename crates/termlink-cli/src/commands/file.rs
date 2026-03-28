@@ -9,7 +9,7 @@ use termlink_protocol::events::{
 
 use crate::util::{generate_request_id, DEFAULT_CHUNK_SIZE};
 
-pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool) -> Result<()> {
+pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool, timeout_secs: u64) -> Result<()> {
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
@@ -44,14 +44,18 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         total_chunks,
         from: format!("cli-{}", std::process::id()),
     };
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+
     let init_payload = serde_json::to_value(&init)?;
     let emit_params = serde_json::json!({
         "topic": file_topic::INIT,
         "payload": init_payload,
     });
-    client::rpc_call(reg.socket_path(), "event.emit", emit_params)
-        .await
-        .context("Failed to emit file.init")?;
+    let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
+    match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => { result.context("Failed to emit file.init")?; }
+        Err(_) => { anyhow::bail!("file.init timed out after {}s", timeout_secs); }
+    }
 
     if !json {
         eprintln!(
@@ -74,9 +78,11 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
             "topic": file_topic::CHUNK,
             "payload": chunk_payload,
         });
-        client::rpc_call(reg.socket_path(), "event.emit", emit_params)
-            .await
-            .context(format!("Failed to emit chunk {}/{}", i + 1, total_chunks))?;
+        let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
+        match tokio::time::timeout(timeout_dur, rpc_future).await {
+            Ok(result) => { result.context(format!("Failed to emit chunk {}/{}", i + 1, total_chunks))?; }
+            Err(_) => { anyhow::bail!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs); }
+        }
 
         if !json && total_chunks > 1 {
             eprint!("\r  Chunk {}/{}", i + 1, total_chunks);
@@ -97,9 +103,11 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         "topic": file_topic::COMPLETE,
         "payload": complete_payload,
     });
-    client::rpc_call(reg.socket_path(), "event.emit", emit_params)
-        .await
-        .context("Failed to emit file.complete")?;
+    let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
+    match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => { result.context("Failed to emit file.complete")?; }
+        Err(_) => { anyhow::bail!("file.complete timed out after {}s", timeout_secs); }
+    }
 
     if json {
         println!("{}", serde_json::json!({
@@ -160,8 +168,17 @@ pub(crate) async fn cmd_file_receive(
             params["since"] = serde_json::json!(c);
         }
 
-        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
-            Ok(resp) => {
+        let rpc_timeout = std::time::Duration::from_secs(10);
+        let rpc_result = tokio::time::timeout(rpc_timeout, client::rpc_call(reg.socket_path(), "event.poll", params)).await;
+        match rpc_result {
+            Err(_) => {
+                tracing::warn!("Poll RPC timed out (10s), retrying...");
+                continue;
+            }
+            Ok(Err(e)) => {
+                tracing::warn!("Poll error: {}", e);
+            }
+            Ok(Ok(resp)) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
                         if is_first_poll {
@@ -343,9 +360,6 @@ pub(crate) async fn cmd_file_receive(
                                 poll_cursor = Some(next);
                             }
                 }
-            }
-            Err(e) => {
-                tracing::warn!("Poll error: {}", e);
             }
         }
 

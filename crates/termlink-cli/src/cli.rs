@@ -1193,6 +1193,10 @@ pub(crate) enum FileAction {
         /// Output transfer result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout per RPC call in seconds (default: 30)
+        #[arg(long, default_value = "30")]
+        timeout: u64,
     },
 
     /// Receive a file from a session (waits for file.init event)
