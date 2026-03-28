@@ -1151,6 +1151,10 @@ pub(crate) enum FileAction {
         /// Chunk size in bytes (default: 49152 = 48KB, ~64KB base64)
         #[arg(long, default_value = "49152")]
         chunk_size: usize,
+
+        /// Output transfer result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Receive a file from a session (waits for file.init event)
@@ -1169,6 +1173,10 @@ pub(crate) enum FileAction {
         /// Poll interval in milliseconds (default: 100)
         #[arg(long, default_value = "100")]
         interval: u64,
+
+        /// Output transfer result as JSON
+        #[arg(long)]
+        json: bool,
     },
 }
 

@@ -167,11 +167,11 @@ async fn main() -> Result<()> {
             }
         },
         Command::File { action } => match action {
-            FileAction::Send { target, path, chunk_size } => {
-                commands::file::cmd_file_send(&target, &path, chunk_size).await
+            FileAction::Send { target, path, chunk_size, json } => {
+                commands::file::cmd_file_send(&target, &path, chunk_size, json).await
             }
-            FileAction::Receive { target, output_dir, timeout, interval } => {
-                commands::file::cmd_file_receive(&target, &output_dir, timeout, interval).await
+            FileAction::Receive { target, output_dir, timeout, interval, json } => {
+                commands::file::cmd_file_receive(&target, &output_dir, timeout, interval, json).await
             }
         },
         Command::Remote { action } => match action {

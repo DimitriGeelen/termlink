@@ -9,7 +9,7 @@ use termlink_protocol::events::{
 
 use crate::util::{generate_request_id, DEFAULT_CHUNK_SIZE};
 
-pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize) -> Result<()> {
+pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool) -> Result<()> {
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
@@ -53,10 +53,12 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize) -
         .await
         .context("Failed to emit file.init")?;
 
-    eprintln!(
-        "Sending '{}' ({} bytes, {} chunks) transfer_id={}",
-        filename, size, total_chunks, transfer_id
-    );
+    if !json {
+        eprintln!(
+            "Sending '{}' ({} bytes, {} chunks) transfer_id={}",
+            filename, size, total_chunks, transfer_id
+        );
+    }
 
     // Emit chunks
     let encoder = base64::engine::general_purpose::STANDARD;
@@ -76,11 +78,11 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize) -
             .await
             .context(format!("Failed to emit chunk {}/{}", i + 1, total_chunks))?;
 
-        if total_chunks > 1 {
+        if !json && total_chunks > 1 {
             eprint!("\r  Chunk {}/{}", i + 1, total_chunks);
         }
     }
-    if total_chunks > 1 {
+    if !json && total_chunks > 1 {
         eprintln!();
     }
 
@@ -99,7 +101,19 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize) -
         .await
         .context("Failed to emit file.complete")?;
 
-    eprintln!("Transfer complete. SHA-256: {}", sha256);
+    if json {
+        println!("{}", serde_json::json!({
+            "ok": true,
+            "filename": filename,
+            "size": size,
+            "chunks": total_chunks,
+            "transfer_id": transfer_id,
+            "sha256": sha256,
+            "target": target,
+        }));
+    } else {
+        eprintln!("Transfer complete. SHA-256: {}", sha256);
+    }
     Ok(())
 }
 
@@ -108,6 +122,7 @@ pub(crate) async fn cmd_file_receive(
     output_dir: &str,
     timeout: u64,
     interval: u64,
+    json: bool,
 ) -> Result<()> {
     use base64::Engine;
     use sha2::{Digest, Sha256};
@@ -121,7 +136,9 @@ pub(crate) async fn cmd_file_receive(
             .context(format!("Failed to create output directory: {}", output_dir))?;
     }
 
-    eprintln!("Waiting for file transfer on '{}' (timeout: {}s)...", target, timeout);
+    if !json {
+        eprintln!("Waiting for file transfer on '{}' (timeout: {}s)...", target, timeout);
+    }
 
     let start = std::time::Instant::now();
     let timeout_dur = std::time::Duration::from_secs(timeout);
@@ -161,10 +178,12 @@ pub(crate) async fn cmd_file_receive(
                                 filename = Some(init.filename.clone());
                                 expected_chunks = init.total_chunks;
                                 chunks.clear();
-                                eprintln!(
-                                    "Receiving '{}' ({} bytes, {} chunks) from {}",
-                                    init.filename, init.size, init.total_chunks, init.from
-                                );
+                                if !json {
+                                    eprintln!(
+                                        "Receiving '{}' ({} bytes, {} chunks) from {}",
+                                        init.filename, init.size, init.total_chunks, init.from
+                                    );
+                                }
                                 for event in events.iter() {
                                     let topic = event["topic"].as_str().unwrap_or("");
                                     let payload = &event["payload"];
@@ -205,8 +224,20 @@ pub(crate) async fn cmd_file_receive(
                                                 let dest = out_path.join(fname);
                                                 std::fs::write(&dest, &file_data)
                                                     .context(format!("Failed to write file: {}", dest.display()))?;
-                                                eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
-                                                eprintln!("SHA-256 verified: {}", actual_sha256);
+                                                if json {
+                                                    println!("{}", serde_json::json!({
+                                                        "ok": true,
+                                                        "filename": fname,
+                                                        "path": dest.display().to_string(),
+                                                        "size": file_data.len(),
+                                                        "sha256": actual_sha256,
+                                                        "transfer_id": transfer_id,
+                                                        "target": target,
+                                                    }));
+                                                } else {
+                                                    eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
+                                                    eprintln!("SHA-256 verified: {}", actual_sha256);
+                                                }
                                                 return Ok(());
                                             }
                                 }
@@ -221,10 +252,12 @@ pub(crate) async fn cmd_file_receive(
                             match topic {
                                 t if t == file_topic::INIT => {
                                     if let Ok(init) = serde_json::from_value::<FileInit>(payload.clone()) {
-                                        eprintln!(
-                                            "Receiving '{}' ({} bytes, {} chunks) from {}",
-                                            init.filename, init.size, init.total_chunks, init.from
-                                        );
+                                        if !json {
+                                            eprintln!(
+                                                "Receiving '{}' ({} bytes, {} chunks) from {}",
+                                                init.filename, init.size, init.total_chunks, init.from
+                                            );
+                                        }
                                         transfer_id = Some(init.transfer_id);
                                         filename = Some(init.filename);
                                         expected_chunks = init.total_chunks;
@@ -238,7 +271,7 @@ pub(crate) async fn cmd_file_receive(
                                                 .context(format!("Invalid base64 in chunk {}", chunk.index))?;
                                             chunks.insert(chunk.index, decoded);
 
-                                            if expected_chunks > 1 {
+                                            if !json && expected_chunks > 1 {
                                                 eprint!("\r  Chunk {}/{}", chunks.len(), expected_chunks);
                                             }
                                         }
@@ -246,7 +279,7 @@ pub(crate) async fn cmd_file_receive(
                                 t if t == file_topic::COMPLETE => {
                                     if let Ok(complete) = serde_json::from_value::<FileComplete>(payload.clone())
                                         && transfer_id.as_deref() == Some(&complete.transfer_id) {
-                                            if expected_chunks > 1 {
+                                            if !json && expected_chunks > 1 {
                                                 eprintln!();
                                             }
 
@@ -274,8 +307,20 @@ pub(crate) async fn cmd_file_receive(
                                             std::fs::write(&dest, &file_data)
                                                 .context(format!("Failed to write file: {}", dest.display()))?;
 
-                                            eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
-                                            eprintln!("SHA-256 verified: {}", actual_sha256);
+                                            if json {
+                                                println!("{}", serde_json::json!({
+                                                    "ok": true,
+                                                    "filename": fname,
+                                                    "path": dest.display().to_string(),
+                                                    "size": file_data.len(),
+                                                    "sha256": actual_sha256,
+                                                    "transfer_id": transfer_id,
+                                                    "target": target,
+                                                }));
+                                            } else {
+                                                eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
+                                                eprintln!("SHA-256 verified: {}", actual_sha256);
+                                            }
                                             return Ok(());
                                         }
                                 }
