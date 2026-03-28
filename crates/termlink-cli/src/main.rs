@@ -76,8 +76,8 @@ async fn main() -> Result<()> {
                 commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json).await
             }
             EventCommand::Topics { target, json, timeout } => commands::events::cmd_topics(target.as_deref(), json, timeout).await,
-            EventCommand::Collect { targets, topic, interval, count, json } => {
-                commands::events::cmd_collect(targets, topic.as_deref(), interval, count, json).await
+            EventCommand::Collect { targets, topic, interval, count, json, timeout } => {
+                commands::events::cmd_collect(targets, topic.as_deref(), interval, count, json, timeout).await
             }
         },
 
@@ -108,8 +108,8 @@ async fn main() -> Result<()> {
             commands::events::cmd_watch(targets, interval, topic.as_deref(), json).await
         }
         Command::Topics { target, json, timeout } => commands::events::cmd_topics(target.as_deref(), json, timeout).await,
-        Command::Collect { targets, topic, interval, count, json } => {
-            commands::events::cmd_collect(targets, topic.as_deref(), interval, count, json).await
+        Command::Collect { targets, topic, interval, count, json, timeout } => {
+            commands::events::cmd_collect(targets, topic.as_deref(), interval, count, json, timeout).await
         }
         Command::Wait { target, topic, timeout, interval, json } => {
             commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json).await

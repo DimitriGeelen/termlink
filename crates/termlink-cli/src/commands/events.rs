@@ -561,6 +561,7 @@ pub(crate) async fn cmd_collect(
     interval_ms: u64,
     max_count: u64,
     json: bool,
+    timeout_secs: u64,
 ) -> Result<()> {
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
@@ -575,14 +576,32 @@ pub(crate) async fn cmd_collect(
         if !targets.is_empty() {
             eprintln!("  Targets: {}", targets.join(", "));
         }
+        if timeout_secs > 0 {
+            eprintln!("  Timeout: {}s", timeout_secs);
+        }
         eprintln!();
     }
 
     let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    let deadline = if timeout_secs > 0 {
+        Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs))
+    } else {
+        None
+    };
     let mut cursors = serde_json::json!({});
     let mut total_received: u64 = 0;
 
     loop {
+        if let Some(dl) = deadline {
+            if std::time::Instant::now() >= dl {
+                if !json {
+                    eprintln!();
+                    eprintln!("{} event(s) collected (timeout after {}s).", total_received, timeout_secs);
+                }
+                break;
+            }
+        }
+
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
                 if !json {

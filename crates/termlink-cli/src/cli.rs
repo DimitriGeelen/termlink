@@ -399,6 +399,8 @@ pub(crate) enum Command {
         count: u64,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "0")]
+        timeout: u64,
     },
 
     /// Wait for a session to emit an event matching a topic, then exit
@@ -1551,6 +1553,10 @@ pub(crate) enum EventCommand {
         /// Output each event as a JSON line (NDJSON)
         #[arg(long)]
         json: bool,
+
+        /// Exit after N seconds (0 = no timeout)
+        #[arg(long, default_value = "0")]
+        timeout: u64,
     },
 }
 
