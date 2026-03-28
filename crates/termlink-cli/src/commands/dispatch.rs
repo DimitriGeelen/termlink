@@ -78,8 +78,16 @@ pub(crate) async fn cmd_dispatch(
         worker_tags.push(format!("_dispatch.worker:{i}"));
 
         // Build the spawn command with env vars injected
-        let termlink_bin = std::env::current_exe()
-            .context("Failed to determine termlink binary path")?;
+        let termlink_bin = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => {
+                if json_output {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to determine termlink binary path: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e.into());
+            }
+        };
         let termlink_path = termlink_bin.to_string_lossy().to_string();
 
         let register_args = vec![
