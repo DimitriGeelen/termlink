@@ -62,7 +62,16 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     };
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
 
-    let init_payload = serde_json::to_value(&init)?;
+    let init_payload = match serde_json::to_value(&init) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize file.init: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to serialize file.init");
+        }
+    };
     let emit_params = serde_json::json!({
         "topic": file_topic::INIT,
         "payload": init_payload,
@@ -103,7 +112,16 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
             index: i as u32,
             data: encoder.encode(chunk_data),
         };
-        let chunk_payload = serde_json::to_value(&chunk)?;
+        let chunk_payload = match serde_json::to_value(&chunk) {
+            Ok(v) => v,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize chunk {}: {}", i, e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context(format!("Failed to serialize chunk {}", i));
+            }
+        };
         let emit_params = serde_json::json!({
             "topic": file_topic::CHUNK,
             "payload": chunk_payload,
@@ -143,7 +161,16 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         transfer_id: transfer_id.clone(),
         sha256: sha256.clone(),
     };
-    let complete_payload = serde_json::to_value(&complete)?;
+    let complete_payload = match serde_json::to_value(&complete) {
+        Ok(v) => v,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize file.complete: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to serialize file.complete");
+        }
+    };
     let emit_params = serde_json::json!({
         "topic": file_topic::COMPLETE,
         "payload": complete_payload,
@@ -207,8 +234,13 @@ pub(crate) async fn cmd_file_receive(
 
     let out_path = std::path::Path::new(output_dir);
     if !out_path.exists() {
-        std::fs::create_dir_all(out_path)
-            .context(format!("Failed to create output directory: {}", output_dir))?;
+        if let Err(e) = std::fs::create_dir_all(out_path) {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to create output directory '{}': {}", output_dir, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Failed to create output directory: {}", output_dir));
+        }
     }
 
     if !json {
@@ -274,8 +306,16 @@ pub(crate) async fn cmd_file_receive(
                                     if topic == file_topic::CHUNK
                                         && let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone())
                                             && transfer_id.as_deref() == Some(&chunk.transfer_id) {
-                                                let decoded = decoder.decode(&chunk.data)
-                                                    .context(format!("Invalid base64 in chunk {}", chunk.index))?;
+                                                let decoded = match decoder.decode(&chunk.data) {
+                                                    Ok(d) => d,
+                                                    Err(e) => {
+                                                        if json {
+                                                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid base64 in chunk {}: {}", chunk.index, e)}));
+                                                            std::process::exit(1);
+                                                        }
+                                                        return Err(e).context(format!("Invalid base64 in chunk {}", chunk.index));
+                                                    }
+                                                };
                                                 chunks.insert(chunk.index, decoded);
                                             }
                                 }
@@ -318,8 +358,13 @@ pub(crate) async fn cmd_file_receive(
                                                 }
                                                 let fname = filename.as_deref().unwrap_or("received-file");
                                                 let dest = out_path.join(fname);
-                                                std::fs::write(&dest, &file_data)
-                                                    .context(format!("Failed to write file: {}", dest.display()))?;
+                                                if let Err(e) = std::fs::write(&dest, &file_data) {
+                                                    if json {
+                                                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
+                                                        std::process::exit(1);
+                                                    }
+                                                    return Err(e).context(format!("Failed to write file: {}", dest.display()));
+                                                }
                                                 if json {
                                                     println!("{}", serde_json::json!({
                                                         "ok": true,
@@ -363,8 +408,16 @@ pub(crate) async fn cmd_file_receive(
                                 t if t == file_topic::CHUNK => {
                                     if let Ok(chunk) = serde_json::from_value::<FileChunk>(payload.clone())
                                         && transfer_id.as_deref() == Some(&chunk.transfer_id) {
-                                            let decoded = decoder.decode(&chunk.data)
-                                                .context(format!("Invalid base64 in chunk {}", chunk.index))?;
+                                            let decoded = match decoder.decode(&chunk.data) {
+                                                Ok(d) => d,
+                                                Err(e) => {
+                                                    if json {
+                                                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid base64 in chunk {}: {}", chunk.index, e)}));
+                                                        std::process::exit(1);
+                                                    }
+                                                    return Err(e).context(format!("Invalid base64 in chunk {}", chunk.index));
+                                                }
+                                            };
                                             chunks.insert(chunk.index, decoded);
 
                                             if !json && expected_chunks > 1 {
@@ -412,8 +465,13 @@ pub(crate) async fn cmd_file_receive(
 
                                             let fname = filename.as_deref().unwrap_or("received-file");
                                             let dest = out_path.join(fname);
-                                            std::fs::write(&dest, &file_data)
-                                                .context(format!("Failed to write file: {}", dest.display()))?;
+                                            if let Err(e) = std::fs::write(&dest, &file_data) {
+                                                if json {
+                                                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
+                                                    std::process::exit(1);
+                                                }
+                                                return Err(e).context(format!("Failed to write file: {}", dest.display()));
+                                            }
 
                                             if json {
                                                 println!("{}", serde_json::json!({
