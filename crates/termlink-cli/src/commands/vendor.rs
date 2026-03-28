@@ -108,26 +108,41 @@ pub(crate) fn cmd_vendor(
         return Err(e.into());
     }
 
-    // Copy binary
-    if let Err(e) = std::fs::copy(&source_path, &dest_bin) {
+    // Copy binary via atomic rename to avoid ETXTBSY (text file busy) when
+    // the destination binary is currently running (e.g., as an MCP server).
+    // Pattern: copy to temp file, set permissions, then rename over destination.
+    let temp_bin = dest_bin.with_extension("new");
+    if let Err(e) = std::fs::copy(&source_path, &temp_bin) {
+        let _ = std::fs::remove_file(&temp_bin);
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot copy binary to {}: {}", dest_bin.display(), e)}));
+            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot copy binary to {}: {}", temp_bin.display(), e)}));
             std::process::exit(1);
         }
         return Err(e.into());
     }
 
-    // Set executable permission
+    // Set executable permission on temp file before rename
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Err(e) = std::fs::set_permissions(&dest_bin, std::fs::Permissions::from_mode(0o755)) {
+        if let Err(e) = std::fs::set_permissions(&temp_bin, std::fs::Permissions::from_mode(0o755)) {
+            let _ = std::fs::remove_file(&temp_bin);
             if json {
                 println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot set executable permission: {}", e)}));
                 std::process::exit(1);
             }
             return Err(e.into());
         }
+    }
+
+    // Atomic rename — works even if dest_bin is running (replaces inode reference)
+    if let Err(e) = std::fs::rename(&temp_bin, &dest_bin) {
+        let _ = std::fs::remove_file(&temp_bin);
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot rename binary to {}: {}", dest_bin.display(), e)}));
+            std::process::exit(1);
+        }
+        return Err(e.into());
     }
 
     // Write VERSION file
