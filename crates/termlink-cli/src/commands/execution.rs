@@ -285,11 +285,23 @@ pub(crate) async fn cmd_spawn(
     let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, shell, &command)?;
 
     let resolved = resolve_spawn_backend(&backend);
-    match resolved {
-        SpawnBackend::Terminal => spawn_via_terminal(&session_name, &shell_cmd)?,
-        SpawnBackend::Tmux => spawn_via_tmux(&session_name, &shell_cmd)?,
-        SpawnBackend::Background => spawn_via_background(&session_name, &shell_cmd)?,
+    let spawn_result = match resolved {
+        SpawnBackend::Terminal => spawn_via_terminal(&session_name, &shell_cmd),
+        SpawnBackend::Tmux => spawn_via_tmux(&session_name, &shell_cmd),
+        SpawnBackend::Background => spawn_via_background(&session_name, &shell_cmd),
         SpawnBackend::Auto => unreachable!("resolve_spawn_backend always resolves Auto"),
+    };
+    if let Err(e) = spawn_result {
+        if json {
+            println!("{}", serde_json::json!({
+                "ok": false,
+                "session_name": session_name,
+                "backend": resolved.to_string(),
+                "error": format!("{e}"),
+            }));
+            std::process::exit(1);
+        }
+        return Err(e);
     }
 
     if !json {
