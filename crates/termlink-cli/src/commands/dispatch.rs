@@ -20,6 +20,7 @@ pub(crate) async fn cmd_dispatch(
     timeout: u64,
     topic: &str,
     name_prefix: Option<String>,
+    roles: Vec<String>,
     tags: Vec<String>,
     backend: SpawnBackend,
     json_output: bool,
@@ -90,13 +91,17 @@ pub(crate) async fn cmd_dispatch(
         };
         let termlink_path = termlink_bin.to_string_lossy().to_string();
 
-        let register_args = vec![
+        let mut register_args = vec![
             "register".to_string(),
             "--name".to_string(),
             worker_name.clone(),
             "--tags".to_string(),
             worker_tags.join(","),
         ];
+        if !roles.is_empty() {
+            register_args.push("--roles".to_string());
+            register_args.push(roles.join(","));
+        }
         // Note: no --shell flag. Dispatch workers are event-only sessions
         // (no PTY needed). This avoids PTY exhaustion on macOS when spawning
         // many workers simultaneously.

@@ -657,6 +657,10 @@ pub(crate) enum Command {
         #[arg(long)]
         name: Option<String>,
 
+        /// Roles for workers (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        roles: Vec<String>,
+
         /// Tags for workers (comma-separated; dispatch metadata tags added automatically)
         #[arg(short, long, value_delimiter = ',')]
         tags: Vec<String>,

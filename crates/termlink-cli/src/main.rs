@@ -134,8 +134,8 @@ async fn main() -> Result<()> {
         Command::Spawn { name, roles, tags, wait, wait_timeout, shell, backend, json, command } => {
             commands::execution::cmd_spawn(name, roles, tags, wait, wait_timeout, shell, backend, json, command).await
         }
-        Command::Dispatch { count, timeout, topic, name, tags, backend, json, command } => {
-            commands::dispatch::cmd_dispatch(count, timeout, &topic, name, tags, backend, json, command).await
+        Command::Dispatch { count, timeout, topic, name, roles, tags, backend, json, command } => {
+            commands::dispatch::cmd_dispatch(count, timeout, &topic, name, roles, tags, backend, json, command).await
         }
 
         // Infrastructure
