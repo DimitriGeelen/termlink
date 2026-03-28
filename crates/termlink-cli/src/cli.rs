@@ -378,6 +378,8 @@ pub(crate) enum Command {
         timeout: u64,
         #[arg(long, default_value = "0")]
         count: u64,
+        #[arg(long)]
+        payload_only: bool,
     },
 
     /// List event topics from one or all sessions
@@ -1441,6 +1443,10 @@ pub(crate) enum EventCommand {
         /// Exit after receiving N events (0 = continuous)
         #[arg(long, default_value = "0")]
         count: u64,
+
+        /// Output only event payloads (one JSON per line)
+        #[arg(long)]
+        payload_only: bool,
     },
 
     /// Emit an event to a session's event bus

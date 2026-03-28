@@ -263,6 +263,7 @@ pub(crate) async fn cmd_watch(
     json: bool,
     timeout_secs: u64,
     max_count: u64,
+    payload_only: bool,
 ) -> Result<()> {
     use std::collections::HashMap;
 
@@ -377,7 +378,11 @@ pub(crate) async fn cmd_watch(
                                 let payload = &event["payload"];
                                 let ts = event["timestamp"].as_u64().unwrap_or(0);
 
-                                if json {
+                                if payload_only {
+                                    if !payload.is_null() {
+                                        println!("{}", serde_json::to_string(payload).unwrap_or_default());
+                                    }
+                                } else if json {
                                     println!("{}", serde_json::json!({
                                         "session": name,
                                         "session_id": sid,

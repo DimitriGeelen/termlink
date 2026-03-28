@@ -60,8 +60,8 @@ async fn main() -> Result<()> {
             EventCommand::Poll { target, since, topic, json, timeout, payload_only } => {
                 commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json, timeout, payload_only).await
             }
-            EventCommand::Watch { targets, interval, topic, json, timeout, count } => {
-                commands::events::cmd_watch(targets, interval, topic.as_deref(), json, timeout, count).await
+            EventCommand::Watch { targets, interval, topic, json, timeout, count, payload_only } => {
+                commands::events::cmd_watch(targets, interval, topic.as_deref(), json, timeout, count, payload_only).await
             }
             EventCommand::Emit { target, topic, payload, json, timeout } => {
                 commands::events::cmd_emit(&target, &topic, &payload, json, timeout).await
@@ -104,8 +104,8 @@ async fn main() -> Result<()> {
         Command::EmitTo { target, topic, payload, from, json, timeout } => {
             commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json, timeout).await
         }
-        Command::Watch { targets, interval, topic, json, timeout, count } => {
-            commands::events::cmd_watch(targets, interval, topic.as_deref(), json, timeout, count).await
+        Command::Watch { targets, interval, topic, json, timeout, count, payload_only } => {
+            commands::events::cmd_watch(targets, interval, topic.as_deref(), json, timeout, count, payload_only).await
         }
         Command::Topics { target, json, timeout } => commands::events::cmd_topics(target.as_deref(), json, timeout).await,
         Command::Collect { targets, topic, interval, count, json, timeout } => {
