@@ -220,6 +220,8 @@ pub(crate) enum Command {
         /// Strip ANSI escape sequences from output
         #[arg(long)]
         strip_ansi: bool,
+        #[arg(long)]
+        json: bool,
     },
 
     /// Inject keystrokes into a PTY-backed session
@@ -1207,6 +1209,10 @@ pub(crate) enum PtyCommand {
         /// Strip ANSI escape sequences from output
         #[arg(long)]
         strip_ansi: bool,
+
+        /// Output as JSON (includes output text and byte count)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Inject keystrokes into a PTY-backed session

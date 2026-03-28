@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
 
         // PTY subcommand group
         Command::Pty(pty) => match pty {
-            PtyCommand::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
+            PtyCommand::Output { target, lines, bytes, strip_ansi, json } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json).await,
             PtyCommand::Inject { target, text, enter, key, json } => {
                 commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
             }
@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
         },
 
         // Hidden backward-compat aliases (PTY)
-        Command::Output { target, lines, bytes, strip_ansi } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi).await,
+        Command::Output { target, lines, bytes, strip_ansi, json } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json).await,
         Command::Inject { target, text, enter, key, json } => {
             commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
         }

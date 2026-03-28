@@ -165,7 +165,7 @@ pub(crate) async fn cmd_interact(
     }
 }
 
-pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, strip_ansi: bool) -> Result<()> {
+pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, strip_ansi: bool, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -186,7 +186,16 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
     match client::unwrap_result(resp) {
         Ok(result) => {
             let output = result["output"].as_str().unwrap_or("");
-            print!("{output}");
+            if json {
+                println!("{}", serde_json::json!({
+                    "output": output,
+                    "bytes": output.len(),
+                    "target": target,
+                    "total_buffered": result["total_buffered"],
+                }));
+            } else {
+                print!("{output}");
+            }
             Ok(())
         }
         Err(e) => {
