@@ -292,7 +292,16 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         let start = std::time::Instant::now();
         let timeout_dur = std::time::Duration::from_secs(wait_timeout);
         loop {
-            let result = do_filter(include_stale)?;
+            let result = match do_filter(include_stale) {
+                Ok(r) => r,
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
+                        std::process::exit(1);
+                    }
+                    return Err(e);
+                }
+            };
             if !result.is_empty() {
                 break result;
             }
@@ -306,7 +315,16 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         }
     } else {
-        do_filter(include_stale)?
+        match do_filter(include_stale) {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e);
+            }
+        }
     };
 
     if count {

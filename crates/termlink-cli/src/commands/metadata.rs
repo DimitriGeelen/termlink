@@ -123,8 +123,16 @@ pub(crate) async fn cmd_discover(
         let start = std::time::Instant::now();
         let timeout_dur = std::time::Duration::from_secs(wait_timeout);
         loop {
-            let sessions = manager::list_sessions(false)
-                .context("Failed to discover sessions")?;
+            let sessions = match manager::list_sessions(false) {
+                Ok(s) => s,
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
+                        std::process::exit(1);
+                    }
+                    return Err(e).context("Failed to discover sessions");
+                }
+            };
             let result = do_filter(sessions);
             if !result.is_empty() {
                 break result;
@@ -139,8 +147,16 @@ pub(crate) async fn cmd_discover(
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         }
     } else {
-        let sessions = manager::list_sessions(false)
-            .context("Failed to discover sessions")?;
+        let sessions = match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to discover sessions");
+            }
+        };
         do_filter(sessions)
     };
 
