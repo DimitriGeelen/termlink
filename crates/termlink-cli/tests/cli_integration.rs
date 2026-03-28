@@ -991,3 +991,46 @@ fn cli_register_json_output() {
     assert!(parsed["pid"].is_number(), "Expected pid field");
     assert_eq!(parsed["shell"], false);
 }
+
+// ─── Run --json Tests ───────────────────────────────────────────────
+
+#[test]
+fn cli_run_json_output() {
+    let dir = TestDir::new("run-json");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["run", "--json", "--", "echo", "hello world"])
+        .output()
+        .expect("Failed to run termlink run --json");
+
+    assert!(output.status.success(), "run --json failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from run --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["exit_code"], 0);
+    assert_eq!(parsed["stdout"].as_str().unwrap().trim(), "hello world");
+    assert!(parsed["elapsed_ms"].is_number(), "Expected elapsed_ms field");
+    assert!(parsed["session_id"].is_string(), "Expected session_id field");
+    assert!(parsed["command"].is_string(), "Expected command field");
+}
+
+#[test]
+fn cli_run_json_nonzero_exit() {
+    let dir = TestDir::new("run-json-fail");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["run", "--json", "--", "sh", "-c", "echo err >&2; exit 42"])
+        .output()
+        .expect("Failed to run termlink run --json");
+
+    assert!(!output.status.success(), "Expected non-zero exit");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from run --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["exit_code"], 42);
+    assert!(parsed["stderr"].as_str().unwrap().contains("err"), "Expected stderr to contain 'err'");
+}

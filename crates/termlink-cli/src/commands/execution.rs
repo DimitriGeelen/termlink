@@ -16,6 +16,7 @@ pub(crate) async fn cmd_run(
     name: Option<String>,
     tags: Vec<String>,
     timeout: u64,
+    json: bool,
     command_parts: Vec<String>,
 ) -> Result<()> {
     use termlink_session::executor;
@@ -45,8 +46,10 @@ pub(crate) async fn cmd_run(
     let session_id = session.id().clone();
     let sessions_dir = termlink_session::discovery::sessions_dir();
 
-    eprintln!("Session {} ({}) registered", session.id(), session.display_name());
-    eprintln!("Running: {}", command_str);
+    if !json {
+        eprintln!("Session {} ({}) registered", session.id(), session.display_name());
+        eprintln!("Running: {}", command_str);
+    }
 
     let json_path = termlink_session::registration::Registration::json_path(
         &sessions_dir,
@@ -66,6 +69,7 @@ pub(crate) async fn cmd_run(
     });
 
     // Execute the command (CLI-initiated, no allowlist restriction)
+    let start = std::time::Instant::now();
     let result = executor::execute(
         &command_str,
         None,
@@ -83,24 +87,51 @@ pub(crate) async fn cmd_run(
         &sessions_dir,
         &session_id,
     );
+    let elapsed_ms = start.elapsed().as_millis();
+
     let _ = std::fs::remove_file(reg_for_cleanup.socket_path());
     let _ = std::fs::remove_file(&json_path);
-    eprintln!("Session {} deregistered", session_id);
+    if !json {
+        eprintln!("Session {} deregistered", session_id);
+    }
 
     match result {
         Ok(exec_result) => {
-            if !exec_result.stdout.is_empty() {
-                print!("{}", exec_result.stdout);
-            }
-            if !exec_result.stderr.is_empty() {
-                eprint!("{}", exec_result.stderr);
-            }
-            if exec_result.exit_code != 0 {
-                std::process::exit(exec_result.exit_code);
+            if json {
+                println!("{}", serde_json::json!({
+                    "exit_code": exec_result.exit_code,
+                    "stdout": exec_result.stdout,
+                    "stderr": exec_result.stderr,
+                    "elapsed_ms": elapsed_ms,
+                    "session_id": session_id.as_str(),
+                    "command": command_str,
+                }));
+                if exec_result.exit_code != 0 {
+                    std::process::exit(exec_result.exit_code);
+                }
+            } else {
+                if !exec_result.stdout.is_empty() {
+                    print!("{}", exec_result.stdout);
+                }
+                if !exec_result.stderr.is_empty() {
+                    eprint!("{}", exec_result.stderr);
+                }
+                if exec_result.exit_code != 0 {
+                    std::process::exit(exec_result.exit_code);
+                }
             }
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "error": e.to_string(),
+                    "elapsed_ms": elapsed_ms,
+                    "session_id": session_id.as_str(),
+                    "command": command_str,
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Command failed: {}", e);
         }
     }

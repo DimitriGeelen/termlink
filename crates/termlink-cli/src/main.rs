@@ -125,8 +125,8 @@ async fn main() -> Result<()> {
         Command::Kv { target, action } => commands::metadata::cmd_kv(&target, action).await,
 
         // Execution
-        Command::Run { name, tags, timeout, command } => {
-            commands::execution::cmd_run(name, tags, timeout, command).await
+        Command::Run { name, tags, timeout, json, command } => {
+            commands::execution::cmd_run(name, tags, timeout, json, command).await
         }
         Command::Request { target, topic, payload, reply_topic, timeout, interval } => {
             commands::execution::cmd_request(&target, &topic, &payload, &reply_topic, timeout, interval).await

@@ -415,6 +415,10 @@ pub(crate) enum Command {
         #[arg(long, default_value = "300")]
         timeout: u64,
 
+        /// Output result as JSON (exit_code, stdout, stderr, elapsed_ms)
+        #[arg(long)]
+        json: bool,
+
         /// Shell command to execute
         #[arg(trailing_var_arg = true, required = true)]
         command: Vec<String>,
