@@ -184,6 +184,14 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => result.context("Failed to connect to session")?,
         Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "target": target,
+                    "error": format!("Output query timed out after {}s", timeout_secs),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Output query timed out after {}s", timeout_secs);
         }
     };
@@ -204,6 +212,14 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "target": target,
+                    "error": format!("{e}"),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Output query failed: {}", e);
         }
     }
@@ -277,6 +293,14 @@ pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool, t
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => result.context("Failed to connect to session")?,
         Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "target": target,
+                    "error": format!("Resize timed out after {}s", timeout_secs),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Resize timed out after {}s", timeout_secs);
         }
     };
@@ -300,6 +324,14 @@ pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool, t
             Ok(())
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "target": target,
+                    "error": format!("{e}"),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Resize failed: {}", e);
         }
     }
