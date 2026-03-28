@@ -407,6 +407,8 @@ pub(crate) enum Command {
         json: bool,
         #[arg(long, default_value = "0")]
         timeout: u64,
+        #[arg(long)]
+        payload_only: bool,
     },
 
     /// Wait for a session to emit an event matching a topic, then exit
@@ -1579,6 +1581,10 @@ pub(crate) enum EventCommand {
         /// Exit after N seconds (0 = no timeout)
         #[arg(long, default_value = "0")]
         timeout: u64,
+
+        /// Output only event payloads (one JSON per line)
+        #[arg(long)]
+        payload_only: bool,
     },
 }
 

@@ -613,6 +613,7 @@ pub(crate) async fn cmd_collect(
     max_count: u64,
     json: bool,
     timeout_secs: u64,
+    payload_only: bool,
 ) -> Result<()> {
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
@@ -696,7 +697,11 @@ pub(crate) async fn cmd_collect(
                             let payload = &event["payload"];
                             let ts = event["timestamp"].as_u64().unwrap_or(0);
 
-                            if json {
+                            if payload_only {
+                                if !payload.is_null() {
+                                    println!("{}", serde_json::to_string(payload).unwrap_or_default());
+                                }
+                            } else if json {
                                 println!("{}", serde_json::json!({
                                     "session": session_name,
                                     "seq": seq,
