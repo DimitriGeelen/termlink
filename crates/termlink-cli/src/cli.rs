@@ -67,6 +67,10 @@ pub(crate) enum Command {
         /// Filter by role
         #[arg(long)]
         role: Option<String>,
+
+        /// Only print the session count (useful for scripting)
+        #[arg(long)]
+        count: bool,
     },
 
     /// Ping a session to verify it's alive

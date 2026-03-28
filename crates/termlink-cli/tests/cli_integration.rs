@@ -917,3 +917,35 @@ fn cli_info_json_output() {
     assert!(json["sessions_dir"].is_string(), "Expected sessions_dir string");
     assert!(json["version"].is_string(), "Expected version string");
 }
+
+// ─── List Count Tests ───────────────────────────────────────────────
+
+#[test]
+fn cli_list_count() {
+    let dir = TestDir::new("list-count");
+    let _guard = start_register(&dir.path, "countbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["list", "--count"])
+        .output()
+        .expect("Failed to run termlink list --count");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), "1", "Expected count of 1 session: {}", stdout);
+}
+
+#[test]
+fn cli_list_count_empty() {
+    let dir = TestDir::new("list-count-empty");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["list", "--count"])
+        .output()
+        .expect("Failed to run termlink list --count");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), "0", "Expected count of 0 sessions: {}", stdout);
+}
