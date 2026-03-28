@@ -17,8 +17,16 @@ pub(crate) async fn cmd_interact(
     strip_ansi: bool,
     json_output: bool,
 ) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json_output {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     // Generate unique marker per invocation
     let marker = format!(
