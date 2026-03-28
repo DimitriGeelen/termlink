@@ -241,7 +241,7 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
-pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, count: bool) -> Result<()> {
+pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, count: bool, names: bool) -> Result<()> {
     let mut sessions = manager::list_sessions(include_stale)
         .context("Failed to list sessions")?;
 
@@ -258,6 +258,13 @@ pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>
 
     if count {
         println!("{}", sessions.len());
+        return Ok(());
+    }
+
+    if names {
+        for s in &sessions {
+            println!("{}", s.display_name);
+        }
         return Ok(());
     }
 

@@ -75,6 +75,10 @@ pub(crate) enum Command {
         /// Only print the session count (useful for scripting)
         #[arg(long)]
         count: bool,
+
+        /// Print only session display names (one per line, for piping)
+        #[arg(long)]
+        names: bool,
     },
 
     /// Ping a session to verify it's alive
