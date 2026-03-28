@@ -656,7 +656,11 @@ pub(crate) enum HubAction {
     /// Stop a running hub server
     Stop,
     /// Show hub server status
-    Status,
+    Status {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// MCP server actions
