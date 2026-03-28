@@ -446,7 +446,16 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}));
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => result.context("Failed to connect to session")?,
+        Ok(result) => match result {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             let latency_ms = start.elapsed().as_millis();
             if json {
@@ -514,7 +523,16 @@ pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_se
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({}));
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => result.context("Failed to connect to session")?,
+        Ok(result) => match result {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Status query timed out after {}s", timeout_secs)}));
@@ -628,7 +646,16 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
     let rpc_timeout = std::time::Duration::from_secs(timeout + 5);
     let rpc_future = client::rpc_call(reg.socket_path(), "command.execute", params);
     let resp = match tokio::time::timeout(rpc_timeout, rpc_future).await {
-        Ok(result) => result.context("Failed to connect to session")?,
+        Ok(result) => match result {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Exec RPC timed out after {}s", timeout + 5)}));
@@ -693,7 +720,16 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(reg.socket_path(), method, params);
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => result.context("Failed to connect to session")?,
+        Ok(result) => match result {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({
@@ -766,7 +802,16 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
         serde_json::json!({ "signal": sig_num }),
     );
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => result.context("Failed to connect to session")?,
+        Ok(result) => match result {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+        },
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Signal timed out after {}s", timeout_secs)}));
