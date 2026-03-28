@@ -69,7 +69,15 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     });
     let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
     match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => { result.context("Failed to emit file.init")?; }
+        Ok(result) => {
+            if let Err(e) = result {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.init: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to emit file.init");
+            }
+        }
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("file.init timed out after {}s", timeout_secs)}));
@@ -102,7 +110,16 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         });
         let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
         match tokio::time::timeout(timeout_dur, rpc_future).await {
-            Ok(result) => { result.context(format!("Failed to emit chunk {}/{}", i + 1, total_chunks))?; }
+            Ok(result) => {
+                if let Err(e) = result {
+                    let msg = format!("Failed to emit chunk {}/{}", i + 1, total_chunks);
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{}: {}", msg, e)}));
+                        std::process::exit(1);
+                    }
+                    return Err(e).context(msg);
+                }
+            }
             Err(_) => {
                 if json {
                     println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs)}));
@@ -133,7 +150,15 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     });
     let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
     match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => { result.context("Failed to emit file.complete")?; }
+        Ok(result) => {
+            if let Err(e) = result {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.complete: {}", e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to emit file.complete");
+            }
+        }
         Err(_) => {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("file.complete timed out after {}s", timeout_secs)}));
