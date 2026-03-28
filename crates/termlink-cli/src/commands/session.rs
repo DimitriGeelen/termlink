@@ -241,7 +241,7 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
-pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, count: bool, names: bool) -> Result<()> {
+pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, count: bool, names: bool, no_header: bool) -> Result<()> {
     let mut sessions = manager::list_sessions(include_stale)
         .context("Failed to list sessions")?;
 
@@ -287,15 +287,19 @@ pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>
     }
 
     if sessions.is_empty() {
-        println!("No active sessions.");
+        if !no_header {
+            println!("No active sessions.");
+        }
         return Ok(());
     }
 
-    println!(
-        "{:<14} {:<16} {:<14} {:<8} TAGS",
-        "ID", "NAME", "STATE", "PID"
-    );
-    println!("{}", "-".repeat(64));
+    if !no_header {
+        println!(
+            "{:<14} {:<16} {:<14} {:<8} TAGS",
+            "ID", "NAME", "STATE", "PID"
+        );
+        println!("{}", "-".repeat(64));
+    }
 
     for session in &sessions {
         let tags = if session.tags.is_empty() {
@@ -313,8 +317,10 @@ pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>
         );
     }
 
-    println!();
-    println!("{} session(s)", sessions.len());
+    if !no_header {
+        println!();
+        println!("{} session(s)", sessions.len());
+    }
     Ok(())
 }
 

@@ -83,6 +83,10 @@ pub(crate) enum Command {
         /// Print only session display names (one per line, for piping)
         #[arg(long)]
         names: bool,
+
+        /// Suppress table header and footer (for piping/awk)
+        #[arg(long)]
+        no_header: bool,
     },
 
     /// Ping a session to verify it's alive
