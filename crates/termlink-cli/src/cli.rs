@@ -304,6 +304,8 @@ pub(crate) enum Command {
         targets: Vec<String>,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Emit an event to a session's event bus
@@ -316,6 +318,8 @@ pub(crate) enum Command {
         payload: String,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Push an event to a target session's event bus via the hub
@@ -329,6 +333,8 @@ pub(crate) enum Command {
         from: Option<String>,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Watch events from one or more sessions in real-time
@@ -440,6 +446,10 @@ pub(crate) enum Command {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
 
         #[command(subcommand)]
         action: KvAction,
@@ -1342,6 +1352,10 @@ pub(crate) enum EventCommand {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Push an event to a target session's event bus via the hub
@@ -1364,6 +1378,10 @@ pub(crate) enum EventCommand {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Broadcast an event to multiple sessions via the hub
@@ -1382,6 +1400,10 @@ pub(crate) enum EventCommand {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Wait for a session to emit an event matching a topic, then exit

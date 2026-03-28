@@ -137,22 +137,25 @@ pub(crate) fn cmd_discover(
     Ok(())
 }
 
-pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool) -> Result<()> {
+pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
 
     match action {
         KvAction::Set { key, value } => {
             let json_value: serde_json::Value = serde_json::from_str(&value)
                 .unwrap_or(serde_json::Value::String(value));
 
-            let resp = client::rpc_call(
+            let rpc = client::rpc_call(
                 reg.socket_path(),
                 "kv.set",
                 serde_json::json!({"key": key, "value": json_value}),
-            )
-            .await
-            .context("Failed to connect to session")?;
+            );
+            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+                Ok(r) => r.context("Failed to connect to session")?,
+                Err(_) => anyhow::bail!("kv.set timed out after {}s", timeout_secs),
+            };
 
             match client::unwrap_result(resp) {
                 Ok(result) => {
@@ -172,13 +175,15 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool) -> Result
             }
         }
         KvAction::Get { key } => {
-            let resp = client::rpc_call(
+            let rpc = client::rpc_call(
                 reg.socket_path(),
                 "kv.get",
                 serde_json::json!({"key": key}),
-            )
-            .await
-            .context("Failed to connect to session")?;
+            );
+            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+                Ok(r) => r.context("Failed to connect to session")?,
+                Err(_) => anyhow::bail!("kv.get timed out after {}s", timeout_secs),
+            };
 
             match client::unwrap_result(resp) {
                 Ok(result) => {
@@ -195,13 +200,15 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool) -> Result
             }
         }
         KvAction::List => {
-            let resp = client::rpc_call(
+            let rpc = client::rpc_call(
                 reg.socket_path(),
                 "kv.list",
                 serde_json::json!({}),
-            )
-            .await
-            .context("Failed to connect to session")?;
+            );
+            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+                Ok(r) => r.context("Failed to connect to session")?,
+                Err(_) => anyhow::bail!("kv.list timed out after {}s", timeout_secs),
+            };
 
             match client::unwrap_result(resp) {
                 Ok(result) => {
@@ -228,13 +235,15 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool) -> Result
             }
         }
         KvAction::Del { key } => {
-            let resp = client::rpc_call(
+            let rpc = client::rpc_call(
                 reg.socket_path(),
                 "kv.delete",
                 serde_json::json!({"key": key}),
-            )
-            .await
-            .context("Failed to connect to session")?;
+            );
+            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+                Ok(r) => r.context("Failed to connect to session")?,
+                Err(_) => anyhow::bail!("kv.delete timed out after {}s", timeout_secs),
+            };
 
             match client::unwrap_result(resp) {
                 Ok(result) => {

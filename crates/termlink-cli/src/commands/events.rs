@@ -53,20 +53,23 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
     }
 }
 
-pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json: bool) -> Result<()> {
+pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json: bool, timeout_secs: u64) -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_str(payload_str).context("Invalid JSON payload")?;
 
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let resp = client::rpc_call(
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc = client::rpc_call(
         reg.socket_path(),
         "event.emit",
         serde_json::json!({ "topic": topic, "payload": payload }),
-    )
-    .await
-    .context("Failed to connect to session")?;
+    );
+    let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+        Ok(r) => r.context("Failed to connect to session")?,
+        Err(_) => anyhow::bail!("Event emit timed out after {}s", timeout_secs),
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {
@@ -87,7 +90,7 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
     }
 }
 
-pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<String>, json: bool) -> Result<()> {
+pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<String>, json: bool, timeout_secs: u64) -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_str(payload_str).context("Invalid JSON payload")?;
 
@@ -104,9 +107,12 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
         params["targets"] = serde_json::json!(targets);
     }
 
-    let resp = client::rpc_call(&hub_socket, "event.broadcast", params)
-        .await
-        .context("Failed to connect to hub")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc = client::rpc_call(&hub_socket, "event.broadcast", params);
+    let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+        Ok(r) => r.context("Failed to connect to hub")?,
+        Err(_) => anyhow::bail!("Broadcast timed out after {}s", timeout_secs),
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {
@@ -142,6 +148,7 @@ pub(crate) async fn cmd_emit_to(
     payload_str: &str,
     from: Option<&str>,
     json: bool,
+    timeout_secs: u64,
 ) -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_str(payload_str).context("Invalid JSON payload")?;
@@ -160,9 +167,12 @@ pub(crate) async fn cmd_emit_to(
         params["from"] = serde_json::json!(sender);
     }
 
-    let resp = client::rpc_call(&hub_socket, "event.emit_to", params)
-        .await
-        .context("Failed to connect to hub")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc = client::rpc_call(&hub_socket, "event.emit_to", params);
+    let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+        Ok(r) => r.context("Failed to connect to hub")?,
+        Err(_) => anyhow::bail!("emit-to timed out after {}s", timeout_secs),
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {

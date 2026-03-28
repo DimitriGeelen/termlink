@@ -63,14 +63,14 @@ async fn main() -> Result<()> {
             EventCommand::Watch { targets, interval, topic, json } => {
                 commands::events::cmd_watch(targets, interval, topic.as_deref(), json).await
             }
-            EventCommand::Emit { target, topic, payload, json } => {
-                commands::events::cmd_emit(&target, &topic, &payload, json).await
+            EventCommand::Emit { target, topic, payload, json, timeout } => {
+                commands::events::cmd_emit(&target, &topic, &payload, json, timeout).await
             }
-            EventCommand::EmitTo { target, topic, payload, from, json } => {
-                commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json).await
+            EventCommand::EmitTo { target, topic, payload, from, json, timeout } => {
+                commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json, timeout).await
             }
-            EventCommand::Broadcast { topic, payload, targets, json } => {
-                commands::events::cmd_broadcast(&topic, &payload, targets, json).await
+            EventCommand::Broadcast { topic, payload, targets, json, timeout } => {
+                commands::events::cmd_broadcast(&topic, &payload, targets, json, timeout).await
             }
             EventCommand::Wait { target, topic, timeout, interval, json } => {
                 commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json).await
@@ -95,14 +95,14 @@ async fn main() -> Result<()> {
         Command::Events { target, since, topic, json } => {
             commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json).await
         }
-        Command::Broadcast { topic, payload, targets, json } => {
-            commands::events::cmd_broadcast(&topic, &payload, targets, json).await
+        Command::Broadcast { topic, payload, targets, json, timeout } => {
+            commands::events::cmd_broadcast(&topic, &payload, targets, json, timeout).await
         }
-        Command::Emit { target, topic, payload, json } => {
-            commands::events::cmd_emit(&target, &topic, &payload, json).await
+        Command::Emit { target, topic, payload, json, timeout } => {
+            commands::events::cmd_emit(&target, &topic, &payload, json, timeout).await
         }
-        Command::EmitTo { target, topic, payload, from, json } => {
-            commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json).await
+        Command::EmitTo { target, topic, payload, from, json, timeout } => {
+            commands::events::cmd_emit_to(&target, &topic, &payload, from.as_deref(), json, timeout).await
         }
         Command::Watch { targets, interval, topic, json } => {
             commands::events::cmd_watch(targets, interval, topic.as_deref(), json).await
@@ -122,7 +122,7 @@ async fn main() -> Result<()> {
         Command::Discover { tag, role, cap, name, json } => {
             commands::metadata::cmd_discover(tag, role, cap, name, json)
         }
-        Command::Kv { target, json, action } => commands::metadata::cmd_kv(&target, action, json).await,
+        Command::Kv { target, json, timeout, action } => commands::metadata::cmd_kv(&target, action, json, timeout).await,
 
         // Execution
         Command::Run { name, tags, timeout, json, command } => {
