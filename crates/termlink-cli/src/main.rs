@@ -145,7 +145,7 @@ async fn main() -> Result<()> {
             Some(HubAction::Start { tcp: None, json: true }) => commands::infrastructure::cmd_hub_start(None, true).await,
             Some(HubAction::Start { tcp: Some(ref addr), json }) => commands::infrastructure::cmd_hub_start(Some(addr), json).await,
             Some(HubAction::Stop { json }) => commands::infrastructure::cmd_hub_stop(json),
-            Some(HubAction::Status { json, short }) => commands::infrastructure::cmd_hub_status(json, short),
+            Some(HubAction::Status { json, short, check }) => commands::infrastructure::cmd_hub_status(json, short, check),
         },
         Command::Mcp { action } => match action {
             McpAction::Serve => termlink_mcp::server::run_stdio().await,

@@ -858,6 +858,10 @@ pub(crate) enum HubAction {
         /// One-line status output (for scripting)
         #[arg(long)]
         short: bool,
+
+        /// Exit non-zero if hub is not running (for scripting/health checks)
+        #[arg(long)]
+        check: bool,
     },
 }
 

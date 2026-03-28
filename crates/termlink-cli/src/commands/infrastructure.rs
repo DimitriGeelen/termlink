@@ -307,9 +307,14 @@ pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn cmd_hub_status(json_output: bool, short: bool) -> Result<()> {
+pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Result<()> {
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
     let socket_path = termlink_hub::server::hub_socket_path();
+
+    let is_running = matches!(
+        termlink_hub::pidfile::check(&pidfile_path),
+        termlink_hub::pidfile::PidfileStatus::Running(_)
+    );
 
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
@@ -347,6 +352,10 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool) -> Result<()> {
                 println!("  Pidfile: {}", pidfile_path.display());
             }
         }
+    }
+
+    if check && !is_running {
+        std::process::exit(1);
     }
     Ok(())
 }
