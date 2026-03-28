@@ -433,6 +433,8 @@ pub(crate) async fn cmd_remote_list(
     tags: Option<&str>,
     roles: Option<&str>,
     cap: Option<&str>,
+    count: bool,
+    no_header: bool,
     json: bool,
 ) -> Result<()> {
     let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
@@ -468,21 +470,34 @@ pub(crate) async fn cmd_remote_list(
             let sessions = r.result["sessions"].as_array();
             let sessions = sessions.map(|a| a.as_slice()).unwrap_or(&[]);
 
+            if count {
+                if json {
+                    println!("{}", serde_json::json!({"count": sessions.len()}));
+                } else {
+                    println!("{}", sessions.len());
+                }
+                return Ok(());
+            }
+
             if json {
                 println!("{}", serde_json::to_string_pretty(&sessions)?);
                 return Ok(());
             }
 
             if sessions.is_empty() {
-                println!("No sessions on {}.", hub);
+                if !no_header {
+                    println!("No sessions on {}.", hub);
+                }
                 return Ok(());
             }
 
-            println!(
-                "{:<14} {:<16} {:<14} {:<8} TAGS",
-                "ID", "NAME", "STATE", "PID"
-            );
-            println!("{}", "-".repeat(64));
+            if !no_header {
+                println!(
+                    "{:<14} {:<16} {:<14} {:<8} TAGS",
+                    "ID", "NAME", "STATE", "PID"
+                );
+                println!("{}", "-".repeat(64));
+            }
 
             for s in sessions {
                 let id = s["id"].as_str().unwrap_or("?");
@@ -502,8 +517,10 @@ pub(crate) async fn cmd_remote_list(
                 );
             }
 
-            println!();
-            println!("{} session(s) on {}", sessions.len(), hub);
+            if !no_header {
+                println!();
+                println!("{} session(s) on {}", sessions.len(), hub);
+            }
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {

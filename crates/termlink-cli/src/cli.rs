@@ -933,6 +933,14 @@ pub(crate) enum RemoteAction {
         #[arg(long)]
         cap: Option<String>,
 
+        /// Only print the session count
+        #[arg(long)]
+        count: bool,
+
+        /// Suppress table header and footer
+        #[arg(long)]
+        no_header: bool,
+
         /// Output result as JSON
         #[arg(long)]
         json: bool,
