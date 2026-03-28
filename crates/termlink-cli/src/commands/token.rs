@@ -19,6 +19,10 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
 
     let secret_bytes: auth::TokenSecret = {
         if secret_hex.len() != 64 {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": "Invalid token_secret in registration (expected 64 hex chars)"}));
+                std::process::exit(1);
+            }
             anyhow::bail!("Invalid token_secret in registration (expected 64 hex chars)");
         }
         let mut bytes = [0u8; 32];
@@ -55,6 +59,10 @@ pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
 
     let parts: Vec<&str> = token_str.splitn(2, '.').collect();
     if parts.len() != 2 {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": "Invalid token format (expected payload.signature)"}));
+            std::process::exit(1);
+        }
         anyhow::bail!("Invalid token format (expected payload.signature)");
     }
 
