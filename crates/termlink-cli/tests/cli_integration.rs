@@ -751,3 +751,41 @@ fn cli_tag_json_output() {
     assert!(tag_strs.contains(&"dev"), "Expected 'dev' in tags: {:?}", tag_strs);
     assert!(tag_strs.contains(&"test"), "Expected 'test' in tags: {:?}", tag_strs);
 }
+
+// ─── Shell Completions Regression Tests ─────────────────────────────
+
+#[test]
+fn cli_completions_bash() {
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["completions", "bash"])
+        .output()
+        .expect("Failed to run termlink completions bash");
+
+    assert!(output.status.success(), "completions bash should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("_termlink"), "Expected bash completion function");
+}
+
+#[test]
+fn cli_completions_zsh() {
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["completions", "zsh"])
+        .output()
+        .expect("Failed to run termlink completions zsh");
+
+    assert!(output.status.success(), "completions zsh should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("_termlink"), "Expected zsh completion function");
+}
+
+#[test]
+fn cli_completions_fish() {
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["completions", "fish"])
+        .output()
+        .expect("Failed to run termlink completions fish");
+
+    assert!(output.status.success(), "completions fish should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("termlink"), "Expected fish completion for termlink");
+}
