@@ -44,6 +44,10 @@ pub(crate) enum Command {
         /// Restrict command.execute to commands matching these prefixes (comma-separated)
         #[arg(long, value_delimiter = ',')]
         allowed_commands: Vec<String>,
+
+        /// Output session details as JSON on startup
+        #[arg(long)]
+        json: bool,
     },
 
     /// List all registered sessions

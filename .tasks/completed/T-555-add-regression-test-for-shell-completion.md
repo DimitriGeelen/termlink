@@ -1,33 +1,33 @@
 ---
-id: T-556
-name: "Add integration tests for exec --json and version --json"
+id: T-555
+name: "Add regression test for shell completions generation"
 description: >
-  Add integration tests for exec --json and version --json
+  Add regression test for shell completions generation
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
-created: 2026-03-28T10:03:43Z
-last_update: 2026-03-28T10:03:43Z
-date_finished: null
+created: 2026-03-28T10:02:10Z
+last_update: 2026-03-28T10:03:18Z
+date_finished: 2026-03-28T10:03:18Z
 ---
 
-# T-556: Add integration tests for exec --json and version --json
+# T-555: Add regression test for shell completions generation
 
 ## Context
 
-Cover T-552 (exec --json) and T-540 (version --json) with integration tests.
+T-554 fixed a completions panic. Add regression test so it doesn't recur.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Test for `exec --json` validates JSON with stdout, exit_code
-- [x] Test for `version --json` validates JSON with version, commit, target
-- [x] Test for `hub status --json` validates JSON structure
+- [x] Test verifies `termlink completions bash` succeeds
+- [x] Test verifies `termlink completions zsh` succeeds
+- [x] Test verifies `termlink completions fish` succeeds
 - [x] All tests pass
 
 ## Verification
@@ -54,7 +54,10 @@ Cover T-552 (exec --json) and T-540 (version --json) with integration tests.
 
 ## Updates
 
-### 2026-03-28T10:03:43Z — task-created [task-create-agent]
+### 2026-03-28T10:02:10Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-556-add-integration-tests-for-exec---json-an.md
+- **Output:** /opt/termlink/.tasks/active/T-555-add-regression-test-for-shell-completion.md
 - **Context:** Initial task creation
+
+### 2026-03-28T10:03:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

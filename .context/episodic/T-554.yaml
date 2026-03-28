@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-554: Fix completions panic — non-required positional before required
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T10:02:03Z
+# ============================================================================
+
+task_id: T-554
+task_name: "Fix completions panic — non-required positional before required"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T09:57:09Z
+completed: 2026-03-28T10:02:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-28T11:01:58+01:00
+last_commit: 2026-03-28T11:01:58+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix completions panic — make target required in interact/inject
+
+# Key outcomes
+outcomes:
+  - "Root cause identified — Interact, Inject (hidden), PtyCommand::Inject had Optional target before required command/text"
+  - "Fix applied — made target required (String) in all 3 variants"
+  - "`termlink completions bash` runs without panic"
+  - "`termlink completions zsh` and `termlink completions fish` also work"
+  - "All tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix completions panic — make target required in interact/inject"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-554-fix-completions-panic--non-required-posi.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-28T11:01:58"
+    action: "T-554: Fix completions panic — make target required in interact/inject"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 70
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-554-fix-completions-panic--non-required-posi.md
+generated_by: context-agent-hybrid

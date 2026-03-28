@@ -20,6 +20,7 @@ pub(crate) async fn cmd_register(
     shell: bool,
     enable_token_secret: bool,
     allowed_commands: Vec<String>,
+    json: bool,
 ) -> Result<()> {
     let mut config = SessionConfig {
         display_name: name,
@@ -39,24 +40,42 @@ pub(crate) async fn cmd_register(
         .context("Failed to register session")?;
 
     // Enable token-based auth if requested
-    if enable_token_secret {
+    let token_secret_hex = if enable_token_secret {
         let secret = termlink_session::auth::generate_secret();
         let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
         session.registration.token_secret = Some(secret_hex.clone());
-        println!("Token auth enabled. Secret: {secret_hex}");
-        println!("  Create tokens with: termlink token create {} --scope observe", session.id());
-    }
+        if !json {
+            println!("Token auth enabled. Secret: {secret_hex}");
+            println!("  Create tokens with: termlink token create {} --scope observe", session.id());
+        }
+        Some(secret_hex)
+    } else {
+        None
+    };
 
     // Set command allowlist if specified
     if !allowed_commands.is_empty() {
         session.registration.allowed_commands = Some(allowed_commands.clone());
-        println!("Command allowlist: {:?}", allowed_commands);
+        if !json {
+            println!("Command allowlist: {:?}", allowed_commands);
+        }
     }
 
-    println!("Session registered:");
-    println!("  ID:      {}", session.id());
-    println!("  Name:    {}", session.display_name());
-    println!("  Socket:  {}", session.registration.socket_path().display());
+    if json {
+        println!("{}", serde_json::json!({
+            "id": session.id(),
+            "display_name": session.display_name(),
+            "socket_path": session.registration.socket_path().display().to_string(),
+            "pid": std::process::id(),
+            "shell": shell,
+            "token_secret": token_secret_hex,
+        }));
+    } else {
+        println!("Session registered:");
+        println!("  ID:      {}", session.id());
+        println!("  Name:    {}", session.display_name());
+        println!("  Socket:  {}", session.registration.socket_path().display());
+    }
 
     // Set up session context (with or without PTY)
     let pty_session = if shell {
@@ -67,11 +86,15 @@ pub(crate) async fn cmd_register(
 
         let pty = PtySession::spawn(None, 1024 * 1024)
             .context("Failed to spawn PTY session")?;
-        println!("  PTY:     yes (shell: {})",
-            std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into()));
+        if !json {
+            println!("  PTY:     yes (shell: {})",
+                std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into()));
+        }
         Some(Arc::new(pty))
     } else {
-        println!("  PTY:     no (use --shell for bidirectional I/O)");
+        if !json {
+            println!("  PTY:     no (use --shell for bidirectional I/O)");
+        }
         None
     };
 
@@ -81,8 +104,10 @@ pub(crate) async fn cmd_register(
             .context("Failed to persist updated registration")?;
     }
 
-    println!();
-    println!("Listening for connections... (Ctrl+C to stop)");
+    if !json {
+        println!();
+        println!("Listening for connections... (Ctrl+C to stop)");
+    }
 
     let session_id = session.id().clone();
     let sessions_dir = termlink_session::discovery::sessions_dir();
@@ -178,6 +203,7 @@ pub(crate) async fn cmd_register_self(
     name: Option<String>,
     roles: Vec<String>,
     tags: Vec<String>,
+    json: bool,
 ) -> Result<()> {
     let config = SessionConfig {
         display_name: name,
@@ -190,16 +216,28 @@ pub(crate) async fn cmd_register_self(
         .await
         .context("Failed to register endpoint")?;
 
-    println!("Endpoint registered (event-only, no PTY):");
-    println!("  ID:      {}", endpoint.id());
-    println!("  Socket:  {}", endpoint.socket_path().display());
-    println!("  Capabilities: events, kv, status");
-    println!();
-    println!("Listening... (Ctrl+C to stop)");
+    if json {
+        println!("{}", serde_json::json!({
+            "id": endpoint.id(),
+            "display_name": endpoint.registration().display_name,
+            "socket_path": endpoint.socket_path().display().to_string(),
+            "pid": std::process::id(),
+            "mode": "self",
+        }));
+    } else {
+        println!("Endpoint registered (event-only, no PTY):");
+        println!("  ID:      {}", endpoint.id());
+        println!("  Socket:  {}", endpoint.socket_path().display());
+        println!("  Capabilities: events, kv, status");
+        println!();
+        println!("Listening... (Ctrl+C to stop)");
+    }
 
     endpoint.run_until_shutdown().await;
 
-    println!("Endpoint deregistered.");
+    if !json {
+        println!("Endpoint deregistered.");
+    }
     Ok(())
 }
 

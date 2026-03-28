@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-546: Add --json output to termlink ping
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T12:20:28Z
+# ============================================================================
+
+task_id: T-546
+task_name: "Add --json output to termlink ping"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T09:40:13Z
+completed: 2026-03-28T09:42:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-24T08:51:10+01:00
+last_commit: 2026-03-28T10:42:02+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix flaky register_remote_and_discover test — add ENV_LOCK. Bump version to 0.1.1 for release build test. Fix release workflow — use macos-14 for x86_64 cross-compile. Add --json output and latency measurement to termlink ping
+
+# Key outcomes
+outcomes:
+  - "`--json` flag added to Ping command in cli.rs"
+  - "`cmd_ping` accepts json parameter and outputs JSON when set"
+  - "JSON output includes session target, latency_ms, and status fields"
+  - "Builds without warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix release workflow — use macos-14 for x86_64 cross-compile"
+    source: git-mined
+  - description: "Fix flaky register_remote_and_discover test — add ENV_LOCK"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "Cargo.lock"
+  - "Cargo.toml"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - ".github/workflows/release.yml"
+  - ".tasks/active/T-546-add---json-output-to-termlink-ping.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-24T08:51:10"
+    action: "T-546: Fix flaky register_remote_and_discover test — add ENV_LOCK"
+  - time: "2026-03-24T09:00:25"
+    action: "T-546: Bump version to 0.1.1 for release build test"
+  - time: "2026-03-24T09:07:01"
+    action: "T-546: Fix release workflow — use macos-14 for x86_64 cross-compile"
+  - time: "2026-03-28T10:42:02"
+    action: "T-546: Add --json output and latency measurement to termlink ping"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 4
+  files_changed: 8
+  lines_added: 96
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-546-add---json-output-to-termlink-ping.md
+generated_by: context-agent-hybrid

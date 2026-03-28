@@ -1,32 +1,32 @@
 ---
-id: T-551
-name: "Add --json output to termlink signal"
+id: T-552
+name: "Add --json output to termlink exec"
 description: >
-  Add --json output to termlink signal
+  Add --json output to termlink exec
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T09:50:38Z
-last_update: 2026-03-28T09:50:38Z
-date_finished: null
+created: 2026-03-28T09:52:22Z
+last_update: 2026-03-28T09:53:56Z
+date_finished: 2026-03-28T09:53:56Z
 ---
 
-# T-551: Add --json output to termlink signal
+# T-552: Add --json output to termlink exec
 
 ## Context
 
-`termlink signal` outputs text but no `--json` option for scripting.
+`termlink exec` outputs raw stdout/stderr but lacks `--json` for structured output with exit code.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `--json` flag added to Signal command in cli.rs
-- [x] `cmd_signal` outputs JSON when --json is set (status, signal, pid, target)
+- [x] `--json` flag added to Exec command in cli.rs
+- [x] `cmd_exec` outputs JSON with stdout, stderr, exit_code when --json is set
 - [x] Builds without warnings
 
 ## Verification
@@ -53,7 +53,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T09:50:38Z — task-created [task-create-agent]
+### 2026-03-28T09:52:22Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-551-add---json-output-to-termlink-signal.md
+- **Output:** /opt/termlink/.tasks/active/T-552-add---json-output-to-termlink-exec.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:53:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

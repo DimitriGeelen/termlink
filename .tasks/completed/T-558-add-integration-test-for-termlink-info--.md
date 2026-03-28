@@ -4,16 +4,16 @@ name: "Add integration test for termlink info --json"
 description: >
   Add integration test for termlink info --json
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-03-28T10:06:00Z
-last_update: 2026-03-28T10:06:00Z
-date_finished: null
+last_update: 2026-03-28T10:07:01Z
+date_finished: 2026-03-28T10:07:01Z
 ---
 
 # T-558: Add integration test for termlink info --json
@@ -72,3 +72,6 @@ No integration test for `termlink info` or `termlink info --json`.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-558-add-integration-test-for-termlink-info--.md
 - **Context:** Initial task creation
+
+### 2026-03-28T10:07:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

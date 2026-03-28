@@ -4,16 +4,16 @@ name: "Add --count flag to termlink list for quick session counting"
 description: >
   Add --count flag to termlink list for quick session counting
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-03-28T10:07:58Z
-last_update: 2026-03-28T10:07:58Z
-date_finished: null
+last_update: 2026-03-28T10:09:48Z
+date_finished: 2026-03-28T10:09:48Z
 ---
 
 # T-559: Add --count flag to termlink list for quick session counting
@@ -74,3 +74,6 @@ Useful for scripting: `termlink list --count` just outputs the number.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-559-add---count-flag-to-termlink-list-for-qu.md
 - **Context:** Initial task creation
+
+### 2026-03-28T10:09:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "Add --json output to termlink send and termlink clean"
 description: >
   Add --json output to termlink send and termlink clean
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-28T09:43:25Z
-last_update: 2026-03-28T09:43:25Z
-date_finished: null
+last_update: 2026-03-28T09:46:08Z
+date_finished: 2026-03-28T09:46:08Z
 ---
 
 # T-548: Add --json output to termlink send and termlink clean
@@ -58,3 +58,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-548-add---json-output-to-termlink-send-and-t.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:46:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,34 +1,33 @@
 ---
-id: T-550
-name: "Add integration tests for --json flags on ping, clean, tag"
+id: T-551
+name: "Add --json output to termlink signal"
 description: >
-  Add integration tests for --json flags on ping, clean, tag
+  Add --json output to termlink signal
 
-status: started-work
-workflow_type: test
+status: work-completed
+workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T09:48:18Z
-last_update: 2026-03-28T09:48:18Z
-date_finished: null
+created: 2026-03-28T09:50:38Z
+last_update: 2026-03-28T09:52:07Z
+date_finished: 2026-03-28T09:52:07Z
 ---
 
-# T-550: Add integration tests for --json flags on ping, clean, tag
+# T-551: Add --json output to termlink signal
 
 ## Context
 
-T-546/T-548/T-549 added --json to ping, clean, tag. Need integration test coverage.
+`termlink signal` outputs text but no `--json` option for scripting.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Test for `ping --json` validates JSON structure (status, latency_ms, id)
-- [x] Test for `clean --json` validates JSON structure (dry_run, count, sessions)
-- [x] Test for `tag --json` validates JSON structure after tag update
-- [x] All tests pass
+- [x] `--json` flag added to Signal command in cli.rs
+- [x] `cmd_signal` outputs JSON when --json is set (status, signal, pid, target)
+- [x] Builds without warnings
 
 ## Verification
 
@@ -54,7 +53,10 @@ T-546/T-548/T-549 added --json to ping, clean, tag. Need integration test covera
 
 ## Updates
 
-### 2026-03-28T09:48:18Z — task-created [task-create-agent]
+### 2026-03-28T09:50:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-550-add-integration-tests-for---json-flags-o.md
+- **Output:** /opt/termlink/.tasks/active/T-551-add---json-output-to-termlink-signal.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:52:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

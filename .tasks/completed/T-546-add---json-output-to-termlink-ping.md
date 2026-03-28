@@ -4,7 +4,7 @@ name: "Add --json output to termlink ping"
 description: >
   Add --json output to termlink ping
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-28T09:40:13Z
-last_update: 2026-03-28T09:40:13Z
-date_finished: null
+last_update: 2026-03-28T09:42:07Z
+date_finished: 2026-03-28T09:42:07Z
 ---
 
 # T-546: Add --json output to termlink ping
@@ -52,3 +52,6 @@ grep -q "json" crates/termlink-cli/src/cli.rs | head -1 || grep -q "Ping" crates
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-546-add---json-output-to-termlink-ping.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:42:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

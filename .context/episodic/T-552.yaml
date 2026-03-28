@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-552: Add --json output to termlink exec
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T09:53:56Z
+# ============================================================================
+
+task_id: T-552
+task_name: "Add --json output to termlink exec"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T09:52:22Z
+completed: 2026-03-28T09:53:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-28T10:53:50+01:00
+last_commit: 2026-03-28T10:53:50+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --json output to termlink exec
+
+# Key outcomes
+outcomes:
+  - "`--json` flag added to Exec command in cli.rs"
+  - "`cmd_exec` outputs JSON with stdout, stderr, exit_code when --json is set"
+  - "Builds without warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-552-add---json-output-to-termlink-exec.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-28T10:53:50"
+    action: "T-552: Add --json output to termlink exec"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 75
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-552-add---json-output-to-termlink-exec.md
+generated_by: context-agent-hybrid

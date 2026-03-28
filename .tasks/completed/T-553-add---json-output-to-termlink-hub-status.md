@@ -1,32 +1,32 @@
 ---
-id: T-549
-name: "Add --json output to termlink tag"
+id: T-553
+name: "Add --json output to termlink hub status"
 description: >
-  Add --json output to termlink tag
+  Add --json output to termlink hub status
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T09:46:16Z
-last_update: 2026-03-28T09:46:16Z
-date_finished: null
+created: 2026-03-28T09:54:43Z
+last_update: 2026-03-28T09:56:01Z
+date_finished: 2026-03-28T09:56:01Z
 ---
 
-# T-549: Add --json output to termlink tag
+# T-553: Add --json output to termlink hub status
 
 ## Context
 
-`termlink tag` outputs text but no `--json` option for scripting.
+`termlink hub status` outputs text but no `--json` for scripting/monitoring.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `--json` flag added to Tag command in cli.rs
-- [x] `cmd_tag` outputs JSON when --json is set (full session.update result)
+- [x] `--json` flag added to HubAction::Status variant in cli.rs
+- [x] `cmd_hub_status` outputs JSON with status, pid, socket_path when --json set
 - [x] Builds without warnings
 
 ## Verification
@@ -53,7 +53,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T09:46:16Z — task-created [task-create-agent]
+### 2026-03-28T09:54:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-549-add---json-output-to-termlink-tag.md
+- **Output:** /opt/termlink/.tasks/active/T-553-add---json-output-to-termlink-hub-status.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:56:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -23,11 +23,11 @@ async fn main() -> Result<()> {
 
     match cli.command {
         // Session management
-        Command::Register { name, roles, tags, shell, self_mode, token_secret, allowed_commands } => {
+        Command::Register { name, roles, tags, shell, self_mode, token_secret, allowed_commands, json } => {
             if self_mode {
-                commands::session::cmd_register_self(name, roles, tags).await
+                commands::session::cmd_register_self(name, roles, tags, json).await
             } else {
-                commands::session::cmd_register(name, roles, tags, shell, token_secret, allowed_commands).await
+                commands::session::cmd_register(name, roles, tags, shell, token_secret, allowed_commands, json).await
             }
         }
         Command::List { all, json, tag, name, role, count } => commands::session::cmd_list(all, json, tag.as_deref(), name.as_deref(), role.as_deref(), count),

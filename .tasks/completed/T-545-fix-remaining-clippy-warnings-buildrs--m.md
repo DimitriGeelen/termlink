@@ -4,7 +4,7 @@ name: "Fix remaining clippy warnings (build.rs + MCP server)"
 description: >
   Fix remaining clippy warnings (build.rs + MCP server)
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-28T09:35:31Z
-last_update: 2026-03-28T09:35:31Z
-date_finished: null
+last_update: 2026-03-28T09:38:26Z
+date_finished: 2026-03-28T09:38:26Z
 ---
 
 # T-545: Fix remaining clippy warnings (build.rs + MCP server)
@@ -52,3 +52,6 @@ cargo test --workspace 2>&1 | grep -q "FAILED" && exit 1 || true
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-545-fix-remaining-clippy-warnings-buildrs--m.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:38:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

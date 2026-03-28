@@ -1,33 +1,33 @@
 ---
-id: T-552
-name: "Add --json output to termlink exec"
+id: T-557
+name: "Add integration test for termlink doctor and doctor --json"
 description: >
-  Add --json output to termlink exec
+  Add integration test for termlink doctor and doctor --json
 
-status: started-work
-workflow_type: build
+status: work-completed
+workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
-created: 2026-03-28T09:52:22Z
-last_update: 2026-03-28T09:52:22Z
-date_finished: null
+created: 2026-03-28T10:04:57Z
+last_update: 2026-03-28T10:05:48Z
+date_finished: 2026-03-28T10:05:48Z
 ---
 
-# T-552: Add --json output to termlink exec
+# T-557: Add integration test for termlink doctor and doctor --json
 
 ## Context
 
-`termlink exec` outputs raw stdout/stderr but lacks `--json` for structured output with exit code.
+No test coverage for `termlink doctor` or `termlink doctor --json`.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `--json` flag added to Exec command in cli.rs
-- [x] `cmd_exec` outputs JSON with stdout, stderr, exit_code when --json is set
-- [x] Builds without warnings
+- [x] Test for `doctor` text output (checks pass, version shown)
+- [x] Test for `doctor --json` validates JSON structure (checks array, summary)
+- [x] All tests pass
 
 ## Verification
 
@@ -53,7 +53,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T09:52:22Z — task-created [task-create-agent]
+### 2026-03-28T10:04:57Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-552-add---json-output-to-termlink-exec.md
+- **Output:** /opt/termlink/.tasks/active/T-557-add-integration-test-for-termlink-doctor.md
 - **Context:** Initial task creation
+
+### 2026-03-28T10:05:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

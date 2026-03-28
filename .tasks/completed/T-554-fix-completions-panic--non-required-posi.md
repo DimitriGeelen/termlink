@@ -4,16 +4,16 @@ name: "Fix completions panic — non-required positional before required"
 description: >
   Fix completions panic — non-required positional before required
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-28T09:57:09Z
-last_update: 2026-03-28T09:57:09Z
-date_finished: null
+last_update: 2026-03-28T10:02:02Z
+date_finished: 2026-03-28T10:02:02Z
 ---
 
 # T-554: Fix completions panic — non-required positional before required
@@ -59,3 +59,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-554-fix-completions-panic--non-required-posi.md
 - **Context:** Initial task creation
+
+### 2026-03-28T10:02:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

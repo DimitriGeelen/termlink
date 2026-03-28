@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-558: Add integration test for termlink info --json
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T10:07:02Z
+# ============================================================================
+
+task_id: T-558
+task_name: "Add integration test for termlink info --json"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T10:06:00Z
+completed: 2026-03-28T10:07:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-28T11:06:56+01:00
+last_commit: 2026-03-28T11:06:56+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add integration tests for termlink info and info --json
+
+# Key outcomes
+outcomes:
+  - "Test for `info` text output (runtime dir, version)"
+  - "Test for `info --json` validates JSON structure"
+  - "All tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-558-add-integration-test-for-termlink-info--.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-28T11:06:56"
+    action: "T-558: Add integration tests for termlink info and info --json"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 110
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-558-add-integration-test-for-termlink-info--.md
+generated_by: context-agent-hybrid

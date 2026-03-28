@@ -949,3 +949,45 @@ fn cli_list_count_empty() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_eq!(stdout.trim(), "0", "Expected count of 0 sessions: {}", stdout);
 }
+
+// ─── Register --json Tests ──────────────────────────────────────────
+
+#[test]
+fn cli_register_json_output() {
+    use std::io::BufRead;
+
+    let dir = TestDir::new("reg-json");
+    let mut child = termlink_cmd(&dir.path)
+        .args(["register", "--name", "jsonbox", "--json"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn termlink register --json");
+
+    // Read the first line of stdout (the JSON output)
+    let stdout = child.stdout.take().unwrap();
+    let mut reader = std::io::BufReader::new(stdout);
+    let mut first_line = String::new();
+
+    let start = Instant::now();
+    loop {
+        if start.elapsed() > Duration::from_secs(5) {
+            panic!("Timed out waiting for JSON output from register --json");
+        }
+        if reader.read_line(&mut first_line).unwrap() > 0 {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    let _guard = ProcessGuard::new(child, "jsonbox");
+
+    let parsed: serde_json::Value = serde_json::from_str(first_line.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from register --json: {e}\nGot: {first_line}"));
+
+    assert_eq!(parsed["display_name"], "jsonbox");
+    assert!(parsed["id"].is_string(), "Expected id field");
+    assert!(parsed["socket_path"].is_string(), "Expected socket_path field");
+    assert!(parsed["pid"].is_number(), "Expected pid field");
+    assert_eq!(parsed["shell"], false);
+}

@@ -1,32 +1,33 @@
 ---
-id: T-557
-name: "Add integration test for termlink doctor and doctor --json"
+id: T-556
+name: "Add integration tests for exec --json and version --json"
 description: >
-  Add integration test for termlink doctor and doctor --json
+  Add integration tests for exec --json and version --json
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
-created: 2026-03-28T10:04:57Z
-last_update: 2026-03-28T10:04:57Z
-date_finished: null
+created: 2026-03-28T10:03:43Z
+last_update: 2026-03-28T10:04:43Z
+date_finished: 2026-03-28T10:04:43Z
 ---
 
-# T-557: Add integration test for termlink doctor and doctor --json
+# T-556: Add integration tests for exec --json and version --json
 
 ## Context
 
-No test coverage for `termlink doctor` or `termlink doctor --json`.
+Cover T-552 (exec --json) and T-540 (version --json) with integration tests.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Test for `doctor` text output (checks pass, version shown)
-- [x] Test for `doctor --json` validates JSON structure (checks array, summary)
+- [x] Test for `exec --json` validates JSON with stdout, exit_code
+- [x] Test for `version --json` validates JSON with version, commit, target
+- [x] Test for `hub status --json` validates JSON structure
 - [x] All tests pass
 
 ## Verification
@@ -53,7 +54,10 @@ No test coverage for `termlink doctor` or `termlink doctor --json`.
 
 ## Updates
 
-### 2026-03-28T10:04:57Z — task-created [task-create-agent]
+### 2026-03-28T10:03:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-557-add-integration-test-for-termlink-doctor.md
+- **Output:** /opt/termlink/.tasks/active/T-556-add-integration-tests-for-exec---json-an.md
 - **Context:** Initial task creation
+
+### 2026-03-28T10:04:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

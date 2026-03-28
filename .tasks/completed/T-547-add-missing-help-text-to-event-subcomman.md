@@ -4,7 +4,7 @@ name: "Add missing help text to event subcommand args"
 description: >
   Add missing help text to event subcommand args
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-28T09:42:15Z
-last_update: 2026-03-28T09:42:15Z
-date_finished: null
+last_update: 2026-03-28T09:43:17Z
+date_finished: 2026-03-28T09:43:17Z
 ---
 
 # T-547: Add missing help text to event subcommand args
@@ -56,3 +56,6 @@ Investigated: the EventCommand enum (primary subcommands) already has full help 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-547-add-missing-help-text-to-event-subcomman.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:43:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

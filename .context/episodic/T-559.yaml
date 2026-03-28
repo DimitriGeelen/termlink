@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-559: Add --count flag to termlink list for quick session counting
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T10:09:49Z
+# ============================================================================
+
+task_id: T-559
+task_name: "Add --count flag to termlink list for quick session counting"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T10:07:58Z
+completed: 2026-03-28T10:09:48Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-28T11:09:43+01:00
+last_commit: 2026-03-28T11:09:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --count flag to termlink list for quick session counting
+
+# Key outcomes
+outcomes:
+  - "`--count` flag added to List command in cli.rs"
+  - "When --count is set, only the session count number is printed"
+  - "Works with filters (--tag, --name, --role)"
+  - "Builds without warnings"
+  - "Integration test added (count with 1 session, count with 0 sessions)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-559-add---count-flag-to-termlink-list-for-qu.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-28T11:09:43"
+    action: "T-559: Add --count flag to termlink list for quick session counting"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 5
+  lines_added: 119
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-559-add---count-flag-to-termlink-list-for-qu.md
+generated_by: context-agent-hybrid
