@@ -446,6 +446,10 @@ pub(crate) enum Command {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Only print the session count (useful for scripting)
+        #[arg(long)]
+        count: bool,
     },
 
     /// Manage key-value metadata on a session

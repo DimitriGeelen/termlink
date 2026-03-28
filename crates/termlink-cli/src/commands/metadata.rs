@@ -79,6 +79,7 @@ pub(crate) fn cmd_discover(
     caps: Vec<String>,
     name: Option<String>,
     json: bool,
+    count: bool,
 ) -> Result<()> {
     let sessions = manager::list_sessions(false)
         .context("Failed to discover sessions")?;
@@ -96,6 +97,11 @@ pub(crate) fn cmd_discover(
                 })
         })
         .collect();
+
+    if count {
+        println!("{}", filtered.len());
+        return Ok(());
+    }
 
     if json {
         let items: Vec<serde_json::Value> = filtered.iter().map(|s| {
