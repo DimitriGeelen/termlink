@@ -1,16 +1,18 @@
 use anyhow::{Context, Result};
 use serde_json::json;
 
-pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
+pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool) -> Result<()> {
     let socket_path = termlink_hub::server::hub_socket_path();
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
 
-    println!("Starting hub server...");
-    println!("  Socket:  {}", socket_path.display());
-    if let Some(addr) = tcp_addr {
-        println!("  TCP:     {}", addr);
+    if !json_output {
+        println!("Starting hub server...");
+        println!("  Socket:  {}", socket_path.display());
+        if let Some(addr) = tcp_addr {
+            println!("  TCP:     {}", addr);
+        }
+        println!("  Pidfile: {}", pidfile_path.display());
     }
-    println!("  Pidfile: {}", pidfile_path.display());
 
     let handle = termlink_hub::server::run_with_tcp(&socket_path, tcp_addr)
         .await
@@ -19,23 +21,50 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
     if tcp_addr.is_some() {
         let secret_path = termlink_hub::server::hub_secret_path();
         let cert_path = termlink_hub::tls::hub_cert_path();
-        println!("  Secret:  {}", secret_path.display());
-        println!("  TLS cert: {}", cert_path.display());
-        println!();
-        println!("TCP connections use TLS with auto-generated self-signed certificate.");
-        println!("Auth required. Clients must call 'hub.auth' with a token.");
-        println!("Read the secret: cat {}", secret_path.display());
+        if json_output {
+            println!("{}", json!({
+                "ok": true,
+                "pid": std::process::id(),
+                "socket": socket_path.display().to_string(),
+                "pidfile": pidfile_path.display().to_string(),
+                "tcp": tcp_addr,
+                "secret_file": secret_path.display().to_string(),
+                "tls_cert": cert_path.display().to_string(),
+            }));
+        } else {
+            println!("  Secret:  {}", secret_path.display());
+            println!("  TLS cert: {}", cert_path.display());
+            println!();
+            println!("TCP connections use TLS with auto-generated self-signed certificate.");
+            println!("Auth required. Clients must call 'hub.auth' with a token.");
+            println!("Read the secret: cat {}", secret_path.display());
+        }
+    } else if json_output {
+        println!("{}", json!({
+            "ok": true,
+            "pid": std::process::id(),
+            "socket": socket_path.display().to_string(),
+            "pidfile": pidfile_path.display().to_string(),
+        }));
     }
-    println!();
-    println!("Listening for connections... (Ctrl+C to stop)");
+
+    if !json_output {
+        println!();
+        println!("Listening for connections... (Ctrl+C to stop)");
+    }
 
     tokio::signal::ctrl_c().await.ok();
-    println!();
-    println!("Shutting down hub...");
+
+    if !json_output {
+        println!();
+        println!("Shutting down hub...");
+    }
     handle.shutdown();
 
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    println!("Hub stopped.");
+    if !json_output {
+        println!("Hub stopped.");
+    }
 
     Ok(())
 }

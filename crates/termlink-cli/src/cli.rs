@@ -838,6 +838,10 @@ pub(crate) enum HubAction {
         /// Optional TCP address to listen on (e.g., "0.0.0.0:9100", "127.0.0.1:9100")
         #[arg(long)]
         tcp: Option<String>,
+
+        /// Output startup info as JSON (socket, pidfile, pid)
+        #[arg(long)]
+        json: bool,
     },
     /// Stop a running hub server
     Stop {
