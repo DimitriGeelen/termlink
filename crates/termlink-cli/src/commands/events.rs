@@ -359,7 +359,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
     }
 }
 
-pub(crate) async fn cmd_topics(target: Option<&str>) -> Result<()> {
+pub(crate) async fn cmd_topics(target: Option<&str>, json: bool) -> Result<()> {
     use std::collections::BTreeMap;
 
     let registrations = if let Some(t) = target {
@@ -369,7 +369,11 @@ pub(crate) async fn cmd_topics(target: Option<&str>) -> Result<()> {
     };
 
     if registrations.is_empty() {
-        println!("No active sessions.");
+        if json {
+            println!("{}", serde_json::json!({"sessions": [], "total_topics": 0}));
+        } else {
+            println!("No active sessions.");
+        }
         return Ok(());
     }
 
@@ -394,6 +398,21 @@ pub(crate) async fn cmd_topics(target: Option<&str>) -> Result<()> {
         }
     }
 
+    let total: usize = session_topics.values().map(|v| v.len()).sum();
+
+    if json {
+        let sessions: Vec<serde_json::Value> = session_topics
+            .iter()
+            .map(|(name, topics)| serde_json::json!({"session": name, "topics": topics}))
+            .collect();
+        println!("{}", serde_json::json!({
+            "sessions": sessions,
+            "total_topics": total,
+            "total_sessions": session_topics.len(),
+        }));
+        return Ok(());
+    }
+
     if session_topics.is_empty() {
         println!("No event topics found.");
         return Ok(());
@@ -406,7 +425,6 @@ pub(crate) async fn cmd_topics(target: Option<&str>) -> Result<()> {
         }
     }
 
-    let total: usize = session_topics.values().map(|v| v.len()).sum();
     println!();
     println!(
         "{} topic(s) across {} session(s)",
