@@ -169,8 +169,16 @@ pub(crate) async fn cmd_file_receive(
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let out_path = std::path::Path::new(output_dir);
     if !out_path.exists() {
