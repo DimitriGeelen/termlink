@@ -395,6 +395,10 @@ pub(crate) enum Command {
         /// Session ID or display name
         target: String,
 
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
         #[command(subcommand)]
         action: KvAction,
     },

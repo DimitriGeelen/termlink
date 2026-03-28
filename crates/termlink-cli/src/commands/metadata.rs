@@ -131,7 +131,7 @@ pub(crate) fn cmd_discover(
     Ok(())
 }
 
-pub(crate) async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
+pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -150,13 +150,17 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
 
             match client::unwrap_result(resp) {
                 Ok(result) => {
-                    let replaced = result["replaced"].as_bool().unwrap_or(false);
-                    println!(
-                        "{} {}={}",
-                        if replaced { "Updated" } else { "Set" },
-                        result["key"].as_str().unwrap_or("?"),
-                        serde_json::to_string(&json_value)?,
-                    );
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&result)?);
+                    } else {
+                        let replaced = result["replaced"].as_bool().unwrap_or(false);
+                        println!(
+                            "{} {}={}",
+                            if replaced { "Updated" } else { "Set" },
+                            result["key"].as_str().unwrap_or("?"),
+                            serde_json::to_string(&json_value)?,
+                        );
+                    }
                 }
                 Err(e) => anyhow::bail!("kv.set failed: {}", e),
             }
@@ -172,7 +176,9 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
 
             match client::unwrap_result(resp) {
                 Ok(result) => {
-                    if result["found"].as_bool().unwrap_or(false) {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&result)?);
+                    } else if result["found"].as_bool().unwrap_or(false) {
                         println!("{}", serde_json::to_string_pretty(&result["value"])?);
                     } else {
                         eprintln!("Key '{}' not found", key);
@@ -193,18 +199,22 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
 
             match client::unwrap_result(resp) {
                 Ok(result) => {
-                    let entries = result["entries"].as_array();
-                    if let Some(entries) = entries {
-                        if entries.is_empty() {
-                            println!("No key-value pairs.");
-                        } else {
-                            for entry in entries {
-                                let key = entry["key"].as_str().unwrap_or("?");
-                                let value = &entry["value"];
-                                println!("{}={}", key, serde_json::to_string(value)?);
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&result)?);
+                    } else {
+                        let entries = result["entries"].as_array();
+                        if let Some(entries) = entries {
+                            if entries.is_empty() {
+                                println!("No key-value pairs.");
+                            } else {
+                                for entry in entries {
+                                    let key = entry["key"].as_str().unwrap_or("?");
+                                    let value = &entry["value"];
+                                    println!("{}={}", key, serde_json::to_string(value)?);
+                                }
+                                println!();
+                                println!("{} pair(s)", result["count"]);
                             }
-                            println!();
-                            println!("{} pair(s)", result["count"]);
                         }
                     }
                 }
@@ -222,7 +232,9 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction) -> Result<()> {
 
             match client::unwrap_result(resp) {
                 Ok(result) => {
-                    if result["deleted"].as_bool().unwrap_or(false) {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&result)?);
+                    } else if result["deleted"].as_bool().unwrap_or(false) {
                         println!("Deleted '{}'", key);
                     } else {
                         eprintln!("Key '{}' not found", key);

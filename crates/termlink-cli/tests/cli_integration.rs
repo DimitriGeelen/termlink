@@ -1057,3 +1057,54 @@ fn cli_spawn_json_output() {
     assert_eq!(parsed["ready"], true);
     assert!(parsed["session_id"].is_string(), "Expected session_id field");
 }
+
+// ─── Kv --json Tests ────────────────────────────────────────────────
+
+#[test]
+fn cli_kv_json_set_get_list_del() {
+    let dir = TestDir::new("kv-json");
+    let _guard = start_register(&dir.path, "kvbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Set
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "kvbox", "--json", "set", "foo", "42"])
+        .output()
+        .expect("Failed to run kv set --json");
+    assert!(output.status.success(), "kv set failed: {}", String::from_utf8_lossy(&output.stderr));
+    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+        .expect("Invalid JSON from kv set");
+    assert_eq!(parsed["key"], "foo");
+
+    // Get
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "kvbox", "--json", "get", "foo"])
+        .output()
+        .expect("Failed to run kv get --json");
+    assert!(output.status.success());
+    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+        .expect("Invalid JSON from kv get");
+    assert_eq!(parsed["found"], true);
+    assert_eq!(parsed["value"], 42);
+
+    // List
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "kvbox", "--json", "list"])
+        .output()
+        .expect("Failed to run kv list --json");
+    assert!(output.status.success());
+    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+        .expect("Invalid JSON from kv list");
+    assert_eq!(parsed["count"], 1);
+    assert!(parsed["entries"].is_array());
+
+    // Del
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "kvbox", "--json", "del", "foo"])
+        .output()
+        .expect("Failed to run kv del --json");
+    assert!(output.status.success());
+    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+        .expect("Invalid JSON from kv del");
+    assert_eq!(parsed["deleted"], true);
+}
