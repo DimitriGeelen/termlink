@@ -14,6 +14,7 @@ use crate::util::shell_escape;
 
 pub(crate) async fn cmd_run(
     name: Option<String>,
+    roles: Vec<String>,
     tags: Vec<String>,
     timeout: u64,
     json: bool,
@@ -35,6 +36,7 @@ pub(crate) async fn cmd_run(
 
     let config = SessionConfig {
         display_name: name,
+        roles,
         tags,
         ..Default::default()
     };

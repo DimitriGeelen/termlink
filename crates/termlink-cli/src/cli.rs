@@ -549,6 +549,10 @@ pub(crate) enum Command {
         #[arg(short, long)]
         name: Option<String>,
 
+        /// Roles for the session (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        roles: Vec<String>,
+
         /// Tags for the session (comma-separated)
         #[arg(short, long, value_delimiter = ',')]
         tags: Vec<String>,
@@ -736,6 +740,10 @@ pub(crate) enum Command {
         /// Auto-fix issues (clean stale sessions, remove orphaned sockets/pidfiles)
         #[arg(long)]
         fix: bool,
+
+        /// Exit non-zero on warnings (not just failures)
+        #[arg(long)]
+        strict: bool,
     },
 
     /// Vendor TermLink binary into project for path isolation
