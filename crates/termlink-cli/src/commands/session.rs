@@ -241,23 +241,46 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
-pub(crate) fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, count: bool, names: bool, ids: bool, first: bool, no_header: bool) -> Result<()> {
-    let mut sessions = manager::list_sessions(include_stale)
-        .context("Failed to list sessions")?;
+pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, count: bool, names: bool, ids: bool, first: bool, wait: bool, wait_timeout: u64, no_header: bool) -> Result<()> {
+    let do_filter = |include_stale: bool| -> Result<Vec<termlink_session::registration::Registration>> {
+        let mut sessions = manager::list_sessions(include_stale)
+            .context("Failed to list sessions")?;
+        if let Some(tag) = tag_filter {
+            sessions.retain(|s| s.tags.iter().any(|t| t == tag));
+        }
+        if let Some(name) = name_filter {
+            let name_lower = name.to_lowercase();
+            sessions.retain(|s| s.display_name.to_lowercase().contains(&name_lower));
+        }
+        if let Some(role) = role_filter {
+            sessions.retain(|s| s.roles.iter().any(|r| r == role));
+        }
+        if let Some(cap) = cap_filter {
+            sessions.retain(|s| s.capabilities.iter().any(|c| c == cap));
+        }
+        Ok(sessions)
+    };
 
-    if let Some(tag) = tag_filter {
-        sessions.retain(|s| s.tags.iter().any(|t| t == tag));
-    }
-    if let Some(name) = name_filter {
-        let name_lower = name.to_lowercase();
-        sessions.retain(|s| s.display_name.to_lowercase().contains(&name_lower));
-    }
-    if let Some(role) = role_filter {
-        sessions.retain(|s| s.roles.iter().any(|r| r == role));
-    }
-    if let Some(cap) = cap_filter {
-        sessions.retain(|s| s.capabilities.iter().any(|c| c == cap));
-    }
+    let sessions = if wait {
+        let start = std::time::Instant::now();
+        let timeout_dur = std::time::Duration::from_secs(wait_timeout);
+        loop {
+            let result = do_filter(include_stale)?;
+            if !result.is_empty() {
+                break result;
+            }
+            if start.elapsed() > timeout_dur {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("No matching sessions found within {}s", wait_timeout);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+    } else {
+        do_filter(include_stale)?
+    };
 
     if count {
         println!("{}", sessions.len());

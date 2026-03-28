@@ -92,6 +92,14 @@ pub(crate) enum Command {
         #[arg(long)]
         first: bool,
 
+        /// Wait (poll) until at least one session matches
+        #[arg(long)]
+        wait: bool,
+
+        /// Timeout in seconds for --wait (default: 30)
+        #[arg(long, default_value = "30")]
+        wait_timeout: u64,
+
         /// Suppress table header and footer (for piping/awk)
         #[arg(long)]
         no_header: bool,
