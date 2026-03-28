@@ -257,6 +257,7 @@ pub struct SessionInfo {
     pub heartbeat_at: String,
     pub tags: Vec<String>,
     pub roles: Vec<String>,
+    pub capabilities: Vec<String>,
 }
 
 // === Tool implementations ===
@@ -313,6 +314,7 @@ impl TermLinkTools {
                         heartbeat_at: s.heartbeat_at.clone(),
                         tags: s.tags.clone(),
                         roles: s.roles.clone(),
+                        capabilities: s.capabilities.clone(),
                     })
                     .collect();
                 serde_json::to_string_pretty(&infos).unwrap_or_else(|_| "[]".into())
@@ -591,6 +593,7 @@ impl TermLinkTools {
                     "tags": s.tags,
                     "roles": s.roles,
                     "capabilities": s.capabilities,
+                    "metadata": s.metadata,
                 })
             })
             .collect();
