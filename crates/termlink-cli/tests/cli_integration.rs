@@ -1295,3 +1295,95 @@ fn cli_vendor_status_json_vendored() {
     assert!(parsed["mcp_configured"].is_boolean(), "Expected mcp_configured field");
     assert!(parsed["gitignore_ok"].is_boolean(), "Expected gitignore_ok field");
 }
+
+// ─── Event Topics JSON Test ──────────────────────────────────────
+
+#[test]
+fn cli_event_topics_json_output() {
+    let dir = TestDir::new("topics-json");
+    let _guard = start_register(&dir.path, "topics-src");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Emit an event to create a topic
+    let emit_out = termlink_cmd(&dir.path)
+        .args(["event", "emit", "topics-src", "test.topic", "--payload", r#"{"x":1}"#])
+        .output()
+        .expect("Failed to emit event");
+    assert!(emit_out.status.success());
+
+    // Query topics with --json
+    let output = termlink_cmd(&dir.path)
+        .args(["event", "topics", "--json"])
+        .output()
+        .expect("Failed to run event topics --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert!(parsed["sessions"].is_array(), "Expected sessions array");
+    assert!(parsed["total_topics"].is_number(), "Expected total_topics");
+}
+
+// ─── Event Wait JSON Test ────────────────────────────────────────
+
+#[test]
+fn cli_event_wait_json_output() {
+    let dir = TestDir::new("wait-json");
+    let _guard = start_register(&dir.path, "wait-src");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let dir_path = dir.path.clone();
+
+    // Spawn a thread to emit the event after a short delay
+    let emitter = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(500));
+        let _ = termlink_cmd(&dir_path)
+            .args(["event", "emit", "wait-src", "done.signal", "--payload", r#"{"result":"ok"}"#])
+            .output();
+    });
+
+    let output = termlink_cmd(&dir.path)
+        .args(["event", "wait", "wait-src", "--topic", "done.signal", "--timeout", "5", "--json"])
+        .output()
+        .expect("Failed to run event wait --json");
+
+    emitter.join().unwrap();
+
+    assert!(output.status.success(), "wait should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["matched"], true);
+    assert_eq!(parsed["topic"], "done.signal");
+    assert!(parsed["seq"].is_number(), "Expected seq");
+    assert!(parsed["payload"].is_object(), "Expected payload object");
+}
+
+// ─── PTY Output JSON Test ────────────────────────────────────────
+
+#[test]
+fn cli_pty_output_json() {
+    let dir = TestDir::new("pty-out-json");
+    let _guard = start_register_shell(&dir.path, "pty-out");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    // Give PTY time to initialize
+    std::thread::sleep(Duration::from_millis(500));
+
+    let output = termlink_cmd(&dir.path)
+        .args(["pty", "output", "pty-out", "--json"])
+        .output()
+        .expect("Failed to run pty output --json");
+
+    assert!(output.status.success(), "pty output --json should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert!(parsed["output"].is_string(), "Expected output string");
+    assert!(parsed["bytes"].is_number(), "Expected bytes count");
+    assert!(parsed["target"].is_string(), "Expected target");
+}
