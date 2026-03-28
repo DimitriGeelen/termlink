@@ -143,7 +143,7 @@ async fn main() -> Result<()> {
         Command::Hub { action } => match action {
             None | Some(HubAction::Start { tcp: None }) => commands::infrastructure::cmd_hub_start(None).await,
             Some(HubAction::Start { tcp: Some(ref addr) }) => commands::infrastructure::cmd_hub_start(Some(addr)).await,
-            Some(HubAction::Stop) => commands::infrastructure::cmd_hub_stop(),
+            Some(HubAction::Stop { json }) => commands::infrastructure::cmd_hub_stop(json),
             Some(HubAction::Status { json }) => commands::infrastructure::cmd_hub_status(json),
         },
         Command::Mcp { action } => match action {

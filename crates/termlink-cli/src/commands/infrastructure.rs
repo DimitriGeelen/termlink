@@ -227,30 +227,49 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn cmd_hub_stop() -> Result<()> {
+pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
 
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
-            println!("Hub is not running.");
+            if json {
+                println!("{}", serde_json::json!({"ok": true, "action": "none", "reason": "Hub is not running"}));
+            } else {
+                println!("Hub is not running.");
+            }
         }
         termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
-            println!("Hub pidfile found (PID {pid}) but process is dead. Cleaning up.");
             termlink_hub::pidfile::remove(&pidfile_path);
             let socket_path = termlink_hub::server::hub_socket_path();
             let _ = std::fs::remove_file(&socket_path);
+            if json {
+                println!("{}", serde_json::json!({"ok": true, "action": "cleaned", "pid": pid, "reason": "Stale pidfile removed"}));
+            } else {
+                println!("Hub pidfile found (PID {pid}) but process is dead. Cleaning up.");
+            }
         }
         termlink_hub::pidfile::PidfileStatus::Running(pid) => {
-            println!("Stopping hub (PID {pid})...");
+            if !json {
+                println!("Stopping hub (PID {pid})...");
+            }
             unsafe { libc::kill(pid as i32, libc::SIGTERM) };
             for _ in 0..20 {
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 if !termlink_session::liveness::process_exists(pid) {
-                    println!("Hub stopped.");
+                    if json {
+                        println!("{}", serde_json::json!({"ok": true, "action": "stopped", "pid": pid}));
+                    } else {
+                        println!("Hub stopped.");
+                    }
                     return Ok(());
                 }
             }
-            println!("Hub did not stop within 2 seconds. You may need to kill -9 {pid}.");
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "action": "timeout", "pid": pid, "error": format!("Hub did not stop within 2 seconds. You may need to kill -9 {pid}.")}));
+                std::process::exit(1);
+            } else {
+                println!("Hub did not stop within 2 seconds. You may need to kill -9 {pid}.");
+            }
         }
     }
     Ok(())

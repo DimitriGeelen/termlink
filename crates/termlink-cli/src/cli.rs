@@ -804,7 +804,11 @@ pub(crate) enum HubAction {
         tcp: Option<String>,
     },
     /// Stop a running hub server
-    Stop,
+    Stop {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Show hub server status
     Status {
         /// Output as JSON
