@@ -39,9 +39,16 @@ pub(crate) async fn cmd_run(
         ..Default::default()
     };
 
-    let session = termlink_session::Session::register(config)
-        .await
-        .context("Failed to register ephemeral session")?;
+    let session = match termlink_session::Session::register(config).await {
+        Ok(s) => s,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to register ephemeral session: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to register ephemeral session");
+        }
+    };
 
     let session_id = session.id().clone();
     let sessions_dir = termlink_session::discovery::sessions_dir();
@@ -193,9 +200,16 @@ pub(crate) async fn cmd_request(
         "payload": payload_json,
     });
 
-    let emit_resp = client::rpc_call(reg.socket_path(), "event.emit", emit_params)
-        .await
-        .context("Failed to emit request event")?;
+    let emit_resp = match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit request event: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to emit request event");
+        }
+    };
 
     match client::unwrap_result(emit_resp) {
         Ok(result) => {
