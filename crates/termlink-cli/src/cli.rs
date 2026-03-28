@@ -706,6 +706,10 @@ pub(crate) enum Command {
         /// Show what would happen without copying
         #[arg(long)]
         dry_run: bool,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Generate shell completions

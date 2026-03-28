@@ -14,6 +14,7 @@ pub(crate) fn cmd_vendor(
     source: Option<&str>,
     target: Option<&str>,
     dry_run: bool,
+    json: bool,
 ) -> Result<()> {
     // Resolve source binary
     let source_path = if let Some(s) = source {
@@ -92,24 +93,36 @@ pub(crate) fn cmd_vendor(
             .context("Cannot write VERSION file")?;
     }
 
-    // Report
-    let action = if existing_version.is_some() { "Updated" } else { "Vendored" };
-    println!("{action} TermLink binary into project");
-    println!("  Source:  {} ({:.1} MB)", source_path.display(), source_size as f64 / 1_048_576.0);
-    if let Some(ref v) = source_version {
-        println!("  Version: {v}");
-    }
-    if let Some(ref v) = existing_version {
-        println!("  Previous: {v}");
-    }
-    println!("  Binary:  {}", dest_bin.display());
-    println!("\nProject scripts should use: {VENDOR_BIN}");
-
     // Check if .gitignore has the vendor binary
     check_gitignore(&project_dir, &dest_dir);
 
     // Configure MCP server in Claude Code settings
     configure_mcp(&project_dir);
+
+    // Report
+    if json {
+        println!("{}", serde_json::json!({
+            "ok": true,
+            "action": if existing_version.is_some() { "updated" } else { "vendored" },
+            "source": source_path.display().to_string(),
+            "binary": dest_bin.display().to_string(),
+            "version": source_version,
+            "previous_version": existing_version,
+            "size_bytes": source_size,
+        }));
+    } else {
+        let action = if existing_version.is_some() { "Updated" } else { "Vendored" };
+        println!("{action} TermLink binary into project");
+        println!("  Source:  {} ({:.1} MB)", source_path.display(), source_size as f64 / 1_048_576.0);
+        if let Some(ref v) = source_version {
+            println!("  Version: {v}");
+        }
+        if let Some(ref v) = existing_version {
+            println!("  Previous: {v}");
+        }
+        println!("  Binary:  {}", dest_bin.display());
+        println!("\nProject scripts should use: {VENDOR_BIN}");
+    }
 
     Ok(())
 }
