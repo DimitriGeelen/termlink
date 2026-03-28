@@ -94,12 +94,14 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
     let mut dead = 0u32;
     let mut stale_sockets: Vec<String> = Vec::new();
 
+    let ping_timeout = std::time::Duration::from_secs(3);
     for s in &sessions {
         if liveness::process_exists(s.pid) {
-            // Try actual ping
-            match client::rpc_call(s.socket_path(), "termlink.ping", json!({})).await {
-                Ok(_) => alive += 1,
-                Err(_) => {
+            // Try actual ping with timeout to avoid hanging on dead sockets
+            let rpc_future = client::rpc_call(s.socket_path(), "termlink.ping", json!({}));
+            match tokio::time::timeout(ping_timeout, rpc_future).await {
+                Ok(Ok(_)) => alive += 1,
+                Ok(Err(_)) | Err(_) => {
                     dead += 1;
                     stale_sockets.push(s.display_name.clone());
                 }
@@ -137,10 +139,11 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::Running(pid) => {
-            // Verify the socket is actually responsive
-            match client::rpc_call(&hub_socket, "termlink.ping", json!({})).await {
-                Ok(_) => check!("hub", pass, format!("running (PID {pid}), responding")),
-                Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding on socket")),
+            // Verify the socket is actually responsive (with timeout to avoid hanging)
+            let hub_rpc = client::rpc_call(&hub_socket, "termlink.ping", json!({}));
+            match tokio::time::timeout(ping_timeout, hub_rpc).await {
+                Ok(Ok(_)) => check!("hub", pass, format!("running (PID {pid}), responding")),
+                Ok(Err(_)) | Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding on socket")),
             }
         }
         termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
