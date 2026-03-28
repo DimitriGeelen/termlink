@@ -1108,3 +1108,27 @@ fn cli_kv_json_set_get_list_del() {
         .expect("Invalid JSON from kv del");
     assert_eq!(parsed["deleted"], true);
 }
+
+// ─── Send --json Tests ──────────────────────────────────────────────
+
+#[test]
+fn cli_send_json_output() {
+    let dir = TestDir::new("send-json");
+    let _guard = start_register(&dir.path, "sendbox");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["send", "sendbox", "termlink.ping", "--json"])
+        .output()
+        .expect("Failed to run termlink send --json");
+
+    assert!(output.status.success(), "send --json failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON from send --json: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["method"], "termlink.ping");
+    assert!(parsed["result"].is_object(), "Expected result object");
+}

@@ -117,6 +117,10 @@ pub(crate) enum Command {
         /// JSON params (optional, defaults to {})
         #[arg(short, long, default_value = "{}")]
         params: String,
+
+        /// Output raw JSON-RPC response
+        #[arg(long)]
+        json: bool,
     },
 
     /// Run a command interactively in a PTY session — injects, waits for completion, returns output

@@ -530,7 +530,7 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
     }
 }
 
-pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str) -> Result<()> {
+pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json: bool) -> Result<()> {
     let params: serde_json::Value =
         serde_json::from_str(params_str).context("Invalid JSON params")?;
 
@@ -543,14 +543,35 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str) -> Re
 
     match resp {
         termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
-            println!("{}", serde_json::to_string_pretty(&r.result)?);
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": true,
+                    "method": method,
+                    "result": r.result,
+                }));
+            } else {
+                println!("{}", serde_json::to_string_pretty(&r.result)?);
+            }
         }
         termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
-            eprintln!("Error {}: {}", e.error.code, e.error.message);
-            if let Some(data) = &e.error.data {
-                eprintln!("{}", serde_json::to_string_pretty(data)?);
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "method": method,
+                    "error": {
+                        "code": e.error.code,
+                        "message": e.error.message,
+                        "data": e.error.data,
+                    },
+                }));
+                std::process::exit(1);
+            } else {
+                eprintln!("Error {}: {}", e.error.code, e.error.message);
+                if let Some(data) = &e.error.data {
+                    eprintln!("{}", serde_json::to_string_pretty(data)?);
+                }
+                std::process::exit(1);
             }
-            std::process::exit(1);
         }
     }
 
