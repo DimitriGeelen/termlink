@@ -6,16 +6,28 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
     use termlink_session::auth;
 
     let sessions_dir = termlink_session::discovery::sessions_dir();
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
-    let secret_hex = reg
-        .token_secret
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!(
-            "Session '{}' does not have token auth enabled. Register with --token-secret.",
-            target
-        ))?;
+    let secret_hex = match reg.token_secret.as_ref() {
+        Some(s) => s,
+        None => {
+            let msg = format!("Session '{}' does not have token auth enabled. Register with --token-secret.", target);
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("{}", msg);
+        }
+    };
 
     let secret_bytes: auth::TokenSecret = {
         if secret_hex.len() != 64 {
