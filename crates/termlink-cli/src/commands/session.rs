@@ -35,9 +35,16 @@ pub(crate) async fn cmd_register(
         config.capabilities.push("stream".into());
     }
 
-    let mut session = termlink_session::Session::register(config)
-        .await
-        .context("Failed to register session")?;
+    let mut session = match termlink_session::Session::register(config).await {
+        Ok(s) => s,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to register session: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to register session");
+        }
+    };
 
     // Enable token-based auth if requested
     let token_secret_hex = if enable_token_secret {
@@ -212,9 +219,16 @@ pub(crate) async fn cmd_register_self(
         ..Default::default()
     };
 
-    let endpoint = termlink_session::endpoint::Endpoint::start(config)
-        .await
-        .context("Failed to register endpoint")?;
+    let endpoint = match termlink_session::endpoint::Endpoint::start(config).await {
+        Ok(e) => e,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to register endpoint: {}", e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context("Failed to register endpoint");
+        }
+    };
 
     if json {
         println!("{}", serde_json::json!({
