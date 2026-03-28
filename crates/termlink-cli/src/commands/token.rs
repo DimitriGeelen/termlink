@@ -39,14 +39,30 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
         }
         let mut bytes = [0u8; 32];
         for i in 0..32 {
-            bytes[i] = u8::from_str_radix(&secret_hex[i * 2..i * 2 + 2], 16)
-                .context("Invalid hex in token_secret")?;
+            bytes[i] = match u8::from_str_radix(&secret_hex[i * 2..i * 2 + 2], 16) {
+                Ok(v) => v,
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid hex in token_secret: {}", e)}));
+                        std::process::exit(1);
+                    }
+                    return Err(e.into());
+                }
+            };
         }
         bytes
     };
 
-    let permission_scope = auth::parse_scope(scope)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let permission_scope = match auth::parse_scope(scope) {
+        Ok(s) => s,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid scope '{}': {}", scope, e)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Invalid scope '{}': {}", scope, e);
+        }
+    };
 
     let token = auth::create_token(&secret_bytes, permission_scope, reg.id.as_str(), ttl);
 
