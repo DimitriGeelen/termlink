@@ -1138,6 +1138,10 @@ pub(crate) enum ProfileAction {
         /// Default permission scope
         #[arg(long)]
         scope: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// List saved hub profiles
@@ -1151,6 +1155,10 @@ pub(crate) enum ProfileAction {
     Remove {
         /// Profile name to remove
         name: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 }
 

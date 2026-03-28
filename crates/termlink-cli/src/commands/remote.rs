@@ -203,8 +203,12 @@ pub(crate) async fn resolve_remote_target(
 
 pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
     match action {
-        ProfileAction::Add { name, address, secret_file, secret, scope } => {
+        ProfileAction::Add { name, address, secret_file, secret, scope, json } => {
             if !address.contains(':') {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": "Address must be in host:port format (e.g., 192.168.10.107:9100)"}));
+                    std::process::exit(1);
+                }
                 anyhow::bail!("Address must be in host:port format (e.g., 192.168.10.107:9100)");
             }
             let mut config = load_hubs_config();
@@ -216,12 +220,22 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 scope,
             });
             save_hubs_config(&config)?;
-            if is_update {
-                println!("Updated profile '{}' → {}", name, address);
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": true,
+                    "action": if is_update { "updated" } else { "added" },
+                    "name": name,
+                    "address": address,
+                    "config": hubs_config_path().display().to_string(),
+                }));
             } else {
-                println!("Added profile '{}' → {}", name, address);
+                if is_update {
+                    println!("Updated profile '{}' → {}", name, address);
+                } else {
+                    println!("Added profile '{}' → {}", name, address);
+                }
+                println!("  Config: {}", hubs_config_path().display());
             }
-            println!("  Config: {}", hubs_config_path().display());
             Ok(())
         }
         ProfileAction::List { json } => {
@@ -270,12 +284,20 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
             println!("{} profile(s) in {}", config.hubs.len(), hubs_config_path().display());
             Ok(())
         }
-        ProfileAction::Remove { name } => {
+        ProfileAction::Remove { name, json } => {
             let mut config = load_hubs_config();
             if config.hubs.remove(&name).is_some() {
                 save_hubs_config(&config)?;
-                println!("Removed profile '{}'", name);
+                if json {
+                    println!("{}", serde_json::json!({"ok": true, "action": "removed", "name": name}));
+                } else {
+                    println!("Removed profile '{}'", name);
+                }
             } else {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Profile '{}' not found", name)}));
+                    std::process::exit(1);
+                }
                 println!("Profile '{}' not found", name);
             }
             Ok(())
