@@ -1090,6 +1090,10 @@ pub(crate) enum AgentAction {
         /// Poll interval in milliseconds (default: 250)
         #[arg(long, default_value = "250")]
         interval: u64,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Listen for incoming agent requests on a session

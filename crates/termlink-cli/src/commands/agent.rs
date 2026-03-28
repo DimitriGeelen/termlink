@@ -18,6 +18,7 @@ pub(crate) async fn cmd_agent_ask(
     from: Option<&str>,
     timeout: u64,
     interval: u64,
+    json: bool,
 ) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
@@ -65,16 +66,29 @@ pub(crate) async fn cmd_agent_ask(
 
     match client::unwrap_result(emit_resp) {
         Ok(result) => {
-            let seq = result["seq"].as_u64().unwrap_or(0);
-            eprintln!("Request sent: action={}, request_id={}, seq={}", action, request_id, seq);
+            if !json {
+                let seq = result["seq"].as_u64().unwrap_or(0);
+                eprintln!("Request sent: action={}, request_id={}, seq={}", action, request_id, seq);
+            }
         }
         Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "action": action,
+                    "request_id": request_id,
+                    "error": format!("Failed to emit agent request: {}", e),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Failed to emit agent request: {}", e);
         }
     }
 
     // Poll for agent.response and agent.status
-    eprintln!("Waiting for response (timeout: {}s)...", timeout);
+    if !json {
+        eprintln!("Waiting for response (timeout: {}s)...", timeout);
+    }
 
     let start = std::time::Instant::now();
     let timeout_dur = std::time::Duration::from_secs(timeout);
@@ -105,20 +119,37 @@ pub(crate) async fn cmd_agent_ask(
 
                             if topic == agent_topic::RESPONSE {
                                 if let Ok(response) = serde_json::from_value::<AgentResponse>(event_payload.clone()) {
-                                    if response.status == termlink_protocol::events::ResponseStatus::Ok {
+                                    if json {
+                                        let is_ok = response.status == termlink_protocol::events::ResponseStatus::Ok;
+                                        println!("{}", serde_json::json!({
+                                            "ok": is_ok,
+                                            "action": action,
+                                            "request_id": request_id,
+                                            "result": response.result,
+                                            "error": response.error_message,
+                                        }));
+                                        if !is_ok { std::process::exit(1); }
+                                    } else if response.status == termlink_protocol::events::ResponseStatus::Ok {
                                         println!("{}", serde_json::to_string_pretty(&response.result)?);
                                     } else {
                                         let msg = response.error_message.as_deref().unwrap_or("unknown error");
                                         eprintln!("Error: {}", msg);
                                         std::process::exit(1);
                                     }
+                                } else if json {
+                                    println!("{}", serde_json::json!({
+                                        "ok": true,
+                                        "action": action,
+                                        "request_id": request_id,
+                                        "result": event_payload,
+                                    }));
                                 } else {
                                     println!("{}", serde_json::to_string_pretty(event_payload)?);
                                 }
                                 return Ok(());
                             }
 
-                            if topic == agent_topic::STATUS
+                            if !json && topic == agent_topic::STATUS
                                 && let Ok(status) = serde_json::from_value::<AgentStatus>(event_payload.clone()) {
                                     let pct = status.percent.map(|p| format!(" ({}%)", p)).unwrap_or_default();
                                     let msg = status.message.as_deref().unwrap_or("");
@@ -140,6 +171,15 @@ pub(crate) async fn cmd_agent_ask(
         }
 
         if start.elapsed() > timeout_dur {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "action": action,
+                    "request_id": request_id,
+                    "error": format!("Timeout waiting for agent response ({}s)", timeout),
+                }));
+                std::process::exit(1);
+            }
             anyhow::bail!("Timeout waiting for agent response ({}s). request_id={}", timeout, request_id);
         }
 
