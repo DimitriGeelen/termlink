@@ -430,7 +430,7 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
     }
 }
 
-pub(crate) async fn cmd_status(target: &str, json: bool, timeout_secs: u64) -> Result<()> {
+pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -451,6 +451,14 @@ pub(crate) async fn cmd_status(target: &str, json: bool, timeout_secs: u64) -> R
         Ok(result) => {
             if json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
+                return Ok(());
+            }
+            if short {
+                println!("{} {} {}",
+                    result["display_name"].as_str().unwrap_or("?"),
+                    result["state"].as_str().unwrap_or("?"),
+                    result["pid"],
+                );
                 return Ok(());
             }
             println!("Session: {}", result["id"].as_str().unwrap_or("?"));

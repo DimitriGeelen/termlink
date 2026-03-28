@@ -108,6 +108,10 @@ pub(crate) enum Command {
         #[arg(long)]
         json: bool,
 
+        /// Output one-line summary (name state pid)
+        #[arg(long)]
+        short: bool,
+
         /// Timeout in seconds (default: 5)
         #[arg(long, default_value = "5")]
         timeout: u64,
