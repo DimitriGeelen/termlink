@@ -1,0 +1,8 @@
+command_hash: f22e961dd59a3d449d8f37ae76f2a5356885fb1ea0e65ee53ac1d6ee81f277f2
+command_preview: fw task update T-611 --status work-completed --force 2>&1 | tail
+  -3
+risk: 'FW FORCE: Bypasses sovereignty gate (R-033), AC verification (P-010), or verification
+  gate (P-011)'
+status: pending
+timestamp: '2026-03-28T17:07:57Z'
+type: tier0

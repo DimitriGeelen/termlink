@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-610: Add --payload-only flag to event poll for piping just event payloads
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-28T17:07:00Z
+# ============================================================================
+
+task_id: T-610
+task_name: "Add --payload-only flag to event poll for piping just event payloads"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T17:04:44Z
+completed: 2026-03-28T17:06:59Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`--payload-only` flag added to EventCommand::Poll in cli.rs"
+  - "cmd_events outputs one JSON payload per line when --payload-only is set"
+  - "Hidden alias Command::Events updated too"
+  - "main.rs updated"
+  - "Project compiles with `cargo check`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-610-add---payload-only-flag-to-event-poll-fo.md
+generated_by: context-agent-hybrid
