@@ -29,139 +29,128 @@ impl ServerHandler for TermLinkTools {
         ))
     }
 
-    fn list_resources(
+    async fn list_resources(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListResourcesResult, McpError>> + Send + '_ {
-        async {
-            let mut resources: Vec<Annotated<RawResource>> =
-                vec![Annotated::new(
-                    RawResource::new("termlink://sessions", "sessions")
-                        .with_description("List of all active TermLink sessions")
-                        .with_mime_type("application/json"),
-                    None,
-                )];
-
-            if let Ok(sessions) = manager::list_sessions(false) {
-                for s in &sessions {
-                    resources.push(Annotated::new(
-                        RawResource::new(
-                            format!("termlink://sessions/{}", s.id),
-                            format!("session:{}", s.display_name),
-                        )
-                        .with_description(format!(
-                            "Status of session '{}' ({})",
-                            s.display_name, s.state
-                        ))
-                        .with_mime_type("application/json"),
-                        None,
-                    ));
-                }
-            }
-
-            Ok(ListResourcesResult::with_all_items(resources))
-        }
-    }
-
-    fn list_resource_templates(
-        &self,
-        _request: Option<PaginatedRequestParams>,
-        _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListResourceTemplatesResult, McpError>> + Send + '_
-    {
-        async {
-            let templates: Vec<Annotated<RawResourceTemplate>> = vec![Annotated::new(
-                RawResourceTemplate::new(
-                    "termlink://sessions/{session_id}",
-                    "session_detail",
-                )
-                .with_description("Detailed status of a TermLink session by ID or name"),
+    ) -> Result<ListResourcesResult, McpError> {
+        let mut resources: Vec<Annotated<RawResource>> =
+            vec![Annotated::new(
+                RawResource::new("termlink://sessions", "sessions")
+                    .with_description("List of all active TermLink sessions")
+                    .with_mime_type("application/json"),
                 None,
             )];
 
-            Ok(ListResourceTemplatesResult::with_all_items(templates))
+        if let Ok(sessions) = manager::list_sessions(false) {
+            for s in &sessions {
+                resources.push(Annotated::new(
+                    RawResource::new(
+                        format!("termlink://sessions/{}", s.id),
+                        format!("session:{}", s.display_name),
+                    )
+                    .with_description(format!(
+                        "Status of session '{}' ({})",
+                        s.display_name, s.state
+                    ))
+                    .with_mime_type("application/json"),
+                    None,
+                ));
+            }
         }
+
+        Ok(ListResourcesResult::with_all_items(resources))
     }
 
-    fn read_resource(
-        &self,
-        request: ReadResourceRequestParams,
-        _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ReadResourceResult, McpError>> + Send + '_ {
-        async move {
-            let uri = &request.uri;
-
-            if uri == "termlink://sessions" {
-                return read_sessions_list().await;
-            }
-
-            if let Some(session_id) = uri.strip_prefix("termlink://sessions/") {
-                return read_session_detail(session_id).await;
-            }
-
-            Err(McpError::invalid_params(
-                format!("Unknown resource URI: {uri}"),
-                None,
-            ))
-        }
-    }
-
-    fn list_prompts(
+    async fn list_resource_templates(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListPromptsResult, McpError>> + Send + '_ {
-        async {
-            Ok(ListPromptsResult::with_all_items(vec![
-                Prompt::new(
-                    "debug_session",
-                    Some("Diagnose why a TermLink session is not responding or behaving unexpectedly"),
-                    Some(vec![
-                        PromptArgument::new("session")
-                            .with_description("Session ID or display name to debug")
-                            .with_required(true),
-                    ]),
-                ),
-                Prompt::new(
-                    "session_overview",
-                    Some("Get a comprehensive overview of all active TermLink sessions"),
-                    None,
-                ),
-                Prompt::new(
-                    "orchestrate",
-                    Some("Help coordinate work across multiple TermLink sessions by role or tag"),
-                    Some(vec![
-                        PromptArgument::new("task")
-                            .with_description("Description of the task to coordinate")
-                            .with_required(true),
-                        PromptArgument::new("role")
-                            .with_description("Filter sessions by role (optional)"),
-                        PromptArgument::new("tag")
-                            .with_description("Filter sessions by tag (optional)"),
-                    ]),
-                ),
-            ]))
-        }
+    ) -> Result<ListResourceTemplatesResult, McpError> {
+        let templates: Vec<Annotated<RawResourceTemplate>> = vec![Annotated::new(
+            RawResourceTemplate::new(
+                "termlink://sessions/{session_id}",
+                "session_detail",
+            )
+            .with_description("Detailed status of a TermLink session by ID or name"),
+            None,
+        )];
+
+        Ok(ListResourceTemplatesResult::with_all_items(templates))
     }
 
-    fn get_prompt(
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResult, McpError> {
+        let uri = &request.uri;
+
+        if uri == "termlink://sessions" {
+            return read_sessions_list().await;
+        }
+
+        if let Some(session_id) = uri.strip_prefix("termlink://sessions/") {
+            return read_session_detail(session_id).await;
+        }
+
+        Err(McpError::invalid_params(
+            format!("Unknown resource URI: {uri}"),
+            None,
+        ))
+    }
+
+    async fn list_prompts(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListPromptsResult, McpError> {
+        Ok(ListPromptsResult::with_all_items(vec![
+            Prompt::new(
+                "debug_session",
+                Some("Diagnose why a TermLink session is not responding or behaving unexpectedly"),
+                Some(vec![
+                    PromptArgument::new("session")
+                        .with_description("Session ID or display name to debug")
+                        .with_required(true),
+                ]),
+            ),
+            Prompt::new(
+                "session_overview",
+                Some("Get a comprehensive overview of all active TermLink sessions"),
+                None,
+            ),
+            Prompt::new(
+                "orchestrate",
+                Some("Help coordinate work across multiple TermLink sessions by role or tag"),
+                Some(vec![
+                    PromptArgument::new("task")
+                        .with_description("Description of the task to coordinate")
+                        .with_required(true),
+                    PromptArgument::new("role")
+                        .with_description("Filter sessions by role (optional)"),
+                    PromptArgument::new("tag")
+                        .with_description("Filter sessions by tag (optional)"),
+                ]),
+            ),
+        ]))
+    }
+
+    async fn get_prompt(
         &self,
         request: GetPromptRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<GetPromptResult, McpError>> + Send + '_ {
-        async move {
-            let args = request.arguments.unwrap_or_default();
+    ) -> Result<GetPromptResult, McpError> {
+        let args = request.arguments.unwrap_or_default();
 
-            match request.name.as_str() {
-                "debug_session" => build_debug_session_prompt(&args).await,
-                "session_overview" => build_session_overview_prompt().await,
-                "orchestrate" => build_orchestrate_prompt(&args).await,
-                _ => Err(McpError::invalid_params(
-                    format!("Unknown prompt: {}", request.name),
-                    None,
-                )),
-            }
+        match request.name.as_str() {
+            "debug_session" => build_debug_session_prompt(&args).await,
+            "session_overview" => build_session_overview_prompt().await,
+            "orchestrate" => build_orchestrate_prompt(&args).await,
+            _ => Err(McpError::invalid_params(
+                format!("Unknown prompt: {}", request.name),
+                None,
+            )),
         }
     }
 }
