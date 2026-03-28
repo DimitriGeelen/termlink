@@ -484,6 +484,10 @@ pub(crate) enum Command {
         /// Output session ID instead of display name (with --first)
         #[arg(long)]
         id: bool,
+
+        /// Suppress table header and footer (for piping/awk)
+        #[arg(long)]
+        no_header: bool,
     },
 
     /// Manage key-value metadata on a session

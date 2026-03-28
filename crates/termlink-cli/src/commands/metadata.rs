@@ -84,6 +84,7 @@ pub(crate) async fn cmd_discover(
     wait: bool,
     wait_timeout: u64,
     id: bool,
+    no_header: bool,
 ) -> Result<()> {
     let has_filters = !tags.is_empty() || !roles.is_empty() || !caps.is_empty() || name.is_some();
 
@@ -161,19 +162,23 @@ pub(crate) async fn cmd_discover(
     }
 
     if filtered.is_empty() {
-        if has_filters {
-            println!("No sessions match the specified filters.");
-        } else {
-            println!("No sessions discovered.");
+        if !no_header {
+            if has_filters {
+                println!("No sessions match the specified filters.");
+            } else {
+                println!("No sessions discovered.");
+            }
         }
         return Ok(());
     }
 
-    println!(
-        "{:<14} {:<16} {:<14} {:<20} {:<16} TAGS",
-        "ID", "NAME", "STATE", "CAPABILITIES", "ROLES"
-    );
-    println!("{}", "-".repeat(90));
+    if !no_header {
+        println!(
+            "{:<14} {:<16} {:<14} {:<20} {:<16} TAGS",
+            "ID", "NAME", "STATE", "CAPABILITIES", "ROLES"
+        );
+        println!("{}", "-".repeat(90));
+    }
 
     for session in &filtered {
         println!(
@@ -187,8 +192,10 @@ pub(crate) async fn cmd_discover(
         );
     }
 
-    println!();
-    println!("{} session(s) discovered", filtered.len());
+    if !no_header {
+        println!();
+        println!("{} session(s) discovered", filtered.len());
+    }
     Ok(())
 }
 
