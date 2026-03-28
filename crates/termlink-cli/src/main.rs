@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
         Command::Exec { target, command, cwd, timeout, json } => {
             commands::session::cmd_exec(&target, &command, cwd.as_deref(), timeout, json).await
         }
-        Command::Signal { target, signal, json } => commands::session::cmd_signal(&target, &signal, json).await,
+        Command::Signal { target, signal, json, timeout } => commands::session::cmd_signal(&target, &signal, json, timeout).await,
 
         // PTY subcommand group
         Command::Pty(pty) => match pty {
@@ -116,8 +116,8 @@ async fn main() -> Result<()> {
         }
 
         // Metadata & Discovery
-        Command::Tag { target, set, add, remove, json } => {
-            commands::metadata::cmd_tag(&target, set, add, remove, json).await
+        Command::Tag { target, set, add, remove, json, timeout } => {
+            commands::metadata::cmd_tag(&target, set, add, remove, json, timeout).await
         }
         Command::Discover { tag, role, cap, name, json } => {
             commands::metadata::cmd_discover(tag, role, cap, name, json)

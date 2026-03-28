@@ -611,20 +611,25 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
     Ok(())
 }
 
-pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool) -> Result<()> {
+pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
     let sig_num = parse_signal(signal)
         .context(format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal))?;
 
-    let resp = client::rpc_call(
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc_future = client::rpc_call(
         reg.socket_path(),
         "command.signal",
         serde_json::json!({ "signal": sig_num }),
-    )
-    .await
-    .context("Failed to connect to session")?;
+    );
+    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            anyhow::bail!("Signal timed out after {}s", timeout_secs);
+        }
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {
