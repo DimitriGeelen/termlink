@@ -550,16 +550,29 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
     }
 }
 
-pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json: bool) -> Result<()> {
+pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json: bool, timeout_secs: u64) -> Result<()> {
     let params: serde_json::Value =
         serde_json::from_str(params_str).context("Invalid JSON params")?;
 
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let resp = client::rpc_call(reg.socket_path(), method, params)
-        .await
-        .context("Failed to connect to session")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc_future = client::rpc_call(reg.socket_path(), method, params);
+    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({
+                    "ok": false,
+                    "method": method,
+                    "error": {"code": -1, "message": format!("Timed out after {}s", timeout_secs)},
+                }));
+                std::process::exit(1);
+            }
+            anyhow::bail!("RPC call timed out after {}s", timeout_secs);
+        }
+    };
 
     match resp {
         termlink_protocol::jsonrpc::RpcResponse::Success(r) => {

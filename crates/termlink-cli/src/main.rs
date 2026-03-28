@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
         Command::Ping { target, json, timeout } => commands::session::cmd_ping(&resolve_target(target)?, json, timeout).await,
         Command::Status { target, json, timeout } => commands::session::cmd_status(&resolve_target(target)?, json, timeout).await,
         Command::Info { json } => commands::session::cmd_info(json),
-        Command::Send { target, method, params, json } => commands::session::cmd_send(&target, &method, &params, json).await,
+        Command::Send { target, method, params, json, timeout } => commands::session::cmd_send(&target, &method, &params, json, timeout).await,
         Command::Interact { target, command, timeout, poll_ms, strip_ansi, json } => {
             commands::pty::cmd_interact(&target, &command, timeout, poll_ms, strip_ansi, json).await
         }

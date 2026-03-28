@@ -129,6 +129,10 @@ pub(crate) enum Command {
         /// Output raw JSON-RPC response
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        timeout: u64,
     },
 
     /// Run a command interactively in a PTY session — injects, waits for completion, returns output
