@@ -130,6 +130,10 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
 
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+            std::process::exit(1);
+        }
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }
 
@@ -199,6 +203,10 @@ pub(crate) async fn cmd_emit_to(
 
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+            std::process::exit(1);
+        }
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }
 
@@ -261,6 +269,10 @@ pub(crate) async fn cmd_watch(
         let sessions = manager::list_sessions(false)
             .context("Failed to list sessions")?;
         if sessions.is_empty() {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": "No active sessions to watch."}));
+                std::process::exit(1);
+            }
             anyhow::bail!("No active sessions to watch.");
         }
         sessions
@@ -275,6 +287,10 @@ pub(crate) async fn cmd_watch(
     };
 
     if registrations.is_empty() {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": "No reachable sessions to watch."}));
+            std::process::exit(1);
+        }
         anyhow::bail!("No reachable sessions to watch.");
     }
 
@@ -565,6 +581,10 @@ pub(crate) async fn cmd_collect(
 ) -> Result<()> {
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+            std::process::exit(1);
+        }
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }
 
