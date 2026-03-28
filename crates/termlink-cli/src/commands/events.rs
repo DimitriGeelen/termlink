@@ -494,20 +494,23 @@ pub(crate) async fn cmd_collect(
     topic_filter: Option<&str>,
     interval_ms: u64,
     max_count: u64,
+    json: bool,
 ) -> Result<()> {
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }
 
-    eprintln!("Collecting events via hub. Press Ctrl+C to stop.");
-    if let Some(t) = topic_filter {
-        eprintln!("  Topic filter: {}", t);
+    if !json {
+        eprintln!("Collecting events via hub. Press Ctrl+C to stop.");
+        if let Some(t) = topic_filter {
+            eprintln!("  Topic filter: {}", t);
+        }
+        if !targets.is_empty() {
+            eprintln!("  Targets: {}", targets.join(", "));
+        }
+        eprintln!();
     }
-    if !targets.is_empty() {
-        eprintln!("  Targets: {}", targets.join(", "));
-    }
-    eprintln!();
 
     let poll_interval = tokio::time::Duration::from_millis(interval_ms);
     let mut cursors = serde_json::json!({});
@@ -516,8 +519,10 @@ pub(crate) async fn cmd_collect(
     loop {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
-                eprintln!();
-                eprintln!("Stopped. {} event(s) collected.", total_received);
+                if !json {
+                    eprintln!();
+                    eprintln!("Stopped. {} event(s) collected.", total_received);
+                }
                 break;
             }
             _ = tokio::time::sleep(poll_interval) => {
@@ -535,7 +540,9 @@ pub(crate) async fn cmd_collect(
                 let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
                     Ok(r) => r,
                     Err(e) => {
-                        eprintln!("Hub connection error: {}. Retrying...", e);
+                        if !json {
+                            eprintln!("Hub connection error: {}. Retrying...", e);
+                        }
                         continue;
                     }
                 };
@@ -549,7 +556,15 @@ pub(crate) async fn cmd_collect(
                             let payload = &event["payload"];
                             let ts = event["timestamp"].as_u64().unwrap_or(0);
 
-                            if payload.is_null()
+                            if json {
+                                println!("{}", serde_json::json!({
+                                    "session": session_name,
+                                    "seq": seq,
+                                    "topic": topic,
+                                    "payload": payload,
+                                    "timestamp": ts,
+                                }));
+                            } else if payload.is_null()
                                 || (payload.is_object()
                                     && payload.as_object().unwrap().is_empty())
                             {
@@ -573,8 +588,10 @@ pub(crate) async fn cmd_collect(
                         }
 
                     if max_count > 0 && total_received >= max_count {
-                        eprintln!();
-                        eprintln!("{} event(s) collected (limit reached).", total_received);
+                        if !json {
+                            eprintln!();
+                            eprintln!("{} event(s) collected (limit reached).", total_received);
+                        }
                         break;
                     }
                 }
