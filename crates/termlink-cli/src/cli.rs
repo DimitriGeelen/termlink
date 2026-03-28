@@ -72,6 +72,10 @@ pub(crate) enum Command {
         #[arg(long)]
         role: Option<String>,
 
+        /// Filter by capability
+        #[arg(long)]
+        cap: Option<String>,
+
         /// Only print the session count (useful for scripting)
         #[arg(long)]
         count: bool,
