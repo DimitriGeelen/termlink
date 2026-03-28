@@ -345,8 +345,16 @@ pub(crate) async fn cmd_watch(
 
     // Resolve targets: if empty, watch all live sessions
     let registrations = if targets.is_empty() {
-        let sessions = manager::list_sessions(false)
-            .context("Failed to list sessions")?;
+        let sessions = match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {e}")}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to list sessions");
+            }
+        };
         if sessions.is_empty() {
             if json {
                 println!("{}", serde_json::json!({"ok": false, "error": "No active sessions to watch."}));
@@ -638,7 +646,16 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             }
         }]
     } else {
-        manager::list_sessions(false).context("Failed to list sessions")?
+        match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {e}")}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to list sessions");
+            }
+        }
     };
 
     if registrations.is_empty() {
