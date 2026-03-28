@@ -4,7 +4,7 @@ name: "Add --strict flag to doctor that exits non-zero on warnings"
 description: >
   Add --strict flag to doctor that exits non-zero on warnings
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-28T23:03:22Z
-last_update: 2026-03-28T23:03:22Z
-date_finished: null
+last_update: 2026-03-28T23:04:24Z
+date_finished: 2026-03-29T00:01:00Z
 ---
 
 # T-683: Add --strict flag to doctor that exits non-zero on warnings
@@ -26,10 +26,10 @@ date_finished: null
 
 ### Agent
 - [x] `--strict` flag added to Doctor command in cli.rs
-- [ ] `strict` param threaded to cmd_doctor (partially done — main.rs dispatch + infrastructure.rs function signature + exit logic needed)
-- [ ] Exit 1 when warnings present and --strict is set
-- [ ] Without --strict, warnings don't cause non-zero exit
-- [ ] Project compiles cleanly
+- [x] `strict` param threaded to cmd_doctor (main.rs dispatch + infrastructure.rs function signature)
+- [x] Exit 1 when warnings present and --strict is set
+- [x] Without --strict, warnings don't cause non-zero exit (existing behavior preserved)
+- [x] Project compiles cleanly
 
 ### Human
 <!-- Remove if not needed.

@@ -40,7 +40,7 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
+pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Result<()> {
     use termlink_session::{client, discovery, liveness, manager};
 
     let mut checks: Vec<serde_json::Value> = Vec::new();
@@ -222,6 +222,9 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
     }
 
     if fail_count > 0 {
+        std::process::exit(1);
+    }
+    if strict && warn_count > 0 {
         std::process::exit(1);
     }
     Ok(())

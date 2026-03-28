@@ -212,7 +212,7 @@ async fn main() -> Result<()> {
                 commands::remote::cmd_remote_profile(action)
             }
         },
-        Command::Doctor { json, fix } => commands::infrastructure::cmd_doctor(json, fix).await,
+        Command::Doctor { json, fix, strict } => commands::infrastructure::cmd_doctor(json, fix, strict).await,
         Command::Vendor { action, source, target, dry_run, json } => {
             if let Some(action) = action {
                 match action {
