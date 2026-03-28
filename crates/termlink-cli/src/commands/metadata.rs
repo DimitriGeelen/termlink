@@ -209,8 +209,16 @@ pub(crate) async fn cmd_discover(
 }
 
 pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool, keys: bool, timeout_secs: u64) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
 
     match action {
