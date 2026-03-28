@@ -1041,11 +1041,19 @@ pub(crate) enum TokenAction {
         /// Time-to-live in seconds (default: 3600 = 1 hour)
         #[arg(long, default_value = "3600")]
         ttl: u64,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
     /// Inspect a token without validating (decode the payload)
     Inspect {
         /// The token string to inspect
         token: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 }
 

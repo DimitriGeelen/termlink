@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 
 use termlink_session::manager;
 
-pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64) -> Result<()> {
+pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: bool) -> Result<()> {
     use termlink_session::auth;
 
     let sessions_dir = termlink_session::discovery::sessions_dir();
@@ -34,14 +34,23 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64) -> Res
 
     let token = auth::create_token(&secret_bytes, permission_scope, reg.id.as_str(), ttl);
 
-    println!("{}", token.raw);
-    eprintln!("Scope: {scope}, TTL: {ttl}s, Session: {}", reg.id);
+    if json {
+        println!("{}", serde_json::json!({
+            "token": token.raw,
+            "scope": scope,
+            "ttl": ttl,
+            "session": reg.id.as_str(),
+        }));
+    } else {
+        println!("{}", token.raw);
+        eprintln!("Scope: {scope}, TTL: {ttl}s, Session: {}", reg.id);
+    }
 
     let _ = sessions_dir; // suppress unused
     Ok(())
 }
 
-pub(crate) fn cmd_token_inspect(token_str: &str) -> Result<()> {
+pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
     use base64::Engine;
 
     let parts: Vec<&str> = token_str.splitn(2, '.').collect();
@@ -56,17 +65,29 @@ pub(crate) fn cmd_token_inspect(token_str: &str) -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_slice(&payload_json).context("Invalid JSON in token payload")?;
 
-    println!("{}", serde_json::to_string_pretty(&payload)?);
-
-    if let Some(expires) = payload["expires_at"].as_u64() {
+    if json {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        if now > expires {
-            eprintln!("WARNING: Token has expired ({} seconds ago)", now - expires);
-        } else {
-            eprintln!("Expires in {} seconds", expires - now);
+        let expired = payload["expires_at"].as_u64().map(|e| now > e).unwrap_or(false);
+        println!("{}", serde_json::json!({
+            "payload": payload,
+            "expired": expired,
+        }));
+    } else {
+        println!("{}", serde_json::to_string_pretty(&payload)?);
+
+        if let Some(expires) = payload["expires_at"].as_u64() {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            if now > expires {
+                eprintln!("WARNING: Token has expired ({} seconds ago)", now - expires);
+            } else {
+                eprintln!("Expires in {} seconds", expires - now);
+            }
         }
     }
 

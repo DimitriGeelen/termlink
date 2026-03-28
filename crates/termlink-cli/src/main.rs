@@ -150,10 +150,10 @@ async fn main() -> Result<()> {
             McpAction::Serve => termlink_mcp::server::run_stdio().await,
         },
         Command::Token { action } => match action {
-            TokenAction::Create { target, scope, ttl } => {
-                commands::token::cmd_token_create(&target, &scope, ttl).await
+            TokenAction::Create { target, scope, ttl, json } => {
+                commands::token::cmd_token_create(&target, &scope, ttl, json).await
             }
-            TokenAction::Inspect { token } => commands::token::cmd_token_inspect(&token),
+            TokenAction::Inspect { token, json } => commands::token::cmd_token_inspect(&token, json),
         },
         Command::Agent { action } => match action {
             AgentAction::Ask { target, action, params, from, timeout, interval } => {
