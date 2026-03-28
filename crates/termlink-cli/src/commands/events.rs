@@ -4,8 +4,16 @@ use termlink_session::client;
 use termlink_session::manager;
 
 pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool, timeout_secs: u64, payload_only: bool) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let mut params = serde_json::json!({});
     if let Some(s) = since {
@@ -81,8 +89,16 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
     let payload: serde_json::Value =
         serde_json::from_str(payload_str).context("Invalid JSON payload")?;
 
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc = client::rpc_call(
@@ -283,10 +299,20 @@ pub(crate) async fn cmd_watch(
             .filter_map(|s| manager::find_session(s.id.as_str()).ok())
             .collect::<Vec<_>>()
     } else {
-        targets
-            .iter()
-            .map(|t| manager::find_session(t).context(format!("Session '{}' not found", t)))
-            .collect::<Result<Vec<_>>>()?
+        let mut regs = Vec::new();
+        for t in &targets {
+            match manager::find_session(t) {
+                Ok(r) => regs.push(r),
+                Err(e) => {
+                    if json {
+                        println!("{}", serde_json::json!({"ok": false, "target": t, "error": format!("Session '{}' not found: {}", t, e)}));
+                        std::process::exit(1);
+                    }
+                    return Err(e).context(format!("Session '{}' not found", t));
+                }
+            }
+        }
+        regs
     };
 
     if registrations.is_empty() {
@@ -429,8 +455,16 @@ pub(crate) async fn cmd_watch(
 }
 
 pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64, json: bool) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     if !json {
         eprintln!("Waiting for event topic '{}' from {}...", topic, reg.display_name);
@@ -533,7 +567,16 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
     use std::collections::BTreeMap;
 
     let registrations = if let Some(t) = target {
-        vec![manager::find_session(t).context(format!("Session '{}' not found", t))?]
+        vec![match manager::find_session(t) {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": t, "error": format!("Session '{}' not found: {}", t, e)}));
+                    std::process::exit(1);
+                }
+                return Err(e).context(format!("Session '{}' not found", t));
+            }
+        }]
     } else {
         manager::list_sessions(false).context("Failed to list sessions")?
     };
