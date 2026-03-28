@@ -881,3 +881,39 @@ fn cli_doctor_json_output() {
     assert!(json["summary"]["warn"].is_number(), "Expected warn count");
     assert!(json["summary"]["fail"].is_number(), "Expected fail count");
 }
+
+// ─── Info Tests ─────────────────────────────────────────────────────
+
+#[test]
+fn cli_info_text_output() {
+    let dir = TestDir::new("info-text");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["info"])
+        .output()
+        .expect("Failed to run termlink info");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Runtime"), "Expected 'Runtime' in info output: {}", stdout);
+    assert!(stdout.contains("Version"), "Expected 'Version' in info output: {}", stdout);
+}
+
+#[test]
+fn cli_info_json_output() {
+    let dir = TestDir::new("info-json");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["info", "--json"])
+        .output()
+        .expect("Failed to run termlink info --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("info --json should output valid JSON");
+
+    assert!(json["runtime_dir"].is_string(), "Expected runtime_dir string");
+    assert!(json["sessions_dir"].is_string(), "Expected sessions_dir string");
+    assert!(json["version"].is_string(), "Expected version string");
+}
