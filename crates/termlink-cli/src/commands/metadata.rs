@@ -167,12 +167,30 @@ pub(crate) async fn cmd_discover(
 
     if first {
         if let Some(s) = filtered.first() {
-            if id {
+            if json {
+                println!("{}", serde_json::json!({
+                    "id": s.id.as_str(),
+                    "display_name": s.display_name,
+                    "state": s.state.to_string(),
+                    "pid": s.pid,
+                    "uid": s.uid,
+                    "created_at": s.created_at,
+                    "heartbeat_at": s.heartbeat_at,
+                    "tags": s.tags,
+                    "roles": s.roles,
+                    "capabilities": s.capabilities,
+                    "metadata": s.metadata,
+                    "socket_path": s.socket_path().display().to_string(),
+                }));
+            } else if id {
                 println!("{}", s.id.as_str());
             } else {
                 println!("{}", s.display_name);
             }
         } else {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": "No matching sessions"}));
+            }
             std::process::exit(1);
         }
         return Ok(());
