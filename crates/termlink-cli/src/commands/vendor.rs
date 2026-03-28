@@ -25,6 +25,10 @@ pub(crate) fn cmd_vendor(
     };
 
     if !source_path.exists() {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": format!("Source binary not found: {}", source_path.display())}));
+            std::process::exit(1);
+        }
         anyhow::bail!("Source binary not found: {}", source_path.display());
     }
 
@@ -152,7 +156,16 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool) -> Result<()> 
         .map(|v| v.trim().to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    let meta = std::fs::metadata(&dest_bin)?;
+    let meta = match std::fs::metadata(&dest_bin) {
+        Ok(m) => m,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot read vendor binary metadata: {e}")}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Cannot read vendor binary metadata: {e}");
+        }
+    };
     let size = meta.len();
 
     // Compare with current binary
