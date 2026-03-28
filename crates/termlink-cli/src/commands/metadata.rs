@@ -14,8 +14,16 @@ pub(crate) async fn cmd_tag(
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let mut params = serde_json::json!({});
     if !set.is_empty() {
