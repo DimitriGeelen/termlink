@@ -38,8 +38,8 @@ async fn main() -> Result<()> {
         Command::Interact { target, command, timeout, poll_ms, strip_ansi, json } => {
             commands::pty::cmd_interact(&resolve_target(target)?, &command, timeout, poll_ms, strip_ansi, json).await
         }
-        Command::Exec { target, command, cwd, timeout } => {
-            commands::session::cmd_exec(&target, &command, cwd.as_deref(), timeout).await
+        Command::Exec { target, command, cwd, timeout, json } => {
+            commands::session::cmd_exec(&target, &command, cwd.as_deref(), timeout, json).await
         }
         Command::Signal { target, signal, json } => commands::session::cmd_signal(&target, &signal, json).await,
 

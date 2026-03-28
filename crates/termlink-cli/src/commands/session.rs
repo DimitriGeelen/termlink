@@ -438,7 +438,7 @@ pub(crate) async fn cmd_status(target: &str, json: bool) -> Result<()> {
     }
 }
 
-pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, timeout: u64) -> Result<()> {
+pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, timeout: u64, json: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -456,6 +456,15 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
 
     match client::unwrap_result(resp) {
         Ok(result) => {
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+                let exit_code = result["exit_code"].as_i64().unwrap_or(0);
+                if exit_code != 0 {
+                    std::process::exit(exit_code as i32);
+                }
+                return Ok(());
+            }
+
             let exit_code = result["exit_code"].as_i64().unwrap_or(-1);
             let stdout = result["stdout"].as_str().unwrap_or("");
             let stderr = result["stderr"].as_str().unwrap_or("");

@@ -151,6 +151,10 @@ pub(crate) enum Command {
         /// Timeout in seconds (default: 30)
         #[arg(long, default_value = "30")]
         timeout: u64,
+
+        /// Output as JSON (includes stdout, stderr, exit_code)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Send a signal to a session's process (e.g., SIGTERM, SIGINT)
