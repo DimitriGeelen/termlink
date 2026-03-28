@@ -946,7 +946,7 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
     }
 }
 
-pub(crate) fn cmd_info(json: bool) -> Result<()> {
+pub(crate) fn cmd_info(json: bool, short: bool) -> Result<()> {
     let runtime_dir = termlink_session::discovery::runtime_dir();
     let sessions_dir = termlink_session::discovery::sessions_dir();
     let hub_socket = termlink_hub::server::hub_socket_path();
@@ -962,6 +962,12 @@ pub(crate) fn cmd_info(json: bool) -> Result<()> {
     let version = env!("CARGO_PKG_VERSION");
     let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
     let target = option_env!("BUILD_TARGET").unwrap_or("unknown");
+
+    if short {
+        let hub_status = if hub_running { "running" } else { "stopped" };
+        println!("termlink {version} sessions:{live}/{all} hub:{hub_status}");
+        return Ok(());
+    }
 
     if json {
         println!("{}", serde_json::to_string_pretty(&serde_json::json!({

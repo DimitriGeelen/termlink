@@ -142,6 +142,10 @@ pub(crate) enum Command {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// One-line summary output (for scripting)
+        #[arg(long)]
+        short: bool,
     },
 
     // === RPC & Execution ===

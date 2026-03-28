@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
         Command::List { all, json, tag, name, role, cap, count, names, ids, first, wait, wait_timeout, no_header } => commands::session::cmd_list(all, json, tag.as_deref(), name.as_deref(), role.as_deref(), cap.as_deref(), count, names, ids, first, wait, wait_timeout, no_header).await,
         Command::Ping { target, json, timeout } => commands::session::cmd_ping(&resolve_target(target)?, json, timeout).await,
         Command::Status { target, json, short, timeout } => commands::session::cmd_status(&resolve_target(target)?, json, short, timeout).await,
-        Command::Info { json } => commands::session::cmd_info(json),
+        Command::Info { json, short } => commands::session::cmd_info(json, short),
         Command::Send { target, method, params, json, timeout } => commands::session::cmd_send(&target, &method, &params, json, timeout).await,
         Command::Interact { target, command, timeout, poll_ms, strip_ansi, json } => {
             commands::pty::cmd_interact(&target, &command, timeout, poll_ms, strip_ansi, json).await
