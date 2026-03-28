@@ -226,6 +226,8 @@ pub(crate) enum Command {
         strip_ansi: bool,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Inject keystrokes into a PTY-backed session
@@ -1233,6 +1235,10 @@ pub(crate) enum PtyCommand {
         /// Output as JSON (includes output text and byte count)
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Inject keystrokes into a PTY-backed session
@@ -1254,6 +1260,10 @@ pub(crate) enum PtyCommand {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Attach to a PTY session — live output and keyboard forwarding
@@ -1280,6 +1290,10 @@ pub(crate) enum PtyCommand {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Stream a PTY session via data plane (real-time binary frames, zero polling)

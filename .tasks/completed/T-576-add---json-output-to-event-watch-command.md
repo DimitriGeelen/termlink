@@ -1,22 +1,22 @@
 ---
-id: T-579
-name: "Add --json output to agent ask command"
+id: T-576
+name: "Add --json output to event watch command"
 description: >
-  Add --json output to agent ask command
+  Add --json output to event watch command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:39:19Z
-last_update: 2026-03-28T15:39:19Z
-date_finished: null
+created: 2026-03-28T15:32:09Z
+last_update: 2026-03-28T15:33:46Z
+date_finished: 2026-03-28T15:33:46Z
 ---
 
-# T-579: Add --json output to agent ask command
+# T-576: Add --json output to event watch command
 
 ## Context
 
@@ -25,9 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --json flag added to AgentAction::Ask in cli.rs
-- [x] main.rs passes json to cmd_agent_ask
-- [x] cmd_agent_ask outputs structured JSON on success and error
+- [x] --json flag added to EventCommand::Watch and hidden Watch alias in cli.rs
+- [x] main.rs passes json to cmd_watch
+- [x] cmd_watch outputs each event as NDJSON line when --json set
 - [x] cargo build succeeds
 
 ### Human
@@ -69,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:39:19Z — task-created [task-create-agent]
+### 2026-03-28T15:32:09Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-579-add---json-output-to-agent-ask-command.md
+- **Output:** /opt/termlink/.tasks/active/T-576-add---json-output-to-event-watch-command.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:33:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

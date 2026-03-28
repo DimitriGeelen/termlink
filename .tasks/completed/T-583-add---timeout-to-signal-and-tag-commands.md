@@ -1,22 +1,22 @@
 ---
-id: T-585
-name: "Add --timeout to event poll command"
+id: T-583
+name: "Add --timeout to signal and tag commands"
 description: >
-  Add --timeout to event poll command
+  Add --timeout to signal and tag commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:56:07Z
-last_update: 2026-03-28T15:56:07Z
-date_finished: null
+created: 2026-03-28T15:47:57Z
+last_update: 2026-03-28T15:49:29Z
+date_finished: 2026-03-28T15:49:29Z
 ---
 
-# T-585: Add --timeout to event poll command
+# T-583: Add --timeout to signal and tag commands
 
 ## Context
 
@@ -25,9 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --timeout added to EventCommand::Poll and hidden Events alias in cli.rs (default 5s)
-- [x] main.rs passes timeout to cmd_events
-- [x] cmd_events wraps RPC call in tokio::time::timeout
+- [x] --timeout flag added to Signal and Tag commands in cli.rs
+- [x] main.rs passes timeout to cmd_signal and cmd_tag
+- [x] Both commands wrap RPC calls in tokio::time::timeout
 - [x] cargo build succeeds
 
 ### Human
@@ -69,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:56:07Z — task-created [task-create-agent]
+### 2026-03-28T15:47:57Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-585-add---timeout-to-event-poll-command.md
+- **Output:** /opt/termlink/.tasks/active/T-583-add---timeout-to-signal-and-tag-commands.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:49:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

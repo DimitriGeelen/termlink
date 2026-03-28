@@ -1,22 +1,22 @@
 ---
-id: T-578
-name: "Add --json output to file send and file receive commands"
+id: T-575
+name: "Add --json output to event wait command"
 description: >
-  Add --json output to file send and file receive commands
+  Add --json output to event wait command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:36:23Z
-last_update: 2026-03-28T15:36:23Z
-date_finished: null
+created: 2026-03-28T15:30:14Z
+last_update: 2026-03-28T15:31:48Z
+date_finished: 2026-03-28T15:31:48Z
 ---
 
-# T-578: Add --json output to file send and file receive commands
+# T-575: Add --json output to event wait command
 
 ## Context
 
@@ -25,10 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --json flag added to FileAction::Send and FileAction::Receive in cli.rs
-- [x] main.rs passes json to cmd_file_send and cmd_file_receive
-- [x] cmd_file_send outputs structured JSON result (filename, size, chunks, sha256, transfer_id)
-- [x] cmd_file_receive outputs structured JSON result (filename, path, size, sha256)
+- [x] --json flag added to EventCommand::Wait and hidden Wait alias in cli.rs
+- [x] main.rs passes json to cmd_wait
+- [x] cmd_wait outputs structured JSON on match and on timeout
 - [x] cargo build succeeds
 
 ### Human
@@ -70,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:36:23Z — task-created [task-create-agent]
+### 2026-03-28T15:30:14Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-578-add---json-output-to-file-send-and-file-.md
+- **Output:** /opt/termlink/.tasks/active/T-575-add---json-output-to-event-wait-command.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:31:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

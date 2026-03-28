@@ -1,34 +1,33 @@
 ---
-id: T-576
-name: "Add --json output to event watch command"
+id: T-574
+name: "Wire --json flag for event topics command"
 description: >
-  Add --json output to event watch command
+  Wire --json flag for event topics command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:32:09Z
-last_update: 2026-03-28T15:32:09Z
-date_finished: null
+created: 2026-03-28T15:28:30Z
+last_update: 2026-03-28T15:29:53Z
+date_finished: 2026-03-28T15:29:53Z
 ---
 
-# T-576: Add --json output to event watch command
+# T-574: Wire --json flag for event topics command
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The --json flag exists in cli.rs for EventCommand::Topics and the hidden Topics alias, but the dispatch in main.rs discards it (`json: _`) and cmd_topics doesn't accept it.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] --json flag added to EventCommand::Watch and hidden Watch alias in cli.rs
-- [x] main.rs passes json to cmd_watch
-- [x] cmd_watch outputs each event as NDJSON line when --json set
-- [x] cargo build succeeds
+- [x] main.rs passes json flag to cmd_topics for both EventCommand::Topics and hidden Topics alias
+- [x] cmd_topics accepts json: bool parameter and outputs structured JSON when set
+- [x] cargo build succeeds with no warnings
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -69,7 +68,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:32:09Z — task-created [task-create-agent]
+### 2026-03-28T15:28:30Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-576-add---json-output-to-event-watch-command.md
+- **Output:** /opt/termlink/.tasks/active/T-574-wire---json-flag-for-event-topics-comman.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:29:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

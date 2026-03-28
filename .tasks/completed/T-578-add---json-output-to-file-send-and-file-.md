@@ -1,22 +1,22 @@
 ---
-id: T-584
-name: "Add --timeout to kv and event emit/emit-to/broadcast"
+id: T-578
+name: "Add --json output to file send and file receive commands"
 description: >
-  Add --timeout to kv and event emit/emit-to/broadcast
+  Add --json output to file send and file receive commands
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:49:53Z
-last_update: 2026-03-28T15:49:53Z
-date_finished: null
+created: 2026-03-28T15:36:23Z
+last_update: 2026-03-28T15:38:48Z
+date_finished: 2026-03-28T15:38:48Z
 ---
 
-# T-584: Add --timeout to kv and event emit/emit-to/broadcast
+# T-578: Add --json output to file send and file receive commands
 
 ## Context
 
@@ -25,10 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --timeout added to Kv command in cli.rs (default 5s)
-- [x] --timeout added to EventCommand::Emit, EmitTo, Broadcast and hidden aliases (default 5s)
-- [x] cmd_kv wraps all RPC calls in tokio::time::timeout
-- [x] cmd_emit, cmd_emit_to, cmd_broadcast wrap RPC calls in tokio::time::timeout
+- [x] --json flag added to FileAction::Send and FileAction::Receive in cli.rs
+- [x] main.rs passes json to cmd_file_send and cmd_file_receive
+- [x] cmd_file_send outputs structured JSON result (filename, size, chunks, sha256, transfer_id)
+- [x] cmd_file_receive outputs structured JSON result (filename, path, size, sha256)
 - [x] cargo build succeeds
 
 ### Human
@@ -70,7 +70,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:49:53Z — task-created [task-create-agent]
+### 2026-03-28T15:36:23Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-584-add---timeout-to-kv-and-event-emitemit-t.md
+- **Output:** /opt/termlink/.tasks/active/T-578-add---json-output-to-file-send-and-file-.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:38:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

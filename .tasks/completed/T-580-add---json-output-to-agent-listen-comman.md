@@ -1,22 +1,22 @@
 ---
-id: T-582
-name: "Add integration tests for new --json event and pty commands"
+id: T-580
+name: "Add --json output to agent listen command"
 description: >
-  Add integration tests for new --json event and pty commands
+  Add --json output to agent listen command
 
-status: started-work
-workflow_type: test
+status: work-completed
+workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:45:41Z
-last_update: 2026-03-28T15:45:41Z
-date_finished: null
+created: 2026-03-28T15:41:18Z
+last_update: 2026-03-28T15:42:43Z
+date_finished: 2026-03-28T15:42:43Z
 ---
 
-# T-582: Add integration tests for new --json event and pty commands
+# T-580: Add --json output to agent listen command
 
 ## Context
 
@@ -25,10 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] Test for event topics --json output
-- [x] Test for event wait --json with emit trigger
-- [x] Test for pty output --json
-- [x] All tests pass (54 integration tests)
+- [x] --json flag added to AgentAction::Listen in cli.rs
+- [x] main.rs passes json to cmd_agent_listen
+- [x] cmd_agent_listen outputs each request as NDJSON line when --json set
+- [x] cargo build succeeds
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -69,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:45:41Z — task-created [task-create-agent]
+### 2026-03-28T15:41:18Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-582-add-integration-tests-for-new---json-eve.md
+- **Output:** /opt/termlink/.tasks/active/T-580-add---json-output-to-agent-listen-comman.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:42:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

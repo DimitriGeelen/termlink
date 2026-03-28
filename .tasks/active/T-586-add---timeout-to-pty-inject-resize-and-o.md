@@ -1,8 +1,8 @@
 ---
-id: T-583
-name: "Add --timeout to signal and tag commands"
+id: T-586
+name: "Add --timeout to pty inject, resize, and output commands"
 description: >
-  Add --timeout to signal and tag commands
+  Add --timeout to pty inject, resize, and output commands
 
 status: started-work
 workflow_type: build
@@ -11,12 +11,12 @@ horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-28T15:47:57Z
-last_update: 2026-03-28T15:47:57Z
+created: 2026-03-28T15:58:00Z
+last_update: 2026-03-28T15:58:00Z
 date_finished: null
 ---
 
-# T-583: Add --timeout to signal and tag commands
+# T-586: Add --timeout to pty inject, resize, and output commands
 
 ## Context
 
@@ -25,10 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --timeout flag added to Signal and Tag commands in cli.rs
-- [x] main.rs passes timeout to cmd_signal and cmd_tag
-- [x] Both commands wrap RPC calls in tokio::time::timeout
-- [x] cargo build succeeds
+- [ ] --timeout added to PtyCommand::Inject, Resize, Output and their hidden aliases
+- [ ] main.rs passes timeout to cmd_inject, cmd_resize, cmd_output
+- [ ] All three commands wrap RPC calls in tokio::time::timeout
+- [ ] cargo build succeeds
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -69,7 +69,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:47:57Z — task-created [task-create-agent]
+### 2026-03-28T15:58:00Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-583-add---timeout-to-signal-and-tag-commands.md
+- **Output:** /opt/termlink/.tasks/active/T-586-add---timeout-to-pty-inject-resize-and-o.md
 - **Context:** Initial task creation

@@ -4,16 +4,16 @@ name: "Add --json output to pty output command"
 description: >
   Add --json output to pty output command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-28T15:43:50Z
-last_update: 2026-03-28T15:43:50Z
-date_finished: null
+last_update: 2026-03-28T15:45:16Z
+date_finished: 2026-03-28T15:45:16Z
 ---
 
 # T-581: Add --json output to pty output command
@@ -73,3 +73,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-581-add---json-output-to-pty-output-command.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:45:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

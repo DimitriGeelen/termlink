@@ -1,22 +1,22 @@
 ---
-id: T-575
-name: "Add --json output to event wait command"
+id: T-585
+name: "Add --timeout to event poll command"
 description: >
-  Add --json output to event wait command
+  Add --timeout to event poll command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:30:14Z
-last_update: 2026-03-28T15:30:14Z
-date_finished: null
+created: 2026-03-28T15:56:07Z
+last_update: 2026-03-28T15:57:38Z
+date_finished: 2026-03-28T15:57:38Z
 ---
 
-# T-575: Add --json output to event wait command
+# T-585: Add --timeout to event poll command
 
 ## Context
 
@@ -25,9 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --json flag added to EventCommand::Wait and hidden Wait alias in cli.rs
-- [x] main.rs passes json to cmd_wait
-- [x] cmd_wait outputs structured JSON on match and on timeout
+- [x] --timeout added to EventCommand::Poll and hidden Events alias in cli.rs (default 5s)
+- [x] main.rs passes timeout to cmd_events
+- [x] cmd_events wraps RPC call in tokio::time::timeout
 - [x] cargo build succeeds
 
 ### Human
@@ -69,7 +69,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:30:14Z — task-created [task-create-agent]
+### 2026-03-28T15:56:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-575-add---json-output-to-event-wait-command.md
+- **Output:** /opt/termlink/.tasks/active/T-585-add---timeout-to-event-poll-command.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:57:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

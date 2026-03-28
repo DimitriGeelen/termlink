@@ -1,22 +1,22 @@
 ---
-id: T-580
-name: "Add --json output to agent listen command"
+id: T-584
+name: "Add --timeout to kv and event emit/emit-to/broadcast"
 description: >
-  Add --json output to agent listen command
+  Add --timeout to kv and event emit/emit-to/broadcast
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
-created: 2026-03-28T15:41:18Z
-last_update: 2026-03-28T15:41:18Z
-date_finished: null
+created: 2026-03-28T15:49:53Z
+last_update: 2026-03-28T15:53:35Z
+date_finished: 2026-03-28T15:53:35Z
 ---
 
-# T-580: Add --json output to agent listen command
+# T-584: Add --timeout to kv and event emit/emit-to/broadcast
 
 ## Context
 
@@ -25,9 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] --json flag added to AgentAction::Listen in cli.rs
-- [x] main.rs passes json to cmd_agent_listen
-- [x] cmd_agent_listen outputs each request as NDJSON line when --json set
+- [x] --timeout added to Kv command in cli.rs (default 5s)
+- [x] --timeout added to EventCommand::Emit, EmitTo, Broadcast and hidden aliases (default 5s)
+- [x] cmd_kv wraps all RPC calls in tokio::time::timeout
+- [x] cmd_emit, cmd_emit_to, cmd_broadcast wrap RPC calls in tokio::time::timeout
 - [x] cargo build succeeds
 
 ### Human
@@ -69,7 +70,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-03-28T15:41:18Z — task-created [task-create-agent]
+### 2026-03-28T15:49:53Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-580-add---json-output-to-agent-listen-comman.md
+- **Output:** /opt/termlink/.tasks/active/T-584-add---timeout-to-kv-and-event-emitemit-t.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:53:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,33 +1,34 @@
 ---
-id: T-574
-name: "Wire --json flag for event topics command"
+id: T-582
+name: "Add integration tests for new --json event and pty commands"
 description: >
-  Wire --json flag for event topics command
+  Add integration tests for new --json event and pty commands
 
-status: started-work
-workflow_type: build
+status: work-completed
+workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
-created: 2026-03-28T15:28:30Z
-last_update: 2026-03-28T15:28:30Z
-date_finished: null
+created: 2026-03-28T15:45:41Z
+last_update: 2026-03-28T15:47:17Z
+date_finished: 2026-03-28T15:47:17Z
 ---
 
-# T-574: Wire --json flag for event topics command
+# T-582: Add integration tests for new --json event and pty commands
 
 ## Context
 
-The --json flag exists in cli.rs for EventCommand::Topics and the hidden Topics alias, but the dispatch in main.rs discards it (`json: _`) and cmd_topics doesn't accept it.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] main.rs passes json flag to cmd_topics for both EventCommand::Topics and hidden Topics alias
-- [ ] cmd_topics accepts json: bool parameter and outputs structured JSON when set
-- [ ] cargo build succeeds with no warnings
+- [x] Test for event topics --json output
+- [x] Test for event wait --json with emit trigger
+- [x] Test for pty output --json
+- [x] All tests pass (54 integration tests)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -68,7 +69,10 @@ The --json flag exists in cli.rs for EventCommand::Topics and the hidden Topics 
 
 ## Updates
 
-### 2026-03-28T15:28:30Z — task-created [task-create-agent]
+### 2026-03-28T15:45:41Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-574-wire---json-flag-for-event-topics-comman.md
+- **Output:** /opt/termlink/.tasks/active/T-582-add-integration-tests-for-new---json-eve.md
 - **Context:** Initial task creation
+
+### 2026-03-28T15:47:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
