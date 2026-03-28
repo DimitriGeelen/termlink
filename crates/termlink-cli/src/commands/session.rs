@@ -417,8 +417,16 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
 }
 
 pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let start = std::time::Instant::now();
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
@@ -478,8 +486,16 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
 }
 
 pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_secs: u64) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({}));
@@ -575,8 +591,16 @@ pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_se
 }
 
 pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, timeout: u64, json: bool) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let mut params = serde_json::json!({
         "command": command,
@@ -641,8 +665,16 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
     let params: serde_json::Value =
         serde_json::from_str(params_str).context("Invalid JSON params")?;
 
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc_future = client::rpc_call(reg.socket_path(), method, params);
@@ -699,8 +731,16 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
 }
 
 pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_secs: u64) -> Result<()> {
-    let reg = manager::find_session(target)
-        .context(format!("Session '{}' not found", target))?;
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
 
     let sig_num = parse_signal(signal)
         .context(format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal))?;
