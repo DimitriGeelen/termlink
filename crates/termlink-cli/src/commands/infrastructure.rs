@@ -193,7 +193,8 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool) -> Result<()> {
 
     // 6. Version
     let version = env!("CARGO_PKG_VERSION");
-    check!("version", pass, format!("termlink {version}"));
+    let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
+    check!("version", pass, format!("termlink {version} ({commit})"));
 
     // Summary
     if json_output {
