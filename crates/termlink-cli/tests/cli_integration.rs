@@ -843,3 +843,41 @@ fn cli_hub_status_json_output() {
 
     assert!(json["status"].is_string(), "Expected status string");
 }
+
+// ─── Doctor Tests ───────────────────────────────────────────────────
+
+#[test]
+fn cli_doctor_text_output() {
+    let dir = TestDir::new("doctor");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["doctor"])
+        .output()
+        .expect("Failed to run termlink doctor");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("TermLink Doctor"), "Expected 'TermLink Doctor' header: {}", stdout);
+    assert!(stdout.contains("version"), "Expected version check: {}", stdout);
+    assert!(stdout.contains("passed"), "Expected pass summary: {}", stdout);
+}
+
+#[test]
+fn cli_doctor_json_output() {
+    let dir = TestDir::new("doctor-json");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["doctor", "--json"])
+        .output()
+        .expect("Failed to run termlink doctor --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("doctor --json should output valid JSON");
+
+    assert!(json["checks"].is_array(), "Expected checks array");
+    assert!(json["summary"]["pass"].is_number(), "Expected pass count");
+    assert!(json["summary"]["warn"].is_number(), "Expected warn count");
+    assert!(json["summary"]["fail"].is_number(), "Expected fail count");
+}
