@@ -568,6 +568,13 @@ pub(crate) enum Command {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
     },
+
+    /// Show version, build info, and git commit
+    Version {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Vendor subcommands

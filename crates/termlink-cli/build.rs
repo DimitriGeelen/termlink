@@ -13,6 +13,22 @@ fn main() {
     if let Some(version) = git_derived_version() {
         println!("cargo:rustc-env=CARGO_PKG_VERSION={version}");
     }
+
+    // Embed git commit hash
+    if let Ok(output) = Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .output()
+    {
+        if output.status.success() {
+            let hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            println!("cargo:rustc-env=GIT_COMMIT={hash}");
+        }
+    }
+
+    // Embed build target triple
+    if let Ok(target) = std::env::var("TARGET") {
+        println!("cargo:rustc-env=BUILD_TARGET={target}");
+    }
 }
 
 fn git_derived_version() -> Option<String> {

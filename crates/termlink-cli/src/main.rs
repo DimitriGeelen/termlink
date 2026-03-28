@@ -231,5 +231,24 @@ async fn main() -> Result<()> {
             );
             Ok(())
         }
+        Command::Version { json } => {
+            let version = env!("CARGO_PKG_VERSION");
+            let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
+            let target = option_env!("BUILD_TARGET").unwrap_or("unknown");
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "version": version,
+                        "commit": commit,
+                        "target": target,
+                    })
+                );
+            } else {
+                println!("termlink {version} ({commit}) [{target}]");
+            }
+            Ok(())
+        }
     }
 }
