@@ -161,7 +161,11 @@ pub(crate) async fn cmd_discover(
     };
 
     if count {
-        println!("{}", filtered.len());
+        if json {
+            println!("{}", serde_json::json!({"count": filtered.len()}));
+        } else {
+            println!("{}", filtered.len());
+        }
         return Ok(());
     }
 

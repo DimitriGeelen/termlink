@@ -328,7 +328,11 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     };
 
     if count {
-        println!("{}", sessions.len());
+        if json {
+            println!("{}", serde_json::json!({"count": sessions.len()}));
+        } else {
+            println!("{}", sessions.len());
+        }
         return Ok(());
     }
 
