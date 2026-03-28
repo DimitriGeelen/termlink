@@ -25,10 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] --timeout added to PtyCommand::Inject, Resize, Output and their hidden aliases
-- [ ] main.rs passes timeout to cmd_inject, cmd_resize, cmd_output
-- [ ] All three commands wrap RPC calls in tokio::time::timeout
-- [ ] cargo build succeeds
+- [x] --timeout added to PtyCommand::Inject, Resize, Output and their hidden aliases
+- [x] main.rs passes timeout to cmd_inject, cmd_resize, cmd_output
+- [x] All three commands wrap RPC calls in tokio::time::timeout
+- [x] cargo build succeeds
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

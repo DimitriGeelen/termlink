@@ -165,7 +165,7 @@ pub(crate) async fn cmd_interact(
     }
 }
 
-pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, strip_ansi: bool, json: bool) -> Result<()> {
+pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, strip_ansi: bool, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -179,9 +179,14 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
         params["strip_ansi"] = serde_json::json!(true);
     }
 
-    let resp = client::rpc_call(reg.socket_path(), "query.output", params)
-        .await
-        .context("Failed to connect to session")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc_future = client::rpc_call(reg.socket_path(), "query.output", params);
+    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            anyhow::bail!("Output query timed out after {}s", timeout_secs);
+        }
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {
@@ -204,7 +209,7 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
     }
 }
 
-pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool) -> Result<()> {
+pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -222,9 +227,14 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
 
     let params = serde_json::json!({ "keys": keys });
 
-    let resp = client::rpc_call(reg.socket_path(), "command.inject", params)
-        .await
-        .context("Failed to connect to session")?;
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc_future = client::rpc_call(reg.socket_path(), "command.inject", params);
+    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            anyhow::bail!("Inject timed out after {}s", timeout_secs);
+        }
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {
@@ -254,17 +264,22 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
     }
 }
 
-pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool) -> Result<()> {
+pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
-    let resp = client::rpc_call(
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let rpc_future = client::rpc_call(
         reg.socket_path(),
         "command.resize",
         serde_json::json!({ "cols": cols, "rows": rows }),
-    )
-    .await
-    .context("Failed to connect to session")?;
+    );
+    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+        Ok(result) => result.context("Failed to connect to session")?,
+        Err(_) => {
+            anyhow::bail!("Resize timed out after {}s", timeout_secs);
+        }
+    };
 
     match client::unwrap_result(resp) {
         Ok(result) => {

@@ -242,6 +242,8 @@ pub(crate) enum Command {
         key: Option<String>,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Attach to a PTY session
@@ -262,6 +264,8 @@ pub(crate) enum Command {
         rows: u16,
         #[arg(long)]
         json: bool,
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 
     /// Stream a PTY session via data plane

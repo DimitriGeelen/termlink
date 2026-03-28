@@ -45,12 +45,12 @@ async fn main() -> Result<()> {
 
         // PTY subcommand group
         Command::Pty(pty) => match pty {
-            PtyCommand::Output { target, lines, bytes, strip_ansi, json } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json).await,
-            PtyCommand::Inject { target, text, enter, key, json } => {
-                commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
+            PtyCommand::Output { target, lines, bytes, strip_ansi, json, timeout } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json, timeout).await,
+            PtyCommand::Inject { target, text, enter, key, json, timeout } => {
+                commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json, timeout).await
             }
             PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
-            PtyCommand::Resize { target, cols, rows, json } => commands::pty::cmd_resize(&target, cols, rows, json).await,
+            PtyCommand::Resize { target, cols, rows, json, timeout } => commands::pty::cmd_resize(&target, cols, rows, json, timeout).await,
             PtyCommand::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
             PtyCommand::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
         },
@@ -82,12 +82,12 @@ async fn main() -> Result<()> {
         },
 
         // Hidden backward-compat aliases (PTY)
-        Command::Output { target, lines, bytes, strip_ansi, json } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json).await,
-        Command::Inject { target, text, enter, key, json } => {
-            commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json).await
+        Command::Output { target, lines, bytes, strip_ansi, json, timeout } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json, timeout).await,
+        Command::Inject { target, text, enter, key, json, timeout } => {
+            commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json, timeout).await
         }
         Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
-        Command::Resize { target, cols, rows, json } => commands::pty::cmd_resize(&target, cols, rows, json).await,
+        Command::Resize { target, cols, rows, json, timeout } => commands::pty::cmd_resize(&target, cols, rows, json, timeout).await,
         Command::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
         Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
 
