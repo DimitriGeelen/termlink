@@ -4,16 +4,16 @@ name: "Add --role filter to termlink list"
 description: >
   Add --role filter to termlink list
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-28T09:22:22Z
-last_update: 2026-03-28T09:22:22Z
-date_finished: null
+last_update: 2026-03-28T09:23:37Z
+date_finished: 2026-03-28T09:23:37Z
 ---
 
 # T-543: Add --role filter to termlink list
@@ -50,3 +50,6 @@ cargo build 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-543-add---role-filter-to-termlink-list.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:23:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

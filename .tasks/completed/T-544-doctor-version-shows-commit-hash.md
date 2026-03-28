@@ -4,16 +4,16 @@ name: "Doctor version shows commit hash"
 description: >
   Doctor version shows commit hash
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: []
 created: 2026-03-28T09:25:45Z
-last_update: 2026-03-28T09:25:45Z
-date_finished: null
+last_update: 2026-03-28T09:26:38Z
+date_finished: 2026-03-28T09:26:38Z
 ---
 
 # T-544: Doctor version shows commit hash
@@ -49,3 +49,6 @@ cargo build 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-544-doctor-version-shows-commit-hash.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:26:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

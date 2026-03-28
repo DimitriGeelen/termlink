@@ -4,16 +4,16 @@ name: "Enrich termlink info with version and build details"
 description: >
   Enrich termlink info with version and build details
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
 created: 2026-03-28T09:18:46Z
-last_update: 2026-03-28T09:18:46Z
-date_finished: null
+last_update: 2026-03-28T09:19:48Z
+date_finished: 2026-03-28T09:19:48Z
 ---
 
 # T-542: Enrich termlink info with version and build details
@@ -51,3 +51,6 @@ cargo build 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-542-enrich-termlink-info-with-version-and-bu.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:19:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

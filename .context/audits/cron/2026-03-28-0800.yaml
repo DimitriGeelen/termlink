@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-27-2036
-timestamp: 2026-03-27T19:36:09Z
+# Audit Results - 2026-03-28-0800
+timestamp: 2026-03-28T07:00:01Z
 summary:
-  pass: 112
-  warn: 4
+  pass: 109
+  warn: 7
   fail: 0
 findings:
   - level: PASS
@@ -69,19 +69,18 @@ findings:
     check: "C-002: No research warnings logged (clean or first run)"
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
-  - level: WARN
-    check: "CTL-001: Focus file empty but 10 commit(s) in last 30min"
-    mitigation: "Check .claude/settings.json hook configuration for check-active-task"
   - level: PASS
-    check: "CTL-003: Budget status file fresh (< 5min old)"
+    check: "CTL-001: Focus file empty (no recent activity — expected)"
   - level: PASS
-    check: "CTL-004: Tool counter at 1 (last commit: 26 seconds ago)"
+    check: "CTL-003: Budget status file stale (684min — no active session)"
+  - level: PASS
+    check: "CTL-004: Tool counter at 2 (last commit: 11 hours ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: warn)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: PASS
-    check: "CTL-020: 4 cron audit file(s) in last hour"
+    check: "CTL-020: 5 cron audit file(s) in last hour"
   - level: PASS
     check: "CTL-002: Tier 0 guard installed and wired in settings.json"
   - level: PASS
@@ -192,12 +191,15 @@ findings:
     check: "CTL-011: pre-push hook installed and executable"
   - level: PASS
     check: "CTL-012: All 276 completed tasks have checked ACs"
-  - level: PASS
-    check: "CTL-013: T-539 verification re-run: 1/1 pass"
-  - level: PASS
-    check: "CTL-013: T-538 verification re-run: 1/1 pass"
-  - level: PASS
-    check: "CTL-013: T-537 verification re-run: 2/2 pass"
+  - level: WARN
+    check: "CTL-013: T-539 verification re-run: 1 command(s) failing"
+    mitigation: "Review T-539 — environment may have changed"
+  - level: WARN
+    check: "CTL-013: T-538 verification re-run: 1 command(s) failing"
+    mitigation: "Review T-538 — environment may have changed"
+  - level: WARN
+    check: "CTL-013: T-537 verification re-run: 1 command(s) failing"
+    mitigation: "Review T-537 — environment may have changed"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -227,14 +229,15 @@ findings:
   - level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - level: WARN
-    check: "D5: Task lifecycle — 18 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+8 more)"
+    check: "D5: Task lifecycle — 19 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+9 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
     check: "D3: Commit velocity — insufficient data"
   - level: PASS
     check: "D7: Commit bunching — none (PASS no_recent_commits)"
-  - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=8.0 earlier=14.3)"
+  - level: WARN
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=3.0 vs earlier_avg=13.7)"
+    mitigation: "Check for blockers or process issues slowing work"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS

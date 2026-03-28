@@ -4,7 +4,7 @@ name: "Add termlink version subcommand with build info"
 description: >
   Add termlink version subcommand with build info
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-28T09:10:39Z
-last_update: 2026-03-28T09:10:39Z
-date_finished: null
+last_update: 2026-03-28T09:12:33Z
+date_finished: 2026-03-28T09:12:33Z
 ---
 
 # T-540: Add termlink version subcommand with build info
@@ -52,3 +52,6 @@ cargo build 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-540-add-termlink-version-subcommand-with-bui.md
 - **Context:** Initial task creation
+
+### 2026-03-28T09:12:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
