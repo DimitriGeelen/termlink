@@ -434,6 +434,133 @@ mod tests {
         assert!(reg.addr.is_unix());
     }
 
+    #[test]
+    fn session_metadata_serde_all_fields() {
+        let meta = SessionMetadata {
+            shell: Some("/bin/zsh".into()),
+            term: Some("xterm-256color".into()),
+            cwd: Some("/home/user".into()),
+            termlink_version: Some("0.9.0".into()),
+            data_socket: Some("/tmp/data.sock".into()),
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        let parsed: SessionMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.shell.as_deref(), Some("/bin/zsh"));
+        assert_eq!(parsed.term.as_deref(), Some("xterm-256color"));
+        assert_eq!(parsed.cwd.as_deref(), Some("/home/user"));
+        assert_eq!(parsed.termlink_version.as_deref(), Some("0.9.0"));
+        assert_eq!(parsed.data_socket.as_deref(), Some("/tmp/data.sock"));
+    }
+
+    #[test]
+    fn session_metadata_optional_fields_omitted() {
+        let meta = SessionMetadata::default();
+        let json = serde_json::to_string(&meta).unwrap();
+        assert!(!json.contains("shell"));
+        assert!(!json.contains("term"));
+        assert!(!json.contains("data_socket"));
+
+        // Deserialize from empty object
+        let parsed: SessionMetadata = serde_json::from_str("{}").unwrap();
+        assert!(parsed.shell.is_none());
+        assert!(parsed.data_socket.is_none());
+    }
+
+    #[test]
+    fn token_secret_in_registration_json() {
+        let id = SessionId::generate();
+        let config = SessionConfig::default();
+        let socket = PathBuf::from("/tmp/test.sock");
+        let mut reg = Registration::new(id, config, socket);
+        reg.token_secret = Some("base64secret".into());
+
+        let json = serde_json::to_string(&reg).unwrap();
+        assert!(json.contains("token_secret"));
+
+        let parsed: Registration = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.token_secret.as_deref(), Some("base64secret"));
+    }
+
+    #[test]
+    fn token_secret_omitted_when_none() {
+        let id = SessionId::generate();
+        let config = SessionConfig::default();
+        let socket = PathBuf::from("/tmp/test.sock");
+        let reg = Registration::new(id, config, socket);
+        assert!(reg.token_secret.is_none());
+
+        let json = serde_json::to_string(&reg).unwrap();
+        assert!(!json.contains("token_secret"));
+    }
+
+    #[test]
+    fn allowed_commands_in_registration_json() {
+        let id = SessionId::generate();
+        let config = SessionConfig::default();
+        let socket = PathBuf::from("/tmp/test.sock");
+        let mut reg = Registration::new(id, config, socket);
+        reg.allowed_commands = Some(vec!["ls".into(), "cat".into(), "echo".into()]);
+
+        let json = serde_json::to_string(&reg).unwrap();
+        assert!(json.contains("allowed_commands"));
+
+        let parsed: Registration = serde_json::from_str(&json).unwrap();
+        let cmds = parsed.allowed_commands.unwrap();
+        assert_eq!(cmds, vec!["ls", "cat", "echo"]);
+    }
+
+    #[test]
+    fn registration_addr_display() {
+        let unix_addr = RegistrationAddr(TransportAddr::unix("/tmp/session.sock"));
+        assert_eq!(unix_addr.to_string(), "unix:/tmp/session.sock");
+
+        let tcp_addr = RegistrationAddr(TransportAddr::tcp("192.168.1.1", 9100));
+        assert_eq!(tcp_addr.to_string(), "tcp:192.168.1.1:9100");
+    }
+
+    #[test]
+    fn tcp_address_in_registration() {
+        // Registration with TCP address should serialize/deserialize correctly
+        let json = r#"{
+            "version": 1,
+            "id": "tl-tcptest",
+            "display_name": "tcp-session",
+            "pid": 12345,
+            "uid": 501,
+            "addr": {"type": "tcp", "host": "10.0.0.1", "port": 9100},
+            "created_at": "1234Z",
+            "heartbeat_at": "1234Z",
+            "state": "ready",
+            "capabilities": [],
+            "roles": [],
+            "tags": []
+        }"#;
+        let reg: Registration = serde_json::from_str(json).unwrap();
+        assert!(reg.addr.is_tcp());
+        assert_eq!(reg.addr.as_tcp(), Some(("10.0.0.1", 9100)));
+    }
+
+    #[test]
+    fn set_state_invalid_transition_returns_error() {
+        let dir = tempdir();
+        let id = SessionId::generate();
+        let config = SessionConfig::default();
+        let socket = dir.join("test.sock");
+        let mut reg = Registration::new(id.clone(), config, socket);
+        let json_path = dir.join(format!("{id}.json"));
+        reg.write_atomic(&json_path).unwrap();
+
+        // Initializing → Busy is invalid (must go through Ready first)
+        let result = reg.set_state(SessionState::Busy, &json_path);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(err.to_string().contains("invalid state transition"));
+
+        // State should not have changed
+        assert_eq!(reg.state, SessionState::Initializing);
+    }
+
     fn tempdir() -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "termlink-test-{}",
