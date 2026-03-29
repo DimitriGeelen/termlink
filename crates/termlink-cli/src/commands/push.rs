@@ -76,7 +76,7 @@ async fn cmd_push_inner(
         (data, fname)
     } else {
         // --message only
-        (message.unwrap().to_string(), "push-message.txt".to_string())
+        (message.unwrap_or("").to_string(), "push-message.txt".to_string())
     };
 
     let content_bytes = content.len();

@@ -1,0 +1,48 @@
+# ============================================================================
+# EPISODIC MEMORY - T-744: Remove ci.yml from GitHub
+# ============================================================================
+# STATUS: COMPLETE
+# Generated: 2026-03-29T18:15:00Z
+# ============================================================================
+
+task_id: T-744
+task_name: "Remove ci.yml from GitHub — perpetually-red CI on read-only mirror is net negative"
+workflow_type: build
+enrichment_status: complete
+
+# Timeline
+created: 2026-03-29T14:05:03Z
+completed: 2026-03-29T14:05:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T14:05:53+02:00
+last_commit: 2026-03-29T14:05:53+02:00
+commit_count: 1
+
+# What happened
+summary: |
+  Removed .github/workflows/ci.yml from the repository. The file triggered
+  GitHub Actions CI on every push via the OneDev→GitHub mirror chain, but
+  since GitHub is a read-only mirror (not source of truth), the CI was
+  perpetually red (38/50 recent runs failed). A steelman/strawman analysis
+  confirmed: perpetually-red CI is worse than no CI on a read-only mirror.
+  The release workflow (release.yml) was kept — it triggers only on v* tags
+  and builds macOS + Linux binaries.
+
+# Key decisions
+decisions:
+  - topic: "Delete ci.yml vs fix it"
+    chose: "Delete entirely"
+    why: "CI on a read-only mirror cannot gate anything. 38/50 failures means it's noise, not signal. Release workflow (release.yml) is the only intentional GitHub Actions workflow."
+    rejected: "Fix clippy warnings to make CI green — still can't gate merges on a mirror"
+
+# Learnings
+learnings:
+  - "Files in .github/workflows/ automatically trigger GitHub Actions on any push — their existence IS the configuration. OneDev mirror pushes trigger them every time."
+
+# Failure patterns
+failure_patterns: []
+
+# Related
+related_tasks: [T-534]
+tags: [github, ci, onedev-mirror]

@@ -1340,7 +1340,7 @@ impl TermLinkTools {
             params["remove_tags"] = serde_json::json!(remove);
         }
 
-        if params.as_object().unwrap().is_empty() {
+        if params.as_object().is_some_and(|o| o.is_empty()) {
             return "Error: specify at least one of: set, add, or remove".into();
         }
 
@@ -1399,8 +1399,7 @@ impl TermLinkTools {
                             && let Some(event) = events.first() {
                                 let payload = &event["payload"];
                                 return if payload.is_null()
-                                    || (payload.is_object()
-                                        && payload.as_object().unwrap().is_empty())
+                                    || payload.as_object().is_some_and(|o| o.is_empty())
                                 {
                                     format!("Event received: {}", p.topic)
                                 } else {
