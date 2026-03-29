@@ -324,9 +324,18 @@ pub(crate) async fn cmd_agent_negotiate(
     max_rounds: u8,
     timeout: u64,
     interval: u64,
+    json: bool,
 ) -> Result<()> {
-    let reg = manager::find_session(specialist)
-        .context(format!("Specialist session '{}' not found", specialist))?;
+    let reg = match manager::find_session(specialist) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "error": format!("Specialist session '{}' not found: {}", specialist, e)}));
+                std::process::exit(1);
+            }
+            return Err(e).context(format!("Specialist session '{}' not found", specialist));
+        }
+    };
 
     let request_id = generate_request_id();
     let sender = from
@@ -364,10 +373,12 @@ pub(crate) async fn cmd_agent_negotiate(
     let mut state = NegotiationState::from_offer(&request_id, &offer);
     state.max_rounds = max_rounds;
 
-    eprintln!(
-        "Negotiation started: specialist={}, request_id={}, max_rounds={}",
-        specialist, request_id, max_rounds
-    );
+    if !json {
+        eprintln!(
+            "Negotiation started: specialist={}, request_id={}, max_rounds={}",
+            specialist, request_id, max_rounds
+        );
+    }
 
     // Snapshot cursor
     let cursor: Option<u64> = {
@@ -389,7 +400,9 @@ pub(crate) async fn cmd_agent_negotiate(
     while state.is_active() {
         // Phase 2: Send attempt
         if let Err(e) = state.record_attempt() {
-            eprintln!("Negotiation ended: {e}");
+            if !json {
+                eprintln!("Negotiation ended: {e}");
+            }
             break;
         }
 
@@ -421,10 +434,12 @@ pub(crate) async fn cmd_agent_negotiate(
             .await
             .context("Failed to emit negotiate.attempt")?;
 
-        eprintln!(
-            "[round {}] Attempt sent, waiting for correction...",
-            state.round
-        );
+        if !json {
+            eprintln!(
+                "[round {}] Attempt sent, waiting for correction...",
+                state.round
+            );
+        }
 
         // Phase 3: Wait for correction or accept
         let round_start = std::time::Instant::now();
@@ -476,11 +491,13 @@ pub(crate) async fn cmd_agent_negotiate(
                                         serde_json::from_value::<NegotiateAccept>(resp_payload.clone())
                                     {
                                         state.record_accept(&accept);
-                                        eprintln!("[round {}] Accepted!", state.round);
-                                        println!(
-                                            "{}",
-                                            serde_json::to_string_pretty(&accept.final_schema)?
-                                        );
+                                        if !json {
+                                            eprintln!("[round {}] Accepted!", state.round);
+                                            println!(
+                                                "{}",
+                                                serde_json::to_string_pretty(&accept.final_schema)?
+                                            );
+                                        }
                                         got_response = true;
                                         break;
                                     }
@@ -492,28 +509,32 @@ pub(crate) async fn cmd_agent_negotiate(
                                     let _ = state.record_correction(&correction);
 
                                     if correction.accepted {
-                                        eprintln!("[round {}] Accepted!", state.round);
-                                        println!(
-                                            "{}",
-                                            serde_json::to_string_pretty(&state.current_schema)?
-                                        );
-                                    } else {
-                                        eprintln!(
-                                            "[round {}] Correction: {} fix(es)",
-                                            state.round,
-                                            correction.fixes.len()
-                                        );
-                                        for fix in &correction.fixes {
-                                            eprintln!(
-                                                "  - {}: expected '{}', got '{}' {}",
-                                                fix.field,
-                                                fix.expected,
-                                                fix.got,
-                                                fix.hint
-                                                    .as_deref()
-                                                    .map(|h| format!("(hint: {h})"))
-                                                    .unwrap_or_default()
+                                        if !json {
+                                            eprintln!("[round {}] Accepted!", state.round);
+                                            println!(
+                                                "{}",
+                                                serde_json::to_string_pretty(&state.current_schema)?
                                             );
+                                        }
+                                    } else {
+                                        if !json {
+                                            eprintln!(
+                                                "[round {}] Correction: {} fix(es)",
+                                                state.round,
+                                                correction.fixes.len()
+                                            );
+                                            for fix in &correction.fixes {
+                                                eprintln!(
+                                                    "  - {}: expected '{}', got '{}' {}",
+                                                    fix.field,
+                                                    fix.expected,
+                                                    fix.got,
+                                                    fix.hint
+                                                        .as_deref()
+                                                        .map(|h| format!("(hint: {h})"))
+                                                        .unwrap_or_default()
+                                                );
+                                            }
                                         }
                                         // Apply fixes to draft (best effort: set top-level fields)
                                         for fix in &correction.fixes {
@@ -537,12 +558,14 @@ pub(crate) async fn cmd_agent_negotiate(
                                     if response.status
                                         == termlink_protocol::events::ResponseStatus::Ok
                                     {
-                                        eprintln!("[round {}] Response received (treating as accept)", state.round);
-                                        println!(
-                                            "{}",
-                                            serde_json::to_string_pretty(&response.result)?
-                                        );
-                                    } else {
+                                        if !json {
+                                            eprintln!("[round {}] Response received (treating as accept)", state.round);
+                                            println!(
+                                                "{}",
+                                                serde_json::to_string_pretty(&response.result)?
+                                            );
+                                        }
+                                    } else if !json {
                                         eprintln!(
                                             "[round {}] Error: {}",
                                             state.round,
@@ -567,11 +590,21 @@ pub(crate) async fn cmd_agent_negotiate(
                 }
 
             if round_start.elapsed() > timeout_dur {
-                eprintln!(
-                    "[round {}] Timeout ({}s) — falling back to best-effort draft",
-                    state.round, timeout
-                );
-                println!("{}", serde_json::to_string_pretty(&draft)?);
+                if json {
+                    println!("{}", serde_json::json!({
+                        "ok": false,
+                        "result": "timeout",
+                        "rounds": state.round,
+                        "corrections": state.corrections.len(),
+                        "draft": draft,
+                    }));
+                } else {
+                    eprintln!(
+                        "[round {}] Timeout ({}s) — falling back to best-effort draft",
+                        state.round, timeout
+                    );
+                    println!("{}", serde_json::to_string_pretty(&draft)?);
+                }
                 return Ok(());
             }
 
@@ -582,16 +615,36 @@ pub(crate) async fn cmd_agent_negotiate(
     }
 
     if state.is_accepted() {
-        eprintln!(
-            "Negotiation complete: {} round(s), {} total correction(s)",
-            state.round,
-            state.corrections.len()
-        );
+        if json {
+            println!("{}", serde_json::json!({
+                "ok": true,
+                "result": "accepted",
+                "rounds": state.round,
+                "corrections": state.corrections.len(),
+                "schema": state.current_schema,
+            }));
+        } else {
+            eprintln!(
+                "Negotiation complete: {} round(s), {} total correction(s)",
+                state.round,
+                state.corrections.len()
+            );
+        }
     } else {
-        eprintln!(
-            "Negotiation failed after {} round(s): {}",
-            state.round, state.phase
-        );
+        if json {
+            println!("{}", serde_json::json!({
+                "ok": false,
+                "result": "failed",
+                "rounds": state.round,
+                "corrections": state.corrections.len(),
+                "phase": format!("{}", state.phase),
+            }));
+        } else {
+            eprintln!(
+                "Negotiation failed after {} round(s): {}",
+                state.round, state.phase
+            );
+        }
         std::process::exit(1);
     }
 
