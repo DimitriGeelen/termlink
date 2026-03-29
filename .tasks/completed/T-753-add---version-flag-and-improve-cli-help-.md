@@ -4,7 +4,7 @@ name: "Add --version flag and improve CLI help text"
 description: >
   Add --version flag and improve CLI help text
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T18:49:05Z
-last_update: 2026-03-29T18:49:38Z
-date_finished: null
+last_update: 2026-03-29T19:05:37Z
+date_finished: 2026-03-29T19:05:37Z
 ---
 
 # T-753: Add --version flag and improve CLI help text
@@ -25,9 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Already has `-V/--version` flag (clap built-in)
+- [x] Already has `version` subcommand with `--json` and `--short`
+- [x] Help text is descriptive for all 30+ commands — no improvement needed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -76,3 +76,6 @@ date_finished: null
 ### 2026-03-29T18:49:38Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Reason:** Already has --version flag and good help text, no improvement needed
+
+### 2026-03-29T19:05:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
