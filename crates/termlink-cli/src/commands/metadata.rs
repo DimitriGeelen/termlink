@@ -101,6 +101,8 @@ pub(crate) async fn cmd_discover(
     wait: bool,
     wait_timeout: u64,
     id: bool,
+    names: bool,
+    ids: bool,
     no_header: bool,
 ) -> Result<()> {
     let has_filters = !tags.is_empty() || !roles.is_empty() || !caps.is_empty() || name.is_some();
@@ -165,6 +167,20 @@ pub(crate) async fn cmd_discover(
             println!("{}", serde_json::json!({"count": filtered.len()}));
         } else {
             println!("{}", filtered.len());
+        }
+        return Ok(());
+    }
+
+    if names {
+        for s in &filtered {
+            println!("{}", s.display_name);
+        }
+        return Ok(());
+    }
+
+    if ids {
+        for s in &filtered {
+            println!("{}", s.id.as_str());
         }
         return Ok(());
     }

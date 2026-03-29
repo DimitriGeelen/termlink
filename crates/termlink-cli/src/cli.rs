@@ -515,6 +515,14 @@ pub(crate) enum Command {
         #[arg(long)]
         id: bool,
 
+        /// Print only session display names (one per line, for piping)
+        #[arg(long)]
+        names: bool,
+
+        /// Print only session IDs (one per line, for piping)
+        #[arg(long)]
+        ids: bool,
+
         /// Suppress table header and footer (for piping/awk)
         #[arg(long)]
         no_header: bool,
