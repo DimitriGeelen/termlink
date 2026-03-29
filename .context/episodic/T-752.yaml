@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-752: Fix stdout buffering on JSON error exit — 222 process::exit calls lose output when piped
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T18:46:19Z
+# ============================================================================
+
+task_id: T-752
+task_name: "Fix stdout buffering on JSON error exit — 222 process::exit calls lose output when piped"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T18:39:09Z
+completed: 2026-03-29T18:46:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T20:45:34+02:00
+last_commit: 2026-03-29T20:45:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix stdout buffering on JSON error exit — json_error_exit() helper + 199 replacements across 13 files
+
+# Key outcomes
+outcomes:
+  - "`json_error_exit()` helper exists in commands/mod.rs with stdout flush"
+  - "199 `println!(...); process::exit(1)` replaced with `json_error_exit()`, remaining 18 are `eprintln!`/`--check` mode (flushed)"
+  - "`cargo clippy --workspace -- -D warnings` passes"
+  - "`cargo test --workspace` passes (521 tests, 0 failures)"
+  - "Broadcast no-hub JSON error test passes (was previously broken)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix stdout buffering on JSON error exit — json_error_exit() helper + 199 replacements across 13 files"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/commands/execution.rs"
+  - "crates/termlink-cli/src/commands/file.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - "crates/termlink-cli/src/commands/mod.rs"
+  - "crates/termlink-cli/src/commands/pty.rs"
+  - "crates/termlink-cli/src/commands/push.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/commands/token.rs"
+  - "crates/termlink-cli/src/commands/vendor.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-752-fix-stdout-buffering-on-json-error-exit-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T20:45:34"
+    action: "T-752: Fix stdout buffering on JSON error exit — json_error_exit() helper + 199 replacements across 13 files"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 16
+  lines_added: 336
+  lines_removed: 420
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-752-fix-stdout-buffering-on-json-error-exit-.md
+generated_by: context-agent-hybrid
