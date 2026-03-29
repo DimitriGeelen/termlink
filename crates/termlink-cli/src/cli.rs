@@ -1283,6 +1283,10 @@ pub(crate) enum ProfileAction {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Suppress table header and separator
+        #[arg(long)]
+        no_header: bool,
     },
 
     /// Remove a hub profile

@@ -238,7 +238,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
             }
             Ok(())
         }
-        ProfileAction::List { json } => {
+        ProfileAction::List { json, no_header } => {
             let config = load_hubs_config();
             if json {
                 let profiles: Vec<serde_json::Value> = {
@@ -264,8 +264,10 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 println!("  Add one: termlink remote profile add <name> <address> --secret-file <path>");
                 return Ok(());
             }
-            println!("{:<12} {:<28} {:<10} SECRET", "NAME", "ADDRESS", "SCOPE");
-            println!("{}", "-".repeat(64));
+            if !no_header {
+                println!("{:<12} {:<28} {:<10} SECRET", "NAME", "ADDRESS", "SCOPE");
+                println!("{}", "-".repeat(64));
+            }
             let mut names: Vec<_> = config.hubs.keys().collect();
             names.sort();
             for name in names {
@@ -280,8 +282,10 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 };
                 println!("{:<12} {:<28} {:<10} {}", name, entry.address, scope, secret_info);
             }
-            println!();
-            println!("{} profile(s) in {}", config.hubs.len(), hubs_config_path().display());
+            if !no_header {
+                println!();
+                println!("{} profile(s) in {}", config.hubs.len(), hubs_config_path().display());
+            }
             Ok(())
         }
         ProfileAction::Remove { name, json } => {
