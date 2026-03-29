@@ -1,22 +1,22 @@
 ---
-id: T-744
-name: "Remove ci.yml from GitHub — perpetually-red CI on read-only mirror is net negative"
+id: T-754
+name: "Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)"
 description: >
-  Remove ci.yml from GitHub — perpetually-red CI on read-only mirror is net negative
+  Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)
 
-status: work-completed
-workflow_type: build
+status: started-work
+workflow_type: refactor
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-29T14:05:03Z
-last_update: 2026-03-29T14:05:53Z
-date_finished: 2026-03-29T14:05:53Z
+created: 2026-03-29T18:50:05Z
+last_update: 2026-03-29T18:50:05Z
+date_finished: null
 ---
 
-# T-744: Remove ci.yml from GitHub — perpetually-red CI on read-only mirror is net negative
+# T-754: Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)
 
 ## Context
 
@@ -25,8 +25,11 @@ date_finished: 2026-03-29T14:05:53Z
 ## Acceptance Criteria
 
 ### Agent
-- [x] `.github/workflows/ci.yml` deleted from repository
-- [x] `.github/workflows/release.yml` kept (intentional, triggers on v* tags)
+- [x] T-599 placeholder ACs replaced with real checked ACs
+- [x] T-684 placeholder ACs replaced with real checked ACs
+- [x] T-697 placeholder ACs replaced with real checked ACs
+- [x] T-709 unchecked ACs checked (work was already complete)
+- [x] T-744 placeholder ACs replaced with real checked ACs
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -67,10 +70,7 @@ date_finished: 2026-03-29T14:05:53Z
 
 ## Updates
 
-### 2026-03-29T14:05:03Z — task-created [task-create-agent]
+### 2026-03-29T18:50:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-744-remove-ciyml-from-github--perpetually-re.md
+- **Output:** /opt/termlink/.tasks/active/T-754-fix-5-completed-tasks-with-unchecked-pla.md
 - **Context:** Initial task creation
-
-### 2026-03-29T14:05:53Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

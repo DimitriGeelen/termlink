@@ -1,22 +1,22 @@
 ---
-id: T-744
-name: "Remove ci.yml from GitHub — perpetually-red CI on read-only mirror is net negative"
+id: T-753
+name: "Add --version flag and improve CLI help text"
 description: >
-  Remove ci.yml from GitHub — perpetually-red CI on read-only mirror is net negative
+  Add --version flag and improve CLI help text
 
-status: work-completed
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-03-29T14:05:03Z
-last_update: 2026-03-29T14:05:53Z
-date_finished: 2026-03-29T14:05:53Z
+created: 2026-03-29T18:49:05Z
+last_update: 2026-03-29T18:49:38Z
+date_finished: null
 ---
 
-# T-744: Remove ci.yml from GitHub — perpetually-red CI on read-only mirror is net negative
+# T-753: Add --version flag and improve CLI help text
 
 ## Context
 
@@ -25,8 +25,9 @@ date_finished: 2026-03-29T14:05:53Z
 ## Acceptance Criteria
 
 ### Agent
-- [x] `.github/workflows/ci.yml` deleted from repository
-- [x] `.github/workflows/release.yml` kept (intentional, triggers on v* tags)
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -67,10 +68,11 @@ date_finished: 2026-03-29T14:05:53Z
 
 ## Updates
 
-### 2026-03-29T14:05:03Z — task-created [task-create-agent]
+### 2026-03-29T18:49:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-744-remove-ciyml-from-github--perpetually-re.md
+- **Output:** /opt/termlink/.tasks/active/T-753-add---version-flag-and-improve-cli-help-.md
 - **Context:** Initial task creation
 
-### 2026-03-29T14:05:53Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
+### 2026-03-29T18:49:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Reason:** Already has --version flag and good help text, no improvement needed

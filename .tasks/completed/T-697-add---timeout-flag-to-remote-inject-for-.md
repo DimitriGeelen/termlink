@@ -25,9 +25,8 @@ date_finished: 2026-03-29T00:33:00Z
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `--timeout` flag added to `remote inject` command
+- [x] Timeout produces JSON error when `--json` is set
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

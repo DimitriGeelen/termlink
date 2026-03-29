@@ -25,9 +25,8 @@ date_finished: 2026-03-28T16:48:11Z
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Pre-push hook resolves audit script path via .agentic-framework/
+- [x] `git push` triggers audit successfully
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

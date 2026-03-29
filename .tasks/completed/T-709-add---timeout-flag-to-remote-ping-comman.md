@@ -26,11 +26,11 @@ date_finished: 2026-03-29T10:16:01Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `--timeout` flag added to RemoteAction::Ping in cli.rs (default: 10s)
-- [ ] Flag wired through main.rs to cmd_remote_ping
-- [ ] cmd_remote_ping wraps the entire operation in tokio timeout
-- [ ] Timeout produces JSON error when --json is set
-- [ ] `cargo build --release` succeeds
+- [x] `--timeout` flag added to RemoteAction::Ping in cli.rs (default: 10s)
+- [x] Flag wired through main.rs to cmd_remote_ping
+- [x] cmd_remote_ping wraps the entire operation in tokio timeout
+- [x] Timeout produces JSON error when --json is set
+- [x] `cargo build --release` succeeds
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

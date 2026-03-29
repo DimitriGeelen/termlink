@@ -25,9 +25,8 @@ date_finished: 2026-03-29T00:03:00Z
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] JSON error output added to bare `?` operators in CLI commands
+- [x] All `--json` error paths produce `{"ok": false, ...}` format
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
