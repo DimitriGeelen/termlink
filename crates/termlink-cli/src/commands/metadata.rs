@@ -25,6 +25,60 @@ pub(crate) async fn cmd_tag(
         }
     };
 
+    // Read-only mode: show current tags when no modification flags given
+    if set.is_empty() && add.is_empty() && remove.is_empty() {
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let rpc_future = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}));
+        let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect: {e}")}));
+                    std::process::exit(1);
+                }
+                return Err(e).context("Failed to connect to session");
+            }
+            Err(_) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Timed out after {}s", timeout_secs)}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("Tag query timed out after {}s", timeout_secs);
+            }
+        };
+        match client::unwrap_result(resp) {
+            Ok(result) => {
+                if json {
+                    println!("{}", serde_json::json!({
+                        "ok": true,
+                        "target": target,
+                        "display_name": result["display_name"],
+                        "tags": result["tags"],
+                    }));
+                } else {
+                    let tags = result["tags"]
+                        .as_array()
+                        .map(|a| a.iter().filter_map(|t| t.as_str()).collect::<Vec<_>>().join(", "))
+                        .unwrap_or_default();
+                    let name = result["display_name"].as_str().unwrap_or(target);
+                    if tags.is_empty() {
+                        println!("{}: (no tags)", name);
+                    } else {
+                        println!("{}: {}", name, tags);
+                    }
+                }
+                return Ok(());
+            }
+            Err(e) => {
+                if json {
+                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+                    std::process::exit(1);
+                }
+                anyhow::bail!("Failed to query tags: {}", e);
+            }
+        }
+    }
+
     let mut params = serde_json::json!({});
     if !set.is_empty() {
         params["tags"] = serde_json::json!(set);
