@@ -450,10 +450,12 @@ fn cli_discover_json_output() {
         .expect("Failed to run termlink discover --json");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&stdout)
-        .expect(&format!("Expected JSON array: {}", stdout));
-    assert_eq!(parsed.len(), 1);
-    assert_eq!(parsed[0]["display_name"], "json-disc");
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Expected valid JSON: {e}\nGot: {stdout}"));
+    assert_eq!(parsed["ok"], true);
+    let sessions = parsed["sessions"].as_array().expect("Expected sessions array");
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0]["display_name"], "json-disc");
     assert!(output.status.success());
 }
 
@@ -716,7 +718,7 @@ fn cli_ping_json_output() {
     let json: serde_json::Value = serde_json::from_str(stdout.trim())
         .expect("ping --json should output valid JSON");
 
-    assert_eq!(json["status"], "ok");
+    assert_eq!(json["ok"], true);
     assert!(json["latency_ms"].is_number(), "Expected latency_ms number");
     assert!(json["display_name"].as_str().unwrap().contains("jsonping"));
 }
@@ -1163,7 +1165,7 @@ fn cli_ping_with_timeout() {
     let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
         .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
 
-    assert_eq!(parsed["status"], "ok");
+    assert_eq!(parsed["ok"], true);
     assert!(parsed["latency_ms"].is_number());
 }
 

@@ -4,16 +4,16 @@ name: "Replace unsafe unwrap in events.rs with graceful error handling"
 description: >
   Replace unsafe unwrap in events.rs with graceful error handling
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-03-29T14:27:47Z
-last_update: 2026-03-29T14:27:47Z
-date_finished: null
+last_update: 2026-03-29T14:30:57Z
+date_finished: 2026-03-29T14:30:57Z
 ---
 
 # T-749: Replace unsafe unwrap in events.rs with graceful error handling
@@ -72,3 +72,6 @@ events.rs:60 has `result["events"].as_array().unwrap()` which panics if server r
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-749-replace-unsafe-unwrap-in-eventsrs-with-g.md
 - **Context:** Initial task creation
+
+### 2026-03-29T14:30:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
