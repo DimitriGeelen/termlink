@@ -183,6 +183,167 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn empty_payload_roundtrip() {
+        let (client, server) = duplex(4096);
+        let (server_read, _server_write) = tokio::io::split(server);
+        let (client_read, client_write) = tokio::io::split(client);
+
+        let mut writer = FrameWriter::new(client_write);
+        let mut reader = FrameReader::new(server_read);
+
+        writer
+            .write_frame(FrameType::Close, FrameFlags::FIN, 0, &[])
+            .await
+            .unwrap();
+
+        drop(writer);
+        drop(client_read);
+
+        let frame = reader.read_frame().await.unwrap().unwrap();
+        assert_eq!(frame.header.frame_type, FrameType::Close);
+        assert!(frame.header.flags.contains(FrameFlags::FIN));
+        assert!(frame.payload.is_empty());
+    }
+
+    #[tokio::test]
+    async fn write_raw_frame_preserves_sequence() {
+        let (client, server) = duplex(4096);
+        let (server_read, _server_write) = tokio::io::split(server);
+        let (client_read, client_write) = tokio::io::split(client);
+
+        let mut writer = FrameWriter::new(client_write);
+        let mut reader = FrameReader::new(server_read);
+
+        // write_raw_frame should NOT increment sequence counter
+        let raw = Frame::new(FrameType::Pong, FrameFlags::empty(), 0, 999, b"pong".to_vec());
+        writer.write_raw_frame(&raw).await.unwrap();
+        assert_eq!(writer.sequence(), 0); // unchanged
+
+        // Regular write still starts from 0
+        writer
+            .write_frame(FrameType::Output, FrameFlags::empty(), 0, b"next")
+            .await
+            .unwrap();
+        assert_eq!(writer.sequence(), 1);
+
+        drop(writer);
+        drop(client_read);
+
+        let f1 = reader.read_frame().await.unwrap().unwrap();
+        assert_eq!(f1.header.frame_type, FrameType::Pong);
+        assert_eq!(f1.header.sequence, 999); // raw sequence preserved
+        assert_eq!(f1.payload, b"pong");
+
+        let f2 = reader.read_frame().await.unwrap().unwrap();
+        assert_eq!(f2.header.frame_type, FrameType::Output);
+        assert_eq!(f2.header.sequence, 0);
+        assert_eq!(f2.payload, b"next");
+    }
+
+    #[tokio::test]
+    async fn all_frame_types_through_codec() {
+        let types = [
+            FrameType::Output,
+            FrameType::Input,
+            FrameType::Resize,
+            FrameType::Signal,
+            FrameType::Transfer,
+            FrameType::Ping,
+            FrameType::Pong,
+            FrameType::Close,
+        ];
+
+        let (client, server) = duplex(8192);
+        let (server_read, _server_write) = tokio::io::split(server);
+        let (client_read, client_write) = tokio::io::split(client);
+
+        let mut writer = FrameWriter::new(client_write);
+        let mut reader = FrameReader::new(server_read);
+
+        for (i, ft) in types.iter().enumerate() {
+            writer
+                .write_frame(*ft, FrameFlags::empty(), i as u32, &[i as u8])
+                .await
+                .unwrap();
+        }
+
+        drop(writer);
+        drop(client_read);
+
+        for (i, ft) in types.iter().enumerate() {
+            let frame = reader.read_frame().await.unwrap().unwrap();
+            assert_eq!(frame.header.frame_type, *ft);
+            assert_eq!(frame.header.channel_id, i as u32);
+            assert_eq!(frame.payload, vec![i as u8]);
+        }
+
+        assert!(reader.read_frame().await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn multiple_channels_interleaved() {
+        let (client, server) = duplex(8192);
+        let (server_read, _server_write) = tokio::io::split(server);
+        let (client_read, client_write) = tokio::io::split(client);
+
+        let mut writer = FrameWriter::new(client_write);
+        let mut reader = FrameReader::new(server_read);
+
+        writer
+            .write_frame(FrameType::Output, FrameFlags::empty(), 1, b"ch1-a")
+            .await
+            .unwrap();
+        writer
+            .write_frame(FrameType::Output, FrameFlags::empty(), 2, b"ch2-a")
+            .await
+            .unwrap();
+        writer
+            .write_frame(FrameType::Output, FrameFlags::empty(), 1, b"ch1-b")
+            .await
+            .unwrap();
+
+        drop(writer);
+        drop(client_read);
+
+        let f1 = reader.read_frame().await.unwrap().unwrap();
+        assert_eq!(f1.header.channel_id, 1);
+        assert_eq!(f1.payload, b"ch1-a");
+
+        let f2 = reader.read_frame().await.unwrap().unwrap();
+        assert_eq!(f2.header.channel_id, 2);
+        assert_eq!(f2.payload, b"ch2-a");
+
+        let f3 = reader.read_frame().await.unwrap().unwrap();
+        assert_eq!(f3.header.channel_id, 1);
+        assert_eq!(f3.payload, b"ch1-b");
+    }
+
+    #[tokio::test]
+    async fn combined_flags_roundtrip() {
+        let (client, server) = duplex(4096);
+        let (server_read, _server_write) = tokio::io::split(server);
+        let (client_read, client_write) = tokio::io::split(client);
+
+        let mut writer = FrameWriter::new(client_write);
+        let mut reader = FrameReader::new(server_read);
+
+        let all_flags = FrameFlags::FIN | FrameFlags::COMPRESSED | FrameFlags::BINARY | FrameFlags::URGENT;
+        writer
+            .write_frame(FrameType::Transfer, all_flags, 42, b"data")
+            .await
+            .unwrap();
+
+        drop(writer);
+        drop(client_read);
+
+        let frame = reader.read_frame().await.unwrap().unwrap();
+        assert!(frame.header.flags.contains(FrameFlags::FIN));
+        assert!(frame.header.flags.contains(FrameFlags::COMPRESSED));
+        assert!(frame.header.flags.contains(FrameFlags::BINARY));
+        assert!(frame.header.flags.contains(FrameFlags::URGENT));
+    }
+
+    #[tokio::test]
     async fn sequence_auto_increments() {
         let (client, _server) = duplex(4096);
         let (_client_read, client_write) = tokio::io::split(client);
