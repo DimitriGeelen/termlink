@@ -548,7 +548,7 @@ async fn cmd_remote_list_inner(
 
             if count {
                 if json {
-                    println!("{}", serde_json::json!({"count": sessions.len()}));
+                    println!("{}", serde_json::json!({"ok": true, "count": sessions.len()}));
                 } else {
                     println!("{}", sessions.len());
                 }
