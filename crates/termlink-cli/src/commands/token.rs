@@ -68,6 +68,7 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
 
     if json {
         println!("{}", serde_json::json!({
+            "ok": true,
             "token": token.raw,
             "scope": scope,
             "ttl": ttl,
