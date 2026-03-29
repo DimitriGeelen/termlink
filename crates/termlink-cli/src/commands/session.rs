@@ -997,6 +997,7 @@ pub(crate) fn cmd_info(json: bool, short: bool, check: bool) -> Result<()> {
 
     if json {
         println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
             "version": version,
             "commit": commit,
             "target": target,
