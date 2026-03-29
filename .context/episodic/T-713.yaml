@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-713: Add --timeout flag to remote list, status, and push commands
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T10:34:10Z
+# ============================================================================
+
+task_id: T-713
+task_name: "Add --timeout flag to remote list, status, and push commands"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T10:31:03Z
+completed: 2026-03-29T10:34:09Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T12:34:03+02:00
+last_commit: 2026-03-29T12:34:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --timeout flag to remote list, status, and push commands
+
+# Key outcomes
+outcomes:
+  - "`--timeout` flag added to RemoteAction::List (default: 10s), Status (default: 10s), Push (default: 30s) in cli.rs"
+  - "Flags wired through main.rs"
+  - "Each command wraps its operation in tokio timeout with JSON error support"
+  - "`cargo build --release` succeeds"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/push.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T12:34:03"
+    action: "T-713: Add --timeout flag to remote list, status, and push commands"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 97
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-713-add---timeout-flag-to-remote-list-status.md
+generated_by: context-agent-hybrid

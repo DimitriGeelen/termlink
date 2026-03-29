@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-703: Add --cap flag to run command for setting capabilities on ephemeral sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T08:26:42Z
+# ============================================================================
+
+task_id: T-703
+task_name: "Add --cap flag to run command for setting capabilities on ephemeral sessions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T08:25:07Z
+completed: 2026-03-29T08:26:41Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T10:26:36+02:00
+last_commit: 2026-03-29T10:26:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --cap flag to run command for ephemeral session capabilities
+
+# Key outcomes
+outcomes:
+  - "`--cap` flag added to Run in cli.rs with value_delimiter = ','"
+  - "Capabilities threaded through main.rs to cmd_run"
+  - "cmd_run passes caps to SessionConfig"
+  - "`cargo build --release` succeeds"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/execution.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-703-add---cap-flag-to-run-command-for-settin.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T10:26:36"
+    action: "T-703: Add --cap flag to run command for ephemeral session capabilities"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 78
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-703-add---cap-flag-to-run-command-for-settin.md
+generated_by: context-agent-hybrid

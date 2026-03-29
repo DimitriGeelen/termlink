@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-704: Add --names and --ids flags to remote list command for scripting parity
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T08:29:29Z
+# ============================================================================
+
+task_id: T-704
+task_name: "Add --names and --ids flags to remote list command for scripting parity"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T08:27:13Z
+completed: 2026-03-29T08:29:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T10:29:22+02:00
+last_commit: 2026-03-29T10:29:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --names and --ids flags to remote list command
+
+# Key outcomes
+outcomes:
+  - "`--names` and `--ids` flags added to RemoteAction::List in cli.rs"
+  - "Flags wired through main.rs to cmd_remote_list"
+  - "cmd_remote_list outputs names/IDs one per line when specified"
+  - "`cargo build --release` succeeds"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-704-add---names-and---ids-flags-to-remote-li.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T10:29:22"
+    action: "T-704: Add --names and --ids flags to remote list command"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 97
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-704-add---names-and---ids-flags-to-remote-li.md
+generated_by: context-agent-hybrid

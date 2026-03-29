@@ -48,7 +48,13 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
     match client::unwrap_result(resp) {
         Ok(result) => {
             if json {
-                println!("{}", serde_json::to_string_pretty(&result)?);
+                let mut wrapped = serde_json::json!({"ok": true});
+                if let Some(obj) = result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", serde_json::to_string_pretty(&wrapped)?);
                 return Ok(());
             }
             let events = result["events"].as_array().unwrap();
@@ -146,7 +152,13 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
     match client::unwrap_result(resp) {
         Ok(result) => {
             if json {
-                println!("{}", serde_json::to_string_pretty(&result)?);
+                let mut wrapped = serde_json::json!({"ok": true});
+                if let Some(obj) = result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", serde_json::to_string_pretty(&wrapped)?);
             } else {
                 println!(
                     "Event emitted: {} (seq: {})",
@@ -220,7 +232,13 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     match client::unwrap_result(resp) {
         Ok(result) => {
             if json {
-                println!("{}", serde_json::to_string_pretty(&result)?);
+                let mut wrapped = serde_json::json!({"ok": true});
+                if let Some(obj) = result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", serde_json::to_string_pretty(&wrapped)?);
             } else {
                 let targeted = result["targeted"].as_u64().unwrap_or(0);
                 let succeeded = result["succeeded"].as_u64().unwrap_or(0);
@@ -311,7 +329,13 @@ pub(crate) async fn cmd_emit_to(
     match client::unwrap_result(resp) {
         Ok(result) => {
             if json {
-                println!("{}", serde_json::to_string_pretty(&result)?);
+                let mut wrapped = serde_json::json!({"ok": true});
+                if let Some(obj) = result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", serde_json::to_string_pretty(&wrapped)?);
             } else {
                 println!(
                     "Pushed to {}: {} (seq: {})",

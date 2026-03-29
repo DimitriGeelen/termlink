@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-708: Add --json flag to agent negotiate command for structured output
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T08:41:16Z
+# ============================================================================
+
+task_id: T-708
+task_name: "Add --json flag to agent negotiate command for structured output"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T08:38:04Z
+completed: 2026-03-29T08:41:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T10:41:09+02:00
+last_commit: 2026-03-29T10:41:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --json flag to agent negotiate command
+
+# Key outcomes
+outcomes:
+  - "`--json` flag added to AgentAction::Negotiate in cli.rs"
+  - "Flag wired through main.rs to cmd_agent_negotiate"
+  - "JSON mode suppresses progress eprintln and outputs structured result"
+  - "Error paths output JSON errors when --json is set"
+  - "`cargo build --release` succeeds"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-708-add---json-flag-to-agent-negotiate-comma.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T10:41:09"
+    action: "T-708: Add --json flag to agent negotiate command"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 185
+  lines_removed: 57
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-708-add---json-flag-to-agent-negotiate-comma.md
+generated_by: context-agent-hybrid
