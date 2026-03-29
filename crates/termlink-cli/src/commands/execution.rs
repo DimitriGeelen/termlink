@@ -40,7 +40,6 @@ pub(crate) async fn cmd_run(
         roles,
         tags,
         capabilities: cap,
-        ..Default::default()
     };
 
     let session = match termlink_session::Session::register(config).await {

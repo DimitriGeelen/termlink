@@ -637,6 +637,7 @@ async fn cmd_remote_list_inner(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_remote_status(
     hub: &str,
     session: &str,

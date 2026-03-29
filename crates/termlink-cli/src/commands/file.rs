@@ -233,14 +233,14 @@ pub(crate) async fn cmd_file_receive(
     };
 
     let out_path = std::path::Path::new(output_dir);
-    if !out_path.exists() {
-        if let Err(e) = std::fs::create_dir_all(out_path) {
-            if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to create output directory '{}': {}", output_dir, e)}));
-                std::process::exit(1);
-            }
-            return Err(e).context(format!("Failed to create output directory: {}", output_dir));
+    if !out_path.exists()
+        && let Err(e) = std::fs::create_dir_all(out_path)
+    {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to create output directory '{}': {}", output_dir, e)}));
+            std::process::exit(1);
         }
+        return Err(e).context(format!("Failed to create output directory: {}", output_dir));
     }
 
     if !json {

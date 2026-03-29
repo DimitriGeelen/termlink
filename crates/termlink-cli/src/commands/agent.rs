@@ -317,6 +317,7 @@ pub(crate) async fn cmd_agent_listen(
 ///
 /// Protocol: offer → attempt → correction → accept (max N rounds).
 /// Uses agent.request/response events with negotiate.* actions.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_agent_negotiate(
     specialist: &str,
     schema_str: &str,

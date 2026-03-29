@@ -150,6 +150,7 @@ pub(crate) async fn cmd_tag(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_discover(
     tags: Vec<String>,
     roles: Vec<String>,

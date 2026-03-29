@@ -13,6 +13,7 @@ use termlink_session::server;
 
 use crate::util::{parse_signal, truncate};
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_register(
     name: Option<String>,
     roles: Vec<String>,
@@ -30,7 +31,6 @@ pub(crate) async fn cmd_register(
         roles,
         tags,
         capabilities: cap,
-        ..Default::default()
     };
 
     // Add data_plane capability when shell mode is enabled
@@ -123,14 +123,14 @@ pub(crate) async fn cmd_register(
     };
 
     // Persist updated registration (capabilities + metadata + auth + allowlist)
-    if shell || enable_token_secret || session.registration.allowed_commands.is_some() {
-        if let Err(e) = session.persist_registration() {
-            if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to persist updated registration: {}", e)}));
-                std::process::exit(1);
-            }
-            return Err(e).context("Failed to persist updated registration");
+    if (shell || enable_token_secret || session.registration.allowed_commands.is_some())
+        && let Err(e) = session.persist_registration()
+    {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to persist updated registration: {}", e)}));
+            std::process::exit(1);
         }
+        return Err(e).context("Failed to persist updated registration");
     }
 
     if verbose {
@@ -240,7 +240,6 @@ pub(crate) async fn cmd_register_self(
         roles,
         tags,
         capabilities: cap,
-        ..Default::default()
     };
 
     let endpoint = match termlink_session::endpoint::Endpoint::start(config).await {
@@ -280,6 +279,7 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, count: bool, names: bool, ids: bool, first: bool, wait: bool, wait_timeout: u64, no_header: bool) -> Result<()> {
     let do_filter = |include_stale: bool| -> Result<Vec<termlink_session::registration::Registration>> {
         let mut sessions = manager::list_sessions(include_stale)

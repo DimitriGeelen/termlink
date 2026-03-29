@@ -146,14 +146,14 @@ pub(crate) fn cmd_vendor(
     }
 
     // Write VERSION file
-    if let Some(ref v) = source_version {
-        if let Err(e) = std::fs::write(&dest_version, format!("{v}\n")) {
-            if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot write VERSION file: {}", e)}));
-                std::process::exit(1);
-            }
-            return Err(e.into());
+    if let Some(ref v) = source_version
+        && let Err(e) = std::fs::write(&dest_version, format!("{v}\n"))
+    {
+        if json {
+            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot write VERSION file: {}", e)}));
+            std::process::exit(1);
         }
+        return Err(e.into());
     }
 
     // Check if .gitignore has the vendor binary

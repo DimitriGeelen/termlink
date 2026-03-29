@@ -450,14 +450,14 @@ pub(crate) async fn cmd_watch(
     let mut total_received: u64 = 0;
 
     loop {
-        if let Some(dl) = deadline {
-            if std::time::Instant::now() >= dl {
-                if !json {
-                    eprintln!();
-                    eprintln!("Stopped watching (timeout after {}s).", timeout_secs);
-                }
-                break;
+        if let Some(dl) = deadline
+            && std::time::Instant::now() >= dl
+        {
+            if !json {
+                eprintln!();
+                eprintln!("Stopped watching (timeout after {}s).", timeout_secs);
             }
+            break;
         }
 
         tokio::select! {
@@ -806,14 +806,14 @@ pub(crate) async fn cmd_collect(
     let mut total_received: u64 = 0;
 
     loop {
-        if let Some(dl) = deadline {
-            if std::time::Instant::now() >= dl {
-                if !json {
-                    eprintln!();
-                    eprintln!("{} event(s) collected (timeout after {}s).", total_received, timeout_secs);
-                }
-                break;
+        if let Some(dl) = deadline
+            && std::time::Instant::now() >= dl
+        {
+            if !json {
+                eprintln!();
+                eprintln!("{} event(s) collected (timeout after {}s).", total_received, timeout_secs);
             }
+            break;
         }
 
         tokio::select! {
