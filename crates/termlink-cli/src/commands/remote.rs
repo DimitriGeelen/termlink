@@ -810,6 +810,31 @@ pub(crate) async fn cmd_remote_send_file(
     chunk_size: usize,
     scope: &str,
     json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    match tokio::time::timeout(timeout_dur, cmd_remote_send_file_inner(hub, session, path, secret_file, secret_hex, chunk_size, scope, json)).await {
+        Ok(result) => result,
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Timeout after {}s waiting for remote file transfer", timeout_secs);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn cmd_remote_send_file_inner(
+    hub: &str,
+    session: &str,
+    path: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    chunk_size: usize,
+    scope: &str,
+    json: bool,
 ) -> Result<()> {
     use base64::Engine;
     use sha2::{Digest, Sha256};

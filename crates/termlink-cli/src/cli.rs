@@ -1099,6 +1099,10 @@ pub(crate) enum RemoteAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Transfer timeout in seconds (default: 60)
+        #[arg(long, default_value = "60")]
+        timeout: u64,
     },
 
     /// Watch events from sessions on a remote hub (continuous polling)
