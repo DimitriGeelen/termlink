@@ -502,6 +502,7 @@ pub(crate) async fn cmd_watch(
                                     }
                                 } else if json {
                                     println!("{}", serde_json::json!({
+                                        "ok": true,
                                         "session": name,
                                         "session_id": sid,
                                         "seq": seq,
@@ -576,6 +577,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
             && tokio::time::Instant::now() >= dl {
                 if json {
                     println!("{}", serde_json::json!({
+                        "ok": false,
                         "matched": false,
                         "topic": topic,
                         "target": target,
@@ -591,6 +593,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
             _ = tokio::signal::ctrl_c() => {
                 if json {
                     println!("{}", serde_json::json!({
+                        "ok": false,
                         "matched": false,
                         "topic": topic,
                         "target": target,
@@ -610,6 +613,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                     Err(_) => {
                         if json {
                             println!("{}", serde_json::json!({
+                                "ok": false,
                                 "matched": false,
                                 "topic": topic,
                                 "target": target,
@@ -626,6 +630,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                         && let Some(event) = events.first() {
                             if json {
                                 println!("{}", serde_json::json!({
+                                    "ok": true,
                                     "matched": true,
                                     "topic": event["topic"],
                                     "seq": event["seq"],
@@ -684,7 +689,7 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
 
     if registrations.is_empty() {
         if json {
-            println!("{}", serde_json::json!({"sessions": [], "total_topics": 0}));
+            println!("{}", serde_json::json!({"ok": true, "sessions": [], "total_topics": 0}));
         } else {
             println!("No active sessions.");
         }
@@ -722,6 +727,7 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             .map(|(name, topics)| serde_json::json!({"session": name, "topics": topics}))
             .collect();
         println!("{}", serde_json::json!({
+            "ok": true,
             "sessions": sessions,
             "total_topics": total,
             "total_sessions": session_topics.len(),
@@ -855,6 +861,7 @@ pub(crate) async fn cmd_collect(
                                 }
                             } else if json {
                                 println!("{}", serde_json::json!({
+                                    "ok": true,
                                     "session": session_name,
                                     "seq": seq,
                                     "topic": topic,
