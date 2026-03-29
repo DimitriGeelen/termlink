@@ -1389,3 +1389,198 @@ fn cli_pty_output_json() {
     assert!(parsed["bytes"].is_number(), "Expected bytes count");
     assert!(parsed["target"].is_string(), "Expected target");
 }
+
+// ─── Token Tests ─────────────────────────────────────────────────────
+
+#[test]
+fn cli_token_inspect_invalid_format() {
+    let dir = TestDir::new("tok-inv");
+    let output = termlink_cmd(&dir.path)
+        .args(["token", "inspect", "not-a-valid-token"])
+        .output()
+        .expect("Failed to run token inspect");
+
+    assert!(!output.status.success(), "token inspect should fail for invalid format");
+}
+
+#[test]
+fn cli_token_inspect_invalid_json() {
+    let dir = TestDir::new("tok-inv-json");
+    let output = termlink_cmd(&dir.path)
+        .args(["token", "inspect", "not-a-valid-token", "--json"])
+        .output()
+        .expect("Failed to run token inspect --json");
+
+    assert!(!output.status.success(), "token inspect --json should fail");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Expected valid JSON: {e}\nGot: {stdout}"));
+    assert_eq!(parsed["ok"], false);
+    assert!(parsed["error"].as_str().unwrap().contains("Invalid token format"));
+}
+
+// ─── Signal Tests ────────────────────────────────────────────────────
+
+#[test]
+fn cli_signal_not_found() {
+    let dir = TestDir::new("sig-nf");
+    // Signal to nonexistent session should fail
+    let output = termlink_cmd(&dir.path)
+        .args(["signal", "nonexistent", "TERM"])
+        .output()
+        .expect("Failed to run signal");
+
+    assert!(!output.status.success(), "signal should fail for nonexistent session");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("not found"), "Expected 'not found' in error: {stderr}");
+}
+
+// ─── List Filter Tests ──────────────────────────────────────────────
+
+#[test]
+fn cli_list_names_mode() {
+    let dir = TestDir::new("list-names");
+    let _guard = start_register(&dir.path, "named-box");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["list", "--names"])
+        .output()
+        .expect("Failed to run list --names");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), "named-box", "Expected just the name: {stdout}");
+}
+
+#[test]
+fn cli_list_ids_mode() {
+    let dir = TestDir::new("list-ids");
+    let _guard = start_register(&dir.path, "id-box");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["list", "--ids"])
+        .output()
+        .expect("Failed to run list --ids");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Should output just the session ID (UUID-like)
+    assert!(!stdout.trim().is_empty(), "Expected session ID output");
+    assert!(!stdout.contains("id-box"), "Expected only ID, not display name");
+}
+
+#[test]
+fn cli_list_first_mode() {
+    let dir = TestDir::new("list-first");
+    let _guard1 = start_register(&dir.path, "first-1");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+    let _guard2 = start_register(&dir.path, "first-2");
+    // Give second session time to register
+    std::thread::sleep(Duration::from_millis(500));
+
+    let output = termlink_cmd(&dir.path)
+        .args(["list", "--first"])
+        .output()
+        .expect("Failed to run list --first");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.trim().lines().collect();
+    // --first should return only one session
+    assert_eq!(lines.len(), 1, "Expected exactly 1 line with --first, got: {lines:?}");
+}
+
+// ─── File Send Error Tests ───────────────────────────────────────────
+
+#[test]
+fn cli_file_send_nonexistent_file() {
+    let dir = TestDir::new("fsend-err");
+    let _guard = start_register(&dir.path, "file-target");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["file", "send", "file-target", "/tmp/termlink-nonexistent-test-file.xyz", "--json"])
+        .output()
+        .expect("Failed to run file send --json");
+
+    assert!(!output.status.success(), "file send should fail for non-existent file");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+    assert_eq!(parsed["ok"], false);
+}
+
+// ─── Dispatch Error Tests ────────────────────────────────────────────
+
+#[test]
+fn cli_dispatch_no_hub_json() {
+    let dir = TestDir::new("disp-err");
+    let output = termlink_cmd(&dir.path)
+        .args(["dispatch", "--tag", "test-worker", "--", "echo", "hello", "--json"])
+        .output()
+        .expect("Failed to run dispatch --json");
+
+    // Should fail because no hub is running
+    assert!(!output.status.success(), "dispatch should fail without a hub");
+}
+
+// ─── Info Check Mode ─────────────────────────────────────────────────
+
+#[test]
+fn cli_info_check_mode() {
+    let dir = TestDir::new("info-check");
+    let output = termlink_cmd(&dir.path)
+        .args(["info", "--check"])
+        .output()
+        .expect("Failed to run info --check");
+
+    // --check exits 1 when hub is not running (expected in test environment)
+    assert!(!output.status.success(), "info --check should fail when hub not running");
+}
+
+#[test]
+fn cli_info_short_mode() {
+    let dir = TestDir::new("info-short");
+    let output = termlink_cmd(&dir.path)
+        .args(["info", "--short"])
+        .output()
+        .expect("Failed to run info --short");
+
+    assert!(output.status.success(), "info --short should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // --short should output just the runtime dir path
+    assert!(!stdout.is_empty(), "info --short should produce output");
+}
+
+// ─── Hub Status Check Mode ──────────────────────────────────────────
+
+#[test]
+fn cli_hub_status_check_not_running() {
+    let dir = TestDir::new("hub-chk");
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "status", "--check"])
+        .output()
+        .expect("Failed to run hub status --check");
+
+    // --check exits 1 when hub is not running
+    assert!(!output.status.success(), "hub status --check should fail when hub not running");
+}
+
+// ─── Doctor Strict Mode ─────────────────────────────────────────────
+
+#[test]
+fn cli_doctor_strict_json() {
+    let dir = TestDir::new("doc-strict");
+    let output = termlink_cmd(&dir.path)
+        .args(["doctor", "--strict", "--json"])
+        .output()
+        .expect("Failed to run doctor --strict --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+    assert!(parsed["ok"].is_boolean(), "Expected ok field");
+    assert!(parsed["checks"].is_array(), "Expected checks array");
+}
