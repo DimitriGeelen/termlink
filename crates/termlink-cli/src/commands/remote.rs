@@ -1224,7 +1224,14 @@ pub(crate) async fn cmd_remote_exec(
             let result = &r.result;
 
             if json {
-                println!("{}", serde_json::to_string_pretty(result)?);
+                let exit_code = result["exit_code"].as_i64().unwrap_or(0);
+                let mut wrapped = serde_json::json!({"ok": exit_code == 0});
+                if let Some(obj) = result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", wrapped);
                 return Ok(());
             }
 
