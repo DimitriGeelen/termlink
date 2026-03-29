@@ -458,7 +458,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     Ok(())
 }
 
-pub(crate) fn cmd_clean(dry_run: bool, json: bool, no_header: bool) -> Result<()> {
+pub(crate) fn cmd_clean(dry_run: bool, json: bool, no_header: bool, count: bool) -> Result<()> {
     let sessions_dir = termlink_session::discovery::sessions_dir();
     let stale = match manager::clean_stale_sessions(&sessions_dir, !dry_run) {
         Ok(s) => s,
@@ -487,6 +487,11 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool, no_header: bool) -> Result<()
             "count": stale.len(),
             "sessions": items,
         }));
+        return Ok(());
+    }
+
+    if count {
+        println!("{}", stale.len());
         return Ok(());
     }
 

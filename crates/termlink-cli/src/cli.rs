@@ -723,6 +723,10 @@ pub(crate) enum Command {
         /// Suppress table header and footer
         #[arg(long)]
         no_header: bool,
+
+        /// Only print the stale session count (for scripting)
+        #[arg(long)]
+        count: bool,
     },
 
     /// Hub server management (routes requests between sessions)
