@@ -65,3 +65,8 @@ termlink-session = { path = "crates/termlink-session" }
 termlink-hub = { path = "crates/termlink-hub" }
 termlink-mcp = { path = "crates/termlink-mcp" }
 termlink-test-utils = { path = "crates/termlink-test-utils" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
