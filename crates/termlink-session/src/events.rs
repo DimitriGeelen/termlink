@@ -336,4 +336,106 @@ mod tests {
         assert!(bus.topics().is_empty());
         assert!(bus.poll(0).events.is_empty());
     }
+
+    #[test]
+    fn all_and_all_by_topic() {
+        let mut bus = EventBus::new();
+        bus.emit("build.start", json!({}));
+        bus.emit("test.pass", json!({}));
+        bus.emit("build.done", json!({}));
+
+        let all = bus.all();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].seq, 0);
+        assert_eq!(all[2].seq, 2);
+
+        let builds = bus.all_by_topic("build.start");
+        assert_eq!(builds.len(), 1);
+        assert_eq!(builds[0].seq, 0);
+
+        let missing = bus.all_by_topic("nonexistent");
+        assert!(missing.is_empty());
+    }
+
+    #[test]
+    fn event_serde_roundtrip() {
+        let event = Event {
+            seq: 42,
+            topic: "task.complete".into(),
+            payload: json!({"result": "ok", "duration_ms": 1500}),
+            timestamp: 1711756800,
+        };
+        let json_str = serde_json::to_string(&event).unwrap();
+        let parsed: Event = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(parsed.seq, 42);
+        assert_eq!(parsed.topic, "task.complete");
+        assert_eq!(parsed.payload["result"], "ok");
+        assert_eq!(parsed.timestamp, 1711756800);
+    }
+
+    #[test]
+    fn poll_topic_no_matches() {
+        let mut bus = EventBus::new();
+        bus.emit("build.start", json!({}));
+        bus.emit("build.done", json!({}));
+
+        let result = bus.poll_topic("test.pass", 0);
+        assert!(result.events.is_empty());
+        assert!(!result.gap_detected);
+    }
+
+    #[test]
+    fn capacity_one_ring_buffer() {
+        let mut bus = EventBus::with_capacity(1);
+
+        bus.emit("a", json!(0)); // seq 0
+        assert_eq!(bus.len(), 1);
+        assert_eq!(bus.oldest_seq(), Some(0));
+
+        bus.emit("b", json!(1)); // seq 1, evicts seq 0
+        assert_eq!(bus.len(), 1);
+        assert_eq!(bus.oldest_seq(), Some(1));
+        assert_eq!(bus.all()[0].topic, "b");
+        assert_eq!(bus.next_seq(), 2);
+
+        // Gap: cursor 0, oldest is 1 → since+1=1, oldest=1, no gap
+        let result = bus.poll(0);
+        assert!(!result.gap_detected);
+        assert_eq!(result.events.len(), 1);
+    }
+
+    #[test]
+    fn default_uses_default_capacity() {
+        let bus = EventBus::default();
+        assert!(bus.is_empty());
+        assert_eq!(bus.capacity, DEFAULT_CAPACITY);
+    }
+
+    #[test]
+    fn large_burst_overflow_sequence_continuity() {
+        let mut bus = EventBus::with_capacity(5);
+
+        // Emit 20 events — buffer holds only last 5
+        for i in 0..20u64 {
+            let seq = bus.emit(format!("e{i}"), json!(i));
+            assert_eq!(seq, i);
+        }
+
+        assert_eq!(bus.len(), 5);
+        assert_eq!(bus.next_seq(), 20);
+        assert_eq!(bus.oldest_seq(), Some(15));
+
+        // All 5 remaining events have correct sequences
+        let all = bus.all();
+        assert_eq!(all.len(), 5);
+        for (i, event) in all.iter().enumerate() {
+            assert_eq!(event.seq, 15 + i as u64);
+        }
+
+        // Gap from cursor 0: oldest=15, since+1=1, lost=14
+        let result = bus.poll(0);
+        assert!(result.gap_detected);
+        assert_eq!(result.events_lost, 14);
+        assert_eq!(result.events.len(), 5);
+    }
 }
