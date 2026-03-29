@@ -1603,3 +1603,174 @@ fn cli_doctor_strict_json() {
     assert!(parsed["ok"].is_boolean(), "Expected ok field");
     assert!(parsed["checks"].is_array(), "Expected checks array");
 }
+
+// ─── Vendor JSON Output ─────────────────────────────────────────────
+
+#[test]
+fn cli_vendor_json_output() {
+    let project = vendor_project("vendor-json-out");
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--json", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run termlink vendor --json");
+
+    assert!(output.status.success(), "vendor --json failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["action"], "vendored");
+    assert!(parsed["source"].is_string(), "Expected source field");
+    assert!(parsed["binary"].is_string(), "Expected binary field");
+    assert!(parsed["version"].is_string(), "Expected version field");
+    assert!(parsed["size_bytes"].is_number(), "Expected size_bytes field");
+    assert!(parsed["previous_version"].is_null(), "First vendor should have null previous_version");
+}
+
+#[test]
+fn cli_vendor_json_update() {
+    let project = vendor_project("vendor-json-upd");
+
+    // First vendor
+    Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .unwrap();
+
+    // Second vendor with --json
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--json", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to re-vendor --json");
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["action"], "updated");
+    assert!(parsed["previous_version"].is_string(), "Re-vendor should have previous_version");
+}
+
+// ─── Vendor Status Check Mode ───────────────────────────────────────
+
+#[test]
+fn cli_vendor_status_check_not_vendored() {
+    let project = vendor_project("vendor-chk-no");
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "status", "--check", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run vendor status --check");
+
+    // --check should exit non-zero when not vendored
+    assert!(!output.status.success(), "vendor status --check should fail when not vendored");
+}
+
+#[test]
+fn cli_vendor_status_check_json_not_vendored() {
+    let project = vendor_project("vendor-chk-jno");
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "status", "--check", "--json", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run vendor status --check --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["vendored"], false);
+    assert_eq!(parsed["needs_update"], true);
+}
+
+// ─── Vendor Preserves Existing Content ──────────────────────────────
+
+#[test]
+fn cli_vendor_preserves_existing_gitignore() {
+    let project = vendor_project("vendor-gi-exist");
+
+    // Create .gitignore with existing content
+    std::fs::write(project.path().join(".gitignore"), "node_modules/\n*.log\n").unwrap();
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run vendor");
+    assert!(output.status.success());
+
+    let gi = std::fs::read_to_string(project.path().join(".gitignore")).unwrap();
+    assert!(gi.contains("node_modules/"), "Existing .gitignore content should be preserved");
+    assert!(gi.contains("*.log"), "Existing .gitignore content should be preserved");
+    assert!(gi.contains(".termlink"), "Should add .termlink entry");
+}
+
+#[test]
+fn cli_vendor_merges_existing_mcp_settings() {
+    let project = vendor_project("vendor-mcp-merge");
+
+    // Create existing .claude/settings.local.json with another MCP server
+    let claude_dir = project.path().join(".claude");
+    std::fs::create_dir_all(&claude_dir).unwrap();
+    std::fs::write(
+        claude_dir.join("settings.local.json"),
+        r#"{"mcpServers": {"other-tool": {"command": "other-binary", "args": ["serve"]}}}"#,
+    ).unwrap();
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run vendor");
+    assert!(output.status.success());
+
+    let settings_content = std::fs::read_to_string(claude_dir.join("settings.local.json")).unwrap();
+    let settings: serde_json::Value = serde_json::from_str(&settings_content)
+        .expect("Settings should be valid JSON");
+
+    // Both MCP servers should exist
+    assert!(settings["mcpServers"]["termlink"].is_object(), "termlink MCP should be added");
+    assert!(settings["mcpServers"]["other-tool"].is_object(), "existing MCP server should be preserved");
+    assert_eq!(
+        settings["mcpServers"]["other-tool"]["command"], "other-binary",
+        "existing MCP config should be untouched"
+    );
+}
+
+#[test]
+fn cli_vendor_handles_corrupt_settings() {
+    let project = vendor_project("vendor-corrupt");
+
+    // Create corrupt .claude/settings.local.json
+    let claude_dir = project.path().join(".claude");
+    std::fs::create_dir_all(&claude_dir).unwrap();
+    std::fs::write(claude_dir.join("settings.local.json"), "not json {{{").unwrap();
+
+    let output = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["vendor", "--target"])
+        .arg(project.path())
+        .output()
+        .expect("Failed to run vendor");
+
+    // Should succeed (binary still copied) but warn about settings
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("WARN"), "Should warn about corrupt settings: {}", stdout);
+
+    // Binary should still exist
+    assert!(project.path().join(".termlink/bin/termlink").exists());
+    // Corrupt settings should not be overwritten
+    let settings_content = std::fs::read_to_string(claude_dir.join("settings.local.json")).unwrap();
+    assert_eq!(settings_content, "not json {{{", "Corrupt settings should not be modified");
+}

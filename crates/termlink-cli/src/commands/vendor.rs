@@ -148,10 +148,10 @@ pub(crate) fn cmd_vendor(
     }
 
     // Check if .gitignore has the vendor binary
-    check_gitignore(&project_dir, &dest_dir);
+    check_gitignore(&project_dir, &dest_dir, json);
 
     // Configure MCP server in Claude Code settings
-    configure_mcp(&project_dir);
+    configure_mcp(&project_dir, json);
 
     // Report
     if json {
@@ -317,7 +317,7 @@ fn get_binary_version(path: &Path) -> Option<String> {
 }
 
 /// Ensure .gitignore excludes the vendored binary. Creates or appends as needed.
-fn check_gitignore(project_dir: &Path, vendor_dir: &Path) {
+fn check_gitignore(project_dir: &Path, vendor_dir: &Path, quiet: bool) {
     let gitignore = project_dir.join(".gitignore");
     let vendor_rel = vendor_dir
         .strip_prefix(project_dir)
@@ -345,11 +345,15 @@ fn check_gitignore(project_dir: &Path, vendor_dir: &Path) {
         Ok(mut f) => {
             use std::io::Write;
             let _ = f.write_all(entry.as_bytes());
-            println!("\n.gitignore: added {vendor_rel}");
+            if !quiet {
+                println!("\n.gitignore: added {vendor_rel}");
+            }
         }
         Err(e) => {
-            println!("\nWARN: Cannot update .gitignore: {e}");
-            println!("  Add manually: {vendor_rel}");
+            if !quiet {
+                println!("\nWARN: Cannot update .gitignore: {e}");
+                println!("  Add manually: {vendor_rel}");
+            }
         }
     }
 }
@@ -357,7 +361,7 @@ fn check_gitignore(project_dir: &Path, vendor_dir: &Path) {
 /// Configure TermLink MCP server in `.claude/settings.local.json`.
 ///
 /// Merges the termlink MCP entry into existing settings, preserving all other content.
-fn configure_mcp(project_dir: &Path) {
+fn configure_mcp(project_dir: &Path, quiet: bool) {
     let claude_dir = project_dir.join(".claude");
     let settings_path = claude_dir.join("settings.local.json");
 
@@ -367,13 +371,17 @@ fn configure_mcp(project_dir: &Path) {
             Ok(content) => match serde_json::from_str(&content) {
                 Ok(v) => v,
                 Err(e) => {
-                    println!("\nWARN: Cannot parse {}: {e}", settings_path.display());
-                    println!("  MCP server not configured. Add manually to .claude/settings.local.json");
+                    if !quiet {
+                        println!("\nWARN: Cannot parse {}: {e}", settings_path.display());
+                        println!("  MCP server not configured. Add manually to .claude/settings.local.json");
+                    }
                     return;
                 }
             },
             Err(e) => {
-                println!("\nWARN: Cannot read {}: {e}", settings_path.display());
+                if !quiet {
+                    println!("\nWARN: Cannot read {}: {e}", settings_path.display());
+                }
                 return;
             }
         }
@@ -394,13 +402,17 @@ fn configure_mcp(project_dir: &Path) {
         == Some(&expected);
 
     if already_configured {
-        println!("\nMCP server: already configured in .claude/settings.local.json");
+        if !quiet {
+            println!("\nMCP server: already configured in .claude/settings.local.json");
+        }
         return;
     }
 
     // Merge the entry
     let Some(settings_obj) = settings.as_object_mut() else {
-        println!("\nWARN: Settings file is not a JSON object");
+        if !quiet {
+            println!("\nWARN: Settings file is not a JSON object");
+        }
         return;
     };
     let mcp_servers = settings_obj
@@ -408,14 +420,18 @@ fn configure_mcp(project_dir: &Path) {
         .or_insert_with(|| serde_json::json!({}));
 
     let Some(mcp_obj) = mcp_servers.as_object_mut() else {
-        println!("\nWARN: mcpServers is not a JSON object");
+        if !quiet {
+            println!("\nWARN: mcpServers is not a JSON object");
+        }
         return;
     };
     mcp_obj.insert("termlink".to_string(), expected);
 
     // Ensure .claude/ directory exists
     if let Err(e) = std::fs::create_dir_all(&claude_dir) {
-        println!("\nWARN: Cannot create {}: {e}", claude_dir.display());
+        if !quiet {
+            println!("\nWARN: Cannot create {}: {e}", claude_dir.display());
+        }
         return;
     }
 
@@ -423,14 +439,18 @@ fn configure_mcp(project_dir: &Path) {
     match serde_json::to_string_pretty(&settings) {
         Ok(json) => {
             if let Err(e) = std::fs::write(&settings_path, format!("{json}\n")) {
-                println!("\nWARN: Cannot write {}: {e}", settings_path.display());
-            } else {
+                if !quiet {
+                    println!("\nWARN: Cannot write {}: {e}", settings_path.display());
+                }
+            } else if !quiet {
                 println!("\nMCP server: configured in .claude/settings.local.json");
                 println!("  Claude Code will load TermLink tools on next session start.");
             }
         }
         Err(e) => {
-            println!("\nWARN: Cannot serialize settings: {e}");
+            if !quiet {
+                println!("\nWARN: Cannot serialize settings: {e}");
+            }
         }
     }
 }
