@@ -1171,8 +1171,7 @@ pub(crate) async fn cmd_remote_events(
                                     let ts = event["timestamp"].as_u64().unwrap_or(0);
 
                                     if payload.is_null()
-                                        || (payload.is_object()
-                                            && payload.as_object().unwrap().is_empty())
+                                        || payload.as_object().is_some_and(|o| o.is_empty())
                                     {
                                         println!("[{session_name}#{seq}] {topic} (t={ts})");
                                     } else {

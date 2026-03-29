@@ -57,7 +57,8 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
                 println!("{}", serde_json::to_string_pretty(&wrapped)?);
                 return Ok(());
             }
-            let events = result["events"].as_array().unwrap();
+            let events = result["events"].as_array()
+                .context("Server returned unexpected format: missing 'events' array")?;
 
             if payload_only {
                 for event in events {
@@ -80,7 +81,7 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
                 let payload = &event["payload"];
                 let ts = event["timestamp"].as_u64().unwrap_or(0);
 
-                if payload.is_null() || (payload.is_object() && payload.as_object().unwrap().is_empty()) {
+                if payload.is_null() || (payload.as_object().is_some_and(|o| o.is_empty())) {
                     println!("[{seq}] {topic} (t={ts})");
                 } else {
                     println!("[{seq}] {topic}: {} (t={ts})", serde_json::to_string(payload)?);
@@ -511,8 +512,7 @@ pub(crate) async fn cmd_watch(
                                         "timestamp": ts,
                                     }));
                                 } else if payload.is_null()
-                                    || (payload.is_object()
-                                        && payload.as_object().unwrap().is_empty())
+                                    || payload.as_object().is_some_and(|o| o.is_empty())
                                 {
                                     println!("[{name}#{seq}] {topic} (t={ts})");
                                 } else {
@@ -641,8 +641,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                             } else {
                                 let payload = &event["payload"];
                                 if payload.is_null()
-                                    || (payload.is_object()
-                                        && payload.as_object().unwrap().is_empty())
+                                    || payload.as_object().is_some_and(|o| o.is_empty())
                                 {
                                     println!("{}", topic);
                                 } else {
@@ -869,8 +868,7 @@ pub(crate) async fn cmd_collect(
                                     "timestamp": ts,
                                 }));
                             } else if payload.is_null()
-                                || (payload.is_object()
-                                    && payload.as_object().unwrap().is_empty())
+                                || payload.as_object().is_some_and(|o| o.is_empty())
                             {
                                 println!("[{session_name}#{seq}] {topic} (t={ts})");
                             } else {
