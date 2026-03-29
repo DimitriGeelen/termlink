@@ -1765,4 +1765,102 @@ mod tests {
             }
         }
     }
+
+    // --- strip_ansi_codes tests ---
+
+    #[test]
+    fn strip_ansi_plain_text_passthrough() {
+        assert_eq!(strip_ansi_codes("hello world"), "hello world");
+        assert_eq!(strip_ansi_codes(""), "");
+        assert_eq!(strip_ansi_codes("line1\nline2\n"), "line1\nline2\n");
+    }
+
+    #[test]
+    fn strip_ansi_csi_color_codes() {
+        // SGR (Select Graphic Rendition) — color codes
+        assert_eq!(strip_ansi_codes("\x1b[31mred\x1b[0m"), "red");
+        assert_eq!(strip_ansi_codes("\x1b[1;32mbold green\x1b[0m"), "bold green");
+        assert_eq!(
+            strip_ansi_codes("\x1b[38;5;196mextended\x1b[0m"),
+            "extended"
+        );
+    }
+
+    #[test]
+    fn strip_ansi_csi_cursor_movement() {
+        // Cursor up, down, forward, back, erase
+        assert_eq!(strip_ansi_codes("\x1b[2Aup two"), "up two");
+        assert_eq!(strip_ansi_codes("\x1b[10Bdown ten"), "down ten");
+        assert_eq!(strip_ansi_codes("before\x1b[Kafter"), "beforeafter");
+        assert_eq!(strip_ansi_codes("before\x1b[2Jafter"), "beforeafter");
+        assert_eq!(strip_ansi_codes("\x1b[5;10Hpositioned"), "positioned");
+    }
+
+    #[test]
+    fn strip_ansi_osc_title_setting() {
+        // OSC with BEL terminator
+        assert_eq!(
+            strip_ansi_codes("\x1b]0;My Terminal Title\x07rest"),
+            "rest"
+        );
+        // OSC with ST (ESC \) terminator
+        assert_eq!(
+            strip_ansi_codes("\x1b]0;Title\x1b\\rest"),
+            "rest"
+        );
+    }
+
+    #[test]
+    fn strip_ansi_carriage_return() {
+        assert_eq!(strip_ansi_codes("line\r\n"), "line\n");
+        assert_eq!(strip_ansi_codes("overwrite\rvisible"), "overwritevisible");
+        assert_eq!(strip_ansi_codes("\r"), "");
+    }
+
+    #[test]
+    fn strip_ansi_mixed_content() {
+        let input = "\x1b[1;34m$ \x1b[0mecho \x1b[32m\"hello\"\x1b[0m\r\nhello\r\n";
+        let expected = "$ echo \"hello\"\nhello\n";
+        assert_eq!(strip_ansi_codes(input), expected);
+    }
+
+    #[test]
+    fn strip_ansi_bare_escape_consumed() {
+        // A bare ESC followed by something other than [ or ] should consume ESC + next char
+        assert_eq!(strip_ansi_codes("\x1bXrest"), "rest");
+    }
+
+    // --- needs_write tests ---
+
+    #[test]
+    fn needs_write_identifies_mutable_methods() {
+        let mutable = [
+            control::method::SESSION_UPDATE,
+            control::method::KV_SET,
+            control::method::KV_DELETE,
+        ];
+        for method in &mutable {
+            let req = Request::new(method, json!(1), json!({}));
+            assert!(needs_write(&req), "{method} should require write lock");
+        }
+    }
+
+    #[test]
+    fn needs_write_rejects_read_methods() {
+        let read_only = [
+            "termlink.ping",
+            control::method::QUERY_STATUS,
+            control::method::QUERY_CAPABILITIES,
+            control::method::QUERY_OUTPUT,
+            control::method::COMMAND_EXECUTE,
+            control::method::EVENT_EMIT,
+            control::method::EVENT_POLL,
+            control::method::KV_GET,
+            control::method::KV_LIST,
+        ];
+        for method in &read_only {
+            let req = Request::new(method, json!(1), json!({}));
+            assert!(!needs_write(&req), "{method} should NOT require write lock");
+        }
+    }
 }
