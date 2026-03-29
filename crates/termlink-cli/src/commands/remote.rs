@@ -581,6 +581,7 @@ pub(crate) async fn cmd_remote_status(
     secret_hex: Option<&str>,
     scope: &str,
     json: bool,
+    short: bool,
 ) -> Result<()> {
     let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
         Ok(c) => c,
@@ -603,6 +604,15 @@ pub(crate) async fn cmd_remote_status(
 
             if json {
                 println!("{}", serde_json::to_string_pretty(result)?);
+                return Ok(());
+            }
+
+            if short {
+                println!("{} {} {}",
+                    result["display_name"].as_str().unwrap_or("?"),
+                    result["state"].as_str().unwrap_or("?"),
+                    result["pid"].as_u64().unwrap_or(0),
+                );
                 return Ok(());
             }
 

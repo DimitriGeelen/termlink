@@ -1013,6 +1013,10 @@ pub(crate) enum RemoteAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Output one-line summary (name state pid)
+        #[arg(long)]
+        short: bool,
     },
 
     /// Inject keystrokes into a session on a remote hub
