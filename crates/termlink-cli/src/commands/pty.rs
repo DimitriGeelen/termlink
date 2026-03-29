@@ -182,6 +182,7 @@ pub(crate) async fn cmd_interact(
 
             if json_output {
                 let json = serde_json::json!({
+                    "ok": true,
                     "output": final_output,
                     "exit_code": exit_code,
                     "elapsed_ms": elapsed_ms,
@@ -257,6 +258,7 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
             let output = result["output"].as_str().unwrap_or("");
             if json {
                 println!("{}", serde_json::json!({
+                    "ok": true,
                     "output": output,
                     "bytes": output.len(),
                     "target": target,
