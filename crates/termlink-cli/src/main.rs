@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
         }
 
         // Infrastructure
-        Command::Clean { dry_run, json } => commands::session::cmd_clean(dry_run, json),
+        Command::Clean { dry_run, json, no_header } => commands::session::cmd_clean(dry_run, json, no_header),
         Command::Hub { action } => match action {
             None | Some(HubAction::Start { tcp: None, json: false }) => commands::infrastructure::cmd_hub_start(None, false).await,
             Some(HubAction::Start { tcp: None, json: true }) => commands::infrastructure::cmd_hub_start(None, true).await,

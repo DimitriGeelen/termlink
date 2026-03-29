@@ -719,6 +719,10 @@ pub(crate) enum Command {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Suppress table header and footer
+        #[arg(long)]
+        no_header: bool,
     },
 
     /// Hub server management (routes requests between sessions)

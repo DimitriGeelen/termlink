@@ -458,7 +458,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     Ok(())
 }
 
-pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
+pub(crate) fn cmd_clean(dry_run: bool, json: bool, no_header: bool) -> Result<()> {
     let sessions_dir = termlink_session::discovery::sessions_dir();
     let stale = match manager::clean_stale_sessions(&sessions_dir, !dry_run) {
         Ok(s) => s,
@@ -497,11 +497,13 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
 
     let action = if dry_run { "Would remove" } else { "Removed" };
 
-    println!(
-        "{:<14} {:<16} {:<8} CREATED",
-        "ID", "NAME", "PID"
-    );
-    println!("{}", "-".repeat(54));
+    if !no_header {
+        println!(
+            "{:<14} {:<16} {:<8} CREATED",
+            "ID", "NAME", "PID"
+        );
+        println!("{}", "-".repeat(54));
+    }
 
     for s in &stale {
         println!(
@@ -513,8 +515,10 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool) -> Result<()> {
         );
     }
 
-    println!();
-    println!("{} {} stale session(s).", action, stale.len());
+    if !no_header {
+        println!();
+        println!("{} {} stale session(s).", action, stale.len());
+    }
     Ok(())
 }
 
