@@ -350,6 +350,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         if let Some(s) = sessions.first() {
             if json {
                 println!("{}", serde_json::json!({
+                    "ok": true,
                     "id": s.id.as_str(),
                     "display_name": s.display_name,
                     "state": s.state.to_string(),

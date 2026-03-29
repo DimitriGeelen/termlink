@@ -243,6 +243,7 @@ pub(crate) async fn cmd_discover(
         if let Some(s) = filtered.first() {
             if json {
                 println!("{}", serde_json::json!({
+                    "ok": true,
                     "id": s.id.as_str(),
                     "display_name": s.display_name,
                     "state": s.state.to_string(),
