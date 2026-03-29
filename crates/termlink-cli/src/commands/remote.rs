@@ -1257,6 +1257,9 @@ pub(crate) async fn cmd_remote_exec(
                     }
                 }
                 println!("{}", wrapped);
+                if exit_code != 0 {
+                    std::process::exit(exit_code as i32);
+                }
                 return Ok(());
             }
 
