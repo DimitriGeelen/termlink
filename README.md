@@ -43,7 +43,7 @@ TermLink uses a **dual-plane design**:
 ```
 ┌──────────────────────────────────────────────────┐
 │                   CLI (termlink)                   │
-│  26 commands: register, list, ping, exec, ...     │
+│  30 commands: register, list, ping, exec, ...     │
 └───────┬───────────────────┬───────────────────────┘
         │ direct            │ via hub
         v                   v
@@ -64,7 +64,8 @@ Four crates, layered bottom-up:
 | `termlink-protocol` | Wire format — JSON-RPC types, binary frames, event schemas |
 | `termlink-session` | Core — session lifecycle, RPC handlers, PTY, auth, discovery |
 | `termlink-hub` | Coordination — routing, broadcast, collect, TCP transport |
-| `termlink` (CLI) | User interface — 26 commands wrapping the above |
+| `termlink-mcp` | MCP server — expose TermLink as structured tools for AI agents |
+| `termlink` (CLI) | User interface — 30 commands wrapping the above |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full technical reference.
 
@@ -73,13 +74,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full technical referenc
 | Group | Commands | Purpose |
 |-------|----------|---------|
 | **Session** | `register`, `spawn`, `list`, `status`, `info`, `ping`, `clean` | Lifecycle and discovery |
-| **Execution** | `exec`, `interact`, `run` | Run commands on sessions |
-| **PTY** | `pty output`, `pty inject`, `pty attach`, `pty stream`, `pty resize` | Terminal I/O |
+| **Execution** | `exec`, `interact`, `run`, `dispatch` | Run commands on sessions, parallel dispatch |
+| **PTY** | `pty output`, `pty inject`, `pty attach`, `pty stream`, `pty resize`, `mirror` | Terminal I/O and mirroring |
 | **Events** | `event emit`, `event poll`, `event watch`, `event broadcast`, `event collect`, `event wait`, `event topics` | Inter-session signaling |
 | **Discovery** | `discover`, `tag`, `kv` | Find sessions by tag/role/capability, metadata |
+| **Agent** | `agent ask`, `agent listen`, `agent negotiate` | Typed agent-to-agent communication |
+| **Files** | `file send`, `file receive` | Chunked file transfer between sessions |
 | **Hub** | `hub start`, `hub stop`, `hub status` | Multi-session coordination |
+| **Remote** | `remote ping`, `remote list`, `remote exec`, `remote profile` | Cross-machine via TCP hub |
 | **Security** | `token create`, `token inspect` | Capability tokens (HMAC-SHA256) |
-| **Other** | `send`, `request`, `completions` | Low-level RPC, shell completions |
+| **Tools** | `doctor`, `vendor`, `mcp serve` | Health checks, binary vendoring, MCP server |
+| **Other** | `send`, `signal`, `request`, `completions`, `version` | Low-level RPC, shell completions |
 
 Every command supports `--json` for machine-readable output. Run `termlink <command> --help` for details.
 
