@@ -268,6 +268,7 @@ pub(crate) async fn cmd_agent_listen(
                             let event_payload = &event["payload"];
                             if json {
                                 println!("{}", serde_json::json!({
+                                    "ok": true,
                                     "seq": event["seq"],
                                     "from": event_payload["from"],
                                     "action": event_payload["action"],
