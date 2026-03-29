@@ -4,7 +4,7 @@ name: "Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697
 description: >
   Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T18:50:05Z
-last_update: 2026-03-29T18:50:05Z
-date_finished: null
+last_update: 2026-03-29T18:51:52Z
+date_finished: 2026-03-29T18:51:52Z
 ---
 
 # T-754: Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)
@@ -74,3 +74,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-754-fix-5-completed-tasks-with-unchecked-pla.md
 - **Context:** Initial task creation
+
+### 2026-03-29T18:51:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

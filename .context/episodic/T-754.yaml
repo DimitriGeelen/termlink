@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-754: Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T18:51:53Z
+# ============================================================================
+
+task_id: T-754
+task_name: "Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T18:50:05Z
+completed: 2026-03-29T18:51:52Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T20:51:46+02:00
+last_commit: 2026-03-29T20:51:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix 5 completed tasks with unchecked placeholder ACs
+
+# Key outcomes
+outcomes:
+  - "T-599 placeholder ACs replaced with real checked ACs"
+  - "T-684 placeholder ACs replaced with real checked ACs"
+  - "T-697 placeholder ACs replaced with real checked ACs"
+  - "T-709 unchecked ACs checked (work was already complete)"
+  - "T-744 placeholder ACs replaced with real checked ACs"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix 5 completed tasks with unchecked placeholder ACs"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-753-add---version-flag-and-improve-cli-help-.md"
+  - ".tasks/active/T-754-fix-5-completed-tasks-with-unchecked-pla.md"
+  - ".tasks/completed/T-599-fix-pre-push-hook-add-agentic-framework-.md"
+  - ".tasks/completed/T-684-add-json-error-output-to-bare--operators.md"
+  - ".tasks/completed/T-697-add---timeout-flag-to-remote-inject-for-.md"
+  - ".tasks/completed/T-709-add---timeout-flag-to-remote-ping-comman.md"
+  - ".tasks/completed/T-744-remove-ciyml-from-github--perpetually-re.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T20:51:46"
+    action: "T-754: Fix 5 completed tasks with unchecked placeholder ACs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 7
+  lines_added: 167
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-754-fix-5-completed-tasks-with-unchecked-pla.md
+generated_by: context-agent-hybrid
