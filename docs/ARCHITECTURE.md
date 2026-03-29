@@ -214,15 +214,18 @@ The MCP server runs as `termlink mcp serve` (stdio transport). Projects can vend
 
 | Group | Commands | Description |
 |-------|----------|-------------|
-| **Session** | `register`, `list`, `clean`, `info`, `wait` | Create, discover, and manage sessions |
-| **Query** | `ping`, `status`, `output` | Read session state and terminal output |
-| **Execution** | `exec`, `run`, `inject`, `signal` | Run commands, inject keystrokes, send signals |
-| **Events** | `events`, `emit`, `broadcast`, `collect`, `topics` | Structured event messaging |
-| **Streaming** | `attach`, `stream`, `watch`, `resize` | Real-time terminal I/O |
-| **Metadata** | `tag`, `send` | Session tagging and generic messaging |
-| **Hub** | `hub start`, `hub stop`, `hub status`, `discover` | Hub daemon management |
-| **Token** | `token create`, `token inspect` | Capability token management |
-| **Infrastructure** | `completions` | Shell completion generation |
+| **Session** | `register`, `spawn`, `list`, `status`, `info`, `ping`, `clean` | Lifecycle and discovery |
+| **Execution** | `exec`, `interact`, `run`, `dispatch` | Run commands on sessions, parallel dispatch |
+| **PTY** | `pty output`, `pty inject`, `pty attach`, `pty stream`, `pty resize`, `mirror` | Terminal I/O and mirroring |
+| **Events** | `event emit`, `event poll`, `event watch`, `event broadcast`, `event collect`, `event wait`, `event topics` | Inter-session signaling |
+| **Discovery** | `discover`, `tag`, `kv` | Find sessions by tag/role/capability, metadata |
+| **Agent** | `agent ask`, `agent listen`, `agent negotiate` | Typed agent-to-agent communication |
+| **Files** | `file send`, `file receive` | Chunked file transfer between sessions |
+| **Hub** | `hub start`, `hub stop`, `hub status` | Multi-session coordination |
+| **Remote** | `remote ping`, `remote list`, `remote exec`, `remote profile` | Cross-machine via TCP hub |
+| **Security** | `token create`, `token inspect` | Capability tokens (HMAC-SHA256) |
+| **Tools** | `doctor`, `vendor`, `mcp serve` | Health checks, binary vendoring, MCP server |
+| **Other** | `send`, `signal`, `request`, `completions`, `version` | Low-level RPC, shell completions |
 
 ---
 
