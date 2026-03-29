@@ -221,4 +221,76 @@ mod tests {
         let err = ErrorResponse::parse_error();
         assert_eq!(err.id, serde_json::Value::Null);
     }
+
+    #[test]
+    fn error_response_with_data() {
+        let err = ErrorResponse::with_data(
+            json!("req-1"),
+            -32001,
+            "session not found",
+            json!({"session": "tl-abc123", "searched": ["by_id", "by_name"]}),
+        );
+        assert_eq!(err.error.code, -32001);
+        assert_eq!(err.error.message, "session not found");
+        let data = err.error.data.as_ref().unwrap();
+        assert_eq!(data["session"], "tl-abc123");
+
+        // Roundtrip serialization
+        let json_str = serde_json::to_string(&err).unwrap();
+        let parsed: ErrorResponse = serde_json::from_str(&json_str).unwrap();
+        assert!(parsed.error.data.is_some());
+    }
+
+    #[test]
+    fn internal_error_constructor() {
+        let err = ErrorResponse::internal_error(json!(42), "disk full");
+        assert_eq!(err.error.code, standard_error::INTERNAL_ERROR);
+        assert_eq!(err.error.message, "disk full");
+        assert_eq!(err.id, json!(42));
+    }
+
+    #[test]
+    fn request_deserialization_from_raw_json() {
+        let raw = r#"{"jsonrpc":"2.0","method":"termlink.ping","id":1,"params":{"target":"tl-abc"}}"#;
+        let req: Request = serde_json::from_str(raw).unwrap();
+        assert_eq!(req.method, "termlink.ping");
+        assert_eq!(req.id, Some(json!(1)));
+        assert_eq!(req.params["target"], "tl-abc");
+        assert!(!req.is_notification());
+    }
+
+    #[test]
+    fn request_deserialization_missing_params() {
+        // params should default to Value::Null when omitted
+        let raw = r#"{"jsonrpc":"2.0","method":"query.status","id":"req-1"}"#;
+        let req: Request = serde_json::from_str(raw).unwrap();
+        assert_eq!(req.method, "query.status");
+        assert!(req.params.is_null());
+    }
+
+    #[test]
+    fn rpc_response_deserialize_success() {
+        let raw = r#"{"jsonrpc":"2.0","id":1,"result":{"status":"ok"}}"#;
+        let resp: RpcResponse = serde_json::from_str(raw).unwrap();
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.id, json!(1));
+                assert_eq!(r.result["status"], "ok");
+            }
+            RpcResponse::Error(_) => panic!("Expected success, got error"),
+        }
+    }
+
+    #[test]
+    fn rpc_response_deserialize_error() {
+        let raw = r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}"#;
+        let resp: RpcResponse = serde_json::from_str(raw).unwrap();
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, standard_error::METHOD_NOT_FOUND);
+                assert_eq!(e.error.message, "Method not found");
+            }
+            RpcResponse::Success(_) => panic!("Expected error, got success"),
+        }
+    }
 }
