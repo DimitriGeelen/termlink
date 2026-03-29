@@ -135,4 +135,125 @@ mod tests {
         assert_eq!(caps.protocol_version, 1);
         assert!(!caps.data_plane);
     }
+
+    #[test]
+    fn common_params_serde_roundtrip() {
+        let params = CommonParams {
+            target: "tl-abc123".into(),
+            sender: "tl-def456".into(),
+            timestamp: "2026-03-30T00:00:00Z".into(),
+            correlation_id: Some("corr-1".into()),
+            ttl: Some(30),
+        };
+        let json = serde_json::to_string(&params).unwrap();
+        let parsed: CommonParams = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.target, "tl-abc123");
+        assert_eq!(parsed.sender, "tl-def456");
+        assert_eq!(parsed.correlation_id, Some("corr-1".into()));
+        assert_eq!(parsed.ttl, Some(30));
+    }
+
+    #[test]
+    fn common_params_optional_fields_omitted() {
+        let params = CommonParams {
+            target: "tl-abc".into(),
+            sender: "tl-def".into(),
+            timestamp: "2026-01-01T00:00:00Z".into(),
+            correlation_id: None,
+            ttl: None,
+        };
+        let json = serde_json::to_string(&params).unwrap();
+        assert!(!json.contains("correlation_id"));
+        assert!(!json.contains("ttl"));
+
+        // Should still deserialize with missing optional fields
+        let minimal = r#"{"target":"a","sender":"b","timestamp":"t"}"#;
+        let parsed: CommonParams = serde_json::from_str(minimal).unwrap();
+        assert_eq!(parsed.correlation_id, None);
+        assert_eq!(parsed.ttl, None);
+    }
+
+    #[test]
+    fn terminal_info_serde_roundtrip() {
+        let info = TerminalInfo {
+            term: Some("xterm-256color".into()),
+            cols: Some(120),
+            rows: Some(40),
+            shell: Some("/bin/zsh".into()),
+            pid: Some(12345),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: TerminalInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.term, Some("xterm-256color".into()));
+        assert_eq!(parsed.cols, Some(120));
+        assert_eq!(parsed.rows, Some(40));
+        assert_eq!(parsed.shell, Some("/bin/zsh".into()));
+        assert_eq!(parsed.pid, Some(12345));
+    }
+
+    #[test]
+    fn terminal_info_all_optional() {
+        let info = TerminalInfo {
+            term: None,
+            cols: None,
+            rows: None,
+            shell: None,
+            pid: None,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        // All fields should be omitted
+        assert_eq!(json, "{}");
+
+        // Deserialize from empty object
+        let parsed: TerminalInfo = serde_json::from_str("{}").unwrap();
+        assert!(parsed.term.is_none());
+        assert!(parsed.cols.is_none());
+    }
+
+    #[test]
+    fn capabilities_serde_with_features() {
+        let caps = Capabilities {
+            protocol_version: 1,
+            data_plane: true,
+            compression: vec!["zstd".into()],
+            max_frame_size: Some(1048576),
+            features: vec!["stream".into(), "mirror".into()],
+        };
+        let json = serde_json::to_string(&caps).unwrap();
+        let parsed: Capabilities = serde_json::from_str(&json).unwrap();
+        assert!(parsed.data_plane);
+        assert_eq!(parsed.compression, vec!["zstd"]);
+        assert_eq!(parsed.features, vec!["stream", "mirror"]);
+        assert_eq!(parsed.max_frame_size, Some(1048576));
+    }
+
+    #[test]
+    fn key_entry_text_variant() {
+        let entry: KeyEntry = serde_json::from_str(r#"{"type":"text","value":"hello"}"#).unwrap();
+        assert!(matches!(entry, KeyEntry::Text(ref s) if s == "hello"));
+    }
+
+    #[test]
+    fn key_entry_key_variant() {
+        let entry: KeyEntry = serde_json::from_str(r#"{"type":"key","value":"Enter"}"#).unwrap();
+        assert!(matches!(entry, KeyEntry::Key(ref s) if s == "Enter"));
+    }
+
+    #[test]
+    fn key_entry_raw_variant() {
+        let entry: KeyEntry = serde_json::from_str(r#"{"type":"raw","value":"Aw=="}"#).unwrap();
+        assert!(matches!(entry, KeyEntry::Raw(ref s) if s == "Aw=="));
+    }
+
+    #[test]
+    fn method_constants_are_correct() {
+        // Verify key method names are stable (breaking changes would break clients)
+        assert_eq!(method::COMMAND_EXECUTE, "command.execute");
+        assert_eq!(method::QUERY_STATUS, "query.status");
+        assert_eq!(method::EVENT_EMIT, "event.emit");
+        assert_eq!(method::KV_SET, "kv.set");
+        assert_eq!(method::AUTH_TOKEN, "auth.token");
+        assert_eq!(method::SESSION_DISCOVER, "session.discover");
+        assert_eq!(method::PTY_MODE, "pty.mode");
+    }
 }
