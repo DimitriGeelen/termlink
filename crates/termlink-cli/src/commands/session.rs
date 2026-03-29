@@ -78,6 +78,7 @@ pub(crate) async fn cmd_register(
 
     if json {
         println!("{}", serde_json::json!({
+            "ok": true,
             "id": session.id(),
             "display_name": session.display_name(),
             "socket_path": session.registration.socket_path().display().to_string(),
@@ -255,6 +256,7 @@ pub(crate) async fn cmd_register_self(
 
     if json {
         println!("{}", serde_json::json!({
+            "ok": true,
             "id": endpoint.id(),
             "display_name": endpoint.registration().display_name,
             "socket_path": endpoint.socket_path().display().to_string(),
