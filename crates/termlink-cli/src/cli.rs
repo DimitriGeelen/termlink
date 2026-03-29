@@ -52,6 +52,10 @@ pub(crate) enum Command {
         /// Output session details as JSON on startup
         #[arg(long)]
         json: bool,
+
+        /// Suppress all non-error output at startup
+        #[arg(long, short = 'q')]
+        quiet: bool,
     },
 
     /// List all registered sessions

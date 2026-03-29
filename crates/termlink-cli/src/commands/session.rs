@@ -22,7 +22,9 @@ pub(crate) async fn cmd_register(
     enable_token_secret: bool,
     allowed_commands: Vec<String>,
     json: bool,
+    quiet: bool,
 ) -> Result<()> {
+    let verbose = !json && !quiet;
     let mut config = SessionConfig {
         display_name: name,
         roles,
@@ -57,7 +59,7 @@ pub(crate) async fn cmd_register(
         let secret = termlink_session::auth::generate_secret();
         let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
         session.registration.token_secret = Some(secret_hex.clone());
-        if !json {
+        if verbose {
             println!("Token auth enabled. Secret: {secret_hex}");
             println!("  Create tokens with: termlink token create {} --scope observe", session.id());
         }
@@ -69,7 +71,7 @@ pub(crate) async fn cmd_register(
     // Set command allowlist if specified
     if !allowed_commands.is_empty() {
         session.registration.allowed_commands = Some(allowed_commands.clone());
-        if !json {
+        if verbose {
             println!("Command allowlist: {:?}", allowed_commands);
         }
     }
@@ -83,7 +85,7 @@ pub(crate) async fn cmd_register(
             "shell": shell,
             "token_secret": token_secret_hex,
         }));
-    } else {
+    } else if verbose {
         println!("Session registered:");
         println!("  ID:      {}", session.id());
         println!("  Name:    {}", session.display_name());
@@ -107,13 +109,13 @@ pub(crate) async fn cmd_register(
                 return Err(e).context("Failed to spawn PTY session");
             }
         };
-        if !json {
+        if verbose {
             println!("  PTY:     yes (shell: {})",
                 std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into()));
         }
         Some(Arc::new(pty))
     } else {
-        if !json {
+        if verbose {
             println!("  PTY:     no (use --shell for bidirectional I/O)");
         }
         None
@@ -130,7 +132,7 @@ pub(crate) async fn cmd_register(
         }
     }
 
-    if !json {
+    if verbose {
         println!();
         println!("Listening for connections... (Ctrl+C to stop)");
     }
