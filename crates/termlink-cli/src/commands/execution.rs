@@ -265,6 +265,7 @@ pub(crate) async fn cmd_request(
                             if matches {
                                 if json {
                                     println!("{}", serde_json::json!({
+                                        "ok": true,
                                         "request_id": request_id,
                                         "topic": reply_topic,
                                         "payload": event_payload,

@@ -316,6 +316,7 @@ pub(crate) async fn cmd_dispatch(
 
     if json_output {
         let result = json!({
+            "ok": !timed_out,
             "dispatch_id": dispatch_id,
             "workers_spawned": count,
             "workers_registered": registered_count,
