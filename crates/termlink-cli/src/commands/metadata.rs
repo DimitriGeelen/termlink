@@ -224,7 +224,7 @@ pub(crate) async fn cmd_discover(
 
     if count {
         if json {
-            println!("{}", serde_json::json!({"count": filtered.len()}));
+            println!("{}", serde_json::json!({"ok": true, "count": filtered.len()}));
         } else {
             println!("{}", filtered.len());
         }
