@@ -399,16 +399,19 @@ fn configure_mcp(project_dir: &Path) {
     }
 
     // Merge the entry
-    let mcp_servers = settings
-        .as_object_mut()
-        .expect("settings is an object")
+    let Some(settings_obj) = settings.as_object_mut() else {
+        println!("\nWARN: Settings file is not a JSON object");
+        return;
+    };
+    let mcp_servers = settings_obj
         .entry("mcpServers")
         .or_insert_with(|| serde_json::json!({}));
 
-    mcp_servers
-        .as_object_mut()
-        .expect("mcpServers is an object")
-        .insert("termlink".to_string(), expected);
+    let Some(mcp_obj) = mcp_servers.as_object_mut() else {
+        println!("\nWARN: mcpServers is not a JSON object");
+        return;
+    };
+    mcp_obj.insert("termlink".to_string(), expected);
 
     // Ensure .claude/ directory exists
     if let Err(e) = std::fs::create_dir_all(&claude_dir) {
