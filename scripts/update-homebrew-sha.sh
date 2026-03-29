@@ -21,33 +21,44 @@ CHECKSUMS=$(curl -sfL "${BASE_URL}/checksums.txt") || {
 echo "$CHECKSUMS"
 echo ""
 
-# Extract SHA256 for each platform
-SHA_AARCH64=$(echo "$CHECKSUMS" | grep "termlink-darwin-aarch64" | awk '{print $1}')
-SHA_X86_64=$(echo "$CHECKSUMS" | grep "termlink-darwin-x86_64" | awk '{print $1}')
-SHA_LINUX=$(echo "$CHECKSUMS" | grep "termlink-linux-x86_64" | awk '{print $1}')
+# Extract SHA256 for each platform (4 variants)
+SHA_DARWIN_ARM=$(echo "$CHECKSUMS" | grep "termlink-darwin-aarch64" | awk '{print $1}')
+SHA_DARWIN_X86=$(echo "$CHECKSUMS" | grep "termlink-darwin-x86_64" | awk '{print $1}')
+SHA_LINUX_X86=$(echo "$CHECKSUMS" | grep "termlink-linux-x86_64" | awk '{print $1}')
+SHA_LINUX_ARM=$(echo "$CHECKSUMS" | grep "termlink-linux-aarch64" | awk '{print $1}')
 
-if [ -z "$SHA_AARCH64" ] || [ -z "$SHA_X86_64" ] || [ -z "$SHA_LINUX" ]; then
+MISSING=0
+for var in "darwin-aarch64:$SHA_DARWIN_ARM" "darwin-x86_64:$SHA_DARWIN_X86" \
+           "linux-x86_64:$SHA_LINUX_X86" "linux-aarch64:$SHA_LINUX_ARM"; do
+    name="${var%%:*}"
+    hash="${var#*:}"
+    if [ -z "$hash" ]; then
+        echo "  MISSING: $name"
+        MISSING=1
+    fi
+done
+if [ "$MISSING" -eq 1 ]; then
     echo "ERROR: Could not extract all SHA256 hashes from checksums"
-    echo "  aarch64: ${SHA_AARCH64:-MISSING}"
-    echo "  x86_64:  ${SHA_X86_64:-MISSING}"
-    echo "  linux:   ${SHA_LINUX:-MISSING}"
     exit 1
 fi
 
-# Update formula
+# Update formula — match each platform's url line and update the sha256 on the following line
+# The formula structure uses url/sha256 pairs within on_macos/on_linux blocks
 sed -i.bak \
     -e "s/version \".*\"/version \"${VERSION#v}\"/" \
-    -e "/aarch64/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_AARCH64}\"/}" \
-    -e "/x86_64.*darwin/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_X86_64}\"/}" \
-    -e "/linux/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_LINUX}\"/}" \
+    -e "/termlink-darwin-aarch64/{n;s/sha256 \".*\"/sha256 \"${SHA_DARWIN_ARM}\"/;}" \
+    -e "/termlink-darwin-x86_64/{n;s/sha256 \".*\"/sha256 \"${SHA_DARWIN_X86}\"/;}" \
+    -e "/termlink-linux-aarch64/{n;s/sha256 \".*\"/sha256 \"${SHA_LINUX_ARM}\"/;}" \
+    -e "/termlink-linux-x86_64/{n;s/sha256 \".*\"/sha256 \"${SHA_LINUX_X86}\"/;}" \
     "$FORMULA"
 
 rm -f "${FORMULA}.bak"
 
 echo "Updated ${FORMULA}:"
-echo "  version:  ${VERSION#v}"
-echo "  aarch64:  ${SHA_AARCH64}"
-echo "  x86_64:   ${SHA_X86_64}"
-echo "  linux:    ${SHA_LINUX}"
+echo "  version:         ${VERSION#v}"
+echo "  darwin-aarch64:  ${SHA_DARWIN_ARM}"
+echo "  darwin-x86_64:   ${SHA_DARWIN_X86}"
+echo "  linux-x86_64:    ${SHA_LINUX_X86}"
+echo "  linux-aarch64:   ${SHA_LINUX_ARM}"
 echo ""
 echo "Next: review the formula, commit, and push to the tap repo"
