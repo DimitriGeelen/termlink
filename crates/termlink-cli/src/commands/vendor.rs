@@ -203,7 +203,7 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool, check: bool) -
 
     if !dest_bin.exists() {
         if json {
-            let mut obj = serde_json::json!({"vendored": false});
+            let mut obj = serde_json::json!({"ok": true, "vendored": false});
             if check {
                 obj["needs_update"] = serde_json::json!(true);
             }
@@ -259,6 +259,7 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool, check: bool) -
 
     if json {
         let mut obj = serde_json::json!({
+            "ok": true,
             "vendored": true,
             "binary": dest_bin.display().to_string(),
             "version": version,
