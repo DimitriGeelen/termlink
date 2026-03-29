@@ -648,7 +648,13 @@ pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_se
     match client::unwrap_result(resp) {
         Ok(result) => {
             if json {
-                println!("{}", serde_json::to_string_pretty(&result)?);
+                let mut wrapped = serde_json::json!({"ok": true});
+                if let Some(obj) = result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", wrapped);
                 return Ok(());
             }
             if short {
