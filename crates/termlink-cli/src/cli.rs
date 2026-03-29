@@ -1063,6 +1063,10 @@ pub(crate) enum RemoteAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// RPC timeout in seconds (default: 30)
+        #[arg(long, default_value = "30")]
+        timeout: u64,
     },
 
     /// Send a file to a session on a remote hub
