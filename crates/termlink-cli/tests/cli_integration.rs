@@ -1833,3 +1833,122 @@ fn cli_vendor_handles_corrupt_settings() {
     let settings_content = std::fs::read_to_string(claude_dir.join("settings.local.json")).unwrap();
     assert_eq!(settings_content, "not json {{{", "Corrupt settings should not be modified");
 }
+
+// ─── Agent Ask Error Path ───────────────────────────────────────────
+
+#[test]
+fn cli_agent_ask_no_target() {
+    let dir = TestDir::new("agent-ask-err");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "agent", "ask", "nonexistent-session",
+            "--action", "query.status",
+            "--timeout", "2",
+            "--json",
+        ])
+        .output()
+        .expect("Failed to run agent ask");
+
+    // Should fail because target session doesn't exist
+    assert!(!output.status.success(), "agent ask should fail when target doesn't exist");
+}
+
+// ─── Push Nonexistent Source File ───────────────────────────────────
+
+#[test]
+fn cli_push_nonexistent_source() {
+    let dir = TestDir::new("push-err");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "push", "localhost:9999", "any-session",
+            "/tmp/this-file-definitely-does-not-exist-xyz.txt",
+            "--timeout", "2",
+            "--json",
+        ])
+        .output()
+        .expect("Failed to run push");
+
+    // Should fail because file doesn't exist or hub is unreachable
+    assert!(!output.status.success(), "push should fail with nonexistent file");
+}
+
+// ─── PTY Resize Error Path ─────────────────────────────────────────
+
+#[test]
+fn cli_pty_resize_no_target() {
+    let dir = TestDir::new("resize-err");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "pty", "resize", "nonexistent-session",
+            "--cols", "120", "--rows", "40",
+            "--json",
+        ])
+        .output()
+        .expect("Failed to run pty resize");
+
+    // Should fail because target session doesn't exist
+    assert!(!output.status.success(), "pty resize should fail when target doesn't exist");
+}
+
+// ─── List --no-header ───────────────────────────────────────────────
+
+#[test]
+fn cli_list_no_header() {
+    let dir = TestDir::new("list-nohdr");
+    let mut _reg = start_register(&dir.path, "nohdr-sess");
+    let socket = wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5));
+    assert!(socket.is_ok(), "Session should register");
+
+    let output = termlink_cmd(&dir.path)
+        .args(["list", "--no-header"])
+        .output()
+        .expect("Failed to run list --no-header");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // --no-header should suppress the table header and footer
+    assert!(!stdout.contains("Sessions:"), "Should not have header with --no-header");
+    // But should still show the session
+    assert!(stdout.contains("nohdr-sess"), "Should show session name");
+}
+
+// ─── Status --short ─────────────────────────────────────────────────
+
+#[test]
+fn cli_status_short_with_session() {
+    let dir = TestDir::new("status-short");
+    let mut _reg = start_register(&dir.path, "short-sess");
+    let socket = wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5));
+    assert!(socket.is_ok(), "Session should register");
+    std::thread::sleep(Duration::from_millis(200));
+
+    let output = termlink_cmd(&dir.path)
+        .args(["status", "short-sess", "--short"])
+        .output()
+        .expect("Failed to run status --short");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // --short should output a compact one-line status
+    assert!(stdout.contains("short-sess"), "Should contain session name: {}", stdout);
+}
+
+// ─── List --wait Timeout ────────────────────────────────────────────
+
+#[test]
+fn cli_list_wait_timeout() {
+    let dir = TestDir::new("list-wait-to");
+    let start = Instant::now();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["list", "--wait", "--wait-timeout", "1", "--tag", "nonexistent-tag-xyz"])
+        .output()
+        .expect("Failed to run list --wait");
+
+    let elapsed = start.elapsed();
+    // Should fail after timeout since no sessions with that tag exist
+    assert!(!output.status.success(), "list --wait should timeout and fail");
+    // Should have waited approximately 1 second
+    assert!(elapsed >= Duration::from_millis(800), "Should wait near timeout: {:?}", elapsed);
+    assert!(elapsed < Duration::from_secs(10), "Should not wait too long: {:?}", elapsed);
+}
