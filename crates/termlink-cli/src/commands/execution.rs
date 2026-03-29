@@ -110,6 +110,7 @@ pub(crate) async fn cmd_run(
         Ok(exec_result) => {
             if json {
                 println!("{}", serde_json::json!({
+                    "ok": exec_result.exit_code == 0,
                     "exit_code": exec_result.exit_code,
                     "stdout": exec_result.stdout,
                     "stderr": exec_result.stderr,
@@ -136,6 +137,7 @@ pub(crate) async fn cmd_run(
         Err(e) => {
             if json {
                 println!("{}", serde_json::json!({
+                    "ok": false,
                     "error": e.to_string(),
                     "elapsed_ms": elapsed_ms,
                     "session_id": session_id.as_str(),
@@ -354,6 +356,7 @@ pub(crate) async fn cmd_spawn(
             if let Ok(reg) = manager::find_session(&session_name) {
                 if json {
                     println!("{}", serde_json::json!({
+                        "ok": true,
                         "session_name": session_name,
                         "backend": resolved.to_string(),
                         "ready": true,
@@ -367,6 +370,7 @@ pub(crate) async fn cmd_spawn(
             if start.elapsed() > timeout {
                 if json {
                     println!("{}", serde_json::json!({
+                        "ok": false,
                         "session_name": session_name,
                         "backend": resolved.to_string(),
                         "ready": false,
@@ -386,6 +390,7 @@ pub(crate) async fn cmd_spawn(
 
     if json {
         println!("{}", serde_json::json!({
+            "ok": true,
             "session_name": session_name,
             "backend": resolved.to_string(),
         }));
