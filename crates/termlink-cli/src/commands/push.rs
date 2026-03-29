@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use base64::Engine;
 
 use termlink_protocol::jsonrpc::RpcResponse;
 use termlink_session::client;
@@ -94,10 +95,12 @@ async fn cmd_push_inner(
     };
 
     // Step 1: Create inbox dir + write file via command.execute
+    // Use base64 encoding for safe transport — avoids heredoc delimiter injection
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&content);
     let write_cmd = format!(
-        "mkdir -p {INBOX_DIR} && cat > {} << 'TERMLINK_PUSH_EOF'\n{}\nTERMLINK_PUSH_EOF",
+        "mkdir -p {INBOX_DIR} && echo '{}' | base64 -d > {}",
+        b64,
         shell_escape(&inbox_path),
-        content,
     );
 
     if let Err(e) = exec_rpc(&mut rpc_client, session, &write_cmd).await {

@@ -4,7 +4,7 @@ name: "Generate 25 missing episodic summaries (T-673 through T-698)"
 description: >
   Generate 25 missing episodic summaries (T-673 through T-698)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T14:21:02Z
-last_update: 2026-03-29T14:21:02Z
-date_finished: null
+last_update: 2026-03-29T14:23:14Z
+date_finished: 2026-03-29T14:23:14Z
 ---
 
 # T-747: Generate 25 missing episodic summaries (T-673 through T-698)
@@ -50,3 +50,6 @@ test -f .context/episodic/T-698.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-747-generate-25-missing-episodic-summaries-t.md
 - **Context:** Initial task creation
+
+### 2026-03-29T14:23:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
