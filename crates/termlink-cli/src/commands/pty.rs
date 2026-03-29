@@ -181,8 +181,9 @@ pub(crate) async fn cmd_interact(
             let final_output = final_output.trim();
 
             if json_output {
+                let is_ok = exit_code.is_none_or(|c| c == 0);
                 let json = serde_json::json!({
-                    "ok": true,
+                    "ok": is_ok,
                     "output": final_output,
                     "exit_code": exit_code,
                     "elapsed_ms": elapsed_ms,
@@ -190,6 +191,10 @@ pub(crate) async fn cmd_interact(
                     "bytes_captured": output.len(),
                 });
                 println!("{}", serde_json::to_string_pretty(&json)?);
+                if let Some(code) = exit_code
+                    && code != 0 {
+                        std::process::exit(code);
+                    }
             } else {
                 if !final_output.is_empty() {
                     println!("{final_output}");
