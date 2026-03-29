@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-768: Add unit tests for protocol control types — CommonParams, TerminalInfo, Capabilities serde
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T23:08:24Z
+# ============================================================================
+
+task_id: T-768
+task_name: "Add unit tests for protocol control types — CommonParams, TerminalInfo, Capabilities serde"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T23:07:10Z
+completed: 2026-03-29T23:08:23Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Add serde roundtrip test for `CommonParams` (with and without optional fields)"
+  - "Add serde roundtrip test for `TerminalInfo` (with and without optional fields)"
+  - "Add `Capabilities` serde roundtrip test with non-default values"
+  - "Add `KeyEntry` variant-specific deserialization tests"
+  - "Add test verifying method name constants match expected strings"
+  - "All new tests pass via `cargo test -p termlink-protocol control`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-768-add-unit-tests-for-protocol-control-type.md
+generated_by: context-agent-hybrid

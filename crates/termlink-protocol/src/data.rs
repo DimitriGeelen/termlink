@@ -255,4 +255,89 @@ mod tests {
             assert_eq!(ft as u8, expected);
         }
     }
+
+    #[test]
+    fn unknown_frame_type_rejected() {
+        assert!(matches!(
+            FrameType::from_u8(0x08),
+            Err(ProtocolError::UnknownFrameType(0x08))
+        ));
+        assert!(matches!(
+            FrameType::from_u8(0xFF),
+            Err(ProtocolError::UnknownFrameType(0xFF))
+        ));
+    }
+
+    #[test]
+    fn incomplete_header_rejected() {
+        // Too short for header
+        let buf = vec![0x54, 0x4C, 0x00];
+        assert!(matches!(
+            FrameHeader::decode(&buf),
+            Err(ProtocolError::IncompleteFrame { expected: 22, available: 3 })
+        ));
+
+        // Empty buffer
+        assert!(matches!(
+            FrameHeader::decode(&[]),
+            Err(ProtocolError::IncompleteFrame { expected: 22, available: 0 })
+        ));
+    }
+
+    #[test]
+    fn unsupported_version_rejected() {
+        let mut buf = vec![0u8; FRAME_HEADER_SIZE];
+        buf[0..2].copy_from_slice(&FRAME_MAGIC);
+        // version=2 in high nibble, type=Output in low nibble
+        buf[6] = 0x20;
+        assert!(matches!(
+            FrameHeader::decode(&buf),
+            Err(ProtocolError::UnsupportedVersion(2))
+        ));
+    }
+
+    #[test]
+    fn truncated_payload_rejected() {
+        let frame = Frame::new(FrameType::Output, FrameFlags::empty(), 0, 0, b"hello".to_vec());
+        let mut encoded = frame.encode();
+        // Remove last 2 bytes of payload
+        encoded.truncate(encoded.len() - 2);
+        assert!(matches!(
+            Frame::decode(&encoded),
+            Err(ProtocolError::IncompleteFrame { .. })
+        ));
+    }
+
+    #[test]
+    fn zero_payload_frame_roundtrip() {
+        let frame = Frame::new(FrameType::Ping, FrameFlags::empty(), 0, 0, vec![]);
+        let encoded = frame.encode();
+        assert_eq!(encoded.len(), FRAME_HEADER_SIZE);
+        let decoded = Frame::decode(&encoded).unwrap();
+        assert!(decoded.payload.is_empty());
+        assert_eq!(decoded.header.payload_length, 0);
+    }
+
+    #[test]
+    fn max_sequence_and_channel_roundtrip() {
+        let frame = Frame::new(
+            FrameType::Transfer,
+            FrameFlags::BINARY,
+            u32::MAX,
+            u64::MAX,
+            b"data".to_vec(),
+        );
+        let encoded = frame.encode();
+        let decoded = Frame::decode(&encoded).unwrap();
+        assert_eq!(decoded.header.sequence, u64::MAX);
+        assert_eq!(decoded.header.channel_id, u32::MAX);
+    }
+
+    #[test]
+    fn frame_header_version_field() {
+        let frame = Frame::new(FrameType::Output, FrameFlags::empty(), 0, 0, vec![]);
+        let encoded = frame.encode();
+        let decoded = Frame::decode(&encoded).unwrap();
+        assert_eq!(decoded.header.version, DATA_PLANE_VERSION);
+    }
 }

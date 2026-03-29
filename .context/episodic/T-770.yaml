@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-770: Fix update-homebrew-sha.sh to handle 4 platform variants (add Linux aarch64)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T23:13:33Z
+# ============================================================================
+
+task_id: T-770
+task_name: "Fix update-homebrew-sha.sh to handle 4 platform variants (add Linux aarch64)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T23:12:15Z
+completed: 2026-03-29T23:13:32Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Script extracts SHA256 for all 4 platforms: darwin-aarch64, darwin-x86_64, linux-x86_64, linux-aarch64"
+  - "Script validates all 4 hashes are present before proceeding"
+  - "Script updates all 4 platform entries in the formula via sed"
+  - "Script runs without errors: `bash -n scripts/update-homebrew-sha.sh`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-770-fix-update-homebrew-shash-to-handle-4-pl.md
+generated_by: context-agent-hybrid
