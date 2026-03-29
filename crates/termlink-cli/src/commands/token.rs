@@ -123,6 +123,7 @@ pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
             .as_secs();
         let expired = payload["expires_at"].as_u64().map(|e| now > e).unwrap_or(false);
         println!("{}", serde_json::json!({
+            "ok": true,
             "payload": payload,
             "expired": expired,
         }));

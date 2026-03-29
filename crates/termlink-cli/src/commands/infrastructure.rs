@@ -231,6 +231,7 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
     // Summary
     if json_output {
         let result = json!({
+            "ok": fail_count == 0,
             "checks": checks,
             "summary": {
                 "pass": pass_count,
@@ -319,7 +320,7 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
             if json_output {
-                println!("{}", json!({"status": "not_running"}));
+                println!("{}", json!({"ok": true, "status": "not_running"}));
             } else if short {
                 println!("not_running");
             } else {
@@ -328,7 +329,7 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
         }
         termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
             if json_output {
-                println!("{}", json!({"status": "stale", "pid": pid}));
+                println!("{}", json!({"ok": true, "status": "stale", "pid": pid}));
             } else if short {
                 println!("stale {pid}");
             } else {
@@ -339,6 +340,7 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
         termlink_hub::pidfile::PidfileStatus::Running(pid) => {
             if json_output {
                 println!("{}", json!({
+                    "ok": true,
                     "status": "running",
                     "pid": pid,
                     "socket": socket_path.display().to_string(),
