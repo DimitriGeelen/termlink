@@ -256,7 +256,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                         })
                     }).collect()
                 };
-                println!("{}", serde_json::to_string_pretty(&profiles)?);
+                println!("{}", serde_json::json!({"ok": true, "profiles": profiles}));
                 return Ok(());
             }
             if config.hubs.is_empty() {
