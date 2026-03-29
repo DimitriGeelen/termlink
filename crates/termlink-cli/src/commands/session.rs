@@ -573,7 +573,7 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
         Ok(result) => {
             if json {
                 println!("{}", serde_json::json!({
-                    "status": "ok",
+                    "ok": true,
                     "target": target,
                     "id": result["id"],
                     "display_name": result["display_name"],
@@ -939,7 +939,7 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
         Ok(result) => {
             if json {
                 println!("{}", serde_json::json!({
-                    "status": "ok",
+                    "ok": true,
                     "target": target,
                     "signal": result["signal"],
                     "pid": result["pid"],
