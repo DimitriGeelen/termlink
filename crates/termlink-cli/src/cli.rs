@@ -685,6 +685,10 @@ pub(crate) enum Command {
         #[arg(short, long, value_delimiter = ',')]
         tags: Vec<String>,
 
+        /// Capabilities for workers (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        cap: Vec<String>,
+
         /// Spawn backend: auto, terminal, tmux, background
         #[arg(long, default_value = "auto")]
         backend: SpawnBackend,

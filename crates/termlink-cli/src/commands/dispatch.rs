@@ -22,6 +22,7 @@ pub(crate) async fn cmd_dispatch(
     name_prefix: Option<String>,
     roles: Vec<String>,
     tags: Vec<String>,
+    cap: Vec<String>,
     backend: SpawnBackend,
     json_output: bool,
     command: Vec<String>,
@@ -101,6 +102,10 @@ pub(crate) async fn cmd_dispatch(
         if !roles.is_empty() {
             register_args.push("--roles".to_string());
             register_args.push(roles.join(","));
+        }
+        if !cap.is_empty() {
+            register_args.push("--cap".to_string());
+            register_args.push(cap.join(","));
         }
         // Note: no --shell flag. Dispatch workers are event-only sessions
         // (no PTY needed). This avoids PTY exhaustion on macOS when spawning
