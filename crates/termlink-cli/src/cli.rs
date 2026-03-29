@@ -630,6 +630,10 @@ pub(crate) enum Command {
         #[arg(short, long, value_delimiter = ',')]
         tags: Vec<String>,
 
+        /// Capabilities for the spawned session (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        cap: Vec<String>,
+
         /// Wait for the session to register before returning
         #[arg(long)]
         wait: bool,

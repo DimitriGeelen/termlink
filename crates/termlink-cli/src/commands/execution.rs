@@ -303,6 +303,7 @@ pub(crate) async fn cmd_spawn(
     name: Option<String>,
     roles: Vec<String>,
     tags: Vec<String>,
+    cap: Vec<String>,
     wait: bool,
     wait_timeout: u64,
     shell: bool,
@@ -314,7 +315,7 @@ pub(crate) async fn cmd_spawn(
         format!("spawn-{}", std::process::id())
     });
 
-    let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, shell, &command)?;
+    let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, &cap, shell, &command)?;
 
     let resolved = resolve_spawn_backend(&backend);
     let spawn_result = match resolved {
@@ -395,6 +396,7 @@ fn build_spawn_shell_cmd(
     session_name: &str,
     roles: &[String],
     tags: &[String],
+    cap: &[String],
     shell: bool,
     command: &[String],
 ) -> Result<String> {
@@ -414,6 +416,10 @@ fn build_spawn_shell_cmd(
     if !tags.is_empty() {
         register_args.push("--tags".to_string());
         register_args.push(tags.join(","));
+    }
+    if !cap.is_empty() {
+        register_args.push("--cap".to_string());
+        register_args.push(cap.join(","));
     }
     if shell || command.is_empty() {
         register_args.push("--shell".to_string());
