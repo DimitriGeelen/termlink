@@ -60,7 +60,7 @@ pub(crate) async fn cmd_interact(
         Ok(r) => r["output"].as_str().unwrap_or("").to_string(),
         Err(e) => {
             if json_output {
-                println!("{}", serde_json::json!({"output": "", "exit_code": null, "error": format!("Session has no PTY: {e}"), "marker_found": false}));
+                println!("{}", serde_json::json!({"ok": false, "output": "", "exit_code": null, "error": format!("Session has no PTY: {e}"), "marker_found": false}));
                 std::process::exit(1);
             }
             anyhow::bail!("Session has no PTY: {}", e);
@@ -96,7 +96,7 @@ pub(crate) async fn cmd_interact(
     loop {
         if start.elapsed() > deadline {
             if json_output {
-                println!("{}", serde_json::json!({"output": "", "exit_code": null, "error": format!("Timeout after {}s waiting for command to complete", timeout), "elapsed_ms": start.elapsed().as_millis() as u64, "marker_found": false}));
+                println!("{}", serde_json::json!({"ok": false, "output": "", "exit_code": null, "error": format!("Timeout after {}s waiting for command to complete", timeout), "elapsed_ms": start.elapsed().as_millis() as u64, "marker_found": false}));
                 std::process::exit(1);
             }
             anyhow::bail!("Timeout after {}s waiting for command to complete", timeout);
@@ -116,7 +116,7 @@ pub(crate) async fn cmd_interact(
             Ok(r) => r,
             Err(e) => {
                 if json_output {
-                    println!("{}", serde_json::json!({"output": "", "exit_code": null, "error": format!("Output poll failed: {e}"), "marker_found": false}));
+                    println!("{}", serde_json::json!({"ok": false, "output": "", "exit_code": null, "error": format!("Output poll failed: {e}"), "marker_found": false}));
                     std::process::exit(1);
                 }
                 anyhow::bail!("Output poll failed: {}", e);
