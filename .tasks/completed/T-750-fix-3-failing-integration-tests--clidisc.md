@@ -4,16 +4,16 @@ name: "Fix 3 failing integration tests — cli_discover_json_output, cli_ping_js
 description: >
   Fix 3 failing integration tests — cli_discover_json_output, cli_ping_json_output, cli_ping_with_timeout
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-03-29T14:33:44Z
-last_update: 2026-03-29T14:33:44Z
-date_finished: null
+last_update: 2026-03-29T14:38:20Z
+date_finished: 2026-03-29T14:38:20Z
 ---
 
 # T-750: Fix 3 failing integration tests — cli_discover_json_output, cli_ping_json_output, cli_ping_with_timeout
@@ -73,3 +73,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-750-fix-3-failing-integration-tests--clidisc.md
 - **Context:** Initial task creation
+
+### 2026-03-29T14:38:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

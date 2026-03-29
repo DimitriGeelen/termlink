@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-751: CLI hardening — fix unwraps, add missing integration tests
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T18:38:29Z
+# ============================================================================
+
+task_id: T-751
+task_name: "CLI hardening — fix unwraps, add missing integration tests"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T18:27:48Z
+completed: 2026-03-29T18:38:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T20:29:09+02:00
+last_commit: 2026-03-29T20:37:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix 3 unsafe unwraps in CLI/MCP — push.rs, tools.rs + T-744 episodic. Add 12 new integration tests — token, signal, file-send, dispatch, info, hub-status, doctor, list filters
+
+# Key outcomes
+outcomes:
+  - "No `.unwrap()` calls in non-test CLI/MCP source code (push.rs, tools.rs)"
+  - "`cargo clippy --workspace -- -D warnings` passes"
+  - "`cargo test --workspace` passes (520 tests, 0 failures)"
+  - "Integration tests added for token, signal, file-send, dispatch, info, hub-status, doctor, list filters (12 new tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix 3 unsafe unwraps in CLI/MCP — push.rs, tools.rs + T-744 episodic"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-744.yaml"
+  - "crates/termlink-cli/src/commands/push.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-751-cli-hardening--fix-unwraps-add-missing-i.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T20:29:09"
+    action: "T-751: Fix 3 unsafe unwraps in CLI/MCP — push.rs, tools.rs + T-744 episodic"
+  - time: "2026-03-29T20:37:20"
+    action: "T-751: Add 12 new integration tests — token, signal, file-send, dispatch, info, hub-status, doctor, list filters"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 2
+  files_changed: 5
+  lines_added: 300
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-751-cli-hardening--fix-unwraps-add-missing-i.md
+generated_by: context-agent-hybrid
