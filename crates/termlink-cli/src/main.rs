@@ -197,9 +197,9 @@ async fn main() -> Result<()> {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
                 commands::remote::cmd_remote_send_file(&p.address, &session, &path, p.secret_file.as_deref(), p.secret.as_deref(), chunk_size, p.scope.as_deref().unwrap_or("control"), json).await
             }
-            RemoteAction::Events { hub, secret_file, secret, scope, topic, targets, interval, count, json } => {
+            RemoteAction::Events { hub, secret_file, secret, scope, topic, targets, interval, count, json, payload_only } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                commands::remote::cmd_remote_events(&p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), topic.as_deref(), targets.as_deref(), interval, count, json).await
+                commands::remote::cmd_remote_events(&p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), topic.as_deref(), targets.as_deref(), interval, count, json, payload_only).await
             }
             RemoteAction::Exec { hub, session, command, secret_file, secret, scope, timeout, cwd, json } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;

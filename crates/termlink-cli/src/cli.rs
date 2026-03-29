@@ -1123,6 +1123,10 @@ pub(crate) enum RemoteAction {
         /// Output each event as a JSON line
         #[arg(long)]
         json: bool,
+
+        /// Output only event payloads (one JSON per line, for piping)
+        #[arg(long)]
+        payload_only: bool,
     },
 
     /// Push a file or message to a remote session's inbox with PTY notification

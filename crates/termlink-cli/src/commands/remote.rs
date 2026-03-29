@@ -933,6 +933,7 @@ pub(crate) async fn cmd_remote_events(
     interval_ms: u64,
     max_count: u64,
     json: bool,
+    payload_only: bool,
 ) -> Result<()> {
     let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
         Ok(c) => c,
@@ -987,7 +988,12 @@ pub(crate) async fn cmd_remote_events(
                             for event in events {
                                 total_received += 1;
 
-                                if json {
+                                if payload_only {
+                                    let payload = &event["payload"];
+                                    if !payload.is_null() {
+                                        println!("{}", serde_json::to_string(payload).unwrap_or_default());
+                                    }
+                                } else if json {
                                     println!("{}", serde_json::to_string(event).unwrap_or_default());
                                 } else {
                                     let session_name = event["session_name"].as_str().unwrap_or("?");
