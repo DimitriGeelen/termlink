@@ -124,6 +124,7 @@ async fn cmd_push_inner(
     // Step 3: Report confirmation
     if json {
         let report = serde_json::json!({
+            "ok": true,
             "status": "delivered",
             "hub": hub,
             "session": session,

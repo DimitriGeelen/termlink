@@ -533,7 +533,13 @@ async fn cmd_remote_list_inner(
             if first {
                 if let Some(s) = sessions.first() {
                     if json {
-                        println!("{}", serde_json::to_string_pretty(s)?);
+                        let mut wrapped = serde_json::json!({"ok": true});
+                        if let Some(obj) = s.as_object() {
+                            for (k, v) in obj {
+                                wrapped[k] = v.clone();
+                            }
+                        }
+                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
                     } else {
                         println!("{}", s["display_name"].as_str().unwrap_or("?"));
                     }
@@ -835,7 +841,13 @@ async fn cmd_remote_inject_inner(
     match client.call("command.inject", serde_json::json!("inject"), inject_params).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
             if json {
-                println!("{}", serde_json::to_string_pretty(&r.result)?);
+                let mut wrapped = serde_json::json!({"ok": true});
+                if let Some(obj) = r.result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", serde_json::to_string_pretty(&wrapped)?);
             } else {
                 let bytes = r.result["bytes_len"].as_u64().unwrap_or(0);
                 println!("Injected {} bytes into '{}' on {}", bytes, session, hub);
@@ -1054,6 +1066,7 @@ async fn cmd_remote_send_file_inner(
 
     if json {
         println!("{}", serde_json::json!({
+            "ok": true,
             "transfer_id": transfer_id,
             "filename": filename,
             "size": size,
@@ -1142,7 +1155,13 @@ pub(crate) async fn cmd_remote_events(
                                         println!("{}", serde_json::to_string(payload).unwrap_or_default());
                                     }
                                 } else if json {
-                                    println!("{}", serde_json::to_string(event).unwrap_or_default());
+                                    let mut wrapped = serde_json::json!({"ok": true});
+                                    if let Some(obj) = event.as_object() {
+                                        for (k, v) in obj {
+                                            wrapped[k] = v.clone();
+                                        }
+                                    }
+                                    println!("{}", serde_json::to_string(&wrapped).unwrap_or_default());
                                 } else {
                                     let session_name = event["session_name"].as_str().unwrap_or("?");
                                     let seq = event["seq"].as_u64().unwrap_or(0);
