@@ -29,6 +29,10 @@ pub(crate) enum Command {
         #[arg(short, long, value_delimiter = ',')]
         tags: Vec<String>,
 
+        /// Capabilities for this session (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        cap: Vec<String>,
+
         /// Start a PTY-backed session (full bidirectional I/O)
         #[arg(long, conflicts_with = "self_mode")]
         shell: bool,

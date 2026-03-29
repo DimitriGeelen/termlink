@@ -17,6 +17,7 @@ pub(crate) async fn cmd_register(
     name: Option<String>,
     roles: Vec<String>,
     tags: Vec<String>,
+    cap: Vec<String>,
     shell: bool,
     enable_token_secret: bool,
     allowed_commands: Vec<String>,
@@ -26,13 +27,18 @@ pub(crate) async fn cmd_register(
         display_name: name,
         roles,
         tags,
+        capabilities: cap,
         ..Default::default()
     };
 
     // Add data_plane capability when shell mode is enabled
     if shell {
-        config.capabilities.push("data_plane".into());
-        config.capabilities.push("stream".into());
+        if !config.capabilities.contains(&"data_plane".to_string()) {
+            config.capabilities.push("data_plane".into());
+        }
+        if !config.capabilities.contains(&"stream".to_string()) {
+            config.capabilities.push("stream".into());
+        }
     }
 
     let mut session = match termlink_session::Session::register(config).await {
@@ -223,12 +229,14 @@ pub(crate) async fn cmd_register_self(
     name: Option<String>,
     roles: Vec<String>,
     tags: Vec<String>,
+    cap: Vec<String>,
     json: bool,
 ) -> Result<()> {
     let config = SessionConfig {
         display_name: name,
         roles,
         tags,
+        capabilities: cap,
         ..Default::default()
     };
 
