@@ -435,6 +435,8 @@ pub(crate) async fn cmd_remote_list(
     cap: Option<&str>,
     count: bool,
     first: bool,
+    names: bool,
+    ids: bool,
     no_header: bool,
     json: bool,
 ) -> Result<()> {
@@ -492,6 +494,20 @@ pub(crate) async fn cmd_remote_list(
                     println!("{}", serde_json::json!({"count": sessions.len()}));
                 } else {
                     println!("{}", sessions.len());
+                }
+                return Ok(());
+            }
+
+            if names {
+                for s in sessions {
+                    println!("{}", s["display_name"].as_str().unwrap_or("?"));
+                }
+                return Ok(());
+            }
+
+            if ids {
+                for s in sessions {
+                    println!("{}", s["id"].as_str().unwrap_or("?"));
                 }
                 return Ok(());
             }
