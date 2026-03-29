@@ -115,7 +115,13 @@ pub(crate) async fn cmd_tag(
     match client::unwrap_result(resp) {
         Ok(result) => {
             if json {
-                println!("{}", serde_json::to_string_pretty(&result)?);
+                let mut wrapped = serde_json::json!({"ok": true});
+                if let Some(obj) = result.as_object() {
+                    for (k, v) in obj {
+                        wrapped[k] = v.clone();
+                    }
+                }
+                println!("{}", serde_json::to_string_pretty(&wrapped)?);
             } else {
                 let tags = result["tags"]
                     .as_array()
@@ -376,7 +382,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
             match client::unwrap_result(resp) {
                 Ok(result) => {
                     if json {
-                        println!("{}", serde_json::to_string_pretty(&result)?);
+                        let mut wrapped = serde_json::json!({"ok": true});
+                        if let Some(obj) = result.as_object() {
+                            for (k, v) in obj {
+                                wrapped[k] = v.clone();
+                            }
+                        }
+                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
                     } else {
                         let replaced = result["replaced"].as_bool().unwrap_or(false);
                         println!(
@@ -425,7 +437,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
             match client::unwrap_result(resp) {
                 Ok(result) => {
                     if json {
-                        println!("{}", serde_json::to_string_pretty(&result)?);
+                        let mut wrapped = serde_json::json!({"ok": true});
+                        if let Some(obj) = result.as_object() {
+                            for (k, v) in obj {
+                                wrapped[k] = v.clone();
+                            }
+                        }
+                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
                     } else if result["found"].as_bool().unwrap_or(false) {
                         let value = &result["value"];
                         if raw {
@@ -480,7 +498,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
             match client::unwrap_result(resp) {
                 Ok(result) => {
                     if json {
-                        println!("{}", serde_json::to_string_pretty(&result)?);
+                        let mut wrapped = serde_json::json!({"ok": true});
+                        if let Some(obj) = result.as_object() {
+                            for (k, v) in obj {
+                                wrapped[k] = v.clone();
+                            }
+                        }
+                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
                     } else if keys {
                         if let Some(entries) = result["entries"].as_array() {
                             for entry in entries {
@@ -542,7 +566,13 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
             match client::unwrap_result(resp) {
                 Ok(result) => {
                     if json {
-                        println!("{}", serde_json::to_string_pretty(&result)?);
+                        let mut wrapped = serde_json::json!({"ok": true});
+                        if let Some(obj) = result.as_object() {
+                            for (k, v) in obj {
+                                wrapped[k] = v.clone();
+                            }
+                        }
+                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
                     } else if result["deleted"].as_bool().unwrap_or(false) {
                         println!("Deleted '{}'", key);
                     } else {
