@@ -243,6 +243,7 @@ async fn main() -> Result<()> {
                 println!(
                     "{}",
                     serde_json::json!({
+                        "ok": true,
                         "version": version,
                         "commit": commit,
                         "target": target,
