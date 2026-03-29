@@ -312,6 +312,28 @@ pub(crate) async fn cmd_remote_ping(
     secret_hex: Option<&str>,
     scope: &str,
     json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    match tokio::time::timeout(timeout_dur, cmd_remote_ping_inner(hub, session, secret_file, secret_hex, scope, json)).await {
+        Ok(result) => result,
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Timeout after {}s waiting for remote ping", timeout_secs);
+        }
+    }
+}
+
+async fn cmd_remote_ping_inner(
+    hub: &str,
+    session: Option<&str>,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    json: bool,
 ) -> Result<()> {
     let start = std::time::Instant::now();
     let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
