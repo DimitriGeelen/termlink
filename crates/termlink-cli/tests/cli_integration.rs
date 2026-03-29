@@ -1749,6 +1749,65 @@ fn cli_vendor_merges_existing_mcp_settings() {
 }
 
 #[test]
+fn cli_token_create_and_inspect_roundtrip() {
+    let dir = TestDir::new("token-roundtrip");
+
+    // Register with --token-secret --json
+    let mut reg = termlink_cmd(&dir.path)
+        .args(["register", "--name", "token-test", "--token-secret", "--json", "--quiet"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn register");
+
+    // Wait for socket to appear
+    let socket = wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5))
+        .expect("Socket never appeared");
+    // The session name is used by token create
+    let _ = socket;
+
+    // Give it a moment for JSON output
+    std::thread::sleep(Duration::from_millis(200));
+
+    // Create a token
+    let token_output = termlink_cmd(&dir.path)
+        .args(["token", "create", "token-test", "--scope", "execute", "--ttl", "3600", "--json"])
+        .output()
+        .expect("Failed to run token create");
+
+    let _ = reg.kill();
+    let _ = reg.wait();
+
+    if !token_output.status.success() {
+        let stderr = String::from_utf8_lossy(&token_output.stderr);
+        panic!("token create failed: {}", stderr);
+    }
+
+    let token_json: serde_json::Value =
+        serde_json::from_slice(&token_output.stdout).expect("token create output not valid JSON");
+    assert_eq!(token_json["ok"], true);
+    let token_str = token_json["token"].as_str().expect("Missing token field");
+    assert!(token_str.contains('.'), "Token should be base64.signature format");
+    assert_eq!(token_json["scope"], "execute");
+    assert_eq!(token_json["ttl"], 3600);
+
+    // Inspect the token
+    let inspect_output = termlink_cmd(&dir.path)
+        .args(["token", "inspect", token_str, "--json"])
+        .output()
+        .expect("Failed to run token inspect");
+
+    assert!(inspect_output.status.success());
+    let inspect_json: serde_json::Value =
+        serde_json::from_slice(&inspect_output.stdout).expect("token inspect output not valid JSON");
+    assert_eq!(inspect_json["ok"], true);
+    let payload = &inspect_json["payload"];
+    assert_eq!(payload["scope"], "execute");
+    assert!(payload["expires_at"].as_u64().is_some(), "Should have expires_at");
+    assert_eq!(inspect_json["expired"], false);
+}
+
+#[test]
 fn cli_vendor_handles_corrupt_settings() {
     let project = vendor_project("vendor-corrupt");
 
