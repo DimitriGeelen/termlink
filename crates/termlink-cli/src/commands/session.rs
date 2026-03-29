@@ -380,7 +380,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     if names {
         if json {
             let items: Vec<&str> = sessions.iter().map(|s| s.display_name.as_str()).collect();
-            println!("{}", serde_json::json!(items));
+            println!("{}", serde_json::json!({"ok": true, "names": items}));
         } else {
             for s in &sessions {
                 println!("{}", s.display_name);
@@ -392,7 +392,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     if ids {
         if json {
             let items: Vec<&str> = sessions.iter().map(|s| s.id.as_str()).collect();
-            println!("{}", serde_json::json!(items));
+            println!("{}", serde_json::json!({"ok": true, "ids": items}));
         } else {
             for s in &sessions {
                 println!("{}", s.id.as_str());
@@ -418,7 +418,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
                 "socket_path": s.socket_path().display().to_string(),
             })
         }).collect();
-        println!("{}", serde_json::to_string_pretty(&items)?);
+        println!("{}", serde_json::json!({"ok": true, "sessions": items}));
         return Ok(());
     }
 

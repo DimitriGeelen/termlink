@@ -570,7 +570,7 @@ async fn cmd_remote_list_inner(
             }
 
             if json {
-                println!("{}", serde_json::to_string_pretty(&sessions)?);
+                println!("{}", serde_json::json!({"ok": true, "sessions": sessions}));
                 return Ok(());
             }
 
