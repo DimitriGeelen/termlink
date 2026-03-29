@@ -573,6 +573,10 @@ pub(crate) enum Command {
         #[arg(short, long, value_delimiter = ',')]
         tags: Vec<String>,
 
+        /// Capabilities for the session (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        cap: Vec<String>,
+
         /// Timeout in seconds (default: 300)
         #[arg(long, default_value = "300")]
         timeout: u64,

@@ -16,6 +16,7 @@ pub(crate) async fn cmd_run(
     name: Option<String>,
     roles: Vec<String>,
     tags: Vec<String>,
+    cap: Vec<String>,
     timeout: u64,
     json: bool,
     command_parts: Vec<String>,
@@ -38,6 +39,7 @@ pub(crate) async fn cmd_run(
         display_name: name,
         roles,
         tags,
+        capabilities: cap,
         ..Default::default()
     };
 
