@@ -1,0 +1,39 @@
+task_id: T-686
+task_name: "Add --roles flag to dispatch command for parity with spawn"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T23:28:53Z
+completed: 2026-03-29T00:08:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --roles flag to dispatch command for parity with spawn
+
+outcomes:
+  - "Add --roles flag to dispatch command for parity with spawn"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-686-add---roles-flag-to-dispatch-command-for.md
+generated_by: batch-episodic-T-747

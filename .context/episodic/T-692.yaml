@@ -1,0 +1,39 @@
+task_id: T-692
+task_name: "Add --check flag to hub status that exits non-zero when hub not running"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T23:41:28Z
+completed: 2026-03-29T00:22:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --check flag to hub status that exits non-zero when hub not running
+
+outcomes:
+  - "Add --check flag to hub status that exits non-zero when hub not running"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-692-add---check-flag-to-hub-status-that-exit.md
+generated_by: batch-episodic-T-747

@@ -1,0 +1,39 @@
+task_id: T-685
+task_name: "Add --roles flag to run command for parity with spawn"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T23:27:23Z
+completed: 2026-03-29T00:05:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --roles flag to run command for parity with spawn
+
+outcomes:
+  - "Add --roles flag to run command for parity with spawn"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-685-add---roles-flag-to-run-command-for-pari.md
+generated_by: batch-episodic-T-747

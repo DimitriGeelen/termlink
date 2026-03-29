@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-746: Close 5 stale issues-status tasks — features already implemented
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T14:20:09Z
+# ============================================================================
+
+task_id: T-746
+task_name: "Close 5 stale issues-status tasks — features already implemented"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T14:18:30Z
+completed: 2026-03-29T14:20:08Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "T-630 closed (--raw on kv get already exists)"
+  - "T-634 closed (--dry-run on vendor — vendor status --check already covers this)"
+  - "T-667 closed (--json on hub start already exists)"
+  - "T-670 closed (--json error on connect_remote_hub — already handled)"
+  - "T-707 closed (--id on list --first — --ids flag already exists)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-746-close-5-stale-issues-status-tasks--featu.md
+generated_by: context-agent-hybrid

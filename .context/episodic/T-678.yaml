@@ -1,0 +1,39 @@
+task_id: T-678
+task_name: "Add --json support to discover --first (parity with list --first --json)"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T22:48:47Z
+completed: 2026-03-28T22:50:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --json support to discover --first (parity with list --first --json)
+
+outcomes:
+  - "Add --json support to discover --first (parity with list --first --json)"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-678-add---json-support-to-discover---first-p.md
+generated_by: batch-episodic-T-747

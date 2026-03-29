@@ -1,0 +1,39 @@
+task_id: T-694
+task_name: "Add --count and --no-header flags to remote list command"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T23:47:51Z
+completed: 2026-03-29T00:28:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --count and --no-header flags to remote list command
+
+outcomes:
+  - "Add --count and --no-header flags to remote list command"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-694-add---count-and---no-header-flags-to-rem.md
+generated_by: batch-episodic-T-747

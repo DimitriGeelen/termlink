@@ -1,0 +1,39 @@
+task_id: T-677
+task_name: "Make list --first respect --ids and --names flags"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T22:47:14Z
+completed: 2026-03-28T22:48:30Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Make list --first respect --ids and --names flags
+
+outcomes:
+  - "Make list --first respect --ids and --names flags"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-677-make-list---first-respect---ids-and---na.md
+generated_by: batch-episodic-T-747

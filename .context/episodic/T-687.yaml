@@ -1,0 +1,39 @@
+task_id: T-687
+task_name: "Add --json flag to hub start for structured startup output"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T23:30:39Z
+completed: 2026-03-29T00:12:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --json flag to hub start for structured startup output
+
+outcomes:
+  - "Add --json flag to hub start for structured startup output"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-687-add---json-flag-to-hub-start-for-structu.md
+generated_by: batch-episodic-T-747

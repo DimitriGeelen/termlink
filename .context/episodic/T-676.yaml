@@ -1,0 +1,39 @@
+task_id: T-676
+task_name: "Add --check flag to vendor status that exits non-zero when update needed"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T22:44:16Z
+completed: 2026-03-28T22:46:30Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --check flag to vendor status that exits non-zero when update needed
+
+outcomes:
+  - "Add --check flag to vendor status that exits non-zero when update needed"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-676-add---check-flag-to-vendor-status-that-e.md
+generated_by: batch-episodic-T-747

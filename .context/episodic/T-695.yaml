@@ -1,0 +1,39 @@
+task_id: T-695
+task_name: "Add --first flag to remote list for single-session scripting"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T23:51:36Z
+completed: 2026-03-29T00:30:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --first flag to remote list for single-session scripting
+
+outcomes:
+  - "Add --first flag to remote list for single-session scripting"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-695-add---first-flag-to-remote-list-for-sing.md
+generated_by: batch-episodic-T-747

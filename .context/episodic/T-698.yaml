@@ -1,0 +1,39 @@
+task_id: T-698
+task_name: "Add --short flag to info command for one-line status"
+workflow_type: build
+enrichment_status: complete
+
+created: 2026-03-28T23:54:56Z
+completed: 2026-03-29T00:35:00Z
+duration_days: 0
+updates_count: 1
+
+summary: |
+  Add --short flag to info command for one-line status
+
+outcomes:
+  - "Add --short flag to info command for one-line status"
+
+challenges: []
+decisions: []
+artifacts: []
+
+successes:
+  - "Completed as part of systematic CLI improvement sweep"
+
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+tags: [cli, json-consistency]
+
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+source_file: .tasks/completed/T-698-add---short-flag-to-info-command-for-one.md
+generated_by: batch-episodic-T-747

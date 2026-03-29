@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-745: Fix 3 clippy warnings — too_many_arguments in agent.rs, collapsible_if in file.rs and vendor.rs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T14:11:03Z
+# ============================================================================
+
+task_id: T-745
+task_name: "Fix 3 clippy warnings — too_many_arguments in agent.rs, collapsible_if in file.rs and vendor.rs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T14:06:02Z
+completed: 2026-03-29T14:11:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T16:10:07+02:00
+last_commit: 2026-03-29T16:10:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix all clippy warnings — too_many_arguments, collapsible_if, needless_update
+
+# Key outcomes
+outcomes:
+  - "Add `#[allow(clippy::too_many_arguments)]` to `cmd_agent_negotiate` in agent.rs"
+  - "Collapse nested `if` in file.rs:236 (collapsible_if)"
+  - "Collapse nested `if` in vendor.rs:149 (collapsible_if)"
+  - "Fix remaining 10 clippy errors (session.rs, events.rs, metadata.rs, execution.rs, remote.rs)"
+  - "`cargo clippy --workspace -- -D warnings` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix all clippy warnings — too_many_arguments, collapsible_if, needless_update"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/commands/execution.rs"
+  - "crates/termlink-cli/src/commands/file.rs"
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/commands/vendor.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T16:10:07"
+    action: "T-745: Fix all clippy warnings — too_many_arguments, collapsible_if, needless_update"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 8
+  lines_added: 40
+  lines_removed: 38
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-745-fix-3-clippy-warnings--toomanyarguments-.md
+generated_by: context-agent-hybrid
