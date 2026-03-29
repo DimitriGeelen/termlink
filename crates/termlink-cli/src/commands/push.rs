@@ -21,6 +21,31 @@ pub(crate) async fn cmd_push(
     secret_hex: Option<&str>,
     scope: &str,
     json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    match tokio::time::timeout(timeout_dur, cmd_push_inner(hub, session, file, message, secret_file, secret_hex, scope, json)).await {
+        Ok(result) => result,
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Timeout after {}s waiting for remote push", timeout_secs);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn cmd_push_inner(
+    hub: &str,
+    session: &str,
+    file: Option<&str>,
+    message: Option<&str>,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    json: bool,
 ) -> Result<()> {
     // Validate: need either file or message
     if file.is_none() && message.is_none() {

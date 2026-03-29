@@ -180,14 +180,14 @@ async fn main() -> Result<()> {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
                 commands::remote::cmd_remote_ping(&p.address, session.as_deref(), p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), json, timeout).await
             }
-            RemoteAction::List { hub, secret_file, secret, scope, name, tags, roles, cap, count, first, names, ids, no_header, json } => {
+            RemoteAction::List { hub, secret_file, secret, scope, name, tags, roles, cap, count, first, names, ids, no_header, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                commands::remote::cmd_remote_list(&p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), name.as_deref(), tags.as_deref(), roles.as_deref(), cap.as_deref(), count, first, names, ids, no_header, json).await
+                commands::remote::cmd_remote_list(&p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), name.as_deref(), tags.as_deref(), roles.as_deref(), cap.as_deref(), count, first, names, ids, no_header, json, timeout).await
             }
-            RemoteAction::Status { hub, session, secret_file, secret, scope, json, short } => {
+            RemoteAction::Status { hub, session, secret_file, secret, scope, json, short, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
                 let session = commands::remote::resolve_remote_target(session, &p.address, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe")).await?;
-                commands::remote::cmd_remote_status(&p.address, &session, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), json, short).await
+                commands::remote::cmd_remote_status(&p.address, &session, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("observe"), json, short, timeout).await
             }
             RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
@@ -205,9 +205,9 @@ async fn main() -> Result<()> {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
                 commands::remote::cmd_remote_exec(&p.address, &session, &command, p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("execute"), timeout, cwd.as_deref(), json).await
             }
-            RemoteAction::Push { hub, session, file, message, secret_file, secret, scope, json } => {
+            RemoteAction::Push { hub, session, file, message, secret_file, secret, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                commands::push::cmd_push(&p.address, &session, file.as_deref(), message.as_deref(), p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("execute"), json).await
+                commands::push::cmd_push(&p.address, &session, file.as_deref(), message.as_deref(), p.secret_file.as_deref(), p.secret.as_deref(), p.scope.as_deref().unwrap_or("execute"), json, timeout).await
             }
             RemoteAction::Profile { action } => {
                 commands::remote::cmd_remote_profile(action)

@@ -461,6 +461,37 @@ pub(crate) async fn cmd_remote_list(
     ids: bool,
     no_header: bool,
     json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    match tokio::time::timeout(timeout_dur, cmd_remote_list_inner(hub, secret_file, secret_hex, scope, name, tags, roles, cap, count, first, names, ids, no_header, json)).await {
+        Ok(result) => result,
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Timeout after {}s waiting for remote list", timeout_secs);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn cmd_remote_list_inner(
+    hub: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    name: Option<&str>,
+    tags: Option<&str>,
+    roles: Option<&str>,
+    cap: Option<&str>,
+    count: bool,
+    first: bool,
+    names: bool,
+    ids: bool,
+    no_header: bool,
+    json: bool,
 ) -> Result<()> {
     let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
         Ok(c) => c,
@@ -597,6 +628,29 @@ pub(crate) async fn cmd_remote_list(
 }
 
 pub(crate) async fn cmd_remote_status(
+    hub: &str,
+    session: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+    json: bool,
+    short: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    match tokio::time::timeout(timeout_dur, cmd_remote_status_inner(hub, session, secret_file, secret_hex, scope, json, short)).await {
+        Ok(result) => result,
+        Err(_) => {
+            if json {
+                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
+                std::process::exit(1);
+            }
+            anyhow::bail!("Timeout after {}s waiting for remote status", timeout_secs);
+        }
+    }
+}
+
+async fn cmd_remote_status_inner(
     hub: &str,
     session: &str,
     secret_file: Option<&str>,

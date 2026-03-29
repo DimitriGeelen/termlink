@@ -998,6 +998,10 @@ pub(crate) enum RemoteAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// RPC timeout in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        timeout: u64,
     },
 
     /// Get detailed status of a session on a remote hub
@@ -1027,6 +1031,10 @@ pub(crate) enum RemoteAction {
         /// Output one-line summary (name state pid)
         #[arg(long)]
         short: bool,
+
+        /// RPC timeout in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        timeout: u64,
     },
 
     /// Inject keystrokes into a session on a remote hub
@@ -1181,6 +1189,10 @@ pub(crate) enum RemoteAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// RPC timeout in seconds (default: 30)
+        #[arg(long, default_value = "30")]
+        timeout: u64,
     },
 
     /// Manage saved hub profiles (~/.termlink/hubs.toml)
