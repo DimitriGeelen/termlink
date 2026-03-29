@@ -22,8 +22,13 @@ class Termlink < Formula
   end
 
   on_linux do
-    url "https://github.com/DimitriGeelen/termlink/releases/download/v#{version}/termlink-linux-x86_64"
-    sha256 "PLACEHOLDER_SHA256_LINUX"  # Update after first release
+    if Hardware::CPU.arm?
+      url "https://github.com/DimitriGeelen/termlink/releases/download/v#{version}/termlink-linux-aarch64"
+      sha256 "PLACEHOLDER_SHA256_LINUX_AARCH64"  # Update after first release
+    else
+      url "https://github.com/DimitriGeelen/termlink/releases/download/v#{version}/termlink-linux-x86_64"
+      sha256 "PLACEHOLDER_SHA256_LINUX_X86_64"  # Update after first release
+    end
   end
 
   def install
