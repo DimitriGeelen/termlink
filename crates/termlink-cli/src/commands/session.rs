@@ -964,7 +964,7 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
     }
 }
 
-pub(crate) fn cmd_info(json: bool, short: bool) -> Result<()> {
+pub(crate) fn cmd_info(json: bool, short: bool, check: bool) -> Result<()> {
     let runtime_dir = termlink_session::discovery::runtime_dir();
     let sessions_dir = termlink_session::discovery::sessions_dir();
     let hub_socket = termlink_hub::server::hub_socket_path();
@@ -984,6 +984,9 @@ pub(crate) fn cmd_info(json: bool, short: bool) -> Result<()> {
     if short {
         let hub_status = if hub_running { "running" } else { "stopped" };
         println!("termlink {version} sessions:{live}/{all} hub:{hub_status}");
+        if check && (!hub_running || stale > 0) {
+            std::process::exit(1);
+        }
         return Ok(());
     }
 
@@ -1002,6 +1005,9 @@ pub(crate) fn cmd_info(json: bool, short: bool) -> Result<()> {
                 "total": all,
             },
         }))?);
+        if check && (!hub_running || stale > 0) {
+            std::process::exit(1);
+        }
         return Ok(());
     }
 
@@ -1026,6 +1032,10 @@ pub(crate) fn cmd_info(json: bool, short: bool) -> Result<()> {
     if stale > 0 {
         println!();
         println!("  Tip: run 'termlink clean' to remove stale sessions");
+    }
+
+    if check && (!hub_running || stale > 0) {
+        std::process::exit(1);
     }
 
     Ok(())

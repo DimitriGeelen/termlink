@@ -150,6 +150,10 @@ pub(crate) enum Command {
         /// One-line summary output (for scripting)
         #[arg(long)]
         short: bool,
+
+        /// Exit non-zero if hub is stopped or stale sessions exist
+        #[arg(long)]
+        check: bool,
     },
 
     // === RPC & Execution ===
