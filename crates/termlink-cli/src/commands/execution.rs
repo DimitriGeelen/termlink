@@ -46,8 +46,7 @@ pub(crate) async fn cmd_run(
         Ok(s) => s,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to register ephemeral session: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to register ephemeral session: {}", e)}));
             }
             return Err(e).context("Failed to register ephemeral session");
         }
@@ -135,14 +134,13 @@ pub(crate) async fn cmd_run(
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({
+                super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "error": e.to_string(),
                     "elapsed_ms": elapsed_ms,
                     "session_id": session_id.as_str(),
                     "command": command_str,
                 }));
-                std::process::exit(1);
             }
             anyhow::bail!("Command failed: {}", e);
         }
@@ -162,8 +160,7 @@ pub(crate) async fn cmd_request(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -178,8 +175,7 @@ pub(crate) async fn cmd_request(
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
             }
             return Err(e.into());
         }
@@ -209,8 +205,7 @@ pub(crate) async fn cmd_request(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit request event: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit request event: {}", e)}));
             }
             return Err(e).context("Failed to emit request event");
         }
@@ -227,8 +222,7 @@ pub(crate) async fn cmd_request(
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit request: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit request: {e}")}));
             }
             anyhow::bail!("Failed to emit request: {}", e);
         }
@@ -292,8 +286,7 @@ pub(crate) async fn cmd_request(
 
         if start.elapsed() > timeout_dur {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout)}));
             }
             anyhow::bail!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout);
         }
@@ -330,13 +323,12 @@ pub(crate) async fn cmd_spawn(
     };
     if let Err(e) = spawn_result {
         if json {
-            println!("{}", serde_json::json!({
+            super::json_error_exit(serde_json::json!({
                 "ok": false,
                 "session_name": session_name,
                 "backend": resolved.to_string(),
                 "error": format!("{e}"),
             }));
-            std::process::exit(1);
         }
         return Err(e);
     }
@@ -369,14 +361,13 @@ pub(crate) async fn cmd_spawn(
             }
             if start.elapsed() > timeout {
                 if json {
-                    println!("{}", serde_json::json!({
+                    super::json_error_exit(serde_json::json!({
                         "ok": false,
                         "session_name": session_name,
                         "backend": resolved.to_string(),
                         "ready": false,
                         "error": format!("Timeout waiting for session to register ({}s)", wait_timeout),
                     }));
-                    std::process::exit(1);
                 }
                 anyhow::bail!(
                     "Timeout waiting for session '{}' to register ({}s)",

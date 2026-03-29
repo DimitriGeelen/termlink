@@ -24,8 +24,7 @@ pub(crate) fn cmd_vendor(
             Ok(p) => p,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot determine current binary path: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot determine current binary path: {}", e)}));
                 }
                 return Err(e.into());
             }
@@ -34,8 +33,7 @@ pub(crate) fn cmd_vendor(
 
     if !source_path.exists() {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": format!("Source binary not found: {}", source_path.display())}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Source binary not found: {}", source_path.display())}));
         }
         anyhow::bail!("Source binary not found: {}", source_path.display());
     }
@@ -48,8 +46,7 @@ pub(crate) fn cmd_vendor(
             Ok(p) => p,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot determine current directory: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot determine current directory: {}", e)}));
                 }
                 return Err(e.into());
             }
@@ -65,8 +62,7 @@ pub(crate) fn cmd_vendor(
         Ok(m) => m,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot read source binary metadata: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot read source binary metadata: {}", e)}));
             }
             return Err(e.into());
         }
@@ -102,8 +98,7 @@ pub(crate) fn cmd_vendor(
     let bin_dir = project_dir.join(".termlink/bin");
     if let Err(e) = std::fs::create_dir_all(&bin_dir) {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot create {}: {}", bin_dir.display(), e)}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot create {}: {}", bin_dir.display(), e)}));
         }
         return Err(e.into());
     }
@@ -115,8 +110,7 @@ pub(crate) fn cmd_vendor(
     if let Err(e) = std::fs::copy(&source_path, &temp_bin) {
         let _ = std::fs::remove_file(&temp_bin);
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot copy binary to {}: {}", temp_bin.display(), e)}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot copy binary to {}: {}", temp_bin.display(), e)}));
         }
         return Err(e.into());
     }
@@ -128,8 +122,7 @@ pub(crate) fn cmd_vendor(
         if let Err(e) = std::fs::set_permissions(&temp_bin, std::fs::Permissions::from_mode(0o755)) {
             let _ = std::fs::remove_file(&temp_bin);
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot set executable permission: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot set executable permission: {}", e)}));
             }
             return Err(e.into());
         }
@@ -139,8 +132,7 @@ pub(crate) fn cmd_vendor(
     if let Err(e) = std::fs::rename(&temp_bin, &dest_bin) {
         let _ = std::fs::remove_file(&temp_bin);
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot rename binary to {}: {}", dest_bin.display(), e)}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot rename binary to {}: {}", dest_bin.display(), e)}));
         }
         return Err(e.into());
     }
@@ -150,8 +142,7 @@ pub(crate) fn cmd_vendor(
         && let Err(e) = std::fs::write(&dest_version, format!("{v}\n"))
     {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot write VERSION file: {}", e)}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot write VERSION file: {}", e)}));
         }
         return Err(e.into());
     }
@@ -212,6 +203,8 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool, check: bool) -
             println!("Not vendored. Run: termlink vendor");
         }
         if check {
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
             std::process::exit(1);
         }
         return Ok(());
@@ -226,8 +219,7 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool, check: bool) -
         Ok(m) => m,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot read vendor binary metadata: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot read vendor binary metadata: {e}")}));
             }
             anyhow::bail!("Cannot read vendor binary metadata: {e}");
         }
@@ -300,6 +292,8 @@ pub(crate) fn cmd_vendor_status(target: Option<&str>, json: bool, check: bool) -
     }
 
     if check && needs_update {
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
         std::process::exit(1);
     }
 

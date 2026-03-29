@@ -251,10 +251,9 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
-    if fail_count > 0 {
-        std::process::exit(1);
-    }
-    if strict && warn_count > 0 {
+    if fail_count > 0 || (strict && warn_count > 0) {
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
         std::process::exit(1);
     }
     Ok(())
@@ -298,8 +297,7 @@ pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
                 }
             }
             if json {
-                println!("{}", serde_json::json!({"ok": false, "action": "timeout", "pid": pid, "error": format!("Hub did not stop within 2 seconds. You may need to kill -9 {pid}.")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "action": "timeout", "pid": pid, "error": format!("Hub did not stop within 2 seconds. You may need to kill -9 {pid}.")}));
             } else {
                 println!("Hub did not stop within 2 seconds. You may need to kill -9 {pid}.");
             }
@@ -357,6 +355,8 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
     }
 
     if check && !is_running {
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
         std::process::exit(1);
     }
     Ok(())

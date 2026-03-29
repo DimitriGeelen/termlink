@@ -17,8 +17,7 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -29,8 +28,7 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         Ok(d) => d,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to read file '{}': {}", path, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to read file '{}': {}", path, e)}));
             }
             anyhow::bail!("Failed to read file '{}': {}", path, e);
         }
@@ -66,8 +64,7 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize file.init: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize file.init: {}", e)}));
             }
             return Err(e).context("Failed to serialize file.init");
         }
@@ -81,16 +78,14 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         Ok(result) => {
             if let Err(e) = result {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.init: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.init: {}", e)}));
                 }
                 return Err(e).context("Failed to emit file.init");
             }
         }
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("file.init timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("file.init timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("file.init timed out after {}s", timeout_secs);
         }
@@ -116,8 +111,7 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
             Ok(v) => v,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize chunk {}: {}", i, e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize chunk {}: {}", i, e)}));
                 }
                 return Err(e).context(format!("Failed to serialize chunk {}", i));
             }
@@ -132,16 +126,14 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
                 if let Err(e) = result {
                     let msg = format!("Failed to emit chunk {}/{}", i + 1, total_chunks);
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{}: {}", msg, e)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{}: {}", msg, e)}));
                     }
                     return Err(e).context(msg);
                 }
             }
             Err(_) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs)}));
                 }
                 anyhow::bail!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs);
             }
@@ -165,8 +157,7 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize file.complete: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to serialize file.complete: {}", e)}));
             }
             return Err(e).context("Failed to serialize file.complete");
         }
@@ -180,16 +171,14 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         Ok(result) => {
             if let Err(e) = result {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.complete: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.complete: {}", e)}));
                 }
                 return Err(e).context("Failed to emit file.complete");
             }
         }
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("file.complete timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("file.complete timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("file.complete timed out after {}s", timeout_secs);
         }
@@ -225,8 +214,7 @@ pub(crate) async fn cmd_file_receive(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -237,8 +225,7 @@ pub(crate) async fn cmd_file_receive(
         && let Err(e) = std::fs::create_dir_all(out_path)
     {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to create output directory '{}': {}", output_dir, e)}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to create output directory '{}': {}", output_dir, e)}));
         }
         return Err(e).context(format!("Failed to create output directory: {}", output_dir));
     }
@@ -310,8 +297,7 @@ pub(crate) async fn cmd_file_receive(
                                                     Ok(d) => d,
                                                     Err(e) => {
                                                         if json {
-                                                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid base64 in chunk {}: {}", chunk.index, e)}));
-                                                            std::process::exit(1);
+                                                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Invalid base64 in chunk {}: {}", chunk.index, e)}));
                                                         }
                                                         return Err(e).context(format!("Invalid base64 in chunk {}", chunk.index));
                                                     }
@@ -338,8 +324,7 @@ pub(crate) async fn cmd_file_receive(
                                                         None => {
                                                             let msg = format!("Missing chunk {} of {}", i, expected_chunks);
                                                             if json {
-                                                                println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
-                                                                std::process::exit(1);
+                                                                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
                                                             }
                                                             anyhow::bail!("{}", msg);
                                                         }
@@ -351,8 +336,7 @@ pub(crate) async fn cmd_file_receive(
                                                 if actual_sha256 != complete.sha256 {
                                                     let msg = format!("SHA-256 mismatch! Expected: {}, Got: {}", complete.sha256, actual_sha256);
                                                     if json {
-                                                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
-                                                        std::process::exit(1);
+                                                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
                                                     }
                                                     anyhow::bail!("{}", msg);
                                                 }
@@ -360,8 +344,7 @@ pub(crate) async fn cmd_file_receive(
                                                 let dest = out_path.join(fname);
                                                 if let Err(e) = std::fs::write(&dest, &file_data) {
                                                     if json {
-                                                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
-                                                        std::process::exit(1);
+                                                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
                                                     }
                                                     return Err(e).context(format!("Failed to write file: {}", dest.display()));
                                                 }
@@ -412,8 +395,7 @@ pub(crate) async fn cmd_file_receive(
                                                 Ok(d) => d,
                                                 Err(e) => {
                                                     if json {
-                                                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid base64 in chunk {}: {}", chunk.index, e)}));
-                                                        std::process::exit(1);
+                                                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Invalid base64 in chunk {}: {}", chunk.index, e)}));
                                                     }
                                                     return Err(e).context(format!("Invalid base64 in chunk {}", chunk.index));
                                                 }
@@ -439,8 +421,7 @@ pub(crate) async fn cmd_file_receive(
                                                     None => {
                                                         let msg = format!("Missing chunk {} of {}", i, expected_chunks);
                                                         if json {
-                                                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
-                                                            std::process::exit(1);
+                                                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
                                                         }
                                                         anyhow::bail!("{}", msg);
                                                     }
@@ -457,8 +438,7 @@ pub(crate) async fn cmd_file_receive(
                                                     complete.sha256, actual_sha256
                                                 );
                                                 if json {
-                                                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
-                                                    std::process::exit(1);
+                                                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
                                                 }
                                                 anyhow::bail!("{}", msg);
                                             }
@@ -467,8 +447,7 @@ pub(crate) async fn cmd_file_receive(
                                             let dest = out_path.join(fname);
                                             if let Err(e) = std::fs::write(&dest, &file_data) {
                                                 if json {
-                                                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
-                                                    std::process::exit(1);
+                                                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
                                                 }
                                                 return Err(e).context(format!("Failed to write file: {}", dest.display()));
                                             }
@@ -496,8 +475,7 @@ pub(crate) async fn cmd_file_receive(
                                         if transfer_id.as_deref() == Some(xfer) || transfer_id.is_none() {
                                             let err_msg = format!("Transfer error: {}", msg);
                                             if json {
-                                                println!("{}", serde_json::json!({"ok": false, "target": target, "error": err_msg}));
-                                                std::process::exit(1);
+                                                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": err_msg}));
                                             }
                                             anyhow::bail!("{}", err_msg);
                                         }
@@ -521,15 +499,13 @@ pub(crate) async fn cmd_file_receive(
             if transfer_id.is_some() {
                 let msg = format!("Timeout: received {}/{} chunks before timeout ({}s)", chunks.len(), expected_chunks, timeout);
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg, "chunks_received": chunks.len(), "chunks_expected": expected_chunks}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg, "chunks_received": chunks.len(), "chunks_expected": expected_chunks}));
                 }
                 anyhow::bail!("{}", msg);
             } else {
                 let msg = format!("Timeout waiting for file transfer ({}s)", timeout);
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
                 }
                 anyhow::bail!("{}", msg);
             }

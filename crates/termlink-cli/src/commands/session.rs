@@ -47,8 +47,7 @@ pub(crate) async fn cmd_register(
         Ok(s) => s,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to register session: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to register session: {}", e)}));
             }
             return Err(e).context("Failed to register session");
         }
@@ -104,8 +103,7 @@ pub(crate) async fn cmd_register(
             Ok(p) => p,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to spawn PTY session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to spawn PTY session: {}", e)}));
                 }
                 return Err(e).context("Failed to spawn PTY session");
             }
@@ -127,8 +125,7 @@ pub(crate) async fn cmd_register(
         && let Err(e) = session.persist_registration()
     {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to persist updated registration: {}", e)}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to persist updated registration: {}", e)}));
         }
         return Err(e).context("Failed to persist updated registration");
     }
@@ -246,8 +243,7 @@ pub(crate) async fn cmd_register_self(
         Ok(e) => e,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to register endpoint: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to register endpoint: {}", e)}));
             }
             return Err(e).context("Failed to register endpoint");
         }
@@ -308,8 +304,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
                 Ok(r) => r,
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
                     }
                     return Err(e);
                 }
@@ -319,8 +314,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
             }
             if start.elapsed() > timeout_dur {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
                 }
                 anyhow::bail!("No matching sessions found within {}s", wait_timeout);
             }
@@ -331,8 +325,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
                 }
                 return Err(e);
             }
@@ -373,7 +366,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
             }
         } else {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": "No matching sessions"}));
+                super::json_error_exit(serde_json::json!({"ok": false, "error": "No matching sessions"}));
             }
             std::process::exit(1);
         }
@@ -469,8 +462,7 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool, no_header: bool, count: bool)
         Ok(s) => s,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to scan for stale sessions: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to scan for stale sessions: {}", e)}));
             }
             return Err(e).context("Failed to scan for stale sessions");
         }
@@ -537,8 +529,7 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -552,8 +543,7 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
@@ -561,14 +551,13 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
         Err(_) => {
             let latency_ms = start.elapsed().as_millis();
             if json {
-                println!("{}", serde_json::json!({
+                super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "target": target,
                     "error": format!("Ping timed out after {}s", timeout_secs),
                     "timeout_ms": timeout_secs * 1000,
                     "latency_ms": latency_ms,
                 }));
-                std::process::exit(1);
             }
             anyhow::bail!("Ping timed out after {}s", timeout_secs);
         }
@@ -599,12 +588,11 @@ pub(crate) async fn cmd_ping(target: &str, json: bool, timeout_secs: u64) -> Res
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({
+                super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "target": target,
                     "error": format!("{e}"),
                 }));
-                std::process::exit(1);
             }
             anyhow::bail!("Ping failed: {}", e);
         }
@@ -616,8 +604,7 @@ pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_se
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -630,16 +617,14 @@ pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_se
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Status query timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Status query timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("Status query timed out after {}s", timeout_secs);
         }
@@ -723,8 +708,7 @@ pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_se
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
             }
             anyhow::bail!("Status query failed: {}", e);
         }
@@ -736,8 +720,7 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -759,16 +742,14 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Exec RPC timed out after {}s", timeout + 5)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Exec RPC timed out after {}s", timeout + 5)}));
             }
             anyhow::bail!("Exec RPC timed out after {}s (command timeout: {}s)", timeout + 5, timeout);
         }
@@ -809,8 +790,7 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
             }
             anyhow::bail!("Execution failed: {}", e);
         }
@@ -822,8 +802,7 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON params: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid JSON params: {}", e)}));
             }
             return Err(e.into());
         }
@@ -833,8 +812,7 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -847,20 +825,18 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({
+                super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "method": method,
                     "error": {"code": -1, "message": format!("Timed out after {}s", timeout_secs)},
                 }));
-                std::process::exit(1);
             }
             anyhow::bail!("RPC call timed out after {}s", timeout_secs);
         }
@@ -880,7 +856,7 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
         }
         termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
             if json {
-                println!("{}", serde_json::json!({
+                super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "method": method,
                     "error": {
@@ -889,7 +865,6 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
                         "data": e.error.data,
                     },
                 }));
-                std::process::exit(1);
             } else {
                 eprintln!("Error {}: {}", e.error.code, e.error.message);
                 if let Some(data) = &e.error.data {
@@ -908,8 +883,7 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -920,8 +894,7 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
         None => {
             let msg = format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal);
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
@@ -938,16 +911,14 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Signal timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Signal timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("Signal timed out after {}s", timeout_secs);
         }
@@ -973,8 +944,7 @@ pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_s
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
             }
             anyhow::bail!("Signal failed: {}", e);
         }
@@ -1002,6 +972,8 @@ pub(crate) fn cmd_info(json: bool, short: bool, check: bool) -> Result<()> {
         let hub_status = if hub_running { "running" } else { "stopped" };
         println!("termlink {version} sessions:{live}/{all} hub:{hub_status}");
         if check && (!hub_running || stale > 0) {
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
             std::process::exit(1);
         }
         return Ok(());
@@ -1024,6 +996,8 @@ pub(crate) fn cmd_info(json: bool, short: bool, check: bool) -> Result<()> {
             },
         }))?);
         if check && (!hub_running || stale > 0) {
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
             std::process::exit(1);
         }
         return Ok(());
@@ -1053,6 +1027,8 @@ pub(crate) fn cmd_info(json: bool, short: bool, check: bool) -> Result<()> {
     }
 
     if check && (!hub_running || stale > 0) {
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
         std::process::exit(1);
     }
 

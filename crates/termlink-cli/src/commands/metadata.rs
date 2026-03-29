@@ -18,8 +18,7 @@ pub(crate) async fn cmd_tag(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -33,15 +32,13 @@ pub(crate) async fn cmd_tag(
             Ok(Ok(r)) => r,
             Ok(Err(e)) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect: {e}")}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect: {e}")}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
             Err(_) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Timed out after {}s", timeout_secs)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Timed out after {}s", timeout_secs)}));
                 }
                 anyhow::bail!("Tag query timed out after {}s", timeout_secs);
             }
@@ -71,8 +68,7 @@ pub(crate) async fn cmd_tag(
             }
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
                 }
                 anyhow::bail!("Failed to query tags: {}", e);
             }
@@ -97,16 +93,14 @@ pub(crate) async fn cmd_tag(
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Tag update timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Tag update timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("Tag update timed out after {}s", timeout_secs);
         }
@@ -142,8 +136,7 @@ pub(crate) async fn cmd_tag(
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
             }
             anyhow::bail!("Tag update failed: {}", e);
         }
@@ -190,8 +183,7 @@ pub(crate) async fn cmd_discover(
                 Ok(s) => s,
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
                     }
                     return Err(e).context("Failed to discover sessions");
                 }
@@ -202,8 +194,7 @@ pub(crate) async fn cmd_discover(
             }
             if start.elapsed() > timeout_dur {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
                 }
                 anyhow::bail!("No matching sessions found within {}s", wait_timeout);
             }
@@ -214,8 +205,7 @@ pub(crate) async fn cmd_discover(
             Ok(s) => s,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
                 }
                 return Err(e).context("Failed to discover sessions");
             }
@@ -271,7 +261,7 @@ pub(crate) async fn cmd_discover(
             }
         } else {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": "No matching sessions"}));
+                super::json_error_exit(serde_json::json!({"ok": false, "error": "No matching sessions"}));
             }
             std::process::exit(1);
         }
@@ -342,8 +332,7 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -365,16 +354,14 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                     Ok(v) => v,
                     Err(e) => {
                         if json {
-                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                            std::process::exit(1);
+                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                         }
                         return Err(e).context("Failed to connect to session");
                     }
                 },
                 Err(_) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.set timed out after {}s", timeout_secs)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.set timed out after {}s", timeout_secs)}));
                     }
                     anyhow::bail!("kv.set timed out after {}s", timeout_secs);
                 }
@@ -402,8 +389,7 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 }
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
                     }
                     anyhow::bail!("kv.set failed: {}", e);
                 }
@@ -420,16 +406,14 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                     Ok(v) => v,
                     Err(e) => {
                         if json {
-                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                            std::process::exit(1);
+                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                         }
                         return Err(e).context("Failed to connect to session");
                     }
                 },
                 Err(_) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.get timed out after {}s", timeout_secs)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.get timed out after {}s", timeout_secs)}));
                     }
                     anyhow::bail!("kv.get timed out after {}s", timeout_secs);
                 }
@@ -463,8 +447,7 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 }
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
                     }
                     anyhow::bail!("kv.get failed: {}", e);
                 }
@@ -481,16 +464,14 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                     Ok(v) => v,
                     Err(e) => {
                         if json {
-                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                            std::process::exit(1);
+                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                         }
                         return Err(e).context("Failed to connect to session");
                     }
                 },
                 Err(_) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.list timed out after {}s", timeout_secs)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.list timed out after {}s", timeout_secs)}));
                     }
                     anyhow::bail!("kv.list timed out after {}s", timeout_secs);
                 }
@@ -531,8 +512,7 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 }
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
                     }
                     anyhow::bail!("kv.list failed: {}", e);
                 }
@@ -549,16 +529,14 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                     Ok(v) => v,
                     Err(e) => {
                         if json {
-                            println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                            std::process::exit(1);
+                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                         }
                         return Err(e).context("Failed to connect to session");
                     }
                 },
                 Err(_) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("kv.delete timed out after {}s", timeout_secs)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.delete timed out after {}s", timeout_secs)}));
                     }
                     anyhow::bail!("kv.delete timed out after {}s", timeout_secs);
                 }
@@ -583,8 +561,7 @@ pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool
                 }
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
                     }
                     anyhow::bail!("kv.delete failed: {}", e);
                 }

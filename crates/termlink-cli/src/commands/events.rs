@@ -8,8 +8,7 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -30,16 +29,14 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
             Ok(v) => v,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Event poll timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Event poll timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("Event poll timed out after {}s", timeout_secs);
         }
@@ -93,8 +90,7 @@ pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
             }
             anyhow::bail!("Event poll failed: {}", e);
         }
@@ -106,8 +102,7 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
             }
             return Err(e.into());
         }
@@ -117,8 +112,7 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -135,16 +129,14 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
             Ok(v) => v,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to session");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Event emit timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Event emit timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("Event emit timed out after {}s", timeout_secs);
         }
@@ -171,8 +163,7 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
             }
             anyhow::bail!("Event emit failed: {}", e);
         }
@@ -184,8 +175,7 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
             }
             return Err(e.into());
         }
@@ -194,8 +184,7 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
         }
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }
@@ -215,16 +204,14 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
             Ok(v) => v,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to hub");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "topic": topic, "error": format!("Broadcast timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "topic": topic, "error": format!("Broadcast timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("Broadcast timed out after {}s", timeout_secs);
         }
@@ -260,8 +247,7 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "topic": topic, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "topic": topic, "error": format!("{e}")}));
             }
             anyhow::bail!("Broadcast failed: {}", e);
         }
@@ -280,8 +266,7 @@ pub(crate) async fn cmd_emit_to(
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid JSON payload: {}", e)}));
             }
             return Err(e.into());
         }
@@ -290,8 +275,7 @@ pub(crate) async fn cmd_emit_to(
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
         }
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }
@@ -312,16 +296,14 @@ pub(crate) async fn cmd_emit_to(
             Ok(v) => v,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
                 }
                 return Err(e).context("Failed to connect to hub");
             }
         },
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("emit-to timed out after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("emit-to timed out after {}s", timeout_secs)}));
             }
             anyhow::bail!("emit-to timed out after {}s", timeout_secs);
         }
@@ -349,8 +331,7 @@ pub(crate) async fn cmd_emit_to(
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
             }
             anyhow::bail!("emit-to failed: {}", e);
         }
@@ -374,16 +355,14 @@ pub(crate) async fn cmd_watch(
             Ok(s) => s,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {e}")}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {e}")}));
                 }
                 return Err(e).context("Failed to list sessions");
             }
         };
         if sessions.is_empty() {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": "No active sessions to watch."}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": "No active sessions to watch."}));
             }
             anyhow::bail!("No active sessions to watch.");
         }
@@ -398,8 +377,7 @@ pub(crate) async fn cmd_watch(
                 Ok(r) => regs.push(r),
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": t, "error": format!("Session '{}' not found: {}", t, e)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": t, "error": format!("Session '{}' not found: {}", t, e)}));
                     }
                     return Err(e).context(format!("Session '{}' not found", t));
                 }
@@ -410,8 +388,7 @@ pub(crate) async fn cmd_watch(
 
     if registrations.is_empty() {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": "No reachable sessions to watch."}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "No reachable sessions to watch."}));
         }
         anyhow::bail!("No reachable sessions to watch.");
     }
@@ -552,8 +529,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -576,7 +552,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
         if let Some(dl) = deadline
             && tokio::time::Instant::now() >= dl {
                 if json {
-                    println!("{}", serde_json::json!({
+                    super::json_error_exit(serde_json::json!({
                         "ok": false,
                         "matched": false,
                         "topic": topic,
@@ -584,7 +560,6 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                         "reason": "timeout",
                         "timeout_secs": timeout_secs,
                     }));
-                    std::process::exit(1);
                 }
                 anyhow::bail!("Timeout waiting for event topic '{}'", topic);
             }
@@ -592,14 +567,13 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
                 if json {
-                    println!("{}", serde_json::json!({
+                    super::json_error_exit(serde_json::json!({
                         "ok": false,
                         "matched": false,
                         "topic": topic,
                         "target": target,
                         "reason": "interrupted",
                     }));
-                    std::process::exit(1);
                 }
                 anyhow::bail!("Interrupted");
             }
@@ -612,14 +586,13 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                     Ok(r) => r,
                     Err(_) => {
                         if json {
-                            println!("{}", serde_json::json!({
+                            super::json_error_exit(serde_json::json!({
                                 "ok": false,
                                 "matched": false,
                                 "topic": topic,
                                 "target": target,
                                 "reason": "disconnected",
                             }));
-                            std::process::exit(1);
                         }
                         anyhow::bail!("Session '{}' disconnected while waiting", target);
                     }
@@ -667,8 +640,7 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "target": t, "error": format!("Session '{}' not found: {}", t, e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": t, "error": format!("Session '{}' not found: {}", t, e)}));
                 }
                 return Err(e).context(format!("Session '{}' not found", t));
             }
@@ -678,8 +650,7 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             Ok(s) => s,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {e}")}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {e}")}));
                 }
                 return Err(e).context("Failed to list sessions");
             }
@@ -775,8 +746,7 @@ pub(crate) async fn cmd_collect(
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
         }
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }

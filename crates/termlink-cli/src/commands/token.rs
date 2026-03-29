@@ -10,8 +10,7 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -22,8 +21,7 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
         None => {
             let msg = format!("Session '{}' does not have token auth enabled. Register with --token-secret.", target);
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
@@ -32,8 +30,7 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
     let secret_bytes: auth::TokenSecret = {
         if secret_hex.len() != 64 {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": "Invalid token_secret in registration (expected 64 hex chars)"}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": "Invalid token_secret in registration (expected 64 hex chars)"}));
             }
             anyhow::bail!("Invalid token_secret in registration (expected 64 hex chars)");
         }
@@ -43,8 +40,7 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
                 Ok(v) => v,
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid hex in token_secret: {}", e)}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Invalid hex in token_secret: {}", e)}));
                     }
                     return Err(e.into());
                 }
@@ -57,8 +53,7 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
         Ok(s) => s,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Invalid scope '{}': {}", scope, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Invalid scope '{}': {}", scope, e)}));
             }
             anyhow::bail!("Invalid scope '{}': {}", scope, e);
         }
@@ -89,8 +84,7 @@ pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
     let parts: Vec<&str> = token_str.splitn(2, '.').collect();
     if parts.len() != 2 {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": "Invalid token format (expected payload.signature)"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Invalid token format (expected payload.signature)"}));
         }
         anyhow::bail!("Invalid token format (expected payload.signature)");
     }
@@ -99,8 +93,7 @@ pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid base64 in token payload: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid base64 in token payload: {}", e)}));
             }
             return Err(e.into());
         }
@@ -110,8 +103,7 @@ pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON in token payload: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid JSON in token payload: {}", e)}));
             }
             return Err(e.into());
         }

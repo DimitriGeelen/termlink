@@ -11,3 +11,14 @@ pub(crate) mod agent;
 pub(crate) mod file;
 pub(crate) mod push;
 pub(crate) mod vendor;
+
+/// Print a JSON value to stdout, flush, and exit with code 1.
+///
+/// `process::exit(1)` alone does not flush Rust's buffered stdout,
+/// so piped consumers (scripts, tests) may see empty output.
+pub(crate) fn json_error_exit(value: serde_json::Value) -> ! {
+    use std::io::Write;
+    println!("{value}");
+    let _ = std::io::stdout().flush();
+    std::process::exit(1);
+}

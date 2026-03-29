@@ -29,15 +29,13 @@ pub(crate) async fn cmd_dispatch(
 ) -> Result<()> {
     if count == 0 {
         if json_output {
-            println!("{}", serde_json::json!({"ok": false, "error": "--count must be at least 1"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "--count must be at least 1"}));
         }
         anyhow::bail!("--count must be at least 1");
     }
     if command.is_empty() {
         if json_output {
-            println!("{}", serde_json::json!({"ok": false, "error": "Command required after --"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Command required after --"}));
         }
         anyhow::bail!("Command required after --");
     }
@@ -46,8 +44,7 @@ pub(crate) async fn cmd_dispatch(
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
         if json_output {
-            println!("{}", serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub start (dispatch requires the hub for event collection)"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub start (dispatch requires the hub for event collection)"}));
         }
         anyhow::bail!("Hub is not running. Start it with: termlink hub start\n(dispatch requires the hub for event collection)");
     }
@@ -84,8 +81,7 @@ pub(crate) async fn cmd_dispatch(
             Ok(p) => p,
             Err(e) => {
                 if json_output {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to determine termlink binary path: {}", e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to determine termlink binary path: {}", e)}));
                 }
                 return Err(e.into());
             }
@@ -349,6 +345,8 @@ pub(crate) async fn cmd_dispatch(
     }
 
     if timed_out {
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
         std::process::exit(1);
     }
     Ok(())

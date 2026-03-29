@@ -1390,6 +1390,25 @@ fn cli_pty_output_json() {
     assert!(parsed["target"].is_string(), "Expected target");
 }
 
+// ─── Broadcast Tests ─────────────────────────────────────────────────
+
+#[test]
+fn cli_broadcast_no_hub_json() {
+    let dir = TestDir::new("bcast-json");
+    // Broadcast without a hub should fail with JSON error
+    let output = termlink_cmd(&dir.path)
+        .args(["event", "broadcast", "test-topic", "--json"])
+        .output()
+        .expect("Failed to run broadcast --json");
+
+    assert!(!output.status.success(), "broadcast should fail without hub");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+    assert_eq!(parsed["ok"], false);
+    assert!(parsed["error"].as_str().unwrap().contains("Hub is not running"));
+}
+
 // ─── Token Tests ─────────────────────────────────────────────────────
 
 #[test]

@@ -24,8 +24,7 @@ pub(crate) async fn cmd_agent_ask(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -38,8 +37,7 @@ pub(crate) async fn cmd_agent_ask(
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Invalid JSON in --params: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Invalid JSON in --params: {}", e)}));
             }
             return Err(e.into());
         }
@@ -73,8 +71,7 @@ pub(crate) async fn cmd_agent_ask(
         Ok(v) => v,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to serialize AgentRequest: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to serialize AgentRequest: {}", e)}));
             }
             return Err(e.into());
         }
@@ -88,8 +85,7 @@ pub(crate) async fn cmd_agent_ask(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit agent request: {}", e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit agent request: {}", e)}));
             }
             return Err(e).context("Failed to emit agent request");
         }
@@ -104,13 +100,12 @@ pub(crate) async fn cmd_agent_ask(
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({
+                super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "action": action,
                     "request_id": request_id,
                     "error": format!("Failed to emit agent request: {}", e),
                 }));
-                std::process::exit(1);
             }
             anyhow::bail!("Failed to emit agent request: {}", e);
         }
@@ -152,14 +147,15 @@ pub(crate) async fn cmd_agent_ask(
                                 if let Ok(response) = serde_json::from_value::<AgentResponse>(event_payload.clone()) {
                                     if json {
                                         let is_ok = response.status == termlink_protocol::events::ResponseStatus::Ok;
-                                        println!("{}", serde_json::json!({
+                                        let report = serde_json::json!({
                                             "ok": is_ok,
                                             "action": action,
                                             "request_id": request_id,
                                             "result": response.result,
                                             "error": response.error_message,
-                                        }));
-                                        if !is_ok { std::process::exit(1); }
+                                        });
+                                        if !is_ok { super::json_error_exit(report); }
+                                        println!("{report}");
                                     } else if response.status == termlink_protocol::events::ResponseStatus::Ok {
                                         println!("{}", serde_json::to_string_pretty(&response.result)?);
                                     } else {
@@ -203,13 +199,12 @@ pub(crate) async fn cmd_agent_ask(
 
         if start.elapsed() > timeout_dur {
             if json {
-                println!("{}", serde_json::json!({
+                super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "action": action,
                     "request_id": request_id,
                     "error": format!("Timeout waiting for agent response ({}s)", timeout),
                 }));
-                std::process::exit(1);
             }
             anyhow::bail!("Timeout waiting for agent response ({}s). request_id={}", timeout, request_id);
         }
@@ -228,8 +223,7 @@ pub(crate) async fn cmd_agent_listen(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
         }
@@ -332,8 +326,7 @@ pub(crate) async fn cmd_agent_negotiate(
         Ok(r) => r,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Specialist session '{}' not found: {}", specialist, e)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Specialist session '{}' not found: {}", specialist, e)}));
             }
             return Err(e).context(format!("Specialist session '{}' not found", specialist));
         }
@@ -634,7 +627,7 @@ pub(crate) async fn cmd_agent_negotiate(
         }
     } else {
         if json {
-            println!("{}", serde_json::json!({
+            super::json_error_exit(serde_json::json!({
                 "ok": false,
                 "result": "failed",
                 "rounds": state.round,
@@ -646,8 +639,8 @@ pub(crate) async fn cmd_agent_negotiate(
                 "Negotiation failed after {} round(s): {}",
                 state.round, state.phase
             );
+            std::process::exit(1);
         }
-        std::process::exit(1);
     }
 
     Ok(())

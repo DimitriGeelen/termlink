@@ -206,8 +206,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
         ProfileAction::Add { name, address, secret_file, secret, scope, json } => {
             if !address.contains(':') {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": "Address must be in host:port format (e.g., 192.168.10.107:9100)"}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": "Address must be in host:port format (e.g., 192.168.10.107:9100)"}));
                 }
                 anyhow::bail!("Address must be in host:port format (e.g., 192.168.10.107:9100)");
             }
@@ -299,8 +298,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 }
             } else {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Profile '{}' not found", name)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Profile '{}' not found", name)}));
                 }
                 println!("Profile '{}' not found", name);
             }
@@ -323,8 +321,7 @@ pub(crate) async fn cmd_remote_ping(
         Ok(result) => result,
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote ping", timeout_secs);
         }
@@ -344,8 +341,7 @@ async fn cmd_remote_ping_inner(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -391,15 +387,13 @@ async fn cmd_remote_ping_inner(
                         format!("Ping failed: {} {}", e.error.code, e.error.message)
                     };
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": target, "error": msg}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": target, "error": msg}));
                     }
                     anyhow::bail!("{}", msg);
                 }
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": target, "error": format!("Ping error: {e}")}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": target, "error": format!("Ping error: {e}")}));
                     }
                     anyhow::bail!("Ping error: {}", e);
                 }
@@ -432,15 +426,13 @@ async fn cmd_remote_ping_inner(
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                     let msg = format!("Hub ping failed: {} {}", e.error.code, e.error.message);
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": msg}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": msg}));
                     }
                     anyhow::bail!("{}", msg);
                 }
                 Err(e) => {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Hub ping error: {e}")}));
-                        std::process::exit(1);
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Hub ping error: {e}")}));
                     }
                     anyhow::bail!("Hub ping error: {}", e);
                 }
@@ -472,8 +464,7 @@ pub(crate) async fn cmd_remote_list(
         Ok(result) => result,
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote list", timeout_secs);
         }
@@ -501,8 +492,7 @@ async fn cmd_remote_list_inner(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -545,7 +535,7 @@ async fn cmd_remote_list_inner(
                     }
                 } else {
                     if json {
-                        println!("{}", serde_json::json!({"ok": false, "error": "No matching sessions"}));
+                        super::json_error_exit(serde_json::json!({"ok": false, "error": "No matching sessions"}));
                     }
                     std::process::exit(1);
                 }
@@ -622,15 +612,13 @@ async fn cmd_remote_list_inner(
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = format!("Discover failed: {} {}", e.error.code, e.error.message);
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Discover error: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Discover error: {e}")}));
             }
             anyhow::bail!("Discover error: {}", e);
         }
@@ -653,8 +641,7 @@ pub(crate) async fn cmd_remote_status(
         Ok(result) => result,
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote status", timeout_secs);
         }
@@ -674,8 +661,7 @@ async fn cmd_remote_status_inner(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -757,15 +743,13 @@ async fn cmd_remote_status_inner(
                 format!("Status query failed: {} {}", e.error.code, e.error.message)
             };
             if json {
-                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Status query error: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Status query error: {e}")}));
             }
             anyhow::bail!("Status query error: {}", e);
         }
@@ -791,8 +775,7 @@ pub(crate) async fn cmd_remote_inject(
         Ok(result) => result,
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote inject", timeout_secs);
         }
@@ -816,8 +799,7 @@ async fn cmd_remote_inject_inner(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -862,15 +844,13 @@ async fn cmd_remote_inject_inner(
                 format!("Inject failed: {} {}", e.error.code, e.error.message)
             };
             if json {
-                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Inject error: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Inject error: {e}")}));
             }
             anyhow::bail!("Inject error: {}", e);
         }
@@ -894,8 +874,7 @@ pub(crate) async fn cmd_remote_send_file(
         Ok(result) => result,
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote file transfer", timeout_secs);
         }
@@ -921,8 +900,7 @@ async fn cmd_remote_send_file_inner(
         Ok(d) => d,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "error": format!("Failed to read file: {path}: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to read file: {path}: {e}")}));
             }
             return Err(e).context(format!("Failed to read file: {}", path));
         }
@@ -946,8 +924,7 @@ async fn cmd_remote_send_file_inner(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -981,15 +958,13 @@ async fn cmd_remote_send_file_inner(
                 format!("Failed to emit file.init: {} {}", e.error.code, e.error.message)
             };
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.init: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.init: {e}")}));
             }
             anyhow::bail!("Failed to emit file.init: {}", e);
         }
@@ -1014,15 +989,13 @@ async fn cmd_remote_send_file_inner(
             Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                 let msg = format!("Failed to emit chunk {}/{}: {} {}", i + 1, total_chunks, e.error.code, e.error.message);
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
                 }
                 anyhow::bail!("{}", msg);
             }
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e)}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e)}));
                 }
                 anyhow::bail!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e);
             }
@@ -1051,15 +1024,13 @@ async fn cmd_remote_send_file_inner(
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = format!("Failed to emit file.complete: {} {}", e.error.code, e.error.message);
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.complete: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.complete: {e}")}));
             }
             anyhow::bail!("Failed to emit file.complete: {}", e);
         }
@@ -1101,8 +1072,7 @@ pub(crate) async fn cmd_remote_events(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -1228,8 +1198,7 @@ pub(crate) async fn cmd_remote_exec(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -1286,15 +1255,13 @@ pub(crate) async fn cmd_remote_exec(
                 format!("Execution failed: {} {}", e.error.code, e.error.message)
             };
             if json {
-                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Execution error: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Execution error: {e}")}));
             }
             anyhow::bail!("Execution error: {}", e);
         }

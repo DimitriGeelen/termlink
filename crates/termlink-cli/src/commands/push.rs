@@ -29,8 +29,7 @@ pub(crate) async fn cmd_push(
         Ok(result) => result,
         Err(_) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote push", timeout_secs);
         }
@@ -51,8 +50,7 @@ async fn cmd_push_inner(
     // Validate: need either file or message
     if file.is_none() && message.is_none() {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "error": "Provide a file path or --message (or both)"}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Provide a file path or --message (or both)"}));
         }
         anyhow::bail!("Provide a file path or --message (or both)");
     }
@@ -63,8 +61,7 @@ async fn cmd_push_inner(
             Ok(d) => d,
             Err(e) => {
                 if json {
-                    println!("{}", serde_json::json!({"ok": false, "error": format!("Cannot read file: {path}: {e}")}));
-                    std::process::exit(1);
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Cannot read file: {path}: {e}")}));
                 }
                 return Err(e).context(format!("Cannot read file: {path}"));
             }
@@ -87,8 +84,7 @@ async fn cmd_push_inner(
         Ok(c) => c,
         Err(e) => {
             if json {
-                println!("{}", serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
-                std::process::exit(1);
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -105,8 +101,7 @@ async fn cmd_push_inner(
 
     if let Err(e) = exec_rpc(&mut rpc_client, session, &write_cmd).await {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to deliver file to target inbox: {e}")}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to deliver file to target inbox: {e}")}));
         }
         return Err(e).context("Failed to deliver file to target inbox");
     }
@@ -118,8 +113,7 @@ async fn cmd_push_inner(
 
     if let Err(e) = inject_rpc(&mut rpc_client, session, &notification).await {
         if json {
-            println!("{}", serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to inject PTY notification: {e}")}));
-            std::process::exit(1);
+            super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to inject PTY notification: {e}")}));
         }
         return Err(e).context("Failed to inject PTY notification");
     }
