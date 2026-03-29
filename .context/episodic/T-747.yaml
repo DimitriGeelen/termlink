@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-747: Generate 25 missing episodic summaries (T-673 through T-698)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T14:23:15Z
+# ============================================================================
+
+task_id: T-747
+task_name: "Generate 25 missing episodic summaries (T-673 through T-698)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T14:21:02Z
+completed: 2026-03-29T14:23:14Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T16:23:07+02:00
+last_commit: 2026-03-29T16:23:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Generate 25 missing episodic summaries (T-673 through T-698)
+
+# Key outcomes
+outcomes:
+  - "All 25 episodic summary files exist in .context/episodic/"
+  - "Each file is valid YAML"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-630.yaml"
+  - ".context/episodic/T-634.yaml"
+  - ".context/episodic/T-667.yaml"
+  - ".context/episodic/T-670.yaml"
+  - ".context/episodic/T-673.yaml"
+  - ".context/episodic/T-674.yaml"
+  - ".context/episodic/T-675.yaml"
+  - ".context/episodic/T-676.yaml"
+  - ".context/episodic/T-677.yaml"
+  - ".context/episodic/T-678.yaml"
+  - ".context/episodic/T-679.yaml"
+  - ".context/episodic/T-680.yaml"
+  - ".context/episodic/T-681.yaml"
+  - ".context/episodic/T-682.yaml"
+  - ".context/episodic/T-683.yaml"
+  - ".context/episodic/T-684.yaml"
+  - ".context/episodic/T-685.yaml"
+  - ".context/episodic/T-686.yaml"
+  - ".context/episodic/T-687.yaml"
+  - ".context/episodic/T-688.yaml"
+  - ".context/episodic/T-689.yaml"
+  - ".context/episodic/T-691.yaml"
+  - ".context/episodic/T-692.yaml"
+  - ".context/episodic/T-693.yaml"
+  - ".context/episodic/T-694.yaml"
+  - ".context/episodic/T-695.yaml"
+  - ".context/episodic/T-696.yaml"
+  - ".context/episodic/T-697.yaml"
+  - ".context/episodic/T-698.yaml"
+  - ".context/episodic/T-707.yaml"
+  - ".context/episodic/T-745.yaml"
+  - ".context/episodic/T-746.yaml"
+  - ".tasks/active/T-747-generate-25-missing-episodic-summaries-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T16:23:07"
+    action: "T-747: Generate 25 missing episodic summaries (T-673 through T-698)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 33
+  lines_added: 1536
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-747-generate-25-missing-episodic-summaries-t.md
+generated_by: context-agent-hybrid

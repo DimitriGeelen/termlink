@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-748: Fix heredoc injection vulnerability in push command — content containing delimiter can escape
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-29T14:25:56Z
+# ============================================================================
+
+task_id: T-748
+task_name: "Fix heredoc injection vulnerability in push command — content containing delimiter can escape"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T14:23:51Z
+completed: 2026-03-29T14:25:54Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T16:25:47+02:00
+last_commit: 2026-03-29T16:25:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix heredoc injection in push command — use base64 encoding
+
+# Key outcomes
+outcomes:
+  - "Push command uses base64 encoding instead of raw heredoc for content delivery"
+  - "Content containing shell metacharacters and heredoc delimiters is safely transported"
+  - "`cargo build --release -p termlink` compiles cleanly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix heredoc injection in push command — use base64 encoding"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/push.rs"
+  - ".tasks/active/T-748-fix-heredoc-injection-vulnerability-in-p.md"
+  - ".tasks/completed/T-747-generate-25-missing-episodic-summaries-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T16:25:47"
+    action: "T-748: Fix heredoc injection in push command — use base64 encoding"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 63
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-748-fix-heredoc-injection-vulnerability-in-p.md
+generated_by: context-agent-hybrid
