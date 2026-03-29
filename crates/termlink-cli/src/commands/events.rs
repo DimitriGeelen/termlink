@@ -631,7 +631,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
     }
 }
 
-pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
+pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u64, no_header: bool) -> Result<()> {
     use std::collections::BTreeMap;
 
     let registrations = if let Some(t) = target {
@@ -711,18 +711,26 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
     }
 
     for (name, topics) in &session_topics {
-        println!("{}:", name);
+        if !no_header {
+            println!("{}:", name);
+        }
         for topic in topics {
-            println!("  {}", topic);
+            if no_header {
+                println!("{}", topic);
+            } else {
+                println!("  {}", topic);
+            }
         }
     }
 
-    println!();
-    println!(
-        "{} topic(s) across {} session(s)",
-        total,
-        session_topics.len()
-    );
+    if !no_header {
+        println!();
+        println!(
+            "{} topic(s) across {} session(s)",
+            total,
+            session_topics.len()
+        );
+    }
     Ok(())
 }
 
