@@ -4,7 +4,7 @@ name: "Fix stale CLI commands table in ARCHITECTURE.md"
 description: >
   Fix stale CLI commands table in ARCHITECTURE.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T20:28:06Z
-last_update: 2026-03-29T20:28:06Z
-date_finished: null
+last_update: 2026-03-29T20:29:06Z
+date_finished: 2026-03-29T20:29:06Z
 ---
 
 # T-764: Fix stale CLI commands table in ARCHITECTURE.md
@@ -49,3 +49,6 @@ grep -q "doctor" docs/ARCHITECTURE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-764-fix-stale-cli-commands-table-in-architec.md
 - **Context:** Initial task creation
+
+### 2026-03-29T20:29:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Update Homebrew formula — add Linux aarch64 variant to match release wo
 description: >
   Update Homebrew formula — add Linux aarch64 variant to match release workflow
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T20:06:21Z
-last_update: 2026-03-29T20:06:21Z
-date_finished: null
+last_update: 2026-03-29T20:07:35Z
+date_finished: 2026-03-29T20:07:35Z
 ---
 
 # T-760: Update Homebrew formula — add Linux aarch64 variant to match release workflow
@@ -50,3 +50,6 @@ grep -q "termlink-linux-aarch64" homebrew/Formula/termlink.rb
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-760-update-homebrew-formula--add-linux-aarch.md
 - **Context:** Initial task creation
+
+### 2026-03-29T20:07:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

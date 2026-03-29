@@ -4,7 +4,7 @@ name: "Update ARCHITECTURE.md — add MCP crate to hierarchy"
 description: >
   Update ARCHITECTURE.md — add MCP crate to hierarchy
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T20:14:06Z
-last_update: 2026-03-29T20:14:06Z
-date_finished: null
+last_update: 2026-03-29T20:16:30Z
+date_finished: 2026-03-29T20:16:30Z
 ---
 
 # T-762: Update ARCHITECTURE.md — add MCP crate to hierarchy
@@ -50,3 +50,6 @@ grep -q "termlink-mcp" docs/ARCHITECTURE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-762-update-architecturemd--add-mcp-crate-to-.md
 - **Context:** Initial task creation
+
+### 2026-03-29T20:16:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

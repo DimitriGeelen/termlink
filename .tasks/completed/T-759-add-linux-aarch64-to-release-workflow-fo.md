@@ -4,7 +4,7 @@ name: "Add Linux aarch64 to release workflow for ARM64 support"
 description: >
   Add Linux aarch64 to release workflow for ARM64 support
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T20:02:23Z
-last_update: 2026-03-29T20:02:23Z
-date_finished: null
+last_update: 2026-03-29T20:03:50Z
+date_finished: 2026-03-29T20:03:50Z
 ---
 
 # T-759: Add Linux aarch64 to release workflow for ARM64 support
@@ -53,3 +53,6 @@ grep -q "termlink-linux-aarch64" .github/workflows/release.yml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-759-add-linux-aarch64-to-release-workflow-fo.md
 - **Context:** Initial task creation
+
+### 2026-03-29T20:03:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

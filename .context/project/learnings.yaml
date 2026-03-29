@@ -246,3 +246,10 @@ learnings:
   date: 2026-03-26
   context: register_remote_and_discover test flaked in CI without ENV_LOCK
   application: TBD
+- id: PL-001
+  learning: "Rust println! to piped stdout is block-buffered. std::process::exit(1) does not flush Rust buffers. Always flush stdout before process::exit, or use a helper like json_error_exit() that flushes before exiting."
+  source: unknown
+  task: T-752
+  date: 2026-03-29
+  context: Added via context agent
+  application: TBD

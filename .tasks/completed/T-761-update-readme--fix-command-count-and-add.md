@@ -4,7 +4,7 @@ name: "Update README — fix command count and add missing commands to table"
 description: >
   Update README — fix command count and add missing commands to table
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T20:10:10Z
-last_update: 2026-03-29T20:10:10Z
-date_finished: null
+last_update: 2026-03-29T20:11:22Z
+date_finished: 2026-03-29T20:11:22Z
 ---
 
 # T-761: Update README — fix command count and add missing commands to table
@@ -50,3 +50,6 @@ grep -q "30 commands" README.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-761-update-readme--fix-command-count-and-add.md
 - **Context:** Initial task creation
+
+### 2026-03-29T20:11:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

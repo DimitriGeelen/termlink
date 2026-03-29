@@ -4,7 +4,7 @@ name: "Create tests/e2e/run-all.sh runner referenced in README"
 description: >
   Create tests/e2e/run-all.sh runner referenced in README
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T20:24:03Z
-last_update: 2026-03-29T20:24:03Z
-date_finished: null
+last_update: 2026-03-29T20:25:32Z
+date_finished: 2026-03-29T20:25:32Z
 ---
 
 # T-763: Create tests/e2e/run-all.sh runner referenced in README
@@ -53,3 +53,6 @@ bash -n tests/e2e/run-all.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-763-create-testse2erun-allsh-runner-referenc.md
 - **Context:** Initial task creation
+
+### 2026-03-29T20:25:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
