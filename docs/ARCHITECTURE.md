@@ -47,6 +47,9 @@ termlink-session       (core — depends on protocol)
 termlink-hub           (coordination — depends on protocol + session)
     ▲
     │
+termlink-mcp           (MCP server — depends on protocol + session)
+    ▲
+    │
 termlink (CLI)         (user interface — depends on all crates)
 
 termlink-test-utils    (dev-only — shared test helpers, depends on session)
@@ -181,9 +184,31 @@ Client → Hub Socket → Router
 
 ---
 
-## 4. CLI Layer (`termlink`)
+## 4. MCP Layer (`termlink-mcp`)
 
-**Purpose:** User-facing binary with 26 subcommands.
+**Purpose:** Model Context Protocol server that exposes TermLink as structured tools for AI agents.
+
+### Key Components
+
+| Module | Purpose |
+|--------|---------|
+| `server.rs` | MCP server handler — implements resources, prompts, and tool dispatch |
+| `tools.rs` | Tool definitions — maps MCP tool calls to TermLink session/hub operations |
+
+### MCP Resources
+
+- `termlink://sessions` — list all active sessions
+- `termlink://sessions/{id}` — detailed status for a specific session
+
+### Integration
+
+The MCP server runs as `termlink mcp serve` (stdio transport). Projects can vendor the binary and configure it as a local MCP server in `.claude/settings.local.json` via `termlink vendor`.
+
+---
+
+## 5. CLI Layer (`termlink`)
+
+**Purpose:** User-facing binary with 30 subcommands.
 
 ### Command Groups
 
@@ -205,42 +230,43 @@ Client → Hub Socket → Router
 
 ```
                     ┌──────────────┐
-                    │   CLI (26    │
+                    │   CLI (30    │
                     │  commands)   │
-                    └──┬───────┬───┘
-                       │       │
-              ┌────────┘       └────────┐
-              ▼                         ▼
-    ┌──────────────────┐     ┌───────────────────┐
-    │       Hub         │     │     Session        │
-    │  router           │     │  manager           │
-    │  server           │────▶│  handler           │
-    │  pidfile          │     │  server             │
-    │  supervisor       │     │  auth               │
-    └────────┬─────────┘     │  events             │
-             │               │  executor           │
-             │               │  pty                │
-             │               │  scrollback         │
-             │               │  codec              │
-             │               │  data_server        │
-             │               │  client             │
-             │               │  liveness           │
-             │               │  discovery          │
-             │               │  identity           │
-             │               │  lifecycle          │
-             │               │  registration       │
-             │               └──────────┬──────────┘
-             │                          │
-             └──────────┬───────────────┘
-                        ▼
-              ┌──────────────────┐
-              │    Protocol       │
-              │  jsonrpc          │
-              │  control          │
-              │  data             │
-              │  error            │
-              │  events           │
-              └──────────────────┘
+                    └──┬──────┬┬──┘
+                       │      ││
+              ┌────────┘      │└──────────┐
+              │      ┌────────┘           │
+              ▼      ▼                    ▼
+    ┌────────────┐ ┌────────┐  ┌───────────────────┐
+    │    Hub     │ │  MCP   │  │     Session        │
+    │  router    │ │ server │  │  manager           │
+    │  server    │ │ tools  │──▶  handler           │
+    │  pidfile   │ └───┬────┘  │  server            │
+    │  supervisor│     │       │  auth               │
+    └──────┬─────┘     │       │  events             │
+           │           │       │  executor           │
+           │           │       │  pty                │
+           │           │       │  scrollback         │
+           │           │       │  codec              │
+           │           │       │  data_server        │
+           │           │       │  client             │
+           │           │       │  liveness           │
+           │           │       │  discovery          │
+           │           │       │  identity           │
+           │           │       │  lifecycle          │
+           │           │       │  registration       │
+           │           │       └──────────┬──────────┘
+           │           │                  │
+           └───────────┴────────┬─────────┘
+                                ▼
+                      ┌──────────────────┐
+                      │    Protocol       │
+                      │  jsonrpc          │
+                      │  control          │
+                      │  data             │
+                      │  error            │
+                      │  events           │
+                      └──────────────────┘
 ```
 
 ---
