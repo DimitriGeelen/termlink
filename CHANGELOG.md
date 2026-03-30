@@ -47,8 +47,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - 684 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP event_subscribe integration, manifest secs_to_rfc3339, plus all previous test categories
 
 ### Changed
-- **CLI event delivery** — `watch`, `wait`, `request`, `agent ask/listen/negotiate` all upgraded from `event.poll` sleep loops to `event.subscribe` push-based delivery (near-zero latency)
+- **CLI event delivery** — `watch`, `wait`, `request`, `agent ask/listen/negotiate`, `file receive` all upgraded from `event.poll` sleep loops to `event.subscribe` push-based delivery (near-zero latency)
 - **MCP event delivery** — `termlink_request` and `termlink_wait` tools upgraded from poll+sleep to `event.subscribe`
+- **Hub `event.collect`** — optional `timeout_ms` parameter enables push-based delivery via `event.subscribe` internally; `dispatch` and `collect` CLI commands use it to eliminate polling sleep
+- **Remote collect** — `remote collect` upgraded to pass `timeout_ms` for push-based delivery via remote hub
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)
 - All JSON responses now include `ok: true/false` field for consistent error handling
 - JSON error exit uses `json_error_exit()` helper — fixes stdout buffering issues
