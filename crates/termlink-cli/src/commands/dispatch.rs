@@ -25,6 +25,7 @@ pub(crate) async fn cmd_dispatch(
     cap: Vec<String>,
     backend: SpawnBackend,
     workdir: Option<std::path::PathBuf>,
+    isolate: bool,
     json_output: bool,
     command: Vec<String>,
 ) -> Result<()> {
@@ -57,6 +58,23 @@ pub(crate) async fn cmd_dispatch(
         None
     };
 
+    // Validate --isolate requirements
+    let project_root = std::env::current_dir().context("Failed to get current directory")?;
+    if isolate {
+        if !crate::manifest::is_git_repo(&project_root) {
+            if json_output {
+                super::json_error_exit(json!({"ok": false, "error": "--isolate requires a git repository"}));
+            }
+            anyhow::bail!("--isolate requires a git repository");
+        }
+        if workdir.is_some() {
+            if json_output {
+                super::json_error_exit(json!({"ok": false, "error": "--isolate and --workdir are mutually exclusive (--isolate sets workdir automatically)"}));
+            }
+            anyhow::bail!("--isolate and --workdir are mutually exclusive (--isolate sets workdir automatically)");
+        }
+    }
+
     // Check hub is running (needed for collect)
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
@@ -77,6 +95,51 @@ pub(crate) async fn cmd_dispatch(
     );
 
     let prefix = name_prefix.unwrap_or_else(|| "worker".into());
+
+    // === Worktree isolation setup ===
+    let mut worktree_branches: Vec<crate::manifest::BranchEntry> = Vec::new();
+    let base_branch = if isolate {
+        let bb = crate::manifest::current_branch(&project_root)?;
+        if !json_output {
+            eprintln!("Dispatch {dispatch_id}: creating {count} worktree(s) from {bb}...");
+        }
+
+        // Create worktrees and record branches
+        for i in 1..=count {
+            let worker_name = format!("{prefix}-{i}");
+            let branch_name = format!("tl-dispatch/{dispatch_id}/{worker_name}");
+            let worktree_path = crate::manifest::create_worktree(&project_root, &branch_name)?;
+
+            if !json_output {
+                eprintln!("  Worktree: {} → {}", branch_name, worktree_path.display());
+            }
+
+            worktree_branches.push(crate::manifest::BranchEntry {
+                worker_name,
+                branch_name,
+                base_branch: bb.clone(),
+                worktree_path: worktree_path.to_string_lossy().to_string(),
+                has_commits: false,
+            });
+        }
+
+        // Write dispatch manifest BEFORE spawning workers
+        let mut manifest = crate::manifest::DispatchManifest::load(&project_root)?;
+        manifest.add_dispatch(crate::manifest::DispatchRecord {
+            id: dispatch_id.clone(),
+            created_at: crate::manifest::DispatchManifest::load(&project_root)?.last_updated.clone(),
+            status: crate::manifest::DispatchStatus::Pending,
+            worker_count: count,
+            topic: topic.to_string(),
+            prefix: prefix.clone(),
+            branches: worktree_branches.clone(),
+        });
+        manifest.save(&project_root)?;
+
+        Some(bb)
+    } else {
+        None
+    };
 
     if !json_output {
         eprintln!("Dispatch {dispatch_id}: spawning {count} worker(s)...");
@@ -150,10 +213,28 @@ pub(crate) async fn cmd_dispatch(
                 "export TERMLINK_WORKER_NAME={}; ",
                 shell_escape(&worker_name)
             ));
-            if let Some(ref wd) = resolved_workdir {
+            // Effective workdir: --isolate worktree path takes precedence over --workdir
+            let effective_workdir = if isolate {
+                worktree_branches
+                    .iter()
+                    .find(|b| b.worker_name == worker_name)
+                    .map(|b| b.worktree_path.clone())
+            } else {
+                resolved_workdir.as_ref().map(|wd| wd.to_string_lossy().to_string())
+            };
+            if let Some(ref wd) = effective_workdir {
                 env.push_str(&format!(
                     "export TERMLINK_WORKDIR={}; ",
-                    shell_escape(&wd.to_string_lossy())
+                    shell_escape(wd)
+                ));
+            }
+            if isolate {
+                env.push_str(&format!(
+                    "export CARGO_TARGET_DIR={}; ",
+                    shell_escape(&format!(
+                        "{}/target",
+                        effective_workdir.as_deref().unwrap_or(".")
+                    ))
                 ));
             }
             env
@@ -164,8 +245,16 @@ pub(crate) async fn cmd_dispatch(
 
         // Worker keeps register alive after user_cmd finishes. Dispatch
         // sends SIGTERM to all workers after collection completes.
-        let cd_prefix = if let Some(ref wd) = resolved_workdir {
-            format!("cd {} && ", shell_escape(&wd.to_string_lossy()))
+        let effective_workdir = if isolate {
+            worktree_branches
+                .iter()
+                .find(|b| b.worker_name == worker_name)
+                .map(|b| b.worktree_path.clone())
+        } else {
+            resolved_workdir.as_ref().map(|wd| wd.to_string_lossy().to_string())
+        };
+        let cd_prefix = if let Some(ref wd) = effective_workdir {
+            format!("cd {} && ", shell_escape(wd))
         } else {
             String::new()
         };
@@ -336,6 +425,69 @@ pub(crate) async fn cmd_dispatch(
         }
     }
 
+    // Worktree cleanup: auto-commit and remove worktrees
+    let mut branch_names_created: Vec<String> = Vec::new();
+    if isolate {
+        // Give workers a moment to finish after SIGTERM
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+        if !json_output {
+            eprintln!("Cleaning up worktrees...");
+        }
+
+        let mut manifest = crate::manifest::DispatchManifest::load(&project_root)?;
+
+        for branch in &mut worktree_branches {
+            let wt_path = std::path::Path::new(&branch.worktree_path);
+
+            // Auto-commit any changes in the worktree
+            let has_commits = if wt_path.exists() {
+                match crate::manifest::auto_commit_worktree(wt_path, &branch.worker_name) {
+                    Ok(committed) => committed,
+                    Err(e) => {
+                        if !json_output {
+                            eprintln!("  Warning: auto-commit failed for {}: {e}", branch.worker_name);
+                        }
+                        false
+                    }
+                }
+            } else {
+                false
+            };
+
+            branch.has_commits = has_commits;
+
+            if has_commits {
+                branch_names_created.push(branch.branch_name.clone());
+                if !json_output {
+                    eprintln!("  {} — committed, branch preserved", branch.branch_name);
+                }
+            } else if !json_output {
+                eprintln!("  {} — no changes, branch removed", branch.branch_name);
+            }
+
+            // Remove worktree (branch preserved if commits exist)
+            if let Err(e) = crate::manifest::cleanup_worktree(
+                &project_root,
+                wt_path,
+                &branch.branch_name,
+                has_commits,
+            ) && !json_output {
+                eprintln!("  Warning: cleanup failed for {}: {e}", branch.worker_name);
+            }
+        }
+
+        // Update manifest with commit status
+        if let Some(record) = manifest.find_dispatch_mut(&dispatch_id) {
+            record.branches = worktree_branches.clone();
+            // If all branches have no commits, mark as merged (nothing to merge)
+            if worktree_branches.iter().all(|b| !b.has_commits) {
+                record.status = crate::manifest::DispatchStatus::Merged;
+            }
+        }
+        manifest.save(&project_root)?;
+    }
+
     // Output results
     let collected_count = collected_events.len() as u64;
     let timed_out = collected_count < registered_count;
@@ -353,6 +505,12 @@ pub(crate) async fn cmd_dispatch(
         });
         if let Some(ref wd) = resolved_workdir {
             result["workdir"] = json!(wd.to_string_lossy());
+        }
+        if isolate {
+            result["branches"] = json!(branch_names_created);
+            if let Some(ref bb) = base_branch {
+                result["base_branch"] = json!(bb);
+            }
         }
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
@@ -374,6 +532,13 @@ pub(crate) async fn cmd_dispatch(
             let worker = event["worker"].as_str().unwrap_or("?");
             let payload = &event["payload"];
             println!("  [{worker}] {}", serde_json::to_string(payload)?);
+        }
+
+        if isolate && !branch_names_created.is_empty() {
+            println!("  Branches with changes:");
+            for branch in &branch_names_created {
+                println!("    {branch}");
+            }
         }
     }
 
@@ -497,7 +662,8 @@ mod tests {
             vec![],
             SpawnBackend::Background,
             Some(std::path::PathBuf::from("/nonexistent/path/that/does/not/exist")),
-            false,
+            false, // isolate
+            false, // json
             vec!["echo".into(), "hello".into()],
         )
         .await;
@@ -524,7 +690,8 @@ mod tests {
             vec![],
             SpawnBackend::Background,
             Some(tmp.clone()),
-            false,
+            false, // isolate
+            false, // json
             vec!["echo".into(), "hello".into()],
         )
         .await;
@@ -551,7 +718,8 @@ mod tests {
             vec![],
             SpawnBackend::Background,
             None,
-            false,
+            false, // isolate
+            false, // json
             vec!["echo".into(), "hello".into()],
         )
         .await;
@@ -578,7 +746,8 @@ mod tests {
             vec![],
             SpawnBackend::Background,
             Some(tmp),
-            false,
+            false, // isolate
+            false, // json
             vec!["echo".into(), "hello".into()],
         )
         .await;
@@ -602,7 +771,8 @@ mod tests {
             vec![],
             SpawnBackend::Background,
             None,
-            false,
+            false, // isolate
+            false, // json
             vec!["echo".into()],
         )
         .await;
@@ -622,11 +792,65 @@ mod tests {
             vec![],
             SpawnBackend::Background,
             None,
-            false,
+            false, // isolate
+            false, // json
             vec![],
         )
         .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Command required"));
+    }
+
+    #[tokio::test]
+    async fn isolate_rejects_non_git_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Run from a non-git temp dir
+        let _guard = std::env::set_current_dir(tmp.path());
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            None,
+            true,  // isolate
+            false, // json
+            vec!["echo".into()],
+        )
+        .await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("git repository"),
+            "Expected git repo error, got: {err_msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn isolate_and_workdir_mutually_exclusive() {
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            Some(std::env::temp_dir()),
+            true,  // isolate
+            false, // json
+            vec!["echo".into()],
+        )
+        .await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("mutually exclusive"),
+            "Expected mutual exclusion error, got: {err_msg}"
+        );
     }
 }

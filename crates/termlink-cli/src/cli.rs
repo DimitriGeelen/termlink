@@ -711,6 +711,10 @@ pub(crate) enum Command {
         #[arg(long)]
         workdir: Option<std::path::PathBuf>,
 
+        /// Create a git worktree per worker for filesystem isolation
+        #[arg(long)]
+        isolate: bool,
+
         /// Output results as JSON
         #[arg(long)]
         json: bool,

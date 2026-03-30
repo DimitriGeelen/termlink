@@ -1,6 +1,7 @@
 mod cli;
 mod commands;
 mod config;
+mod manifest;
 mod util;
 
 use anyhow::Result;
@@ -134,8 +135,8 @@ async fn main() -> Result<()> {
         Command::Spawn { name, roles, tags, cap, wait, wait_timeout, shell, backend, json, command } => {
             commands::execution::cmd_spawn(name, roles, tags, cap, wait, wait_timeout, shell, backend, json, command).await
         }
-        Command::Dispatch { count, timeout, topic, name, roles, tags, cap, backend, workdir, json, command } => {
-            commands::dispatch::cmd_dispatch(count, timeout, &topic, name, roles, tags, cap, backend, workdir, json, command).await
+        Command::Dispatch { count, timeout, topic, name, roles, tags, cap, backend, workdir, isolate, json, command } => {
+            commands::dispatch::cmd_dispatch(count, timeout, &topic, name, roles, tags, cap, backend, workdir, isolate, json, command).await
         }
 
         // Infrastructure
