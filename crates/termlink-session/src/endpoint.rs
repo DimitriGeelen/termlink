@@ -97,6 +97,9 @@ impl Endpoint {
     /// Consume the endpoint, returning parts. Suppresses Drop cleanup.
     fn into_parts(self) -> (Registration, UnixListener, std::path::PathBuf, crate::SessionId) {
         let this = std::mem::ManuallyDrop::new(self);
+        // SAFETY: ManuallyDrop suppresses the destructor, so we can move fields
+        // out via ptr::read without double-free. Each field is read exactly once,
+        // and the ManuallyDrop wrapper is never dropped (no destructor runs).
         unsafe {
             let registration = std::ptr::read(&this.registration);
             let listener = std::ptr::read(&this.listener);

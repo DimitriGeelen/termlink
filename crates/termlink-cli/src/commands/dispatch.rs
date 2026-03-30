@@ -300,6 +300,8 @@ pub(crate) async fn cmd_dispatch(
     // Cleanup: signal all workers to exit
     for name in &worker_names {
         if let Ok(reg) = manager::find_session(name) {
+            // SAFETY: reg.pid is a valid PID from a session we spawned.
+            // SIGTERM is a standard signal; sending it to our own child is safe.
             unsafe {
                 libc::kill(reg.pid as i32, libc::SIGTERM);
             }
