@@ -751,6 +751,56 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn event_subscribe_over_socket() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let ctx = test_session(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            run_accept_loop(listener, shared_clone).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // Emit an event in the background (use read() since EventBus is Arc<Mutex>)
+        let shared_emitter = shared.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            let ctx = shared_emitter.read().await;
+            let mut bus = ctx.events.lock().await;
+            bus.emit("e2e.test", serde_json::json!({"value": 42}));
+        });
+
+        let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+
+        // Subscribe with 2s timeout
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "event.subscribe",
+            "id": "sub-e2e",
+            "params": {"timeout_ms": 2000}
+        });
+        writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+
+        let resp: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(resp["id"], "sub-e2e");
+        assert_eq!(resp["result"]["count"], 1);
+        let events = resp["result"]["events"].as_array().unwrap();
+        assert_eq!(events[0]["topic"], "e2e.test");
+        assert_eq!(events[0]["payload"]["value"], 42);
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
     async fn accept_loop_uses_observe_scope_when_token_secret_set() {
         let socket_path = test_socket_path();
         let _ = std::fs::remove_file(&socket_path);

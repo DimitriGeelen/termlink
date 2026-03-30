@@ -176,6 +176,7 @@ pub fn method_scope(method: &str) -> PermissionScope {
         | control::method::QUERY_OUTPUT
         | control::method::QUERY_CAPABILITIES
         | control::method::EVENT_POLL
+        | control::method::EVENT_SUBSCRIBE
         | control::method::EVENT_TOPICS
         | control::method::KV_GET
         | control::method::KV_LIST => PermissionScope::Observe,

@@ -22,6 +22,7 @@ pub mod method {
     pub const EVENT_BROADCAST: &str = "event.broadcast";
     pub const EVENT_COLLECT: &str = "event.collect";
     pub const EVENT_EMIT_TO: &str = "event.emit_to";
+    pub const EVENT_SUBSCRIBE: &str = "event.subscribe";
     pub const KV_SET: &str = "kv.set";
     pub const KV_GET: &str = "kv.get";
     pub const KV_LIST: &str = "kv.list";

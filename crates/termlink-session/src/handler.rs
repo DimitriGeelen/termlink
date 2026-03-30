@@ -133,6 +133,7 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         }
         control::method::EVENT_EMIT => handle_event_emit(id, &req.params, ctx).await,
         control::method::EVENT_POLL => handle_event_poll(id, &req.params, ctx).await,
+        control::method::EVENT_SUBSCRIBE => handle_event_subscribe(id, &req.params, ctx).await,
         control::method::EVENT_TOPICS => handle_event_topics(id, ctx).await,
         control::method::PTY_MODE => handle_pty_mode(id, ctx).await,
         control::method::KV_GET => handle_kv_get(id, &req.params, ctx),
@@ -692,6 +693,95 @@ async fn handle_event_poll(
     if gap_detected {
         result["gap_detected"] = json!(true);
         result["events_lost"] = json!(events_lost);
+    }
+
+    Response::success(id, result).into()
+}
+
+/// Handle `event.subscribe` — long-poll for events using broadcast channel.
+///
+/// Acquires a broadcast receiver, then waits up to `timeout_ms` (default 5000)
+/// for events. Returns as soon as at least one event arrives or the timeout
+/// expires. Optional `topic` parameter filters events by topic.
+///
+/// This is dramatically lower latency than `event.poll` (which requires a
+/// fixed sleep interval on the client side) because the server blocks until
+/// an event actually arrives.
+async fn handle_event_subscribe(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    ctx: &SessionContext,
+) -> RpcResponse {
+    let timeout_ms = params
+        .get("timeout_ms")
+        .and_then(|t| t.as_u64())
+        .unwrap_or(5000);
+
+    let topic_filter = params
+        .get("topic")
+        .and_then(|t| t.as_str())
+        .map(String::from);
+
+    let max_events = params
+        .get("max_events")
+        .and_then(|m| m.as_u64())
+        .unwrap_or(100) as usize;
+
+    // Get a subscriber from the broadcast channel (brief lock).
+    let mut rx = {
+        let bus = ctx.events.lock().await;
+        bus.subscribe()
+    };
+
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(timeout_ms);
+    let mut collected: Vec<serde_json::Value> = Vec::new();
+    let mut lagged: u64 = 0;
+
+    loop {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() || collected.len() >= max_events {
+            break;
+        }
+
+        tokio::select! {
+            result = rx.recv() => {
+                match result {
+                    Ok(event) => {
+                        // Apply topic filter
+                        if let Some(ref topic) = topic_filter {
+                            if event.topic != *topic {
+                                continue;
+                            }
+                        }
+                        collected.push(json!({
+                            "seq": event.seq,
+                            "topic": event.topic,
+                            "payload": event.payload,
+                            "timestamp": event.timestamp,
+                        }));
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        lagged += n;
+                        // Continue receiving — some events were dropped
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        break; // EventBus was dropped
+                    }
+                }
+            }
+            _ = tokio::time::sleep(remaining) => {
+                break; // Timeout
+            }
+        }
+    }
+
+    let mut result = json!({
+        "events": collected,
+        "count": collected.len(),
+    });
+
+    if lagged > 0 {
+        result["lagged"] = json!(lagged);
     }
 
     Response::success(id, result).into()
@@ -1959,5 +2049,88 @@ mod tests {
         let req = Request::notification("session.update", json!({"tags": ["ignored"]}));
         let resp = dispatch_mut(&req, &mut ctx).await;
         assert!(resp.is_none());
+    }
+
+    #[tokio::test]
+    async fn event_subscribe_receives_events() {
+        let ctx = test_ctx();
+
+        // Emit an event in the background after a brief delay
+        let events = ctx.events.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            let mut bus = events.lock().await;
+            bus.emit("test.event", json!({"data": "hello"}));
+        });
+
+        let req = Request::new(
+            "event.subscribe",
+            json!("sub-1"),
+            json!({"timeout_ms": 2000}),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            let count = r.result["count"].as_u64().unwrap();
+            assert_eq!(count, 1);
+            let events = r.result["events"].as_array().unwrap();
+            assert_eq!(events[0]["topic"], "test.event");
+            assert_eq!(events[0]["payload"]["data"], "hello");
+        } else {
+            panic!("Expected success from event.subscribe");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_subscribe_timeout_returns_empty() {
+        let ctx = test_ctx();
+
+        let req = Request::new(
+            "event.subscribe",
+            json!("sub-2"),
+            json!({"timeout_ms": 100}),
+        );
+        let start = tokio::time::Instant::now();
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        let elapsed = start.elapsed();
+
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["count"], 0);
+            assert!(r.result["events"].as_array().unwrap().is_empty());
+        } else {
+            panic!("Expected success from event.subscribe");
+        }
+
+        // Should have waited approximately the timeout duration
+        assert!(elapsed >= Duration::from_millis(90));
+        assert!(elapsed < Duration::from_millis(500));
+    }
+
+    #[tokio::test]
+    async fn event_subscribe_topic_filter() {
+        let ctx = test_ctx();
+
+        let events = ctx.events.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            let mut bus = events.lock().await;
+            bus.emit("noise", json!({}));
+            bus.emit("target.topic", json!({"found": true}));
+            bus.emit("more.noise", json!({}));
+        });
+
+        let req = Request::new(
+            "event.subscribe",
+            json!("sub-3"),
+            json!({"timeout_ms": 2000, "topic": "target.topic"}),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["count"], 1);
+            let events = r.result["events"].as_array().unwrap();
+            assert_eq!(events[0]["topic"], "target.topic");
+            assert_eq!(events[0]["payload"]["found"], true);
+        } else {
+            panic!("Expected success from event.subscribe");
+        }
     }
 }
