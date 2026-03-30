@@ -7,7 +7,7 @@
 # Options:
 #   --level N   Run only level N
 #   --from N    Start from level N (default: 1)
-#   --to N      Stop after level N (default: 9)
+#   --to N      Stop after level N (default: all)
 #
 # Exit codes:
 #   0 — all tests passed
@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --level N   Run only level N"
             echo "  --from N    Start from level N (default: 1)"
-            echo "  --to N      Stop after level N (default: 9)"
+            echo "  --to N      Stop after level N (default: all)"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
