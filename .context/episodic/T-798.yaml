@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-798: Add unit tests for CLI command modules (vendor, push, token, metadata)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T17:35:19Z
+# ============================================================================
+
+task_id: T-798
+task_name: "Add unit tests for CLI command modules (vendor, push, token, metadata)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T14:41:44Z
+completed: 2026-03-30T14:53:32Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-30T16:50:57+02:00
+last_commit: 2026-03-30T16:51:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 19 unit tests for vendor, push, and token CLI commands. Update test counts (675) in docs
+
+# Key outcomes
+outcomes:
+  - "vendor.rs has tests for check_gitignore (append, skip existing, create new)"
+  - "vendor.rs has tests for configure_mcp (create new, merge existing, skip if configured)"
+  - "vendor.rs has tests for cmd_vendor_status (not vendored, vendored)"
+  - "push.rs has tests for shell_escape (safe string, special chars, single quotes)"
+  - "token.rs has tests for cmd_token_inspect (valid token, invalid format, invalid base64)"
+  - "All new tests pass: cargo test --workspace (675 total, 0 failures)"
+  - "No clippy warnings: cargo clippy --workspace"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CHANGELOG.md"
+  - "crates/termlink-cli/src/commands/push.rs"
+  - "crates/termlink-cli/src/commands/token.rs"
+  - "crates/termlink-cli/src/commands/vendor.rs"
+  - "docs/ARCHITECTURE.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T16:50:57"
+    action: "T-798: Add 19 unit tests for vendor, push, and token CLI commands"
+  - time: "2026-03-30T16:51:39"
+    action: "T-798: Update test counts (675) in docs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 2
+  files_changed: 5
+  lines_added: 241
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-798-add-unit-tests-for-cli-command-modules-v.md
+generated_by: context-agent-hybrid

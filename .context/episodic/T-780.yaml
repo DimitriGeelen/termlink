@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-780: Add edge case tests — remote_store (clear, empty, multiple entries) and identity (serde, Display)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T00:17:51Z
+# ============================================================================
+
+task_id: T-780
+task_name: "Add edge case tests — remote_store (clear, empty, multiple entries) and identity (serde, Display)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T00:12:39Z
+completed: 2026-03-30T00:17:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-30T02:15:03+02:00
+last_commit: 2026-03-30T02:15:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 7 edge case tests — remote_store (clear, empty, multiple, default) and identity (serde, Display, parse roundtrip)
+
+# Key outcomes
+outcomes:
+  - "remote_store: 4 new tests (clear, empty, multiple entries, default)"
+  - "identity: 3 new tests (serde roundtrip, Display, parse roundtrip)"
+  - "All workspace tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/remote_store.rs"
+  - "crates/termlink-session/src/identity.rs"
+  - ".tasks/active/T-780-add-edge-case-tests--remotestore-clear-e.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T02:15:03"
+    action: "T-780: Add 7 edge case tests — remote_store (clear, empty, multiple, default) and identity (serde, Display, parse roundtrip)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 129
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-780-add-edge-case-tests--remotestore-clear-e.md
+generated_by: context-agent-hybrid

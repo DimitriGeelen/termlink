@@ -4,16 +4,16 @@ name: "Dispatch isolation integration tests — worktree lifecycle, manifest per
 description: >
   Improve dispatch --isolate test coverage with worktree lifecycle integration tests
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/manifest.rs]
 related_tasks: [T-789, T-791, T-792]
 created: 2026-03-30T14:14:02Z
-last_update: 2026-03-30T14:14:11Z
-date_finished: null
+last_update: 2026-03-30T14:19:18Z
+date_finished: 2026-03-30T14:19:18Z
 ---
 
 # T-795: Dispatch isolation integration tests — worktree lifecycle, manifest persistence
@@ -60,3 +60,6 @@ grep -q "test_merge_branch_conflict" crates/termlink-cli/src/manifest.rs
 
 ### 2026-03-30T14:14:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T14:19:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

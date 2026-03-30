@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-790: Add --workdir flag to termlink dispatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T13:46:03Z
+# ============================================================================
+
+task_id: T-790
+task_name: "Add --workdir flag to termlink dispatch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T13:35:04Z
+completed: 2026-03-30T13:46:02Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-30T15:43:37+02:00
+last_commit: 2026-03-30T15:45:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --workdir flag to termlink dispatch — Phase 1 of worktree isolation. Fix verification commands — use grep checks instead of slow cargo commands
+
+# Key outcomes
+outcomes:
+  - "`--workdir <path>` flag added to Dispatch CLI struct in `cli.rs`"
+  - "`cmd_dispatch()` accepts and propagates workdir parameter"
+  - "Workers spawned with `cd <workdir> &&` prepended to shell command when --workdir is set"
+  - "`TERMLINK_WORKDIR` env var injected into worker environment"
+  - "`--workdir` without a valid directory path returns clear error (not panic)"
+  - "`--workdir` appears in `termlink dispatch --help` output"
+  - "JSON output includes `workdir` field when --workdir is used"
+  - "Unit test: workdir validation rejects non-existent path"
+  - "Unit test: dispatch with --workdir validates and accepts valid directory"
+  - "All existing dispatch tests still pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification commands — use grep checks instead of slow cargo commands"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-session/src/handler.rs"
+  - ".tasks/active/T-790-add---workdir-flag-to-termlink-dispatch.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T15:43:37"
+    action: "T-790: Add --workdir flag to termlink dispatch — Phase 1 of worktree isolation"
+  - time: "2026-03-30T15:45:55"
+    action: "T-790: Fix verification commands — use grep checks instead of slow cargo commands"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 2
+  files_changed: 5
+  lines_added: 262
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-790-add---workdir-flag-to-termlink-dispatch.md
+generated_by: context-agent-hybrid

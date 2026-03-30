@@ -4,16 +4,16 @@ name: "Add --auto-merge to termlink dispatch for worktree branch reconciliation"
 description: >
   Phase 3: sequential merge of dispatch worker branches back to base
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/src/manifest.rs]
 related_tasks: [T-789, T-791, T-793]
 created: 2026-03-30T13:35:14Z
-last_update: 2026-03-30T13:59:36Z
-date_finished: null
+last_update: 2026-03-30T14:05:23Z
+date_finished: 2026-03-30T14:05:23Z
 ---
 
 # T-792: Add --auto-merge to termlink dispatch for worktree branch reconciliation
@@ -63,3 +63,6 @@ grep -q "Merged" crates/termlink-cli/src/manifest.rs
 
 ### 2026-03-30T13:59:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T14:05:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

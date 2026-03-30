@@ -4,7 +4,7 @@ name: "Update test counts in ARCHITECTURE.md (656 from 647)"
 description: >
   Update ARCHITECTURE.md test count to 656
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T14:19:41Z
-last_update: 2026-03-30T14:19:53Z
-date_finished: null
+last_update: 2026-03-30T14:21:10Z
+date_finished: 2026-03-30T14:21:10Z
 ---
 
 # T-796: Update test counts in ARCHITECTURE.md (656 from 647)
@@ -53,3 +53,6 @@ grep -q "656" CHANGELOG.md
 
 ### 2026-03-30T14:19:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T14:21:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

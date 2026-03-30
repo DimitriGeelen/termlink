@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-797: Remove stale dead_code annotations from manifest.rs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T14:35:26Z
+# ============================================================================
+
+task_id: T-797
+task_name: "Remove stale dead_code annotations from manifest.rs"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T14:23:04Z
+completed: 2026-03-30T14:35:26Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-30T16:35:20+02:00
+last_commit: 2026-03-30T16:35:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Remove stale dead_code annotations from manifest.rs
+
+# Key outcomes
+outcomes:
+  - "No `#[allow(dead_code)]` annotations remain in manifest.rs"
+  - "`cargo check -p termlink 2>&1` produces no warnings (clean compile)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/manifest.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T16:35:20"
+    action: "T-797: Remove stale dead_code annotations from manifest.rs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 1
+  lines_added: 0
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-797-remove-stale-deadcode-annotations-from-m.md
+generated_by: context-agent-hybrid

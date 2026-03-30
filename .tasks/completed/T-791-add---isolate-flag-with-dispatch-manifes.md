@@ -4,16 +4,16 @@ name: "Add --isolate flag with dispatch manifest to termlink dispatch"
 description: >
   Phase 2: git worktree per worker + dispatch manifest tracking
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/src/manifest.rs]
 related_tasks: [T-789, T-790, T-792]
 created: 2026-03-30T13:35:12Z
-last_update: 2026-03-30T13:58:39Z
-date_finished: null
+last_update: 2026-03-30T13:59:19Z
+date_finished: 2026-03-30T13:59:19Z
 ---
 
 # T-791: Add --isolate flag with dispatch manifest to termlink dispatch
@@ -69,3 +69,6 @@ grep -q "test_manifest" crates/termlink-cli/src/manifest.rs
 
 ### 2026-03-30T13:46:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T13:59:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

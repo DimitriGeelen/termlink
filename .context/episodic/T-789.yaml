@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-789: Worktree isolation for TermLink-dispatched agents — git worktree per spawned session
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T13:07:54Z
+# ============================================================================
+
+task_id: T-789
+task_name: "Worktree isolation for TermLink-dispatched agents — git worktree per spawned session"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T12:47:17Z
+completed: 2026-03-30T13:07:53Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-30T14:52:03+02:00
+last_commit: 2026-03-30T14:57:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Worktree isolation inception — 4 options scored against directives, recommend Option A. Add merge orchestration risk analysis — 5 failure modes, 4 mitigations scored
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-789-worktree-isolation-research.md"
+  - ".tasks/active/T-789-worktree-isolation-for-termlink-dispatch.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T14:52:03"
+    action: "T-789: Worktree isolation inception — 4 options scored against directives, recommend Option A"
+  - time: "2026-03-30T14:57:38"
+    action: "T-789: Add merge orchestration risk analysis — 5 failure modes, 4 mitigations scored"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 2
+  files_changed: 2
+  lines_added: 387
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-789-worktree-isolation-for-termlink-dispatch.md
+generated_by: context-agent-hybrid

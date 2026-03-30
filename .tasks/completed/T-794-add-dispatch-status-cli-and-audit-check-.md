@@ -4,7 +4,7 @@ name: "Add dispatch status CLI and audit check for orphaned branches"
 description: >
   Phase 5: dispatch status subcommand + audit section for orphaned branches
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: [T-789, T-793]
 created: 2026-03-30T13:35:20Z
-last_update: 2026-03-30T14:11:19Z
-date_finished: null
+last_update: 2026-03-30T14:13:09Z
+date_finished: 2026-03-30T14:13:00Z
 ---
 
 # T-794: Add dispatch status CLI and audit check for orphaned branches
@@ -55,3 +55,6 @@ grep -q "isolate" CHANGELOG.md
 
 ### 2026-03-30T14:11:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T14:13:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

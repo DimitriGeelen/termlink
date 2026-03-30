@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-778: Add safety comments to undocumented unsafe blocks in dispatch.rs and endpoint.rs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T00:09:25Z
+# ============================================================================
+
+task_id: T-778
+task_name: "Add safety comments to undocumented unsafe blocks in dispatch.rs and endpoint.rs"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T00:08:12Z
+completed: 2026-03-30T00:09:24Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-30T02:09:19+02:00
+last_commit: 2026-03-30T02:09:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add SAFETY comments to undocumented unsafe blocks in dispatch.rs and endpoint.rs
+
+# Key outcomes
+outcomes:
+  - "dispatch.rs unsafe block has SAFETY comment explaining the libc::kill call"
+  - "endpoint.rs unsafe block has SAFETY comment explaining the ManuallyDrop + ptr::read pattern"
+  - "`cargo clippy --workspace` passes with no new warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-session/src/endpoint.rs"
+  - ".tasks/active/T-778-add-safety-comments-to-undocumented-unsa.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T02:09:19"
+    action: "T-778: Add SAFETY comments to undocumented unsafe blocks in dispatch.rs and endpoint.rs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 3
+  lines_added: 64
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-778-add-safety-comments-to-undocumented-unsa.md
+generated_by: context-agent-hybrid

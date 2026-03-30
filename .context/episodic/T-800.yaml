@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-800: Fix E2E runner help text and small doc cleanups
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T17:35:22Z
+# ============================================================================
+
+task_id: T-800
+task_name: "Fix E2E runner help text and small doc cleanups"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T16:08:21Z
+completed: 2026-03-30T16:09:50Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-03-30T18:09:43+02:00
+last_commit: 2026-03-30T18:09:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix E2E runner help text — --to default is all, not 9
+
+# Key outcomes
+outcomes:
+  - "run-all.sh help text default for --to matches code behavior (99 / all)"
+  - "help echo in the --help handler is consistent with header comments"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix E2E runner help text — --to default is all, not 9"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "tests/e2e/run-all.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T18:09:43"
+    action: "T-800: Fix E2E runner help text — --to default is all, not 9"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 1
+  lines_added: 2
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-800-fix-e2e-runner-help-text-and-small-doc-c.md
+generated_by: context-agent-hybrid

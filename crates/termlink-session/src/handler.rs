@@ -704,6 +704,11 @@ async fn handle_event_poll(
 /// for events. Returns as soon as at least one event arrives or the timeout
 /// expires. Optional `topic` parameter filters events by topic.
 ///
+/// Optional `since` parameter enables cursor-based replay: historical events
+/// with seq > since are included before live events, providing catch-up +
+/// live delivery in a single RPC call. Without `since`, only live events
+/// are returned.
+///
 /// This is dramatically lower latency than `event.poll` (which requires a
 /// fixed sleep interval on the client side) because the server blocks until
 /// an event actually arrives.
@@ -727,14 +732,42 @@ async fn handle_event_subscribe(
         .and_then(|m| m.as_u64())
         .unwrap_or(100) as usize;
 
-    // Get a subscriber from the broadcast channel (brief lock).
-    let mut rx = {
+    let since_param = params
+        .get("since")
+        .and_then(|s| s.as_u64());
+
+    // Acquire subscriber + optionally replay historical events (single lock).
+    let (mut rx, historical, gap_detected, events_lost) = {
         let bus = ctx.events.lock().await;
-        bus.subscribe()
+        let rx = bus.subscribe();
+
+        if let Some(since_seq) = since_param {
+            let poll_result = if let Some(ref topic) = topic_filter {
+                bus.poll_topic(topic, since_seq)
+            } else {
+                bus.poll(since_seq)
+            };
+            let hist: Vec<serde_json::Value> = poll_result
+                .events
+                .into_iter()
+                .take(max_events)
+                .map(|e| {
+                    json!({
+                        "seq": e.seq,
+                        "topic": e.topic,
+                        "payload": e.payload,
+                        "timestamp": e.timestamp,
+                    })
+                })
+                .collect();
+            (rx, hist, poll_result.gap_detected, poll_result.events_lost)
+        } else {
+            (rx, Vec::new(), false, 0u64)
+        }
     };
 
     let deadline = tokio::time::Instant::now() + Duration::from_millis(timeout_ms);
-    let mut collected: Vec<serde_json::Value> = Vec::new();
+    let mut collected: Vec<serde_json::Value> = historical;
     let mut lagged: u64 = 0;
 
     loop {
@@ -791,6 +824,11 @@ async fn handle_event_subscribe(
 
     if lagged > 0 {
         result["lagged"] = json!(lagged);
+    }
+
+    if gap_detected {
+        result["gap_detected"] = json!(true);
+        result["events_lost"] = json!(events_lost);
     }
 
     Response::success(id, result).into()
@@ -2144,6 +2182,118 @@ mod tests {
             assert_eq!(events[0]["payload"]["found"], true);
         } else {
             panic!("Expected success from event.subscribe");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_subscribe_since_replays_history() {
+        let ctx = test_ctx();
+
+        // Pre-populate events in the buffer
+        {
+            let mut bus = ctx.events.lock().await;
+            bus.emit("evt.a", json!({"n": 1})); // seq 0
+            bus.emit("evt.b", json!({"n": 2})); // seq 1
+            bus.emit("evt.c", json!({"n": 3})); // seq 2
+        }
+
+        // Subscribe with since=0 should replay events with seq > 0 (i.e., seq 1 and 2)
+        let req = Request::new(
+            "event.subscribe",
+            json!("sub-since-1"),
+            json!({"timeout_ms": 100, "since": 0}),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            let events = r.result["events"].as_array().unwrap();
+            assert_eq!(events.len(), 2, "should replay 2 events after seq 0");
+            assert_eq!(events[0]["topic"], "evt.b");
+            assert_eq!(events[1]["topic"], "evt.c");
+            assert!(r.result["next_seq"].is_u64(), "next_seq should be present");
+            assert_eq!(r.result["next_seq"], 3);
+            // No gap expected
+            assert!(r.result["gap_detected"].is_null());
+        } else {
+            panic!("Expected success from event.subscribe with since");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_subscribe_since_with_topic_filter() {
+        let ctx = test_ctx();
+
+        {
+            let mut bus = ctx.events.lock().await;
+            bus.emit("noise", json!({}));       // seq 0
+            bus.emit("target", json!({"a": 1})); // seq 1
+            bus.emit("noise", json!({}));        // seq 2
+            bus.emit("target", json!({"a": 2})); // seq 3
+        }
+
+        // since=0 + topic filter should only return "target" events
+        let req = Request::new(
+            "event.subscribe",
+            json!("sub-since-topic"),
+            json!({"timeout_ms": 100, "since": 0, "topic": "target"}),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            let events = r.result["events"].as_array().unwrap();
+            assert_eq!(events.len(), 2, "should only have 'target' events");
+            assert_eq!(events[0]["payload"]["a"], 1);
+            assert_eq!(events[1]["payload"]["a"], 2);
+        } else {
+            panic!("Expected success");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_subscribe_since_no_matching_events() {
+        let ctx = test_ctx();
+
+        {
+            let mut bus = ctx.events.lock().await;
+            bus.emit("evt", json!({})); // seq 0
+        }
+
+        // since=0 means events with seq > 0 — there are none
+        let req = Request::new(
+            "event.subscribe",
+            json!("sub-since-none"),
+            json!({"timeout_ms": 100, "since": 0}),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            // Only seq 0 exists, since > 0 returns nothing from history
+            // and timeout expires with no live events
+            assert_eq!(r.result["count"], 0);
+        } else {
+            panic!("Expected success");
+        }
+    }
+
+    #[tokio::test]
+    async fn event_subscribe_without_since_skips_history() {
+        let ctx = test_ctx();
+
+        // Pre-populate events
+        {
+            let mut bus = ctx.events.lock().await;
+            bus.emit("old.event", json!({}));
+            bus.emit("old.event", json!({}));
+        }
+
+        // Without since, should NOT return historical events
+        let req = Request::new(
+            "event.subscribe",
+            json!("sub-no-since"),
+            json!({"timeout_ms": 100}),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["count"], 0, "without since, historical events should not be included");
+        } else {
+            panic!("Expected success");
         }
     }
 }

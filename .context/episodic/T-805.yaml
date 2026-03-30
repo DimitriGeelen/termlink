@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-805: Add since parameter to event.subscribe for cursor-based replay
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T17:42:14Z
+# ============================================================================
+
+task_id: T-805
+task_name: "Add since parameter to event.subscribe for cursor-based replay"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T17:37:40Z
+completed: 2026-03-30T17:42:13Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`event.subscribe` accepts optional `since` parameter (u64 sequence number)"
+  - "When `since` is provided, historical events with seq > since are included before live events"
+  - "Gap detection reports `gap_detected` and `events_lost` when since falls before oldest buffered event"
+  - "Topic filter applies to both historical and live events"
+  - "`max_events` limit applies across historical + live events combined"
+  - "Without `since` parameter, behavior is unchanged (only live events)"
+  - "Unit tests cover: since with history, since with gap, since with topic filter, since without matching events"
+  - "`cargo check -p termlink` passes"
+  - "`cargo test -p termlink-session` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-805-add-since-parameter-to-eventsubscribe-fo.md
+generated_by: context-agent-hybrid

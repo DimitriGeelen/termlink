@@ -4,16 +4,16 @@ name: "Add --workdir flag to termlink dispatch"
 description: >
   Phase 1 stepping stone for T-789 worktree isolation
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/handler.rs]
 related_tasks: [T-789, T-791]
 created: 2026-03-30T13:35:04Z
-last_update: 2026-03-30T13:43:37Z
-date_finished: null
+last_update: 2026-03-30T13:46:02Z
+date_finished: 2026-03-30T13:46:02Z
 ---
 
 # T-790: Add --workdir flag to termlink dispatch
@@ -66,3 +66,6 @@ grep -q "workdir_rejects_nonexistent_path" crates/termlink-cli/src/commands/disp
 
 ### 2026-03-30T13:36:01Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T13:46:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

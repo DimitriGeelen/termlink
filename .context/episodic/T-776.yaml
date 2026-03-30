@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-776: Update ARCHITECTURE.md stale test counts and command count
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T00:00:21Z
+# ============================================================================
+
+task_id: T-776
+task_name: "Update ARCHITECTURE.md stale test counts and command count"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T23:59:06Z
+completed: 2026-03-30T00:00:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-30T02:00:15+02:00
+last_commit: 2026-03-30T02:00:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Update ARCHITECTURE.md test counts (223→585) and command count (28→30)
+
+# Key outcomes
+outcomes:
+  - "Test coverage table matches actual per-crate test counts from `cargo test --workspace`"
+  - "CLI command count in ASCII diagram updated from 28 to 30"
+  - "Total test count updated from 223 to current value"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/ARCHITECTURE.md"
+  - ".tasks/active/T-776-update-architecturemd-stale-test-counts-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T02:00:15"
+    action: "T-776: Update ARCHITECTURE.md test counts (223→585) and command count (28→30)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 61
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-776-update-architecturemd-stale-test-counts-.md
+generated_by: context-agent-hybrid

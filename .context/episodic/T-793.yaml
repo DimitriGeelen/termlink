@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-793: Pre-commit gate for dispatch manifest stale branches
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T14:10:58Z
+# ============================================================================
+
+task_id: T-793
+task_name: "Pre-commit gate for dispatch manifest stale branches"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T13:35:17Z
+completed: 2026-03-30T14:10:57Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-30T16:10:49+02:00
+last_commit: 2026-03-30T16:10:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add dispatch-status subcommand with --check gate for pending branches
+
+# Key outcomes
+outcomes:
+  - "`dispatch-status` subcommand reads `.termlink/dispatch-manifest.json`"
+  - "Shows counts: pending, merged, conflict, deferred, expired"
+  - "Lists pending branches with details"
+  - "`--check` flag exits non-zero if any pending branches exist"
+  - "`--json` flag outputs structured status"
+  - "\"No dispatch manifest\" message when manifest is empty/missing"
+  - "All existing tests pass (647 total)"
+  - "`cargo clippy --workspace` has zero warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-793-pre-commit-gate-for-dispatch-manifest-st.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T16:10:49"
+    action: "T-793: Add dispatch-status subcommand with --check gate for pending branches"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 35 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 35
+  commits: 1
+  files_changed: 4
+  lines_added: 165
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-793-pre-commit-gate-for-dispatch-manifest-st.md
+generated_by: context-agent-hybrid

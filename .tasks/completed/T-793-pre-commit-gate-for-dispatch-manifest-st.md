@@ -4,16 +4,16 @@ name: "Pre-commit gate for dispatch manifest stale branches"
 description: >
   Phase 4: PreToolUse hook blocks commits when dispatch manifest has stale pending branches
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-789, T-791, T-794]
 created: 2026-03-30T13:35:17Z
-last_update: 2026-03-30T14:06:38Z
-date_finished: null
+last_update: 2026-03-30T14:10:57Z
+date_finished: 2026-03-30T14:10:57Z
 ---
 
 # T-793: Pre-commit gate for dispatch manifest stale branches
@@ -59,3 +59,6 @@ grep -q "cmd_dispatch_status" crates/termlink-cli/src/commands/dispatch.rs
 
 ### 2026-03-30T14:06:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T14:10:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

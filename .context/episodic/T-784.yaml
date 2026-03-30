@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-784: Add handler unit tests — KV store, session update, ping, dispatch routing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T07:11:06Z
+# ============================================================================
+
+task_id: T-784
+task_name: "Add handler unit tests — KV store, session update, ping, dispatch routing"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T07:05:57Z
+completed: 2026-03-30T07:11:05Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-30T09:09:33+02:00
+last_commit: 2026-03-30T09:09:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 7 handler unit tests — KV error cases, roles update, dispatch_mut
+
+# Key outcomes
+outcomes:
+  - "KV error cases: kv.set/get/delete with missing key parameter"
+  - "Session update with roles test"
+  - "dispatch_mut falls through to immutable dispatch for read methods"
+  - "dispatch_mut returns None for notifications"
+  - "All tests pass with `cargo test -p termlink-session`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Add 7 handler unit tests — KV error cases, roles update, dispatch_mut"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-session/src/handler.rs"
+  - ".tasks/active/T-784-add-handler-unit-tests--kv-store-session.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T09:09:33"
+    action: "T-784: Add 7 handler unit tests — KV error cases, roles update, dispatch_mut"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 153
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-784-add-handler-unit-tests--kv-store-session.md
+generated_by: context-agent-hybrid

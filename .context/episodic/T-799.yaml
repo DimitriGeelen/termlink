@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-799: Add E2E test level10 for worktree dispatch isolation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T17:35:20Z
+# ============================================================================
+
+task_id: T-799
+task_name: "Add E2E test level10 for worktree dispatch isolation"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T14:57:09Z
+completed: 2026-03-30T16:06:57Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-30T18:06:49+02:00
+last_commit: 2026-03-30T18:06:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add E2E level10 test for worktree isolation dispatch
+
+# Key outcomes
+outcomes:
+  - "tests/e2e/level10-worktree-isolation.sh exists and is executable"
+  - "Test creates a temp git repo, dispatches with --isolate, verifies worktrees"
+  - "Test verifies --auto-merge merges worker branches"
+  - "Test verifies dispatch-status --json reports correct counts"
+  - "Test follows the level9 pattern (setup.sh, report, cleanup)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "tests/e2e/level10-worktree-isolation.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T18:06:49"
+    action: "T-799: Add E2E level10 test for worktree isolation dispatch"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 69 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 69
+  commits: 1
+  files_changed: 1
+  lines_added: 207
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-799-add-e2e-test-level10-for-worktree-dispat.md
+generated_by: context-agent-hybrid
