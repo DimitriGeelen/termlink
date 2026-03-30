@@ -138,3 +138,74 @@ pub(crate) fn cmd_token_inspect(token_str: &str, json: bool) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::Engine;
+
+    fn make_token(payload: &serde_json::Value) -> String {
+        let payload_json = serde_json::to_vec(payload).unwrap();
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&payload_json);
+        let sig = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b"fakesig");
+        format!("{encoded}.{sig}")
+    }
+
+    #[test]
+    fn inspect_valid_token_json() {
+        let payload = serde_json::json!({
+            "session": "test-session",
+            "scope": "read",
+            "expires_at": 9999999999u64,
+        });
+        let token = make_token(&payload);
+        let result = cmd_token_inspect(&token, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn inspect_valid_token_text() {
+        let payload = serde_json::json!({
+            "session": "test-session",
+            "scope": "read",
+            "expires_at": 9999999999u64,
+        });
+        let token = make_token(&payload);
+        let result = cmd_token_inspect(&token, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn inspect_invalid_format_no_dot() {
+        let result = cmd_token_inspect("no-dot-separator", false);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Invalid token format"));
+    }
+
+    #[test]
+    fn inspect_invalid_base64() {
+        let result = cmd_token_inspect("!!!invalid!!!.sig", false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn inspect_invalid_json_payload() {
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b"not json");
+        let token = format!("{encoded}.sig");
+        let result = cmd_token_inspect(&token, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn inspect_expired_token_json() {
+        let payload = serde_json::json!({
+            "session": "test-session",
+            "scope": "read",
+            "expires_at": 1000000000u64,
+        });
+        let token = make_token(&payload);
+        let result = cmd_token_inspect(&token, true);
+        assert!(result.is_ok());
+    }
+}

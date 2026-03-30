@@ -454,3 +454,138 @@ fn configure_mcp(project_dir: &Path, quiet: bool) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn check_gitignore_creates_new_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let vendor_dir = dir.path().join(VENDOR_DIR);
+        fs::create_dir_all(&vendor_dir).unwrap();
+
+        check_gitignore(dir.path(), &vendor_dir, true);
+
+        let content = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        assert!(content.contains(".termlink/"));
+    }
+
+    #[test]
+    fn check_gitignore_appends_to_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        let vendor_dir = dir.path().join(VENDOR_DIR);
+        fs::create_dir_all(&vendor_dir).unwrap();
+        fs::write(dir.path().join(".gitignore"), "node_modules/\n").unwrap();
+
+        check_gitignore(dir.path(), &vendor_dir, true);
+
+        let content = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        assert!(content.contains("node_modules/"));
+        assert!(content.contains(".termlink/"));
+    }
+
+    #[test]
+    fn check_gitignore_skips_if_already_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let vendor_dir = dir.path().join(VENDOR_DIR);
+        fs::create_dir_all(&vendor_dir).unwrap();
+        fs::write(dir.path().join(".gitignore"), ".termlink/\n").unwrap();
+
+        check_gitignore(dir.path(), &vendor_dir, true);
+
+        let content = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        assert_eq!(content.matches(".termlink/").count(), 1);
+    }
+
+    #[test]
+    fn check_gitignore_skips_if_bin_pattern_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let vendor_dir = dir.path().join(VENDOR_DIR);
+        fs::create_dir_all(&vendor_dir).unwrap();
+        fs::write(dir.path().join(".gitignore"), ".termlink/bin\n").unwrap();
+
+        check_gitignore(dir.path(), &vendor_dir, true);
+
+        let content = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        // Should not add another entry since .termlink/bin matches
+        assert!(!content.ends_with(".termlink/\n.termlink/\n"));
+    }
+
+    #[test]
+    fn configure_mcp_creates_new_settings() {
+        let dir = tempfile::tempdir().unwrap();
+
+        configure_mcp(dir.path(), true);
+
+        let settings_path = dir.path().join(".claude/settings.local.json");
+        assert!(settings_path.exists());
+
+        let content = fs::read_to_string(&settings_path).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            parsed["mcpServers"]["termlink"]["command"],
+            ".termlink/bin/termlink"
+        );
+        assert_eq!(
+            parsed["mcpServers"]["termlink"]["args"],
+            serde_json::json!(["mcp", "serve"])
+        );
+    }
+
+    #[test]
+    fn configure_mcp_merges_existing_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let claude_dir = dir.path().join(".claude");
+        fs::create_dir_all(&claude_dir).unwrap();
+        fs::write(
+            claude_dir.join("settings.local.json"),
+            r#"{"allowedTools": ["Read", "Write"]}"#,
+        )
+        .unwrap();
+
+        configure_mcp(dir.path(), true);
+
+        let content = fs::read_to_string(claude_dir.join("settings.local.json")).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert!(parsed["allowedTools"].is_array());
+        assert_eq!(
+            parsed["mcpServers"]["termlink"]["command"],
+            ".termlink/bin/termlink"
+        );
+    }
+
+    #[test]
+    fn configure_mcp_skips_if_already_configured() {
+        let dir = tempfile::tempdir().unwrap();
+        let claude_dir = dir.path().join(".claude");
+        fs::create_dir_all(&claude_dir).unwrap();
+        let existing = "{\n  \"mcpServers\": {\n    \"termlink\": {\n      \"command\": \".termlink/bin/termlink\",\n      \"args\": [\n        \"mcp\",\n        \"serve\"\n      ]\n    }\n  }\n}\n";
+        fs::write(claude_dir.join("settings.local.json"), existing).unwrap();
+
+        configure_mcp(dir.path(), true);
+
+        let content = fs::read_to_string(claude_dir.join("settings.local.json")).unwrap();
+        assert_eq!(content, existing);
+    }
+
+    #[test]
+    fn vendor_status_not_vendored_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = cmd_vendor_status(Some(dir.path().to_str().unwrap()), true, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn vendor_status_with_vendored_binary_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin_dir = dir.path().join(".termlink/bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(bin_dir.join("termlink"), b"fake-binary").unwrap();
+        fs::write(dir.path().join(".termlink/VERSION"), "0.9.0\n").unwrap();
+
+        let result = cmd_vendor_status(Some(dir.path().to_str().unwrap()), true, false);
+        assert!(result.is_ok());
+    }
+}
