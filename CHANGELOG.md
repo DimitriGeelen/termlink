@@ -29,6 +29,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Homebrew formula updated with 4 platform variants
 - E2E test runner (`tests/e2e/run-all.sh`) — discovers and runs level scripts with summary
 - **`event.subscribe` RPC** — long-poll event subscription via broadcast channel (near-zero latency vs 250-500ms polling)
+  - `next_seq` field in response for cursor-based following (parity with `event.poll`)
 - EventBus broadcast channel — `subscribe()` for push-based event delivery alongside existing `poll()`
 - **Worktree isolation for dispatch** — `termlink dispatch --isolate` creates a git worktree per worker for filesystem isolation
   - `--workdir <path>` flag for manual directory override
@@ -59,6 +60,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `push` command heredoc injection vulnerability — now uses base64 encoding
 - 3 unsafe `.unwrap()` calls in CLI/MCP replaced with proper error handling
 - All clippy warnings resolved (zero warnings workspace-wide)
+- Dispatch `--isolate` `created_at` timestamp now uses current time instead of stale manifest timestamp
+- Deduplicated `shell_escape` — backtick handling added, `execution.rs` reuses `util::shell_escape`
 
 ## [0.8.0] - 2026-03-25
 
