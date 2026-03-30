@@ -4,6 +4,7 @@
 //! heartbeat periodically to stay alive. Entries expire after a configurable TTL.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -62,6 +63,7 @@ impl RemoteEntry {
 #[derive(Clone)]
 pub struct RemoteStore {
     entries: Arc<RwLock<HashMap<String, RemoteEntry>>>,
+    next_id: Arc<AtomicU64>,
 }
 
 impl Default for RemoteStore {
@@ -74,6 +76,7 @@ impl RemoteStore {
     pub fn new() -> Self {
         Self {
             entries: Arc::new(RwLock::new(HashMap::new())),
+            next_id: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -89,14 +92,12 @@ impl RemoteStore {
         tags: Vec<String>,
         capabilities: Vec<String>,
     ) -> String {
-        let id = format!(
-            "tl-tcp-{:x}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis()
-                & 0xFFFFFFFF
-        );
+        let seq = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let id = format!("tl-tcp-{:x}-{}", ts & 0xFFFFFFFF, seq);
         let now = Instant::now();
         let entry = RemoteEntry {
             id: id.clone(),
@@ -285,8 +286,6 @@ mod tests {
     fn clear_removes_all() {
         let store = RemoteStore::new();
         store.register("a".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
-        // IDs use ms timestamps — sleep to ensure distinct IDs
-        std::thread::sleep(Duration::from_millis(2));
         store.register("b".into(), "10.0.0.2".into(), 8001, None, vec![], vec![], vec![]);
         assert_eq!(store.len(), 2);
 
@@ -299,8 +298,6 @@ mod tests {
     fn multiple_entries_independent() {
         let store = RemoteStore::new();
         let id1 = store.register("worker-1".into(), "10.0.0.1".into(), 8000, Some(100), vec!["agent".into()], vec!["prod".into()], vec!["execute".into()]);
-        // IDs use ms timestamps — sleep to ensure distinct IDs
-        std::thread::sleep(Duration::from_millis(2));
         let id2 = store.register("worker-2".into(), "10.0.0.2".into(), 8001, Some(200), vec!["compute".into()], vec!["staging".into()], vec![]);
 
         assert_eq!(store.len(), 2);
@@ -324,6 +321,25 @@ mod tests {
     fn default_impl() {
         let store = RemoteStore::default();
         assert!(store.is_empty());
+    }
+
+    #[test]
+    fn rapid_registrations_unique() {
+        let store = RemoteStore::new();
+        let mut ids = std::collections::HashSet::new();
+        for i in 0..100 {
+            let id = store.register(
+                format!("worker-{i}"),
+                "10.0.0.1".into(),
+                8000 + i as u16,
+                None,
+                vec![],
+                vec![],
+                vec![],
+            );
+            assert!(ids.insert(id), "duplicate ID at registration {i}");
+        }
+        assert_eq!(store.len(), 100);
     }
 
     #[test]
