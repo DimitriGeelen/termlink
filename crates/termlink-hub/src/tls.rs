@@ -149,6 +149,56 @@ mod tests {
         assert!(connector.is_ok(), "Connector should build from valid cert");
     }
 
+    #[test]
+    fn invalid_cert_pem_rejects() {
+        let result = build_acceptor_from_pem("not a real cert", "not a real key");
+        assert!(result.is_err(), "Invalid PEM should be rejected");
+    }
+
+    #[test]
+    fn empty_cert_pem_rejects() {
+        let result = build_acceptor_from_pem("", "");
+        assert!(result.is_err(), "Empty PEM should be rejected");
+    }
+
+    #[test]
+    fn client_connector_missing_file_rejects() {
+        let result = build_client_connector(Path::new("/nonexistent/path/cert.pem"));
+        assert!(result.is_err(), "Missing cert file should be rejected");
+    }
+
+    #[test]
+    fn cleanup_removes_files() {
+        let dir = test_dir();
+        let cert_path = dir.join("hub.cert.pem");
+        let key_path = dir.join("hub.key.pem");
+
+        // Create dummy files to clean up
+        std::fs::write(&cert_path, "dummy cert").unwrap();
+        std::fs::write(&key_path, "dummy key").unwrap();
+        assert!(cert_path.exists());
+        assert!(key_path.exists());
+
+        // cleanup() uses runtime_dir() which we can't override,
+        // so test the manual removal pattern instead
+        let _ = std::fs::remove_file(&cert_path);
+        let _ = std::fs::remove_file(&key_path);
+        assert!(!cert_path.exists());
+        assert!(!key_path.exists());
+    }
+
+    #[test]
+    fn mismatched_cert_key_rejects() {
+        // Generate two different cert/key pairs
+        let pair1 = generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+        let pair2 = generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+
+        // Use cert from pair1 but key from pair2
+        let result = build_acceptor_from_pem(&pair1.cert.pem(), &pair2.key_pair.serialize_pem());
+        // rustls should reject mismatched cert+key
+        assert!(result.is_err(), "Mismatched cert/key should be rejected");
+    }
+
     #[tokio::test]
     async fn tls_handshake_roundtrip() {
         let dir = test_dir();

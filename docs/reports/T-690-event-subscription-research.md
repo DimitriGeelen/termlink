@@ -133,6 +133,36 @@ Instead of true push, change `event.poll` to hold the connection open until even
 - If connection lifetime management proves too complex for hub aggregation
 - If the protocol needs to stay strictly request-response (no streaming RPC)
 
+## Spike Results
+
+### Spike 1: EventBus Broadcast (PASS)
+- Added `broadcast::Sender<Event>` to EventBus alongside ring buffer
+- `emit()` writes to both ring buffer and broadcast channel
+- `subscribe()` returns `broadcast::Receiver<Event>` for real-time delivery
+- 5 new tests: basic receive, no-replay, multi-subscriber, lag detection, no-subscriber safety
+- **Result:** Fully backward compatible. All existing poll() tests pass unchanged.
+
+### Spike 2: Long-Poll RPC Handler (PASS)
+- Implemented `event.subscribe` as long-poll (not streaming) — waits on broadcast receiver with timeout
+- Parameters: `timeout_ms` (default 5000), `topic` (optional filter), `max_events` (default 100)
+- Returns normal JSON-RPC response — no protocol extension needed
+- Added to auth scope as Observe (matches event.poll)
+- 3 handler tests + 1 end-to-end test over Unix socket
+- **Important finding:** Subscribe handler holds RwLock<SessionContext> read lock for full timeout. Emitters must access EventBus through read() + Mutex::lock() (not write()). This is correct since EventBus is Arc<Mutex>.
+- **Result:** Latency drops from 250-500ms polling interval to ~0 (event arrival time).
+
+### Spike 3: CLI Integration (NOT EXECUTED)
+- Deferred to build phase — requires CLI command changes, which is implementation work beyond inception scope.
+- Design is clear: `watch` command detects `event.subscribe` availability, falls back to `event.poll`.
+
+## Recommendation Update
+
+The hybrid approach works best: **Option A (broadcast channel) + Option C (long-poll RPC)**. Rather than choosing one design, we implemented both:
+- Broadcast channel provides the push mechanism (Spike 1)
+- Long-poll RPC provides the API surface without protocol changes (Spike 2)
+
+This avoids the complexity of streaming RPC (no need to split the connection handler, no protocol extension) while achieving the same latency improvement.
+
 ## Dialogue Log
 
 ### 2026-03-30 — Initial Research
@@ -141,3 +171,9 @@ Instead of true push, change `event.poll` to hold the connection open until even
 - Discovered data plane broadcast as proven push infrastructure
 - Identified 3 design options with trade-offs
 - Recommended Option A (EventBus broadcast) based on proven pattern and incremental path
+
+### 2026-03-30 — Spike Execution
+- Spike 1: broadcast::Sender added to EventBus, 5 tests pass, fully backward compatible
+- Spike 2: event.subscribe long-poll handler, 4 tests pass, no protocol changes needed
+- Key discovery: hybrid Option A+C is better than either alone
+- GO recommendation: all 3 go criteria met (backward compat, no protocol redesign, measurable latency improvement)
