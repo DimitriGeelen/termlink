@@ -342,6 +342,52 @@ mod tests {
         assert_eq!(store.len(), 100);
     }
 
+    #[tokio::test]
+    async fn reaper_removes_expired_entries() {
+        let store = RemoteStore::new();
+        let id = store.register("reaper-test".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
+
+        // Force immediate expiry
+        {
+            let mut entries = store.entries.write().unwrap();
+            entries.get_mut(&id).unwrap().ttl = Duration::from_millis(1);
+        }
+
+        // Wait for expiry
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        let (tx, rx) = tokio::sync::watch::channel(false);
+        let reaper_store = store.clone();
+
+        // Run reaper briefly then shut it down
+        let handle = tokio::spawn(async move {
+            run_reaper(reaper_store, Duration::from_millis(10), rx).await;
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        tx.send(true).unwrap();
+        let _ = handle.await;
+
+        assert!(store.is_empty(), "Reaper should have removed expired entry");
+    }
+
+    #[tokio::test]
+    async fn reaper_shuts_down_on_signal() {
+        let store = RemoteStore::new();
+        let (tx, rx) = tokio::sync::watch::channel(false);
+
+        let handle = tokio::spawn(async move {
+            run_reaper(store, Duration::from_secs(60), rx).await;
+        });
+
+        // Signal shutdown immediately
+        tx.send(true).unwrap();
+
+        // Should complete promptly (not wait 60s)
+        let result = tokio::time::timeout(Duration::from_secs(2), handle).await;
+        assert!(result.is_ok(), "Reaper should shut down within 2 seconds");
+    }
+
     #[test]
     fn to_json_format() {
         let store = RemoteStore::new();

@@ -197,4 +197,61 @@ mod tests {
         assert_eq!(check(&path), PidfileStatus::NotRunning);
         let _ = fs::remove_file(&path);
     }
+
+    #[test]
+    fn empty_pidfile_treated_as_not_running() {
+        let path = test_pidfile();
+        fs::write(&path, "").unwrap();
+        assert_eq!(check(&path), PidfileStatus::NotRunning);
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn whitespace_only_pidfile_treated_as_not_running() {
+        let path = test_pidfile();
+        fs::write(&path, "  \n  \t  ").unwrap();
+        assert_eq!(check(&path), PidfileStatus::NotRunning);
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn pid_with_trailing_newline_parses() {
+        let path = test_pidfile();
+        fs::write(&path, format!("{}\n", std::process::id())).unwrap();
+        assert_eq!(check(&path), PidfileStatus::Running(std::process::id()));
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn overflow_pid_treated_as_not_running() {
+        let path = test_pidfile();
+        // u32::MAX + 1 overflows
+        fs::write(&path, "4294967296").unwrap();
+        assert_eq!(check(&path), PidfileStatus::NotRunning);
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn negative_pid_treated_as_not_running() {
+        let path = test_pidfile();
+        fs::write(&path, "-1").unwrap();
+        assert_eq!(check(&path), PidfileStatus::NotRunning);
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn acquire_error_display() {
+        let already = AcquireError::AlreadyRunning(12345);
+        assert!(already.to_string().contains("12345"));
+        assert!(already.to_string().contains("already running"));
+
+        let io_err = AcquireError::Io(io::Error::new(io::ErrorKind::PermissionDenied, "nope"));
+        assert!(io_err.to_string().contains("nope"));
+    }
+
+    #[test]
+    fn acquire_error_is_std_error() {
+        let err: Box<dyn std::error::Error> = Box::new(AcquireError::AlreadyRunning(1));
+        assert!(!err.to_string().is_empty());
+    }
 }
