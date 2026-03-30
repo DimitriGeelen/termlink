@@ -440,6 +440,8 @@ pub enum NegotiateError {
     },
 }
 
+impl std::error::Error for NegotiateError {}
+
 impl std::fmt::Display for NegotiateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -1018,6 +1020,21 @@ mod tests {
         state.record_accept(&accept);
         assert!(state.is_accepted());
         assert_eq!(state.current_schema, serde_json::json!({"final": true}));
+    }
+
+    #[test]
+    fn negotiate_error_is_std_error() {
+        let err: Box<dyn std::error::Error> = Box::new(NegotiateError::AlreadyTerminated);
+        assert!(err.to_string().contains("terminated"));
+
+        let err: Box<dyn std::error::Error> = Box::new(NegotiateError::MaxRoundsExceeded);
+        assert!(err.to_string().contains("max"));
+
+        let err: Box<dyn std::error::Error> = Box::new(NegotiateError::UnexpectedPhase {
+            expected: NegotiatePhase::AttemptSent,
+            got: NegotiatePhase::OfferReceived,
+        });
+        assert!(err.to_string().contains("unexpected"));
     }
 
     #[test]
