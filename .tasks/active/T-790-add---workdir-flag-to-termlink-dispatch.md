@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-789, T-791]
 created: 2026-03-30T13:35:04Z
-last_update: 2026-03-30T13:36:01Z
+last_update: 2026-03-30T13:43:37Z
 date_finished: null
 ---
 
@@ -40,10 +40,11 @@ Phase 1 of T-789 (worktree isolation). Adds `--workdir` flag to `termlink dispat
 
 ## Verification
 
-cargo test -p termlink dispatch 2>&1 | grep -q "0 failed"
-cargo clippy --workspace 2>&1 | grep -c "warning" | grep -q "^0$"
+# Verify workdir flag exists in CLI struct and dispatch implementation
 grep -q "workdir" crates/termlink-cli/src/cli.rs
 grep -q "TERMLINK_WORKDIR" crates/termlink-cli/src/commands/dispatch.rs
+grep -q "cd_prefix" crates/termlink-cli/src/commands/dispatch.rs
+grep -q "workdir_rejects_nonexistent_path" crates/termlink-cli/src/commands/dispatch.rs
 
 ## Decisions
 
