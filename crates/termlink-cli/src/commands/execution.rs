@@ -25,13 +25,7 @@ pub(crate) async fn cmd_run(
 
     let command_str = command_parts
         .iter()
-        .map(|part| {
-            if part.contains(' ') || part.contains('"') || part.contains('\'') || part.contains('\\') || part.contains('$') || part.contains('`') {
-                format!("'{}'", part.replace('\'', "'\\''"))
-            } else {
-                part.clone()
-            }
-        })
+        .map(|part| shell_escape(part))
         .collect::<Vec<_>>()
         .join(" ");
 

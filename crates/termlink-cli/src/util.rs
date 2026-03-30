@@ -113,7 +113,7 @@ pub(crate) fn resize_payload(cols: u16, rows: u16) -> [u8; 4] {
 
 /// Escape a string for use in a shell command.
 pub(crate) fn shell_escape(s: &str) -> String {
-    if s.contains(|c: char| c.is_whitespace() || c == '\'' || c == '"' || c == '\\' || c == '$') {
+    if s.contains(|c: char| c.is_whitespace() || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`') {
         format!("'{}'", s.replace('\'', "'\\''"))
     } else {
         s.to_string()
@@ -331,6 +331,7 @@ mod tests {
         assert_eq!(shell_escape("$HOME"), "'$HOME'");
         assert_eq!(shell_escape("a\\b"), "'a\\b'");
         assert_eq!(shell_escape("a\"b"), "'a\"b'");
+        assert_eq!(shell_escape("`cmd`"), "'`cmd`'");
     }
 
     // --- resize_payload tests ---
