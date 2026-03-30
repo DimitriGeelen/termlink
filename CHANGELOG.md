@@ -30,7 +30,17 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - E2E test runner (`tests/e2e/run-all.sh`) — discovers and runs level scripts with summary
 - **`event.subscribe` RPC** — long-poll event subscription via broadcast channel (near-zero latency vs 250-500ms polling)
 - EventBus broadcast channel — `subscribe()` for push-based event delivery alongside existing `poll()`
-- 629 total tests (from 474) — event subscription, TLS edge cases, pidfile parsing, reaper lifecycle, protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError
+- **Worktree isolation for dispatch** — `termlink dispatch --isolate` creates a git worktree per worker for filesystem isolation
+  - `--workdir <path>` flag for manual directory override
+  - `--isolate` creates unique git worktree per worker (`tl-dispatch/{id}/{worker}`)
+  - `--auto-merge` sequentially merges worker branches back to base after collection
+  - Auto-commit on worker exit (no empty commits), branch preserved if changes exist
+  - `TERMLINK_WORKDIR` and `CARGO_TARGET_DIR` env vars set per worker
+- **Dispatch manifest** — persistent JSON manifest (`.termlink/dispatch-manifest.json`) tracks branch lifecycle: pending → merged | conflict | deferred | expired
+- **`termlink dispatch-status`** — read dispatch manifest and report branch status
+  - `--check` flag exits non-zero if pending branches exist (pre-commit gate)
+  - `--json` for structured output
+- 647 total tests (from 474) — event subscription, TLS edge cases, pidfile parsing, reaper lifecycle, protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError, manifest CRUD, dispatch workdir/isolate/auto-merge validation
 
 ### Changed
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)

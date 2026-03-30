@@ -333,9 +333,9 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 | termlink-session | 247 | Handlers (19 RPC methods incl. event.subscribe + KV error cases), events (ring buffer + broadcast subscription), PTY, liveness, auth (tokens), server, executor allowlist, registration, codec |
 | termlink-hub | 145 | Router (discover, broadcast, collect, forward), server, pidfile (edge cases), supervisor, circuit breaker, bypass, remote store (reaper), TLS (cert gen, validation, handshake) |
 | termlink-mcp | 41 | MCP integration tests (tools, resources, prompts) |
-| termlink (CLI) | 112 | Unit tests (31) + integration tests (81): register, ping, exec, events, KV, dispatch, push, agent, mirror |
+| termlink (CLI) | 130 | Unit tests (49) + integration tests (81): register, ping, exec, events, KV, dispatch (workdir, isolate, auto-merge), push, agent, mirror, manifest CRUD |
 | termlink-test-utils | 5 | TestDir cleanup, ProcessGuard kill-on-drop, session fixture |
-| **Total** | **629** | + 4 interactive TTY tests (ignored in CI) |
+| **Total** | **647** | + 4 interactive TTY tests (ignored in CI) |
 
 ---
 
