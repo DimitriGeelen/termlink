@@ -31,9 +31,7 @@ date_finished: null
 
 ## Verification
 
-cargo test -p termlink-hub 2>&1 | grep "^test result:" | head -1
-       grep -q "expected_string" output_file.txt
--->
+cargo test -p termlink-hub --lib 2>&1 | grep "0 failed"
 
 ## Decisions
 
