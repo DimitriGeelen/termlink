@@ -178,6 +178,83 @@ The shell prototype validates the pattern. The Rust implementation gets proper l
 
 **Open question for human:** Should `--isolate` be opt-in or default? The trust model suggests it should be default for any mutating dispatch, but that changes existing behavior.
 
+## Merge Orchestration Risk Analysis
+
+### The orphaned branch problem
+
+The three-phase pipeline already exists as shell scripts:
+
+| Phase | Script | Status |
+|-------|--------|--------|
+| 1. Isolate | `dispatch.sh --isolate` | T-124 (completed) |
+| 2. Auto-commit | dispatch.sh cleanup trap | T-126 (completed) |
+| 3. Merge | `merge-branches.sh --auto` | T-127 (completed) |
+
+**The problem:** Phase 3 is manual. After dispatch finishes, branches exist (`mesh-worker-1`, `mesh-worker-2`, ...) and the orchestrator reports them on stderr. But nobody is structurally required to merge them. The merge step is a behavioral expectation, not a structural gate.
+
+### Failure modes
+
+1. **Session compaction** — orchestrator context compacts, branch names are lost. Branches persist in git but nobody knows they exist.
+2. **Context budget exhaustion** — session wraps up before merge. Handover may or may not mention pending branches.
+3. **Human moves on** — dispatch was part of a larger task. Human sees results, continues work. Forgets branches.
+4. **Merge conflict** — merge-branches.sh hits a conflict, aborts. Remaining branches are left unmerged. No retry mechanism.
+5. **Accumulation** — each dispatch creates N branches. Over weeks, the branch list grows silently.
+
+### How bad is it today?
+
+Currently: **zero orphaned branches** (`git branch --list 'mesh-*'` returns empty). This is either because:
+- dispatch.sh --isolate isn't used often enough to accumulate debt, or
+- The human is diligent about running merge-branches.sh
+
+The risk is latent — it will manifest at scale when dispatch becomes the routine path.
+
+### Mitigation options for merge orchestration
+
+**M1: Auto-merge in dispatch (end-to-end)**
+- Dispatch creates worktrees → workers execute → dispatch collects results → dispatch merges branches → dispatch returns merged result
+- `termlink dispatch --isolate --auto-merge`
+- On conflict: report conflicting branch, abort merge for that worker, continue with others
+- **Pro:** True end-to-end — no orphan risk. **Con:** Merge during dispatch extends the dispatch duration. Conflicts block the pipeline.
+
+**M2: Merge-on-collect (event-driven)**
+- When dispatch collects a worker's result (event.collect), immediately attempt merge for that worker's branch
+- Fail-fast: if merge fails, report it in the dispatch result JSON
+- **Pro:** Streaming merge as workers finish. **Con:** Merging while other workers are still running can cause conflicts with later workers.
+
+**M3: Post-dispatch audit gate**
+- After dispatch completes, run `git branch --list 'mesh-*'` as a health check
+- If branches exist, **block** the next commit (similar to how the audit blocks push with warnings)
+- PreToolUse hook: "You have unmerged dispatch branches. Run `merge-branches.sh --auto` before continuing."
+- **Pro:** Structural enforcement, no changes to dispatch itself. **Con:** Doesn't prevent branches, just catches them.
+
+**M4: TTL + reaper (garbage collection)**
+- Branches created by dispatch get a TTL tag (e.g., `mesh-worker-1-expires-2026-03-31`)
+- A cron audit check detects branches past TTL and warns/deletes
+- **Pro:** Self-healing, handles the accumulation failure mode. **Con:** Lossy — expired branches may have unmerged work.
+
+### Merge scoring against directives
+
+| Mitigation | D1 Antifragility | D2 Reliability | D3 Usability | D4 Portability |
+|------------|-------------------|----------------|--------------|----------------|
+| **M1: Auto-merge** | ++ (no orphans possible) | + (extends dispatch duration) | ++ (one command) | + (git-only) |
+| M2: Merge-on-collect | + (streaming) | - (concurrent merge risk) | + (transparent) | + (git-only) |
+| **M3: Audit gate** | ++ (structural enforcement) | ++ (catches all cases) | + (familiar pattern) | ++ (works with any VCS) |
+| M4: TTL reaper | + (self-healing) | 0 (lossy) | 0 (background) | + (generic) |
+
+### Recommendation for merge
+
+**M1 (auto-merge) + M3 (audit gate) combined:**
+
+- M1 handles the happy path: `termlink dispatch --isolate --auto-merge` does everything end-to-end
+- M3 handles the failure path: if auto-merge fails or `--auto-merge` isn't used, the audit/pre-commit hook catches orphaned branches before they accumulate
+- Together: structural enforcement at two levels (dispatch-time + audit-time)
+
+This means the implementation phases become:
+1. `--workdir` flag (Option B stepping stone)
+2. `--isolate` flag (worktree creation + auto-commit)
+3. `--auto-merge` flag (sequential rebase+merge after collect)
+4. Audit gate for orphaned `mesh-*` / `dispatch-*` branches
+
 ## Dialogue Log
 
 ### 2026-03-30 — Human question + research
@@ -187,3 +264,12 @@ The shell prototype validates the pattern. The Rust implementation gets proper l
 - Research: Found dispatch.sh (T-124, completed), trust.rs blast radius model, Rust dispatch gap
 - Produced 4 options scored against all 4 directives
 - Recommendation: Option A (7/8) — port proven shell pattern to Rust
+
+### 2026-03-30 — Merge orchestration deep-dive
+- Human flagged orphaned branch risk as requiring investigation before GO
+- Found: dispatch.sh (T-124), auto-commit (T-126), merge-branches.sh (T-127) all exist
+- Found: Phase 3 (merge) is manual — behavioral expectation, not structural gate
+- Found: Currently zero orphaned branches — risk is latent, not active
+- Identified 5 failure modes for orphaned branches
+- Scored 4 merge mitigations against directives
+- Recommendation: M1 (auto-merge) + M3 (audit gate) — structural enforcement at two levels
