@@ -1091,19 +1091,22 @@ pub(crate) async fn cmd_remote_events(
     }
     eprintln!();
 
-    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    let subscribe_timeout_ms = interval_ms.max(500);
     let mut cursors = serde_json::json!({});
     let mut total_received: u64 = 0;
 
     loop {
         tokio::select! {
+            biased;
             _ = tokio::signal::ctrl_c() => {
                 eprintln!();
                 eprintln!("Stopped. {} event(s) collected.", total_received);
                 break;
             }
-            _ = tokio::time::sleep(poll_interval) => {
-                let mut params = serde_json::json!({});
+            collect_result = async {
+                let mut params = serde_json::json!({
+                    "timeout_ms": subscribe_timeout_ms,
+                });
                 if !targets.is_empty() {
                     params["targets"] = serde_json::json!(targets);
                 }
@@ -1114,7 +1117,9 @@ pub(crate) async fn cmd_remote_events(
                     params["since"] = cursors.clone();
                 }
 
-                match rpc_client.call("event.collect", serde_json::json!("collect"), params).await {
+                rpc_client.call("event.collect", serde_json::json!("collect"), params).await
+            } => {
+                match collect_result {
                     Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
                         if let Some(events) = r.result["events"].as_array() {
                             for event in events {
