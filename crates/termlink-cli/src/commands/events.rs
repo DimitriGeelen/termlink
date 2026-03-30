@@ -419,7 +419,12 @@ pub(crate) async fn cmd_watch(
         .map(|r| (r.id.as_str().to_string(), None))
         .collect();
 
-    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    // Use event.subscribe for push-based delivery. The server blocks until
+    // events arrive (near-zero latency) instead of client-side sleep+poll.
+    // For multi-session, divide timeout across sessions to stay responsive.
+    let per_session_timeout = interval_ms / registrations.len().max(1) as u64;
+    let subscribe_timeout = per_session_timeout.max(100); // min 100ms to avoid busy-loop
+
     let deadline = if timeout_secs > 0 {
         Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs))
     } else {
@@ -438,7 +443,9 @@ pub(crate) async fn cmd_watch(
             break;
         }
 
+        // Check for Ctrl+C with zero-duration sleep (non-blocking check)
         tokio::select! {
+            biased;
             _ = tokio::signal::ctrl_c() => {
                 if !json {
                     eprintln!();
@@ -446,12 +453,14 @@ pub(crate) async fn cmd_watch(
                 }
                 break;
             }
-            _ = tokio::time::sleep(poll_interval) => {
+            _ = async {
                 for reg in &registrations {
                     let sid = reg.id.as_str();
                     let name = session_names.get(sid).map(|s| s.as_str()).unwrap_or(sid);
 
-                    let mut params = serde_json::json!({});
+                    let mut params = serde_json::json!({
+                        "timeout_ms": subscribe_timeout,
+                    });
                     if let Some(cursor) = cursors.get(sid).and_then(|c| *c) {
                         params["since"] = serde_json::json!(cursor);
                     }
@@ -459,7 +468,7 @@ pub(crate) async fn cmd_watch(
                         params["topic"] = serde_json::json!(t);
                     }
 
-                    let resp = match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+                    let resp = match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
                         Ok(r) => r,
                         Err(_) => {
                             continue;
@@ -503,21 +512,22 @@ pub(crate) async fn cmd_watch(
                                 total_received += 1;
                             }
                         }
+                        // Update cursor from next_seq if no events were returned
                         if let Some(next) = result["next_seq"].as_u64()
                             && cursors.get(sid).and_then(|c| *c).is_none() && next > 0 {
                                 cursors.insert(sid.to_string(), Some(next.saturating_sub(1)));
                             }
                     }
                 }
+            } => {}
+        }
 
-                if max_count > 0 && total_received >= max_count {
-                    if !json {
-                        eprintln!();
-                        eprintln!("{} event(s) received (limit reached).", total_received);
-                    }
-                    break;
-                }
+        if max_count > 0 && total_received >= max_count {
+            if !json {
+                eprintln!();
+                eprintln!("{} event(s) received (limit reached).", total_received);
             }
+            break;
         }
     }
 
@@ -539,7 +549,9 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
         eprintln!("Waiting for event topic '{}' from {}...", topic, reg.display_name);
     }
 
-    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    // Use event.subscribe for push-based delivery — server blocks until
+    // matching event arrives, eliminating polling latency.
+    let subscribe_timeout = interval_ms.max(500); // at least 500ms per subscribe call
     let deadline = if timeout_secs > 0 {
         Some(tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs))
     } else {
@@ -565,6 +577,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
             }
 
         tokio::select! {
+            biased;
             _ = tokio::signal::ctrl_c() => {
                 if json {
                     super::json_error_exit(serde_json::json!({
@@ -577,13 +590,18 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                 }
                 anyhow::bail!("Interrupted");
             }
-            _ = tokio::time::sleep(poll_interval) => {
-                let mut params = serde_json::json!({ "topic": topic });
+            rpc_result = async {
+                let mut params = serde_json::json!({
+                    "topic": topic,
+                    "timeout_ms": subscribe_timeout,
+                    "max_events": 1,
+                });
                 if let Some(c) = cursor {
                     params["since"] = serde_json::json!(c);
                 }
-                let resp = match client::rpc_call(reg.socket_path(), "event.poll", params).await {
-                    Ok(r) => r,
+                client::rpc_call(reg.socket_path(), "event.subscribe", params).await
+            } => {
+                match rpc_result {
                     Err(_) => {
                         if json {
                             super::json_error_exit(serde_json::json!({
@@ -596,35 +614,36 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                         }
                         anyhow::bail!("Session '{}' disconnected while waiting", target);
                     }
-                };
-
-                if let Ok(result) = client::unwrap_result(resp) {
-                    if let Some(events) = result["events"].as_array()
-                        && let Some(event) = events.first() {
-                            if json {
-                                println!("{}", serde_json::json!({
-                                    "ok": true,
-                                    "matched": true,
-                                    "topic": event["topic"],
-                                    "seq": event["seq"],
-                                    "timestamp": event["timestamp"],
-                                    "payload": event["payload"],
-                                    "target": target,
-                                }));
-                            } else {
-                                let payload = &event["payload"];
-                                if payload.is_null()
-                                    || payload.as_object().is_some_and(|o| o.is_empty())
-                                {
-                                    println!("{}", topic);
-                                } else {
-                                    println!("{}", serde_json::to_string(payload)?);
+                    Ok(resp) => {
+                        if let Ok(result) = client::unwrap_result(resp) {
+                            if let Some(events) = result["events"].as_array()
+                                && let Some(event) = events.first() {
+                                    if json {
+                                        println!("{}", serde_json::json!({
+                                            "ok": true,
+                                            "matched": true,
+                                            "topic": event["topic"],
+                                            "seq": event["seq"],
+                                            "timestamp": event["timestamp"],
+                                            "payload": event["payload"],
+                                            "target": target,
+                                        }));
+                                    } else {
+                                        let payload = &event["payload"];
+                                        if payload.is_null()
+                                            || payload.as_object().is_some_and(|o| o.is_empty())
+                                        {
+                                            println!("{}", topic);
+                                        } else {
+                                            println!("{}", serde_json::to_string(payload)?);
+                                        }
+                                    }
+                                    return Ok(());
                                 }
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                cursor = if next > 0 { Some(next - 1) } else { None };
                             }
-                            return Ok(());
                         }
-                    if let Some(next) = result["next_seq"].as_u64() {
-                        cursor = if next > 0 { Some(next - 1) } else { None };
                     }
                 }
             }
