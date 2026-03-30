@@ -516,4 +516,274 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         assert!(!is_git_repo(tmp.path()));
     }
+
+    /// Helper: create a temporary git repo with an initial commit.
+    fn create_test_git_repo() -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path();
+
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(path)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["config", "user.email", "test@test.com"])
+            .current_dir(path)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["config", "user.name", "Test"])
+            .current_dir(path)
+            .output()
+            .unwrap();
+
+        // Create initial commit (git worktree requires at least one commit)
+        std::fs::write(path.join("README.md"), "# Test repo\n").unwrap();
+        std::process::Command::new("git")
+            .args(["add", "-A"])
+            .current_dir(path)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["commit", "-m", "Initial commit"])
+            .current_dir(path)
+            .output()
+            .unwrap();
+
+        tmp
+    }
+
+    #[test]
+    fn test_is_git_repo_on_real_repo() {
+        let repo = create_test_git_repo();
+        assert!(is_git_repo(repo.path()));
+    }
+
+    #[test]
+    fn test_current_branch_on_real_repo() {
+        let repo = create_test_git_repo();
+        let branch = current_branch(repo.path()).unwrap();
+        // Default branch is either "main" or "master"
+        assert!(
+            branch == "main" || branch == "master",
+            "Expected main or master, got: {branch}"
+        );
+    }
+
+    #[test]
+    fn test_create_and_cleanup_worktree() {
+        let repo = create_test_git_repo();
+        let branch = "tl-dispatch/test-branch";
+
+        // Create worktree
+        let wt_path = create_worktree(repo.path(), branch).unwrap();
+        assert!(wt_path.exists(), "Worktree directory should exist");
+        assert!(
+            wt_path.join("README.md").exists(),
+            "Worktree should have initial files"
+        );
+
+        // Verify branch was created
+        let output = std::process::Command::new("git")
+            .args(["branch", "--list", branch])
+            .current_dir(repo.path())
+            .output()
+            .unwrap();
+        let branches = String::from_utf8_lossy(&output.stdout);
+        assert!(branches.contains(branch), "Branch should exist");
+
+        // Cleanup without commits — branch should be deleted
+        cleanup_worktree(repo.path(), &wt_path, branch, false).unwrap();
+        assert!(!wt_path.exists(), "Worktree directory should be removed");
+
+        let output = std::process::Command::new("git")
+            .args(["branch", "--list", branch])
+            .current_dir(repo.path())
+            .output()
+            .unwrap();
+        let branches = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            !branches.contains(branch),
+            "Branch should be deleted when no commits"
+        );
+    }
+
+    #[test]
+    fn test_auto_commit_worktree_with_changes() {
+        let repo = create_test_git_repo();
+        let branch = "tl-dispatch/worker-1";
+
+        let wt_path = create_worktree(repo.path(), branch).unwrap();
+
+        // Make changes in the worktree
+        std::fs::write(wt_path.join("output.txt"), "worker result\n").unwrap();
+
+        // Auto-commit should succeed and return true
+        let committed = auto_commit_worktree(&wt_path, "worker-1").unwrap();
+        assert!(committed, "Should have committed changes");
+
+        // Cleanup with has_commits=true — branch should be preserved
+        cleanup_worktree(repo.path(), &wt_path, branch, true).unwrap();
+
+        let output = std::process::Command::new("git")
+            .args(["branch", "--list", branch])
+            .current_dir(repo.path())
+            .output()
+            .unwrap();
+        let branches = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            branches.contains(branch),
+            "Branch should be preserved when has commits"
+        );
+    }
+
+    #[test]
+    fn test_auto_commit_worktree_no_changes() {
+        let repo = create_test_git_repo();
+        let branch = "tl-dispatch/idle-worker";
+
+        let wt_path = create_worktree(repo.path(), branch).unwrap();
+
+        // No changes — auto-commit should return false
+        let committed = auto_commit_worktree(&wt_path, "idle-worker").unwrap();
+        assert!(!committed, "Should not commit when no changes");
+
+        cleanup_worktree(repo.path(), &wt_path, branch, false).unwrap();
+    }
+
+    #[test]
+    fn test_merge_branch_clean() {
+        let repo = create_test_git_repo();
+        let base = current_branch(repo.path()).unwrap();
+        let branch = "tl-dispatch/merge-test";
+
+        let wt_path = create_worktree(repo.path(), branch).unwrap();
+
+        // Make a change and commit
+        std::fs::write(wt_path.join("new-file.txt"), "from worker\n").unwrap();
+        auto_commit_worktree(&wt_path, "merge-worker").unwrap();
+
+        // Cleanup worktree but keep branch
+        cleanup_worktree(repo.path(), &wt_path, branch, true).unwrap();
+
+        // Merge should succeed
+        let merged = merge_branch(repo.path(), branch, &base).unwrap();
+        assert!(merged, "Merge should succeed for non-conflicting changes");
+
+        // Verify merged file exists on base branch
+        assert!(
+            repo.path().join("new-file.txt").exists(),
+            "Merged file should exist on base branch"
+        );
+    }
+
+    #[test]
+    fn test_merge_branch_conflict() {
+        let repo = create_test_git_repo();
+        let base = current_branch(repo.path()).unwrap();
+
+        // Create two branches that modify the same file
+        let branch1 = "tl-dispatch/conflict-1";
+        let branch2 = "tl-dispatch/conflict-2";
+
+        let wt1 = create_worktree(repo.path(), branch1).unwrap();
+        std::fs::write(wt1.join("README.md"), "Worker 1 changes\n").unwrap();
+        auto_commit_worktree(&wt1, "w1").unwrap();
+        cleanup_worktree(repo.path(), &wt1, branch1, true).unwrap();
+
+        let wt2 = create_worktree(repo.path(), branch2).unwrap();
+        std::fs::write(wt2.join("README.md"), "Worker 2 changes\n").unwrap();
+        auto_commit_worktree(&wt2, "w2").unwrap();
+        cleanup_worktree(repo.path(), &wt2, branch2, true).unwrap();
+
+        // First merge should succeed
+        let merged1 = merge_branch(repo.path(), branch1, &base).unwrap();
+        assert!(merged1, "First merge should succeed");
+
+        // Second merge should conflict
+        let merged2 = merge_branch(repo.path(), branch2, &base).unwrap();
+        assert!(!merged2, "Second merge should conflict");
+
+        // Conflicting branch should still exist
+        let output = std::process::Command::new("git")
+            .args(["branch", "--list", branch2])
+            .current_dir(repo.path())
+            .output()
+            .unwrap();
+        let branches = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            branches.contains(branch2),
+            "Conflicting branch should be preserved"
+        );
+    }
+
+    #[test]
+    fn test_manifest_with_git_roundtrip() {
+        let repo = create_test_git_repo();
+
+        // Create manifest in git repo
+        let mut manifest = DispatchManifest::load(repo.path()).unwrap();
+        assert!(manifest.dispatches.is_empty());
+
+        // Simulate a dispatch
+        let branch = "tl-dispatch/roundtrip-test";
+        let wt_path = create_worktree(repo.path(), branch).unwrap();
+
+        manifest.add_dispatch(DispatchRecord {
+            id: "D-test-1".to_string(),
+            created_at: now_rfc3339(),
+            status: DispatchStatus::Pending,
+            worker_count: 1,
+            topic: "task.completed".to_string(),
+            prefix: "worker".to_string(),
+            branches: vec![BranchEntry {
+                worker_name: "worker-1".to_string(),
+                branch_name: branch.to_string(),
+                base_branch: "main".to_string(),
+                worktree_path: wt_path.to_string_lossy().to_string(),
+                has_commits: false,
+            }],
+        });
+        manifest.save(repo.path()).unwrap();
+
+        // Verify manifest file was created
+        let manifest_path = repo.path().join(MANIFEST_DIR).join(MANIFEST_FILE);
+        assert!(manifest_path.exists(), "Manifest file should exist");
+
+        // Reload and verify
+        let reloaded = DispatchManifest::load(repo.path()).unwrap();
+        assert_eq!(reloaded.dispatches.len(), 1);
+        assert_eq!(reloaded.dispatches[0].status, DispatchStatus::Pending);
+
+        cleanup_worktree(repo.path(), &wt_path, branch, false).unwrap();
+    }
+
+    #[test]
+    fn test_multiple_worktrees_unique_branches() {
+        let repo = create_test_git_repo();
+
+        let branch1 = "tl-dispatch/D-1/w1";
+        let branch2 = "tl-dispatch/D-1/w2";
+        let branch3 = "tl-dispatch/D-1/w3";
+
+        let wt1 = create_worktree(repo.path(), branch1).unwrap();
+        let wt2 = create_worktree(repo.path(), branch2).unwrap();
+        let wt3 = create_worktree(repo.path(), branch3).unwrap();
+
+        // All should be unique directories
+        assert_ne!(wt1, wt2);
+        assert_ne!(wt2, wt3);
+        assert_ne!(wt1, wt3);
+
+        // All should exist
+        assert!(wt1.exists());
+        assert!(wt2.exists());
+        assert!(wt3.exists());
+
+        // Cleanup
+        cleanup_worktree(repo.path(), &wt1, branch1, false).unwrap();
+        cleanup_worktree(repo.path(), &wt2, branch2, false).unwrap();
+        cleanup_worktree(repo.path(), &wt3, branch3, false).unwrap();
+    }
 }
