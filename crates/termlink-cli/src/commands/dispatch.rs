@@ -650,6 +650,95 @@ pub(crate) async fn cmd_dispatch(
     Ok(())
 }
 
+/// Show dispatch manifest status.
+pub(crate) fn cmd_dispatch_status(check: bool, json_output: bool) -> Result<()> {
+    let project_root = std::env::current_dir().context("Failed to get current directory")?;
+    let manifest = crate::manifest::DispatchManifest::load(&project_root)?;
+
+    let pending = manifest.count_by_status(&crate::manifest::DispatchStatus::Pending);
+    let merged = manifest.count_by_status(&crate::manifest::DispatchStatus::Merged);
+    let conflict = manifest.count_by_status(&crate::manifest::DispatchStatus::Conflict);
+    let deferred = manifest.count_by_status(&crate::manifest::DispatchStatus::Deferred);
+    let expired = manifest.count_by_status(&crate::manifest::DispatchStatus::Expired);
+    let total = manifest.dispatches.len();
+
+    if json_output {
+        let result = json!({
+            "ok": pending == 0,
+            "total": total,
+            "pending": pending,
+            "merged": merged,
+            "conflict": conflict,
+            "deferred": deferred,
+            "expired": expired,
+            "pending_dispatches": manifest.pending_dispatches().iter().map(|d| {
+                json!({
+                    "id": d.id,
+                    "created_at": d.created_at,
+                    "worker_count": d.worker_count,
+                    "branches": d.branches.iter()
+                        .filter(|b| b.has_commits)
+                        .map(|b| &b.branch_name)
+                        .collect::<Vec<_>>(),
+                })
+            }).collect::<Vec<_>>(),
+        });
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else if total == 0 {
+        println!("No dispatch manifest (no dispatches have used --isolate yet).");
+    } else {
+        println!("Dispatch manifest status:");
+        println!("  Total:    {total}");
+        println!("  Pending:  {pending}");
+        println!("  Merged:   {merged}");
+        println!("  Conflict: {conflict}");
+        if deferred > 0 {
+            println!("  Deferred: {deferred}");
+        }
+        if expired > 0 {
+            println!("  Expired:  {expired}");
+        }
+
+        if pending > 0 {
+            println!();
+            println!("Pending dispatches:");
+            for d in manifest.pending_dispatches() {
+                let branches_with_commits: Vec<_> = d
+                    .branches
+                    .iter()
+                    .filter(|b| b.has_commits)
+                    .collect();
+                println!("  {} (created: {}, {} branch(es) with changes)",
+                    d.id, d.created_at, branches_with_commits.len());
+                for b in &branches_with_commits {
+                    println!("    {}", b.branch_name);
+                }
+            }
+        }
+
+        if conflict > 0 {
+            println!();
+            println!("Conflicting dispatches (need manual merge):");
+            for d in &manifest.dispatches {
+                if d.status == crate::manifest::DispatchStatus::Conflict {
+                    println!("  {}", d.id);
+                }
+            }
+        }
+    }
+
+    if check && pending > 0 {
+        if !json_output {
+            eprintln!();
+            eprintln!("ERROR: {} pending dispatch(es). Merge or acknowledge before committing.", pending);
+            eprintln!("Run: termlink dispatch-status --json for details");
+        }
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
 fn resolve_spawn_backend(backend: &SpawnBackend) -> SpawnBackend {
     match backend {
         SpawnBackend::Auto => {

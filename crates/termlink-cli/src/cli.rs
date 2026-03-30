@@ -728,6 +728,18 @@ pub(crate) enum Command {
         command: Vec<String>,
     },
 
+    /// Show status of dispatch manifest (pending, merged, conflict branches)
+    #[command(name = "dispatch-status")]
+    DispatchStatus {
+        /// Exit non-zero if any pending branches exist (for pre-commit gate)
+        #[arg(long)]
+        check: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     // === Infrastructure ===
 
     /// Remove stale (dead) session registrations from the runtime directory

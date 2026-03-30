@@ -138,6 +138,9 @@ async fn main() -> Result<()> {
         Command::Dispatch { count, timeout, topic, name, roles, tags, cap, backend, workdir, isolate, auto_merge, json, command } => {
             commands::dispatch::cmd_dispatch(count, timeout, &topic, name, roles, tags, cap, backend, workdir, isolate, auto_merge, json, command).await
         }
+        Command::DispatchStatus { check, json } => {
+            commands::dispatch::cmd_dispatch_status(check, json)
+        }
 
         // Infrastructure
         Command::Clean { dry_run, json, no_header, count } => commands::session::cmd_clean(dry_run, json, no_header, count),
