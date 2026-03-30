@@ -67,9 +67,10 @@ termlink-test-utils    (dev-only — shared test helpers, depends on session)
 |-----------|------|---------|
 | **jsonrpc** | `src/jsonrpc.rs` | JSON-RPC 2.0 types: `Request`, `Response`, `ErrorResponse`, `RpcResponse` |
 | **control** | `src/control.rs` | RPC method name constants (`query.status`, `command.execute`, etc.), error codes, `KeyEntry`, `Capabilities`, `CommonParams` |
-| **data** | `src/data.rs` | Binary frame format: `FrameHeader`, `FrameType` (Stdout/Stderr/Stdin/Control/Resize), `FrameFlags`, encode/decode |
+| **data** | `src/data.rs` | Binary frame format: `FrameHeader`, `FrameType` (Output/Input/Resize/Signal/Transfer/Ping/Pong/Close), `FrameFlags`, encode/decode |
 | **error** | `src/error.rs` | `ProtocolError` enum for frame parsing and validation failures |
 | **events** | `src/events.rs` | Typed delegation protocol schemas: `TaskDelegate`, `TaskAccepted`, `TaskProgress`, `TaskCompleted`, `TaskFailed` |
+| **transport** | `src/transport.rs` | `TransportAddr` enum (Unix socket/TCP) for provider-agnostic session addressing |
 
 ### Dual Plane Design
 
@@ -98,12 +99,14 @@ termlink-test-utils    (dev-only — shared test helpers, depends on session)
 | **manager** | `src/manager.rs` | `Session::register()` / deregister, `list_sessions()`, `find_session()` by ID/name/tag/role/capability |
 | **liveness** | `src/liveness.rs` | `is_alive()` via `kill(pid, 0)` + socket existence, `cleanup_stale()` |
 | **client** | `src/client.rs` | JSON-RPC client: connect to session socket, `rpc_call()` convenience |
+| **transport** | `src/transport.rs` | Transport abstraction traits for provider-agnostic session I/O (Unix socket adapter) |
 
 ### Security
 
 | Component | File | Purpose |
 |-----------|------|---------|
 | **auth** | `src/auth.rs` | `PeerCredentials` extraction (SO_PEERCRED / LOCAL_PEERCRED), UID check, 4-tier `PermissionScope` (Observe/Interact/Control/Execute), `method_scope()` mapping, HMAC-SHA256 capability tokens (`create_token`, `validate_token`, `generate_secret`) |
+| **tofu** | `src/tofu.rs` | Trust-On-First-Use certificate verification for cross-machine hub connections, `KnownHubStore` persistence |
 
 ### RPC Handlers
 
@@ -111,6 +114,7 @@ termlink-test-utils    (dev-only — shared test helpers, depends on session)
 |-----------|------|---------|
 | **handler** | `src/handler.rs` | `SessionContext`, `dispatch()` / `dispatch_mut()` with read/write lock branching, all RPC implementations |
 | **server** | `src/server.rs` | Control plane server: accept loop, peer credential check, per-method permission enforcement, connection handling |
+| **endpoint** | `src/endpoint.rs` | `SessionEndpoint` — unified session lifecycle (register, bind sockets, run accept loop, shutdown) |
 
 ### RPC Method Inventory (18 methods)
 
@@ -163,9 +167,16 @@ termlink-test-utils    (dev-only — shared test helpers, depends on session)
 | Component | File | Purpose |
 |-----------|------|---------|
 | **router** | `src/router.rs` | Request routing: `session.discover` (with tag/role/capability filters), `event.broadcast` (fan-out), `event.collect` (fan-in with per-session cursors), forward-to-target |
-| **server** | `src/server.rs` | Hub server: Unix socket accept loop, UID check, `ShutdownHandle` for graceful shutdown, connection drain (5s timeout) |
+| **server** | `src/server.rs` | Hub server: Unix + TCP socket accept loop, UID check, `ShutdownHandle` for graceful shutdown, connection drain (5s timeout) |
 | **pidfile** | `src/pidfile.rs` | Daemon lifecycle: write/read/validate/remove PID file, prevents double-start, cleans stale pidfiles |
-| **supervisor** | `src/supervisor.rs` | Session supervision: polls liveness every 30s, auto-cleans dead sessions |
+| **supervisor** | `src/supervisor.rs` | Session supervision: polls liveness every 30s, auto-cleans dead sessions, emits `session.exited` events |
+| **tls** | `src/tls.rs` | Self-signed TLS certificate generation for TCP hub, PEM file management, TLS acceptor/connector config |
+| **circuit_breaker** | `src/circuit_breaker.rs` | Per-session circuit breaker: opens after 3 consecutive failures, half-open after 60s cooldown |
+| **bypass** | `src/bypass.rs` | Bypass registry for capability-based direct routing (Layer 1 of progressive discovery) |
+| **route_cache** | `src/route_cache.rs` | Route cache with confidence, TTL, and lazy invalidation (Layer 2 of progressive discovery) |
+| **template_cache** | `src/template_cache.rs` | 3-layer template cache for specialist interaction patterns (agent-local, shared, built-in) |
+| **remote_store** | `src/remote_store.rs` | In-memory store for remote (TCP) session registrations with TTL-based expiry |
+| **trust** | `src/trust.rs` | Qualitative trust assessment for specialist supervision (complexity, reversibility, confidence axes) |
 
 ### Hub Architecture
 
@@ -246,13 +257,15 @@ The MCP server runs as `termlink mcp serve` (stdio transport). Projects can vend
     │  server    │ │ tools  │──▶  handler           │
     │  pidfile   │ └───┬────┘  │  server            │
     │  supervisor│     │       │  auth               │
-    └──────┬─────┘     │       │  events             │
-           │           │       │  executor           │
-           │           │       │  pty                │
-           │           │       │  scrollback         │
-           │           │       │  codec              │
-           │           │       │  data_server        │
+    │  tls       │     │       │  events             │
+    │  circuit_  │     │       │  executor           │
+    │  breaker   │     │       │  pty                │
+    │  bypass    │     │       │  scrollback         │
+    │  trust     │     │       │  codec              │
+    └──────┬─────┘     │       │  data_server        │
            │           │       │  client             │
+           │           │       │  endpoint           │
+           │           │       │  tofu               │
            │           │       │  liveness           │
            │           │       │  discovery          │
            │           │       │  identity           │
@@ -269,6 +282,7 @@ The MCP server runs as `termlink mcp serve` (stdio transport). Projects can vend
                       │  data             │
                       │  error            │
                       │  events           │
+                      │  transport        │
                       └──────────────────┘
 ```
 
