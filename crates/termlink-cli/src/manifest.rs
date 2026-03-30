@@ -277,6 +277,48 @@ pub fn current_branch(project_root: &Path) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
+/// Merge a dispatch branch back into the base branch.
+/// Returns Ok(true) if merged successfully, Ok(false) if there was a conflict.
+pub fn merge_branch(
+    project_root: &Path,
+    branch_name: &str,
+    base_branch: &str,
+) -> Result<bool> {
+    // Checkout base branch
+    let checkout = std::process::Command::new("git")
+        .args(["checkout", base_branch])
+        .current_dir(project_root)
+        .output()
+        .context("Failed to checkout base branch")?;
+    if !checkout.status.success() {
+        let stderr = String::from_utf8_lossy(&checkout.stderr);
+        anyhow::bail!("Failed to checkout {base_branch}: {stderr}");
+    }
+
+    // Attempt merge
+    let merge = std::process::Command::new("git")
+        .args(["merge", "--no-edit", branch_name])
+        .current_dir(project_root)
+        .output()
+        .context("Failed to run git merge")?;
+
+    if merge.status.success() {
+        // Merge succeeded — delete the branch
+        let _ = std::process::Command::new("git")
+            .args(["branch", "-d", branch_name])
+            .current_dir(project_root)
+            .status();
+        Ok(true)
+    } else {
+        // Merge conflict — abort and preserve branch
+        let _ = std::process::Command::new("git")
+            .args(["merge", "--abort"])
+            .current_dir(project_root)
+            .status();
+        Ok(false)
+    }
+}
+
 /// Check if the current directory is inside a git repository.
 pub fn is_git_repo(path: &Path) -> bool {
     std::process::Command::new("git")

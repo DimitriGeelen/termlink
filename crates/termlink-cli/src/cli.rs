@@ -715,6 +715,10 @@ pub(crate) enum Command {
         #[arg(long)]
         isolate: bool,
 
+        /// After collection, merge worker branches back to base (requires --isolate)
+        #[arg(long)]
+        auto_merge: bool,
+
         /// Output results as JSON
         #[arg(long)]
         json: bool,

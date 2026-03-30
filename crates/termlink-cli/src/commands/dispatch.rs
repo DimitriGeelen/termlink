@@ -26,6 +26,7 @@ pub(crate) async fn cmd_dispatch(
     backend: SpawnBackend,
     workdir: Option<std::path::PathBuf>,
     isolate: bool,
+    auto_merge: bool,
     json_output: bool,
     command: Vec<String>,
 ) -> Result<()> {
@@ -57,6 +58,14 @@ pub(crate) async fn cmd_dispatch(
     } else {
         None
     };
+
+    // Validate --auto-merge requires --isolate
+    if auto_merge && !isolate {
+        if json_output {
+            super::json_error_exit(json!({"ok": false, "error": "--auto-merge requires --isolate"}));
+        }
+        anyhow::bail!("--auto-merge requires --isolate");
+    }
 
     // Validate --isolate requirements
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
@@ -486,6 +495,97 @@ pub(crate) async fn cmd_dispatch(
             }
         }
         manifest.save(&project_root)?;
+
+        // Auto-merge if requested
+        if auto_merge {
+            let branches_to_merge: Vec<_> = worktree_branches
+                .iter()
+                .filter(|b| b.has_commits)
+                .collect();
+
+            if branches_to_merge.is_empty() {
+                if !json_output {
+                    eprintln!("No branches to merge (all workers had no changes).");
+                }
+            } else {
+                if !json_output {
+                    eprintln!(
+                        "Auto-merging {} branch(es) into {}...",
+                        branches_to_merge.len(),
+                        branches_to_merge[0].base_branch
+                    );
+                }
+
+                let mut merge_results: Vec<serde_json::Value> = Vec::new();
+                let mut all_merged = true;
+
+                for branch in &branches_to_merge {
+                    match crate::manifest::merge_branch(
+                        &project_root,
+                        &branch.branch_name,
+                        &branch.base_branch,
+                    ) {
+                        Ok(true) => {
+                            if !json_output {
+                                eprintln!("  {} — merged", branch.branch_name);
+                            }
+                            merge_results.push(json!({
+                                "branch": branch.branch_name,
+                                "status": "merged",
+                            }));
+                        }
+                        Ok(false) => {
+                            all_merged = false;
+                            if !json_output {
+                                eprintln!(
+                                    "  {} — CONFLICT (branch preserved for manual merge)",
+                                    branch.branch_name
+                                );
+                            }
+                            merge_results.push(json!({
+                                "branch": branch.branch_name,
+                                "status": "conflict",
+                            }));
+                        }
+                        Err(e) => {
+                            all_merged = false;
+                            if !json_output {
+                                eprintln!("  {} — ERROR: {e}", branch.branch_name);
+                            }
+                            merge_results.push(json!({
+                                "branch": branch.branch_name,
+                                "status": "error",
+                                "error": e.to_string(),
+                            }));
+                        }
+                    }
+                }
+
+                // Update manifest with merge results
+                let mut manifest = crate::manifest::DispatchManifest::load(&project_root)?;
+                if let Some(record) = manifest.find_dispatch_mut(&dispatch_id) {
+                    if all_merged {
+                        record.status = crate::manifest::DispatchStatus::Merged;
+                    } else {
+                        record.status = crate::manifest::DispatchStatus::Conflict;
+                    }
+                }
+                manifest.save(&project_root)?;
+
+                // Store merge results for JSON output
+                if json_output {
+                    // Will be added to output below
+                    branch_names_created.clear();
+                    for mr in &merge_results {
+                        if mr["status"].as_str() == Some("conflict") {
+                            branch_names_created.push(
+                                mr["branch"].as_str().unwrap_or("?").to_string(),
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Output results
@@ -663,6 +763,7 @@ mod tests {
             SpawnBackend::Background,
             Some(std::path::PathBuf::from("/nonexistent/path/that/does/not/exist")),
             false, // isolate
+            false, // auto_merge
             false, // json
             vec!["echo".into(), "hello".into()],
         )
@@ -691,6 +792,7 @@ mod tests {
             SpawnBackend::Background,
             Some(tmp.clone()),
             false, // isolate
+            false, // auto_merge
             false, // json
             vec!["echo".into(), "hello".into()],
         )
@@ -719,6 +821,7 @@ mod tests {
             SpawnBackend::Background,
             None,
             false, // isolate
+            false, // auto_merge
             false, // json
             vec!["echo".into(), "hello".into()],
         )
@@ -747,6 +850,7 @@ mod tests {
             SpawnBackend::Background,
             Some(tmp),
             false, // isolate
+            false, // auto_merge
             false, // json
             vec!["echo".into(), "hello".into()],
         )
@@ -772,6 +876,7 @@ mod tests {
             SpawnBackend::Background,
             None,
             false, // isolate
+            false, // auto_merge
             false, // json
             vec!["echo".into()],
         )
@@ -793,6 +898,7 @@ mod tests {
             SpawnBackend::Background,
             None,
             false, // isolate
+            false, // auto_merge
             false, // json
             vec![],
         )
@@ -817,6 +923,7 @@ mod tests {
             SpawnBackend::Background,
             None,
             true,  // isolate
+            false, // auto_merge
             false, // json
             vec!["echo".into()],
         )
@@ -842,6 +949,7 @@ mod tests {
             SpawnBackend::Background,
             Some(std::env::temp_dir()),
             true,  // isolate
+            false, // auto_merge
             false, // json
             vec!["echo".into()],
         )
@@ -851,6 +959,32 @@ mod tests {
         assert!(
             err_msg.contains("mutually exclusive"),
             "Expected mutual exclusion error, got: {err_msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn auto_merge_requires_isolate() {
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            None,
+            false, // isolate
+            true,  // auto_merge
+            false, // json
+            vec!["echo".into()],
+        )
+        .await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("requires --isolate"),
+            "Expected requires isolate error, got: {err_msg}"
         );
     }
 }
