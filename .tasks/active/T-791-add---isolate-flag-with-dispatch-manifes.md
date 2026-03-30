@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-789, T-790, T-792]
 created: 2026-03-30T13:35:12Z
-last_update: 2026-03-30T13:46:12Z
+last_update: 2026-03-30T13:58:39Z
 date_finished: null
 ---
 
@@ -45,9 +45,9 @@ Phase 2 of T-789 (worktree isolation). Adds `--isolate` flag to `termlink dispat
 ## Verification
 
 grep -q "isolate" crates/termlink-cli/src/cli.rs
-grep -q "dispatch-manifest" crates/termlink-cli/src/commands/dispatch.rs
-grep -q "git worktree" crates/termlink-cli/src/commands/dispatch.rs
-grep -q "test_manifest" crates/termlink-cli/src/commands/dispatch.rs
+grep -q "dispatch-manifest" crates/termlink-cli/src/manifest.rs
+grep -q "git worktree" crates/termlink-cli/src/manifest.rs
+grep -q "test_manifest" crates/termlink-cli/src/manifest.rs
 
 ## Decisions
 
