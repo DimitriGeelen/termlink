@@ -1863,4 +1863,101 @@ mod tests {
             assert!(!needs_write(&req), "{method} should NOT require write lock");
         }
     }
+
+    // --- KV error case tests ---
+
+    #[tokio::test]
+    async fn kv_set_missing_key_returns_error() {
+        let mut ctx = test_ctx();
+        let req = Request::new("kv.set", json!("e-1"), json!({"value": "no-key"}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Error(err) = resp {
+            assert_eq!(err.error.code, standard_error::INVALID_PARAMS);
+        } else {
+            panic!("Expected error for kv.set without key");
+        }
+    }
+
+    #[tokio::test]
+    async fn kv_set_missing_value_returns_error() {
+        let mut ctx = test_ctx();
+        let req = Request::new("kv.set", json!("e-2"), json!({"key": "no-value"}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Error(err) = resp {
+            assert_eq!(err.error.code, standard_error::INVALID_PARAMS);
+        } else {
+            panic!("Expected error for kv.set without value");
+        }
+    }
+
+    #[tokio::test]
+    async fn kv_get_missing_key_returns_error() {
+        let ctx = test_ctx();
+        let req = Request::new("kv.get", json!("e-3"), json!({}));
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        if let RpcResponse::Error(err) = resp {
+            assert_eq!(err.error.code, standard_error::INVALID_PARAMS);
+        } else {
+            panic!("Expected error for kv.get without key");
+        }
+    }
+
+    #[tokio::test]
+    async fn kv_delete_missing_key_returns_error() {
+        let mut ctx = test_ctx();
+        let req = Request::new("kv.delete", json!("e-4"), json!({}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Error(err) = resp {
+            assert_eq!(err.error.code, standard_error::INVALID_PARAMS);
+        } else {
+            panic!("Expected error for kv.delete without key");
+        }
+    }
+
+    // --- session.update roles test ---
+
+    #[tokio::test]
+    async fn session_update_roles() {
+        let mut ctx = test_ctx();
+        assert_eq!(ctx.registration.roles, vec!["coder"]);
+
+        let req = Request::new(
+            "session.update",
+            json!("upd-r"),
+            json!({"roles": ["reviewer", "deployer"]}),
+        );
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            let updated = r.result["updated"].as_array().unwrap();
+            assert!(updated.iter().any(|c| c == "roles"));
+            let roles = r.result["roles"].as_array().unwrap();
+            assert_eq!(roles.len(), 2);
+        } else {
+            panic!("Expected success for session.update");
+        }
+        assert_eq!(ctx.registration.roles, vec!["reviewer", "deployer"]);
+    }
+
+    // --- dispatch_mut fallthrough and notification tests ---
+
+    #[tokio::test]
+    async fn dispatch_mut_falls_through_to_immutable() {
+        let mut ctx = test_ctx();
+        // termlink.ping is a read-only method — dispatch_mut should fall through to dispatch
+        let req = Request::new("termlink.ping", json!("ft-1"), json!({}));
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["id"], ctx.registration.id.as_str());
+        } else {
+            panic!("Expected success from fallthrough dispatch");
+        }
+    }
+
+    #[tokio::test]
+    async fn dispatch_mut_notification_returns_none() {
+        let mut ctx = test_ctx();
+        let req = Request::notification("session.update", json!({"tags": ["ignored"]}));
+        let resp = dispatch_mut(&req, &mut ctx).await;
+        assert!(resp.is_none());
+    }
 }
