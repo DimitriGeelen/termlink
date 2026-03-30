@@ -784,7 +784,7 @@ pub(crate) async fn cmd_collect(
         eprintln!();
     }
 
-    let poll_interval = tokio::time::Duration::from_millis(interval_ms);
+    let subscribe_timeout_ms = interval_ms.max(500);
     let deadline = if timeout_secs > 0 {
         Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs))
     } else {
@@ -805,6 +805,7 @@ pub(crate) async fn cmd_collect(
         }
 
         tokio::select! {
+            biased;
             _ = tokio::signal::ctrl_c() => {
                 if !json {
                     eprintln!();
@@ -812,8 +813,10 @@ pub(crate) async fn cmd_collect(
                 }
                 break;
             }
-            _ = tokio::time::sleep(poll_interval) => {
-                let mut params = serde_json::json!({});
+            collect_result = async {
+                let mut params = serde_json::json!({
+                    "timeout_ms": subscribe_timeout_ms,
+                });
                 if !targets.is_empty() {
                     params["targets"] = serde_json::json!(targets);
                 }
@@ -824,7 +827,9 @@ pub(crate) async fn cmd_collect(
                     params["since"] = cursors.clone();
                 }
 
-                let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
+                client::rpc_call(&hub_socket, "event.collect", params).await
+            } => {
+                let resp = match collect_result {
                     Ok(r) => r,
                     Err(e) => {
                         if !json {

@@ -411,8 +411,16 @@ async fn handle_event_collect(
 
     let topic_filter = params.get("topic").and_then(|t| t.as_str());
 
+    // Optional timeout_ms: when set, use event.subscribe (server-side blocking)
+    // instead of event.poll (instant snapshot). This eliminates polling latency
+    // for callers that would otherwise sleep between collect calls.
+    let subscribe_timeout_ms = params
+        .get("timeout_ms")
+        .and_then(|t| t.as_u64());
+
     // Dispatch polls concurrently with per-target timeout
     let mut join_set = tokio::task::JoinSet::new();
+    let num_targets = registrations.len().max(1) as u64;
 
     for reg in registrations {
         let sid = reg.id.to_string();
@@ -422,17 +430,32 @@ async fn handle_event_collect(
         let topic_filter = topic_filter.map(String::from);
 
         join_set.spawn(async move {
-            let mut poll_params = json!({});
-            if let Some(seq_val) = since_map.get(&sid) {
-                poll_params["since"] = seq_val.clone();
-            }
-            if let Some(t) = &topic_filter {
-                poll_params["topic"] = json!(t);
-            }
+            // Choose RPC method based on timeout_ms parameter
+            let (method, rpc_params) = if let Some(timeout_ms) = subscribe_timeout_ms {
+                let per_session_timeout = timeout_ms / num_targets;
+                let effective_timeout = per_session_timeout.max(100); // at least 100ms
+                let mut p = json!({"timeout_ms": effective_timeout});
+                if let Some(seq_val) = since_map.get(&sid) {
+                    p["since"] = seq_val.clone();
+                }
+                if let Some(t) = &topic_filter {
+                    p["topic"] = json!(t);
+                }
+                (control::method::EVENT_SUBSCRIBE, p)
+            } else {
+                let mut p = json!({});
+                if let Some(seq_val) = since_map.get(&sid) {
+                    p["since"] = seq_val.clone();
+                }
+                if let Some(t) = &topic_filter {
+                    p["topic"] = json!(t);
+                }
+                (control::method::EVENT_POLL, p)
+            };
 
             let result = tokio::time::timeout(
                 PER_TARGET_TIMEOUT,
-                client::rpc_call_addr(&addr, control::method::EVENT_POLL, poll_params),
+                client::rpc_call_addr(&addr, method, rpc_params),
             )
             .await;
 

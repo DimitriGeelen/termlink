@@ -338,7 +338,7 @@ pub(crate) async fn cmd_dispatch(
 
     // Collect events via hub
     let collect_timeout = std::time::Duration::from_secs(timeout);
-    let poll_interval = std::time::Duration::from_millis(500);
+    let subscribe_timeout_ms: u64 = 500;
     let collect_start = std::time::Instant::now();
     let mut cursors = json!({});
     let mut collected_events = Vec::new();
@@ -352,8 +352,10 @@ pub(crate) async fn cmd_dispatch(
         }
 
         // Filter to our dispatch workers by tag
+        // Use timeout_ms for push-based delivery (hub subscribes to sessions)
         let mut params = json!({
             "topic": topic,
+            "timeout_ms": subscribe_timeout_ms,
         });
         // Use worker names as targets for targeted collection
         let target_names: Vec<&str> = worker_names
@@ -376,8 +378,7 @@ pub(crate) async fn cmd_dispatch(
         let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
             Ok(r) => r,
             Err(e) => {
-                tracing::debug!(error = %e, "Collect poll error");
-                tokio::time::sleep(poll_interval).await;
+                tracing::debug!(error = %e, "Collect error");
                 continue;
             }
         };
@@ -420,7 +421,7 @@ pub(crate) async fn cmd_dispatch(
                 }
         }
 
-        tokio::time::sleep(poll_interval).await;
+        // event.collect with timeout_ms blocks server-side; no sleep needed
     }
 
     // Cleanup: signal all workers to exit
