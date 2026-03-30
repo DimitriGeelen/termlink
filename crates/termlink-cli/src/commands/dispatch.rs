@@ -136,7 +136,7 @@ pub(crate) async fn cmd_dispatch(
         let mut manifest = crate::manifest::DispatchManifest::load(&project_root)?;
         manifest.add_dispatch(crate::manifest::DispatchRecord {
             id: dispatch_id.clone(),
-            created_at: crate::manifest::DispatchManifest::load(&project_root)?.last_updated.clone(),
+            created_at: crate::manifest::now_rfc3339(),
             status: crate::manifest::DispatchStatus::Pending,
             worker_count: count,
             topic: topic.to_string(),
