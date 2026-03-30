@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-814: Upgrade MCP tools event.poll to event.subscribe
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T19:47:29Z
+# ============================================================================
+
+task_id: T-814
+task_name: "Upgrade MCP tools event.poll to event.subscribe"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T19:39:46Z
+completed: 2026-03-30T19:47:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-30T21:46:15+02:00
+last_commit: 2026-03-30T21:46:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Upgrade MCP termlink_request and termlink_wait to event.subscribe
+
+# Key outcomes
+outcomes:
+  - "`termlink_request` cursor snapshot uses `event.subscribe` with timeout_ms=1"
+  - "`termlink_request` reply poll loop uses `event.subscribe` instead of poll+sleep"
+  - "`termlink_wait` poll loop uses `event.subscribe` instead of poll+sleep"
+  - "`cargo check -p termlink-mcp` passes"
+  - "All MCP tests pass (43/43)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-814-upgrade-mcp-tools-eventpoll-to-eventsubs.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T21:46:15"
+    action: "T-814: Upgrade MCP termlink_request and termlink_wait to event.subscribe"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 113
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-814-upgrade-mcp-tools-eventpoll-to-eventsubs.md
+generated_by: context-agent-hybrid

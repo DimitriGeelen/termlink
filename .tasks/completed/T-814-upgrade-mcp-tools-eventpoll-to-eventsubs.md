@@ -4,16 +4,16 @@ name: "Upgrade MCP tools event.poll to event.subscribe"
 description: >
   Upgrade MCP tools event.poll to event.subscribe
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-03-30T19:39:46Z
-last_update: 2026-03-30T19:39:46Z
-date_finished: null
+last_update: 2026-03-30T19:47:19Z
+date_finished: 2026-03-30T19:47:19Z
 ---
 
 # T-814: Upgrade MCP tools event.poll to event.subscribe
@@ -34,7 +34,7 @@ MCP tools `termlink_request` and `termlink_wait` use `event.poll` + sleep(500ms)
 ## Verification
 
 cargo check -p termlink-mcp 2>&1 | grep -q "Finished"
-cargo test -p termlink-mcp 2>&1 | grep -q "test result: ok"
+cargo test -p termlink-mcp
 
 ## Decisions
 
@@ -53,3 +53,6 @@ cargo test -p termlink-mcp 2>&1 | grep -q "test result: ok"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-814-upgrade-mcp-tools-eventpoll-to-eventsubs.md
 - **Context:** Initial task creation
+
+### 2026-03-30T19:47:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
