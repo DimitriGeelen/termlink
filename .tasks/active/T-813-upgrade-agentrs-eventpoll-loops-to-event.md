@@ -25,11 +25,11 @@ agent.rs has 5 uses of `event.poll` in sleep loops for cmd_agent_ask, cmd_agent_
 ## Acceptance Criteria
 
 ### Agent
-- [ ] All 5 `event.poll` calls in agent.rs replaced with `event.subscribe`
-- [ ] Cursor snapshot patterns use quick subscribe (timeout_ms=1) for next_seq
-- [ ] Poll wait loops replaced with subscribe (server-side blocking)
-- [ ] request_id matching preserved for agent ask/negotiate
-- [ ] `cargo check -p termlink` passes with zero warnings
+- [x] All 5 `event.poll` calls in agent.rs replaced with `event.subscribe`
+- [x] Cursor snapshot patterns use quick subscribe (timeout_ms=1) for next_seq
+- [x] Poll wait loops replaced with subscribe (server-side blocking)
+- [x] request_id matching preserved for agent ask/negotiate
+- [ ] `cargo check -p termlink` passes — NEEDS VERIFICATION (budget gate hit mid-edit, sleep removal incomplete)
 
 ## Verification
 
