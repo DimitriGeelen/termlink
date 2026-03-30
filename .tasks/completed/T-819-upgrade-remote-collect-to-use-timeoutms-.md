@@ -4,16 +4,16 @@ name: "Upgrade remote collect to use timeout_ms for push-based delivery"
 description: >
   Upgrade remote collect to use timeout_ms for push-based delivery
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-03-30T20:18:11Z
-last_update: 2026-03-30T20:18:11Z
-date_finished: null
+last_update: 2026-03-30T20:19:55Z
+date_finished: 2026-03-30T20:19:55Z
 ---
 
 # T-819: Upgrade remote collect to use timeout_ms for push-based delivery
@@ -50,3 +50,6 @@ cargo check -p termlink 2>&1 | grep -q "Finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-819-upgrade-remote-collect-to-use-timeoutms-.md
 - **Context:** Initial task creation
+
+### 2026-03-30T20:19:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
