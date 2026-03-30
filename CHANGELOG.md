@@ -28,7 +28,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Linux aarch64 added to release workflow (4 platform builds: macOS arm64/x86_64, Linux x86_64/aarch64)
 - Homebrew formula updated with 4 platform variants
 - E2E test runner (`tests/e2e/run-all.sh`) — discovers and runs level scripts with summary
-- 585 total tests (from 474) — protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip
+- 606 total tests (from 474) — protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError
 
 ### Changed
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)
