@@ -91,7 +91,6 @@ impl DispatchManifest {
     }
 
     /// Get all pending dispatch records. Used by gate check (T-793).
-    #[allow(dead_code)]
     pub fn pending_dispatches(&self) -> Vec<&DispatchRecord> {
         self.dispatches
             .iter()
@@ -100,7 +99,6 @@ impl DispatchManifest {
     }
 
     /// Count dispatches by status. Used by dispatch status command (T-794).
-    #[allow(dead_code)]
     pub fn count_by_status(&self, status: &DispatchStatus) -> usize {
         self.dispatches.iter().filter(|d| d.status == *status).count()
     }
