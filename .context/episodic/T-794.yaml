@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-794: Update ARCHITECTURE.md and CHANGELOG.md with worktree isolation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T14:40:00Z
+# ============================================================================
+
+task_id: T-794
+task_name: "Add dispatch status CLI and audit check for orphaned branches"
+workflow_type: build
+enrichment_status: complete
+
+# Timeline
+created: 2026-03-30T13:35:20Z
+completed: 2026-03-30T14:13:09Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-03-30T14:13:09+00:00
+last_commit: 2026-03-30T14:13:09+00:00
+
+# Summary
+summary: |
+  Phase 5 of T-789 worktree isolation. Updated ARCHITECTURE.md and CHANGELOG.md
+  with worktree isolation features (--isolate, --auto-merge, --workdir, dispatch-status),
+  new manifest module, and updated test counts (647 at the time).
+
+# Key outcomes
+outcomes:
+  - "ARCHITECTURE.md updated with new test count and worktree features"
+  - "CHANGELOG.md updated with --isolate, --auto-merge, --workdir, dispatch-status"
+  - "dispatch-status command documented"
+  - "New manifest module documented"
+
+# Challenges
+challenges:
+  # No challenges detected
+
+# Decisions (from task file)
+decisions: []
+
+# Artifacts
+artifacts:
+  - "docs/ARCHITECTURE.md"
+  - "CHANGELOG.md"
+
+# Timeline
+git_timeline:
+  - time: "2026-03-30T14:13:09"
+    action: "T-794: Update ARCHITECTURE.md (647 tests) and CHANGELOG.md with worktree isolation features"
+
+# What worked well
+successes:
+  - "Documentation update was straightforward — all features already landed in prior phases"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: [T-796]
+
+# Tags
+tags: [documentation, worktree-isolation, T-789]
+
+# Metrics
+metrics:
+  wall_clock_minutes: 38
+  commits: 1
+  files_changed: 2
+  lines_added: 20
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-794-add-dispatch-status-cli-and-audit-check-.md
+generated_by: context-agent-manual
