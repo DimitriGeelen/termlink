@@ -178,9 +178,11 @@ pub(crate) async fn cmd_request(
         obj.insert("request_id".to_string(), serde_json::json!(request_id));
     }
 
+    // Get current cursor position so we only see events after the request emit
     let cursor: Option<u64> = {
-        let params = serde_json::json!({});
-        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+        // Quick subscribe with 1ms timeout to get next_seq without waiting
+        let params = serde_json::json!({"timeout_ms": 1});
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     result["next_seq"].as_u64()
@@ -228,16 +230,29 @@ pub(crate) async fn cmd_request(
 
     let start = std::time::Instant::now();
     let timeout_dur = std::time::Duration::from_secs(timeout);
-    let poll_interval = std::time::Duration::from_millis(interval);
-    let mut poll_cursor = cursor;
+    let subscribe_timeout = interval.max(500); // at least 500ms per subscribe call
+    let mut sub_cursor = cursor;
 
     loop {
-        let mut params = serde_json::json!({ "topic": reply_topic });
-        if let Some(c) = poll_cursor {
+        let remaining = timeout_dur.saturating_sub(start.elapsed());
+        if remaining.is_zero() {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout)}));
+            }
+            anyhow::bail!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout);
+        }
+
+        // Use event.subscribe — server blocks until events arrive
+        let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
+        let mut params = serde_json::json!({
+            "topic": reply_topic,
+            "timeout_ms": effective_timeout,
+        });
+        if let Some(c) = sub_cursor {
             params["since"] = serde_json::json!(c);
         }
 
-        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
@@ -266,26 +281,16 @@ pub(crate) async fn cmd_request(
                         }
                     }
 
-                    if let Some(events) = result["events"].as_array()
-                        && !events.is_empty()
-                            && let Some(next) = result["next_seq"].as_u64() {
-                                poll_cursor = Some(next);
-                            }
+                    // Update cursor for next subscribe call
+                    if let Some(next) = result["next_seq"].as_u64() {
+                        sub_cursor = Some(next.saturating_sub(1));
+                    }
                 }
             }
             Err(e) => {
-                tracing::warn!("Poll error: {}", e);
+                tracing::warn!("Subscribe error: {}", e);
             }
         }
-
-        if start.elapsed() > timeout_dur {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout)}));
-            }
-            anyhow::bail!("Timeout waiting for reply on topic '{}' ({}s)", reply_topic, timeout);
-        }
-
-        tokio::time::sleep(poll_interval).await;
     }
 }
 
