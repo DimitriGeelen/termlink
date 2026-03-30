@@ -30,6 +30,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - E2E test runner (`tests/e2e/run-all.sh`) — discovers and runs level scripts with summary
 - **`event.subscribe` RPC** — long-poll event subscription via broadcast channel (near-zero latency vs 250-500ms polling)
   - `next_seq` field in response for cursor-based following (parity with `event.poll`)
+  - `since` parameter for cursor-based replay — historical events replayed before live streaming
 - EventBus broadcast channel — `subscribe()` for push-based event delivery alongside existing `poll()`
 - **Worktree isolation for dispatch** — `termlink dispatch --isolate` creates a git worktree per worker for filesystem isolation
   - `--workdir <path>` flag for manual directory override
@@ -41,7 +42,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`termlink dispatch-status`** — read dispatch manifest and report branch status
   - `--check` flag exits non-zero if pending branches exist (pre-commit gate)
   - `--json` for structured output
-- 675 total tests (from 474) — event subscription, TLS edge cases, pidfile parsing, reaper lifecycle, protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError, manifest CRUD, dispatch workdir/isolate/auto-merge validation, vendor gitignore/MCP config, push shell_escape, token inspect parsing
+- **`termlink_event_subscribe` MCP tool** — 27th MCP tool, exposes push-based event delivery with since/timeout/topic/max_events params
+- **`termlink doctor` dispatch check** — validates dispatch manifest, warns on pending dispatches, `--fix` expires stale dispatches (>24h)
+- 688 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP event_subscribe integration, manifest secs_to_rfc3339, plus all previous test categories
 
 ### Changed
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)
