@@ -64,7 +64,7 @@ async fn test_list_tools() {
         "termlink_ping", "termlink_list_sessions", "termlink_discover",
         "termlink_exec", "termlink_output", "termlink_inject",
         "termlink_signal", "termlink_emit", "termlink_emit_to",
-        "termlink_event_poll", "termlink_kv_set", "termlink_kv_get",
+        "termlink_event_poll", "termlink_event_subscribe", "termlink_kv_set", "termlink_kv_get",
         "termlink_kv_list", "termlink_kv_del", "termlink_broadcast",
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
         "termlink_interact", "termlink_doctor", "termlink_clean",
@@ -963,4 +963,54 @@ async fn test_resize_nonexistent() {
     assert!(result.contains("Error"), "should error for missing session: {result}");
 
     client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_event_subscribe_with_history() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-subscribe");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "mcp-sub-tgt", vec![]).await;
+
+    let client = mcp_client().await;
+
+    // Emit two events
+    call(&client, "termlink_emit",
+        json!({"target": "mcp-sub-tgt", "topic": "sub.test", "payload": {"n": 1}})).await;
+    call(&client, "termlink_emit",
+        json!({"target": "mcp-sub-tgt", "topic": "sub.test", "payload": {"n": 2}})).await;
+
+    // Subscribe with since=0 to replay events with seq > 0, short timeout
+    // First event is seq 0, second is seq 1. since=0 returns seq > 0, so just seq 1.
+    let text = call(&client, "termlink_event_subscribe",
+        json!({"target": "mcp-sub-tgt", "since": 0, "timeout_ms": 500, "topic": "sub.test"})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let events = parsed["events"].as_array().unwrap();
+    assert!(events.len() >= 1, "expected at least 1 historical event with seq > 0, got: {text}");
+    assert_eq!(events[0]["topic"], "sub.test");
+    assert!(parsed["next_seq"].is_u64(), "next_seq should be present");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_event_subscribe_timeout_empty() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-sub-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "mcp-sub-empty-tgt", vec![]).await;
+
+    let client = mcp_client().await;
+
+    // Subscribe without since, short timeout, no events emitted
+    let text = call(&client, "termlink_event_subscribe",
+        json!({"target": "mcp-sub-empty-tgt", "timeout_ms": 200})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["count"], 0, "expected 0 events on empty subscribe: {text}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
 }

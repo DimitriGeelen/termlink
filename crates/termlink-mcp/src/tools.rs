@@ -246,6 +246,20 @@ pub struct EventPollParams {
     pub topic: Option<String>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct EventSubscribeParams {
+    /// Session ID or display name
+    pub target: String,
+    /// Timeout in milliseconds (default 5000). Server blocks until events arrive or timeout.
+    pub timeout_ms: Option<u64>,
+    /// Filter by topic
+    pub topic: Option<String>,
+    /// Replay historical events with seq > since before streaming live events
+    pub since: Option<u64>,
+    /// Maximum events to return (default 100)
+    pub max_events: Option<u64>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -551,6 +565,39 @@ impl TermLinkTools {
         }
 
         match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}")),
+                Err(e) => format!("Error: {e}"),
+            },
+            Err(e) => format!("Error: connection failed: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_event_subscribe",
+        description = "Subscribe to events from a session using push-based delivery. Blocks until events arrive or timeout. Lower latency than polling. Optional 'since' parameter replays historical events before streaming live ones."
+    )]
+    async fn termlink_event_subscribe(&self, Parameters(p): Parameters<EventSubscribeParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let mut params = serde_json::json!({});
+        if let Some(timeout_ms) = p.timeout_ms {
+            params["timeout_ms"] = serde_json::json!(timeout_ms);
+        }
+        if let Some(topic) = &p.topic {
+            params["topic"] = serde_json::json!(topic);
+        }
+        if let Some(since) = p.since {
+            params["since"] = serde_json::json!(since);
+        }
+        if let Some(max_events) = p.max_events {
+            params["max_events"] = serde_json::json!(max_events);
+        }
+
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}")),
                 Err(e) => format!("Error: {e}"),
