@@ -4,16 +4,16 @@ name: "Upgrade hub event.collect to use event.subscribe internally"
 description: >
   Upgrade hub event.collect to use event.subscribe internally
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-03-30T20:10:07Z
-last_update: 2026-03-30T20:10:07Z
-date_finished: null
+last_update: 2026-03-30T20:17:16Z
+date_finished: 2026-03-30T20:17:16Z
 ---
 
 # T-818: Upgrade hub event.collect to use event.subscribe internally
@@ -54,3 +54,6 @@ cargo test -p termlink-hub
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-818-upgrade-hub-eventcollect-to-use-eventsub.md
 - **Context:** Initial task creation
+
+### 2026-03-30T20:17:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
