@@ -4,7 +4,7 @@ name: "Update CHANGELOG and ARCHITECTURE for event.subscribe migration"
 description: >
   Update CHANGELOG and ARCHITECTURE for event.subscribe migration
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T19:50:46Z
-last_update: 2026-03-30T19:50:46Z
-date_finished: null
+last_update: 2026-03-30T19:53:49Z
+date_finished: 2026-03-30T19:53:49Z
 ---
 
 # T-815: Update CHANGELOG and ARCHITECTURE for event.subscribe migration
@@ -50,3 +50,6 @@ grep -q "684" CHANGELOG.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-815-update-changelog-and-architecture-for-ev.md
 - **Context:** Initial task creation
+
+### 2026-03-30T19:53:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
