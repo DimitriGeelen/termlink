@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-759: Add Linux aarch64 to release workflow for ARM64 support
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T00:00:32Z
+# ============================================================================
+
+task_id: T-759
+task_name: "Add Linux aarch64 to release workflow for ARM64 support"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T20:02:23Z
+completed: 2026-03-29T20:03:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T22:03:42+02:00
+last_commit: 2026-03-29T22:03:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add Linux aarch64 to release workflow (4 platform builds)
+
+# Key outcomes
+outcomes:
+  - "Linux aarch64 build job added to release.yml using cross-compilation"
+  - "termlink-linux-aarch64 artifact included in release assets"
+  - "Checksums include all 4 binaries (darwin-aarch64, darwin-x86_64, linux-x86_64, linux-aarch64)"
+  - "YAML is valid"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions: []  # No decisions — added platform to matrix
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".github/workflows/release.yml"
+  - ".tasks/active/T-759-add-linux-aarch64-to-release-workflow-fo.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T22:03:42"
+    action: "T-759: Add Linux aarch64 to release workflow (4 platform builds)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [release, ci, aarch64, cross-compilation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 87
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-759-add-linux-aarch64-to-release-workflow-fo.md
+generated_by: context-agent-hybrid

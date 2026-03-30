@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-760: Update Homebrew formula — add Linux aarch64 variant to match release workflow
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T00:00:33Z
+# ============================================================================
+
+task_id: T-760
+task_name: "Update Homebrew formula — add Linux aarch64 variant to match release workflow"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-29T20:06:21Z
+completed: 2026-03-29T20:07:35Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-29T22:07:28+02:00
+last_commit: 2026-03-29T22:07:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add Linux aarch64 to Homebrew formula (4 platform variants)
+
+# Key outcomes
+outcomes:
+  - "Linux `on_linux` block split into arm? and x86_64 variants"
+  - "Linux aarch64 URL points to termlink-linux-aarch64 release asset"
+  - "Formula structure validated: 4 platform variants (darwin-aarch64, darwin-x86_64, linux-x86_64, linux-aarch64)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions: []  # No decisions — matched release workflow additions
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "homebrew/Formula/termlink.rb"
+  - ".tasks/active/T-760-update-homebrew-formula--add-linux-aarch.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-29T22:07:28"
+    action: "T-760: Add Linux aarch64 to Homebrew formula (4 platform variants)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [homebrew, release, aarch64]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 59
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-760-update-homebrew-formula--add-linux-aarch.md
+generated_by: context-agent-hybrid
