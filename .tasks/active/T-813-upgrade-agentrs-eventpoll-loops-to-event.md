@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T18:14:09Z
-last_update: 2026-03-30T18:14:09Z
+last_update: 2026-03-30T19:35:13Z
 date_finished: null
 ---
 
@@ -29,7 +29,7 @@ agent.rs has 5 uses of `event.poll` in sleep loops for cmd_agent_ask, cmd_agent_
 - [x] Cursor snapshot patterns use quick subscribe (timeout_ms=1) for next_seq
 - [x] Poll wait loops replaced with subscribe (server-side blocking)
 - [x] request_id matching preserved for agent ask/negotiate
-- [ ] `cargo check -p termlink` passes — NEEDS VERIFICATION (budget gate hit mid-edit, sleep removal incomplete)
+- [x] `cargo check -p termlink` passes
 
 ## Verification
 

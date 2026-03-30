@@ -608,9 +608,7 @@ pub(crate) async fn cmd_agent_negotiate(
                 return Ok(());
             }
 
-            if !got_response {
-                tokio::time::sleep(poll_interval_dur).await;
-            }
+            // event.subscribe blocks server-side; no sleep needed
         }
     }
 
