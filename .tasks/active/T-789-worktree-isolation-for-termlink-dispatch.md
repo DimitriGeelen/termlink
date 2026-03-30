@@ -4,7 +4,7 @@ name: "Worktree isolation for TermLink-dispatched agents — git worktree per sp
 description: >
   Inception: Worktree isolation for TermLink-dispatched agents — git worktree per spawned session
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T12:47:17Z
-last_update: 2026-03-30T12:50:31Z
-date_finished: null
+last_update: 2026-03-30T13:07:53Z
+date_finished: 2026-03-30T13:07:53Z
 ---
 
 # T-789: Worktree isolation for TermLink-dispatched agents — git worktree per spawned session
@@ -90,18 +90,20 @@ test -f docs/reports/T-789-worktree-isolation-research.md
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Option A (7/8). Dispatch manifest makes all 5 failure modes deterministically mitigated. 64 tests specified. Implementation:   
+  --workdir, --isolate+manifest, --auto-merge, pre-commit gate, audit check.
+
+**Date**: 2026-03-30T13:07:53Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Option A (7/8). Dispatch manifest makes all 5 failure modes deterministically mitigated. 64 tests specified. Implementation:   
+  --workdir, --isolate+manifest, --auto-merge, pre-commit gate, audit check.
+
+**Date**: 2026-03-30T13:07:53Z
 
 ## Updates
 
@@ -110,3 +112,13 @@ test -f docs/reports/T-789-worktree-isolation-research.md
 
 ### 2026-03-30T12:50:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-03-30T13:07:53Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Option A (7/8). Dispatch manifest makes all 5 failure modes deterministically mitigated. 64 tests specified. Implementation:   
+  --workdir, --isolate+manifest, --auto-merge, pre-commit gate, audit check.
+
+### 2026-03-30T13:07:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

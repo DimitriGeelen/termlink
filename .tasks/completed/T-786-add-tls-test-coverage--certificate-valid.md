@@ -4,7 +4,7 @@ name: "Add TLS test coverage — certificate validation, expired cert, wrong hos
 description: >
   Add TLS test coverage — certificate validation, expired cert, wrong hostname
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T12:01:39Z
-last_update: 2026-03-30T12:01:39Z
-date_finished: null
+last_update: 2026-03-30T12:22:00Z
+date_finished: 2026-03-30T12:22:00Z
 ---
 
 # T-786: Add TLS test coverage — certificate validation, expired cert, wrong hostname
@@ -52,3 +52,6 @@ cargo test -p termlink-hub --lib tls::tests
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-786-add-tls-test-coverage--certificate-valid.md
 - **Context:** Initial task creation
+
+### 2026-03-30T12:22:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

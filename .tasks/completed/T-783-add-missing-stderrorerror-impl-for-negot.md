@@ -4,16 +4,16 @@ name: "Add missing std::error::Error impl for NegotiateError"
 description: >
   Add missing std::error::Error impl for NegotiateError
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-protocol/src/events.rs]
 related_tasks: []
 created: 2026-03-30T06:58:43Z
-last_update: 2026-03-30T06:58:43Z
-date_finished: null
+last_update: 2026-03-30T07:00:44Z
+date_finished: 2026-03-30T07:00:44Z
 ---
 
 # T-783: Add missing std::error::Error impl for NegotiateError
@@ -51,3 +51,6 @@ cargo test -p termlink-protocol 2>&1 | tail -3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-783-add-missing-stderrorerror-impl-for-negot.md
 - **Context:** Initial task creation
+
+### 2026-03-30T07:00:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

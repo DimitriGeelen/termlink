@@ -4,16 +4,16 @@ name: "Fix remote store ID collision — use atomic counter instead of ms-precis
 description: >
   Fix remote store ID collision — use atomic counter instead of ms-precision timestamps
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/remote_store.rs]
 related_tasks: []
 created: 2026-03-30T06:52:48Z
-last_update: 2026-03-30T06:52:48Z
-date_finished: null
+last_update: 2026-03-30T06:55:21Z
+date_finished: 2026-03-30T06:55:21Z
 ---
 
 # T-782: Fix remote store ID collision — use atomic counter instead of ms-precision timestamps
@@ -53,3 +53,6 @@ grep -q "AtomicU64\|atomic" crates/termlink-hub/src/remote_store.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-782-fix-remote-store-id-collision--use-atomi.md
 - **Context:** Initial task creation
+
+### 2026-03-30T06:55:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

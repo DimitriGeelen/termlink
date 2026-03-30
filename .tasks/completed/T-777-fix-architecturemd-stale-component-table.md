@@ -4,7 +4,7 @@ name: "Fix ARCHITECTURE.md stale component tables — missing modules, wrong Fra
 description: >
   Fix ARCHITECTURE.md stale component tables — missing modules, wrong FrameType names
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T00:04:37Z
-last_update: 2026-03-30T00:04:37Z
-date_finished: null
+last_update: 2026-03-30T00:06:49Z
+date_finished: 2026-03-30T00:06:49Z
 ---
 
 # T-777: Fix ARCHITECTURE.md stale component tables — missing modules, wrong FrameType names
@@ -54,3 +54,6 @@ grep -q "circuit_breaker" docs/ARCHITECTURE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-777-fix-architecturemd-stale-component-table.md
 - **Context:** Initial task creation
+
+### 2026-03-30T00:06:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

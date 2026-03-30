@@ -4,16 +4,16 @@ name: "Add safety comments to undocumented unsafe blocks in dispatch.rs and endp
 description: >
   Add safety comments to undocumented unsafe blocks in dispatch.rs and endpoint.rs
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-session/src/endpoint.rs]
 related_tasks: []
 created: 2026-03-30T00:08:12Z
-last_update: 2026-03-30T00:08:12Z
-date_finished: null
+last_update: 2026-03-30T00:09:24Z
+date_finished: 2026-03-30T00:09:24Z
 ---
 
 # T-778: Add safety comments to undocumented unsafe blocks in dispatch.rs and endpoint.rs
@@ -57,3 +57,6 @@ Two unsafe blocks lack SAFETY comments: dispatch.rs:303 (libc::kill) and endpoin
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-778-add-safety-comments-to-undocumented-unsa.md
 - **Context:** Initial task creation
+
+### 2026-03-30T00:09:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

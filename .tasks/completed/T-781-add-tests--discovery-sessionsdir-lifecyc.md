@@ -4,16 +4,16 @@ name: "Add tests — discovery sessions_dir, lifecycle serde edge cases, livenes
 description: >
   Add tests — discovery sessions_dir, lifecycle serde edge cases, liveness cleanup TCP
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-session/src/discovery.rs, crates/termlink-session/src/lifecycle.rs]
 related_tasks: []
 created: 2026-03-30T00:18:04Z
-last_update: 2026-03-30T00:18:04Z
-date_finished: null
+last_update: 2026-03-30T00:19:31Z
+date_finished: 2026-03-30T00:19:31Z
 ---
 
 # T-781: Add tests — discovery sessions_dir, lifecycle serde edge cases, liveness cleanup TCP
@@ -51,3 +51,6 @@ grep -q "fn all_states_serde_roundtrip" /opt/termlink/crates/termlink-session/sr
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-781-add-tests--discovery-sessionsdir-lifecyc.md
 - **Context:** Initial task creation
+
+### 2026-03-30T00:19:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Update CHANGELOG.md — test count 542→585, add post-0.9.0 test additio
 description: >
   Update CHANGELOG.md — test count 542→585, add post-0.9.0 test additions
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T00:09:56Z
-last_update: 2026-03-30T00:09:56Z
-date_finished: null
+last_update: 2026-03-30T00:11:10Z
+date_finished: 2026-03-30T00:11:10Z
 ---
 
 # T-779: Update CHANGELOG.md — test count 542→585, add post-0.9.0 test additions
@@ -49,3 +49,6 @@ grep -q "585" CHANGELOG.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-779-update-changelogmd--test-count-542585-ad.md
 - **Context:** Initial task creation
+
+### 2026-03-30T00:11:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

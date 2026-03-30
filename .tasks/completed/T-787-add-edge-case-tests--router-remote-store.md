@@ -4,16 +4,16 @@ name: "Add edge case tests — router remote store uninit, pidfile parsing, orch
 description: >
   Add edge case tests — router remote store uninit, pidfile parsing, orchestrator empty candidates
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/pidfile.rs, crates/termlink-hub/src/remote_store.rs]
 related_tasks: []
 created: 2026-03-30T12:24:16Z
-last_update: 2026-03-30T12:24:16Z
-date_finished: null
+last_update: 2026-03-30T12:28:42Z
+date_finished: 2026-03-30T12:28:42Z
 ---
 
 # T-787: Add edge case tests — router remote store uninit, pidfile parsing, orchestrator empty candidates
@@ -50,3 +50,6 @@ cargo test -p termlink-hub --lib 2>&1 | grep "0 failed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-787-add-edge-case-tests--router-remote-store.md
 - **Context:** Initial task creation
+
+### 2026-03-30T12:28:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

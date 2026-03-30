@@ -4,16 +4,16 @@ name: "Add handler unit tests — KV store, session update, ping, dispatch routi
 description: >
   Add handler unit tests — KV store, session update, ping, dispatch routing
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-session/src/handler.rs]
 related_tasks: []
 created: 2026-03-30T07:05:57Z
-last_update: 2026-03-30T07:05:57Z
-date_finished: null
+last_update: 2026-03-30T07:11:05Z
+date_finished: 2026-03-30T07:11:05Z
 ---
 
 # T-784: Add handler unit tests — KV store, session update, ping, dispatch routing
@@ -54,3 +54,6 @@ grep -q "session_update_roles" crates/termlink-session/src/handler.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-784-add-handler-unit-tests--kv-store-session.md
 - **Context:** Initial task creation
+
+### 2026-03-30T07:11:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

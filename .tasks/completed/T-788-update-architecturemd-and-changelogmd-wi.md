@@ -4,7 +4,7 @@ name: "Update ARCHITECTURE.md and CHANGELOG.md with 629 test count"
 description: >
   Update ARCHITECTURE.md and CHANGELOG.md with 629 test count
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T12:29:15Z
-last_update: 2026-03-30T12:29:15Z
-date_finished: null
+last_update: 2026-03-30T12:30:39Z
+date_finished: 2026-03-30T12:30:39Z
 ---
 
 # T-788: Update ARCHITECTURE.md and CHANGELOG.md with 629 test count
@@ -51,3 +51,6 @@ grep -q "629" CHANGELOG.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-788-update-architecturemd-and-changelogmd-wi.md
 - **Context:** Initial task creation
+
+### 2026-03-30T12:30:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
