@@ -773,10 +773,21 @@ async fn handle_event_subscribe(
         }
     }
 
+    // Compute next_seq from the highest seq in collected events
+    let next_seq = collected
+        .iter()
+        .filter_map(|e| e["seq"].as_u64())
+        .max()
+        .map(|s| s + 1);
+
     let mut result = json!({
         "events": collected,
         "count": collected.len(),
     });
+
+    if let Some(ns) = next_seq {
+        result["next_seq"] = json!(ns);
+    }
 
     if lagged > 0 {
         result["lagged"] = json!(lagged);
@@ -2073,6 +2084,8 @@ mod tests {
             let events = r.result["events"].as_array().unwrap();
             assert_eq!(events[0]["topic"], "test.event");
             assert_eq!(events[0]["payload"]["data"], "hello");
+            // Verify next_seq is present for cursor-based following
+            assert!(r.result["next_seq"].is_u64(), "next_seq should be present when events are returned");
         } else {
             panic!("Expected success from event.subscribe");
         }
@@ -2094,6 +2107,8 @@ mod tests {
         if let RpcResponse::Success(r) = resp {
             assert_eq!(r.result["count"], 0);
             assert!(r.result["events"].as_array().unwrap().is_empty());
+            // next_seq should be absent when no events were received
+            assert!(r.result["next_seq"].is_null(), "next_seq should be absent when no events");
         } else {
             panic!("Expected success from event.subscribe");
         }
