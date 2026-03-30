@@ -1047,7 +1047,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_doctor",
-        description = "Run health checks on the TermLink environment. Returns a structured JSON report with pass/warn/fail status for: runtime directory, sessions directory, session liveness, hub status, orphaned sockets, and version. Use this to diagnose connectivity or infrastructure issues before attempting operations."
+        description = "Run health checks on the TermLink environment. Returns a structured JSON report with pass/warn/fail status for: runtime directory, sessions directory, session liveness, hub status, orphaned sockets, dispatch manifest, and version. Use this to diagnose connectivity or infrastructure issues before attempting operations."
     )]
     async fn termlink_doctor(&self) -> String {
         use termlink_session::{discovery, liveness};
@@ -1158,7 +1158,45 @@ impl TermLinkTools {
             }
         }
 
-        // 6. Version
+        // 6. Dispatch manifest
+        {
+            let project_root = std::env::current_dir().unwrap_or_default();
+            let manifest_path = project_root.join(".termlink").join("dispatch-manifest.json");
+            if manifest_path.exists() {
+                match std::fs::read_to_string(&manifest_path) {
+                    Ok(content) => {
+                        if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
+                            let pending = manifest["dispatches"]
+                                .as_array()
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter(|d| d["status"].as_str() == Some("pending"))
+                                        .count()
+                                })
+                                .unwrap_or(0);
+                            let total = manifest["dispatches"]
+                                .as_array()
+                                .map(|a| a.len())
+                                .unwrap_or(0);
+                            if pending > 0 {
+                                check!("dispatch", warn, format!("{pending} pending dispatch(es) of {total} total"));
+                            } else {
+                                check!("dispatch", pass, format!("{total} dispatch(es), none pending"));
+                            }
+                        } else {
+                            check!("dispatch", warn, "dispatch manifest exists but failed to parse");
+                        }
+                    }
+                    Err(e) => {
+                        check!("dispatch", warn, format!("failed to read dispatch manifest: {e}"));
+                    }
+                }
+            } else {
+                check!("dispatch", pass, "no dispatch manifest");
+            }
+        }
+
+        // 7. Version
         let version = env!("CARGO_PKG_VERSION");
         check!("version", pass, format!("termlink-mcp {version}"));
 
