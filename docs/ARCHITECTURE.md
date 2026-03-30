@@ -330,7 +330,7 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 | Crate | Tests | Coverage Focus |
 |-------|-------|----------------|
 | termlink-protocol | 79 | JSON-RPC parsing, frame encode/decode, control methods, error types, delegation events, negotiation |
-| termlink-session | 250 | Handlers (19 RPC methods incl. event.subscribe with since/history + KV error cases), events (ring buffer + broadcast subscription), PTY, liveness, auth (tokens), server, executor allowlist, registration, codec |
+| termlink-session | 251 | Handlers (19 RPC methods incl. event.subscribe with since/history + KV error cases), events (ring buffer + broadcast subscription), PTY, liveness, auth (tokens), server, executor allowlist, registration, codec |
 | termlink-hub | 145 | Router (discover, broadcast, collect, forward), server, pidfile (edge cases), supervisor, circuit breaker, bypass, remote store (reaper), TLS (cert gen, validation, handshake) |
 | termlink-mcp | 43 | MCP integration tests (27 tools, resources, prompts, event_subscribe) |
 | termlink (CLI) | 161 | Unit tests (80) + integration tests (81): register, ping, exec, events, KV, dispatch (workdir, isolate, auto-merge), push, agent, mirror, manifest CRUD, worktree lifecycle (create, commit, merge, conflict), vendor gitignore/MCP config, shell_escape, token inspect, doctor dispatch, secs_to_rfc3339 |

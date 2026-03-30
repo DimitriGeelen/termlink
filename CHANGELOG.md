@@ -44,9 +44,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `--json` for structured output
 - **`termlink_event_subscribe` MCP tool** — 27th MCP tool, exposes push-based event delivery with since/timeout/topic/max_events params
 - **`termlink doctor` dispatch check** — validates dispatch manifest, warns on pending dispatches, `--fix` expires stale dispatches (>24h)
-- 688 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP event_subscribe integration, manifest secs_to_rfc3339, plus all previous test categories
+- 684 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP event_subscribe integration, manifest secs_to_rfc3339, plus all previous test categories
 
 ### Changed
+- **CLI event delivery** — `watch`, `wait`, `request`, `agent ask/listen/negotiate` all upgraded from `event.poll` sleep loops to `event.subscribe` push-based delivery (near-zero latency)
+- **MCP event delivery** — `termlink_request` and `termlink_wait` tools upgraded from poll+sleep to `event.subscribe`
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)
 - All JSON responses now include `ok: true/false` field for consistent error handling
 - JSON error exit uses `json_error_exit()` helper — fixes stdout buffering issues
