@@ -4,16 +4,16 @@ name: "Upgrade agent.rs event.poll loops to event.subscribe"
 description: >
   Upgrade agent.rs event.poll loops to event.subscribe
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent.rs]
 related_tasks: []
 created: 2026-03-30T18:14:09Z
-last_update: 2026-03-30T19:35:13Z
-date_finished: null
+last_update: 2026-03-30T19:38:56Z
+date_finished: 2026-03-30T19:38:56Z
 ---
 
 # T-813: Upgrade agent.rs event.poll loops to event.subscribe
@@ -53,3 +53,6 @@ cargo check -p termlink 2>&1 | grep -q "Finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-813-upgrade-agentrs-eventpoll-loops-to-event.md
 - **Context:** Initial task creation
+
+### 2026-03-30T19:38:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
