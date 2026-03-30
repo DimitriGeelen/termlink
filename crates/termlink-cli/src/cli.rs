@@ -707,6 +707,10 @@ pub(crate) enum Command {
         #[arg(long, default_value = "auto")]
         backend: SpawnBackend,
 
+        /// Working directory for workers (each worker will cd into this directory)
+        #[arg(long)]
+        workdir: Option<std::path::PathBuf>,
+
         /// Output results as JSON
         #[arg(long)]
         json: bool,

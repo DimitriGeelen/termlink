@@ -24,6 +24,7 @@ pub(crate) async fn cmd_dispatch(
     tags: Vec<String>,
     cap: Vec<String>,
     backend: SpawnBackend,
+    workdir: Option<std::path::PathBuf>,
     json_output: bool,
     command: Vec<String>,
 ) -> Result<()> {
@@ -39,6 +40,22 @@ pub(crate) async fn cmd_dispatch(
         }
         anyhow::bail!("Command required after --");
     }
+
+    // Validate --workdir if provided
+    let resolved_workdir = if let Some(ref wd) = workdir {
+        let canonical = wd.canonicalize().with_context(|| {
+            format!("--workdir path does not exist or is not accessible: {}", wd.display())
+        })?;
+        if !canonical.is_dir() {
+            if json_output {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("--workdir is not a directory: {}", wd.display())}));
+            }
+            anyhow::bail!("--workdir is not a directory: {}", wd.display());
+        }
+        Some(canonical)
+    } else {
+        None
+    };
 
     // Check hub is running (needed for collect)
     let hub_socket = termlink_hub::server::hub_socket_path();
@@ -133,6 +150,12 @@ pub(crate) async fn cmd_dispatch(
                 "export TERMLINK_WORKER_NAME={}; ",
                 shell_escape(&worker_name)
             ));
+            if let Some(ref wd) = resolved_workdir {
+                env.push_str(&format!(
+                    "export TERMLINK_WORKDIR={}; ",
+                    shell_escape(&wd.to_string_lossy())
+                ));
+            }
             env
         };
 
@@ -141,8 +164,13 @@ pub(crate) async fn cmd_dispatch(
 
         // Worker keeps register alive after user_cmd finishes. Dispatch
         // sends SIGTERM to all workers after collection completes.
+        let cd_prefix = if let Some(ref wd) = resolved_workdir {
+            format!("cd {} && ", shell_escape(&wd.to_string_lossy()))
+        } else {
+            String::new()
+        };
         let shell_cmd = format!(
-            "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nwait $TL_PID",
+            "{cd_prefix}{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nwait $TL_PID",
             reg_parts.join(" ")
         );
 
@@ -313,7 +341,7 @@ pub(crate) async fn cmd_dispatch(
     let timed_out = collected_count < registered_count;
 
     if json_output {
-        let result = json!({
+        let mut result = json!({
             "ok": !timed_out,
             "dispatch_id": dispatch_id,
             "workers_spawned": count,
@@ -323,6 +351,9 @@ pub(crate) async fn cmd_dispatch(
             "topic": topic,
             "results": collected_events,
         });
+        if let Some(ref wd) = resolved_workdir {
+            result["workdir"] = json!(wd.to_string_lossy());
+        }
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
         println!();
@@ -448,4 +479,154 @@ fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
     let _ = child;
     let _ = session_name;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn workdir_rejects_nonexistent_path() {
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            Some(std::path::PathBuf::from("/nonexistent/path/that/does/not/exist")),
+            false,
+            vec!["echo".into(), "hello".into()],
+        )
+        .await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("does not exist"),
+            "Error should mention path does not exist, got: {err_msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn workdir_rejects_file_not_directory() {
+        // Create a temp file (not directory)
+        let tmp = std::env::temp_dir().join("termlink-test-workdir-file");
+        std::fs::write(&tmp, "not a directory").unwrap();
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            Some(tmp.clone()),
+            false,
+            vec!["echo".into(), "hello".into()],
+        )
+        .await;
+        std::fs::remove_file(&tmp).ok();
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("not a directory"),
+            "Error should mention not a directory, got: {err_msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn workdir_none_accepted() {
+        // With workdir=None, the command should proceed past validation
+        // (it will fail at hub check, which is fine for this test)
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            None,
+            false,
+            vec!["echo".into(), "hello".into()],
+        )
+        .await;
+        // Should fail at "hub not running", not at workdir validation
+        if let Err(e) = result {
+            assert!(
+                e.to_string().contains("Hub is not running"),
+                "Expected hub error, got: {e}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn workdir_valid_directory_accepted() {
+        let tmp = std::env::temp_dir();
+        // Should proceed past workdir validation to hub check
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            Some(tmp),
+            false,
+            vec!["echo".into(), "hello".into()],
+        )
+        .await;
+        if let Err(e) = result {
+            assert!(
+                e.to_string().contains("Hub is not running"),
+                "Expected hub error after workdir validation passed, got: {e}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn dispatch_rejects_zero_count() {
+        let result = cmd_dispatch(
+            0,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            None,
+            false,
+            vec!["echo".into()],
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("at least 1"));
+    }
+
+    #[tokio::test]
+    async fn dispatch_rejects_empty_command() {
+        let result = cmd_dispatch(
+            1,
+            5,
+            "task.completed",
+            None,
+            vec![],
+            vec![],
+            vec![],
+            SpawnBackend::Background,
+            None,
+            false,
+            vec![],
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Command required"));
+    }
 }

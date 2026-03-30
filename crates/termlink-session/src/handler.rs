@@ -748,10 +748,8 @@ async fn handle_event_subscribe(
                 match result {
                     Ok(event) => {
                         // Apply topic filter
-                        if let Some(ref topic) = topic_filter {
-                            if event.topic != *topic {
-                                continue;
-                            }
+                        if topic_filter.as_ref().is_some_and(|t| event.topic != *t) {
+                            continue;
                         }
                         collected.push(json!({
                             "seq": event.seq,
