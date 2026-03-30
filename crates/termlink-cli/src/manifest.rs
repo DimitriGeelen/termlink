@@ -116,15 +116,11 @@ impl DispatchManifest {
     }
 }
 
-pub(crate) fn now_rfc3339() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    // Simple RFC3339-ish format without chrono dependency
+/// Convert unix timestamp (seconds) to RFC3339 string.
+pub(crate) fn secs_to_rfc3339(secs: u64) -> String {
     let secs_per_day = 86400u64;
-    let days_since_epoch = now / secs_per_day;
-    let secs_today = now % secs_per_day;
+    let days_since_epoch = secs / secs_per_day;
+    let secs_today = secs % secs_per_day;
     let hours = secs_today / 3600;
     let minutes = (secs_today % 3600) / 60;
     let seconds = secs_today % 60;
@@ -163,6 +159,14 @@ pub(crate) fn now_rfc3339() -> String {
         minutes,
         seconds
     )
+}
+
+pub(crate) fn now_rfc3339() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    secs_to_rfc3339(now)
 }
 
 fn is_leap(y: i64) -> bool {
@@ -507,6 +511,66 @@ mod tests {
         assert_eq!(&ts[10..11], "T");
         assert_eq!(&ts[13..14], ":");
         assert_eq!(&ts[16..17], ":");
+    }
+
+    #[test]
+    fn test_secs_to_rfc3339_known_values() {
+        // Unix epoch
+        assert_eq!(secs_to_rfc3339(0), "1970-01-01T00:00:00Z");
+        // 2026-03-30T12:00:00Z = known fixed timestamp
+        // 2026 is not a leap year, days from epoch to 2026-03-30:
+        // Quick check: just verify format and that it produces valid timestamps
+        let ts = secs_to_rfc3339(1743339600); // approx 2025-03-30
+        assert!(ts.starts_with("2025-"));
+        assert!(ts.ends_with('Z'));
+        assert_eq!(ts.len(), 20);
+    }
+
+    #[test]
+    fn test_secs_to_rfc3339_sorts_lexicographically() {
+        let earlier = secs_to_rfc3339(1000000);
+        let later = secs_to_rfc3339(2000000);
+        assert!(earlier < later, "RFC3339 timestamps should sort lexicographically");
+    }
+
+    #[test]
+    fn test_doctor_dispatch_expire_logic() {
+        // Simulate what doctor --fix does: expire dispatches older than 24h
+        let mut manifest = DispatchManifest::load(Path::new("/nonexistent")).unwrap();
+        manifest.add_dispatch(DispatchRecord {
+            id: "D-old".to_string(),
+            created_at: "2020-01-01T00:00:00Z".to_string(), // very old
+            status: DispatchStatus::Pending,
+            worker_count: 1,
+            topic: "t".to_string(),
+            prefix: "w".to_string(),
+            branches: vec![],
+        });
+        manifest.add_dispatch(DispatchRecord {
+            id: "D-new".to_string(),
+            created_at: now_rfc3339(), // just created
+            status: DispatchStatus::Pending,
+            worker_count: 1,
+            topic: "t".to_string(),
+            prefix: "w".to_string(),
+            branches: vec![],
+        });
+
+        let cutoff_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            .saturating_sub(86400);
+        let cutoff = secs_to_rfc3339(cutoff_secs);
+
+        for d in &mut manifest.dispatches {
+            if d.status == DispatchStatus::Pending && d.created_at < cutoff {
+                d.status = DispatchStatus::Expired;
+            }
+        }
+
+        assert_eq!(manifest.dispatches[0].status, DispatchStatus::Expired, "old dispatch should be expired");
+        assert_eq!(manifest.dispatches[1].status, DispatchStatus::Pending, "new dispatch should remain pending");
     }
 
     #[test]

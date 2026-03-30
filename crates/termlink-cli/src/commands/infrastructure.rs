@@ -223,7 +223,68 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
-    // 6. Version
+    // 6. Dispatch manifest
+    {
+        let project_root = std::env::current_dir().unwrap_or_default();
+        let manifest = crate::manifest::DispatchManifest::load(&project_root);
+        match manifest {
+            Ok(m) => {
+                let pending = m.pending_dispatches();
+                if pending.is_empty() {
+                    if m.dispatches.is_empty() {
+                        check!("dispatch", pass, "no dispatch manifest");
+                    } else {
+                        check!("dispatch", pass, format!("{} dispatch(es), none pending", m.dispatches.len()));
+                    }
+                } else {
+                    let ids: Vec<&str> = pending.iter().map(|d| d.id.as_str()).collect();
+                    check!("dispatch", warn, format!(
+                        "{} pending dispatch(es): {}",
+                        pending.len(),
+                        ids.join(", ")
+                    ));
+                    if fix {
+                        // Expire dispatches older than 24 hours
+                        let mut m = m;
+                        let cutoff_secs = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs()
+                            .saturating_sub(86400);
+                        let cutoff = crate::manifest::secs_to_rfc3339(cutoff_secs);
+                        let mut expired_count = 0u32;
+                        for d in &mut m.dispatches {
+                            if d.status == crate::manifest::DispatchStatus::Pending
+                                && d.created_at < cutoff
+                            {
+                                d.status = crate::manifest::DispatchStatus::Expired;
+                                expired_count += 1;
+                            }
+                        }
+                        if expired_count > 0 {
+                            if let Err(e) = m.save(&project_root) {
+                                if !json_output {
+                                    println!("      \x1b[31merror:\x1b[0m failed to save manifest: {e}");
+                                }
+                            } else if !json_output {
+                                println!("      \x1b[32mfixed:\x1b[0m expired {expired_count} dispatch(es) older than 24h");
+                            }
+                        } else if !json_output {
+                            println!("      no dispatches old enough to auto-expire (< 24h)");
+                        }
+                    } else if !json_output {
+                        println!("      Run 'termlink doctor --fix' to expire stale dispatches");
+                        println!("      Or  'termlink dispatch-status' for details");
+                    }
+                }
+            }
+            Err(e) => {
+                check!("dispatch", warn, format!("failed to read manifest: {e}"));
+            }
+        }
+    }
+
+    // 7. Version
     let version = env!("CARGO_PKG_VERSION");
     let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
     check!("version", pass, format!("termlink {version} ({commit})"));
