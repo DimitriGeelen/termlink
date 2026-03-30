@@ -236,7 +236,7 @@ pub(crate) async fn cmd_file_receive(
 
     let start = std::time::Instant::now();
     let timeout_dur = std::time::Duration::from_secs(timeout);
-    let poll_interval = std::time::Duration::from_millis(interval);
+    let subscribe_timeout = interval.max(500); // at least 500ms per subscribe call
 
     let mut poll_cursor: Option<u64> = None;
     let mut is_first_poll = true;
@@ -249,20 +249,29 @@ pub(crate) async fn cmd_file_receive(
     let decoder = base64::engine::general_purpose::STANDARD;
 
     loop {
-        let mut params = serde_json::json!({});
-        if let Some(c) = poll_cursor {
-            params["since"] = serde_json::json!(c);
-        }
-
-        let rpc_timeout = std::time::Duration::from_secs(10);
-        let rpc_result = tokio::time::timeout(rpc_timeout, client::rpc_call(reg.socket_path(), "event.poll", params)).await;
+        // First poll uses event.poll (returns all historical events including seq 0).
+        // Subsequent iterations use event.subscribe (server-side blocking, no sleep needed).
+        let rpc_result = if is_first_poll {
+            let params = serde_json::json!({});
+            let rpc_timeout = std::time::Duration::from_secs(10);
+            tokio::time::timeout(rpc_timeout, client::rpc_call(reg.socket_path(), "event.poll", params)).await
+        } else {
+            let remaining = timeout_dur.saturating_sub(start.elapsed());
+            let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
+            let mut params = serde_json::json!({"timeout_ms": effective_timeout});
+            if let Some(c) = poll_cursor {
+                params["since"] = serde_json::json!(c);
+            }
+            let rpc_timeout = std::time::Duration::from_secs(effective_timeout / 1000 + 5);
+            tokio::time::timeout(rpc_timeout, client::rpc_call(reg.socket_path(), "event.subscribe", params)).await
+        };
         match rpc_result {
             Err(_) => {
-                tracing::warn!("Poll RPC timed out (10s), retrying...");
+                tracing::warn!("RPC timed out, retrying...");
                 continue;
             }
             Ok(Err(e)) => {
-                tracing::warn!("Poll error: {}", e);
+                tracing::warn!("RPC error: {}", e);
             }
             Ok(Ok(resp)) => {
                 if let Ok(result) = client::unwrap_result(resp) {
@@ -511,6 +520,6 @@ pub(crate) async fn cmd_file_receive(
             }
         }
 
-        tokio::time::sleep(poll_interval).await;
+        // event.subscribe blocks server-side; no sleep needed
     }
 }
