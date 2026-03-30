@@ -272,6 +272,61 @@ mod tests {
     }
 
     #[test]
+    fn empty_store() {
+        let store = RemoteStore::new();
+        assert!(store.is_empty());
+        assert_eq!(store.len(), 0);
+        assert!(store.list_live().is_empty());
+        assert!(store.get("nonexistent").is_none());
+        assert_eq!(store.reap_expired(), 0);
+    }
+
+    #[test]
+    fn clear_removes_all() {
+        let store = RemoteStore::new();
+        store.register("a".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
+        // IDs use ms timestamps — sleep to ensure distinct IDs
+        std::thread::sleep(Duration::from_millis(2));
+        store.register("b".into(), "10.0.0.2".into(), 8001, None, vec![], vec![], vec![]);
+        assert_eq!(store.len(), 2);
+
+        store.clear();
+        assert!(store.is_empty());
+        assert_eq!(store.len(), 0);
+    }
+
+    #[test]
+    fn multiple_entries_independent() {
+        let store = RemoteStore::new();
+        let id1 = store.register("worker-1".into(), "10.0.0.1".into(), 8000, Some(100), vec!["agent".into()], vec!["prod".into()], vec!["execute".into()]);
+        // IDs use ms timestamps — sleep to ensure distinct IDs
+        std::thread::sleep(Duration::from_millis(2));
+        let id2 = store.register("worker-2".into(), "10.0.0.2".into(), 8001, Some(200), vec!["compute".into()], vec!["staging".into()], vec![]);
+
+        assert_eq!(store.len(), 2);
+        assert_ne!(id1, id2);
+
+        let e1 = store.get(&id1).unwrap();
+        let e2 = store.get(&id2).unwrap();
+        assert_eq!(e1.display_name, "worker-1");
+        assert_eq!(e2.display_name, "worker-2");
+        assert_eq!(e1.port, 8000);
+        assert_eq!(e2.port, 8001);
+
+        // Deregister one, other remains
+        store.deregister(&id1);
+        assert_eq!(store.len(), 1);
+        assert!(store.get(&id1).is_none());
+        assert!(store.get(&id2).is_some());
+    }
+
+    #[test]
+    fn default_impl() {
+        let store = RemoteStore::default();
+        assert!(store.is_empty());
+    }
+
+    #[test]
     fn to_json_format() {
         let store = RemoteStore::new();
         let id = store.register(

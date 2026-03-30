@@ -93,6 +93,27 @@ mod tests {
     }
 
     #[test]
+    fn serde_roundtrip() {
+        let id = SessionId::generate();
+        let json = serde_json::to_string(&id).unwrap();
+        let parsed: SessionId = serde_json::from_str(&json).unwrap();
+        assert_eq!(id, parsed);
+    }
+
+    #[test]
+    fn display_matches_as_str() {
+        let id = SessionId::generate();
+        assert_eq!(id.to_string(), id.as_str());
+    }
+
+    #[test]
+    fn parse_roundtrip() {
+        let id = SessionId::generate();
+        let parsed = SessionId::parse(id.as_str()).unwrap();
+        assert_eq!(id, parsed);
+    }
+
+    #[test]
     fn filesystem_safe() {
         let id = SessionId::generate();
         // Should be safe for socket filenames
