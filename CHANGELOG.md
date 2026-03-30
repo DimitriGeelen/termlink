@@ -40,7 +40,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`termlink dispatch-status`** — read dispatch manifest and report branch status
   - `--check` flag exits non-zero if pending branches exist (pre-commit gate)
   - `--json` for structured output
-- 656 total tests (from 474) — event subscription, TLS edge cases, pidfile parsing, reaper lifecycle, protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError, manifest CRUD, dispatch workdir/isolate/auto-merge validation
+- 675 total tests (from 474) — event subscription, TLS edge cases, pidfile parsing, reaper lifecycle, protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError, manifest CRUD, dispatch workdir/isolate/auto-merge validation, vendor gitignore/MCP config, push shell_escape, token inspect parsing
 
 ### Changed
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)
