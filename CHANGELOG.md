@@ -28,14 +28,14 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Linux aarch64 added to release workflow (4 platform builds: macOS arm64/x86_64, Linux x86_64/aarch64)
 - Homebrew formula updated with 4 platform variants
 - E2E test runner (`tests/e2e/run-all.sh`) — discovers and runs level scripts with summary
-- 542 total tests (from 474)
+- 585 total tests (from 474) — protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip
 
 ### Changed
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)
 - All JSON responses now include `ok: true/false` field for consistent error handling
 - JSON error exit uses `json_error_exit()` helper — fixes stdout buffering issues
 - Updated 17 Cargo dependencies to latest compatible versions
-- ARCHITECTURE.md updated — MCP crate in hierarchy, 12 command groups, 30 commands
+- ARCHITECTURE.md updated — MCP crate in hierarchy, 12 command groups, 30 commands, all module component tables current
 - README updated — 30 commands, MCP crate in architecture table
 
 ### Fixed
