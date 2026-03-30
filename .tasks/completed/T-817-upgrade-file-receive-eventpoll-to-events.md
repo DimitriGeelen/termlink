@@ -4,16 +4,16 @@ name: "Upgrade file receive event.poll to event.subscribe"
 description: >
   Upgrade file receive event.poll to event.subscribe
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/file.rs]
 related_tasks: []
 created: 2026-03-30T19:58:32Z
-last_update: 2026-03-30T19:58:32Z
-date_finished: null
+last_update: 2026-03-30T20:06:37Z
+date_finished: 2026-03-30T20:06:37Z
 ---
 
 # T-817: Upgrade file receive event.poll to event.subscribe
@@ -34,7 +34,7 @@ Last `event.poll` sleep loop in the CLI. File receive uses poll for initial hist
 ## Verification
 
 cargo check -p termlink 2>&1 | grep -q "Finished"
-cargo test -p termlink file 2>&1 | grep -q "0 failed"
+cargo test -p termlink file
 
 ## Decisions
 
@@ -53,3 +53,6 @@ cargo test -p termlink file 2>&1 | grep -q "0 failed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-817-upgrade-file-receive-eventpoll-to-events.md
 - **Context:** Initial task creation
+
+### 2026-03-30T20:06:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

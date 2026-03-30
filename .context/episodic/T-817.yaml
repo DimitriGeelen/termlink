@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-817: Upgrade file receive event.poll to event.subscribe
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-03-30T20:06:38Z
+# ============================================================================
+
+task_id: T-817
+task_name: "Upgrade file receive event.poll to event.subscribe"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-30T19:58:32Z
+completed: 2026-03-30T20:06:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-03-30T22:05:15+02:00
+last_commit: 2026-03-30T22:05:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Upgrade file receive to event.subscribe for live events
+
+# Key outcomes
+outcomes:
+  - "`event.poll` replaced with `event.subscribe` for live event waiting (after first poll)"
+  - "First poll kept as `event.poll` (catches seq 0 historical events)"
+  - "`tokio::time::sleep(poll_interval)` removed"
+  - "`cargo check -p termlink` passes"
+  - "File transfer integration tests pass (684 workspace total)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/approvals/pending-1ea7ccdd0a3d.yaml"
+  - ".context/audits/2026-03-30.yaml"
+  - ".context/audits/cron/2026-03-30-2200.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/episodic/T-816.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.agent-dispatch-counter"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.edit-counter"
+  - ".context/working/.tier0-approval.pending"
+  - "crates/termlink-cli/src/commands/file.rs"
+  - ".tasks/active/T-817-upgrade-file-receive-eventpoll-to-events.md"
+  - ".tasks/completed/T-816-add-unit-tests-for-infrastructurers-doct.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T22:05:15"
+    action: "T-817: Upgrade file receive to event.subscribe for live events"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 15
+  lines_added: 324
+  lines_removed: 51
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-817-upgrade-file-receive-eventpoll-to-events.md
+generated_by: context-agent-hybrid
