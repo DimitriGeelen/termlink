@@ -53,10 +53,10 @@ pub(crate) async fn cmd_agent_ask(
         timeout_secs: if timeout > 0 { Some(timeout) } else { None },
     };
 
-    // Snapshot cursor before emitting
+    // Snapshot cursor before emitting (quick subscribe to get next_seq)
     let cursor: Option<u64> = {
-        let poll_params = serde_json::json!({});
-        match client::rpc_call(reg.socket_path(), "event.poll", poll_params).await {
+        let params = serde_json::json!({"timeout_ms": 1});
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     result["next_seq"].as_u64()
@@ -118,16 +118,30 @@ pub(crate) async fn cmd_agent_ask(
 
     let start = std::time::Instant::now();
     let timeout_dur = std::time::Duration::from_secs(timeout);
-    let poll_interval = std::time::Duration::from_millis(interval);
-    let mut poll_cursor = cursor;
+    let subscribe_timeout = interval.max(500);
+    let mut sub_cursor = cursor;
 
     loop {
-        let mut poll_params = serde_json::json!({});
-        if let Some(c) = poll_cursor {
-            poll_params["since"] = serde_json::json!(c);
+        let remaining = timeout_dur.saturating_sub(start.elapsed());
+        if remaining.is_zero() {
+            if json {
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "action": action,
+                    "request_id": request_id,
+                    "error": format!("Timeout waiting for agent response ({}s)", timeout),
+                }));
+            }
+            anyhow::bail!("Timeout waiting for agent response ({}s). request_id={}", timeout, request_id);
         }
 
-        match client::rpc_call(reg.socket_path(), "event.poll", poll_params).await {
+        let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
+        let mut sub_params = serde_json::json!({"timeout_ms": effective_timeout});
+        if let Some(c) = sub_cursor {
+            sub_params["since"] = serde_json::json!(c);
+        }
+
+        match client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
@@ -185,31 +199,15 @@ pub(crate) async fn cmd_agent_ask(
                         }
                     }
 
-                    if let Some(events) = result["events"].as_array()
-                        && !events.is_empty()
-                            && let Some(next) = result["next_seq"].as_u64() {
-                                poll_cursor = Some(next);
-                            }
+                    if let Some(next) = result["next_seq"].as_u64() {
+                        sub_cursor = Some(next.saturating_sub(1));
+                    }
                 }
             }
             Err(e) => {
-                tracing::warn!("Poll error: {}", e);
+                tracing::warn!("Subscribe error: {}", e);
             }
         }
-
-        if start.elapsed() > timeout_dur {
-            if json {
-                super::json_error_exit(serde_json::json!({
-                    "ok": false,
-                    "action": action,
-                    "request_id": request_id,
-                    "error": format!("Timeout waiting for agent response ({}s)", timeout),
-                }));
-            }
-            anyhow::bail!("Timeout waiting for agent response ({}s). request_id={}", timeout, request_id);
-        }
-
-        tokio::time::sleep(poll_interval).await;
     }
 }
 
@@ -244,17 +242,34 @@ pub(crate) async fn cmd_agent_listen(
     } else {
         None
     };
-    let poll_interval = std::time::Duration::from_millis(interval);
+    let subscribe_timeout = interval.max(500);
 
-    let mut poll_cursor: Option<u64> = None;
+    let mut sub_cursor: Option<u64> = None;
 
     loop {
-        let mut params = serde_json::json!({ "topic": agent_topic::REQUEST });
-        if let Some(c) = poll_cursor {
+        if let Some(td) = timeout_dur
+            && start.elapsed() > td {
+                if !json {
+                    eprintln!("Listen timeout reached ({}s)", timeout);
+                }
+                return Ok(());
+            }
+
+        let effective_timeout = if let Some(td) = timeout_dur {
+            subscribe_timeout.min(td.saturating_sub(start.elapsed()).as_millis() as u64)
+        } else {
+            subscribe_timeout
+        };
+
+        let mut params = serde_json::json!({
+            "topic": agent_topic::REQUEST,
+            "timeout_ms": effective_timeout,
+        });
+        if let Some(c) = sub_cursor {
             params["since"] = serde_json::json!(c);
         }
 
-        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
@@ -283,27 +298,15 @@ pub(crate) async fn cmd_agent_listen(
                         }
                     }
 
-                    if let Some(events) = result["events"].as_array()
-                        && !events.is_empty()
-                            && let Some(next) = result["next_seq"].as_u64() {
-                                poll_cursor = Some(next);
-                            }
+                    if let Some(next) = result["next_seq"].as_u64() {
+                        sub_cursor = Some(next.saturating_sub(1));
+                    }
                 }
             }
             Err(e) => {
-                tracing::warn!("Poll error: {}", e);
+                tracing::warn!("Subscribe error: {}", e);
             }
         }
-
-        if let Some(td) = timeout_dur
-            && start.elapsed() > td {
-                if !json {
-                    eprintln!("Listen timeout reached ({}s)", timeout);
-                }
-                return Ok(());
-            }
-
-        tokio::time::sleep(poll_interval).await;
     }
 }
 
@@ -375,10 +378,10 @@ pub(crate) async fn cmd_agent_negotiate(
         );
     }
 
-    // Snapshot cursor
+    // Snapshot cursor (quick subscribe to get next_seq)
     let cursor: Option<u64> = {
-        let poll_params = serde_json::json!({});
-        match client::rpc_call(reg.socket_path(), "event.poll", poll_params).await {
+        let params = serde_json::json!({"timeout_ms": 1});
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
                     result["next_seq"].as_u64()
@@ -389,7 +392,7 @@ pub(crate) async fn cmd_agent_negotiate(
             Err(_) => None,
         }
     };
-    let mut poll_cursor = cursor;
+    let mut sub_cursor = cursor;
 
     // Negotiation loop
     while state.is_active() {
@@ -439,17 +442,21 @@ pub(crate) async fn cmd_agent_negotiate(
         // Phase 3: Wait for correction or accept
         let round_start = std::time::Instant::now();
         let timeout_dur = std::time::Duration::from_secs(timeout);
-        let poll_interval_dur = std::time::Duration::from_millis(interval);
+        let subscribe_timeout = interval.max(500);
         let mut got_response = false;
 
         while !got_response {
-            let mut poll_params = serde_json::json!({});
-            if let Some(c) = poll_cursor {
-                poll_params["since"] = serde_json::json!(c);
+            let remaining = timeout_dur.saturating_sub(round_start.elapsed());
+            if remaining.is_zero() { break; }
+
+            let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
+            let mut sub_params = serde_json::json!({"timeout_ms": effective_timeout});
+            if let Some(c) = sub_cursor {
+                sub_params["since"] = serde_json::json!(c);
             }
 
             if let Ok(resp) =
-                client::rpc_call(reg.socket_path(), "event.poll", poll_params).await
+                client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await
                 && let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
                         for event in events {
@@ -577,11 +584,9 @@ pub(crate) async fn cmd_agent_negotiate(
                         }
                     }
 
-                    if let Some(events) = result["events"].as_array()
-                        && !events.is_empty()
-                            && let Some(next) = result["next_seq"].as_u64() {
-                                poll_cursor = Some(next);
-                            }
+                    if let Some(next) = result["next_seq"].as_u64() {
+                        sub_cursor = Some(next.saturating_sub(1));
+                    }
                 }
 
             if round_start.elapsed() > timeout_dur {
