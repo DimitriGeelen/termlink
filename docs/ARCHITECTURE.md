@@ -9,7 +9,7 @@ TermLink enables **multiple terminal sessions to communicate** with each other v
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                        CLI (termlink)                    │
-│  28 commands: register, list, ping, exec, attach, ...   │
+│  30 commands: register, list, ping, exec, attach, ...   │
 └────────┬────────────────────┬────────────────────────────┘
          │ direct             │ via hub
          ▼                    ▼
@@ -315,12 +315,13 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 
 | Crate | Tests | Coverage Focus |
 |-------|-------|----------------|
-| termlink-protocol | 21 | JSON-RPC parsing, frame encode/decode, error types |
-| termlink-session | 138 | Handlers (all 18 RPC methods), events, PTY, liveness, auth (tokens), server, executor allowlist |
-| termlink-hub | 28 | Router (discover, broadcast, collect, forward), server, pidfile, supervisor |
-| termlink (CLI) | 15+4 | Integration tests (register, ping, exec, events, KV), interactive TTY tests |
-| termlink-test-utils | 5 | TestDir cleanup, ProcessGuard kill-on-drop, session fixture |
-| **Total** | **223** | |
+| termlink-protocol | 78 | JSON-RPC parsing, frame encode/decode, control methods, error types, delegation events |
+| termlink-session | 222 | Handlers (all 18 RPC methods), events, PTY, liveness, auth (tokens), server, executor allowlist, registration, codec |
+| termlink-hub | 126 | Router (discover, broadcast, collect, forward), server, pidfile, supervisor, circuit breaker, bypass |
+| termlink-mcp | 41 | MCP integration tests (tools, resources, prompts) |
+| termlink (CLI) | 112 | Unit tests (31) + integration tests (81): register, ping, exec, events, KV, dispatch, push, agent, mirror |
+| termlink-test-utils | 6 | TestDir cleanup, ProcessGuard kill-on-drop, session fixture |
+| **Total** | **585** | + 4 interactive TTY tests (ignored in CI) |
 
 ---
 
