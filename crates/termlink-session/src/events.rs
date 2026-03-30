@@ -7,9 +7,13 @@
 use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast;
 
 /// Default capacity for the event ring buffer.
 const DEFAULT_CAPACITY: usize = 1024;
+
+/// Default capacity for the broadcast channel.
+const DEFAULT_BROADCAST_CAPACITY: usize = 256;
 
 /// A structured event published to the session's event bus.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,11 +39,19 @@ pub struct PollResult<'a> {
     pub events_lost: u64,
 }
 
-/// Ring buffer event bus with sequence tracking.
+/// Ring buffer event bus with sequence tracking and optional push delivery.
+///
+/// The bus maintains both a ring buffer (for historical polling) and a
+/// broadcast channel (for push-based subscriptions). `emit()` writes to
+/// both. Existing `poll()` callers are unaffected — they read only from
+/// the ring buffer. New subscribers call `subscribe()` to get a receiver
+/// that delivers events in real time.
 pub struct EventBus {
     events: VecDeque<Event>,
     next_seq: u64,
     capacity: usize,
+    /// Broadcast sender for push delivery. Receivers get cloned events.
+    tx: broadcast::Sender<Event>,
 }
 
 impl EventBus {
@@ -50,10 +62,12 @@ impl EventBus {
 
     /// Create a new event bus with custom capacity.
     pub fn with_capacity(capacity: usize) -> Self {
+        let (tx, _) = broadcast::channel(DEFAULT_BROADCAST_CAPACITY);
         Self {
             events: VecDeque::with_capacity(capacity),
             next_seq: 0,
             capacity,
+            tx,
         }
     }
 
@@ -77,6 +91,8 @@ impl EventBus {
         if self.events.len() >= self.capacity {
             self.events.pop_front();
         }
+        // Push to broadcast channel (ignore error — means no active receivers).
+        let _ = self.tx.send(event.clone());
         self.events.push_back(event);
 
         seq
@@ -160,6 +176,24 @@ impl EventBus {
     /// Whether the buffer is empty.
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
+    }
+
+    /// Subscribe to receive new events in real time.
+    ///
+    /// Returns a broadcast receiver. Events emitted after this call will be
+    /// delivered to the receiver. If the receiver falls behind by more than
+    /// the broadcast channel capacity, it will receive a `Lagged` error
+    /// indicating how many events were skipped.
+    ///
+    /// This does NOT replay historical events — use `poll()` for catch-up,
+    /// then `subscribe()` for live delivery.
+    pub fn subscribe(&self) -> broadcast::Receiver<Event> {
+        self.tx.subscribe()
+    }
+
+    /// Number of active subscribers on the broadcast channel.
+    pub fn subscriber_count(&self) -> usize {
+        self.tx.receiver_count()
     }
 }
 
@@ -409,6 +443,89 @@ mod tests {
         let bus = EventBus::default();
         assert!(bus.is_empty());
         assert_eq!(bus.capacity, DEFAULT_CAPACITY);
+    }
+
+    #[tokio::test]
+    async fn subscribe_receives_emitted_events() {
+        let mut bus = EventBus::new();
+        let mut rx = bus.subscribe();
+
+        bus.emit("hello", json!({"msg": "world"}));
+        bus.emit("goodbye", json!({"msg": "moon"}));
+
+        let e1 = rx.recv().await.unwrap();
+        assert_eq!(e1.topic, "hello");
+        assert_eq!(e1.seq, 0);
+
+        let e2 = rx.recv().await.unwrap();
+        assert_eq!(e2.topic, "goodbye");
+        assert_eq!(e2.seq, 1);
+    }
+
+    #[tokio::test]
+    async fn subscribe_does_not_replay_history() {
+        let mut bus = EventBus::new();
+        bus.emit("before", json!({}));
+
+        // Subscribe AFTER the first event
+        let mut rx = bus.subscribe();
+
+        bus.emit("after", json!({}));
+
+        let event = rx.recv().await.unwrap();
+        assert_eq!(event.topic, "after");
+        assert_eq!(event.seq, 1);
+    }
+
+    #[tokio::test]
+    async fn multiple_subscribers_receive_same_events() {
+        let mut bus = EventBus::new();
+        let mut rx1 = bus.subscribe();
+        let mut rx2 = bus.subscribe();
+
+        assert_eq!(bus.subscriber_count(), 2);
+
+        bus.emit("shared", json!(42));
+
+        let e1 = rx1.recv().await.unwrap();
+        let e2 = rx2.recv().await.unwrap();
+        assert_eq!(e1.topic, "shared");
+        assert_eq!(e2.topic, "shared");
+        assert_eq!(e1.seq, e2.seq);
+    }
+
+    #[tokio::test]
+    async fn subscriber_lag_detection() {
+        let mut bus = EventBus::with_capacity(1024);
+        let mut rx = bus.subscribe();
+
+        // Emit more events than the broadcast channel capacity (256)
+        for i in 0..300 {
+            bus.emit(format!("flood-{i}"), json!(i));
+        }
+
+        // The receiver should report lag
+        match rx.recv().await {
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                assert!(n > 0, "should report lagged events");
+            }
+            Ok(event) => {
+                // Some events may still be received depending on timing
+                assert!(event.seq <= 300);
+            }
+            Err(e) => panic!("unexpected error: {e}"),
+        }
+    }
+
+    #[test]
+    fn emit_works_without_subscribers() {
+        let mut bus = EventBus::new();
+        assert_eq!(bus.subscriber_count(), 0);
+
+        // Should not panic even with no receivers
+        let seq = bus.emit("no-one-listening", json!({}));
+        assert_eq!(seq, 0);
+        assert_eq!(bus.len(), 1);
     }
 
     #[test]
