@@ -4,16 +4,16 @@ name: "Add dispatch manifest check to MCP doctor tool"
 description: >
   Add dispatch manifest check to MCP doctor tool
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-03-30T20:22:32Z
-last_update: 2026-03-30T20:22:32Z
-date_finished: null
+last_update: 2026-03-30T20:24:53Z
+date_finished: 2026-03-30T20:24:53Z
 ---
 
 # T-821: Add dispatch manifest check to MCP doctor tool
@@ -51,3 +51,6 @@ cargo test -p termlink-mcp
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-821-add-dispatch-manifest-check-to-mcp-docto.md
 - **Context:** Initial task creation
+
+### 2026-03-30T20:24:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
