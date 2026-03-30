@@ -30,7 +30,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - E2E test runner (`tests/e2e/run-all.sh`) — discovers and runs level scripts with summary
 - **`event.subscribe` RPC** — long-poll event subscription via broadcast channel (near-zero latency vs 250-500ms polling)
 - EventBus broadcast channel — `subscribe()` for push-based event delivery alongside existing `poll()`
-- 620 total tests (from 474) — event subscription, TLS edge cases, protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError
+- 629 total tests (from 474) — event subscription, TLS edge cases, pidfile parsing, reaper lifecycle, protocol frame edge cases, EventBus boundary tests, registration serde, CLI error paths, token roundtrip, handler KV/dispatch error cases, remote store uniqueness, NegotiateError
 
 ### Changed
 - **Release profile optimization** — LTO, strip, single codegen-unit reduces binary from 18MB to 12MB (33%)
