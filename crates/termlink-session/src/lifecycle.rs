@@ -122,6 +122,51 @@ mod tests {
     }
 
     #[test]
+    fn all_states_serde_roundtrip() {
+        let states = [
+            SessionState::Initializing,
+            SessionState::Ready,
+            SessionState::Busy,
+            SessionState::Draining,
+            SessionState::Gone,
+        ];
+        let expected_json = [
+            "\"initializing\"",
+            "\"ready\"",
+            "\"busy\"",
+            "\"draining\"",
+            "\"gone\"",
+        ];
+        for (state, json_str) in states.iter().zip(expected_json.iter()) {
+            let json = serde_json::to_string(state).unwrap();
+            assert_eq!(json, *json_str, "serde for {state}");
+            let parsed: SessionState = serde_json::from_str(&json).unwrap();
+            assert_eq!(*state, parsed);
+        }
+    }
+
+    #[test]
+    fn all_states_display() {
+        assert_eq!(SessionState::Initializing.to_string(), "initializing");
+        assert_eq!(SessionState::Ready.to_string(), "ready");
+        assert_eq!(SessionState::Busy.to_string(), "busy");
+        assert_eq!(SessionState::Draining.to_string(), "draining");
+        assert_eq!(SessionState::Gone.to_string(), "gone");
+    }
+
+    #[test]
+    fn initializing_rejects_all_messages_and_commands() {
+        assert!(!SessionState::Initializing.accepts_messages());
+        assert!(!SessionState::Initializing.accepts_commands());
+    }
+
+    #[test]
+    fn gone_rejects_all() {
+        assert!(!SessionState::Gone.accepts_messages());
+        assert!(!SessionState::Gone.accepts_commands());
+    }
+
+    #[test]
     fn invalid_transition_error_message() {
         let err = SessionState::Gone.valid_transition(SessionState::Ready).unwrap_err();
         assert_eq!(err.to_string(), "invalid state transition: gone → ready");

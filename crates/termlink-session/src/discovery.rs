@@ -54,6 +54,14 @@ mod tests {
         }
     }
 
+    #[test]
+    fn sessions_dir_is_child_of_runtime() {
+        let rt = runtime_dir();
+        let sess = sessions_dir();
+        assert_eq!(sess, rt.join("sessions"));
+        assert!(sess.starts_with(&rt));
+    }
+
     struct EnvGuard {
         key: &'static str,
         prev: Option<String>,
