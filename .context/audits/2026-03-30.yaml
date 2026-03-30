@@ -1,8 +1,8 @@
-# Audit Results - 2026-03-30-2207
-timestamp: 2026-03-30T20:07:54Z
+# Audit Results - 2026-03-30-2217
+timestamp: 2026-03-30T20:17:43Z
 summary:
-  pass: 113
-  warn: 5
+  pass: 114
+  warn: 4
   fail: 0
 findings:
   - level: PASS
@@ -29,7 +29,7 @@ findings:
     check: "Task T-260 has no ## Verification section"
     mitigation: "Add '## Verification' with shell commands to T-260-pickup-from-fw-t-141-pre-push-hook-missi.md"
   - level: PASS
-    check: "Git traceability: 98% (1030/1045 commits reference tasks)"
+    check: "Git traceability: 98% (1032/1047 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -49,7 +49,7 @@ findings:
     check: "Completed task T-815 has no episodic summary"
     mitigation: "Run: ./agents/context/context.sh generate-episodic T-815"
   - level: PASS
-    check: "All 554 episodic summaries have quality content"
+    check: "All 555 episodic summaries have quality content"
   - level: PASS
     check: "No orphaned episodic files"
   - level: PASS
@@ -70,15 +70,14 @@ findings:
     check: "C-002: No research warnings logged (clean or first run)"
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
-  - level: WARN
-    check: "CTL-001: Focus file empty but 8 commit(s) in last 30min"
-    mitigation: "Check .claude/settings.json hook configuration for check-active-task"
+  - level: PASS
+    check: "CTL-001: Focus file has active task (T-819)"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 8 (last commit: 2 minutes ago)"
+    check: "CTL-004: Tool counter at 5 (last commit: 39 seconds ago)"
   - level: PASS
-    check: "CTL-018: Budget status valid JSON (level: ok)"
+    check: "CTL-018: Budget status valid JSON (level: warn)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: PASS
@@ -194,13 +193,13 @@ findings:
   - level: PASS
     check: "CTL-011: pre-push hook installed and executable"
   - level: PASS
-    check: "CTL-012: All 552 completed tasks have checked ACs"
+    check: "CTL-012: All 554 completed tasks have checked ACs"
+  - level: PASS
+    check: "CTL-013: T-819 verification re-run: 1/1 pass"
+  - level: PASS
+    check: "CTL-013: T-818 verification re-run: 2/2 pass"
   - level: PASS
     check: "CTL-013: T-817 verification re-run: 2/2 pass"
-  - level: PASS
-    check: "CTL-013: T-816 verification re-run: 1/1 pass"
-  - level: PASS
-    check: "CTL-013: T-815 verification re-run: 1/1 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -218,7 +217,7 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (3/554)"
+    check: "D1: Episodic quality — 0% [TODO] (3/556)"
   - level: PASS
     check: "D2: Human review queue — 6 task(s) awaiting human action (normal)"
   - level: PASS
@@ -235,11 +234,11 @@ findings:
     check: "D5: Task lifecycle — 22 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+12 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=87 avg=68 ratio=1.3x)"
+    check: "D3: Commit velocity — normal (PASS today=91 avg=68 ratio=1.3x)"
   - level: PASS
     check: "D7: Commit bunching — detected (INFO 1_bunch(es) 95_commits_24h)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=91.7 earlier=12.1)"
+    check: "D6: Completion velocity — normal (PASS recent=92.3 earlier=12.1)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS

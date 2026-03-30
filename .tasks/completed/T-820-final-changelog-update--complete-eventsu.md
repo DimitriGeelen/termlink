@@ -4,7 +4,7 @@ name: "Final CHANGELOG update — complete event.subscribe migration summary"
 description: >
   Final CHANGELOG update — complete event.subscribe migration summary
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-30T20:20:13Z
-last_update: 2026-03-30T20:20:13Z
-date_finished: null
+last_update: 2026-03-30T20:21:20Z
+date_finished: 2026-03-30T20:21:20Z
 ---
 
 # T-820: Final CHANGELOG update — complete event.subscribe migration summary
@@ -49,3 +49,6 @@ grep -q "event.collect" CHANGELOG.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-820-final-changelog-update--complete-eventsu.md
 - **Context:** Initial task creation
+
+### 2026-03-30T20:21:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
