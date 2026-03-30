@@ -1288,9 +1288,10 @@ impl TermLinkTools {
             obj.insert("request_id".to_string(), serde_json::json!(&request_id));
         }
 
-        // Snapshot cursor before emitting
+        // Snapshot cursor before emitting (quick subscribe for next_seq)
         let cursor: Option<u64> = {
-            match client::rpc_call(reg.socket_path(), "event.poll", serde_json::json!({})).await {
+            let params = serde_json::json!({"timeout_ms": 1});
+            match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp) {
                         result["next_seq"].as_u64()
@@ -1317,27 +1318,30 @@ impl TermLinkTools {
             Err(e) => return format!("Error: connection failed: {e}"),
         }
 
-        // Poll for reply
+        // Subscribe for reply (server-side blocking, no sleep needed)
         let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
-        let poll_interval = tokio::time::Duration::from_millis(500);
-        let mut poll_cursor = cursor;
+        let subscribe_timeout: u64 = 5000; // 5s per subscribe call
+        let mut sub_cursor = cursor;
 
         loop {
-            if tokio::time::Instant::now() >= deadline {
+            let remaining = deadline.duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
                 return format!(
                     "Timeout: no reply on '{}' within {}s (request_id: {})",
                     p.reply_topic, timeout_secs, request_id
                 );
             }
 
-            tokio::time::sleep(poll_interval).await;
-
-            let mut params = serde_json::json!({ "topic": p.reply_topic });
-            if let Some(c) = poll_cursor {
+            let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
+            let mut params = serde_json::json!({
+                "topic": p.reply_topic,
+                "timeout_ms": effective_timeout,
+            });
+            if let Some(c) = sub_cursor {
                 params["since"] = serde_json::json!(c);
             }
 
-            match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+            match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp)
                         && let Some(events) = result["events"].as_array() {
@@ -1355,13 +1359,12 @@ impl TermLinkTools {
                                 }
                             }
 
-                            if !events.is_empty()
-                                && let Some(next) = result["next_seq"].as_u64() {
-                                    poll_cursor = Some(next);
-                                }
+                            if let Some(next) = result["next_seq"].as_u64() {
+                                sub_cursor = Some(next.saturating_sub(1));
+                            }
                         }
                 }
-                Err(e) => return format!("Error: connection lost during poll: {e}"),
+                Err(e) => return format!("Error: connection lost: {e}"),
             }
         }
     }
@@ -1426,20 +1429,53 @@ impl TermLinkTools {
 
         let timeout_secs = p.timeout.unwrap_or(30);
         let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
-        let poll_interval = tokio::time::Duration::from_millis(500);
-        let mut cursor: Option<u64> = None;
+        let subscribe_timeout: u64 = 5000; // 5s per subscribe call
+
+        // Check for already-existing events via poll (catches seq 0+), then subscribe for live
+        let mut cursor: Option<u64> = {
+            let params = serde_json::json!({"topic": p.topic});
+            match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+                Ok(resp) => {
+                    if let Ok(result) = client::unwrap_result(resp) {
+                        // Check if matching event already exists
+                        if let Some(events) = result["events"].as_array()
+                            && let Some(event) = events.first() {
+                                let payload = &event["payload"];
+                                let text = if payload.is_null()
+                                    || payload.as_object().is_some_and(|o| o.is_empty())
+                                {
+                                    format!("Event received: {}", p.topic)
+                                } else {
+                                    serde_json::to_string_pretty(payload)
+                                        .unwrap_or_else(|_| format!("Event received: {}", p.topic))
+                                };
+                                return text;
+                            }
+                        result["next_seq"].as_u64().map(|n| n.saturating_sub(1))
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            }
+        };
 
         loop {
-            if tokio::time::Instant::now() >= deadline {
+            let remaining = deadline.duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
                 return format!("Timeout waiting for event topic '{}' ({}s)", p.topic, timeout_secs);
             }
 
-            let mut params = serde_json::json!({"topic": p.topic});
+            let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
+            let mut params = serde_json::json!({
+                "topic": p.topic,
+                "timeout_ms": effective_timeout,
+            });
             if let Some(c) = cursor {
                 params["since"] = serde_json::json!(c);
             }
 
-            match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+            match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp) {
                         if let Some(events) = result["events"].as_array()
@@ -1455,14 +1491,12 @@ impl TermLinkTools {
                                 };
                             }
                         if let Some(next) = result["next_seq"].as_u64() {
-                            cursor = if next > 0 { Some(next - 1) } else { None };
+                            cursor = Some(next.saturating_sub(1));
                         }
                     }
                 }
                 Err(e) => return format!("Error: connection lost: {e}"),
             }
-
-            tokio::time::sleep(poll_interval).await;
         }
     }
 }
