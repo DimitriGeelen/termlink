@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T21:38:15Z
-last_update: 2026-04-03T21:38:15Z
+last_update: 2026-04-03T21:48:04Z
 date_finished: null
 ---
 
@@ -35,7 +35,7 @@ Audit found unsafe `.unwrap()` in production code paths. Critical: `server.rs:55
 ## Verification
 
 cargo test --workspace 2>&1 | tail -5
-cargo clippy --workspace --all-targets 2>&1 | grep -c "warning" | grep -q "^0$"
+test "$(cargo clippy --workspace --all-targets 2>&1 | grep -c '^warning\[')" = "0"
 
 ## Decisions
 
