@@ -4,7 +4,7 @@ name: "Add termlink_agent_ask MCP tool — typed agent-to-agent request/response
 description: >
   Add termlink_agent_ask MCP tool — typed agent-to-agent request/response
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T22:18:06Z
-last_update: 2026-04-03T22:18:06Z
-date_finished: null
+last_update: 2026-04-03T22:24:19Z
+date_finished: 2026-04-03T22:24:19Z
 ---
 
 # T-833: Add termlink_agent_ask MCP tool — typed agent-to-agent request/response
@@ -54,3 +54,6 @@ grep -q "termlink_agent_ask" crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-833-add-termlinkagentask-mcp-tool--typed-age.md
 - **Context:** Initial task creation
+
+### 2026-04-03T22:24:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
