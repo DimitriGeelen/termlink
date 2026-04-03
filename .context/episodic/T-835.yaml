@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-835: Add termlink_hub_start and termlink_hub_stop MCP tools — hub lifecycle management for AI agents
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T22:34:59Z
+# ============================================================================
+
+task_id: T-835
+task_name: "Add termlink_hub_start and termlink_hub_stop MCP tools — hub lifecycle management for AI agents"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T22:27:55Z
+completed: 2026-04-03T22:33:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T00:33:19+02:00
+last_commit: 2026-04-04T00:34:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add hub_start and hub_stop MCP tools — 37 tools total, hub lifecycle management, 705 tests. Complete — hub lifecycle MCP tools with 3 integration tests
+
+# Key outcomes
+outcomes:
+  - "`termlink_hub_start` tool spawns hub in background, returns pid/socket"
+  - "`termlink_hub_stop` tool sends SIGTERM to running hub, cleans up stale"
+  - "Integration test for start then status (hub running) + already_running + stale cleanup"
+  - "Integration test for stop when not running"
+  - "All tests pass (705), zero clippy warnings"
+  - "ARCHITECTURE.md and CHANGELOG.md updated"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CHANGELOG.md"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - "docs/ARCHITECTURE.md"
+  - "README.md"
+  - ".tasks/active/T-834-add-termlinkregister-mcp-tool--self-regi.md"
+  - ".tasks/active/T-835-add-termlinkhubstart-and-termlinkhubstop.md"
+  - ".tasks/completed/T-835-add-termlinkhubstart-and-termlinkhubstop.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T00:33:19"
+    action: "T-835: Add hub_start and hub_stop MCP tools — 37 tools total, hub lifecycle management, 705 tests"
+  - time: "2026-04-04T00:34:32"
+    action: "T-835: Complete — hub lifecycle MCP tools with 3 integration tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 8
+  lines_added: 294
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-835-add-termlinkhubstart-and-termlinkhubstop.md
+generated_by: context-agent-hybrid

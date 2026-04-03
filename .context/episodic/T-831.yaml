@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-831: Add termlink_hub_status MCP tool — expose hub lifecycle state for AI agents
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T22:34:58Z
+# ============================================================================
+
+task_id: T-831
+task_name: "Add termlink_hub_status MCP tool — expose hub lifecycle state for AI agents"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T21:54:30Z
+completed: 2026-04-03T22:01:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T00:00:44+02:00
+last_commit: 2026-04-04T00:02:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_hub_status MCP tool — 33rd tool, hub lifecycle state for AI agents, 697 tests. Complete — hub_status MCP tool with 2 integration tests
+
+# Key outcomes
+outcomes:
+  - "`termlink_hub_status` tool added to tools.rs with name, description"
+  - "Returns JSON with ok, status (running/not_running/stale), pid, socket, pidfile"
+  - "Integration test for hub not running case"
+  - "Integration test for hub running case"
+  - "All tests pass, zero clippy warnings"
+  - "ARCHITECTURE.md updated with 33 MCP tools and new test count"
+  - "CHANGELOG.md updated"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CHANGELOG.md"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - "docs/ARCHITECTURE.md"
+  - "README.md"
+  - ".tasks/active/T-831-add-termlinkhubstatus-mcp-tool--expose-h.md"
+  - ".tasks/completed/T-830-replace-unsafe-unwrap-calls-with-proper-.md"
+  - ".tasks/completed/T-831-add-termlinkhubstatus-mcp-tool--expose-h.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T00:00:44"
+    action: "T-831: Add termlink_hub_status MCP tool — 33rd tool, hub lifecycle state for AI agents, 697 tests"
+  - time: "2026-04-04T00:02:11"
+    action: "T-831: Complete — hub_status MCP tool with 2 integration tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 7
+  lines_added: 162
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-831-add-termlinkhubstatus-mcp-tool--expose-h.md
+generated_by: context-agent-hybrid

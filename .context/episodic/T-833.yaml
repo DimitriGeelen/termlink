@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-833: Add termlink_agent_ask MCP tool — typed agent-to-agent request/response
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T22:34:59Z
+# ============================================================================
+
+task_id: T-833
+task_name: "Add termlink_agent_ask MCP tool — typed agent-to-agent request/response"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T22:18:06Z
+completed: 2026-04-03T22:24:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T00:24:11+02:00
+last_commit: 2026-04-04T00:25:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_agent_ask MCP tool — 35th tool, typed agent request/response, 702 tests. Complete — agent_ask MCP tool with 2 integration tests
+
+# Key outcomes
+outcomes:
+  - "`termlink_agent_ask` tool added with AgentAskParams (target, action, params, timeout, from)"
+  - "Emits agent.request, subscribes for agent.response with matching request_id"
+  - "Integration test for nonexistent target error + timeout test"
+  - "All tests pass (702), zero clippy warnings"
+  - "ARCHITECTURE.md and CHANGELOG.md updated"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CHANGELOG.md"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - "docs/ARCHITECTURE.md"
+  - "README.md"
+  - ".tasks/active/T-833-add-termlinkagentask-mcp-tool--typed-age.md"
+  - ".tasks/completed/T-833-add-termlinkagentask-mcp-tool--typed-age.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T00:24:11"
+    action: "T-833: Add termlink_agent_ask MCP tool — 35th tool, typed agent request/response, 702 tests"
+  - time: "2026-04-04T00:25:22"
+    action: "T-833: Complete — agent_ask MCP tool with 2 integration tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 7
+  lines_added: 255
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-833-add-termlinkagentask-mcp-tool--typed-age.md
+generated_by: context-agent-hybrid
