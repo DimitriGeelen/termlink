@@ -1,4 +1,3 @@
-# TermLink                                                                                              
 Cross-terminal session communication — message bus with terminal endpoints.
 ![TermLink](header.svg)
 
