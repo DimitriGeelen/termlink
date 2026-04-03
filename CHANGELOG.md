@@ -52,7 +52,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`termlink_hub_status` MCP tool** — 33rd MCP tool, check hub lifecycle state (running/not_running/stale) before calling hub-dependent tools
 - **`termlink_file_send` MCP tool** — 34th MCP tool, chunked file transfer to target session (reads file, computes SHA256, sends init/chunk/complete events)
 - **`termlink_agent_ask` MCP tool** — 35th MCP tool, typed agent-to-agent request/response via agent protocol events
-- 702 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP tools (event_subscribe, dispatch_status, info, topics, collect, pty_mode, hub_status, file_send, agent_ask), manifest secs_to_rfc3339, plus all previous test categories
+- **`termlink_hub_start` MCP tool** — 36th MCP tool, start hub in background for multi-session features (collect, broadcast, discover)
+- **`termlink_hub_stop` MCP tool** — 37th MCP tool, stop running hub via SIGTERM with stale pidfile cleanup
+- 705 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP tools (event_subscribe, dispatch_status, info, topics, collect, pty_mode, hub_status, file_send, agent_ask), manifest secs_to_rfc3339, plus all previous test categories
 
 ### Changed
 - **CLI event delivery** — `watch`, `wait`, `request`, `agent ask/listen/negotiate`, `file receive` all upgraded from `event.poll` sleep loops to `event.subscribe` push-based delivery (near-zero latency)

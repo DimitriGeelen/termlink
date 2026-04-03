@@ -90,7 +90,7 @@ Every command supports `--json` for machine-readable output. Run `termlink <comm
 
 ## MCP Server (AI Agent Integration)
 
-TermLink ships a built-in [Model Context Protocol](https://modelcontextprotocol.io/) server with 35 tools, enabling AI agents (Claude Code, etc.) to orchestrate terminal sessions programmatically.
+TermLink ships a built-in [Model Context Protocol](https://modelcontextprotocol.io/) server with 37 tools, enabling AI agents (Claude Code, etc.) to orchestrate terminal sessions programmatically.
 
 ### Setup
 
@@ -99,7 +99,7 @@ TermLink ships a built-in [Model Context Protocol](https://modelcontextprotocol.
 termlink vendor
 ```
 
-### Tools (35)
+### Tools (37)
 
 | Category | Tools | Purpose |
 |----------|-------|---------|
@@ -111,7 +111,8 @@ termlink vendor
 | **Agent** | `agent_ask` | Typed agent-to-agent request/response |
 | **Orchestration** | `signal` | Process signals |
 | **Self-healing** | `doctor`, `clean` | Health checks, stale session cleanup |
-| **Diagnostics** | `info`, `dispatch_status`, `hub_status` | Runtime info, dispatch manifest, hub lifecycle |
+| **Hub** | `hub_start`, `hub_stop`, `hub_status` | Hub lifecycle management |
+| **Diagnostics** | `info`, `dispatch_status` | Runtime info, dispatch manifest |
 
 All tools are prefixed with `termlink_` (e.g., `termlink_ping`). The server also exposes 2 resources and 3 prompts.
 

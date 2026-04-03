@@ -1417,3 +1417,71 @@ async fn test_agent_ask_timeout() {
     client.cancel().await.unwrap();
     _h.abort();
 }
+
+// ─── Hub Start/Stop Tests ──────────────────────────────────────────
+
+#[tokio::test]
+async fn test_hub_start_and_status() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-hub-start");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+
+    // Start the hub
+    let result = call(&client, "termlink_hub_start", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["action"], "started");
+
+    // Verify status shows running
+    let status = call(&client, "termlink_hub_status", json!({})).await;
+    let status_parsed: serde_json::Value = serde_json::from_str(&status).expect("valid JSON");
+    assert_eq!(status_parsed["ok"], true);
+    assert_eq!(status_parsed["status"], "running");
+
+    // Start again — should be already_running
+    let result2 = call(&client, "termlink_hub_start", json!({})).await;
+    let parsed2: serde_json::Value = serde_json::from_str(&result2).expect("valid JSON");
+    assert_eq!(parsed2["action"], "already_running");
+
+    // NOTE: Not testing hub_stop here because the hub runs in-process;
+    // SIGTERM would kill the test process itself. hub_stop is tested
+    // via test_hub_stop_not_running (no-op case) and test_hub_stop_stale (cleanup).
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_hub_stop_stale() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-hub-stop-stale");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Create a fake stale pidfile pointing to a dead PID
+    let pidfile = dir.path.join("hub.pid");
+    std::fs::write(&pidfile, "999999").unwrap(); // PID that doesn't exist
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_hub_stop", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["action"], "cleaned");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_hub_stop_not_running() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-hub-stop-none");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_hub_stop", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["action"], "none");
+
+    client.cancel().await.unwrap();
+}

@@ -2006,6 +2006,78 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_hub_start",
+        description = "Start the hub server in the background. The hub enables multi-session features like collect, broadcast, and discover. Returns immediately with hub pid and socket path. No-op if hub is already running."
+    )]
+    async fn termlink_hub_start(&self) -> String {
+        let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+        let socket_path = termlink_hub::server::hub_socket_path();
+
+        // Check if already running
+        if let termlink_hub::pidfile::PidfileStatus::Running(pid) = termlink_hub::pidfile::check(&pidfile_path) {
+            let response = serde_json::json!({
+                "ok": true,
+                "action": "already_running",
+                "pid": pid,
+                "socket": socket_path.display().to_string(),
+            });
+            return serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"));
+        }
+
+        match termlink_hub::server::run(&socket_path).await {
+            Ok(_handle) => {
+                // Leak the handle so the hub stays alive for the MCP server lifetime
+                std::mem::forget(_handle);
+                // Give the hub a moment to write pidfile
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                let pid = match termlink_hub::pidfile::check(&pidfile_path) {
+                    termlink_hub::pidfile::PidfileStatus::Running(p) => Some(p),
+                    _ => None,
+                };
+                let response = serde_json::json!({
+                    "ok": true,
+                    "action": "started",
+                    "pid": pid,
+                    "socket": socket_path.display().to_string(),
+                });
+                serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            Err(e) => format!("Error: failed to start hub: {e}"),
+        }
+    }
+
+    #[tool(
+        name = "termlink_hub_stop",
+        description = "Stop the running hub server. Sends SIGTERM and waits up to 2 seconds for clean shutdown. Cleans up stale pidfiles if the hub process is already dead."
+    )]
+    async fn termlink_hub_stop(&self) -> String {
+        let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+
+        match termlink_hub::pidfile::check(&pidfile_path) {
+            termlink_hub::pidfile::PidfileStatus::NotRunning => {
+                serde_json::json!({"ok": true, "action": "none", "reason": "Hub is not running"}).to_string()
+            }
+            termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
+                termlink_hub::pidfile::remove(&pidfile_path);
+                let socket_path = termlink_hub::server::hub_socket_path();
+                let _ = std::fs::remove_file(&socket_path);
+                serde_json::json!({"ok": true, "action": "cleaned", "pid": pid, "reason": "Stale pidfile removed"}).to_string()
+            }
+            termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+                unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+                // Wait up to 2 seconds for shutdown
+                for _ in 0..20 {
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    if !termlink_session::liveness::process_exists(pid) {
+                        return serde_json::json!({"ok": true, "action": "stopped", "pid": pid}).to_string();
+                    }
+                }
+                format!("Error: hub (PID {pid}) did not stop within 2 seconds")
+            }
+        }
+    }
+
+    #[tool(
         name = "termlink_agent_ask",
         description = "Send a typed agent request to a target session and wait for its response. Uses the agent protocol (agent.request → agent.response events). The target session must have an agent.listen handler. Returns the response result or error."
     )]
