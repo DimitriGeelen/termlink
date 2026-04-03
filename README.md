@@ -1,4 +1,5 @@
 ![TermLink](header.svg)
+
 Cross-terminal session communication — message bus with terminal endpoints.
 TermLink lets multiple terminal sessions **discover, message, and control each other** over Unix sockets. Register a session, and any other session on the machine can ping it, execute commands, stream its terminal output, or inject keystrokes — all from the CLI.
 
