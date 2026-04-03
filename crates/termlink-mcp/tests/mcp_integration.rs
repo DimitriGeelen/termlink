@@ -1206,3 +1206,22 @@ async fn test_topics_nonexistent_session() {
 
     client.cancel().await.unwrap();
 }
+
+// === collect tests ===
+
+#[tokio::test]
+async fn test_collect_no_hub() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-collect-no-hub");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_collect", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("collect should return valid JSON");
+    assert_eq!(parsed["ok"], false, "should fail without hub");
+    assert!(parsed["error"].as_str().unwrap().contains("Hub is not running"),
+        "should mention hub not running: {result}");
+
+    client.cancel().await.unwrap();
+}

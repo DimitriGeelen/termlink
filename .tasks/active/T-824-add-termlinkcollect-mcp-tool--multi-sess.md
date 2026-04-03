@@ -25,13 +25,13 @@ Add `termlink_collect` MCP tool — fan-in events from multiple sessions via hub
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_collect` MCP tool implemented — calls hub `event.collect` with targets, topic, timeout_ms
-- [ ] Params: targets (optional list), topic (optional filter), timeout_ms (optional, default 5000), since (optional cursors)
-- [ ] Returns: collected events array with session_name, topic, payload, seq, timestamp + cursors for continuation
-- [ ] Returns error message when hub is not running
-- [ ] Integration test: collect with no hub returns error
-- [ ] `cargo test -p termlink-mcp` passes
-- [ ] `cargo clippy --workspace` clean
+- [x] `termlink_collect` MCP tool implemented — calls hub `event.collect` with targets, topic, timeout_ms
+- [x] Params: targets (optional list), topic (optional filter), timeout_ms (optional, default 5000), since (optional cursors)
+- [x] Returns: collected events array with session_name, topic, payload, seq, timestamp + cursors for continuation
+- [x] Returns error message when hub is not running
+- [x] Integration test: collect with no hub returns error
+- [x] `cargo test -p termlink-mcp` passes (52 tests)
+- [x] `cargo clippy --workspace` clean (0 warnings)
 
 ## Verification
 

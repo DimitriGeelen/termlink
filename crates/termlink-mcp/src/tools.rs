@@ -1727,4 +1727,73 @@ impl TermLinkTools {
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
     }
+
+    #[tool(
+        name = "termlink_collect",
+        description = "Collect events from multiple sessions via the hub (fan-in). Requires the hub to be running. Returns events from targeted sessions with cursors for continuation polling. Use this to gather results from dispatched workers or monitor events across a fleet of sessions."
+    )]
+    async fn termlink_collect(&self, Parameters(p): Parameters<CollectParams>) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "Hub is not running. Start it with: termlink hub start"
+            }).to_string();
+        }
+
+        let timeout_ms = p.timeout_ms.unwrap_or(5000);
+        let mut params = serde_json::json!({
+            "timeout_ms": timeout_ms,
+        });
+        if let Some(ref targets) = p.targets {
+            params["targets"] = serde_json::json!(targets);
+        }
+        if let Some(ref topic) = p.topic {
+            params["topic"] = serde_json::json!(topic);
+        }
+        if let Some(ref since) = p.since {
+            params["since"] = since.clone();
+        }
+
+        let rpc_timeout = std::time::Duration::from_millis(timeout_ms + 5000);
+        match tokio::time::timeout(rpc_timeout, client::rpc_call(&hub_socket, "event.collect", params)).await {
+            Ok(Ok(resp)) => {
+                match client::unwrap_result(resp) {
+                    Ok(result) => {
+                        let events = result["events"].as_array().map(|arr| {
+                            arr.iter().map(|e| {
+                                serde_json::json!({
+                                    "session_name": e["session_name"],
+                                    "topic": e["topic"],
+                                    "payload": e["payload"],
+                                    "seq": e["seq"],
+                                    "timestamp": e["timestamp"],
+                                })
+                            }).collect::<Vec<_>>()
+                        }).unwrap_or_default();
+
+                        let response = serde_json::json!({
+                            "ok": true,
+                            "events": events,
+                            "count": events.len(),
+                            "cursors": result.get("cursors").cloned().unwrap_or(serde_json::json!({})),
+                        });
+                        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+                    }
+                    Err(e) => serde_json::json!({
+                        "ok": false,
+                        "error": format!("Hub returned error: {e}"),
+                    }).to_string(),
+                }
+            }
+            Ok(Err(e)) => serde_json::json!({
+                "ok": false,
+                "error": format!("Failed to connect to hub: {e}"),
+            }).to_string(),
+            Err(_) => serde_json::json!({
+                "ok": false,
+                "error": format!("Timeout after {}ms", timeout_ms + 5000),
+            }).to_string(),
+        }
+    }
 }
