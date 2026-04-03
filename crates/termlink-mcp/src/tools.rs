@@ -260,6 +260,12 @@ pub struct EventSubscribeParams {
     pub max_events: Option<u64>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct TopicsParams {
+    /// Session ID or display name (if omitted, queries all sessions)
+    pub target: Option<String>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -1536,5 +1542,177 @@ impl TermLinkTools {
                 Err(e) => return format!("Error: connection lost: {e}"),
             }
         }
+    }
+
+    #[tool(
+        name = "termlink_dispatch_status",
+        description = "Read the dispatch manifest and report branch lifecycle status. Returns counts of pending/merged/conflict/deferred/expired dispatches and details of any pending dispatches with their branches. Use this to check if dispatched workers have been merged or if there are conflicts to resolve."
+    )]
+    async fn termlink_dispatch_status(&self) -> String {
+        let project_root = match std::env::current_dir() {
+            Ok(d) => d,
+            Err(e) => return format!("{{\"ok\":false,\"error\":\"Failed to get current directory: {e}\"}}"),
+        };
+        let manifest_path = project_root.join(".termlink").join("dispatch-manifest.json");
+
+        if !manifest_path.exists() {
+            return serde_json::json!({
+                "ok": true,
+                "total": 0,
+                "message": "No dispatch manifest (no dispatches have used --isolate yet)"
+            }).to_string();
+        }
+
+        let content = match std::fs::read_to_string(&manifest_path) {
+            Ok(c) => c,
+            Err(e) => return format!("{{\"ok\":false,\"error\":\"Failed to read dispatch manifest: {e}\"}}"),
+        };
+
+        let manifest: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(m) => m,
+            Err(e) => return format!("{{\"ok\":false,\"error\":\"Failed to parse dispatch manifest: {e}\"}}"),
+        };
+
+        let dispatches = manifest["dispatches"].as_array();
+        let total = dispatches.map(|a| a.len()).unwrap_or(0);
+
+        let count_status = |status: &str| -> usize {
+            dispatches
+                .map(|arr| arr.iter().filter(|d| d["status"].as_str() == Some(status)).count())
+                .unwrap_or(0)
+        };
+
+        let pending = count_status("pending");
+        let merged = count_status("merged");
+        let conflict = count_status("conflict");
+        let deferred = count_status("deferred");
+        let expired = count_status("expired");
+
+        let pending_details: Vec<serde_json::Value> = dispatches
+            .map(|arr| {
+                arr.iter()
+                    .filter(|d| d["status"].as_str() == Some("pending"))
+                    .map(|d| {
+                        let branches_with_commits: Vec<&str> = d["branches"]
+                            .as_array()
+                            .map(|b| {
+                                b.iter()
+                                    .filter(|br| br["has_commits"].as_bool() == Some(true))
+                                    .filter_map(|br| br["branch_name"].as_str())
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        serde_json::json!({
+                            "id": d["id"],
+                            "created_at": d["created_at"],
+                            "worker_count": d["worker_count"],
+                            "branches_with_commits": branches_with_commits,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let result = serde_json::json!({
+            "ok": pending == 0,
+            "total": total,
+            "pending": pending,
+            "merged": merged,
+            "conflict": conflict,
+            "deferred": deferred,
+            "expired": expired,
+            "pending_dispatches": pending_details,
+        });
+        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_info",
+        description = "Get TermLink runtime information: version, commit hash, build target, runtime directory paths, hub status, and session counts (live/stale/total). Use this for diagnostics and to understand the current TermLink environment state."
+    )]
+    async fn termlink_info(&self) -> String {
+        let runtime_dir = termlink_session::discovery::runtime_dir();
+        let sessions_dir = termlink_session::discovery::sessions_dir();
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        let hub_running = hub_socket.exists();
+        let live = manager::list_sessions(false)
+            .map(|s| s.len())
+            .unwrap_or(0);
+        let all = manager::list_sessions(true)
+            .map(|s| s.len())
+            .unwrap_or(0);
+        let stale = all - live;
+
+        let version = env!("CARGO_PKG_VERSION");
+        let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
+        let target = option_env!("BUILD_TARGET").unwrap_or("unknown");
+
+        let result = serde_json::json!({
+            "ok": true,
+            "version": version,
+            "commit": commit,
+            "target": target,
+            "runtime_dir": runtime_dir.to_string_lossy(),
+            "sessions_dir": sessions_dir.to_string_lossy(),
+            "hub_socket": hub_socket.to_string_lossy(),
+            "hub_running": hub_running,
+            "sessions": {
+                "live": live,
+                "stale": stale,
+                "total": all,
+            },
+        });
+        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_topics",
+        description = "List event topics across all sessions (or a specific session). Returns a map of session names to their active event topics, plus a total count. Use this to discover what events sessions are emitting before subscribing or polling."
+    )]
+    async fn termlink_topics(&self, Parameters(p): Parameters<TopicsParams>) -> String {
+        let registrations = if let Some(ref target) = p.target {
+            match manager::find_session(target) {
+                Ok(r) => vec![r],
+                Err(e) => return format!("Error: session '{}' not found: {e}", target),
+            }
+        } else {
+            manager::list_sessions(false).unwrap_or_default()
+        };
+
+        if registrations.is_empty() {
+            return serde_json::json!({
+                "ok": true,
+                "sessions": {},
+                "total_topics": 0,
+            }).to_string();
+        }
+
+        let timeout = std::time::Duration::from_secs(5);
+        let mut session_topics: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+
+        for reg in &registrations {
+            let rpc_future = client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({}));
+            if let Ok(Ok(resp)) = tokio::time::timeout(timeout, rpc_future).await
+                && let Ok(result) = client::unwrap_result(resp)
+                && let Some(topics) = result["topics"].as_array()
+            {
+                let topic_list: Vec<String> = topics
+                    .iter()
+                    .filter_map(|t| t.as_str().map(String::from))
+                    .collect();
+                if !topic_list.is_empty() {
+                    session_topics.insert(reg.display_name.clone(), topic_list);
+                }
+            }
+        }
+
+        let total: usize = session_topics.values().map(|v| v.len()).sum();
+
+        let result = serde_json::json!({
+            "ok": true,
+            "sessions": session_topics,
+            "total_topics": total,
+        });
+        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
     }
 }

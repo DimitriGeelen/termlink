@@ -1014,3 +1014,195 @@ async fn test_event_subscribe_timeout_empty() {
     client.cancel().await.unwrap();
     _h.abort();
 }
+
+// === dispatch_status tests ===
+
+#[tokio::test]
+async fn test_dispatch_status_no_manifest() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-dispatch-status-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_dispatch_status", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("should return valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["total"], 0);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_dispatch_status_with_manifest() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-dispatch-status-manifest");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Create a dispatch manifest in current dir
+    let manifest_dir = std::env::current_dir().unwrap().join(".termlink");
+    let _ = std::fs::create_dir_all(&manifest_dir);
+    let manifest_path = manifest_dir.join("dispatch-manifest.json");
+    let manifest_content = json!({
+        "dispatches": [
+            {
+                "id": "D-test-1",
+                "created_at": "2026-04-01T00:00:00Z",
+                "status": "merged",
+                "worker_count": 2,
+                "topic": "task.completed",
+                "prefix": "worker",
+                "branches": []
+            },
+            {
+                "id": "D-test-2",
+                "created_at": "2026-04-01T01:00:00Z",
+                "status": "pending",
+                "worker_count": 3,
+                "topic": "task.completed",
+                "prefix": "worker",
+                "branches": [
+                    {"worker_name": "w-1", "branch_name": "tl-dispatch/D-test-2/w-1", "has_commits": true}
+                ]
+            }
+        ]
+    });
+    std::fs::write(&manifest_path, serde_json::to_string_pretty(&manifest_content).unwrap()).unwrap();
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_dispatch_status", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("should return valid JSON");
+    assert_eq!(parsed["ok"], false, "pending dispatches should report ok=false");
+    assert_eq!(parsed["total"], 2);
+    assert_eq!(parsed["pending"], 1);
+    assert_eq!(parsed["merged"], 1);
+    assert_eq!(parsed["pending_dispatches"].as_array().unwrap().len(), 1);
+    assert_eq!(parsed["pending_dispatches"][0]["id"], "D-test-2");
+
+    // Cleanup
+    let _ = std::fs::remove_file(&manifest_path);
+    client.cancel().await.unwrap();
+}
+
+// === info tests ===
+
+#[tokio::test]
+async fn test_info_empty_env() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-info-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_info", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("info should return valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert!(parsed["version"].is_string(), "should have version");
+    assert!(parsed["runtime_dir"].is_string(), "should have runtime_dir");
+    assert!(parsed["hub_running"].is_boolean(), "should have hub_running");
+    assert_eq!(parsed["sessions"]["live"], 0);
+    assert_eq!(parsed["sessions"]["stale"], 0);
+    assert_eq!(parsed["sessions"]["total"], 0);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_info_with_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-info-sessions");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "info-test", vec!["worker".into()]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_info", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["sessions"]["live"], 1);
+    assert_eq!(parsed["sessions"]["total"], 1);
+
+    client.cancel().await.unwrap();
+}
+
+// === topics tests ===
+
+#[tokio::test]
+async fn test_topics_empty_env() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-topics-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_topics", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("topics should return valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["total_topics"], 0);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_topics_with_events() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-topics-events");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, reg) = start_session(&dir.sessions_dir(), "topics-test", vec![]).await;
+
+    // Emit an event to create a topic
+    let _ = client::rpc_call(reg.socket_path(), "event.emit", json!({
+        "topic": "build.complete",
+        "payload": {"status": "ok"}
+    })).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_topics", json!({})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert!(parsed["total_topics"].as_u64().unwrap() >= 1, "should have at least 1 topic");
+    let sessions = parsed["sessions"].as_object().unwrap();
+    assert!(sessions.contains_key("topics-test"), "should include topics-test session");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_topics_specific_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-topics-target");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, reg) = start_session(&dir.sessions_dir(), "topics-target", vec![]).await;
+
+    let _ = client::rpc_call(reg.socket_path(), "event.emit", json!({
+        "topic": "task.result",
+        "payload": {}
+    })).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_topics", json!({"target": "topics-target"})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert!(parsed["sessions"].as_object().unwrap().contains_key("topics-target"));
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_topics_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-topics-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_topics", json!({"target": "nonexistent"})).await;
+    assert!(result.contains("Error"), "should return error for nonexistent session");
+
+    client.cancel().await.unwrap();
+}

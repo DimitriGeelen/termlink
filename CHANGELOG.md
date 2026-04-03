@@ -44,7 +44,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `--json` for structured output
 - **`termlink_event_subscribe` MCP tool** — 27th MCP tool, exposes push-based event delivery with since/timeout/topic/max_events params
 - **`termlink doctor` dispatch check** — validates dispatch manifest, warns on pending dispatches, `--fix` expires stale dispatches (>24h)
-- 684 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP event_subscribe integration, manifest secs_to_rfc3339, plus all previous test categories
+- **`termlink_dispatch_status` MCP tool** — 28th MCP tool, reads dispatch manifest and reports branch lifecycle status (pending/merged/conflict/deferred/expired)
+- **`termlink_info` MCP tool** — 29th MCP tool, returns runtime info (version, paths, hub status, session counts)
+- **`termlink_topics` MCP tool** — 30th MCP tool, lists event topics across all sessions with optional target filter
+- 692 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP event_subscribe integration, dispatch_status/info/topics MCP tools, manifest secs_to_rfc3339, plus all previous test categories
 
 ### Changed
 - **CLI event delivery** — `watch`, `wait`, `request`, `agent ask/listen/negotiate`, `file receive` all upgraded from `event.poll` sleep loops to `event.subscribe` push-based delivery (near-zero latency)
