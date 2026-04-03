@@ -292,6 +292,20 @@ pub struct FileSendParams {
     pub path: String,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentAskParams {
+    /// Session ID or display name to send the agent request to
+    pub target: String,
+    /// Action to request (e.g., "analyze", "build", "test")
+    pub action: String,
+    /// JSON parameters for the action (default: {})
+    pub params: Option<serde_json::Value>,
+    /// Sender identity (default: mcp-<pid>)
+    pub from: Option<String>,
+    /// Timeout in seconds to wait for response (default: 30)
+    pub timeout: Option<u64>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -1989,5 +2003,136 @@ impl TermLinkTools {
             "sha256": sha256,
         });
         serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_agent_ask",
+        description = "Send a typed agent request to a target session and wait for its response. Uses the agent protocol (agent.request → agent.response events). The target session must have an agent.listen handler. Returns the response result or error."
+    )]
+    async fn termlink_agent_ask(&self, Parameters(p): Parameters<AgentAskParams>) -> String {
+        use termlink_protocol::events::{agent_topic, AgentRequest, SCHEMA_VERSION};
+
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let timeout_secs = p.timeout.unwrap_or(30);
+        let sender = p.from.unwrap_or_else(|| format!("mcp-{}", std::process::id()));
+        let params = p.params.unwrap_or(serde_json::json!({}));
+
+        let request_id = format!(
+            "req-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        );
+
+        let request = AgentRequest {
+            schema_version: SCHEMA_VERSION.to_string(),
+            request_id: request_id.clone(),
+            from: sender,
+            to: p.target.clone(),
+            action: p.action.clone(),
+            params,
+            timeout_secs: Some(timeout_secs),
+        };
+
+        // Snapshot cursor before emitting
+        let cursor: Option<u64> = {
+            let sub_params = serde_json::json!({"timeout_ms": 1});
+            match client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await {
+                Ok(resp) => {
+                    if let Ok(result) = client::unwrap_result(resp) {
+                        result["next_seq"].as_u64()
+                    } else { None }
+                }
+                Err(_) => None,
+            }
+        };
+
+        // Emit agent.request
+        let payload = match serde_json::to_value(&request) {
+            Ok(v) => v,
+            Err(e) => return format!("Error: failed to serialize agent request: {e}"),
+        };
+        let emit_params = serde_json::json!({
+            "topic": agent_topic::REQUEST,
+            "payload": payload,
+        });
+
+        match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+            Ok(resp) => {
+                if let Err(e) = client::unwrap_result(resp) {
+                    return format!("Error: failed to emit agent request: {e}");
+                }
+            }
+            Err(e) => return format!("Error: connection failed: {e}"),
+        }
+
+        // Subscribe for agent.response with matching request_id
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
+        let subscribe_timeout: u64 = 5000;
+        let mut sub_cursor = cursor;
+
+        loop {
+            let remaining = deadline.duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                return format!(
+                    "Timeout: no agent response within {}s (action: {}, request_id: {})",
+                    timeout_secs, p.action, request_id
+                );
+            }
+
+            let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
+            let mut sub_params = serde_json::json!({
+                "topic": agent_topic::RESPONSE,
+                "timeout_ms": effective_timeout,
+            });
+            if let Some(c) = sub_cursor {
+                sub_params["since"] = serde_json::json!(c);
+            }
+
+            match client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await {
+                Ok(resp) => {
+                    if let Ok(result) = client::unwrap_result(resp)
+                        && let Some(events) = result["events"].as_array()
+                    {
+                        for event in events {
+                            let event_payload = &event["payload"];
+                            let matches = event_payload
+                                .get("request_id")
+                                .and_then(|r| r.as_str())
+                                .map(|r| r == request_id)
+                                .unwrap_or(false);
+
+                            if matches {
+                                let status = event_payload.get("status")
+                                    .and_then(|s| s.as_str())
+                                    .unwrap_or("unknown");
+                                let is_ok = status == "ok";
+                                let response = serde_json::json!({
+                                    "ok": is_ok,
+                                    "action": p.action,
+                                    "request_id": request_id,
+                                    "status": status,
+                                    "result": event_payload.get("result"),
+                                    "error": event_payload.get("error_message"),
+                                });
+                                return serde_json::to_string_pretty(&response)
+                                    .unwrap_or_else(|e| format!("Error: {e}"));
+                            }
+                        }
+
+                        if let Some(next) = result["next_seq"].as_u64() {
+                            sub_cursor = Some(next.saturating_sub(1));
+                        }
+                    }
+                }
+                Err(e) => return format!("Error: connection lost: {e}"),
+            }
+        }
     }
 }

@@ -1376,3 +1376,44 @@ async fn test_file_send_nonexistent_file() {
     client.cancel().await.unwrap();
     _h.abort();
 }
+
+// ─── Agent Ask Tests ───────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_agent_ask_nonexistent_target() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-agent-ask-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_agent_ask", json!({
+        "target": "nonexistent",
+        "action": "test"
+    })).await;
+    assert!(result.contains("Error"), "should error for nonexistent target: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_agent_ask_timeout() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-agent-ask-timeout");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "agent-target", vec![]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let client = mcp_client().await;
+    // Short timeout (1s) — no responder, so this should timeout
+    let result = call(&client, "termlink_agent_ask", json!({
+        "target": "agent-target",
+        "action": "analyze",
+        "params": {"code": "hello"},
+        "timeout": 1
+    })).await;
+    assert!(result.contains("Timeout"), "should timeout with no responder: {result}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
