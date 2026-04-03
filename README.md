@@ -118,17 +118,29 @@ All tools are prefixed with `termlink_` (e.g., `termlink_ping`). The server also
 ### Dispatch parallel workers
 
 ```bash
-# Spawn 3 workers
+# Atomic dispatch: spawn 3 workers, collect results, cleanup — one command
+termlink dispatch --count 3 --timeout 300 -- bash -c 'echo "Worker done"; termlink event emit $TERMLINK_WORKER_NAME task.completed'
+
+# With git worktree isolation (each worker gets its own branch)
+termlink dispatch --count 3 --isolate --auto-merge --timeout 300 -- make build
+
+# Check dispatch status
+termlink dispatch-status --json
+```
+
+<details><summary>Manual alternative (without dispatch command)</summary>
+
+```bash
 for i in 1 2 3; do
   termlink spawn --name "worker-$i" --tags "worker" --backend auto \
     -- bash -c "echo 'Worker $i done'; termlink event emit worker-$i worker.done"
 done
-
-# Wait for all to finish
 for i in 1 2 3; do
   termlink event wait "worker-$i" worker.done --timeout 60
 done
 ```
+
+</details>
 
 ### Remote session observation
 
