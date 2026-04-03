@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-822: Add MCP tools: dispatch_status, info, topics — expand AI agent coverage to 30 tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T20:33:59Z
+# ============================================================================
+
+task_id: T-822
+task_name: "Add MCP tools: dispatch_status, info, topics — expand AI agent coverage to 30 tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T19:55:14Z
+completed: 2026-04-03T20:04:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-03T22:04:12+02:00
+last_commit: 2026-04-03T22:05:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add MCP tools dispatch_status, info, topics — 30 tools total. Complete — 3 MCP tools (dispatch_status, info, topics), 692 tests
+
+# Key outcomes
+outcomes:
+  - "`termlink_dispatch_status` MCP tool — reads dispatch manifest, returns pending/merged/conflict/expired counts"
+  - "`termlink_info` MCP tool — returns runtime info (version, sessions, hub status, paths)"
+  - "`termlink_topics` MCP tool — lists event topics across all sessions (or a specific one)"
+  - "All 3 tools registered in the MCP server tool list"
+  - "Integration tests for each new tool (8 new tests: 2 dispatch_status, 2 info, 3 topics, 1 topics nonexistent)"
+  - "`cargo test --workspace` passes (692 tests)"
+  - "`cargo clippy --workspace` clean (0 warnings)"
+  - "CHANGELOG updated with new tools"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CHANGELOG.md"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - ".tasks/active/T-822-add-mcp-tools-dispatchstatus-info-topics.md"
+  - ".tasks/completed/T-822-add-mcp-tools-dispatchstatus-info-topics.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-03T22:04:12"
+    action: "T-822: Add MCP tools dispatch_status, info, topics — 30 tools total"
+  - time: "2026-04-03T22:04:44"
+    action: "T-822: Complete — 3 MCP tools (dispatch_status, info, topics), 692 tests"
+  - time: "2026-04-03T22:05:26"
+    action: "T-822: Complete — 3 MCP tools (dispatch_status, info, topics), 692 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 3
+  files_changed: 5
+  lines_added: 499
+  lines_removed: 62
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-822-add-mcp-tools-dispatchstatus-info-topics.md
+generated_by: context-agent-hybrid

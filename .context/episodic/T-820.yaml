@@ -1,32 +1,32 @@
 # ============================================================================
-# EPISODIC MEMORY - T-823: Update ARCHITECTURE.md — reflect 30 MCP tools, 692 total tests
+# EPISODIC MEMORY - T-820: Final CHANGELOG update — complete event.subscribe migration summary
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
 # Generated: 2026-04-03T20:33:59Z
 # ============================================================================
 
-task_id: T-823
-task_name: "Update ARCHITECTURE.md — reflect 30 MCP tools, 692 total tests"
+task_id: T-820
+task_name: "Final CHANGELOG update — complete event.subscribe migration summary"
 workflow_type: build
 enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
-created: 2026-04-03T20:06:04Z
-completed: 2026-04-03T20:08:35Z
+created: 2026-03-30T20:20:13Z
+completed: 2026-03-30T20:21:20Z
 duration_days: 0
 updates_count: 2
-first_commit: 2026-04-03T22:08:23+02:00
-last_commit: 2026-04-03T22:08:58+02:00
+first_commit: 2026-03-30T22:21:13+02:00
+last_commit: 2026-03-30T22:21:26+02:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  Update ARCHITECTURE.md — 30 MCP tools, 692 total tests. Complete — ARCHITECTURE.md reflects 30 MCP tools, 692 tests
+  Update CHANGELOG — complete event.subscribe migration across all layers. Complete — CHANGELOG updated for full event.subscribe migration
 
 # Key outcomes
 outcomes:
-  - "ARCHITECTURE.md test coverage table shows 51 MCP tests and 692 total"
-  - "MCP tool count references updated from 27 to 30"
+  - "CHANGELOG reflects file receive and hub event.collect upgrades"
+  - "hub event.collect timeout_ms parameter documented"
 
 # Challenges (auto-detected from git: commits with fix/revert/bug/error)
 challenges:
@@ -41,22 +41,23 @@ decisions:
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
-  - ".context/episodic/T-823.yaml"
-  - "docs/ARCHITECTURE.md"
-  - ".tasks/active/T-823-update-architecturemd--reflect-30-mcp-to.md"
-  - ".tasks/completed/T-823-update-architecturemd--reflect-30-mcp-to.md"
-  - ".tasks/templates/path-c-deep-dive.md"
+  - "CHANGELOG.md"
+  - ".context/audits/2026-03-30.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".tasks/active/T-820-final-changelog-update--complete-eventsu.md"
+  - ".tasks/completed/T-820-final-changelog-update--complete-eventsu.md"
 
 # Timeline (auto-mined from git log)
 git_timeline:
-  - time: "2026-04-03T22:08:23"
-    action: "T-823: Update ARCHITECTURE.md — 30 MCP tools, 692 total tests"
-  - time: "2026-04-03T22:08:58"
-    action: "T-823: Complete — ARCHITECTURE.md reflects 30 MCP tools, 692 tests"
+  - time: "2026-03-30T22:21:13"
+    action: "T-820: Update CHANGELOG — complete event.subscribe migration across all layers"
+  - time: "2026-03-30T22:21:26"
+    action: "T-820: Complete — CHANGELOG updated for full event.subscribe migration"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 2 commit(s), 2 min
+  # Completed successfully in 2 commit(s), 1 min
 
 # Related tasks
 related_tasks:
@@ -69,12 +70,12 @@ tags: []
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 2
+  wall_clock_minutes: 1
   commits: 2
-  files_changed: 5
-  lines_added: 279
-  lines_removed: 5
+  files_changed: 6
+  lines_added: 91
+  lines_removed: 26
 
 # Metadata
-source_file: /opt/termlink/.tasks/completed/T-823-update-architecturemd--reflect-30-mcp-to.md
+source_file: /opt/termlink/.tasks/completed/T-820-final-changelog-update--complete-eventsu.md
 generated_by: context-agent-hybrid
