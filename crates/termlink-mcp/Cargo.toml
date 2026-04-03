@@ -17,6 +17,10 @@ tracing = { workspace = true }
 
 libc = { workspace = true }
 
+base64 = { workspace = true }
+sha2 = { workspace = true }
+
+termlink-protocol = { workspace = true }
 termlink-session = { workspace = true }
 termlink-hub = { workspace = true }
 

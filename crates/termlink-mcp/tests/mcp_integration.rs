@@ -1304,3 +1304,75 @@ async fn test_hub_status_running() {
     client.cancel().await.unwrap();
     hub_handle.abort();
 }
+
+// ─── File Send Tests ───────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_file_send_to_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-file-send");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "file-recv", vec![]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    // Create a temp file to send
+    let test_file = dir.path.join("test-payload.txt");
+    std::fs::write(&test_file, "hello from MCP file_send test").unwrap();
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_file_send", json!({
+        "target": "file-recv",
+        "path": test_file.to_str().unwrap()
+    })).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["filename"], "test-payload.txt");
+    assert_eq!(parsed["size"], 29); // "hello from MCP file_send test" = 29 bytes
+    assert_eq!(parsed["chunks"], 1);
+    assert!(parsed["transfer_id"].is_string());
+    assert!(parsed["sha256"].is_string());
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_file_send_nonexistent_target() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-file-send-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Create a temp file
+    let test_file = dir.path.join("payload.txt");
+    std::fs::write(&test_file, "data").unwrap();
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_file_send", json!({
+        "target": "nonexistent",
+        "path": test_file.to_str().unwrap()
+    })).await;
+    assert!(result.contains("Error"), "should error for nonexistent target: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_file_send_nonexistent_file() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-file-send-nofile");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "file-recv2", vec![]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_file_send", json!({
+        "target": "file-recv2",
+        "path": "/nonexistent/path/file.txt"
+    })).await;
+    assert!(result.contains("Error"), "should error for nonexistent file: {result}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}

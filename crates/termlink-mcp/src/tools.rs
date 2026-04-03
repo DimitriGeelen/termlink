@@ -284,6 +284,14 @@ pub struct CollectParams {
     pub since: Option<serde_json::Value>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct FileSendParams {
+    /// Session ID or display name to send the file to
+    pub target: String,
+    /// Absolute path to the file to send
+    pub path: String,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -1870,6 +1878,116 @@ impl TermLinkTools {
             }
         };
 
+        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
+        name = "termlink_file_send",
+        description = "Send a file to a target session via the chunked file transfer protocol (file.init + file.chunk + file.complete events). The receiving session must be listening for file events. Returns transfer_id, SHA256, bytes sent, and chunk count."
+    )]
+    async fn termlink_file_send(&self, Parameters(p): Parameters<FileSendParams>) -> String {
+        use base64::Engine;
+        use sha2::{Digest, Sha256};
+        use termlink_protocol::events::{file_topic, FileInit, FileChunk, FileComplete, SCHEMA_VERSION};
+
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let file_path = std::path::Path::new(&p.path);
+        let file_data = match std::fs::read(file_path) {
+            Ok(d) => d,
+            Err(e) => return format!("Error: failed to read file '{}': {e}", p.path),
+        };
+
+        let filename = file_path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unnamed".to_string());
+
+        let size = file_data.len() as u64;
+        let chunk_size: usize = 49152; // 48KB chunks
+        let total_chunks = file_data.len().div_ceil(chunk_size) as u32;
+
+        let transfer_id = format!("xfer-mcp-{}", std::process::id());
+
+        let mut hasher = Sha256::new();
+        hasher.update(&file_data);
+        let sha256 = format!("{:x}", hasher.finalize());
+
+        let timeout = std::time::Duration::from_secs(30);
+
+        // Phase 1: file.init
+        let init = FileInit {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: transfer_id.clone(),
+            filename: filename.clone(),
+            size,
+            total_chunks,
+            from: format!("mcp-{}", std::process::id()),
+        };
+        let init_payload = match serde_json::to_value(&init) {
+            Ok(v) => v,
+            Err(e) => return format!("Error: failed to serialize file.init: {e}"),
+        };
+        let emit = serde_json::json!({"topic": file_topic::INIT, "payload": init_payload});
+        if let Err(e) = tokio::time::timeout(timeout, client::rpc_call(reg.socket_path(), "event.emit", emit)).await
+            .map_err(|_| "timeout".to_string())
+            .and_then(|r| r.map_err(|e| e.to_string()))
+        {
+            return format!("Error: file.init failed: {e}");
+        }
+
+        // Phase 2: file.chunk(s)
+        let encoder = base64::engine::general_purpose::STANDARD;
+        for (i, chunk_data) in file_data.chunks(chunk_size).enumerate() {
+            let chunk = FileChunk {
+                schema_version: SCHEMA_VERSION.to_string(),
+                transfer_id: transfer_id.clone(),
+                index: i as u32,
+                data: encoder.encode(chunk_data),
+            };
+            let chunk_payload = match serde_json::to_value(&chunk) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: failed to serialize chunk {i}: {e}"),
+            };
+            let emit = serde_json::json!({"topic": file_topic::CHUNK, "payload": chunk_payload});
+            if let Err(e) = tokio::time::timeout(timeout, client::rpc_call(reg.socket_path(), "event.emit", emit)).await
+                .map_err(|_| "timeout".to_string())
+                .and_then(|r| r.map_err(|e| e.to_string()))
+            {
+                return format!("Error: chunk {}/{total_chunks} failed: {e}", i + 1);
+            }
+        }
+
+        // Phase 3: file.complete
+        let complete = FileComplete {
+            schema_version: SCHEMA_VERSION.to_string(),
+            transfer_id: transfer_id.clone(),
+            sha256: sha256.clone(),
+        };
+        let complete_payload = match serde_json::to_value(&complete) {
+            Ok(v) => v,
+            Err(e) => return format!("Error: failed to serialize file.complete: {e}"),
+        };
+        let emit = serde_json::json!({"topic": file_topic::COMPLETE, "payload": complete_payload});
+        if let Err(e) = tokio::time::timeout(timeout, client::rpc_call(reg.socket_path(), "event.emit", emit)).await
+            .map_err(|_| "timeout".to_string())
+            .and_then(|r| r.map_err(|e| e.to_string()))
+        {
+            return format!("Error: file.complete failed: {e}");
+        }
+
+        let response = serde_json::json!({
+            "ok": true,
+            "target": p.target,
+            "filename": filename,
+            "size": size,
+            "chunks": total_chunks,
+            "transfer_id": transfer_id,
+            "sha256": sha256,
+        });
         serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
     }
 }
