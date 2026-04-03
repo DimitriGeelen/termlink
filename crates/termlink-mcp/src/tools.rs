@@ -267,6 +267,12 @@ pub struct TopicsParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct PtyModeParams {
+    /// Session ID or display name
+    pub target: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct CollectParams {
     /// Target session names to collect from (if omitted, collects from all hub-known sessions)
     pub targets: Option<Vec<String>>,
@@ -1794,6 +1800,39 @@ impl TermLinkTools {
                 "ok": false,
                 "error": format!("Timeout after {}ms", timeout_ms + 5000),
             }).to_string(),
+        }
+    }
+
+    #[tool(
+        name = "termlink_pty_mode",
+        description = "Query the terminal mode of a PTY session. Returns whether the terminal is in canonical, echo, raw, or alternate screen mode. Use this to determine how to interact with a session — e.g., raw mode means an interactive program is running, alternate screen suggests a TUI app like vim or less."
+    )]
+    async fn termlink_pty_mode(&self, Parameters(p): Parameters<PtyModeParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let timeout = std::time::Duration::from_secs(5);
+        match tokio::time::timeout(timeout, client::rpc_call(reg.socket_path(), "pty.mode", serde_json::json!({}))).await {
+            Ok(Ok(resp)) => {
+                match client::unwrap_result(resp) {
+                    Ok(result) => {
+                        let response = serde_json::json!({
+                            "ok": true,
+                            "session": p.target,
+                            "canonical": result["canonical"],
+                            "echo": result["echo"],
+                            "raw": result["raw"],
+                            "alternate_screen": result["alternate_screen"],
+                        });
+                        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+                    }
+                    Err(e) => format!("Error: {e}"),
+                }
+            }
+            Ok(Err(e)) => format!("Error: failed to connect to session '{}': {e}", p.target),
+            Err(_) => format!("Error: timeout querying pty mode for '{}'", p.target),
         }
     }
 }

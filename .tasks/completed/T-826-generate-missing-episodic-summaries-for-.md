@@ -4,7 +4,7 @@ name: "Generate missing episodic summaries for T-815, T-820, T-822, T-823, T-824
 description: >
   Generate missing episodic summaries for T-815, T-820, T-822, T-823, T-824
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T20:33:06Z
-last_update: 2026-04-03T20:33:06Z
-date_finished: null
+last_update: 2026-04-03T20:34:48Z
+date_finished: 2026-04-03T20:34:48Z
 ---
 
 # T-826: Generate missing episodic summaries for T-815, T-820, T-822, T-823, T-824
@@ -56,3 +56,6 @@ test -f .context/episodic/T-824.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-826-generate-missing-episodic-summaries-for-.md
 - **Context:** Initial task creation
+
+### 2026-04-03T20:34:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

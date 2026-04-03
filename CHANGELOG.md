@@ -48,7 +48,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`termlink_info` MCP tool** — 29th MCP tool, returns runtime info (version, paths, hub status, session counts)
 - **`termlink_topics` MCP tool** — 30th MCP tool, lists event topics across all sessions with optional target filter
 - **`termlink_collect` MCP tool** — 31st MCP tool, multi-session event fan-in via hub with targets/topic/timeout_ms/since params
-- 693 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP tools (event_subscribe, dispatch_status, info, topics, collect), manifest secs_to_rfc3339, plus all previous test categories
+- **`termlink_pty_mode` MCP tool** — 32nd MCP tool, query terminal mode (canonical/echo/raw/alternate_screen) for interaction decisions
+- 695 total tests (from 474) — event subscription since/history replay, doctor dispatch check, MCP tools (event_subscribe, dispatch_status, info, topics, collect, pty_mode), manifest secs_to_rfc3339, plus all previous test categories
 
 ### Changed
 - **CLI event delivery** — `watch`, `wait`, `request`, `agent ask/listen/negotiate`, `file receive` all upgraded from `event.poll` sleep loops to `event.subscribe` push-based delivery (near-zero latency)

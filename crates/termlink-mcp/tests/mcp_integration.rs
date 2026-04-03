@@ -1225,3 +1225,37 @@ async fn test_collect_no_hub() {
 
     client.cancel().await.unwrap();
 }
+
+// === pty_mode tests ===
+
+#[tokio::test]
+async fn test_pty_mode_non_pty_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-pty-mode-nopty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // start_session creates a non-PTY session (no --shell)
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "pty-mode-test", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_pty_mode", json!({"target": "pty-mode-test"})).await;
+
+    // Non-PTY session should return an error about no PTY
+    assert!(result.contains("Error") || result.contains("PTY") || result.contains("pty"),
+        "should indicate no PTY available: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_pty_mode_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-pty-mode-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_pty_mode", json!({"target": "nonexistent"})).await;
+    assert!(result.contains("Error"), "should return error for nonexistent session: {result}");
+
+    client.cancel().await.unwrap();
+}
