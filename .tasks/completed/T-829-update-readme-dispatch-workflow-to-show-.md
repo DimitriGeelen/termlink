@@ -4,7 +4,7 @@ name: "Update README dispatch workflow to show termlink dispatch command"
 description: >
   Update README dispatch workflow to show termlink dispatch command
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T20:56:09Z
-last_update: 2026-04-03T20:56:09Z
-date_finished: null
+last_update: 2026-04-03T20:57:26Z
+date_finished: 2026-04-03T20:57:26Z
 ---
 
 # T-829: Update README dispatch workflow to show termlink dispatch command
@@ -51,3 +51,6 @@ grep -q 'isolate' README.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-829-update-readme-dispatch-workflow-to-show-.md
 - **Context:** Initial task creation
+
+### 2026-04-03T20:57:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
