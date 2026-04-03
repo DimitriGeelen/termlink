@@ -31,3 +31,12 @@ bypasses:
   command_hash: 9be7add5dcfe8fbc4a31f98e0db7f05b58670e3d454a14a4614d5fda00a92354
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-04-03T22:47:32Z'
+  tier: 0
+  risk: 'FW FORCE: Bypasses sovereignty gate (R-033), AC verification (P-010), or
+    verification gate (P-011)'
+  command_preview: .agentic-framework/bin/fw task update T-160 --status work-completed
+    --force 2>&1
+  command_hash: 1f7a128d5e159ccc87a2a641b93753facbd75417e7bc04119ea06c84870c1779
+  authorized_by: human
+  mechanism: fw tier0 approve

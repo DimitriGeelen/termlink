@@ -1,11 +1,11 @@
-timestamp: 2026-04-03T20:00:01Z
+timestamp: 2026-04-03T23:00:01Z
 findings:
   - id: D4
     level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 31 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+21 more)"
+    check: "D5: Task lifecycle — 30 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+20 more)"
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
@@ -15,7 +15,7 @@ findings:
     check: "D7: Commit bunching — none (PASS no_recent_commits)"
   - id: D6
     level: WARN
-    check: "D6: Completion velocity — sustained drop (drop recent_avg=0.0 vs earlier_avg=43.3)"
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=4.3 vs earlier_avg=43.3)"
     mitigation: "Check for blockers or process issues slowing work"
   - id: D12
     level: PASS

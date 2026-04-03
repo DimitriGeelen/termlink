@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-160: Pickup prompt: fix declare -A macOS bash 3.2 bug in update-task.sh
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T22:47:34Z
+# ============================================================================
+
+task_id: T-160
+task_name: "Pickup prompt: fix declare -A macOS bash 3.2 bug in update-task.sh"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-17T20:46:25Z
+completed: 2026-04-03T22:47:33Z
+duration_days: 16
+updates_count: 3
+first_commit: 2026-03-17T21:49:25+01:00
+last_commit: 2026-03-27T19:58:47+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Pickup prompt for declare -A macOS bash 3.2 fix. Generate T-535 episodic summary
+
+# Key outcomes
+outcomes:
+  - "Pickup prompt written at `docs/specs/T-160-declare-A-macos-fix-pickup.md`"
+  - "Prompt lists all 3 affected files with line numbers"
+  - "Prompt includes POSIX-compatible replacement pattern"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Pickup prompt for declare -A macOS bash 3.2 fix"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-535.yaml"
+  - "docs/specs/T-160-declare-A-macos-fix-pickup.md"
+  - ".tasks/active/T-160-pickup-prompt-fix-declare--a-macos-bash-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-17T21:49:25"
+    action: "T-160: Pickup prompt for declare -A macOS bash 3.2 fix"
+  - time: "2026-03-27T19:58:47"
+    action: "T-160: Generate T-535 episodic summary"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 24601 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, macos-compat]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 24601
+  commits: 2
+  files_changed: 3
+  lines_added: 277
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-160-pickup-prompt-fix-declare--a-macos-bash-.md
+generated_by: context-agent-hybrid

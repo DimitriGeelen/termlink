@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-836: Refactor too_many_arguments functions into parameter structs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T23:20:20Z
+# ============================================================================
+
+task_id: T-836
+task_name: "Refactor too_many_arguments functions into parameter structs"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T22:47:41Z
+completed: 2026-04-03T23:19:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T01:18:57+02:00
+last_commit: 2026-04-04T01:18:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Refactor all too_many_arguments functions into parameter structs — zero annotations remain
+
+# Key outcomes
+outcomes:
+  - "Zero `#[allow(clippy::too_many_arguments)]` annotations remain in workspace"
+  - "`cargo build --workspace` compiles without errors"
+  - "`cargo test --workspace` passes (705+ tests)"
+  - "`cargo clippy --workspace --all-targets 2>&1 | grep -c '^warning\['` returns 0"
+  - "Parameter structs introduced for remote connection, list display, dispatch, and spawn options"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-cli/src/commands/execution.rs"
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - "crates/termlink-cli/src/commands/mod.rs"
+  - "crates/termlink-cli/src/commands/push.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/remote_store.rs"
+  - "crates/termlink-hub/src/router.rs"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T01:18:57"
+    action: "T-836: Refactor all too_many_arguments functions into parameter structs — zero annotations remain"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 31 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 31
+  commits: 1
+  files_changed: 11
+  lines_added: 342
+  lines_removed: 482
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-836-refactor-toomanyarguments-functions-into.md
+generated_by: context-agent-hybrid

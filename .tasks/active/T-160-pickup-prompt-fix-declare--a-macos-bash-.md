@@ -5,7 +5,7 @@ description: >
   Write pickup prompt for framework to fix declare -A (bash 4+ associative arrays)
   failing on macOS bash 3.2. Affects update-task.sh, audit.sh, diagnose.sh.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -13,8 +13,8 @@ tags: [framework, macos-compat]
 components: []
 related_tasks: [T-141]
 created: 2026-03-17T20:46:25Z
-last_update: 2026-03-27T18:58:47Z
-date_finished: 2026-03-18T16:03:56Z
+last_update: 2026-04-03T22:47:33Z
+date_finished: 2026-04-03T22:47:33Z
 ---
 
 # T-160: Pickup prompt: fix declare -A macOS bash 3.2 bug in update-task.sh
@@ -66,4 +66,7 @@ grep -q "diagnose.sh" docs/specs/T-160-declare-A-macos-fix-pickup.md
 - **Context:** Initial task creation
 
 ### 2026-03-18T16:03:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-04-03T22:47:33Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

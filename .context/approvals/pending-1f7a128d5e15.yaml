@@ -1,0 +1,8 @@
+command_hash: 1f7a128d5e159ccc87a2a641b93753facbd75417e7bc04119ea06c84870c1779
+command_preview: .agentic-framework/bin/fw task update T-160 --status work-completed
+  --force 2>&1
+risk: 'FW FORCE: Bypasses sovereignty gate (R-033), AC verification (P-010), or verification
+  gate (P-011)'
+status: pending
+timestamp: '2026-04-03T22:47:19Z'
+type: tier0
