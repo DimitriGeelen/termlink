@@ -546,3 +546,115 @@ fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
     let _ = session_name;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -- build_spawn_shell_cmd tests --
+
+    #[test]
+    fn spawn_cmd_shell_only() {
+        let cmd = build_spawn_shell_cmd("demo", &[], &[], &[], true, &[]).unwrap();
+        // Should contain register with --name and --shell
+        assert!(cmd.contains("register"), "should contain 'register': {cmd}");
+        assert!(cmd.contains("--name"), "should contain '--name': {cmd}");
+        assert!(cmd.contains("demo"), "should contain session name: {cmd}");
+        assert!(cmd.contains("--shell"), "should contain '--shell': {cmd}");
+        // No background/wait logic when command is empty
+        assert!(!cmd.contains("TL_PID"), "shell-only should not have TL_PID: {cmd}");
+    }
+
+    #[test]
+    fn spawn_cmd_with_command() {
+        let cmd = build_spawn_shell_cmd(
+            "worker-1", &[], &[], &[], false,
+            &["echo".to_string(), "hello".to_string()],
+        ).unwrap();
+        // Should have background register + user command
+        assert!(cmd.contains("TL_PID=$!"), "should background register: {cmd}");
+        assert!(cmd.contains("echo hello"), "should contain user command: {cmd}");
+        assert!(cmd.contains("kill $TL_PID"), "should kill register after: {cmd}");
+    }
+
+    #[test]
+    fn spawn_cmd_with_roles_tags_cap() {
+        let cmd = build_spawn_shell_cmd(
+            "srv",
+            &["compute".into(), "storage".into()],
+            &["prod".into()],
+            &["execute".into()],
+            true,
+            &[],
+        ).unwrap();
+        assert!(cmd.contains("--roles"), "should contain '--roles': {cmd}");
+        assert!(cmd.contains("compute,storage"), "should join roles: {cmd}");
+        assert!(cmd.contains("--tags"), "should contain '--tags': {cmd}");
+        assert!(cmd.contains("prod"), "should contain tag: {cmd}");
+        assert!(cmd.contains("--cap"), "should contain '--cap': {cmd}");
+        assert!(cmd.contains("execute"), "should contain cap: {cmd}");
+    }
+
+    #[test]
+    fn spawn_cmd_empty_command_gets_shell() {
+        // When command is empty, --shell should be added automatically
+        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], false, &[]).unwrap();
+        assert!(cmd.contains("--shell"), "empty command should force --shell: {cmd}");
+    }
+
+    #[test]
+    fn spawn_cmd_with_command_no_shell() {
+        // When command is provided and shell=false, --shell should NOT appear
+        let cmd = build_spawn_shell_cmd(
+            "test", &[], &[], &[], false,
+            &["ls".to_string()],
+        ).unwrap();
+        assert!(!cmd.contains("--shell"), "command mode should not have --shell: {cmd}");
+    }
+
+    // -- resolve_spawn_backend tests --
+
+    #[test]
+    fn resolve_backend_terminal_passthrough() {
+        assert!(matches!(
+            resolve_spawn_backend(&SpawnBackend::Terminal),
+            SpawnBackend::Terminal
+        ));
+    }
+
+    #[test]
+    fn resolve_backend_tmux_passthrough() {
+        assert!(matches!(
+            resolve_spawn_backend(&SpawnBackend::Tmux),
+            SpawnBackend::Tmux
+        ));
+    }
+
+    #[test]
+    fn resolve_backend_background_passthrough() {
+        assert!(matches!(
+            resolve_spawn_backend(&SpawnBackend::Background),
+            SpawnBackend::Background
+        ));
+    }
+
+    #[test]
+    fn resolve_backend_auto_returns_valid() {
+        let result = resolve_spawn_backend(&SpawnBackend::Auto);
+        // Auto always resolves to one of the concrete backends
+        assert!(
+            matches!(result, SpawnBackend::Terminal | SpawnBackend::Tmux | SpawnBackend::Background),
+            "Auto should resolve to concrete backend, got: {result}"
+        );
+    }
+
+    // -- SpawnBackend Display --
+
+    #[test]
+    fn spawn_backend_display() {
+        assert_eq!(format!("{}", SpawnBackend::Auto), "auto");
+        assert_eq!(format!("{}", SpawnBackend::Terminal), "terminal");
+        assert_eq!(format!("{}", SpawnBackend::Tmux), "tmux");
+        assert_eq!(format!("{}", SpawnBackend::Background), "background");
+    }
+}
