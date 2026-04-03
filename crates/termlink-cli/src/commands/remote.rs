@@ -12,6 +12,17 @@ use crate::util::{generate_request_id, truncate, DEFAULT_CHUNK_SIZE};
 
 use super::ListDisplayOpts;
 
+/// Options for remote inject command.
+pub(crate) struct RemoteInjectOpts<'a> {
+    pub session: &'a str,
+    pub text: &'a str,
+    pub enter: bool,
+    pub key: Option<&'a str>,
+    pub delay_ms: u64,
+    pub json: bool,
+    pub timeout_secs: u64,
+}
+
 /// Connection parameters for a remote hub.
 pub(crate) struct RemoteConn<'a> {
     pub hub: &'a str,
@@ -731,14 +742,9 @@ async fn cmd_remote_status_inner(
 
 pub(crate) async fn cmd_remote_inject(
     conn: &RemoteConn<'_>,
-    session: &str,
-    text: &str,
-    enter: bool,
-    key: Option<&str>,
-    delay_ms: u64,
-    json: bool,
-    timeout_secs: u64,
+    opts: &RemoteInjectOpts<'_>,
 ) -> Result<()> {
+    let RemoteInjectOpts { session, text, enter, key, delay_ms, json, timeout_secs } = *opts;
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     match tokio::time::timeout(timeout_dur, cmd_remote_inject_inner(conn, session, text, enter, key, delay_ms, json)).await {
         Ok(result) => result,

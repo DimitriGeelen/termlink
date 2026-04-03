@@ -13,6 +13,46 @@ use termlink_session::server;
 
 use crate::util::{parse_signal, truncate};
 
+/// Filter a list of session registrations by tag, name, role, and capability.
+///
+/// - `tag`: retain sessions with at least one matching tag (exact match)
+/// - `name`: retain sessions whose display_name contains the substring (case-insensitive)
+/// - `role`: retain sessions with at least one matching role (exact match)
+/// - `cap`: retain sessions with at least one matching capability (exact match)
+pub(crate) fn filter_sessions(
+    mut sessions: Vec<termlink_session::registration::Registration>,
+    tag: Option<&str>,
+    name: Option<&str>,
+    role: Option<&str>,
+    cap: Option<&str>,
+) -> Vec<termlink_session::registration::Registration> {
+    if let Some(tag) = tag {
+        sessions.retain(|s| s.tags.iter().any(|t| t == tag));
+    }
+    if let Some(name) = name {
+        let name_lower = name.to_lowercase();
+        sessions.retain(|s| s.display_name.to_lowercase().contains(&name_lower));
+    }
+    if let Some(role) = role {
+        sessions.retain(|s| s.roles.iter().any(|r| r == role));
+    }
+    if let Some(cap) = cap {
+        sessions.retain(|s| s.capabilities.iter().any(|c| c == cap));
+    }
+    sessions
+}
+
+/// Options for listing/filtering sessions.
+pub(crate) struct ListFilterOpts<'a> {
+    pub include_stale: bool,
+    pub tag: Option<&'a str>,
+    pub name: Option<&'a str>,
+    pub role: Option<&'a str>,
+    pub cap: Option<&'a str>,
+    pub wait: bool,
+    pub wait_timeout: u64,
+}
+
 /// Options for session registration.
 pub(crate) struct RegisterOpts {
     pub name: Option<String>,
@@ -278,24 +318,12 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
-pub(crate) async fn cmd_list(include_stale: bool, display: &super::ListDisplayOpts, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, wait: bool, wait_timeout: u64) -> Result<()> {
+pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListDisplayOpts) -> Result<()> {
+    let ListFilterOpts { include_stale, tag, name, role, cap, wait, wait_timeout } = *filter;
     let do_filter = |include_stale: bool| -> Result<Vec<termlink_session::registration::Registration>> {
-        let mut sessions = manager::list_sessions(include_stale)
+        let sessions = manager::list_sessions(include_stale)
             .context("Failed to list sessions")?;
-        if let Some(tag) = tag_filter {
-            sessions.retain(|s| s.tags.iter().any(|t| t == tag));
-        }
-        if let Some(name) = name_filter {
-            let name_lower = name.to_lowercase();
-            sessions.retain(|s| s.display_name.to_lowercase().contains(&name_lower));
-        }
-        if let Some(role) = role_filter {
-            sessions.retain(|s| s.roles.iter().any(|r| r == role));
-        }
-        if let Some(cap) = cap_filter {
-            sessions.retain(|s| s.capabilities.iter().any(|c| c == cap));
-        }
-        Ok(sessions)
+        Ok(filter_sessions(sessions, tag, name, role, cap))
     };
 
     let sessions = if wait {
@@ -1035,4 +1063,128 @@ pub(crate) fn cmd_info(json: bool, short: bool, check: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use termlink_protocol::TransportAddr;
+    use termlink_session::identity::SessionId;
+    use termlink_session::lifecycle::SessionState;
+    use termlink_session::registration::{Registration, RegistrationAddr, SessionMetadata};
+
+    fn test_reg(name: &str, tags: Vec<&str>, roles: Vec<&str>, caps: Vec<&str>) -> Registration {
+        Registration {
+            version: 1,
+            id: SessionId::generate(),
+            display_name: name.to_string(),
+            pid: 1000,
+            uid: 1000,
+            addr: RegistrationAddr(TransportAddr::Unix { path: "/tmp/test.sock".into() }),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            heartbeat_at: "2026-01-01T00:00:00Z".into(),
+            state: SessionState::Ready,
+            capabilities: caps.into_iter().map(String::from).collect(),
+            roles: roles.into_iter().map(String::from).collect(),
+            tags: tags.into_iter().map(String::from).collect(),
+            metadata: SessionMetadata::default(),
+            token_secret: None,
+            allowed_commands: None,
+        }
+    }
+
+    fn sample_sessions() -> Vec<Registration> {
+        vec![
+            test_reg("worker-1", vec!["prod", "gpu"], vec!["compute"], vec!["execute"]),
+            test_reg("worker-2", vec!["prod"], vec!["compute", "storage"], vec!["execute", "read"]),
+            test_reg("Agent Alpha", vec!["staging"], vec!["agent"], vec!["execute"]),
+            test_reg("monitor", vec!["prod"], vec!["observer"], vec!["read"]),
+        ]
+    }
+
+    #[test]
+    fn filter_no_filters_returns_all() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, None, None, None, None);
+        assert_eq!(result.len(), 4);
+    }
+
+    #[test]
+    fn filter_by_tag_exact_match() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, Some("gpu"), None, None, None);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].display_name, "worker-1");
+    }
+
+    #[test]
+    fn filter_by_tag_multiple_matches() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, Some("prod"), None, None, None);
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn filter_by_name_case_insensitive() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, None, Some("agent"), None, None);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].display_name, "Agent Alpha");
+    }
+
+    #[test]
+    fn filter_by_name_substring() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, None, Some("worker"), None, None);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_by_role() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, None, None, Some("compute"), None);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_by_capability() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, None, None, None, Some("read"));
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_combined_tag_and_role() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, Some("prod"), None, Some("observer"), None);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].display_name, "monitor");
+    }
+
+    #[test]
+    fn filter_combined_no_match() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, Some("staging"), None, Some("compute"), None);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn filter_empty_input() {
+        let result = filter_sessions(vec![], Some("prod"), Some("test"), Some("agent"), Some("execute"));
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn filter_nonexistent_tag() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, Some("nonexistent"), None, None, None);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn filter_name_empty_string_matches_all() {
+        let sessions = sample_sessions();
+        let result = filter_sessions(sessions, None, Some(""), None, None);
+        assert_eq!(result.len(), 4);
+    }
 }

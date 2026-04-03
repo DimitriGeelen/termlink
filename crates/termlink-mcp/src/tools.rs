@@ -325,7 +325,7 @@ pub struct SessionInfo {
 
 // === Tool implementations ===
 
-fn parse_signal(name: &str) -> Option<i32> {
+pub(crate) fn parse_signal(name: &str) -> Option<i32> {
     match name.to_uppercase().as_str() {
         "TERM" | "SIGTERM" => Some(libc::SIGTERM),
         "INT" | "SIGINT" => Some(libc::SIGINT),
@@ -2206,5 +2206,247 @@ impl TermLinkTools {
                 Err(e) => return format!("Error: connection lost: {e}"),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // === parse_signal tests ===
+
+    #[test]
+    fn parse_signal_named_signals() {
+        assert_eq!(parse_signal("TERM"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("INT"), Some(libc::SIGINT));
+        assert_eq!(parse_signal("KILL"), Some(libc::SIGKILL));
+        assert_eq!(parse_signal("HUP"), Some(libc::SIGHUP));
+        assert_eq!(parse_signal("USR1"), Some(libc::SIGUSR1));
+        assert_eq!(parse_signal("USR2"), Some(libc::SIGUSR2));
+    }
+
+    #[test]
+    fn parse_signal_sig_prefixed() {
+        assert_eq!(parse_signal("SIGTERM"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("SIGINT"), Some(libc::SIGINT));
+        assert_eq!(parse_signal("SIGKILL"), Some(libc::SIGKILL));
+        assert_eq!(parse_signal("SIGHUP"), Some(libc::SIGHUP));
+        assert_eq!(parse_signal("SIGUSR1"), Some(libc::SIGUSR1));
+        assert_eq!(parse_signal("SIGUSR2"), Some(libc::SIGUSR2));
+    }
+
+    #[test]
+    fn parse_signal_case_insensitive() {
+        assert_eq!(parse_signal("term"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("Term"), Some(libc::SIGTERM));
+        assert_eq!(parse_signal("sigint"), Some(libc::SIGINT));
+        assert_eq!(parse_signal("SigKill"), Some(libc::SIGKILL));
+    }
+
+    #[test]
+    fn parse_signal_numeric() {
+        assert_eq!(parse_signal("9"), Some(9));
+        assert_eq!(parse_signal("15"), Some(15));
+        assert_eq!(parse_signal("1"), Some(1));
+    }
+
+    #[test]
+    fn parse_signal_invalid() {
+        assert_eq!(parse_signal("BOGUS"), None);
+        assert_eq!(parse_signal(""), None);
+        assert_eq!(parse_signal("SIGFOO"), None);
+        assert_eq!(parse_signal("abc"), None);
+    }
+
+    // === Parameter struct deserialization tests ===
+
+    #[test]
+    fn ping_params_required_fields() {
+        let json = serde_json::json!({"target": "my-session"});
+        let p: PingParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "my-session");
+    }
+
+    #[test]
+    fn ping_params_missing_target() {
+        let json = serde_json::json!({});
+        let result = serde_json::from_value::<PingParams>(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn exec_params_all_fields() {
+        let json = serde_json::json!({
+            "target": "worker-1",
+            "command": "ls -la",
+            "cwd": "/tmp",
+            "timeout": 60
+        });
+        let p: ExecParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "worker-1");
+        assert_eq!(p.command, "ls -la");
+        assert_eq!(p.cwd.as_deref(), Some("/tmp"));
+        assert_eq!(p.timeout, Some(60));
+    }
+
+    #[test]
+    fn exec_params_optional_fields_omitted() {
+        let json = serde_json::json!({"target": "s1", "command": "echo hi"});
+        let p: ExecParams = serde_json::from_value(json).unwrap();
+        assert!(p.cwd.is_none());
+        assert!(p.timeout.is_none());
+    }
+
+    #[test]
+    fn discover_params_all_optional() {
+        let json = serde_json::json!({});
+        let p: DiscoverParams = serde_json::from_value(json).unwrap();
+        assert!(p.tags.is_none());
+        assert!(p.roles.is_none());
+        assert!(p.cap.is_none());
+        assert!(p.name.is_none());
+    }
+
+    #[test]
+    fn discover_params_with_filters() {
+        let json = serde_json::json!({
+            "tags": ["prod", "gpu"],
+            "roles": ["worker"],
+            "cap": ["execute"],
+            "name": "agent"
+        });
+        let p: DiscoverParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.tags.as_ref().unwrap().len(), 2);
+        assert_eq!(p.roles.as_ref().unwrap()[0], "worker");
+        assert_eq!(p.name.as_deref(), Some("agent"));
+    }
+
+    #[test]
+    fn spawn_params_defaults() {
+        let json = serde_json::json!({});
+        let p: SpawnParams = serde_json::from_value(json).unwrap();
+        assert!(p.name.is_none());
+        assert!(p.roles.is_none());
+        assert!(p.tags.is_none());
+        assert!(p.command.is_none());
+        assert!(p.wait.is_none());
+        assert!(p.wait_timeout.is_none());
+    }
+
+    #[test]
+    fn spawn_params_full() {
+        let json = serde_json::json!({
+            "name": "builder",
+            "roles": ["ci"],
+            "tags": ["linux"],
+            "command": ["make", "build"],
+            "wait": true,
+            "wait_timeout": 30
+        });
+        let p: SpawnParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.name.as_deref(), Some("builder"));
+        assert_eq!(p.command.as_ref().unwrap(), &["make", "build"]);
+        assert_eq!(p.wait, Some(true));
+    }
+
+    #[test]
+    fn tag_params_set_mode() {
+        let json = serde_json::json!({"target": "s1", "set": ["a", "b"]});
+        let p: TagParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.set.as_ref().unwrap().len(), 2);
+        assert!(p.add.is_none());
+        assert!(p.remove.is_none());
+    }
+
+    #[test]
+    fn tag_params_add_remove_mode() {
+        let json = serde_json::json!({"target": "s1", "add": ["x"], "remove": ["y"]});
+        let p: TagParams = serde_json::from_value(json).unwrap();
+        assert!(p.set.is_none());
+        assert_eq!(p.add.as_ref().unwrap()[0], "x");
+        assert_eq!(p.remove.as_ref().unwrap()[0], "y");
+    }
+
+    #[test]
+    fn resize_params_required() {
+        let json = serde_json::json!({"target": "s1", "cols": 120, "rows": 40});
+        let p: ResizeParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.cols, 120);
+        assert_eq!(p.rows, 40);
+    }
+
+    #[test]
+    fn resize_params_missing_field() {
+        let json = serde_json::json!({"target": "s1", "cols": 80});
+        let result = serde_json::from_value::<ResizeParams>(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn event_subscribe_params_defaults() {
+        let json = serde_json::json!({"target": "s1"});
+        let p: EventSubscribeParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "s1");
+        assert!(p.timeout_ms.is_none());
+        assert!(p.topic.is_none());
+        assert!(p.since.is_none());
+        assert!(p.max_events.is_none());
+    }
+
+    #[test]
+    fn collect_params_all_optional() {
+        let json = serde_json::json!({});
+        let p: CollectParams = serde_json::from_value(json).unwrap();
+        assert!(p.targets.is_none());
+        assert!(p.topic.is_none());
+        assert!(p.timeout_ms.is_none());
+        assert!(p.since.is_none());
+    }
+
+    #[test]
+    fn agent_ask_params_full() {
+        let json = serde_json::json!({
+            "target": "specialist",
+            "action": "analyze",
+            "params": {"file": "main.rs"},
+            "from": "orchestrator",
+            "timeout": 120
+        });
+        let p: AgentAskParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "specialist");
+        assert_eq!(p.action, "analyze");
+        assert_eq!(p.params.unwrap()["file"], "main.rs");
+        assert_eq!(p.from.as_deref(), Some("orchestrator"));
+        assert_eq!(p.timeout, Some(120));
+    }
+
+    #[test]
+    fn file_send_params_required() {
+        let json = serde_json::json!({"target": "remote-1", "path": "/tmp/data.tar.gz"});
+        let p: FileSendParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "remote-1");
+        assert_eq!(p.path, "/tmp/data.tar.gz");
+    }
+
+    #[test]
+    fn session_info_serializes() {
+        let info = SessionInfo {
+            id: "tl-abc123".into(),
+            display_name: "worker-1".into(),
+            state: "ready".into(),
+            pid: 12345,
+            uid: 1000,
+            created_at: "2026-01-01T00:00:00Z".into(),
+            heartbeat_at: "2026-01-01T00:01:00Z".into(),
+            tags: vec!["prod".into()],
+            roles: vec!["compute".into()],
+            capabilities: vec!["execute".into()],
+            metadata: serde_json::json!({"custom": "value"}),
+        };
+        let json = serde_json::to_value(&info).unwrap();
+        assert_eq!(json["id"], "tl-abc123");
+        assert_eq!(json["display_name"], "worker-1");
+        assert_eq!(json["tags"][0], "prod");
+        assert_eq!(json["metadata"]["custom"], "value");
     }
 }

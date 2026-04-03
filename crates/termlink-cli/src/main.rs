@@ -35,7 +35,8 @@ async fn main() -> Result<()> {
         }
         Command::List { all, json, tag, name, role, cap, count, names, ids, first, wait, wait_timeout, no_header } => {
             let display = ListDisplayOpts { count, first, names, ids, no_header, json };
-            commands::session::cmd_list(all, &display, tag.as_deref(), name.as_deref(), role.as_deref(), cap.as_deref(), wait, wait_timeout).await
+            let filter = commands::session::ListFilterOpts { include_stale: all, tag: tag.as_deref(), name: name.as_deref(), role: role.as_deref(), cap: cap.as_deref(), wait, wait_timeout };
+            commands::session::cmd_list(&filter, &display).await
         }
         Command::Ping { target, json, timeout } => commands::session::cmd_ping(&resolve_target(target)?, json, timeout).await,
         Command::Status { target, json, short, timeout } => commands::session::cmd_status(&resolve_target(target)?, json, short, timeout).await,
@@ -127,7 +128,8 @@ async fn main() -> Result<()> {
         }
         Command::Discover { tag, role, cap, name, json, count, first, wait, wait_timeout, id, names, ids, no_header } => {
             let display = ListDisplayOpts { count, first, names, ids, no_header, json };
-            commands::metadata::cmd_discover(tag, role, cap, name, &display, wait, wait_timeout, id).await
+            let opts = commands::metadata::DiscoverOpts { tags: tag, roles: role, caps: cap, name, wait, wait_timeout, id };
+            commands::metadata::cmd_discover(opts, &display).await
         }
         Command::Kv { target, json, timeout, raw, keys, action } => commands::metadata::cmd_kv(&target, action, json, raw, keys, timeout).await,
 
@@ -206,7 +208,8 @@ async fn main() -> Result<()> {
             RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
                 let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("control") };
-                commands::remote::cmd_remote_inject(&conn, &session, &text, enter, key.as_deref(), delay_ms, json, timeout).await
+                let inject_opts = commands::remote::RemoteInjectOpts { session: &session, text: &text, enter, key: key.as_deref(), delay_ms, json, timeout_secs: timeout };
+                commands::remote::cmd_remote_inject(&conn, &inject_opts).await
             }
             RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;

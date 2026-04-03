@@ -6,6 +6,17 @@ use termlink_session::manager;
 use crate::cli::KvAction;
 use crate::util::truncate;
 
+/// Options for session discovery filtering.
+pub(crate) struct DiscoverOpts {
+    pub tags: Vec<String>,
+    pub roles: Vec<String>,
+    pub caps: Vec<String>,
+    pub name: Option<String>,
+    pub wait: bool,
+    pub wait_timeout: u64,
+    pub id: bool,
+}
+
 pub(crate) async fn cmd_tag(
     target: &str,
     set: Vec<String>,
@@ -144,15 +155,10 @@ pub(crate) async fn cmd_tag(
 }
 
 pub(crate) async fn cmd_discover(
-    tags: Vec<String>,
-    roles: Vec<String>,
-    caps: Vec<String>,
-    name: Option<String>,
+    opts: DiscoverOpts,
     display: &super::ListDisplayOpts,
-    wait: bool,
-    wait_timeout: u64,
-    id: bool,
 ) -> Result<()> {
+    let DiscoverOpts { tags, roles, caps, name, wait, wait_timeout, id } = opts;
     let has_filters = !tags.is_empty() || !roles.is_empty() || !caps.is_empty() || name.is_some();
 
     let do_filter = |sessions: Vec<termlink_session::registration::Registration>| -> Vec<termlink_session::registration::Registration> {
