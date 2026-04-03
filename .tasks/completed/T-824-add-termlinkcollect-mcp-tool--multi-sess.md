@@ -4,7 +4,7 @@ name: "Add termlink_collect MCP tool — multi-session event fan-in via hub"
 description: >
   Add termlink_collect MCP tool — multi-session event fan-in via hub
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T20:10:08Z
-last_update: 2026-04-03T20:10:08Z
-date_finished: null
+last_update: 2026-04-03T20:13:59Z
+date_finished: 2026-04-03T20:13:59Z
 ---
 
 # T-824: Add termlink_collect MCP tool — multi-session event fan-in via hub
@@ -56,3 +56,6 @@ grep -q 'termlink_collect' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-824-add-termlinkcollect-mcp-tool--multi-sess.md
 - **Context:** Initial task creation
+
+### 2026-04-03T20:13:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
