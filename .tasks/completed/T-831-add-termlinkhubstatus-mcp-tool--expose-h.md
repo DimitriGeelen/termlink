@@ -4,7 +4,7 @@ name: "Add termlink_hub_status MCP tool — expose hub lifecycle state for AI ag
 description: >
   Add termlink_hub_status MCP tool — expose hub lifecycle state for AI agents
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T21:54:30Z
-last_update: 2026-04-03T21:54:30Z
-date_finished: null
+last_update: 2026-04-03T22:01:02Z
+date_finished: 2026-04-03T22:01:02Z
 ---
 
 # T-831: Add termlink_hub_status MCP tool — expose hub lifecycle state for AI agents
@@ -57,3 +57,6 @@ grep -q "hub_status" crates/termlink-mcp/tests/mcp_integration.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-831-add-termlinkhubstatus-mcp-tool--expose-h.md
 - **Context:** Initial task creation
+
+### 2026-04-03T22:01:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
