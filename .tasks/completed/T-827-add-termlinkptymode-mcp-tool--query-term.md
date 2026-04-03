@@ -4,7 +4,7 @@ name: "Add termlink_pty_mode MCP tool — query terminal mode for AI agent inter
 description: >
   Add termlink_pty_mode MCP tool — query terminal mode for AI agent interaction decisions
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T20:37:43Z
-last_update: 2026-04-03T20:37:43Z
-date_finished: null
+last_update: 2026-04-03T20:41:26Z
+date_finished: 2026-04-03T20:41:26Z
 ---
 
 # T-827: Add termlink_pty_mode MCP tool — query terminal mode for AI agent interaction decisions
@@ -55,3 +55,6 @@ grep -q 'termlink_pty_mode' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-827-add-termlinkptymode-mcp-tool--query-term.md
 - **Context:** Initial task creation
+
+### 2026-04-03T20:41:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
