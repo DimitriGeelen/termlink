@@ -266,6 +266,18 @@ pub struct TopicsParams {
     pub target: Option<String>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct CollectParams {
+    /// Target session names to collect from (if omitted, collects from all hub-known sessions)
+    pub targets: Option<Vec<String>>,
+    /// Filter by event topic
+    pub topic: Option<String>,
+    /// Timeout in milliseconds for push-based delivery (default: 5000). Hub blocks until events arrive or timeout.
+    pub timeout_ms: Option<u64>,
+    /// Per-session cursors for continuation (map of session_name → last_seen_seq)
+    pub since: Option<serde_json::Value>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
