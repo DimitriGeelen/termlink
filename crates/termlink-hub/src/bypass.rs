@@ -515,7 +515,7 @@ mod tests {
         for _ in 0..10 {
             assert!(!reg.record_orchestrated_run("rm -rf /tmp/data", RunOutcome::Success));
         }
-        assert!(reg.candidates.get("rm -rf /tmp/data").is_none());
+        assert!(!reg.candidates.contains_key("rm -rf /tmp/data"));
         assert!(reg.check("rm -rf /tmp/data").is_none());
     }
 
@@ -545,7 +545,7 @@ mod tests {
         for _ in 0..4 {
             assert!(!reg.record_orchestrated_run("search.grep", RunOutcome::InfraFailure));
         }
-        assert!(reg.candidates.get("search.grep").is_none());
+        assert!(!reg.candidates.contains_key("search.grep"));
 
         // 5 successes — should still promote (infra failures don't block)
         for _ in 0..4 {
@@ -617,7 +617,7 @@ mod tests {
         assert!(reg.check("test:termlink-hub").is_some());
         assert!(reg.check("lint:termlink-hub").is_none());
         assert!(reg.check("lint:termlink-cli").is_none());
-        assert!(reg.candidates.get("lint:termlink-protocol").is_none());
+        assert!(!reg.candidates.contains_key("lint:termlink-protocol"));
     }
 
     #[test]

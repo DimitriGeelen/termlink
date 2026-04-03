@@ -97,7 +97,7 @@ impl KnownHubStore {
             Err(_) => return,
         };
 
-        let mut entries = self.entries.lock().unwrap();
+        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
         for line in content.lines() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
@@ -120,7 +120,7 @@ impl KnownHubStore {
 
     /// Write all entries to disk.
     fn save(&self) {
-        let entries = self.entries.lock().unwrap();
+        let entries = self.entries.lock().expect("TOFU store lock poisoned");
         let mut lines = Vec::new();
         lines.push("# TermLink known hubs (TOFU)".to_string());
         lines.push("# host:port fingerprint first_seen last_seen".to_string());
@@ -142,7 +142,7 @@ impl KnownHubStore {
     pub fn get(&self, host_port: &str) -> Option<String> {
         self.entries
             .lock()
-            .unwrap()
+            .expect("TOFU store lock poisoned")
             .get(host_port)
             .map(|e| e.fingerprint.clone())
     }
@@ -150,7 +150,7 @@ impl KnownHubStore {
     /// Store or update a fingerprint. Returns `Ok(true)` if new, `Ok(false)` if updated,
     /// `Err` if fingerprint changed (MITM).
     pub fn accept(&self, host_port: &str, fingerprint: &str) -> Result<bool, String> {
-        let mut entries = self.entries.lock().unwrap();
+        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
         let now = now_utc();
 
         if let Some(existing) = entries.get_mut(host_port) {

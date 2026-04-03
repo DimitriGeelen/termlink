@@ -721,7 +721,7 @@ async fn test_clean_empty_env() {
     assert_eq!(parsed["total"].as_u64().unwrap_or(999), 0, "nothing to clean in empty env");
     assert!(parsed["cleaned_sessions"].as_array().unwrap().is_empty());
     assert_eq!(parsed["cleaned_sockets"].as_u64().unwrap(), 0);
-    assert_eq!(parsed["cleaned_hub"].as_bool().unwrap(), false);
+    assert!(!parsed["cleaned_hub"].as_bool().unwrap());
 
     client.cancel().await.unwrap();
 }
@@ -869,23 +869,21 @@ async fn test_request_with_reply() {
         tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
         // Poll to find the request_id
         let poll_resp = client::rpc_call(&socket, "event.poll", serde_json::json!({"topic": "task.run"})).await;
-        if let Ok(resp) = poll_resp {
-            if let Ok(result) = client::unwrap_result(resp) {
-                if let Some(events) = result["events"].as_array() {
-                    if let Some(event) = events.first() {
-                        let req_id = event["payload"]["request_id"].as_str().unwrap_or("unknown");
-                        // Emit the reply
-                        let _ = client::rpc_call(
-                            &socket,
-                            "event.emit",
-                            serde_json::json!({
-                                "topic": "task.result",
-                                "payload": {"request_id": req_id, "status": "done", "value": 42}
-                            }),
-                        ).await;
-                    }
-                }
-            }
+        if let Ok(resp) = poll_resp
+            && let Ok(result) = client::unwrap_result(resp)
+            && let Some(events) = result["events"].as_array()
+            && let Some(event) = events.first()
+        {
+            let req_id = event["payload"]["request_id"].as_str().unwrap_or("unknown");
+            // Emit the reply
+            let _ = client::rpc_call(
+                &socket,
+                "event.emit",
+                serde_json::json!({
+                    "topic": "task.result",
+                    "payload": {"request_id": req_id, "status": "done", "value": 42}
+                }),
+            ).await;
         }
     });
 
@@ -987,7 +985,7 @@ async fn test_event_subscribe_with_history() {
         json!({"target": "mcp-sub-tgt", "since": 0, "timeout_ms": 500, "topic": "sub.test"})).await;
     let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
     let events = parsed["events"].as_array().unwrap();
-    assert!(events.len() >= 1, "expected at least 1 historical event with seq > 0, got: {text}");
+    assert!(!events.is_empty(), "expected at least 1 historical event with seq > 0, got: {text}");
     assert_eq!(events[0]["topic"], "sub.test");
     assert!(parsed["next_seq"].is_u64(), "next_seq should be present");
 

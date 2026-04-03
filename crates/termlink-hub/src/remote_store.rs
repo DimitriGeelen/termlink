@@ -113,13 +113,13 @@ impl RemoteStore {
             last_heartbeat: now,
             ttl: DEFAULT_TTL,
         };
-        self.entries.write().unwrap().insert(id.clone(), entry);
+        self.entries.write().expect("remote store lock poisoned").insert(id.clone(), entry);
         id
     }
 
     /// Refresh the heartbeat for a remote session. Returns true if found.
     pub fn heartbeat(&self, id: &str) -> bool {
-        if let Some(entry) = self.entries.write().unwrap().get_mut(id) {
+        if let Some(entry) = self.entries.write().expect("remote store lock poisoned").get_mut(id) {
             entry.last_heartbeat = Instant::now();
             true
         } else {
@@ -129,7 +129,7 @@ impl RemoteStore {
 
     /// Remove a remote session. Returns true if found.
     pub fn deregister(&self, id: &str) -> bool {
-        self.entries.write().unwrap().remove(id).is_some()
+        self.entries.write().expect("remote store lock poisoned").remove(id).is_some()
     }
 
     /// Get all live (non-expired) entries.
@@ -145,7 +145,7 @@ impl RemoteStore {
 
     /// Remove all expired entries. Returns the number removed.
     pub fn reap_expired(&self) -> usize {
-        let mut store = self.entries.write().unwrap();
+        let mut store = self.entries.write().expect("remote store lock poisoned");
         let before = store.len();
         store.retain(|_, e| !e.is_expired());
         before - store.len()
@@ -163,17 +163,17 @@ impl RemoteStore {
 
     /// Number of entries (including expired).
     pub fn len(&self) -> usize {
-        self.entries.read().unwrap().len()
+        self.entries.read().expect("remote store lock poisoned").len()
     }
 
     /// Whether the store is empty.
     pub fn is_empty(&self) -> bool {
-        self.entries.read().unwrap().is_empty()
+        self.entries.read().expect("remote store lock poisoned").is_empty()
     }
 
     /// Remove all entries (used in testing).
     pub fn clear(&self) {
-        self.entries.write().unwrap().clear();
+        self.entries.write().expect("remote store lock poisoned").clear();
     }
 }
 
@@ -257,7 +257,7 @@ mod tests {
 
         // Manually set TTL to zero to force expiry
         {
-            let mut entries = store.entries.write().unwrap();
+            let mut entries = store.entries.write().expect("remote store lock poisoned");
             entries.get_mut(&id).unwrap().ttl = Duration::from_secs(0);
         }
 
@@ -349,7 +349,7 @@ mod tests {
 
         // Force immediate expiry
         {
-            let mut entries = store.entries.write().unwrap();
+            let mut entries = store.entries.write().expect("remote store lock poisoned");
             entries.get_mut(&id).unwrap().ttl = Duration::from_millis(1);
         }
 

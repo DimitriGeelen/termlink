@@ -71,7 +71,7 @@ impl CircuitBreakerRegistry {
     /// Returns `false` for unknown sessions (closed by default).
     /// Returns `false` for half-open circuits (allow one probe).
     pub fn should_skip(&self, session_id: &str) -> bool {
-        let states = self.states.lock().unwrap();
+        let states = self.states.lock().expect("circuit breaker lock poisoned");
         match states.get(session_id) {
             Some(state) => state.is_open() && !state.is_half_open(),
             None => false,
@@ -80,7 +80,7 @@ impl CircuitBreakerRegistry {
 
     /// Record a successful call to a session — closes the circuit.
     pub fn record_success(&self, session_id: &str) {
-        let mut states = self.states.lock().unwrap();
+        let mut states = self.states.lock().expect("circuit breaker lock poisoned");
         if let Some(state) = states.get_mut(session_id) {
             state.record_success();
         }
@@ -89,7 +89,7 @@ impl CircuitBreakerRegistry {
     /// Record a transport failure for a session.
     /// After `FAILURE_THRESHOLD` consecutive failures, opens the circuit.
     pub fn record_failure(&self, session_id: &str) {
-        let mut states = self.states.lock().unwrap();
+        let mut states = self.states.lock().expect("circuit breaker lock poisoned");
         states
             .entry(session_id.to_string())
             .or_default()
@@ -98,14 +98,14 @@ impl CircuitBreakerRegistry {
 
     /// Get the number of open circuits (for diagnostics).
     pub fn open_count(&self) -> usize {
-        let states = self.states.lock().unwrap();
+        let states = self.states.lock().expect("circuit breaker lock poisoned");
         states.values().filter(|s| s.is_open() && !s.is_half_open()).count()
     }
 
     /// Reset all circuit breaker state (for testing).
     #[cfg(test)]
     pub fn reset(&self) {
-        let mut states = self.states.lock().unwrap();
+        let mut states = self.states.lock().expect("circuit breaker lock poisoned");
         states.clear();
     }
 }
@@ -183,7 +183,7 @@ mod tests {
 
         // Open the circuit with a backdated opened_at
         {
-            let mut states = reg.states.lock().unwrap();
+            let mut states = reg.states.lock().expect("circuit breaker lock poisoned");
             states.insert(
                 "sess-4".to_string(),
                 CircuitState {

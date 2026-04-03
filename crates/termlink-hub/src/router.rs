@@ -2219,11 +2219,11 @@ mod tests {
         let reg_path = dir.join("bypass-registry.json");
         let bypass_reg = crate::bypass::BypassRegistry::load_from(&reg_path);
         assert!(
-            bypass_reg.candidates.get("termlink.ping").is_none(),
+            !bypass_reg.candidates.contains_key("termlink.ping"),
             "Mutating command should NOT be tracked in bypass candidates"
         );
         assert!(
-            bypass_reg.entries.get("termlink.ping").is_none(),
+            !bypass_reg.entries.contains_key("termlink.ping"),
             "Mutating command should NOT be promoted to bypass"
         );
 
@@ -2259,7 +2259,7 @@ mod tests {
         let reg_path = dir.join("bypass-registry.json");
         let bypass_reg = crate::bypass::BypassRegistry::load_from(&reg_path);
         assert!(
-            bypass_reg.entries.get("termlink.ping").is_some(),
+            bypass_reg.entries.contains_key("termlink.ping"),
             "Non-mutating command should be promoted to bypass after 5 runs"
         );
 

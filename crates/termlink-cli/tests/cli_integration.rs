@@ -8,7 +8,6 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use assert_cmd::cargo;
-use serde_json;
 
 use termlink_test_utils::{wait_for_socket, ProcessGuard, TestDir};
 
@@ -1085,7 +1084,7 @@ fn cli_kv_json_set_get_list_del() {
         .output()
         .expect("Failed to run kv set --json");
     assert!(output.status.success(), "kv set failed: {}", String::from_utf8_lossy(&output.stderr));
-    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+    let parsed: serde_json::Value = serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim())
         .expect("Invalid JSON from kv set");
     assert_eq!(parsed["key"], "foo");
 
@@ -1095,7 +1094,7 @@ fn cli_kv_json_set_get_list_del() {
         .output()
         .expect("Failed to run kv get --json");
     assert!(output.status.success());
-    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+    let parsed: serde_json::Value = serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim())
         .expect("Invalid JSON from kv get");
     assert_eq!(parsed["found"], true);
     assert_eq!(parsed["value"], 42);
@@ -1106,7 +1105,7 @@ fn cli_kv_json_set_get_list_del() {
         .output()
         .expect("Failed to run kv list --json");
     assert!(output.status.success());
-    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+    let parsed: serde_json::Value = serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim())
         .expect("Invalid JSON from kv list");
     assert_eq!(parsed["count"], 1);
     assert!(parsed["entries"].is_array());
@@ -1117,7 +1116,7 @@ fn cli_kv_json_set_get_list_del() {
         .output()
         .expect("Failed to run kv del --json");
     assert!(output.status.success());
-    let parsed: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout).trim())
+    let parsed: serde_json::Value = serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim())
         .expect("Invalid JSON from kv del");
     assert_eq!(parsed["deleted"], true);
 }

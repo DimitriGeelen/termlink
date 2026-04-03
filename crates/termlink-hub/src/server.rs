@@ -549,7 +549,9 @@ async fn handle_connection<S>(
                     "serialization error",
                 )
                 .into();
-                serde_json::to_string(&err).unwrap()
+                serde_json::to_string(&err).unwrap_or_else(|_| {
+                    r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"serialization error"},"id":null}"#.to_string()
+                })
             });
             json.push('\n');
 
