@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-827: Add termlink_pty_mode MCP tool — query terminal mode for AI agent interaction decisions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T21:53:41Z
+# ============================================================================
+
+task_id: T-827
+task_name: "Add termlink_pty_mode MCP tool — query terminal mode for AI agent interaction decisions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T20:37:43Z
+completed: 2026-04-03T20:41:26Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-03T22:41:09+02:00
+last_commit: 2026-04-03T22:41:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_pty_mode MCP tool — terminal mode query, 32 tools. Complete — termlink_pty_mode MCP tool, 32 tools, 695 tests
+
+# Key outcomes
+outcomes:
+  - "`termlink_pty_mode` MCP tool calls `pty.mode` RPC on target session"
+  - "Returns JSON with canonical, echo, raw, alternate_screen boolean fields"
+  - "Returns clear error for non-PTY sessions"
+  - "Integration test: pty_mode on non-PTY session returns error + nonexistent session test"
+  - "`cargo test -p termlink-mcp` passes (54 tests)"
+  - "`cargo clippy --workspace` clean (0 warnings)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CHANGELOG.md"
+  - ".context/episodic/T-826.yaml"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - "docs/ARCHITECTURE.md"
+  - ".tasks/active/T-827-add-termlinkptymode-mcp-tool--query-term.md"
+  - ".tasks/completed/T-826-generate-missing-episodic-summaries-for-.md"
+  - ".tasks/completed/T-827-add-termlinkptymode-mcp-tool--query-term.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-03T22:41:09"
+    action: "T-827: Add termlink_pty_mode MCP tool — terminal mode query, 32 tools"
+  - time: "2026-04-03T22:41:35"
+    action: "T-827: Complete — termlink_pty_mode MCP tool, 32 tools, 695 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 7
+  lines_added: 228
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-827-add-termlinkptymode-mcp-tool--query-term.md
+generated_by: context-agent-hybrid

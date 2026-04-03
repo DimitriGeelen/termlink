@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-829: Update README dispatch workflow to show termlink dispatch command
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-03T21:53:48Z
+# ============================================================================
+
+task_id: T-829
+task_name: "Update README dispatch workflow to show termlink dispatch command"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T20:56:09Z
+completed: 2026-04-03T20:57:26Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-03T22:57:13+02:00
+last_commit: 2026-04-03T22:57:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Update README dispatch workflow — show termlink dispatch + isolate. Complete — README dispatch workflow updated
+
+# Key outcomes
+outcomes:
+  - "README dispatch section shows `termlink dispatch` as the primary approach"
+  - "Shows `--isolate` option for git worktree isolation"
+  - "Old manual pattern kept as collapsible alternative"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "README.md"
+  - ".tasks/active/T-829-update-readme-dispatch-workflow-to-show-.md"
+  - ".tasks/completed/T-829-update-readme-dispatch-workflow-to-show-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-03T22:57:13"
+    action: "T-829: Update README dispatch workflow — show termlink dispatch + isolate"
+  - time: "2026-04-03T22:57:27"
+    action: "T-829: Complete — README dispatch workflow updated"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 3
+  lines_added: 74
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-829-update-readme-dispatch-workflow-to-show-.md
+generated_by: context-agent-hybrid
