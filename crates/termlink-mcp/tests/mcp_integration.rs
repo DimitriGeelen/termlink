@@ -1257,3 +1257,50 @@ async fn test_pty_mode_nonexistent_session() {
 
     client.cancel().await.unwrap();
 }
+
+// ─── Hub Status Tests ──────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_hub_status_not_running() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-hub-status-off");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_hub_status", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["status"], "not_running");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_hub_status_running() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-hub-status-on");
+    let sessions_dir = dir.path.join("sessions");
+    std::fs::create_dir_all(&sessions_dir).unwrap();
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Start a hub
+    let socket_path = dir.path.join("hub.sock");
+    let hub_handle = tokio::spawn({
+        let socket = socket_path.clone();
+        async move {
+            let _ = termlink_hub::server::run(&socket).await;
+        }
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_hub_status", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["status"], "running");
+    assert!(parsed["pid"].is_u64(), "should include pid");
+    assert!(parsed["socket"].is_string(), "should include socket path");
+
+    client.cancel().await.unwrap();
+    hub_handle.abort();
+}

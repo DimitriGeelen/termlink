@@ -1835,4 +1835,41 @@ impl TermLinkTools {
             Err(_) => format!("Error: timeout querying pty mode for '{}'", p.target),
         }
     }
+
+    #[tool(
+        name = "termlink_hub_status",
+        description = "Check the hub lifecycle state (running, not_running, stale). Use this before calling hub-dependent tools like collect or broadcast to verify the hub is available."
+    )]
+    async fn termlink_hub_status(&self) -> String {
+        let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+        let socket_path = termlink_hub::server::hub_socket_path();
+
+        let response = match termlink_hub::pidfile::check(&pidfile_path) {
+            termlink_hub::pidfile::PidfileStatus::NotRunning => {
+                serde_json::json!({
+                    "ok": true,
+                    "status": "not_running",
+                })
+            }
+            termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
+                serde_json::json!({
+                    "ok": true,
+                    "status": "stale",
+                    "pid": pid,
+                    "pidfile": pidfile_path.display().to_string(),
+                })
+            }
+            termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+                serde_json::json!({
+                    "ok": true,
+                    "status": "running",
+                    "pid": pid,
+                    "socket": socket_path.display().to_string(),
+                    "pidfile": pidfile_path.display().to_string(),
+                })
+            }
+        };
+
+        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+    }
 }
