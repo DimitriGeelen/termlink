@@ -12,6 +12,16 @@ pub(crate) mod file;
 pub(crate) mod push;
 pub(crate) mod vendor;
 
+/// Display options shared across list-style commands (list, discover, remote list).
+pub(crate) struct ListDisplayOpts {
+    pub count: bool,
+    pub first: bool,
+    pub names: bool,
+    pub ids: bool,
+    pub no_header: bool,
+    pub json: bool,
+}
+
 /// Print a JSON value to stdout, flush, and exit with code 1.
 ///
 /// `process::exit(1)` alone does not flush Rust's buffered stdout,

@@ -4,7 +4,7 @@ use base64::Engine;
 use termlink_protocol::jsonrpc::RpcResponse;
 use termlink_session::client;
 
-use crate::commands::remote::connect_remote_hub;
+use crate::commands::remote::{connect_remote_hub, RemoteConn};
 
 const INBOX_DIR: &str = "/tmp/termlink-inbox";
 
@@ -12,39 +12,31 @@ const INBOX_DIR: &str = "/tmp/termlink-inbox";
 ///
 /// This is an atomic operation: write file via `command.execute`, then inject
 /// a one-line PTY notification so the target agent sees it immediately.
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_push(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
     file: Option<&str>,
     message: Option<&str>,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    match tokio::time::timeout(timeout_dur, cmd_push_inner(hub, session, file, message, secret_file, secret_hex, scope, json)).await {
+    match tokio::time::timeout(timeout_dur, cmd_push_inner(conn, session, file, message, json)).await {
         Ok(result) => result,
         Err(_) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote push", timeout_secs);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn cmd_push_inner(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
     file: Option<&str>,
     message: Option<&str>,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
     json: bool,
 ) -> Result<()> {
     // Validate: need either file or message
@@ -80,11 +72,11 @@ async fn cmd_push_inner(
     let inbox_path = format!("{INBOX_DIR}/{filename}");
 
     // Connect once, reuse for both RPCs
-    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -101,7 +93,7 @@ async fn cmd_push_inner(
 
     if let Err(e) = exec_rpc(&mut rpc_client, session, &write_cmd).await {
         if json {
-            super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to deliver file to target inbox: {e}")}));
+            super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to deliver file to target inbox: {e}")}));
         }
         return Err(e).context("Failed to deliver file to target inbox");
     }
@@ -113,7 +105,7 @@ async fn cmd_push_inner(
 
     if let Err(e) = inject_rpc(&mut rpc_client, session, &notification).await {
         if json {
-            super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to inject PTY notification: {e}")}));
+            super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to inject PTY notification: {e}")}));
         }
         return Err(e).context("Failed to inject PTY notification");
     }
@@ -123,7 +115,7 @@ async fn cmd_push_inner(
         let report = serde_json::json!({
             "ok": true,
             "status": "delivered",
-            "hub": hub,
+            "hub": conn.hub,
             "session": session,
             "file": file,
             "inbox_path": inbox_path,
@@ -131,7 +123,7 @@ async fn cmd_push_inner(
         });
         println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
-        println!("Pushed {filename} ({content_bytes} bytes) → {session} on {hub}");
+        println!("Pushed {filename} ({content_bytes} bytes) → {session} on {}", conn.hub);
         println!("  Inbox: {inbox_path}");
     }
 

@@ -314,17 +314,20 @@ pub(crate) async fn cmd_agent_listen(
 ///
 /// Protocol: offer → attempt → correction → accept (max N rounds).
 /// Uses agent.request/response events with negotiate.* actions.
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn cmd_agent_negotiate(
-    specialist: &str,
-    schema_str: &str,
-    draft_str: &str,
-    from: Option<&str>,
-    max_rounds: u8,
-    timeout: u64,
-    interval: u64,
-    json: bool,
-) -> Result<()> {
+/// Options for the `termlink agent negotiate` command.
+pub(crate) struct NegotiateOpts<'a> {
+    pub specialist: &'a str,
+    pub schema_str: &'a str,
+    pub draft_str: &'a str,
+    pub from: Option<&'a str>,
+    pub max_rounds: u8,
+    pub timeout: u64,
+    pub interval: u64,
+    pub json: bool,
+}
+
+pub(crate) async fn cmd_agent_negotiate(opts: NegotiateOpts<'_>) -> Result<()> {
+    let NegotiateOpts { specialist, schema_str, draft_str, from, max_rounds, timeout, interval, json } = opts;
     let reg = match manager::find_session(specialist) {
         Ok(r) => r,
         Err(e) => {

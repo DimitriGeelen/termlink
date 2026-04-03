@@ -10,6 +10,16 @@ use crate::cli::ProfileAction;
 use crate::config::{hubs_config_path, load_hubs_config, save_hubs_config, HubEntry};
 use crate::util::{generate_request_id, truncate, DEFAULT_CHUNK_SIZE};
 
+use super::ListDisplayOpts;
+
+/// Connection parameters for a remote hub.
+pub(crate) struct RemoteConn<'a> {
+    pub hub: &'a str,
+    pub secret_file: Option<&'a str>,
+    pub secret_hex: Option<&'a str>,
+    pub scope: &'a str,
+}
+
 /// Connect to a remote hub via TOFU TLS and authenticate.
 /// Returns an authenticated client ready for RPC calls.
 pub(crate) async fn connect_remote_hub(
@@ -88,10 +98,7 @@ pub(crate) async fn connect_remote_hub(
 /// Interactive remote session picker — connects to hub, lists sessions, prompts user.
 /// Returns the selected session name/ID.
 pub(crate) async fn pick_remote_session(
-    hub: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
+    conn: &RemoteConn<'_>,
 ) -> Result<String> {
     use std::io::IsTerminal;
 
@@ -99,7 +106,7 @@ pub(crate) async fn pick_remote_session(
         anyhow::bail!("No session specified and stdin is not a terminal (cannot prompt)");
     }
 
-    let mut rpc_client = connect_remote_hub(hub, secret_file, secret_hex, scope).await?;
+    let mut rpc_client = connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await?;
 
     let resp = rpc_client
         .call("session.discover", serde_json::json!("discover"), serde_json::json!({}))
@@ -121,7 +128,7 @@ pub(crate) async fn pick_remote_session(
     };
 
     if sessions.is_empty() {
-        anyhow::bail!("No active sessions on {}.", hub);
+        anyhow::bail!("No active sessions on {}.", conn.hub);
     }
 
     if sessions.len() == 1 {
@@ -131,7 +138,7 @@ pub(crate) async fn pick_remote_session(
         return Ok(name.to_string());
     }
 
-    eprintln!("Sessions on {}:", hub);
+    eprintln!("Sessions on {}:", conn.hub);
     eprintln!(
         "  {:<4} {:<20} {:<12} {:<10} TAGS",
         "#", "NAME", "STATE", "PID"
@@ -190,15 +197,12 @@ pub(crate) async fn pick_remote_session(
 /// Resolve a remote session target: if provided, return it; if None, prompt interactively.
 pub(crate) async fn resolve_remote_target(
     session: Option<String>,
-    hub: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
+    conn: &RemoteConn<'_>,
 ) -> Result<String> {
     if let Some(s) = session {
         return Ok(s);
     }
-    pick_remote_session(hub, secret_file, secret_hex, scope).await
+    pick_remote_session(conn).await
 }
 
 pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
@@ -308,20 +312,17 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
 }
 
 pub(crate) async fn cmd_remote_ping(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: Option<&str>,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    match tokio::time::timeout(timeout_dur, cmd_remote_ping_inner(hub, session, secret_file, secret_hex, scope, json)).await {
+    match tokio::time::timeout(timeout_dur, cmd_remote_ping_inner(conn, session, json)).await {
         Ok(result) => result,
         Err(_) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote ping", timeout_secs);
         }
@@ -329,19 +330,16 @@ pub(crate) async fn cmd_remote_ping(
 }
 
 async fn cmd_remote_ping_inner(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: Option<&str>,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
     json: bool,
 ) -> Result<()> {
     let start = std::time::Instant::now();
-    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -359,7 +357,7 @@ async fn cmd_remote_ping_inner(
                     if json {
                         println!("{}", serde_json::json!({
                             "ok": true,
-                            "hub": hub,
+                            "hub": conn.hub,
                             "session": target,
                             "id": r.result["id"],
                             "display_name": r.result["display_name"],
@@ -373,7 +371,7 @@ async fn cmd_remote_ping_inner(
                             "PONG from {} ({}) on {} — state: {} — {}ms (auth: {}ms, rpc: {}ms)",
                             r.result["id"].as_str().unwrap_or("?"),
                             r.result["display_name"].as_str().unwrap_or("?"),
-                            hub,
+                            conn.hub,
                             r.result["state"].as_str().unwrap_or("?"),
                             total_ms, auth_ms, rpc_ms,
                         );
@@ -382,18 +380,18 @@ async fn cmd_remote_ping_inner(
                 }
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                     let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                        format!("Session '{}' not found on {}", target, hub)
+                        format!("Session '{}' not found on {}", target, conn.hub)
                     } else {
                         format!("Ping failed: {} {}", e.error.code, e.error.message)
                     };
                     if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": target, "error": msg}));
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": target, "error": msg}));
                     }
                     anyhow::bail!("{}", msg);
                 }
                 Err(e) => {
                     if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": target, "error": format!("Ping error: {e}")}));
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": target, "error": format!("Ping error: {e}")}));
                     }
                     anyhow::bail!("Ping error: {}", e);
                 }
@@ -409,7 +407,7 @@ async fn cmd_remote_ping_inner(
                     if json {
                         println!("{}", serde_json::json!({
                             "ok": true,
-                            "hub": hub,
+                            "hub": conn.hub,
                             "sessions": count,
                             "total_ms": total_ms as u64,
                             "auth_ms": auth_ms as u64,
@@ -418,7 +416,7 @@ async fn cmd_remote_ping_inner(
                     } else {
                         println!(
                             "PONG from hub {} — {} session(s) — {}ms (auth: {}ms, discover: {}ms)",
-                            hub, count, total_ms, auth_ms, discover_ms,
+                            conn.hub, count, total_ms, auth_ms, discover_ms,
                         );
                     }
                     Ok(())
@@ -426,13 +424,13 @@ async fn cmd_remote_ping_inner(
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                     let msg = format!("Hub ping failed: {} {}", e.error.code, e.error.message);
                     if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": msg}));
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": msg}));
                     }
                     anyhow::bail!("{}", msg);
                 }
                 Err(e) => {
                     if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Hub ping error: {e}")}));
+                        super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Hub ping error: {e}")}));
                     }
                     anyhow::bail!("Hub ping error: {}", e);
                 }
@@ -441,58 +439,40 @@ async fn cmd_remote_ping_inner(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_remote_list(
-    hub: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
+    conn: &RemoteConn<'_>,
     name: Option<&str>,
     tags: Option<&str>,
     roles: Option<&str>,
     cap: Option<&str>,
-    count: bool,
-    first: bool,
-    names: bool,
-    ids: bool,
-    no_header: bool,
-    json: bool,
+    display: &ListDisplayOpts,
     timeout_secs: u64,
 ) -> Result<()> {
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    match tokio::time::timeout(timeout_dur, cmd_remote_list_inner(hub, secret_file, secret_hex, scope, name, tags, roles, cap, count, first, names, ids, no_header, json)).await {
+    match tokio::time::timeout(timeout_dur, cmd_remote_list_inner(conn, name, tags, roles, cap, display)).await {
         Ok(result) => result,
         Err(_) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Timeout after {}s", timeout_secs)}));
+            if display.json {
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote list", timeout_secs);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn cmd_remote_list_inner(
-    hub: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
+    conn: &RemoteConn<'_>,
     name: Option<&str>,
     tags: Option<&str>,
     roles: Option<&str>,
     cap: Option<&str>,
-    count: bool,
-    first: bool,
-    names: bool,
-    ids: bool,
-    no_header: bool,
-    json: bool,
+    display: &ListDisplayOpts,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
+            if display.json {
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -520,9 +500,9 @@ async fn cmd_remote_list_inner(
             let sessions = r.result["sessions"].as_array();
             let sessions = sessions.map(|a| a.as_slice()).unwrap_or(&[]);
 
-            if first {
+            if display.first {
                 if let Some(s) = sessions.first() {
-                    if json {
+                    if display.json {
                         let mut wrapped = serde_json::json!({"ok": true});
                         if let Some(obj) = s.as_object() {
                             for (k, v) in obj {
@@ -534,7 +514,7 @@ async fn cmd_remote_list_inner(
                         println!("{}", s["display_name"].as_str().unwrap_or("?"));
                     }
                 } else {
-                    if json {
+                    if display.json {
                         super::json_error_exit(serde_json::json!({"ok": false, "error": "No matching sessions"}));
                     }
                     std::process::exit(1);
@@ -542,8 +522,8 @@ async fn cmd_remote_list_inner(
                 return Ok(());
             }
 
-            if count {
-                if json {
+            if display.count {
+                if display.json {
                     println!("{}", serde_json::json!({"ok": true, "count": sessions.len()}));
                 } else {
                     println!("{}", sessions.len());
@@ -551,33 +531,33 @@ async fn cmd_remote_list_inner(
                 return Ok(());
             }
 
-            if names {
+            if display.names {
                 for s in sessions {
                     println!("{}", s["display_name"].as_str().unwrap_or("?"));
                 }
                 return Ok(());
             }
 
-            if ids {
+            if display.ids {
                 for s in sessions {
                     println!("{}", s["id"].as_str().unwrap_or("?"));
                 }
                 return Ok(());
             }
 
-            if json {
+            if display.json {
                 println!("{}", serde_json::json!({"ok": true, "sessions": sessions}));
                 return Ok(());
             }
 
             if sessions.is_empty() {
-                if !no_header {
-                    println!("No sessions on {}.", hub);
+                if !display.no_header {
+                    println!("No sessions on {}.", conn.hub);
                 }
                 return Ok(());
             }
 
-            if !no_header {
+            if !display.no_header {
                 println!(
                     "{:<14} {:<16} {:<14} {:<8} TAGS",
                     "ID", "NAME", "STATE", "PID"
@@ -603,45 +583,41 @@ async fn cmd_remote_list_inner(
                 );
             }
 
-            if !no_header {
+            if !display.no_header {
                 println!();
-                println!("{} session(s) on {}", sessions.len(), hub);
+                println!("{} session(s) on {}", sessions.len(), conn.hub);
             }
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = format!("Discover failed: {} {}", e.error.code, e.error.message);
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": msg}));
+            if display.json {
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Discover error: {e}")}));
+            if display.json {
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Discover error: {e}")}));
             }
             anyhow::bail!("Discover error: {}", e);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_remote_status(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
     json: bool,
     short: bool,
     timeout_secs: u64,
 ) -> Result<()> {
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    match tokio::time::timeout(timeout_dur, cmd_remote_status_inner(hub, session, secret_file, secret_hex, scope, json, short)).await {
+    match tokio::time::timeout(timeout_dur, cmd_remote_status_inner(conn, session, json, short)).await {
         Ok(result) => result,
         Err(_) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote status", timeout_secs);
         }
@@ -649,19 +625,16 @@ pub(crate) async fn cmd_remote_status(
 }
 
 async fn cmd_remote_status_inner(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
     json: bool,
     short: bool,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -695,7 +668,7 @@ async fn cmd_remote_status_inner(
                 return Ok(());
             }
 
-            println!("Session: {} (on {})", result["id"].as_str().unwrap_or("?"), hub);
+            println!("Session: {} (on {})", result["id"].as_str().unwrap_or("?"), conn.hub);
             println!("  Name:        {}", result["display_name"].as_str().unwrap_or("?"));
             println!("  State:       {}", result["state"].as_str().unwrap_or("?"));
             println!("  PID:         {}", result["pid"]);
@@ -738,68 +711,60 @@ async fn cmd_remote_status_inner(
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                format!("Session '{}' not found on {}", session, hub)
+                format!("Session '{}' not found on {}", session, conn.hub)
             } else {
                 format!("Status query failed: {} {}", e.error.code, e.error.message)
             };
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": conn.hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Status query error: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": conn.hub, "error": format!("Status query error: {e}")}));
             }
             anyhow::bail!("Status query error: {}", e);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_remote_inject(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
     text: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
     enter: bool,
     key: Option<&str>,
     delay_ms: u64,
-    scope: &str,
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    match tokio::time::timeout(timeout_dur, cmd_remote_inject_inner(hub, session, text, secret_file, secret_hex, enter, key, delay_ms, scope, json)).await {
+    match tokio::time::timeout(timeout_dur, cmd_remote_inject_inner(conn, session, text, enter, key, delay_ms, json)).await {
         Ok(result) => result,
         Err(_) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote inject", timeout_secs);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn cmd_remote_inject_inner(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
     text: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
     enter: bool,
     key: Option<&str>,
     delay_ms: u64,
-    scope: &str,
     json: bool,
 ) -> Result<()> {
-    let mut client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -833,63 +798,55 @@ async fn cmd_remote_inject_inner(
                 println!("{}", serde_json::to_string_pretty(&wrapped)?);
             } else {
                 let bytes = r.result["bytes_len"].as_u64().unwrap_or(0);
-                println!("Injected {} bytes into '{}' on {}", bytes, session, hub);
+                println!("Injected {} bytes into '{}' on {}", bytes, session, conn.hub);
             }
             Ok(())
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                format!("Session '{}' not found on {}", session, hub)
+                format!("Session '{}' not found on {}", session, conn.hub)
             } else {
                 format!("Inject failed: {} {}", e.error.code, e.error.message)
             };
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": conn.hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Inject error: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": conn.hub, "error": format!("Inject error: {e}")}));
             }
             anyhow::bail!("Inject error: {}", e);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_remote_send_file(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
     path: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
     chunk_size: usize,
-    scope: &str,
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    match tokio::time::timeout(timeout_dur, cmd_remote_send_file_inner(hub, session, path, secret_file, secret_hex, chunk_size, scope, json)).await {
+    match tokio::time::timeout(timeout_dur, cmd_remote_send_file_inner(conn, session, path, chunk_size, json)).await {
         Ok(result) => result,
         Err(_) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Timeout after {}s", timeout_secs)}));
             }
             anyhow::bail!("Timeout after {}s waiting for remote file transfer", timeout_secs);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn cmd_remote_send_file_inner(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
     path: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
     chunk_size: usize,
-    scope: &str,
     json: bool,
 ) -> Result<()> {
     use base64::Engine;
@@ -920,11 +877,11 @@ async fn cmd_remote_send_file_inner(
     hasher.update(&file_data);
     let sha256 = format!("{:x}", hasher.finalize());
 
-    let mut client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -932,7 +889,7 @@ async fn cmd_remote_send_file_inner(
 
     eprintln!(
         "Sending '{}' ({} bytes, {} chunks) to '{}' on {}",
-        filename, size, total_chunks, session, hub
+        filename, size, total_chunks, session, conn.hub
     );
 
     let init = FileInit {
@@ -953,18 +910,18 @@ async fn cmd_remote_send_file_inner(
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                format!("Session '{}' not found on {}", session, hub)
+                format!("Session '{}' not found on {}", session, conn.hub)
             } else {
                 format!("Failed to emit file.init: {} {}", e.error.code, e.error.message)
             };
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.init: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to emit file.init: {e}")}));
             }
             anyhow::bail!("Failed to emit file.init: {}", e);
         }
@@ -989,13 +946,13 @@ async fn cmd_remote_send_file_inner(
             Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                 let msg = format!("Failed to emit chunk {}/{}: {} {}", i + 1, total_chunks, e.error.code, e.error.message);
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": msg}));
                 }
                 anyhow::bail!("{}", msg);
             }
             Err(e) => {
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e)}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e)}));
                 }
                 anyhow::bail!("Failed to emit chunk {}/{}: {}", i + 1, total_chunks, e);
             }
@@ -1024,13 +981,13 @@ async fn cmd_remote_send_file_inner(
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = format!("Failed to emit file.complete: {} {}", e.error.code, e.error.message);
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": msg}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to emit file.complete: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to emit file.complete: {e}")}));
             }
             anyhow::bail!("Failed to emit file.complete: {}", e);
         }
@@ -1044,23 +1001,19 @@ async fn cmd_remote_send_file_inner(
             "size": size,
             "chunks": total_chunks,
             "sha256": sha256,
-            "hub": hub,
+            "hub": conn.hub,
             "session": session,
         }));
     } else {
         eprintln!("Transfer complete. SHA-256: {}", sha256);
-        println!("Sent '{}' ({} bytes) to '{}' on {}", filename, size, session, hub);
+        println!("Sent '{}' ({} bytes) to '{}' on {}", filename, size, session, conn.hub);
     }
 
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_remote_events(
-    hub: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
+    conn: &RemoteConn<'_>,
     topic_filter: Option<&str>,
     targets_csv: Option<&str>,
     interval_ms: u64,
@@ -1068,11 +1021,11 @@ pub(crate) async fn cmd_remote_events(
     json: bool,
     payload_only: bool,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "error": format!("Failed to connect to hub: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -1082,7 +1035,7 @@ pub(crate) async fn cmd_remote_events(
         .map(|t| t.split(',').map(|s| s.trim()).collect())
         .unwrap_or_default();
 
-    eprintln!("Watching events on {}. Press Ctrl+C to stop.", hub);
+    eprintln!("Watching events on {}. Press Ctrl+C to stop.", conn.hub);
     if let Some(t) = topic_filter {
         eprintln!("  Topic filter: {}", t);
     }
@@ -1187,23 +1140,19 @@ pub(crate) async fn cmd_remote_events(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_remote_exec(
-    hub: &str,
+    conn: &RemoteConn<'_>,
     session: &str,
     command: &str,
-    secret_file: Option<&str>,
-    secret_hex: Option<&str>,
-    scope: &str,
     timeout: u64,
     cwd: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(hub, secret_file, secret_hex, scope).await {
+    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "hub": hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to connect to hub: {e}")}));
             }
             return Err(e).context("Failed to connect to hub");
         }
@@ -1255,18 +1204,18 @@ pub(crate) async fn cmd_remote_exec(
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
-                format!("Session '{}' not found on {}", session, hub)
+                format!("Session '{}' not found on {}", session, conn.hub)
             } else {
                 format!("Execution failed: {} {}", e.error.code, e.error.message)
             };
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": msg}));
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": conn.hub, "error": msg}));
             }
             anyhow::bail!("{}", msg);
         }
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": hub, "error": format!("Execution error: {e}")}));
+                super::json_error_exit(serde_json::json!({"ok": false, "session": session, "hub": conn.hub, "error": format!("Execution error: {e}")}));
             }
             anyhow::bail!("Execution error: {}", e);
         }

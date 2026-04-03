@@ -13,18 +13,21 @@ use termlink_session::server;
 
 use crate::util::{parse_signal, truncate};
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn cmd_register(
-    name: Option<String>,
-    roles: Vec<String>,
-    tags: Vec<String>,
-    cap: Vec<String>,
-    shell: bool,
-    enable_token_secret: bool,
-    allowed_commands: Vec<String>,
-    json: bool,
-    quiet: bool,
-) -> Result<()> {
+/// Options for session registration.
+pub(crate) struct RegisterOpts {
+    pub name: Option<String>,
+    pub roles: Vec<String>,
+    pub tags: Vec<String>,
+    pub cap: Vec<String>,
+    pub shell: bool,
+    pub enable_token_secret: bool,
+    pub allowed_commands: Vec<String>,
+    pub json: bool,
+    pub quiet: bool,
+}
+
+pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
+    let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet } = opts;
     let verbose = !json && !quiet;
     let mut config = SessionConfig {
         display_name: name,
@@ -275,8 +278,7 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, count: bool, names: bool, ids: bool, first: bool, wait: bool, wait_timeout: u64, no_header: bool) -> Result<()> {
+pub(crate) async fn cmd_list(include_stale: bool, display: &super::ListDisplayOpts, tag_filter: Option<&str>, name_filter: Option<&str>, role_filter: Option<&str>, cap_filter: Option<&str>, wait: bool, wait_timeout: u64) -> Result<()> {
     let do_filter = |include_stale: bool| -> Result<Vec<termlink_session::registration::Registration>> {
         let mut sessions = manager::list_sessions(include_stale)
             .context("Failed to list sessions")?;
@@ -303,7 +305,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
             let result = match do_filter(include_stale) {
                 Ok(r) => r,
                 Err(e) => {
-                    if json {
+                    if display.json {
                         super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
                     }
                     return Err(e);
@@ -313,7 +315,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
                 break result;
             }
             if start.elapsed() > timeout_dur {
-                if json {
+                if display.json {
                     super::json_error_exit(serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
                 }
                 anyhow::bail!("No matching sessions found within {}s", wait_timeout);
@@ -324,7 +326,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         match do_filter(include_stale) {
             Ok(r) => r,
             Err(e) => {
-                if json {
+                if display.json {
                     super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to list sessions: {}", e)}));
                 }
                 return Err(e);
@@ -332,8 +334,8 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         }
     };
 
-    if count {
-        if json {
+    if display.count {
+        if display.json {
             println!("{}", serde_json::json!({"ok": true, "count": sessions.len()}));
         } else {
             println!("{}", sessions.len());
@@ -341,9 +343,9 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         return Ok(());
     }
 
-    if first {
+    if display.first {
         if let Some(s) = sessions.first() {
-            if json {
+            if display.json {
                 println!("{}", serde_json::json!({
                     "ok": true,
                     "id": s.id.as_str(),
@@ -359,13 +361,13 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
                     "metadata": s.metadata,
                     "socket_path": s.socket_path().display().to_string(),
                 }));
-            } else if ids {
+            } else if display.ids {
                 println!("{}", s.id.as_str());
             } else {
                 println!("{}", s.display_name);
             }
         } else {
-            if json {
+            if display.json {
                 super::json_error_exit(serde_json::json!({"ok": false, "error": "No matching sessions"}));
             }
             std::process::exit(1);
@@ -373,8 +375,8 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         return Ok(());
     }
 
-    if names {
-        if json {
+    if display.names {
+        if display.json {
             let items: Vec<&str> = sessions.iter().map(|s| s.display_name.as_str()).collect();
             println!("{}", serde_json::json!({"ok": true, "names": items}));
         } else {
@@ -385,8 +387,8 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         return Ok(());
     }
 
-    if ids {
-        if json {
+    if display.ids {
+        if display.json {
             let items: Vec<&str> = sessions.iter().map(|s| s.id.as_str()).collect();
             println!("{}", serde_json::json!({"ok": true, "ids": items}));
         } else {
@@ -397,7 +399,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         return Ok(());
     }
 
-    if json {
+    if display.json {
         let items: Vec<serde_json::Value> = sessions.iter().map(|s| {
             serde_json::json!({
                 "id": s.id.as_str(),
@@ -419,13 +421,13 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
     }
 
     if sessions.is_empty() {
-        if !no_header {
+        if !display.no_header {
             println!("No active sessions.");
         }
         return Ok(());
     }
 
-    if !no_header {
+    if !display.no_header {
         println!(
             "{:<14} {:<16} {:<14} {:<8} TAGS",
             "ID", "NAME", "STATE", "PID"
@@ -449,7 +451,7 @@ pub(crate) async fn cmd_list(include_stale: bool, json: bool, tag_filter: Option
         );
     }
 
-    if !no_header {
+    if !display.no_header {
         println!();
         println!("{} session(s)", sessions.len());
     }

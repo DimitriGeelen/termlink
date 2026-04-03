@@ -553,7 +553,7 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
     let tags = extract_string_array(params, "tags");
     let capabilities = extract_string_array(params, "capabilities");
 
-    let session_id = store.register(display_name, host, port, pid, roles, tags, capabilities);
+    let session_id = store.register(crate::remote_store::RemoteSessionInfo { display_name, host, port, pid, roles, tags, capabilities });
     tracing::info!(id = %session_id, "Remote session registered");
 
     Response::success(id, json!({ "id": session_id })).into()
@@ -2017,15 +2017,15 @@ mod tests {
         let _store = super::init_remote_store();
         let store = super::remote_store().unwrap();
         store.clear();
-        let remote_id = store.register(
-            "tcp-target".into(),
-            "127.0.0.1".into(),
-            tcp_port,
-            None,
-            vec![],
-            vec![],
-            vec![],
-        );
+        let remote_id = store.register(crate::remote_store::RemoteSessionInfo {
+            display_name: "tcp-target".into(),
+            host: "127.0.0.1".into(),
+            port: tcp_port,
+            pid: None,
+            roles: vec![],
+            tags: vec![],
+            capabilities: vec![],
+        });
 
         // Forward a ping to the remote session via the router
         let req = Request::new(

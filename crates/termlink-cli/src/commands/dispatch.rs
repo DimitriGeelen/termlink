@@ -13,23 +13,26 @@ use termlink_session::manager;
 use crate::cli::SpawnBackend;
 use crate::util::shell_escape;
 
+/// Options for the `termlink dispatch` command.
+pub(crate) struct DispatchOpts {
+    pub count: u32,
+    pub timeout: u64,
+    pub topic: String,
+    pub name_prefix: Option<String>,
+    pub roles: Vec<String>,
+    pub tags: Vec<String>,
+    pub cap: Vec<String>,
+    pub backend: SpawnBackend,
+    pub workdir: Option<std::path::PathBuf>,
+    pub isolate: bool,
+    pub auto_merge: bool,
+    pub json_output: bool,
+    pub command: Vec<String>,
+}
+
 /// Run the `termlink dispatch` command.
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn cmd_dispatch(
-    count: u32,
-    timeout: u64,
-    topic: &str,
-    name_prefix: Option<String>,
-    roles: Vec<String>,
-    tags: Vec<String>,
-    cap: Vec<String>,
-    backend: SpawnBackend,
-    workdir: Option<std::path::PathBuf>,
-    isolate: bool,
-    auto_merge: bool,
-    json_output: bool,
-    command: Vec<String>,
-) -> Result<()> {
+pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
+    let DispatchOpts { count, timeout, topic, name_prefix, roles, tags, cap, backend, workdir, isolate, auto_merge, json_output, command } = opts;
     if count == 0 {
         if json_output {
             super::json_error_exit(serde_json::json!({"ok": false, "error": "--count must be at least 1"}));
@@ -840,24 +843,21 @@ fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
 mod tests {
     use super::*;
 
+    fn test_opts() -> DispatchOpts {
+        DispatchOpts {
+            count: 1, timeout: 5, topic: "task.completed".into(), name_prefix: None,
+            roles: vec![], tags: vec![], cap: vec![], backend: SpawnBackend::Background,
+            workdir: None, isolate: false, auto_merge: false, json_output: false,
+            command: vec!["echo".into(), "hello".into()],
+        }
+    }
+
     #[tokio::test]
     async fn workdir_rejects_nonexistent_path() {
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            Some(std::path::PathBuf::from("/nonexistent/path/that/does/not/exist")),
-            false, // isolate
-            false, // auto_merge
-            false, // json
-            vec!["echo".into(), "hello".into()],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            workdir: Some(std::path::PathBuf::from("/nonexistent/path/that/does/not/exist")),
+            ..test_opts()
+        }).await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(
@@ -871,22 +871,10 @@ mod tests {
         // Create a temp file (not directory)
         let tmp = std::env::temp_dir().join("termlink-test-workdir-file");
         std::fs::write(&tmp, "not a directory").unwrap();
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            Some(tmp.clone()),
-            false, // isolate
-            false, // auto_merge
-            false, // json
-            vec!["echo".into(), "hello".into()],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            workdir: Some(tmp.clone()),
+            ..test_opts()
+        }).await;
         std::fs::remove_file(&tmp).ok();
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
@@ -900,22 +888,7 @@ mod tests {
     async fn workdir_none_accepted() {
         // With workdir=None, the command should proceed past validation
         // (it will fail at hub check, which is fine for this test)
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            None,
-            false, // isolate
-            false, // auto_merge
-            false, // json
-            vec!["echo".into(), "hello".into()],
-        )
-        .await;
+        let result = cmd_dispatch(test_opts()).await;
         // Should fail at "hub not running", not at workdir validation
         if let Err(e) = result {
             assert!(
@@ -927,24 +900,11 @@ mod tests {
 
     #[tokio::test]
     async fn workdir_valid_directory_accepted() {
-        let tmp = std::env::temp_dir();
         // Should proceed past workdir validation to hub check
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            Some(tmp),
-            false, // isolate
-            false, // auto_merge
-            false, // json
-            vec!["echo".into(), "hello".into()],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            workdir: Some(std::env::temp_dir()),
+            ..test_opts()
+        }).await;
         if let Err(e) = result {
             assert!(
                 e.to_string().contains("Hub is not running"),
@@ -955,44 +915,20 @@ mod tests {
 
     #[tokio::test]
     async fn dispatch_rejects_zero_count() {
-        let result = cmd_dispatch(
-            0,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            None,
-            false, // isolate
-            false, // auto_merge
-            false, // json
-            vec!["echo".into()],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            count: 0,
+            ..test_opts()
+        }).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("at least 1"));
     }
 
     #[tokio::test]
     async fn dispatch_rejects_empty_command() {
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            None,
-            false, // isolate
-            false, // auto_merge
-            false, // json
-            vec![],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            command: vec![],
+            ..test_opts()
+        }).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Command required"));
     }
@@ -1002,22 +938,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         // Run from a non-git temp dir
         let _guard = std::env::set_current_dir(tmp.path());
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            None,
-            true,  // isolate
-            false, // auto_merge
-            false, // json
-            vec!["echo".into()],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            isolate: true,
+            ..test_opts()
+        }).await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(
@@ -1028,22 +952,11 @@ mod tests {
 
     #[tokio::test]
     async fn isolate_and_workdir_mutually_exclusive() {
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            Some(std::env::temp_dir()),
-            true,  // isolate
-            false, // auto_merge
-            false, // json
-            vec!["echo".into()],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            workdir: Some(std::env::temp_dir()),
+            isolate: true,
+            ..test_opts()
+        }).await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(
@@ -1054,22 +967,10 @@ mod tests {
 
     #[tokio::test]
     async fn auto_merge_requires_isolate() {
-        let result = cmd_dispatch(
-            1,
-            5,
-            "task.completed",
-            None,
-            vec![],
-            vec![],
-            vec![],
-            SpawnBackend::Background,
-            None,
-            false, // isolate
-            true,  // auto_merge
-            false, // json
-            vec!["echo".into()],
-        )
-        .await;
+        let result = cmd_dispatch(DispatchOpts {
+            auto_merge: true,
+            ..test_opts()
+        }).await;
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(

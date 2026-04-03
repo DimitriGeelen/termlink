@@ -294,19 +294,22 @@ pub(crate) async fn cmd_request(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn cmd_spawn(
-    name: Option<String>,
-    roles: Vec<String>,
-    tags: Vec<String>,
-    cap: Vec<String>,
-    wait: bool,
-    wait_timeout: u64,
-    shell: bool,
-    backend: SpawnBackend,
-    json: bool,
-    command: Vec<String>,
-) -> Result<()> {
+/// Options for the `termlink spawn` command.
+pub(crate) struct SpawnOpts {
+    pub name: Option<String>,
+    pub roles: Vec<String>,
+    pub tags: Vec<String>,
+    pub cap: Vec<String>,
+    pub wait: bool,
+    pub wait_timeout: u64,
+    pub shell: bool,
+    pub backend: SpawnBackend,
+    pub json: bool,
+    pub command: Vec<String>,
+}
+
+pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
+    let SpawnOpts { name, roles, tags, cap, wait, wait_timeout, shell, backend, json, command } = opts;
     let session_name = name.clone().unwrap_or_else(|| {
         format!("spawn-{}", std::process::id())
     });

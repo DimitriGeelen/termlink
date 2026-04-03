@@ -143,21 +143,15 @@ pub(crate) async fn cmd_tag(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_discover(
     tags: Vec<String>,
     roles: Vec<String>,
     caps: Vec<String>,
     name: Option<String>,
-    json: bool,
-    count: bool,
-    first: bool,
+    display: &super::ListDisplayOpts,
     wait: bool,
     wait_timeout: u64,
     id: bool,
-    names: bool,
-    ids: bool,
-    no_header: bool,
 ) -> Result<()> {
     let has_filters = !tags.is_empty() || !roles.is_empty() || !caps.is_empty() || name.is_some();
 
@@ -182,7 +176,7 @@ pub(crate) async fn cmd_discover(
             let sessions = match manager::list_sessions(false) {
                 Ok(s) => s,
                 Err(e) => {
-                    if json {
+                    if display.json {
                         super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
                     }
                     return Err(e).context("Failed to discover sessions");
@@ -193,7 +187,7 @@ pub(crate) async fn cmd_discover(
                 break result;
             }
             if start.elapsed() > timeout_dur {
-                if json {
+                if display.json {
                     super::json_error_exit(serde_json::json!({"ok": false, "error": format!("No matching sessions found within {}s", wait_timeout)}));
                 }
                 anyhow::bail!("No matching sessions found within {}s", wait_timeout);
@@ -204,7 +198,7 @@ pub(crate) async fn cmd_discover(
         let sessions = match manager::list_sessions(false) {
             Ok(s) => s,
             Err(e) => {
-                if json {
+                if display.json {
                     super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to discover sessions: {}", e)}));
                 }
                 return Err(e).context("Failed to discover sessions");
@@ -213,8 +207,8 @@ pub(crate) async fn cmd_discover(
         do_filter(sessions)
     };
 
-    if count {
-        if json {
+    if display.count {
+        if display.json {
             println!("{}", serde_json::json!({"ok": true, "count": filtered.len()}));
         } else {
             println!("{}", filtered.len());
@@ -222,23 +216,23 @@ pub(crate) async fn cmd_discover(
         return Ok(());
     }
 
-    if names {
+    if display.names {
         for s in &filtered {
             println!("{}", s.display_name);
         }
         return Ok(());
     }
 
-    if ids {
+    if display.ids {
         for s in &filtered {
             println!("{}", s.id.as_str());
         }
         return Ok(());
     }
 
-    if first {
+    if display.first {
         if let Some(s) = filtered.first() {
-            if json {
+            if display.json {
                 println!("{}", serde_json::json!({
                     "ok": true,
                     "id": s.id.as_str(),
@@ -260,7 +254,7 @@ pub(crate) async fn cmd_discover(
                 println!("{}", s.display_name);
             }
         } else {
-            if json {
+            if display.json {
                 super::json_error_exit(serde_json::json!({"ok": false, "error": "No matching sessions"}));
             }
             std::process::exit(1);
@@ -268,7 +262,7 @@ pub(crate) async fn cmd_discover(
         return Ok(());
     }
 
-    if json {
+    if display.json {
         let items: Vec<serde_json::Value> = filtered.iter().map(|s| {
             serde_json::json!({
                 "id": s.id.as_str(),
@@ -290,7 +284,7 @@ pub(crate) async fn cmd_discover(
     }
 
     if filtered.is_empty() {
-        if !no_header {
+        if !display.no_header {
             if has_filters {
                 println!("No sessions match the specified filters.");
             } else {
@@ -300,7 +294,7 @@ pub(crate) async fn cmd_discover(
         return Ok(());
     }
 
-    if !no_header {
+    if !display.no_header {
         println!(
             "{:<14} {:<16} {:<14} {:<20} {:<16} TAGS",
             "ID", "NAME", "STATE", "CAPABILITIES", "ROLES"
@@ -320,7 +314,7 @@ pub(crate) async fn cmd_discover(
         );
     }
 
-    if !no_header {
+    if !display.no_header {
         println!();
         println!("{} session(s) discovered", filtered.len());
     }

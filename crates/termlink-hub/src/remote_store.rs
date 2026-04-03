@@ -16,6 +16,17 @@ pub const DEFAULT_TTL: Duration = Duration::from_secs(300); // 5 minutes
 /// Default interval for the reaper background task.
 pub const REAPER_INTERVAL: Duration = Duration::from_secs(30);
 
+/// Parameters for registering a new remote session.
+pub struct RemoteSessionInfo {
+    pub display_name: String,
+    pub host: String,
+    pub port: u16,
+    pub pid: Option<u32>,
+    pub roles: Vec<String>,
+    pub tags: Vec<String>,
+    pub capabilities: Vec<String>,
+}
+
 /// A remote session entry stored in the hub's memory.
 #[derive(Clone, Debug)]
 pub struct RemoteEntry {
@@ -81,17 +92,8 @@ impl RemoteStore {
     }
 
     /// Register a new remote session. Returns the assigned ID.
-    #[allow(clippy::too_many_arguments)]
-    pub fn register(
-        &self,
-        display_name: String,
-        host: String,
-        port: u16,
-        pid: Option<u32>,
-        roles: Vec<String>,
-        tags: Vec<String>,
-        capabilities: Vec<String>,
-    ) -> String {
+    pub fn register(&self, info: RemoteSessionInfo) -> String {
+        let RemoteSessionInfo { display_name, host, port, pid, roles, tags, capabilities } = info;
         let seq = self.next_id.fetch_add(1, Ordering::Relaxed);
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -204,18 +206,17 @@ pub async fn run_reaper(
 mod tests {
     use super::*;
 
+    fn info(name: &str, host: &str, port: u16, pid: Option<u32>, roles: Vec<String>, tags: Vec<String>, caps: Vec<String>) -> RemoteSessionInfo {
+        RemoteSessionInfo { display_name: name.into(), host: host.into(), port, pid, roles, tags, capabilities: caps }
+    }
+
     #[test]
     fn register_and_list() {
         let store = RemoteStore::new();
-        let id = store.register(
-            "worker-1".into(),
-            "192.168.1.50".into(),
-            9001,
-            Some(12345),
-            vec!["compute".into()],
-            vec!["prod".into()],
-            vec![],
-        );
+        let id = store.register(info(
+            "worker-1", "192.168.1.50", 9001, Some(12345),
+            vec!["compute".into()], vec!["prod".into()], vec![],
+        ));
         assert!(id.starts_with("tl-tcp-"));
 
         let entries = store.list_live();
@@ -228,7 +229,7 @@ mod tests {
     #[test]
     fn heartbeat_refreshes() {
         let store = RemoteStore::new();
-        let id = store.register("hb-test".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
+        let id = store.register(info("hb-test", "10.0.0.1", 8000, None, vec![], vec![], vec![]));
 
         // Heartbeat should succeed
         assert!(store.heartbeat(&id));
@@ -240,7 +241,7 @@ mod tests {
     #[test]
     fn deregister_removes() {
         let store = RemoteStore::new();
-        let id = store.register("dereg".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
+        let id = store.register(info("dereg", "10.0.0.1", 8000, None, vec![], vec![], vec![]));
         assert_eq!(store.len(), 1);
 
         assert!(store.deregister(&id));
@@ -253,7 +254,7 @@ mod tests {
     #[test]
     fn expired_entries_filtered() {
         let store = RemoteStore::new();
-        let id = store.register("exp".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
+        let id = store.register(info("exp", "10.0.0.1", 8000, None, vec![], vec![], vec![]));
 
         // Manually set TTL to zero to force expiry
         {
@@ -285,8 +286,8 @@ mod tests {
     #[test]
     fn clear_removes_all() {
         let store = RemoteStore::new();
-        store.register("a".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
-        store.register("b".into(), "10.0.0.2".into(), 8001, None, vec![], vec![], vec![]);
+        store.register(info("a", "10.0.0.1", 8000, None, vec![], vec![], vec![]));
+        store.register(info("b", "10.0.0.2", 8001, None, vec![], vec![], vec![]));
         assert_eq!(store.len(), 2);
 
         store.clear();
@@ -297,8 +298,8 @@ mod tests {
     #[test]
     fn multiple_entries_independent() {
         let store = RemoteStore::new();
-        let id1 = store.register("worker-1".into(), "10.0.0.1".into(), 8000, Some(100), vec!["agent".into()], vec!["prod".into()], vec!["execute".into()]);
-        let id2 = store.register("worker-2".into(), "10.0.0.2".into(), 8001, Some(200), vec!["compute".into()], vec!["staging".into()], vec![]);
+        let id1 = store.register(info("worker-1", "10.0.0.1", 8000, Some(100), vec!["agent".into()], vec!["prod".into()], vec!["execute".into()]));
+        let id2 = store.register(info("worker-2", "10.0.0.2", 8001, Some(200), vec!["compute".into()], vec!["staging".into()], vec![]));
 
         assert_eq!(store.len(), 2);
         assert_ne!(id1, id2);
@@ -328,15 +329,10 @@ mod tests {
         let store = RemoteStore::new();
         let mut ids = std::collections::HashSet::new();
         for i in 0..100 {
-            let id = store.register(
-                format!("worker-{i}"),
-                "10.0.0.1".into(),
-                8000 + i as u16,
-                None,
-                vec![],
-                vec![],
-                vec![],
-            );
+            let id = store.register(info(
+                &format!("worker-{i}"), "10.0.0.1", 8000 + i as u16,
+                None, vec![], vec![], vec![],
+            ));
             assert!(ids.insert(id), "duplicate ID at registration {i}");
         }
         assert_eq!(store.len(), 100);
@@ -345,7 +341,7 @@ mod tests {
     #[tokio::test]
     async fn reaper_removes_expired_entries() {
         let store = RemoteStore::new();
-        let id = store.register("reaper-test".into(), "10.0.0.1".into(), 8000, None, vec![], vec![], vec![]);
+        let id = store.register(info("reaper-test", "10.0.0.1", 8000, None, vec![], vec![], vec![]));
 
         // Force immediate expiry
         {
@@ -391,15 +387,10 @@ mod tests {
     #[test]
     fn to_json_format() {
         let store = RemoteStore::new();
-        let id = store.register(
-            "json-test".into(),
-            "10.0.0.1".into(),
-            9100,
-            Some(999),
-            vec!["agent".into()],
-            vec!["test".into()],
-            vec!["execute".into()],
-        );
+        let id = store.register(info(
+            "json-test", "10.0.0.1", 9100,
+            Some(999), vec!["agent".into()], vec!["test".into()], vec!["execute".into()],
+        ));
 
         let entry = store.get(&id).unwrap();
         let json = entry.to_json();
