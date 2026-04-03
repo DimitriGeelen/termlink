@@ -4,7 +4,7 @@ name: "Add termlink_hub_start and termlink_hub_stop MCP tools — hub lifecycle 
 description: >
   Add termlink_hub_start and termlink_hub_stop MCP tools — hub lifecycle management for AI agents
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-03T22:27:55Z
-last_update: 2026-04-03T22:27:55Z
-date_finished: null
+last_update: 2026-04-03T22:33:28Z
+date_finished: 2026-04-03T22:33:28Z
 ---
 
 # T-835: Add termlink_hub_start and termlink_hub_stop MCP tools — hub lifecycle management for AI agents
@@ -56,3 +56,6 @@ grep -q "termlink_hub_stop" crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-835-add-termlinkhubstart-and-termlinkhubstop.md
 - **Context:** Initial task creation
+
+### 2026-04-03T22:33:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
