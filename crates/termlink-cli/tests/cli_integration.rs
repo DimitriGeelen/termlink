@@ -764,6 +764,45 @@ fn cli_tag_json_output() {
     assert!(tag_strs.contains(&"test"), "Expected 'test' in tags: {:?}", tag_strs);
 }
 
+#[test]
+fn cli_tag_rename_session() {
+    let dir = TestDir::new("tag-rename");
+    let _guard = start_register(&dir.path, "old-name");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["tag", "old-name", "--name", "new-name", "--json"])
+        .output()
+        .expect("Failed to run termlink tag --name");
+
+    assert!(output.status.success(), "tag --name should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("tag --name --json should output valid JSON");
+    assert_eq!(json["display_name"], "new-name", "Name should be updated");
+}
+
+#[test]
+fn cli_tag_set_roles() {
+    let dir = TestDir::new("tag-roles");
+    let _guard = start_register(&dir.path, "role-box");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["tag", "role-box", "--role", "orchestrator,worker", "--json"])
+        .output()
+        .expect("Failed to run termlink tag --role");
+
+    assert!(output.status.success(), "tag --role should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim())
+        .expect("tag --role --json should output valid JSON");
+    let roles = json["roles"].as_array().expect("Expected roles array");
+    let role_strs: Vec<&str> = roles.iter().filter_map(|r| r.as_str()).collect();
+    assert!(role_strs.contains(&"orchestrator"), "Expected 'orchestrator' in roles: {:?}", role_strs);
+    assert!(role_strs.contains(&"worker"), "Expected 'worker' in roles: {:?}", role_strs);
+}
+
 // ─── Shell Completions Regression Tests ─────────────────────────────
 
 #[test]

@@ -878,6 +878,46 @@ async fn test_tag_nonexistent_session() {
     client.cancel().await.unwrap();
 }
 
+#[tokio::test]
+async fn test_tag_rename_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-tag-rename");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "rename-me", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_tag", json!({
+        "target": "rename-me",
+        "name": "renamed-session"
+    })).await;
+
+    assert!(!result.contains("\"ok\": false"), "should succeed: {result}");
+    assert!(result.contains("renamed-session"), "should contain new name: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_tag_set_roles() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-tag-roles");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "role-target", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_tag", json!({
+        "target": "role-target",
+        "roles": ["orchestrator", "monitor"]
+    })).await;
+
+    assert!(!result.contains("\"ok\": false"), "should succeed: {result}");
+    assert!(result.contains("orchestrator"), "should contain orchestrator role: {result}");
+
+    client.cancel().await.unwrap();
+}
+
 // === Request tool tests ===
 
 #[tokio::test]
