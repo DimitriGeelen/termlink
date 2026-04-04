@@ -4,7 +4,7 @@ name: "Add filtering to termlink_list_sessions MCP tool — optional tag, role, 
 description: >
   Add filtering to termlink_list_sessions MCP tool — optional tag, role, name params
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T19:34:49Z
-last_update: 2026-04-04T19:34:49Z
-date_finished: null
+last_update: 2026-04-04T19:40:58Z
+date_finished: 2026-04-04T19:40:58Z
 ---
 
 # T-860: Add filtering to termlink_list_sessions MCP tool — optional tag, role, name params
@@ -55,3 +55,6 @@ cargo clippy -p termlink-mcp -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-860-add-filtering-to-termlinklistsessions-mc.md
 - **Context:** Initial task creation
+
+### 2026-04-04T19:40:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

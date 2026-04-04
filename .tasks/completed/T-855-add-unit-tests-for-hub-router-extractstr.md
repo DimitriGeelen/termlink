@@ -1,36 +1,33 @@
 ---
-id: T-853
-name: "Add termlink_overview MCP tool — single-call workspace status summary"
+id: T-855
+name: "Add unit tests for hub router extract_string_array and related pure functions"
 description: >
-  Add termlink_overview MCP tool — single-call workspace status summary
+  Add unit tests for hub router extract_string_array and related pure functions
 
-status: started-work
-workflow_type: build
+status: work-completed
+workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/router.rs]
 related_tasks: []
-created: 2026-04-04T15:35:57Z
-last_update: 2026-04-04T15:35:57Z
-date_finished: null
+created: 2026-04-04T15:54:54Z
+last_update: 2026-04-04T15:57:24Z
+date_finished: 2026-04-04T15:57:24Z
 ---
 
-# T-853: Add termlink_overview MCP tool — single-call workspace status summary
+# T-855: Add unit tests for hub router extract_string_array and related pure functions
 
 ## Context
 
-A single MCP tool call that gives an AI agent the full TermLink workspace status: session count, hub status, runtime directory, version, and summary of sessions. Reduces the need for agents to call list_sessions + hub_status + info separately.
+Hub router.rs has an untested pure function: extract_string_array (JSON array extraction utility). Adding targeted tests.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] MCP tool `termlink_overview` added (no params required)
-- [x] Returns JSON with: ok, session_count, sessions (list of {id, name, state, alive, pid, tags, roles}), hub_running, hub_socket, runtime_dir, sessions_dir, version, mcp_tools
-- [x] 2 integration tests: empty workspace, workspace with 2 sessions
-- [x] tool_count incremented (41 tools)
-- [x] All tests pass: cargo test -p termlink-mcp (111 tests)
-- [x] Zero clippy warnings: cargo clippy -p termlink-mcp
+- [x] 7 tests for extract_string_array: with strings, missing key, null value, non-array, mixed types, empty array, empty params
+- [x] All tests pass: cargo test -p termlink-hub (152 tests)
+- [x] Zero clippy warnings: cargo clippy -p termlink-hub
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -71,7 +68,10 @@ A single MCP tool call that gives an AI agent the full TermLink workspace status
 
 ## Updates
 
-### 2026-04-04T15:35:57Z — task-created [task-create-agent]
+### 2026-04-04T15:54:54Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-853-add-termlinkoverview-mcp-tool--single-ca.md
+- **Output:** /opt/termlink/.tasks/active/T-855-add-unit-tests-for-hub-router-extractstr.md
 - **Context:** Initial task creation
+
+### 2026-04-04T15:57:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

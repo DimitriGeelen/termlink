@@ -4,16 +4,16 @@ name: "Add unit tests for session manager find_session_in, find_by_tag, find_by_
 description: >
   Add unit tests for session manager find_session_in, find_by_tag, find_by_role, find_by_capability
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-session/src/manager.rs]
 related_tasks: []
 created: 2026-04-04T19:25:55Z
-last_update: 2026-04-04T19:25:55Z
-date_finished: null
+last_update: 2026-04-04T19:31:28Z
+date_finished: 2026-04-04T19:31:28Z
 ---
 
 # T-859: Add unit tests for session manager find_session_in, find_by_tag, find_by_role, find_by_capability
@@ -52,3 +52,6 @@ cargo clippy -p termlink-session -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-859-add-unit-tests-for-session-manager-finds.md
 - **Context:** Initial task creation
+
+### 2026-04-04T19:31:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

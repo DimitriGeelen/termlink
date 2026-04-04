@@ -4,7 +4,7 @@ name: "Improve termlink_run MCP tool to return structured JSON response"
 description: >
   Improve termlink_run MCP tool to return structured JSON response
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T15:28:03Z
-last_update: 2026-04-04T15:28:03Z
-date_finished: null
+last_update: 2026-04-04T15:30:53Z
+date_finished: 2026-04-04T15:30:53Z
 ---
 
 # T-851: Improve termlink_run MCP tool to return structured JSON response
@@ -73,3 +73,6 @@ Same pattern as T-850 (termlink_exec). termlink_run returns plain text; should r
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-851-improve-termlinkrun-mcp-tool-to-return-s.md
 - **Context:** Initial task creation
+
+### 2026-04-04T15:30:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,8 +1,8 @@
-timestamp: 2026-04-04T09:15:11Z
+timestamp: 2026-04-04T18:48:43Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (3/581)"
+    check: "D1: Episodic quality — 0% [TODO] (4/587)"
   - id: D2
     level: PASS
     check: "D2: Human review queue — 7 task(s) awaiting human action (normal)"
@@ -24,13 +24,13 @@ findings:
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — normal (PASS today=32 avg=70 ratio=0.5x)"
+    check: "D3: Commit velocity — normal (PASS today=47 avg=72 ratio=0.7x)"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 56_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 71_commits_24h)"
   - id: D6
     level: WARN
-    check: "D6: Completion velocity — sustained drop (drop recent_avg=7.0 vs earlier_avg=41.1)"
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=10.7 vs earlier_avg=41.1)"
     mitigation: "Check for blockers or process issues slowing work"
   - id: D12
     level: PASS

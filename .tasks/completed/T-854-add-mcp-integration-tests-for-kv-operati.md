@@ -1,33 +1,33 @@
 ---
-id: T-855
-name: "Add unit tests for hub router extract_string_array and related pure functions"
+id: T-854
+name: "Add MCP integration tests for kv operations with actual data roundtrip"
 description: >
-  Add unit tests for hub router extract_string_array and related pure functions
+  Add MCP integration tests for kv operations with actual data roundtrip
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-04T15:54:54Z
-last_update: 2026-04-04T15:54:54Z
-date_finished: null
+created: 2026-04-04T15:43:48Z
+last_update: 2026-04-04T15:44:27Z
+date_finished: 2026-04-04T15:44:27Z
 ---
 
-# T-855: Add unit tests for hub router extract_string_array and related pure functions
+# T-854: Add MCP integration tests for kv operations with actual data roundtrip
 
 ## Context
 
-Hub router.rs has an untested pure function: extract_string_array (JSON array extraction utility). Adding targeted tests.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] 7 tests for extract_string_array: with strings, missing key, null value, non-array, mixed types, empty array, empty params
-- [x] All tests pass: cargo test -p termlink-hub (152 tests)
-- [x] Zero clippy warnings: cargo clippy -p termlink-hub
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -68,7 +68,10 @@ Hub router.rs has an untested pure function: extract_string_array (JSON array ex
 
 ## Updates
 
-### 2026-04-04T15:54:54Z — task-created [task-create-agent]
+### 2026-04-04T15:43:48Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-855-add-unit-tests-for-hub-router-extractstr.md
+- **Output:** /opt/termlink/.tasks/active/T-854-add-mcp-integration-tests-for-kv-operati.md
 - **Context:** Initial task creation
+
+### 2026-04-04T15:44:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Improve termlink_exec MCP tool to return structured JSON response"
 description: >
   Improve termlink_exec MCP tool to return structured JSON response
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T15:24:05Z
-last_update: 2026-04-04T15:24:05Z
-date_finished: null
+last_update: 2026-04-04T15:26:45Z
+date_finished: 2026-04-04T15:26:45Z
 ---
 
 # T-850: Improve termlink_exec MCP tool to return structured JSON response
@@ -54,3 +54,6 @@ cargo clippy -p termlink-mcp -- -D warnings 2>&1 | tail -3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-850-improve-termlinkexec-mcp-tool-to-return-.md
 - **Context:** Initial task creation
+
+### 2026-04-04T15:26:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
