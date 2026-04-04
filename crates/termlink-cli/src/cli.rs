@@ -111,6 +111,10 @@ pub(crate) enum Command {
         /// Suppress table header and footer (for piping/awk)
         #[arg(long)]
         no_header: bool,
+
+        /// Sort sessions: age, age-desc, name, name-desc, state
+        #[arg(long)]
+        sort: Option<String>,
     },
 
     /// Ping a session to verify it's alive
