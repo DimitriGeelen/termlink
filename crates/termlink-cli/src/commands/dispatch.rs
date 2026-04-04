@@ -345,6 +345,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
     let collect_start = std::time::Instant::now();
     let mut cursors = json!({});
     let mut collected_events = Vec::new();
+    let mut crashed_workers: Vec<String> = Vec::new();
 
     loop {
         if collected_events.len() as u64 >= registered_count {
@@ -425,6 +426,34 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         }
 
         // event.collect with timeout_ms blocks server-side; no sleep needed
+
+        // Early crash detection: check if remaining workers are still alive.
+        // Workers that have already emitted results or are already known-dead are skipped.
+        let mut alive_remaining = 0u64;
+        for (i, name) in worker_names.iter().enumerate() {
+            if !registered[i] {
+                continue;
+            }
+            let has_result = collected_events.iter().any(|e| e["worker"].as_str() == Some(name.as_str()));
+            let already_dead = crashed_workers.iter().any(|d| d == name);
+            if has_result || already_dead {
+                continue;
+            }
+            if manager::find_session(name).is_err() {
+                if !json_output {
+                    eprintln!("  Warning: {name} exited without emitting result");
+                }
+                crashed_workers.push(name.clone());
+            } else {
+                alive_remaining += 1;
+            }
+        }
+        if !crashed_workers.is_empty() && alive_remaining == 0 {
+            if !json_output {
+                eprintln!("All remaining workers exited — stopping collection early.");
+            }
+            break;
+        }
     }
 
     // Cleanup: signal all workers to exit
@@ -598,7 +627,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
 
     if json_output {
         let mut result = json!({
-            "ok": !timed_out,
+            "ok": !timed_out && crashed_workers.is_empty(),
             "dispatch_id": dispatch_id,
             "workers_spawned": count,
             "workers_registered": registered_count,
@@ -607,6 +636,9 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
             "topic": topic,
             "results": collected_events,
         });
+        if !crashed_workers.is_empty() {
+            result["crashed_workers"] = json!(crashed_workers);
+        }
         if let Some(ref wd) = resolved_workdir {
             result["workdir"] = json!(wd.to_string_lossy());
         }
