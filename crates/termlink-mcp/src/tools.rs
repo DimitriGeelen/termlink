@@ -382,6 +382,18 @@ pub struct BatchExecParams {
     pub max_parallel: Option<usize>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct BatchPingParams {
+    /// Filter by tag (sessions must have this tag)
+    pub tag: Option<String>,
+    /// Filter by role (sessions must have this role)
+    pub role: Option<String>,
+    /// Filter by display name (substring match)
+    pub name: Option<String>,
+    /// Timeout per ping in seconds (default: 5)
+    pub timeout: Option<u64>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -2819,6 +2831,99 @@ impl TermLinkTools {
         }))
         .unwrap_or_else(json_err)
     }
+
+    #[tool(
+        name = "termlink_batch_ping",
+        description = "Ping multiple sessions matching a filter and return health status. Lightweight fleet health check — returns per-session alive/dead status with latency and age. Faster than batch_exec for liveness checks."
+    )]
+    async fn termlink_batch_ping(&self, Parameters(p): Parameters<BatchPingParams>) -> String {
+        let sessions = match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => return json_err(format!("failed to list sessions: {e}")),
+        };
+        let filtered: Vec<_> = sessions
+            .iter()
+            .filter(|s| {
+                if p.tag.as_ref().is_some_and(|tag| !s.tags.iter().any(|t| t == tag)) {
+                    return false;
+                }
+                if p.role.as_ref().is_some_and(|role| !s.roles.iter().any(|r| r == role)) {
+                    return false;
+                }
+                if p.name.as_ref().is_some_and(|name| !s.display_name.contains(name.as_str())) {
+                    return false;
+                }
+                true
+            })
+            .collect();
+
+        if filtered.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "results": [],
+                "total": 0,
+                "alive": 0,
+                "dead": 0,
+                "message": "No sessions matched the filter"
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let timeout_secs = p.timeout.unwrap_or(5);
+        let mut handles = Vec::new();
+
+        for reg in &filtered {
+            let socket = reg.socket_path().to_path_buf();
+            let session_id = reg.id.as_str().to_string();
+            let display_name = reg.display_name.clone();
+            let age = format_age(&reg.created_at);
+            let timeout = timeout_secs;
+
+            handles.push(tokio::spawn(async move {
+                let start = std::time::Instant::now();
+                let rpc_timeout = std::time::Duration::from_secs(timeout);
+                let alive = match tokio::time::timeout(
+                    rpc_timeout,
+                    client::rpc_call(&socket, "termlink.ping", serde_json::json!({})),
+                )
+                .await
+                {
+                    Ok(Ok(resp)) => matches!(resp, termlink_protocol::jsonrpc::RpcResponse::Success(_)),
+                    _ => false,
+                };
+                let latency_ms = start.elapsed().as_millis() as u64;
+
+                serde_json::json!({
+                    "session": session_id,
+                    "display_name": display_name,
+                    "alive": alive,
+                    "latency_ms": latency_ms,
+                    "age": age,
+                })
+            }));
+        }
+
+        let mut results = Vec::new();
+        for handle in handles {
+            match handle.await {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(serde_json::json!({"alive": false, "error": format!("task panic: {e}")})),
+            }
+        }
+
+        let total = results.len();
+        let alive_count = results.iter().filter(|r| r["alive"] == true).count();
+        let dead_count = total - alive_count;
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": dead_count == 0,
+            "results": results,
+            "total": total,
+            "alive": alive_count,
+            "dead": dead_count,
+        }))
+        .unwrap_or_else(json_err)
+    }
 }
 
 #[cfg(test)]
@@ -3038,6 +3143,31 @@ mod tests {
         assert!(p.name.is_none());
         assert!(p.timeout.is_none());
         assert!(p.max_parallel.is_none());
+    }
+
+    #[test]
+    fn batch_ping_params_full() {
+        let json = serde_json::json!({
+            "tag": "worker",
+            "role": "compute",
+            "name": "wk-",
+            "timeout": 10
+        });
+        let p: BatchPingParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.tag.as_deref(), Some("worker"));
+        assert_eq!(p.role.as_deref(), Some("compute"));
+        assert_eq!(p.name.as_deref(), Some("wk-"));
+        assert_eq!(p.timeout, Some(10));
+    }
+
+    #[test]
+    fn batch_ping_params_empty() {
+        let json = serde_json::json!({});
+        let p: BatchPingParams = serde_json::from_value(json).unwrap();
+        assert!(p.tag.is_none());
+        assert!(p.role.is_none());
+        assert!(p.name.is_none());
+        assert!(p.timeout.is_none());
     }
 
     #[test]
