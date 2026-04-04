@@ -455,24 +455,15 @@ impl TermLinkTools {
                     let stdout = result["stdout"].as_str().unwrap_or("");
                     let stderr = result["stderr"].as_str().unwrap_or("");
 
-                    let mut output = String::new();
-                    if !stdout.is_empty() {
-                        output.push_str(stdout);
-                    }
-                    if !stderr.is_empty() {
-                        if !output.is_empty() {
-                            output.push('\n');
-                        }
-                        output.push_str(&format!("[stderr] {stderr}"));
-                    }
-                    if exit_code != 0 {
-                        output.push_str(&format!("\n[exit_code: {exit_code}]"));
-                    }
-                    if output.is_empty() {
-                        format!("[exit_code: {exit_code}]")
-                    } else {
-                        output
-                    }
+                    let response = serde_json::json!({
+                        "ok": exit_code == 0,
+                        "exit_code": exit_code,
+                        "stdout": stdout,
+                        "stderr": stderr,
+                        "target": p.target,
+                    });
+                    serde_json::to_string_pretty(&response)
+                        .unwrap_or_else(|e| format!("Error: {e}"))
                 }
                 Err(e) => format!("Error: {e}"),
             },

@@ -1278,12 +1278,15 @@ async fn test_exec_echo_command() {
         "command": "echo hello-mcp-exec"
     })).await;
 
-    // termlink_exec returns plain text (stdout), not JSON
+    let parsed: serde_json::Value = serde_json::from_str(&result)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {result}"));
+    assert_eq!(parsed["ok"], true, "exec should succeed: {result}");
+    assert_eq!(parsed["exit_code"], 0, "exit code should be 0: {result}");
     assert!(
-        result.contains("hello-mcp-exec"),
+        parsed["stdout"].as_str().unwrap_or("").contains("hello-mcp-exec"),
         "stdout should contain command output: {result}"
     );
-    assert!(!result.contains("Error"), "should not error: {result}");
+    assert_eq!(parsed["target"], "exec-target");
 
     client.cancel().await.unwrap();
     _h.abort();
