@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-841: Add MCP integration tests for termlink_version and termlink_token_create tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T08:50:11Z
+# ============================================================================
+
+task_id: T-841
+task_name: "Add MCP integration tests for termlink_version and termlink_token_create tools"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T00:16:59Z
+completed: 2026-04-04T00:22:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T02:22:10+02:00
+last_commit: 2026-04-04T02:23:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 4 MCP integration tests for version and token_create tools — 755 total tests. Complete — 4 integration tests for version/token_create MCP tools, 755 total tests
+
+# Key outcomes
+outcomes:
+  - "Integration test for termlink_version returns valid JSON with version/commit/target/mcp_tools fields"
+  - "Integration test for termlink_token_create with token-secret-enabled session returns a valid token"
+  - "Integration test for termlink_token_create on non-token session returns descriptive error"
+  - "test_list_tools updated to include new tool names (38 tools)"
+  - "All tests pass (755 total), zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - ".tasks/active/T-841-add-mcp-integration-tests-for-termlinkve.md"
+  - ".tasks/completed/T-841-add-mcp-integration-tests-for-termlinkve.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T02:22:10"
+    action: "T-841: Add 4 MCP integration tests for version and token_create tools — 755 total tests"
+  - time: "2026-04-04T02:23:07"
+    action: "T-841: Complete — 4 integration tests for version/token_create MCP tools, 755 total tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 3
+  lines_added: 148
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-841-add-mcp-integration-tests-for-termlinkve.md
+generated_by: context-agent-hybrid

@@ -1,5 +1,5 @@
-# Audit Results - 2026-04-04-1115
-timestamp: 2026-04-04T09:15:11Z
+# Audit Results - 2026-04-04-0800
+timestamp: 2026-04-04T06:00:01Z
 summary:
   pass: 114
   warn: 6
@@ -24,7 +24,7 @@ findings:
   - level: PASS
     check: "Fabric drift: All watched source files registered (80 cards)"
   - level: PASS
-    check: "All 31 active tasks are valid"
+    check: "All 32 active tasks are valid"
   - level: WARN
     check: "Task T-243 is 12 days old with only 0 updates"
     mitigation: "Add progress updates to T-243-script-error-yielding--checkpoint-based-.md"
@@ -32,7 +32,7 @@ findings:
     check: "Task T-260 has no ## Verification section"
     mitigation: "Add '## Verification' with shell commands to T-260-pickup-from-fw-t-141-pre-push-hook-missi.md"
   - level: PASS
-    check: "Git traceability: 98% (1095/1110 commits reference tasks)"
+    check: "Git traceability: 98% (1087/1102 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -47,11 +47,12 @@ findings:
   - level: PASS
     check: "Practices documented: 10 practice(s) in practices.yaml"
   - level: PASS
-    check: "Bugfix-learning coverage: 52% (26/50 bugfixes have learnings)"
+    check: "Bugfix-learning coverage: 46% (29/62 bugfixes have learnings)"
+  - level: WARN
+    check: "Completed task T-841 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-841"
   - level: PASS
-    check: "All completed tasks have episodic summaries"
-  - level: PASS
-    check: "All 581 episodic summaries have quality content"
+    check: "All 577 episodic summaries have quality content"
   - level: PASS
     check: "No orphaned episodic files"
   - level: PASS
@@ -72,25 +73,24 @@ findings:
     check: "C-002: No research warnings logged (clean or first run)"
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
-  - level: WARN
-    check: "CTL-001: Focus file empty but 7 commit(s) in last 30min"
-    mitigation: "Check .claude/settings.json hook configuration for check-active-task"
   - level: PASS
-    check: "CTL-003: Budget status file fresh (< 5min old)"
+    check: "CTL-001: Focus file has active task (T-842)"
   - level: PASS
-    check: "CTL-004: Tool counter at 2 (last commit: 42 seconds ago)"
+    check: "CTL-003: Budget status file stale (337min — no active session)"
   - level: PASS
-    check: "CTL-018: Budget status valid JSON (level: ok)"
+    check: "CTL-004: Tool counter at 4 (last commit: 6 hours ago)"
+  - level: PASS
+    check: "CTL-018: Budget status valid JSON (level: urgent)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: PASS
-    check: "CTL-020: 4 cron audit file(s) in last hour"
+    check: "CTL-020: 5 cron audit file(s) in last hour"
   - level: PASS
     check: "CTL-002: Tier 0 guard installed and wired in settings.json"
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (166 handovers, 33 compactions)"
+    check: "CTL-006: Handover coverage for compactions (165 handovers, 32 compactions)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
   - level: PASS
@@ -130,7 +130,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-011 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-012 has decision (214 commits)"
+    check: "CTL-009: Inception T-012 has decision (213 commits)"
   - level: PASS
     check: "CTL-009: Inception T-066 has decision (5 commits)"
   - level: PASS
@@ -196,13 +196,13 @@ findings:
   - level: PASS
     check: "CTL-011: pre-push hook installed and executable"
   - level: PASS
-    check: "CTL-012: All 577 completed tasks have checked ACs"
+    check: "CTL-012: All 574 completed tasks have checked ACs"
   - level: PASS
-    check: "CTL-013: T-844 verification re-run: 2/2 pass"
+    check: "CTL-013: T-841 verification re-run: 2/2 pass"
   - level: PASS
-    check: "CTL-013: T-843 verification re-run: 3/3 pass"
+    check: "CTL-013: T-840 verification re-run: 2/2 pass"
   - level: PASS
-    check: "CTL-013: T-842 verification re-run: 3/3 pass"
+    check: "CTL-013: T-838 verification re-run: 3/3 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -222,7 +222,7 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (3/581)"
+    check: "D1: Episodic quality — 0% [TODO] (3/577)"
   - level: PASS
     check: "D2: Human review queue — 7 task(s) awaiting human action (normal)"
   - level: PASS
@@ -239,11 +239,11 @@ findings:
     check: "D5: Task lifecycle — 30 anomaly(s): T-037(1min,human) T-265(3min,human) T-038(2min,human) T-115(0min,human) T-051(1min,human) T-027(2min,human) T-177(3min,human) T-031(2min,human) T-272(0min,human) T-092(1min,human) (+20 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=32 avg=70 ratio=0.5x)"
+    check: "D3: Commit velocity — insufficient data"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 56_commits_24h)"
+    check: "D7: Commit bunching — none (PASS no_recent_commits)"
   - level: WARN
-    check: "D6: Completion velocity — sustained drop (drop recent_avg=7.0 vs earlier_avg=41.1)"
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=6.0 vs earlier_avg=41.1)"
     mitigation: "Check for blockers or process issues slowing work"
   - level: PASS
     check: "D12: Bypass log — no log file"
