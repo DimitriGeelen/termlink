@@ -195,6 +195,28 @@ fn handle_session_update(
         changed.push("roles");
     }
 
+    if let Some(add_roles) = params.get("add_roles").and_then(|r| r.as_array()) {
+        for role in add_roles.iter().filter_map(|r| r.as_str()) {
+            if !ctx.registration.roles.contains(&role.to_string()) {
+                ctx.registration.roles.push(role.to_string());
+            }
+        }
+        if !add_roles.is_empty() {
+            changed.push("roles");
+        }
+    }
+
+    if let Some(remove_roles) = params.get("remove_roles").and_then(|r| r.as_array()) {
+        let to_remove: Vec<String> = remove_roles
+            .iter()
+            .filter_map(|r| r.as_str().map(String::from))
+            .collect();
+        ctx.registration.roles.retain(|r| !to_remove.contains(r));
+        if !to_remove.is_empty() {
+            changed.push("roles");
+        }
+    }
+
     // Persist to disk if path is configured
     if !changed.is_empty()
         && let Some(ref path) = ctx.registration_path
@@ -2075,6 +2097,59 @@ mod tests {
         assert_eq!(ctx.registration.roles, vec!["reviewer", "deployer"]);
     }
 
+    #[tokio::test]
+    async fn session_update_add_roles() {
+        let mut ctx = test_ctx();
+        assert_eq!(ctx.registration.roles, vec!["coder"]);
+
+        let req = Request::new(
+            "session.update",
+            json!("upd-ar"),
+            json!({"add_roles": ["reviewer"]}),
+        );
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert!(r.result["updated"].as_array().unwrap().iter().any(|c| c == "roles"));
+        } else {
+            panic!("Expected success");
+        }
+        assert_eq!(ctx.registration.roles, vec!["coder", "reviewer"]);
+    }
+
+    #[tokio::test]
+    async fn session_update_remove_roles() {
+        let mut ctx = test_ctx();
+        ctx.registration.roles = vec!["coder".into(), "reviewer".into(), "deployer".into()];
+
+        let req = Request::new(
+            "session.update",
+            json!("upd-rr"),
+            json!({"remove_roles": ["reviewer"]}),
+        );
+        let resp = dispatch_mut(&req, &mut ctx).await.unwrap();
+        if let RpcResponse::Success(r) = resp {
+            assert!(r.result["updated"].as_array().unwrap().iter().any(|c| c == "roles"));
+        } else {
+            panic!("Expected success");
+        }
+        assert_eq!(ctx.registration.roles, vec!["coder", "deployer"]);
+    }
+
+    #[tokio::test]
+    async fn session_update_add_roles_dedup() {
+        let mut ctx = test_ctx();
+        assert_eq!(ctx.registration.roles, vec!["coder"]);
+
+        let req = Request::new(
+            "session.update",
+            json!("upd-ard"),
+            json!({"add_roles": ["coder", "reviewer"]}),
+        );
+        dispatch_mut(&req, &mut ctx).await.unwrap();
+        // "coder" should not be duplicated
+        assert_eq!(ctx.registration.roles, vec!["coder", "reviewer"]);
+    }
+
     // --- dispatch_mut fallthrough and notification tests ---
 
     #[tokio::test]
@@ -2296,4 +2371,5 @@ mod tests {
             panic!("Expected success");
         }
     }
+
 }

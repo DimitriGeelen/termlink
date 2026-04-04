@@ -226,6 +226,14 @@ pub struct TagParams {
     pub add: Option<Vec<String>>,
     /// Tags to remove from the session
     pub remove: Option<Vec<String>>,
+    /// Set a new display name for the session
+    pub name: Option<String>,
+    /// Replace all roles with this list
+    pub roles: Option<Vec<String>>,
+    /// Roles to add to the session
+    pub add_roles: Option<Vec<String>>,
+    /// Roles to remove from the session
+    pub remove_roles: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -1556,7 +1564,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_tag",
-        description = "Manage tags on a TermLink session. Use 'add' to append tags, 'remove' to delete tags, or 'set' to replace all tags. Returns the updated tag list. Tags enable discovery-based orchestration — tag sessions by role, project, or task, then use termlink_discover to find them."
+        description = "Update tags, name, or roles on a TermLink session. Use 'add'/'remove' for tags, 'name' to rename, 'roles'/'add_roles'/'remove_roles' for roles. Returns the updated state. Tags and roles enable discovery-based orchestration."
     )]
     async fn termlink_tag(&self, Parameters(p): Parameters<TagParams>) -> String {
         let reg = match manager::find_session(&p.target) {
@@ -1574,9 +1582,21 @@ impl TermLinkTools {
         if let Some(remove) = &p.remove {
             params["remove_tags"] = serde_json::json!(remove);
         }
+        if let Some(name) = &p.name {
+            params["display_name"] = serde_json::json!(name);
+        }
+        if let Some(roles) = &p.roles {
+            params["roles"] = serde_json::json!(roles);
+        }
+        if let Some(add_roles) = &p.add_roles {
+            params["add_roles"] = serde_json::json!(add_roles);
+        }
+        if let Some(remove_roles) = &p.remove_roles {
+            params["remove_roles"] = serde_json::json!(remove_roles);
+        }
 
         if params.as_object().is_some_and(|o| o.is_empty()) {
-            return json_err("specify at least one of: set, add, or remove");
+            return json_err("specify at least one of: set, add, remove, name, roles, add_roles, or remove_roles");
         }
 
         match client::rpc_call(reg.socket_path(), "session.update", params).await {
@@ -1590,11 +1610,20 @@ impl TermLinkTools {
                                 .collect::<Vec<_>>()
                         })
                         .unwrap_or_default();
-                    format!(
-                        "Updated {}: tags=[{}]",
-                        result["display_name"].as_str().unwrap_or(&p.target),
-                        tags.join(", "),
-                    )
+                    let roles = result["roles"]
+                        .as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|r| r.as_str())
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    let name = result["display_name"].as_str().unwrap_or(&p.target);
+                    let mut parts = vec![format!("tags=[{}]", tags.join(", "))];
+                    if !roles.is_empty() {
+                        parts.push(format!("roles=[{}]", roles.join(", ")));
+                    }
+                    format!("Updated {}: {}", name, parts.join(", "))
                 }
                 Err(e) => json_err(e),
             },
@@ -2781,6 +2810,36 @@ mod tests {
         assert!(p.set.is_none());
         assert_eq!(p.add.as_ref().unwrap()[0], "x");
         assert_eq!(p.remove.as_ref().unwrap()[0], "y");
+    }
+
+    #[test]
+    fn tag_params_name_and_roles() {
+        let json = serde_json::json!({
+            "target": "s1",
+            "name": "new-name",
+            "roles": ["orchestrator", "monitor"],
+            "add": ["tag1"]
+        });
+        let p: TagParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.name.as_deref(), Some("new-name"));
+        assert_eq!(p.roles.as_ref().unwrap(), &["orchestrator", "monitor"]);
+        assert_eq!(p.add.as_ref().unwrap(), &["tag1"]);
+        assert!(p.add_roles.is_none());
+        assert!(p.remove_roles.is_none());
+    }
+
+    #[test]
+    fn tag_params_add_remove_roles() {
+        let json = serde_json::json!({
+            "target": "s1",
+            "add_roles": ["worker"],
+            "remove_roles": ["idle"]
+        });
+        let p: TagParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.add_roles.as_ref().unwrap(), &["worker"]);
+        assert_eq!(p.remove_roles.as_ref().unwrap(), &["idle"]);
+        assert!(p.name.is_none());
+        assert!(p.roles.is_none());
     }
 
     #[test]

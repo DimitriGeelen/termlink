@@ -478,6 +478,22 @@ pub(crate) enum Command {
         #[arg(long, value_delimiter = ',')]
         remove: Vec<String>,
 
+        /// Set the display name
+        #[arg(long = "name")]
+        new_name: Option<String>,
+
+        /// Set roles (replaces all existing)
+        #[arg(long, value_delimiter = ',')]
+        role: Vec<String>,
+
+        /// Add roles
+        #[arg(long, value_delimiter = ',')]
+        add_role: Vec<String>,
+
+        /// Remove roles
+        #[arg(long, value_delimiter = ',')]
+        remove_role: Vec<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,

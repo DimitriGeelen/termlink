@@ -6,6 +6,17 @@ use termlink_session::manager;
 use crate::cli::KvAction;
 use crate::util::truncate;
 
+/// Options for session tag/name/role updates.
+pub(crate) struct TagOpts {
+    pub set: Vec<String>,
+    pub add: Vec<String>,
+    pub remove: Vec<String>,
+    pub new_name: Option<String>,
+    pub role: Vec<String>,
+    pub add_role: Vec<String>,
+    pub remove_role: Vec<String>,
+}
+
 /// Options for session discovery filtering.
 pub(crate) struct DiscoverOpts {
     pub tags: Vec<String>,
@@ -19,12 +30,11 @@ pub(crate) struct DiscoverOpts {
 
 pub(crate) async fn cmd_tag(
     target: &str,
-    set: Vec<String>,
-    add: Vec<String>,
-    remove: Vec<String>,
+    opts: TagOpts,
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
+    let TagOpts { set, add, remove, new_name, role, add_role, remove_role } = opts;
     let reg = match manager::find_session(target) {
         Ok(r) => r,
         Err(e) => {
@@ -35,8 +45,11 @@ pub(crate) async fn cmd_tag(
         }
     };
 
-    // Read-only mode: show current tags when no modification flags given
-    if set.is_empty() && add.is_empty() && remove.is_empty() {
+    // Read-only mode: show current state when no modification flags given
+    let has_tag_changes = !set.is_empty() || !add.is_empty() || !remove.is_empty();
+    let has_role_changes = !role.is_empty() || !add_role.is_empty() || !remove_role.is_empty();
+    let has_any_changes = has_tag_changes || has_role_changes || new_name.is_some();
+    if !has_any_changes {
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
         let rpc_future = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}));
         let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
@@ -62,17 +75,29 @@ pub(crate) async fn cmd_tag(
                         "target": target,
                         "display_name": result["display_name"],
                         "tags": result["tags"],
+                        "roles": result["roles"],
                     }));
                 } else {
                     let tags = result["tags"]
                         .as_array()
                         .map(|a| a.iter().filter_map(|t| t.as_str()).collect::<Vec<_>>().join(", "))
                         .unwrap_or_default();
+                    let roles = result["roles"]
+                        .as_array()
+                        .map(|a| a.iter().filter_map(|r| r.as_str()).collect::<Vec<_>>().join(", "))
+                        .unwrap_or_default();
                     let name = result["display_name"].as_str().unwrap_or(target);
-                    if tags.is_empty() {
-                        println!("{}: (no tags)", name);
+                    let mut parts = Vec::new();
+                    if !tags.is_empty() {
+                        parts.push(format!("tags=[{}]", tags));
+                    }
+                    if !roles.is_empty() {
+                        parts.push(format!("roles=[{}]", roles));
+                    }
+                    if parts.is_empty() {
+                        println!("{}: (no tags or roles)", name);
                     } else {
-                        println!("{}: {}", name, tags);
+                        println!("{}: {}", name, parts.join(", "));
                     }
                 }
                 return Ok(());
@@ -95,6 +120,18 @@ pub(crate) async fn cmd_tag(
     }
     if !remove.is_empty() {
         params["remove_tags"] = serde_json::json!(remove);
+    }
+    if let Some(ref name) = new_name {
+        params["display_name"] = serde_json::json!(name);
+    }
+    if !role.is_empty() {
+        params["roles"] = serde_json::json!(role);
+    }
+    if !add_role.is_empty() {
+        params["add_roles"] = serde_json::json!(add_role);
+    }
+    if !remove_role.is_empty() {
+        params["remove_roles"] = serde_json::json!(remove_role);
     }
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
@@ -137,11 +174,21 @@ pub(crate) async fn cmd_tag(
                             .join(", ")
                     })
                     .unwrap_or_default();
-                println!(
-                    "Updated {}: tags=[{}]",
-                    result["display_name"].as_str().unwrap_or(target),
-                    tags,
-                );
+                let roles = result["roles"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|r| r.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .unwrap_or_default();
+                let name = result["display_name"].as_str().unwrap_or(target);
+                let mut parts = vec![format!("tags=[{}]", tags)];
+                if !roles.is_empty() {
+                    parts.push(format!("roles=[{}]", roles));
+                }
+                println!("Updated {}: {}", name, parts.join(", "));
             }
             Ok(())
         }
