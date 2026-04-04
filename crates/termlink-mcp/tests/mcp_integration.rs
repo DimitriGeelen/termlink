@@ -69,11 +69,11 @@ async fn test_list_tools() {
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
         "termlink_interact", "termlink_doctor", "termlink_clean",
         "termlink_tag", "termlink_request", "termlink_resize",
-        "termlink_version", "termlink_token_create",
+        "termlink_version", "termlink_token_create", "termlink_token_inspect",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 38, "expected at least 38 tools, got {}", tools.len());
+    assert!(tools.len() >= 39, "expected at least 39 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1502,7 +1502,7 @@ async fn test_version() {
     assert!(parsed["commit"].is_string(), "commit should be a string");
     assert!(parsed["target"].is_string(), "target should be a string");
     assert!(parsed["mcp_tools"].is_number(), "mcp_tools should be a number");
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 38, "expected at least 38 tools");
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 39, "expected at least 39 tools");
 
     client.cancel().await.unwrap();
 }
@@ -1692,4 +1692,51 @@ async fn test_inject_with_session() {
 
     client.cancel().await.unwrap();
     _h.abort();
+}
+
+// --- token_inspect tests ---
+
+#[tokio::test]
+async fn test_token_inspect_valid() {
+    use base64::Engine;
+
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-token-inspect");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let payload = serde_json::json!({
+        "session": "test-session",
+        "scope": "execute",
+        "expires_at": 9999999999u64,
+    });
+    let payload_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+        serde_json::to_vec(&payload).unwrap(),
+    );
+    let token = format!("{payload_b64}.fakesig");
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_token_inspect", json!({"token": token})).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["payload"]["session"], "test-session");
+    assert_eq!(parsed["payload"]["scope"], "execute");
+    assert_eq!(parsed["expired"], false);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_token_inspect_invalid_format() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-token-inspect-bad");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_token_inspect", json!({"token": "no-dot"})).await;
+
+    assert!(text.contains("Error"), "expected error for invalid format: {text}");
+    assert!(text.contains("payload.signature"), "should mention expected format: {text}");
+
+    client.cancel().await.unwrap();
 }

@@ -303,6 +303,12 @@ pub struct TokenCreateParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct TokenInspectParams {
+    /// The token string to inspect (format: payload.signature)
+    pub token: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentAskParams {
     /// Session ID or display name to send the agent request to
     pub target: String,
@@ -2289,6 +2295,42 @@ impl TermLinkTools {
         }))
         .unwrap_or(fallback)
     }
+
+    #[tool(
+        name = "termlink_token_inspect",
+        description = "Decode and inspect a TermLink capability token. Returns the token payload (session, scope, expiry) and whether it has expired. Does not verify the signature."
+    )]
+    async fn termlink_token_inspect(&self, Parameters(p): Parameters<TokenInspectParams>) -> String {
+        use base64::Engine;
+
+        let parts: Vec<&str> = p.token.splitn(2, '.').collect();
+        if parts.len() != 2 {
+            return "Error: invalid token format (expected payload.signature)".into();
+        }
+
+        let payload_bytes = match base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[0]) {
+            Ok(v) => v,
+            Err(e) => return format!("Error: invalid base64 in token payload: {e}"),
+        };
+
+        let payload: serde_json::Value = match serde_json::from_slice(&payload_bytes) {
+            Ok(v) => v,
+            Err(e) => return format!("Error: invalid JSON in token payload: {e}"),
+        };
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let expired = payload["expires_at"].as_u64().map(|e| now > e).unwrap_or(false);
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "payload": payload,
+            "expired": expired,
+        }))
+        .unwrap_or_else(|_| format!("{payload}"))
+    }
 }
 
 #[cfg(test)]
@@ -2554,6 +2596,20 @@ mod tests {
     fn token_create_params_missing_target() {
         let json = serde_json::json!({});
         let result = serde_json::from_value::<TokenCreateParams>(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn token_inspect_params_required_token() {
+        let json = serde_json::json!({"token": "payload.sig"});
+        let p: TokenInspectParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.token, "payload.sig");
+    }
+
+    #[test]
+    fn token_inspect_params_missing_token() {
+        let json = serde_json::json!({});
+        let result = serde_json::from_value::<TokenInspectParams>(json);
         assert!(result.is_err());
     }
 }
