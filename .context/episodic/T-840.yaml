@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-840: Add termlink_version MCP tool and improve version command JSON output
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T00:16:37Z
+# ============================================================================
+
+task_id: T-840
+task_name: "Add termlink_version MCP tool and improve version command JSON output"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T00:10:51Z
+completed: 2026-04-04T00:16:21Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T02:16:12+02:00
+last_commit: 2026-04-04T02:16:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_version and termlink_token_create MCP tools — 39 MCP tools total, 752 tests
+
+# Key outcomes
+outcomes:
+  - "`termlink_version` MCP tool exists in tools.rs, returns version/commit/target/tool_count JSON"
+  - "`termlink_token_create` MCP tool exists with TokenCreateParams, creates scoped capability tokens"
+  - "Both tools compile and have unit tests for their param structs (3 new tests)"
+  - "All existing tests still pass (752 total)"
+  - "Zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-840-add-termlinkversion-mcp-tool-and-improve.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T02:16:12"
+    action: "T-840: Add termlink_version and termlink_token_create MCP tools — 39 MCP tools total, 752 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 162
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-840-add-termlinkversion-mcp-tool-and-improve.md
+generated_by: context-agent-hybrid

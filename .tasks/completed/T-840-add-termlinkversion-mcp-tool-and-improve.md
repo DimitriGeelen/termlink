@@ -4,16 +4,16 @@ name: "Add termlink_version MCP tool and improve version command JSON output"
 description: >
   Add termlink_version MCP tool and improve version command JSON output
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-04T00:10:51Z
-last_update: 2026-04-04T00:10:51Z
-date_finished: null
+last_update: 2026-04-04T00:16:21Z
+date_finished: 2026-04-04T00:16:21Z
 ---
 
 # T-840: Add termlink_version MCP tool and improve version command JSON output
@@ -53,3 +53,6 @@ test "$(cargo clippy --workspace --all-targets 2>&1 | grep -c 'warning:')" = "0"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-840-add-termlinkversion-mcp-tool-and-improve.md
 - **Context:** Initial task creation
+
+### 2026-04-04T00:16:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
