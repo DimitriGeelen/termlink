@@ -394,6 +394,24 @@ pub struct BatchPingParams {
     pub timeout: Option<u64>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct BatchTagParams {
+    /// Filter: only apply to sessions with this tag
+    pub filter_tag: Option<String>,
+    /// Filter: only apply to sessions with this role
+    pub filter_role: Option<String>,
+    /// Filter: only apply to sessions matching this name (substring)
+    pub filter_name: Option<String>,
+    /// Tags to add to matching sessions
+    pub add_tags: Option<Vec<String>>,
+    /// Tags to remove from matching sessions
+    pub remove_tags: Option<Vec<String>>,
+    /// Roles to add to matching sessions
+    pub add_roles: Option<Vec<String>>,
+    /// Roles to remove from matching sessions
+    pub remove_roles: Option<Vec<String>>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -2924,6 +2942,135 @@ impl TermLinkTools {
         }))
         .unwrap_or_else(json_err)
     }
+
+    #[tool(
+        name = "termlink_batch_tag",
+        description = "Apply tag or role changes to multiple sessions matching a filter. Useful for fleet-wide labeling — e.g., add a 'deprecated' tag to all sessions matching a name pattern, or assign a role to all workers with a specific tag."
+    )]
+    async fn termlink_batch_tag(&self, Parameters(p): Parameters<BatchTagParams>) -> String {
+        // Validate at least one update operation
+        let has_updates = p.add_tags.is_some() || p.remove_tags.is_some()
+            || p.add_roles.is_some() || p.remove_roles.is_some();
+        if !has_updates {
+            return json_err("specify at least one of: add_tags, remove_tags, add_roles, remove_roles");
+        }
+
+        let sessions = match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => return json_err(format!("failed to list sessions: {e}")),
+        };
+        let filtered: Vec<_> = sessions
+            .iter()
+            .filter(|s| {
+                if p.filter_tag.as_ref().is_some_and(|tag| !s.tags.iter().any(|t| t == tag)) {
+                    return false;
+                }
+                if p.filter_role.as_ref().is_some_and(|role| !s.roles.iter().any(|r| r == role)) {
+                    return false;
+                }
+                if p.filter_name.as_ref().is_some_and(|name| !s.display_name.contains(name.as_str())) {
+                    return false;
+                }
+                true
+            })
+            .collect();
+
+        if filtered.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "results": [],
+                "total": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "message": "No sessions matched the filter"
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let mut handles = Vec::new();
+        for reg in &filtered {
+            let socket = reg.socket_path().to_path_buf();
+            let session_id = reg.id.as_str().to_string();
+            let display_name = reg.display_name.clone();
+            let add_tags = p.add_tags.clone();
+            let remove_tags = p.remove_tags.clone();
+            let add_roles = p.add_roles.clone();
+            let remove_roles = p.remove_roles.clone();
+
+            handles.push(tokio::spawn(async move {
+                let mut params = serde_json::json!({});
+                if let Some(tags) = &add_tags {
+                    params["add_tags"] = serde_json::json!(tags);
+                }
+                if let Some(tags) = &remove_tags {
+                    params["remove_tags"] = serde_json::json!(tags);
+                }
+                if let Some(roles) = &add_roles {
+                    params["add_roles"] = serde_json::json!(roles);
+                }
+                if let Some(roles) = &remove_roles {
+                    params["remove_roles"] = serde_json::json!(roles);
+                }
+
+                let rpc_timeout = std::time::Duration::from_secs(10);
+                match tokio::time::timeout(
+                    rpc_timeout,
+                    client::rpc_call(&socket, "session.update", params),
+                )
+                .await
+                {
+                    Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                        Ok(result) => serde_json::json!({
+                            "session": session_id,
+                            "display_name": result["display_name"].as_str().unwrap_or(&display_name),
+                            "ok": true,
+                            "tags": result["tags"],
+                            "roles": result["roles"],
+                        }),
+                        Err(e) => serde_json::json!({
+                            "session": session_id,
+                            "display_name": display_name,
+                            "ok": false,
+                            "error": e,
+                        }),
+                    },
+                    Ok(Err(e)) => serde_json::json!({
+                        "session": session_id,
+                        "display_name": display_name,
+                        "ok": false,
+                        "error": format!("connection failed: {e}"),
+                    }),
+                    Err(_) => serde_json::json!({
+                        "session": session_id,
+                        "display_name": display_name,
+                        "ok": false,
+                        "error": "timeout after 10s",
+                    }),
+                }
+            }));
+        }
+
+        let mut results = Vec::new();
+        for handle in handles {
+            match handle.await {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(serde_json::json!({"ok": false, "error": format!("task panic: {e}")})),
+            }
+        }
+
+        let total = results.len();
+        let succeeded = results.iter().filter(|r| r["ok"] == true).count();
+        let failed = total - succeeded;
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": failed == 0,
+            "results": results,
+            "total": total,
+            "succeeded": succeeded,
+            "failed": failed,
+        }))
+        .unwrap_or_else(json_err)
+    }
 }
 
 #[cfg(test)]
@@ -3168,6 +3315,35 @@ mod tests {
         assert!(p.role.is_none());
         assert!(p.name.is_none());
         assert!(p.timeout.is_none());
+    }
+
+    #[test]
+    fn batch_tag_params_full() {
+        let json = serde_json::json!({
+            "filter_tag": "worker",
+            "filter_name": "wk-",
+            "add_tags": ["active"],
+            "remove_tags": ["idle"],
+            "add_roles": ["compute"],
+            "remove_roles": ["standby"]
+        });
+        let p: BatchTagParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.filter_tag.as_deref(), Some("worker"));
+        assert_eq!(p.add_tags.as_ref().unwrap(), &["active"]);
+        assert_eq!(p.remove_tags.as_ref().unwrap(), &["idle"]);
+        assert_eq!(p.add_roles.as_ref().unwrap(), &["compute"]);
+        assert_eq!(p.remove_roles.as_ref().unwrap(), &["standby"]);
+    }
+
+    #[test]
+    fn batch_tag_params_minimal() {
+        let json = serde_json::json!({"add_tags": ["test"]});
+        let p: BatchTagParams = serde_json::from_value(json).unwrap();
+        assert!(p.filter_tag.is_none());
+        assert!(p.filter_role.is_none());
+        assert!(p.filter_name.is_none());
+        assert_eq!(p.add_tags.as_ref().unwrap(), &["test"]);
+        assert!(p.remove_tags.is_none());
     }
 
     #[test]
