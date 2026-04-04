@@ -293,6 +293,16 @@ pub struct FileSendParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct TokenCreateParams {
+    /// Session ID or display name (must have --token-secret enabled)
+    pub target: String,
+    /// Permission scope: "observe", "control", or "execute"
+    pub scope: Option<String>,
+    /// Time-to-live in seconds (default: 3600)
+    pub ttl: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentAskParams {
     /// Session ID or display name to send the agent request to
     pub target: String,
@@ -2207,6 +2217,78 @@ impl TermLinkTools {
             }
         }
     }
+
+    #[tool(
+        name = "termlink_version",
+        description = "Get the TermLink version, build commit, and target platform. No parameters needed."
+    )]
+    async fn termlink_version(&self) -> String {
+        let version = env!("CARGO_PKG_VERSION");
+        let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
+        let target = option_env!("BUILD_TARGET").unwrap_or("unknown");
+        let tool_count = self.tool_router.list_all().len();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "version": version,
+            "commit": commit,
+            "target": target,
+            "mcp_tools": tool_count,
+        }))
+        .unwrap_or_else(|_| format!("termlink {version} ({commit}) [{target}]"))
+    }
+
+    #[tool(
+        name = "termlink_token_create",
+        description = "Create a capability token for a session that has --token-secret enabled. Returns a signed token with the specified scope (observe, control, or execute) and TTL."
+    )]
+    async fn termlink_token_create(&self, Parameters(p): Parameters<TokenCreateParams>) -> String {
+        use termlink_session::auth;
+
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let secret_hex = match reg.token_secret.as_ref() {
+            Some(s) => s,
+            None => return format!(
+                "Error: session '{}' does not have token auth enabled. Register with --token-secret.",
+                p.target
+            ),
+        };
+
+        if secret_hex.len() != 64 {
+            return "Error: invalid token_secret in registration (expected 64 hex chars)".into();
+        }
+
+        let mut secret_bytes = [0u8; 32];
+        for i in 0..32 {
+            match u8::from_str_radix(&secret_hex[i * 2..i * 2 + 2], 16) {
+                Ok(v) => secret_bytes[i] = v,
+                Err(e) => return format!("Error: invalid hex in token_secret: {e}"),
+            }
+        }
+
+        let scope_str = p.scope.as_deref().unwrap_or("execute");
+        let scope = match auth::parse_scope(scope_str) {
+            Ok(s) => s,
+            Err(e) => return format!("Error: invalid scope '{}': {e}", scope_str),
+        };
+
+        let ttl = p.ttl.unwrap_or(3600);
+        let token = auth::create_token(&secret_bytes, scope, reg.id.as_str(), ttl);
+        let fallback = token.raw.clone();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "token": token.raw,
+            "scope": scope_str,
+            "ttl": ttl,
+            "session": reg.id.as_str(),
+        }))
+        .unwrap_or(fallback)
+    }
 }
 
 #[cfg(test)]
@@ -2448,5 +2530,30 @@ mod tests {
         assert_eq!(json["display_name"], "worker-1");
         assert_eq!(json["tags"][0], "prod");
         assert_eq!(json["metadata"]["custom"], "value");
+    }
+
+    #[test]
+    fn token_create_params_required_target() {
+        let json = serde_json::json!({"target": "my-session"});
+        let p: TokenCreateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "my-session");
+        assert!(p.scope.is_none());
+        assert!(p.ttl.is_none());
+    }
+
+    #[test]
+    fn token_create_params_full() {
+        let json = serde_json::json!({"target": "worker-1", "scope": "execute", "ttl": 7200});
+        let p: TokenCreateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "worker-1");
+        assert_eq!(p.scope.as_deref(), Some("execute"));
+        assert_eq!(p.ttl, Some(7200));
+    }
+
+    #[test]
+    fn token_create_params_missing_target() {
+        let json = serde_json::json!({});
+        let result = serde_json::from_value::<TokenCreateParams>(json);
+        assert!(result.is_err());
     }
 }
