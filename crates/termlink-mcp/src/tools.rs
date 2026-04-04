@@ -26,6 +26,12 @@ impl TermLinkTools {
     }
 }
 
+/// Helper: create a JSON error response string.
+fn json_err(msg: impl std::fmt::Display) -> String {
+    serde_json::to_string_pretty(&serde_json::json!({"ok": false, "error": msg.to_string()}))
+        .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
+}
+
 // === Parameter types ===
 
 #[derive(Deserialize, JsonSchema)]
@@ -392,15 +398,15 @@ impl TermLinkTools {
     async fn termlink_ping(&self, Parameters(p): Parameters<PingParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         match client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({})).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(|_| "PONG".into()),
-                Err(e) => format!("Error: ping failed: {e}"),
+                Err(e) => json_err(format!("ping failed: {e}")),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -445,7 +451,7 @@ impl TermLinkTools {
                     .collect();
                 serde_json::to_string_pretty(&infos).unwrap_or_else(|_| "[]".into())
             }
-            Err(e) => format!("Error: {e}"),
+            Err(e) => json_err(e),
         }
     }
 
@@ -456,15 +462,15 @@ impl TermLinkTools {
     async fn termlink_status(&self, Parameters(p): Parameters<StatusParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         match client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({})).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}")),
-                Err(e) => format!("Error: {e}"),
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -475,7 +481,7 @@ impl TermLinkTools {
     async fn termlink_exec(&self, Parameters(p): Parameters<ExecParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let mut params = serde_json::json!({
@@ -501,11 +507,11 @@ impl TermLinkTools {
                         "target": p.target,
                     });
                     serde_json::to_string_pretty(&response)
-                        .unwrap_or_else(|e| format!("Error: {e}"))
+                        .unwrap_or_else(json_err)
                 }
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -516,7 +522,7 @@ impl TermLinkTools {
     async fn termlink_output(&self, Parameters(p): Parameters<OutputParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let params = serde_json::json!({
@@ -526,9 +532,9 @@ impl TermLinkTools {
         match client::rpc_call(reg.socket_path(), "query.output", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => result["output"].as_str().unwrap_or("").to_string(),
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -539,7 +545,7 @@ impl TermLinkTools {
     async fn termlink_inject(&self, Parameters(p): Parameters<InjectParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let mut keys = vec![serde_json::json!({"type": "text", "value": p.text})];
@@ -550,9 +556,9 @@ impl TermLinkTools {
         match client::rpc_call(reg.socket_path(), "command.inject", serde_json::json!({"keys": keys})).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(_) => "Injected successfully".to_string(),
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -563,12 +569,12 @@ impl TermLinkTools {
     async fn termlink_signal(&self, Parameters(p): Parameters<SignalParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let sig_num = match parse_signal(&p.signal) {
             Some(n) => n,
-            None => return format!("Error: unknown signal '{}'. Use TERM, INT, KILL, HUP, USR1, USR2", p.signal),
+            None => return json_err(format!("unknown signal '{}'. Use TERM, INT, KILL, HUP, USR1, USR2", p.signal)),
         };
 
         match client::rpc_call(reg.socket_path(), "command.signal", serde_json::json!({"signal": sig_num})).await {
@@ -578,9 +584,9 @@ impl TermLinkTools {
                     result["signal"].as_i64().unwrap_or(sig_num as i64),
                     result["pid"].as_u64().unwrap_or(0),
                 ),
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -591,7 +597,7 @@ impl TermLinkTools {
     async fn termlink_emit(&self, Parameters(p): Parameters<EmitParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let params = serde_json::json!({
@@ -606,9 +612,9 @@ impl TermLinkTools {
                     result["topic"].as_str().unwrap_or("?"),
                     result["seq"].as_u64().unwrap_or(0),
                 ),
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -619,7 +625,7 @@ impl TermLinkTools {
     async fn termlink_emit_to(&self, Parameters(p): Parameters<EmitToParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return "Error: hub is not running. Start it with: termlink hub".into();
+            return json_err("hub is not running. Start it with: termlink hub");
         }
 
         let mut params = serde_json::json!({
@@ -639,9 +645,9 @@ impl TermLinkTools {
                     result["topic"].as_str().unwrap_or("?"),
                     result["seq"].as_u64().unwrap_or(0),
                 ),
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -652,7 +658,7 @@ impl TermLinkTools {
     async fn termlink_event_poll(&self, Parameters(p): Parameters<EventPollParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let mut params = serde_json::json!({});
@@ -665,10 +671,10 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "event.poll", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}")),
-                Err(e) => format!("Error: {e}"),
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -679,7 +685,7 @@ impl TermLinkTools {
     async fn termlink_event_subscribe(&self, Parameters(p): Parameters<EventSubscribeParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let mut params = serde_json::json!({});
@@ -698,10 +704,10 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}")),
-                Err(e) => format!("Error: {e}"),
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -712,7 +718,7 @@ impl TermLinkTools {
     async fn termlink_discover(&self, Parameters(p): Parameters<DiscoverParams>) -> String {
         let sessions = match manager::list_sessions(false) {
             Ok(s) => s,
-            Err(e) => return format!("Error: {e}"),
+            Err(e) => return json_err(e),
         };
 
         let tags = p.tags.unwrap_or_default();
@@ -767,7 +773,7 @@ impl TermLinkTools {
 
         let termlink_bin = match std::env::current_exe() {
             Ok(p) => p.to_string_lossy().to_string(),
-            Err(e) => return format!("Error: cannot determine termlink binary: {e}"),
+            Err(e) => return json_err(format!("cannot determine termlink binary: {e}")),
         };
 
         let mut register_args = vec![
@@ -809,7 +815,7 @@ impl TermLinkTools {
             .spawn();
 
         if let Err(e) = child {
-            return format!("Error: failed to spawn: {e}");
+            return json_err(format!("failed to spawn: {e}"));
         }
 
         if wait {
@@ -848,9 +854,9 @@ impl TermLinkTools {
                     "command": p.command,
                 });
                 serde_json::to_string_pretty(&response)
-                    .unwrap_or_else(|e| format!("Error: {e}"))
+                    .unwrap_or_else(json_err)
             }
-            Err(e) => format!("Error: {e}"),
+            Err(e) => json_err(e),
         }
     }
 
@@ -861,7 +867,7 @@ impl TermLinkTools {
     async fn termlink_kv_set(&self, Parameters(p): Parameters<KvSetParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let params = serde_json::json!({"key": p.key, "value": p.value});
@@ -876,9 +882,9 @@ impl TermLinkTools {
                         serde_json::to_string(&p.value).unwrap_or_default(),
                     )
                 }
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -889,7 +895,7 @@ impl TermLinkTools {
     async fn termlink_kv_get(&self, Parameters(p): Parameters<KvGetParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         match client::rpc_call(reg.socket_path(), "kv.get", serde_json::json!({"key": p.key})).await {
@@ -902,9 +908,9 @@ impl TermLinkTools {
                         format!("Key '{}' not found", p.key)
                     }
                 }
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -915,16 +921,16 @@ impl TermLinkTools {
     async fn termlink_kv_list(&self, Parameters(p): Parameters<KvListParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         match client::rpc_call(reg.socket_path(), "kv.list", serde_json::json!({})).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result)
-                    .unwrap_or_else(|e| format!("Error: {e}")),
-                Err(e) => format!("Error: {e}"),
+                    .unwrap_or_else(json_err),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -935,7 +941,7 @@ impl TermLinkTools {
     async fn termlink_kv_del(&self, Parameters(p): Parameters<KvDelParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         match client::rpc_call(reg.socket_path(), "kv.delete", serde_json::json!({"key": p.key})).await {
@@ -947,9 +953,9 @@ impl TermLinkTools {
                         format!("Key '{}' not found", p.key)
                     }
                 }
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -960,7 +966,7 @@ impl TermLinkTools {
     async fn termlink_broadcast(&self, Parameters(p): Parameters<BroadcastParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return "Error: hub is not running. Start it with: termlink hub".into();
+            return json_err("hub is not running. Start it with: termlink hub");
         }
 
         let mut params = serde_json::json!({
@@ -986,9 +992,9 @@ impl TermLinkTools {
                         if failed > 0 { format!(" ({} failed)", failed) } else { String::new() },
                     )
                 }
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -999,7 +1005,7 @@ impl TermLinkTools {
     async fn termlink_interact(&self, Parameters(p): Parameters<InteractParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let timeout_secs = p.timeout.unwrap_or(30);
@@ -1022,12 +1028,12 @@ impl TermLinkTools {
             serde_json::json!({ "bytes": 131072, "strip_ansi": true }),
         ).await {
             Ok(r) => r,
-            Err(e) => return format!("Error: not a PTY session or connection failed: {e}"),
+            Err(e) => return json_err(format!("not a PTY session or connection failed: {e}")),
         };
 
         let pre_output = match client::unwrap_result(pre_resp) {
             Ok(r) => r["output"].as_str().unwrap_or("").to_string(),
-            Err(e) => return format!("Error: session has no PTY: {e}"),
+            Err(e) => return json_err(format!("session has no PTY: {e}")),
         };
         let pre_len = pre_output.len();
 
@@ -1042,7 +1048,7 @@ impl TermLinkTools {
             "command.inject",
             serde_json::json!({ "keys": keys }),
         ).await {
-            return format!("Error: failed to inject command: {e}");
+            return json_err(format!("failed to inject command: {e}"));
         }
 
         // Poll until marker appears
@@ -1051,7 +1057,7 @@ impl TermLinkTools {
 
         loop {
             if tokio::time::Instant::now() >= deadline {
-                return format!("Error: timeout after {}s waiting for command to complete", timeout_secs);
+                return json_err(format!("timeout after {}s waiting for command to complete", timeout_secs));
             }
 
             tokio::time::sleep(poll_interval).await;
@@ -1062,12 +1068,12 @@ impl TermLinkTools {
                 serde_json::json!({ "bytes": 131072, "strip_ansi": true }),
             ).await {
                 Ok(r) => r,
-                Err(e) => return format!("Error: connection lost: {e}"),
+                Err(e) => return json_err(format!("connection lost: {e}")),
             };
 
             let full_output = match client::unwrap_result(resp) {
                 Ok(r) => r["output"].as_str().unwrap_or("").to_string(),
-                Err(e) => return format!("Error: poll failed: {e}"),
+                Err(e) => return json_err(format!("poll failed: {e}")),
             };
 
             // Diff against pre-injection snapshot
@@ -1126,7 +1132,7 @@ impl TermLinkTools {
                     "command": p.command,
                 });
                 return serde_json::to_string_pretty(&response)
-                    .unwrap_or_else(|e| format!("Error: {e}"));
+                    .unwrap_or_else(json_err);
             }
         }
     }
@@ -1294,7 +1300,7 @@ impl TermLinkTools {
                 "fail": fail_count,
             }
         });
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -1349,7 +1355,7 @@ impl TermLinkTools {
             "version": version,
             "mcp_tools": mcp_tools,
         });
-        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -1409,7 +1415,7 @@ impl TermLinkTools {
             "cleaned_hub": cleaned_hub,
             "total": cleaned_sessions.len() as u32 + cleaned_sockets + if cleaned_hub { 1 } else { 0 },
         });
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -1419,7 +1425,7 @@ impl TermLinkTools {
     async fn termlink_resize(&self, Parameters(p): Parameters<ResizeParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         match client::rpc_call(
@@ -1433,9 +1439,9 @@ impl TermLinkTools {
                     result["cols"].as_u64().unwrap_or(p.cols as u64),
                     result["rows"].as_u64().unwrap_or(p.rows as u64),
                 ),
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -1446,7 +1452,7 @@ impl TermLinkTools {
     async fn termlink_request(&self, Parameters(p): Parameters<RequestParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let timeout_secs = p.timeout.unwrap_or(30);
@@ -1491,10 +1497,10 @@ impl TermLinkTools {
         match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
             Ok(resp) => {
                 if let Err(e) = client::unwrap_result(resp) {
-                    return format!("Error: failed to emit request: {e}");
+                    return json_err(format!("failed to emit request: {e}"));
                 }
             }
-            Err(e) => return format!("Error: connection failed: {e}"),
+            Err(e) => return json_err(format!("connection failed: {e}")),
         }
 
         // Subscribe for reply (server-side blocking, no sleep needed)
@@ -1543,7 +1549,7 @@ impl TermLinkTools {
                             }
                         }
                 }
-                Err(e) => return format!("Error: connection lost: {e}"),
+                Err(e) => return json_err(format!("connection lost: {e}")),
             }
         }
     }
@@ -1555,7 +1561,7 @@ impl TermLinkTools {
     async fn termlink_tag(&self, Parameters(p): Parameters<TagParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let mut params = serde_json::json!({});
@@ -1570,7 +1576,7 @@ impl TermLinkTools {
         }
 
         if params.as_object().is_some_and(|o| o.is_empty()) {
-            return "Error: specify at least one of: set, add, or remove".into();
+            return json_err("specify at least one of: set, add, or remove");
         }
 
         match client::rpc_call(reg.socket_path(), "session.update", params).await {
@@ -1590,9 +1596,9 @@ impl TermLinkTools {
                         tags.join(", "),
                     )
                 }
-                Err(e) => format!("Error: {e}"),
+                Err(e) => json_err(e),
             },
-            Err(e) => format!("Error: connection failed: {e}"),
+            Err(e) => json_err(format!("connection failed: {e}")),
         }
     }
 
@@ -1603,7 +1609,7 @@ impl TermLinkTools {
     async fn termlink_wait(&self, Parameters(p): Parameters<WaitParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let timeout_secs = p.timeout.unwrap_or(30);
@@ -1674,7 +1680,7 @@ impl TermLinkTools {
                         }
                     }
                 }
-                Err(e) => return format!("Error: connection lost: {e}"),
+                Err(e) => return json_err(format!("connection lost: {e}")),
             }
         }
     }
@@ -1758,7 +1764,7 @@ impl TermLinkTools {
             "expired": expired,
             "pending_dispatches": pending_details,
         });
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -1797,7 +1803,7 @@ impl TermLinkTools {
                 "total": all,
             },
         });
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -1808,7 +1814,7 @@ impl TermLinkTools {
         let registrations = if let Some(ref target) = p.target {
             match manager::find_session(target) {
                 Ok(r) => vec![r],
-                Err(e) => return format!("Error: session '{}' not found: {e}", target),
+                Err(e) => return json_err(format!("session '{}' not found: {e}", target)),
             }
         } else {
             manager::list_sessions(false).unwrap_or_default()
@@ -1848,7 +1854,7 @@ impl TermLinkTools {
             "sessions": session_topics,
             "total_topics": total,
         });
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -1901,7 +1907,7 @@ impl TermLinkTools {
                             "count": events.len(),
                             "cursors": result.get("cursors").cloned().unwrap_or(serde_json::json!({})),
                         });
-                        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+                        serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
                     }
                     Err(e) => serde_json::json!({
                         "ok": false,
@@ -1927,7 +1933,7 @@ impl TermLinkTools {
     async fn termlink_pty_mode(&self, Parameters(p): Parameters<PtyModeParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let timeout = std::time::Duration::from_secs(5);
@@ -1943,13 +1949,13 @@ impl TermLinkTools {
                             "raw": result["raw"],
                             "alternate_screen": result["alternate_screen"],
                         });
-                        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+                        serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
                     }
-                    Err(e) => format!("Error: {e}"),
+                    Err(e) => json_err(e),
                 }
             }
-            Ok(Err(e)) => format!("Error: failed to connect to session '{}': {e}", p.target),
-            Err(_) => format!("Error: timeout querying pty mode for '{}'", p.target),
+            Ok(Err(e)) => json_err(format!("failed to connect to session '{}': {e}", p.target)),
+            Err(_) => json_err(format!("timeout querying pty mode for '{}'", p.target)),
         }
     }
 
@@ -1987,7 +1993,7 @@ impl TermLinkTools {
             }
         };
 
-        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -2001,13 +2007,13 @@ impl TermLinkTools {
 
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let file_path = std::path::Path::new(&p.path);
         let file_data = match std::fs::read(file_path) {
             Ok(d) => d,
-            Err(e) => return format!("Error: failed to read file '{}': {e}", p.path),
+            Err(e) => return json_err(format!("failed to read file '{}': {e}", p.path)),
         };
 
         let filename = file_path
@@ -2038,14 +2044,14 @@ impl TermLinkTools {
         };
         let init_payload = match serde_json::to_value(&init) {
             Ok(v) => v,
-            Err(e) => return format!("Error: failed to serialize file.init: {e}"),
+            Err(e) => return json_err(format!("failed to serialize file.init: {e}")),
         };
         let emit = serde_json::json!({"topic": file_topic::INIT, "payload": init_payload});
         if let Err(e) = tokio::time::timeout(timeout, client::rpc_call(reg.socket_path(), "event.emit", emit)).await
             .map_err(|_| "timeout".to_string())
             .and_then(|r| r.map_err(|e| e.to_string()))
         {
-            return format!("Error: file.init failed: {e}");
+            return json_err(format!("file.init failed: {e}"));
         }
 
         // Phase 2: file.chunk(s)
@@ -2059,14 +2065,14 @@ impl TermLinkTools {
             };
             let chunk_payload = match serde_json::to_value(&chunk) {
                 Ok(v) => v,
-                Err(e) => return format!("Error: failed to serialize chunk {i}: {e}"),
+                Err(e) => return json_err(format!("failed to serialize chunk {i}: {e}")),
             };
             let emit = serde_json::json!({"topic": file_topic::CHUNK, "payload": chunk_payload});
             if let Err(e) = tokio::time::timeout(timeout, client::rpc_call(reg.socket_path(), "event.emit", emit)).await
                 .map_err(|_| "timeout".to_string())
                 .and_then(|r| r.map_err(|e| e.to_string()))
             {
-                return format!("Error: chunk {}/{total_chunks} failed: {e}", i + 1);
+                return json_err(format!("chunk {}/{total_chunks} failed: {e}", i + 1));
             }
         }
 
@@ -2078,14 +2084,14 @@ impl TermLinkTools {
         };
         let complete_payload = match serde_json::to_value(&complete) {
             Ok(v) => v,
-            Err(e) => return format!("Error: failed to serialize file.complete: {e}"),
+            Err(e) => return json_err(format!("failed to serialize file.complete: {e}")),
         };
         let emit = serde_json::json!({"topic": file_topic::COMPLETE, "payload": complete_payload});
         if let Err(e) = tokio::time::timeout(timeout, client::rpc_call(reg.socket_path(), "event.emit", emit)).await
             .map_err(|_| "timeout".to_string())
             .and_then(|r| r.map_err(|e| e.to_string()))
         {
-            return format!("Error: file.complete failed: {e}");
+            return json_err(format!("file.complete failed: {e}"));
         }
 
         let response = serde_json::json!({
@@ -2097,7 +2103,7 @@ impl TermLinkTools {
             "transfer_id": transfer_id,
             "sha256": sha256,
         });
-        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -2111,12 +2117,12 @@ impl TermLinkTools {
 
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let out_path = std::path::Path::new(&p.output_dir);
         if !out_path.is_dir() {
-            return format!("Error: output directory '{}' does not exist or is not a directory", p.output_dir);
+            return json_err(format!("output directory '{}' does not exist or is not a directory", p.output_dir));
         }
 
         // Poll all events from the session
@@ -2126,18 +2132,18 @@ impl TermLinkTools {
             client::rpc_call(reg.socket_path(), "event.poll", serde_json::json!({})),
         ).await {
             Ok(Ok(resp)) => resp,
-            Ok(Err(e)) => return format!("Error: failed to poll events: {e}"),
-            Err(_) => return "Error: event poll timed out after 10s".into(),
+            Ok(Err(e)) => return json_err(format!("failed to poll events: {e}")),
+            Err(_) => return json_err("event poll timed out after 10s"),
         };
 
         let result = match client::unwrap_result(poll_result) {
             Ok(r) => r,
-            Err(e) => return format!("Error: event poll failed: {e}"),
+            Err(e) => return json_err(format!("event poll failed: {e}")),
         };
 
         let events = match result["events"].as_array() {
             Some(arr) => arr,
-            None => return "Error: no events array in poll response".into(),
+            None => return json_err("no events array in poll response"),
         };
 
         // Find the last complete file transfer: scan for the last file.init
@@ -2153,7 +2159,7 @@ impl TermLinkTools {
 
         let init = match last_init {
             Some(i) => i,
-            None => return "Error: no file transfer found in session events".into(),
+            None => return json_err("no file transfer found in session events"),
         };
 
         // Collect chunks matching this transfer_id
@@ -2168,16 +2174,16 @@ impl TermLinkTools {
             {
                 match decoder.decode(&chunk.data) {
                     Ok(data) => { chunks.insert(chunk.index, data); }
-                    Err(e) => return format!("Error: invalid base64 in chunk {}: {e}", chunk.index),
+                    Err(e) => return json_err(format!("invalid base64 in chunk {}: {e}", chunk.index)),
                 }
             }
         }
 
         if chunks.len() as u32 != init.total_chunks {
-            return format!(
-                "Error: incomplete transfer — got {}/{} chunks for transfer {}",
+            return json_err(format!(
+                "incomplete transfer — got {}/{} chunks for transfer {}",
                 chunks.len(), init.total_chunks, init.transfer_id
-            );
+            ));
         }
 
         // Find the file.complete event for SHA-256 verification
@@ -2194,7 +2200,7 @@ impl TermLinkTools {
 
         let expected_sha256 = match expected_sha256 {
             Some(s) => s,
-            None => return format!("Error: no file.complete event for transfer {}", init.transfer_id),
+            None => return json_err(format!("no file.complete event for transfer {}", init.transfer_id)),
         };
 
         // Reassemble file data
@@ -2202,7 +2208,7 @@ impl TermLinkTools {
         for i in 0..init.total_chunks {
             match chunks.get(&i) {
                 Some(data) => file_data.extend_from_slice(data),
-                None => return format!("Error: missing chunk {}/{}", i, init.total_chunks),
+                None => return json_err(format!("missing chunk {}/{}", i, init.total_chunks)),
             }
         }
 
@@ -2212,15 +2218,15 @@ impl TermLinkTools {
         let actual_sha256 = format!("{:x}", hasher.finalize());
 
         if actual_sha256 != expected_sha256 {
-            return format!(
-                "Error: SHA-256 mismatch — expected {expected_sha256}, got {actual_sha256}"
-            );
+            return json_err(format!(
+                "SHA-256 mismatch — expected {expected_sha256}, got {actual_sha256}"
+            ));
         }
 
         // Write file
         let dest = out_path.join(&init.filename);
         if let Err(e) = std::fs::write(&dest, &file_data) {
-            return format!("Error: failed to write file '{}': {e}", dest.display());
+            return json_err(format!("failed to write file '{}': {e}", dest.display()));
         }
 
         let response = serde_json::json!({
@@ -2232,7 +2238,7 @@ impl TermLinkTools {
             "sha256": actual_sha256,
             "transfer_id": init.transfer_id,
         });
-        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+        serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -2251,7 +2257,7 @@ impl TermLinkTools {
                 "pid": pid,
                 "socket": socket_path.display().to_string(),
             });
-            return serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"));
+            return serde_json::to_string_pretty(&response).unwrap_or_else(json_err);
         }
 
         match termlink_hub::server::run(&socket_path).await {
@@ -2270,9 +2276,9 @@ impl TermLinkTools {
                     "pid": pid,
                     "socket": socket_path.display().to_string(),
                 });
-                serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+                serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
             }
-            Err(e) => format!("Error: failed to start hub: {e}"),
+            Err(e) => json_err(format!("failed to start hub: {e}")),
         }
     }
 
@@ -2302,7 +2308,7 @@ impl TermLinkTools {
                         return serde_json::json!({"ok": true, "action": "stopped", "pid": pid}).to_string();
                     }
                 }
-                format!("Error: hub (PID {pid}) did not stop within 2 seconds")
+                json_err(format!("hub (PID {pid}) did not stop within 2 seconds"))
             }
         }
     }
@@ -2316,7 +2322,7 @@ impl TermLinkTools {
 
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let timeout_secs = p.timeout.unwrap_or(30);
@@ -2358,7 +2364,7 @@ impl TermLinkTools {
         // Emit agent.request
         let payload = match serde_json::to_value(&request) {
             Ok(v) => v,
-            Err(e) => return format!("Error: failed to serialize agent request: {e}"),
+            Err(e) => return json_err(format!("failed to serialize agent request: {e}")),
         };
         let emit_params = serde_json::json!({
             "topic": agent_topic::REQUEST,
@@ -2368,10 +2374,10 @@ impl TermLinkTools {
         match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
             Ok(resp) => {
                 if let Err(e) = client::unwrap_result(resp) {
-                    return format!("Error: failed to emit agent request: {e}");
+                    return json_err(format!("failed to emit agent request: {e}"));
                 }
             }
-            Err(e) => return format!("Error: connection failed: {e}"),
+            Err(e) => return json_err(format!("connection failed: {e}")),
         }
 
         // Subscribe for agent.response with matching request_id
@@ -2424,7 +2430,7 @@ impl TermLinkTools {
                                     "error": event_payload.get("error_message"),
                                 });
                                 return serde_json::to_string_pretty(&response)
-                                    .unwrap_or_else(|e| format!("Error: {e}"));
+                                    .unwrap_or_else(json_err);
                             }
                         }
 
@@ -2433,7 +2439,7 @@ impl TermLinkTools {
                         }
                     }
                 }
-                Err(e) => return format!("Error: connection lost: {e}"),
+                Err(e) => return json_err(format!("connection lost: {e}")),
             }
         }
     }
@@ -2467,33 +2473,33 @@ impl TermLinkTools {
 
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
-            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
         let secret_hex = match reg.token_secret.as_ref() {
             Some(s) => s,
-            None => return format!(
-                "Error: session '{}' does not have token auth enabled. Register with --token-secret.",
+            None => return json_err(format!(
+                "session '{}' does not have token auth enabled. Register with --token-secret.",
                 p.target
-            ),
+            )),
         };
 
         if secret_hex.len() != 64 {
-            return "Error: invalid token_secret in registration (expected 64 hex chars)".into();
+            return json_err("invalid token_secret in registration (expected 64 hex chars)");
         }
 
         let mut secret_bytes = [0u8; 32];
         for i in 0..32 {
             match u8::from_str_radix(&secret_hex[i * 2..i * 2 + 2], 16) {
                 Ok(v) => secret_bytes[i] = v,
-                Err(e) => return format!("Error: invalid hex in token_secret: {e}"),
+                Err(e) => return json_err(format!("invalid hex in token_secret: {e}")),
             }
         }
 
         let scope_str = p.scope.as_deref().unwrap_or("execute");
         let scope = match auth::parse_scope(scope_str) {
             Ok(s) => s,
-            Err(e) => return format!("Error: invalid scope '{}': {e}", scope_str),
+            Err(e) => return json_err(format!("invalid scope '{}': {e}", scope_str)),
         };
 
         let ttl = p.ttl.unwrap_or(3600);
@@ -2519,17 +2525,17 @@ impl TermLinkTools {
 
         let parts: Vec<&str> = p.token.splitn(2, '.').collect();
         if parts.len() != 2 {
-            return "Error: invalid token format (expected payload.signature)".into();
+            return json_err("invalid token format (expected payload.signature)");
         }
 
         let payload_bytes = match base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[0]) {
             Ok(v) => v,
-            Err(e) => return format!("Error: invalid base64 in token payload: {e}"),
+            Err(e) => return json_err(format!("invalid base64 in token payload: {e}")),
         };
 
         let payload: serde_json::Value = match serde_json::from_slice(&payload_bytes) {
             Ok(v) => v,
-            Err(e) => return format!("Error: invalid JSON in token payload: {e}"),
+            Err(e) => return json_err(format!("invalid JSON in token payload: {e}")),
         };
 
         let now = std::time::SystemTime::now()
@@ -2558,7 +2564,7 @@ impl TermLinkTools {
                     "ok": false,
                     "error": format!("session '{}' not found: {e}", p.target),
                 }))
-                .unwrap_or_else(|e| format!("Error: {e}"));
+                .unwrap_or_else(json_err);
             }
         };
 
@@ -2570,7 +2576,7 @@ impl TermLinkTools {
                         "ok": false,
                         "error": format!("invalid JSON params: {e}"),
                     }))
-                    .unwrap_or_else(|e| format!("Error: {e}"));
+                    .unwrap_or_else(json_err);
                 }
             },
             None => serde_json::json!({}),
@@ -2592,14 +2598,14 @@ impl TermLinkTools {
                     "method": p.method,
                     "result": val,
                 }))
-                .unwrap_or_else(|e| format!("Error: {e}")),
+                .unwrap_or_else(json_err),
                 Err(e) => serde_json::to_string_pretty(&serde_json::json!({
                     "ok": false,
                     "target": p.target,
                     "method": p.method,
                     "error": e,
                 }))
-                .unwrap_or_else(|e| format!("Error: {e}")),
+                .unwrap_or_else(json_err),
             },
             Ok(Err(e)) => serde_json::to_string_pretty(&serde_json::json!({
                 "ok": false,
@@ -2607,14 +2613,14 @@ impl TermLinkTools {
                 "method": p.method,
                 "error": format!("RPC call failed: {e}"),
             }))
-            .unwrap_or_else(|e| format!("Error: {e}")),
+            .unwrap_or_else(json_err),
             Err(_) => serde_json::to_string_pretty(&serde_json::json!({
                 "ok": false,
                 "target": p.target,
                 "method": p.method,
                 "error": format!("timeout after {timeout_secs}s"),
             }))
-            .unwrap_or_else(|e| format!("Error: {e}")),
+            .unwrap_or_else(json_err),
         }
     }
 }

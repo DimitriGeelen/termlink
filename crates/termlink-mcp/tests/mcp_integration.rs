@@ -161,7 +161,7 @@ async fn test_ping_session() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_ping", json!({"target": "mcp-ping-target"})).await;
 
-    assert!(!text.contains("Error"), "ping failed: {text}");
+    assert!(!text.contains("\"ok\": false"), "ping failed: {text}");
 
     client.cancel().await.unwrap();
     _h.abort();
@@ -176,7 +176,7 @@ async fn test_ping_nonexistent() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_ping", json!({"target": "no-such-session"})).await;
 
-    assert!(text.contains("Error"), "expected error for nonexistent session: {text}");
+    assert!(text.contains("error"), "expected error for nonexistent session: {text}");
 
     client.cancel().await.unwrap();
 }
@@ -192,7 +192,7 @@ async fn test_status_session() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_status", json!({"target": "mcp-status-tgt"})).await;
 
-    assert!(!text.contains("Error"), "status failed: {text}");
+    assert!(!text.contains("\"ok\": false"), "status failed: {text}");
     let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert!(parsed.get("state").is_some() || parsed.get("display_name").is_some(),
         "expected session status fields: {text}");
@@ -416,7 +416,7 @@ async fn test_interact_non_pty_returns_error() {
     let text = call(&client, "termlink_interact",
         json!({"target": "interact-nopty", "command": "echo hello"})).await;
 
-    assert!(text.contains("Error"), "expected PTY error for non-PTY session: {text}");
+    assert!(text.contains("error"), "expected PTY error for non-PTY session: {text}");
 
     client.cancel().await.unwrap();
     _h.abort();
@@ -432,7 +432,7 @@ async fn test_interact_nonexistent_session() {
     let text = call(&client, "termlink_interact",
         json!({"target": "no-such-session", "command": "echo hello"})).await;
 
-    assert!(text.contains("Error") && text.contains("not found"),
+    assert!(text.contains("error") && text.contains("not found"),
         "expected not found error: {text}");
 
     client.cancel().await.unwrap();
@@ -856,7 +856,7 @@ async fn test_tag_no_params() {
         "target": "tag-nop"
     })).await;
 
-    assert!(result.contains("Error"), "should error with no operation: {result}");
+    assert!(result.contains("error"), "should error with no operation: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -873,7 +873,7 @@ async fn test_tag_nonexistent_session() {
         "add": ["test"]
     })).await;
 
-    assert!(result.contains("Error"), "should error for missing session: {result}");
+    assert!(result.contains("error"), "should error for missing session: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -893,7 +893,7 @@ async fn test_request_nonexistent_session() {
         "reply_topic": "task.result"
     })).await;
 
-    assert!(result.contains("Error"), "should error for missing session: {result}");
+    assert!(result.contains("error"), "should error for missing session: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -985,7 +985,7 @@ async fn test_resize_non_pty() {
         "rows": 40
     })).await;
 
-    assert!(result.contains("Error"), "non-PTY resize should error: {result}");
+    assert!(result.contains("error"), "non-PTY resize should error: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -1003,7 +1003,7 @@ async fn test_resize_nonexistent() {
         "rows": 24
     })).await;
 
-    assert!(result.contains("Error"), "should error for missing session: {result}");
+    assert!(result.contains("error"), "should error for missing session: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -1245,7 +1245,7 @@ async fn test_topics_nonexistent_session() {
 
     let client = mcp_client().await;
     let result = call(&client, "termlink_topics", json!({"target": "nonexistent"})).await;
-    assert!(result.contains("Error"), "should return error for nonexistent session");
+    assert!(result.contains("error"), "should return error for nonexistent session");
 
     client.cancel().await.unwrap();
 }
@@ -1284,7 +1284,7 @@ async fn test_pty_mode_non_pty_session() {
     let result = call(&client, "termlink_pty_mode", json!({"target": "pty-mode-test"})).await;
 
     // Non-PTY session should return an error about no PTY
-    assert!(result.contains("Error") || result.contains("PTY") || result.contains("pty"),
+    assert!(result.contains("error") || result.contains("PTY") || result.contains("pty"),
         "should indicate no PTY available: {result}");
 
     client.cancel().await.unwrap();
@@ -1298,7 +1298,7 @@ async fn test_pty_mode_nonexistent_session() {
 
     let client = mcp_client().await;
     let result = call(&client, "termlink_pty_mode", json!({"target": "nonexistent"})).await;
-    assert!(result.contains("Error"), "should return error for nonexistent session: {result}");
+    assert!(result.contains("error"), "should return error for nonexistent session: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -1398,7 +1398,7 @@ async fn test_exec_nonexistent_session() {
         "target": "nonexistent",
         "command": "echo test"
     })).await;
-    assert!(result.contains("Error"), "should error for nonexistent session: {result}");
+    assert!(result.contains("error"), "should error for nonexistent session: {result}");
     assert!(result.contains("not found"), "should mention not found: {result}");
 
     client.cancel().await.unwrap();
@@ -1520,7 +1520,7 @@ async fn test_file_send_nonexistent_target() {
         "target": "nonexistent",
         "path": test_file.to_str().unwrap()
     })).await;
-    assert!(result.contains("Error"), "should error for nonexistent target: {result}");
+    assert!(result.contains("error"), "should error for nonexistent target: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -1539,7 +1539,7 @@ async fn test_file_send_nonexistent_file() {
         "target": "file-recv2",
         "path": "/nonexistent/path/file.txt"
     })).await;
-    assert!(result.contains("Error"), "should error for nonexistent file: {result}");
+    assert!(result.contains("error"), "should error for nonexistent file: {result}");
 
     client.cancel().await.unwrap();
     _h.abort();
@@ -1558,7 +1558,7 @@ async fn test_file_receive_nonexistent_session() {
         "target": "nonexistent",
         "output_dir": "/tmp"
     })).await;
-    assert!(result.contains("Error"), "should error for nonexistent session: {result}");
+    assert!(result.contains("error"), "should error for nonexistent session: {result}");
     assert!(result.contains("not found"), "should mention not found: {result}");
 
     client.cancel().await.unwrap();
@@ -1578,7 +1578,7 @@ async fn test_file_receive_no_transfer() {
         "target": "empty-session",
         "output_dir": "/tmp"
     })).await;
-    assert!(result.contains("Error"), "should error when no file transfer: {result}");
+    assert!(result.contains("error"), "should error when no file transfer: {result}");
     assert!(result.contains("no file transfer"), "should mention no transfer: {result}");
 
     client.cancel().await.unwrap();
@@ -1598,7 +1598,7 @@ async fn test_agent_ask_nonexistent_target() {
         "target": "nonexistent",
         "action": "test"
     })).await;
-    assert!(result.contains("Error"), "should error for nonexistent target: {result}");
+    assert!(result.contains("error"), "should error for nonexistent target: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -1725,7 +1725,7 @@ async fn test_token_create_no_token_secret() {
     let client = mcp_client().await;
     let result = call(&client, "termlink_token_create", json!({"target": "token-test"})).await;
 
-    assert!(result.contains("Error"), "should return error for non-token session: {result}");
+    assert!(result.contains("error"), "should return error for non-token session: {result}");
     assert!(result.contains("token auth enabled"), "should mention token auth: {result}");
 
     client.cancel().await.unwrap();
@@ -1778,7 +1778,7 @@ async fn test_signal_nonexistent_session() {
         "signal": "TERM"
     })).await;
 
-    assert!(text.contains("Error"), "expected error for nonexistent session: {text}");
+    assert!(text.contains("error"), "expected error for nonexistent session: {text}");
 
     client.cancel().await.unwrap();
 }
@@ -1796,7 +1796,7 @@ async fn test_output_nonexistent_session() {
         "target": "no-such-session"
     })).await;
 
-    assert!(text.contains("Error"), "expected error for nonexistent session: {text}");
+    assert!(text.contains("error"), "expected error for nonexistent session: {text}");
 
     client.cancel().await.unwrap();
 }
@@ -1815,7 +1815,7 @@ async fn test_output_non_pty_session() {
     })).await;
 
     // Non-PTY sessions return an error from query.output
-    assert!(text.contains("Error") || text.contains("error"), "expected error for non-PTY session: {text}");
+    assert!(text.contains("error") || text.contains("error"), "expected error for non-PTY session: {text}");
 
     client.cancel().await.unwrap();
     _h.abort();
@@ -1834,7 +1834,7 @@ async fn test_broadcast_no_hub() {
         "topic": "test.event"
     })).await;
 
-    assert!(text.contains("hub is not running") || text.contains("Error"),
+    assert!(text.contains("hub is not running") || text.contains("error"),
         "expected hub-not-running error: {text}");
 
     client.cancel().await.unwrap();
@@ -1854,7 +1854,7 @@ async fn test_emit_to_no_hub() {
         "topic": "test.event"
     })).await;
 
-    assert!(text.contains("hub is not running") || text.contains("Error"),
+    assert!(text.contains("hub is not running") || text.contains("error"),
         "expected hub-not-running error: {text}");
 
     client.cancel().await.unwrap();
@@ -1874,7 +1874,7 @@ async fn test_inject_nonexistent_session() {
         "text": "hello"
     })).await;
 
-    assert!(text.contains("Error"), "expected error for nonexistent session: {text}");
+    assert!(text.contains("error"), "expected error for nonexistent session: {text}");
 
     client.cancel().await.unwrap();
 }
@@ -1942,7 +1942,7 @@ async fn test_token_inspect_invalid_format() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_token_inspect", json!({"token": "no-dot"})).await;
 
-    assert!(text.contains("Error"), "expected error for invalid format: {text}");
+    assert!(text.contains("error"), "expected error for invalid format: {text}");
     assert!(text.contains("payload.signature"), "should mention expected format: {text}");
 
     client.cancel().await.unwrap();
