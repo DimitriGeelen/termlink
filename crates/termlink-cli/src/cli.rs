@@ -465,6 +465,8 @@ pub(crate) enum Command {
         interval: u64,
         #[arg(long)]
         json: bool,
+        #[arg(long)]
+        since: Option<u64>,
     },
 
     // === Metadata & Discovery ===
@@ -1766,6 +1768,10 @@ pub(crate) enum EventCommand {
         /// Output matched event as JSON
         #[arg(long)]
         json: bool,
+
+        /// Only consider events after this sequence number
+        #[arg(long)]
+        since: Option<u64>,
     },
 
     /// List event topics from one or all sessions

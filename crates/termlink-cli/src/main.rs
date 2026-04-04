@@ -80,8 +80,8 @@ async fn main() -> Result<()> {
             EventCommand::Broadcast { topic, payload, targets, json, timeout } => {
                 commands::events::cmd_broadcast(&topic, &payload, targets, json, timeout).await
             }
-            EventCommand::Wait { target, topic, timeout, interval, json } => {
-                commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json).await
+            EventCommand::Wait { target, topic, timeout, interval, json, since } => {
+                commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json, since).await
             }
             EventCommand::Topics { target, json, timeout, no_header } => commands::events::cmd_topics(target.as_deref(), json, timeout, no_header).await,
             EventCommand::Collect { targets, topic, interval, count, json, timeout, payload_only, since } => {
@@ -122,8 +122,8 @@ async fn main() -> Result<()> {
             let collect_opts = commands::events::CollectOpts { topic_filter: topic.as_deref(), interval_ms: interval, max_count: count, json, timeout_secs: timeout, payload_only, since };
             commands::events::cmd_collect(targets, collect_opts).await
         }
-        Command::Wait { target, topic, timeout, interval, json } => {
-            commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json).await
+        Command::Wait { target, topic, timeout, interval, json, since } => {
+            commands::events::cmd_wait(&resolve_target(target)?, &topic, timeout, interval, json, since).await
         }
 
         // Metadata & Discovery

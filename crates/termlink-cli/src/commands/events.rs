@@ -559,7 +559,7 @@ pub(crate) async fn cmd_watch(
     Ok(())
 }
 
-pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64, json: bool) -> Result<()> {
+pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64, json: bool, since: Option<u64>) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
         Err(e) => {
@@ -583,7 +583,7 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
         None
     };
 
-    let mut cursor: Option<u64> = None;
+    let mut cursor: Option<u64> = since;
 
     loop {
         if let Some(dl) = deadline
