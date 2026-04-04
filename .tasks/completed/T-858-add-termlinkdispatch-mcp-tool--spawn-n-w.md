@@ -4,7 +4,7 @@ name: "Add termlink_send MCP tool — generic JSON-RPC call to any session"
 description: >
   Add termlink_send MCP tool — generic JSON-RPC call to any session
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T19:12:57Z
-last_update: 2026-04-04T19:12:57Z
-date_finished: null
+last_update: 2026-04-04T19:22:07Z
+date_finished: 2026-04-04T19:22:07Z
 ---
 
 # T-858: Add termlink_dispatch MCP tool — spawn N workers and collect results
@@ -55,3 +55,6 @@ cargo clippy -p termlink-mcp -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-858-add-termlinkdispatch-mcp-tool--spawn-n-w.md
 - **Context:** Initial task creation
+
+### 2026-04-04T19:22:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

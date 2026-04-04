@@ -4,7 +4,7 @@ name: "Standardize MCP tool error responses to JSON — migrate plain text error
 description: >
   Standardize MCP tool error responses to JSON — migrate plain text errors to {ok:false, error:...}
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T19:42:10Z
-last_update: 2026-04-04T19:42:10Z
-date_finished: null
+last_update: 2026-04-04T19:57:47Z
+date_finished: 2026-04-04T19:57:47Z
 ---
 
 # T-861: Standardize MCP tool error responses to JSON — migrate plain text errors to {ok:false, error:...}
@@ -53,3 +53,6 @@ cargo clippy -p termlink-mcp -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-861-standardize-mcp-tool-error-responses-to-.md
 - **Context:** Initial task creation
+
+### 2026-04-04T19:57:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

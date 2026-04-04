@@ -4,7 +4,7 @@ name: "Add MCP integration tests for termlink_exec and termlink_spawn"
 description: >
   Add MCP integration tests for termlink_exec and termlink_spawn
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T15:13:56Z
-last_update: 2026-04-04T15:13:56Z
-date_finished: null
+last_update: 2026-04-04T15:22:18Z
+date_finished: 2026-04-04T15:22:18Z
 ---
 
 # T-849: Add MCP integration tests for termlink_exec and termlink_spawn
@@ -54,3 +54,6 @@ cargo clippy -p termlink-mcp -- -D warnings 2>&1 | tail -3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-849-add-mcp-integration-tests-for-termlinkex.md
 - **Context:** Initial task creation
+
+### 2026-04-04T15:22:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

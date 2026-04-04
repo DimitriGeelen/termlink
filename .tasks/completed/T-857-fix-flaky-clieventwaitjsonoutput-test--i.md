@@ -4,16 +4,16 @@ name: "Fix flaky cli_event_wait_json_output test — increase emitter delay and 
 description: >
   Fix flaky cli_event_wait_json_output test — increase emitter delay and add retry
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-04T19:08:30Z
-last_update: 2026-04-04T19:08:30Z
-date_finished: null
+last_update: 2026-04-04T19:11:45Z
+date_finished: 2026-04-04T19:11:45Z
 ---
 
 # T-857: Fix flaky cli_event_wait_json_output test — increase emitter delay and add retry
@@ -51,3 +51,6 @@ cargo test --workspace
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-857-fix-flaky-clieventwaitjsonoutput-test--i.md
 - **Context:** Initial task creation
+
+### 2026-04-04T19:11:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,34 +1,35 @@
 ---
-id: T-852
-name: "Improve termlink_interact MCP tool to return structured JSON response"
+id: T-853
+name: "Add termlink_overview MCP tool — single-call workspace status summary"
 description: >
-  Improve termlink_interact MCP tool to return structured JSON response
+  Add termlink_overview MCP tool — single-call workspace status summary
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-04T15:33:26Z
-last_update: 2026-04-04T15:33:26Z
-date_finished: null
+created: 2026-04-04T15:35:57Z
+last_update: 2026-04-04T15:41:53Z
+date_finished: 2026-04-04T15:41:53Z
 ---
 
-# T-852: Improve termlink_interact MCP tool to return structured JSON response
+# T-853: Add termlink_overview MCP tool — single-call workspace status summary
 
 ## Context
 
-Same pattern as T-850/T-851. termlink_interact (the primary tool for running PTY commands) returns plain text; should return structured JSON for consistency with exec and run.
+A single MCP tool call that gives an AI agent the full TermLink workspace status: session count, hub status, runtime directory, version, and summary of sessions. Reduces the need for agents to call list_sessions + hub_status + info separately.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] termlink_interact returns JSON: {"ok": true/false, "exit_code": N, "output": "...", "target": "...", "command": "..."}
-- [x] ok=true when exit_code is 0, ok=false otherwise
-- [x] Error responses remain as "Error: ..." strings
-- [x] All tests pass: cargo test -p termlink-mcp (109 tests)
+- [x] MCP tool `termlink_overview` added (no params required)
+- [x] Returns JSON with: ok, session_count, sessions (list of {id, name, state, alive, pid, tags, roles}), hub_running, hub_socket, runtime_dir, sessions_dir, version, mcp_tools
+- [x] 2 integration tests: empty workspace, workspace with 2 sessions
+- [x] tool_count incremented (41 tools)
+- [x] All tests pass: cargo test -p termlink-mcp (111 tests)
 - [x] Zero clippy warnings: cargo clippy -p termlink-mcp
 
 ### Human
@@ -70,7 +71,10 @@ Same pattern as T-850/T-851. termlink_interact (the primary tool for running PTY
 
 ## Updates
 
-### 2026-04-04T15:33:26Z — task-created [task-create-agent]
+### 2026-04-04T15:35:57Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-852-improve-termlinkinteract-mcp-tool-to-ret.md
+- **Output:** /opt/termlink/.tasks/active/T-853-add-termlinkoverview-mcp-tool--single-ca.md
 - **Context:** Initial task creation
+
+### 2026-04-04T15:41:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
