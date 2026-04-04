@@ -118,6 +118,39 @@ async fn test_list_sessions_with_session() {
 }
 
 #[tokio::test]
+async fn test_list_sessions_filtered_by_role() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-list-filt");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h1, _r1) = start_session(&dir.sessions_dir(), "coder-one", vec!["coder".into()]).await;
+    let (_h2, _r2) = start_session(&dir.sessions_dir(), "tester-one", vec!["tester".into()]).await;
+
+    let client = mcp_client().await;
+
+    // Filter by role=coder — should return only coder-one
+    let text = call(&client, "termlink_list_sessions", json!({"role": "coder"})).await;
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed.len(), 1, "expected 1 coder session, got: {text}");
+    assert_eq!(parsed[0]["display_name"], "coder-one");
+
+    // Filter by name substring
+    let text = call(&client, "termlink_list_sessions", json!({"name": "tester"})).await;
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed.len(), 1, "expected 1 tester session, got: {text}");
+    assert_eq!(parsed[0]["display_name"], "tester-one");
+
+    // No filter — returns all
+    let text = call(&client, "termlink_list_sessions", json!({})).await;
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed.len(), 2, "expected 2 sessions, got: {text}");
+
+    client.cancel().await.unwrap();
+    _h1.abort();
+    _h2.abort();
+}
+
+#[tokio::test]
 async fn test_ping_session() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("mcp-ping");
