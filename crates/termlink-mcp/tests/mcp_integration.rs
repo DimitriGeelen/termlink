@@ -1556,3 +1556,140 @@ async fn test_token_create_with_secret() {
 
     client.cancel().await.unwrap();
 }
+
+// --- signal tests ---
+
+#[tokio::test]
+async fn test_signal_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-signal-bad");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_signal", json!({
+        "target": "no-such-session",
+        "signal": "TERM"
+    })).await;
+
+    assert!(text.contains("Error"), "expected error for nonexistent session: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+// --- output tests ---
+
+#[tokio::test]
+async fn test_output_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-output-bad");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_output", json!({
+        "target": "no-such-session"
+    })).await;
+
+    assert!(text.contains("Error"), "expected error for nonexistent session: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_output_non_pty_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-output-nopty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "output-nopty", vec![]).await;
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_output", json!({
+        "target": "output-nopty"
+    })).await;
+
+    // Non-PTY sessions return an error from query.output
+    assert!(text.contains("Error") || text.contains("error"), "expected error for non-PTY session: {text}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+// --- broadcast tests ---
+
+#[tokio::test]
+async fn test_broadcast_no_hub() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-broadcast-nohub");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_broadcast", json!({
+        "topic": "test.event"
+    })).await;
+
+    assert!(text.contains("hub is not running") || text.contains("Error"),
+        "expected hub-not-running error: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+// --- emit_to tests ---
+
+#[tokio::test]
+async fn test_emit_to_no_hub() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-emit-to-nohub");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_emit_to", json!({
+        "target": "some-session",
+        "topic": "test.event"
+    })).await;
+
+    assert!(text.contains("hub is not running") || text.contains("Error"),
+        "expected hub-not-running error: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+// --- inject tests ---
+
+#[tokio::test]
+async fn test_inject_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-inject-bad");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_inject", json!({
+        "target": "no-such-session",
+        "text": "hello"
+    })).await;
+
+    assert!(text.contains("Error"), "expected error for nonexistent session: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_inject_with_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-inject-sess");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "inject-target", vec![]).await;
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_inject", json!({
+        "target": "inject-target",
+        "text": "echo hello"
+    })).await;
+
+    // Inject succeeds on any session that handles command.inject
+    assert!(text.contains("Injected") || text.contains("ok"),
+        "expected success for inject: {text}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
