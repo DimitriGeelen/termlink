@@ -344,7 +344,19 @@ pub(crate) async fn cmd_register_self(
     Ok(())
 }
 
-pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListDisplayOpts) -> Result<()> {
+/// Sort a session list by the given key.
+fn sort_sessions(sessions: &mut [termlink_session::registration::Registration], sort_key: &str) {
+    match sort_key {
+        "age" => sessions.sort_by(|a, b| a.created_at.cmp(&b.created_at)),
+        "age-desc" => sessions.sort_by(|a, b| b.created_at.cmp(&a.created_at)),
+        "name" => sessions.sort_by(|a, b| a.display_name.to_lowercase().cmp(&b.display_name.to_lowercase())),
+        "name-desc" => sessions.sort_by(|a, b| b.display_name.to_lowercase().cmp(&a.display_name.to_lowercase())),
+        "state" => sessions.sort_by(|a, b| format!("{}", a.state).cmp(&format!("{}", b.state))),
+        _ => {} // unknown sort key — keep original order
+    }
+}
+
+pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListDisplayOpts, sort_key: Option<&str>) -> Result<()> {
     let ListFilterOpts { include_stale, tag, name, role, cap, wait, wait_timeout } = *filter;
     let do_filter = |include_stale: bool| -> Result<Vec<termlink_session::registration::Registration>> {
         let sessions = manager::list_sessions(include_stale)
@@ -387,6 +399,12 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
             }
         }
     };
+
+    // Apply sorting if requested
+    let mut sessions = sessions;
+    if let Some(key) = sort_key {
+        sort_sessions(&mut sessions, key);
+    }
 
     if display.count {
         if display.json {
@@ -1214,6 +1232,31 @@ mod tests {
         let sessions = sample_sessions();
         let result = filter_sessions(sessions, None, Some(""), None, None);
         assert_eq!(result.len(), 4);
+    }
+
+    #[test]
+    fn sort_sessions_by_name() {
+        let mut sessions = sample_sessions();
+        sort_sessions(&mut sessions, "name");
+        let names: Vec<&str> = sessions.iter().map(|s| s.display_name.as_str()).collect();
+        assert_eq!(names, vec!["Agent Alpha", "monitor", "worker-1", "worker-2"]);
+    }
+
+    #[test]
+    fn sort_sessions_by_name_desc() {
+        let mut sessions = sample_sessions();
+        sort_sessions(&mut sessions, "name-desc");
+        let names: Vec<&str> = sessions.iter().map(|s| s.display_name.as_str()).collect();
+        assert_eq!(names, vec!["worker-2", "worker-1", "monitor", "Agent Alpha"]);
+    }
+
+    #[test]
+    fn sort_sessions_unknown_key() {
+        let mut sessions = sample_sessions();
+        let original_names: Vec<String> = sessions.iter().map(|s| s.display_name.clone()).collect();
+        sort_sessions(&mut sessions, "nonexistent");
+        let after_names: Vec<String> = sessions.iter().map(|s| s.display_name.clone()).collect();
+        assert_eq!(original_names, after_names, "unknown sort key should preserve order");
     }
 
     #[test]

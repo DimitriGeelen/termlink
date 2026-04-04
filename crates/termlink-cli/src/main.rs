@@ -33,10 +33,10 @@ async fn main() -> Result<()> {
                 commands::session::cmd_register(commands::session::RegisterOpts { name, roles, tags, cap, shell, enable_token_secret: token_secret, allowed_commands, json, quiet }).await
             }
         }
-        Command::List { all, json, tag, name, role, cap, count, names, ids, first, wait, wait_timeout, no_header } => {
+        Command::List { all, json, tag, name, role, cap, count, names, ids, first, wait, wait_timeout, no_header, sort } => {
             let display = ListDisplayOpts { count, first, names, ids, no_header, json };
             let filter = commands::session::ListFilterOpts { include_stale: all, tag: tag.as_deref(), name: name.as_deref(), role: role.as_deref(), cap: cap.as_deref(), wait, wait_timeout };
-            commands::session::cmd_list(&filter, &display).await
+            commands::session::cmd_list(&filter, &display, sort.as_deref()).await
         }
         Command::Ping { target, json, timeout } => commands::session::cmd_ping(&resolve_target(target)?, json, timeout).await,
         Command::Status { target, json, short, timeout } => commands::session::cmd_status(&resolve_target(target)?, json, short, timeout).await,
