@@ -2703,6 +2703,7 @@ mod tests {
         assert_eq!(p.output_dir, "/tmp/received");
     }
 
+
     #[test]
     fn session_info_serializes() {
         let info = SessionInfo {

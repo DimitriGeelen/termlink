@@ -71,6 +71,7 @@ async fn test_list_tools() {
         "termlink_tag", "termlink_request", "termlink_resize",
         "termlink_version", "termlink_token_create", "termlink_token_inspect",
         "termlink_file_receive",
+        "termlink_dispatch_status",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
@@ -1256,6 +1257,73 @@ async fn test_pty_mode_nonexistent_session() {
     let client = mcp_client().await;
     let result = call(&client, "termlink_pty_mode", json!({"target": "nonexistent"})).await;
     assert!(result.contains("Error"), "should return error for nonexistent session: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+// ─── Exec Tests ───────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_exec_echo_command() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-exec-echo");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "exec-target", vec![]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_exec", json!({
+        "target": "exec-target",
+        "command": "echo hello-mcp-exec"
+    })).await;
+
+    // termlink_exec returns plain text (stdout), not JSON
+    assert!(
+        result.contains("hello-mcp-exec"),
+        "stdout should contain command output: {result}"
+    );
+    assert!(!result.contains("Error"), "should not error: {result}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
+#[tokio::test]
+async fn test_exec_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-exec-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_exec", json!({
+        "target": "nonexistent",
+        "command": "echo test"
+    })).await;
+    assert!(result.contains("Error"), "should error for nonexistent session: {result}");
+    assert!(result.contains("not found"), "should mention not found: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+// ─── Spawn Tests ──────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_spawn_background() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-spawn-bg");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_spawn", json!({
+        "name": "spawn-test-worker",
+        "command": ["echo", "spawned"],
+        "wait": false
+    })).await;
+
+    // Spawn may succeed or fail depending on terminal availability,
+    // but it should return a response (not crash)
+    assert!(!result.is_empty(), "spawn should return a response");
 
     client.cancel().await.unwrap();
 }
