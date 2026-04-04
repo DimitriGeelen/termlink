@@ -1080,19 +1080,15 @@ impl TermLinkTools {
                 let trimmed = clean_output.trim();
                 let exit = exit_code.unwrap_or(-1);
 
-                return if exit != 0 {
-                    if trimmed.is_empty() {
-                        format!("[exit_code: {}]", exit)
-                    } else {
-                        format!("{}\n[exit_code: {}]", trimmed, exit)
-                    }
-                } else {
-                    if trimmed.is_empty() {
-                        "[ok]".to_string()
-                    } else {
-                        trimmed.to_string()
-                    }
-                };
+                let response = serde_json::json!({
+                    "ok": exit == 0,
+                    "exit_code": exit,
+                    "output": trimmed,
+                    "target": p.target,
+                    "command": p.command,
+                });
+                return serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|e| format!("Error: {e}"));
             }
         }
     }
