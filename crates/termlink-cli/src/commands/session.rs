@@ -481,6 +481,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
                 "uid": s.uid,
                 "created_at": s.created_at,
                 "heartbeat_at": s.heartbeat_at,
+                "age": format_age(&s.created_at),
                 "tags": s.tags,
                 "roles": s.roles,
                 "capabilities": s.capabilities,
