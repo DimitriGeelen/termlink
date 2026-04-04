@@ -258,6 +258,7 @@ async fn main() -> Result<()> {
             let version = env!("CARGO_PKG_VERSION");
             let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
             let target = option_env!("BUILD_TARGET").unwrap_or("unknown");
+            let mcp_tools = termlink_mcp::tool_count();
 
             if short {
                 println!("{version}");
@@ -269,10 +270,11 @@ async fn main() -> Result<()> {
                         "version": version,
                         "commit": commit,
                         "target": target,
+                        "mcp_tools": mcp_tools,
                     })
                 );
             } else {
-                println!("termlink {version} ({commit}) [{target}]");
+                println!("termlink {version} ({commit}) [{target}] — {mcp_tools} MCP tools");
             }
             Ok(())
         }

@@ -284,10 +284,11 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
-    // 7. Version
+    // 7. Version + MCP tools
     let version = env!("CARGO_PKG_VERSION");
     let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
-    check!("version", pass, format!("termlink {version} ({commit})"));
+    let mcp_tools = termlink_mcp::tool_count();
+    check!("version", pass, format!("termlink {version} ({commit}), {mcp_tools} MCP tools"));
 
     // Summary
     if json_output {
