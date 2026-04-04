@@ -1337,9 +1337,10 @@ fn cli_event_wait_json_output() {
 
     let dir_path = dir.path.clone();
 
-    // Spawn a thread to emit the event after a short delay
+    // Spawn a thread to emit the event after a delay.
+    // 1500ms gives `event wait` enough time to start even under heavy parallel load.
     let emitter = std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(500));
+        std::thread::sleep(Duration::from_millis(1500));
         let _ = termlink_cmd(&dir_path)
             .args(["event", "emit", "wait-src", "done.signal", "--payload", r#"{"result":"ok"}"#])
             .output();
