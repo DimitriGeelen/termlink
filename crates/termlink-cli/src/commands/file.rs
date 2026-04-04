@@ -9,6 +9,14 @@ use termlink_protocol::events::{
 
 use crate::util::{generate_request_id, DEFAULT_CHUNK_SIZE};
 
+/// Resolve the effective chunk size (0 means use default) and compute
+/// the number of chunks needed to transfer `file_size` bytes.
+pub(crate) fn calculate_chunks(file_size: usize, chunk_size: usize) -> (usize, u32) {
+    let effective = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
+    let total = file_size.div_ceil(effective) as u32;
+    (effective, total)
+}
+
 pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool, timeout_secs: u64) -> Result<()> {
     use base64::Engine;
     use sha2::{Digest, Sha256};
@@ -40,8 +48,7 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         .unwrap_or_else(|| "unnamed".to_string());
 
     let size = file_data.len() as u64;
-    let chunk_sz = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
-    let total_chunks = file_data.len().div_ceil(chunk_sz) as u32;
+    let (chunk_sz, total_chunks) = calculate_chunks(file_data.len(), chunk_size);
 
     let transfer_id = generate_request_id().replace("req-", "xfer-");
 
@@ -521,5 +528,59 @@ pub(crate) async fn cmd_file_receive(
         }
 
         // event.subscribe blocks server-side; no sleep needed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chunks_exact_multiple() {
+        let (eff, total) = calculate_chunks(100, 10);
+        assert_eq!(eff, 10);
+        assert_eq!(total, 10);
+    }
+
+    #[test]
+    fn chunks_with_remainder() {
+        let (eff, total) = calculate_chunks(95, 10);
+        assert_eq!(eff, 10);
+        assert_eq!(total, 10); // 9 full + 1 partial
+    }
+
+    #[test]
+    fn chunks_single_chunk() {
+        let (eff, total) = calculate_chunks(5, 10);
+        assert_eq!(eff, 10);
+        assert_eq!(total, 1);
+    }
+
+    #[test]
+    fn chunks_empty_file() {
+        let (eff, total) = calculate_chunks(0, 10);
+        assert_eq!(eff, 10);
+        assert_eq!(total, 0);
+    }
+
+    #[test]
+    fn chunks_zero_chunk_size_uses_default() {
+        let (eff, total) = calculate_chunks(100_000, 0);
+        assert_eq!(eff, DEFAULT_CHUNK_SIZE);
+        assert_eq!(total, 100_000usize.div_ceil(DEFAULT_CHUNK_SIZE) as u32);
+    }
+
+    #[test]
+    fn chunks_exact_one_byte() {
+        let (_, total) = calculate_chunks(1, 1);
+        assert_eq!(total, 1);
+    }
+
+    #[test]
+    fn chunks_large_file() {
+        // 10 MB file with 48 KB chunks
+        let (eff, total) = calculate_chunks(10 * 1024 * 1024, 49152);
+        assert_eq!(eff, 49152);
+        assert_eq!(total, (10 * 1024 * 1024usize).div_ceil(49152) as u32);
     }
 }
