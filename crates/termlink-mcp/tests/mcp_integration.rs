@@ -69,10 +69,11 @@ async fn test_list_tools() {
         "termlink_wait", "termlink_spawn", "termlink_run", "termlink_status",
         "termlink_interact", "termlink_doctor", "termlink_clean",
         "termlink_tag", "termlink_request", "termlink_resize",
+        "termlink_version", "termlink_token_create",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 25, "expected at least 25 tools, got {}", tools.len());
+    assert!(tools.len() >= 38, "expected at least 38 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1482,6 +1483,76 @@ async fn test_hub_stop_not_running() {
     let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
     assert_eq!(parsed["ok"], true);
     assert_eq!(parsed["action"], "none");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_version() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-version");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_version", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+
+    assert_eq!(parsed["ok"], true);
+    assert!(parsed["version"].is_string(), "version should be a string");
+    assert!(parsed["commit"].is_string(), "commit should be a string");
+    assert!(parsed["target"].is_string(), "target should be a string");
+    assert!(parsed["mcp_tools"].is_number(), "mcp_tools should be a number");
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 38, "expected at least 38 tools");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_token_create_no_token_secret() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-token-no-secret");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "token-test", vec![]).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_token_create", json!({"target": "token-test"})).await;
+
+    assert!(result.contains("Error"), "should return error for non-token session: {result}");
+    assert!(result.contains("token auth enabled"), "should mention token auth: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_token_create_with_secret() {
+    use termlink_session::registration::Registration;
+
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-token-create");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, mut reg) = start_session(&dir.sessions_dir(), "token-sess", vec![]).await;
+
+    // Set a token secret on the registration file
+    let secret_hex = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2";
+    reg.token_secret = Some(secret_hex.to_string());
+    let json_path = Registration::json_path(&dir.sessions_dir(), &reg.id);
+    reg.write_atomic(&json_path).unwrap();
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_token_create", json!({
+        "target": "token-sess",
+        "scope": "execute",
+        "ttl": 600
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert!(parsed["token"].is_string(), "should return token string");
+    assert_eq!(parsed["scope"], "execute");
+    assert_eq!(parsed["ttl"], 600);
+    assert!(parsed["session"].is_string(), "should include session ID");
 
     client.cancel().await.unwrap();
 }
