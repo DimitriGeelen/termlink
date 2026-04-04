@@ -29,6 +29,16 @@ impl TermLinkTools {
 // === Parameter types ===
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ListSessionsParams {
+    /// Filter by tag (sessions must have this tag)
+    pub tag: Option<String>,
+    /// Filter by role (sessions must have this role)
+    pub role: Option<String>,
+    /// Filter by display name (substring match)
+    pub name: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct PingParams {
     /// Session ID or display name
     pub target: String,
@@ -396,12 +406,28 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_list_sessions",
-        description = "List all active TermLink sessions with their IDs, names, states, and tags"
+        description = "List active TermLink sessions with optional filtering by tag, role, or name. All filters are optional — omit all for a full list."
     )]
-    async fn termlink_list_sessions(&self) -> String {
+    async fn termlink_list_sessions(&self, Parameters(p): Parameters<ListSessionsParams>) -> String {
         match manager::list_sessions(false) {
             Ok(sessions) => {
-                let infos: Vec<SessionInfo> = sessions
+                let filtered: Vec<_> = sessions
+                    .iter()
+                    .filter(|s| {
+                        if p.tag.as_ref().is_some_and(|tag| !s.tags.iter().any(|t| t == tag)) {
+                            return false;
+                        }
+                        if p.role.as_ref().is_some_and(|role| !s.roles.iter().any(|r| r == role)) {
+                            return false;
+                        }
+                        if p.name.as_ref().is_some_and(|name| !s.display_name.contains(name.as_str())) {
+                            return false;
+                        }
+                        true
+                    })
+                    .collect();
+
+                let infos: Vec<SessionInfo> = filtered
                     .iter()
                     .map(|s| SessionInfo {
                         id: s.id.to_string(),
@@ -2818,6 +2844,24 @@ mod tests {
         let p: FileReceiveParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.target, "worker-1");
         assert_eq!(p.output_dir, "/tmp/received");
+    }
+
+    #[test]
+    fn list_sessions_params_all_filters() {
+        let json = serde_json::json!({"tag": "prod", "role": "coder", "name": "worker"});
+        let p: ListSessionsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.tag.unwrap(), "prod");
+        assert_eq!(p.role.unwrap(), "coder");
+        assert_eq!(p.name.unwrap(), "worker");
+    }
+
+    #[test]
+    fn list_sessions_params_empty() {
+        let json = serde_json::json!({});
+        let p: ListSessionsParams = serde_json::from_value(json).unwrap();
+        assert!(p.tag.is_none());
+        assert!(p.role.is_none());
+        assert!(p.name.is_none());
     }
 
     #[test]
