@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-874: Extract format_age() to termlink-protocol shared crate — remove duplication between CLI and MCP
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T23:30:27Z
+# ============================================================================
+
+task_id: T-874
+task_name: "Extract format_age() to termlink-protocol shared crate — remove duplication between CLI and MCP"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T22:56:29Z
+completed: 2026-04-04T23:02:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-05T01:02:00+02:00
+last_commit: 2026-04-05T01:02:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Extract format_age() to termlink-protocol — remove CLI/MCP duplication
+
+# Key outcomes
+outcomes:
+  - "`format_age()` defined as pub fn in `termlink-protocol` crate"
+  - "CLI session.rs uses `termlink_protocol::format_age` instead of local copy"
+  - "MCP tools.rs uses `termlink_protocol::format_age` instead of local copy"
+  - "Existing format_age unit tests moved to protocol crate (6 tests)"
+  - "`cargo clippy --workspace` passes with no warnings"
+  - "`cargo test --workspace` passes (857 tests, 0 failures)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-protocol/src/lib.rs"
+  - ".tasks/active/T-874-extract-formatage-to-termlink-protocol-s.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-05T01:02:00"
+    action: "T-874: Extract format_age() to termlink-protocol — remove CLI/MCP duplication"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 154
+  lines_removed: 106
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-874-extract-formatage-to-termlink-protocol-s.md
+generated_by: context-agent-hybrid

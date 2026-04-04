@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-876: Add --since flag to event collect CLI — enable history replay via hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T23:30:27Z
+# ============================================================================
+
+task_id: T-876
+task_name: "Add --since flag to event collect CLI — enable history replay via hub"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T23:08:33Z
+completed: 2026-04-04T23:14:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-05T01:14:22+02:00
+last_commit: 2026-04-05T01:14:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --since flag to event collect CLI + hub since_default parameter
+
+# Key outcomes
+outcomes:
+  - "`--since` flag added to both `EventCommand::Collect` and hidden `Command::Collect`"
+  - "`cmd_collect` accepts and applies `since` to initial cursor state via hub `since_default`"
+  - "Hub router extended with `since_default` fallback for per-session cursors"
+  - "`cargo clippy --workspace` passes with no warnings"
+  - "`cargo test --workspace` passes (857 tests, 0 failures)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - ".tasks/active/T-876-add---since-flag-to-event-collect-cli--e.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-05T01:14:22"
+    action: "T-876: Add --since flag to event collect CLI + hub since_default parameter"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 5
+  lines_added: 93
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-876-add---since-flag-to-event-collect-cli--e.md
+generated_by: context-agent-hybrid

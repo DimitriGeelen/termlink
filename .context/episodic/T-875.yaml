@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-875: Add elapsed time tracking to dispatch — report per-worker duration and total time
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T23:30:27Z
+# ============================================================================
+
+task_id: T-875
+task_name: "Add elapsed time tracking to dispatch — report per-worker duration and total time"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T23:04:03Z
+completed: 2026-04-04T23:07:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-05T01:06:54+02:00
+last_commit: 2026-04-05T01:06:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add elapsed time tracking to dispatch — total and per-worker duration
+
+# Key outcomes
+outcomes:
+  - "Total dispatch elapsed time reported in output (text and JSON)"
+  - "Per-worker elapsed time calculated from event timestamps"
+  - "JSON output includes `elapsed_secs` and per-result `elapsed_secs`"
+  - "Text output shows human-readable duration"
+  - "`cargo clippy --workspace` passes with no warnings"
+  - "`cargo test --workspace` passes (857 tests, 0 failures)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - ".tasks/active/T-875-add-elapsed-time-tracking-to-dispatch--r.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-05T01:06:54"
+    action: "T-875: Add elapsed time tracking to dispatch — total and per-worker duration"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 79
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-875-add-elapsed-time-tracking-to-dispatch--r.md
+generated_by: context-agent-hybrid
