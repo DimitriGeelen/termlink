@@ -75,10 +75,11 @@ async fn test_list_tools() {
         "termlink_overview",
         "termlink_send",
         "termlink_batch_exec",
+        "termlink_batch_ping",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 43, "expected at least 43 tools, got {}", tools.len());
+    assert!(tools.len() >= 44, "expected at least 44 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1362,7 +1363,7 @@ async fn test_overview_empty_workspace() {
     assert!(parsed["sessions"].as_array().unwrap().is_empty());
     assert!(parsed["runtime_dir"].is_string());
     assert!(parsed["version"].is_string());
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 43);
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 44);
 
     client.cancel().await.unwrap();
 }
@@ -2104,6 +2105,61 @@ async fn test_batch_exec_filter_by_name() {
     let parsed: serde_json::Value = serde_json::from_str(&text)
         .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
     assert_eq!(parsed["total"], 1, "should match exactly one session: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+// === batch_ping tests ===
+
+#[tokio::test]
+async fn test_batch_ping_no_matches() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-bping-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_batch_ping", json!({
+        "tag": "nonexistent-tag"
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["total"], 0);
+    assert_eq!(parsed["alive"], 0);
+    assert_eq!(parsed["dead"], 0);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_batch_ping_live_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-bping-live");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h1, _r1) = start_session(&dir.sessions_dir(), "ping-alpha", vec![]).await;
+    let (_h2, _r2) = start_session(&dir.sessions_dir(), "ping-beta", vec![]).await;
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_batch_ping", json!({
+        "name": "ping-"
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["total"], 2, "should match 2 sessions: {text}");
+    assert_eq!(parsed["alive"], 2, "both should be alive: {text}");
+    assert_eq!(parsed["dead"], 0);
+
+    // Verify per-session results have expected fields
+    let results = parsed["results"].as_array().unwrap();
+    for r in results {
+        assert!(r["alive"].as_bool().unwrap(), "session should be alive");
+        assert!(r["latency_ms"].is_number(), "should have latency");
+        assert!(r["age"].is_string(), "should have age");
+        assert!(r["display_name"].as_str().unwrap().starts_with("ping-"));
+    }
 
     client.cancel().await.unwrap();
 }
