@@ -330,6 +330,18 @@ pub struct AgentAskParams {
     pub timeout: Option<u64>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct SendParams {
+    /// Session ID or display name to send the RPC call to
+    pub target: String,
+    /// JSON-RPC method name (e.g., "termlink.ping", "query.capabilities")
+    pub method: String,
+    /// JSON parameters for the method (default: {})
+    pub params: Option<String>,
+    /// Timeout in seconds (default: 10)
+    pub timeout: Option<u64>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -2507,6 +2519,78 @@ impl TermLinkTools {
         }))
         .unwrap_or_else(|_| format!("{payload}"))
     }
+
+    #[tool(
+        name = "termlink_send",
+        description = "Send a generic JSON-RPC method call to any TermLink session. This is the lowest-level building block — lets you call any RPC method (e.g., termlink.ping, query.capabilities, pty.write) on any session."
+    )]
+    async fn termlink_send(&self, Parameters(p): Parameters<SendParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "error": format!("session '{}' not found: {e}", p.target),
+                }))
+                .unwrap_or_else(|e| format!("Error: {e}"));
+            }
+        };
+
+        let params: serde_json::Value = match &p.params {
+            Some(s) => match serde_json::from_str(s) {
+                Ok(v) => v,
+                Err(e) => {
+                    return serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": false,
+                        "error": format!("invalid JSON params: {e}"),
+                    }))
+                    .unwrap_or_else(|e| format!("Error: {e}"));
+                }
+            },
+            None => serde_json::json!({}),
+        };
+
+        let timeout_secs = p.timeout.unwrap_or(10);
+        let call_fut = client::rpc_call(reg.socket_path(), &p.method, params);
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs),
+            call_fut,
+        )
+        .await;
+
+        match result {
+            Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                Ok(val) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "target": p.target,
+                    "method": p.method,
+                    "result": val,
+                }))
+                .unwrap_or_else(|e| format!("Error: {e}")),
+                Err(e) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "target": p.target,
+                    "method": p.method,
+                    "error": e,
+                }))
+                .unwrap_or_else(|e| format!("Error: {e}")),
+            },
+            Ok(Err(e)) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "target": p.target,
+                "method": p.method,
+                "error": format!("RPC call failed: {e}"),
+            }))
+            .unwrap_or_else(|e| format!("Error: {e}")),
+            Err(_) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "target": p.target,
+                "method": p.method,
+                "error": format!("timeout after {timeout_secs}s"),
+            }))
+            .unwrap_or_else(|e| format!("Error: {e}")),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -2736,6 +2820,30 @@ mod tests {
         assert_eq!(p.output_dir, "/tmp/received");
     }
 
+    #[test]
+    fn send_params_all_fields() {
+        let json = serde_json::json!({
+            "target": "worker-1",
+            "method": "termlink.ping",
+            "params": "{\"foo\":1}",
+            "timeout": 30
+        });
+        let p: SendParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "worker-1");
+        assert_eq!(p.method, "termlink.ping");
+        assert_eq!(p.params.unwrap(), "{\"foo\":1}");
+        assert_eq!(p.timeout.unwrap(), 30);
+    }
+
+    #[test]
+    fn send_params_minimal() {
+        let json = serde_json::json!({"target": "session-1", "method": "query.capabilities"});
+        let p: SendParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "session-1");
+        assert_eq!(p.method, "query.capabilities");
+        assert!(p.params.is_none());
+        assert!(p.timeout.is_none());
+    }
 
     #[test]
     fn session_info_serializes() {

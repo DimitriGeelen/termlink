@@ -73,10 +73,11 @@ async fn test_list_tools() {
         "termlink_file_receive",
         "termlink_dispatch_status",
         "termlink_overview",
+        "termlink_send",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 41, "expected at least 41 tools, got {}", tools.len());
+    assert!(tools.len() >= 42, "expected at least 42 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1287,7 +1288,7 @@ async fn test_overview_empty_workspace() {
     assert!(parsed["sessions"].as_array().unwrap().is_empty());
     assert!(parsed["runtime_dir"].is_string());
     assert!(parsed["version"].is_string());
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 41);
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 42);
 
     client.cancel().await.unwrap();
 }
@@ -1675,7 +1676,7 @@ async fn test_version() {
     assert!(parsed["commit"].is_string(), "commit should be a string");
     assert!(parsed["target"].is_string(), "target should be a string");
     assert!(parsed["mcp_tools"].is_number(), "mcp_tools should be a number");
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 41, "expected at least 41 tools");
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 42, "expected at least 41 tools");
 
     client.cancel().await.unwrap();
 }
@@ -1910,6 +1911,77 @@ async fn test_token_inspect_invalid_format() {
 
     assert!(text.contains("Error"), "expected error for invalid format: {text}");
     assert!(text.contains("payload.signature"), "should mention expected format: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+// ─── Send (generic RPC) Tests ───────────────────────────────────────
+
+#[tokio::test]
+async fn test_send_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-send-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_send", json!({
+        "target": "ghost-session",
+        "method": "termlink.ping"
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], false);
+    assert!(parsed["error"].as_str().unwrap().contains("not found"));
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_send_invalid_params_json() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-send-badjson");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Need a live session so we get past the find_session check
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "send-badjson", vec![]).await;
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_send", json!({
+        "target": "send-badjson",
+        "method": "termlink.ping",
+        "params": "not valid json {"
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], false);
+    assert!(parsed["error"].as_str().unwrap().contains("invalid JSON params"),
+        "expected invalid JSON params error, got: {}", parsed["error"]);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_send_ping_live_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-send-ping");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "send-target", vec![]).await;
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_send", json!({
+        "target": "send-target",
+        "method": "termlink.ping"
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["target"], "send-target");
+    assert_eq!(parsed["method"], "termlink.ping");
+    assert!(parsed["result"].is_object(), "expected result object");
 
     client.cancel().await.unwrap();
 }
