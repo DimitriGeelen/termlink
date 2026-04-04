@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-871: Add termlink_batch_tag MCP tool — tag/role/rename across filtered sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T22:00:58Z
+# ============================================================================
+
+task_id: T-871
+task_name: "Add termlink_batch_tag MCP tool — tag/role/rename across filtered sessions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T21:54:21Z
+completed: 2026-04-04T22:00:06Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T23:59:56+02:00
+last_commit: 2026-04-05T00:00:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_batch_tag MCP tool — fleet-wide tag/role management, 45 MCP tools, 857 tests. Complete — batch tag for fleet-wide session management
+
+# Key outcomes
+outcomes:
+  - "`BatchTagParams` struct with filter (tag/role/name), add_tags, remove_tags, add_roles, remove_roles"
+  - "`termlink_batch_tag` tool applies tag/role changes to all matching sessions concurrently"
+  - "Returns `{ok, results: [{session, display_name, tags, roles}...], total, succeeded, failed}`"
+  - "Unit tests for BatchTagParams (full + minimal)"
+  - "MCP integration tests: batch tag no matches + no operation error"
+  - "45 MCP tools total"
+  - "Zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - ".tasks/active/T-871-add-termlinkbatchtag-mcp-tool--tagrolere.md"
+  - ".tasks/completed/T-871-add-termlinkbatchtag-mcp-tool--tagrolere.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T23:59:56"
+    action: "T-871: Add termlink_batch_tag MCP tool — fleet-wide tag/role management, 45 MCP tools, 857 tests"
+  - time: "2026-04-05T00:00:18"
+    action: "T-871: Complete — batch tag for fleet-wide session management"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 4
+  lines_added: 370
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-871-add-termlinkbatchtag-mcp-tool--tagrolere.md
+generated_by: context-agent-hybrid

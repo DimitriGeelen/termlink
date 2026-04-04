@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-864: Add --name and --role flags to tag command and MCP tool
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T22:00:57Z
+# ============================================================================
+
+task_id: T-864
+task_name: "Add --name and --role flags to tag command and MCP tool"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T21:01:05Z
+completed: 2026-04-04T21:15:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T23:13:02+02:00
+last_commit: 2026-04-04T23:15:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --name and --role flags to tag command and MCP tool — rename sessions, manage roles at runtime, 836 tests. Fix verification commands for gate compliance. Complete — tag command now supports --name and --role flags
+
+# Key outcomes
+outcomes:
+  - "CLI `tag` command accepts `--name <NAME>` flag to rename a session"
+  - "CLI `tag` command accepts `--role <ROLE>` (set), `--add-role <ROLE>`, `--remove-role <ROLE>` flags"
+  - "MCP `termlink_tag` tool accepts optional `name` and `roles`/`add_roles`/`remove_roles` parameters"
+  - "`tag --json` output includes updated `display_name` and `roles` fields"
+  - "Integration test: rename a session via `tag --name`"
+  - "Integration test: set roles via `tag --role`"
+  - "MCP integration test: tag tool with name parameter"
+  - "All existing tag tests still pass"
+  - "Zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification commands for gate compliance"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - "crates/termlink-session/src/handler.rs"
+  - ".tasks/active/T-864-add---name-and---role-flags-to-tag-comma.md"
+  - ".tasks/completed/T-864-add---name-and---role-flags-to-tag-comma.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T23:13:02"
+    action: "T-864: Add --name and --role flags to tag command and MCP tool — rename sessions, manage roles at runtime, 836 tests"
+  - time: "2026-04-04T23:15:03"
+    action: "T-864: Fix verification commands for gate compliance"
+  - time: "2026-04-04T23:15:20"
+    action: "T-864: Complete — tag command now supports --name and --role flags"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 3
+  files_changed: 9
+  lines_added: 428
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-864-add---name-and---role-flags-to-tag-comma.md
+generated_by: context-agent-hybrid
