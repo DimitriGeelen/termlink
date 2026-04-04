@@ -366,6 +366,22 @@ pub struct SendParams {
     pub timeout: Option<u64>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct BatchExecParams {
+    /// Shell command to run on each matching session
+    pub command: String,
+    /// Filter by tag (sessions must have this tag)
+    pub tag: Option<String>,
+    /// Filter by role (sessions must have this role)
+    pub role: Option<String>,
+    /// Filter by display name (substring match)
+    pub name: Option<String>,
+    /// Timeout per session in seconds (default: 30)
+    pub timeout: Option<u64>,
+    /// Maximum parallel executions (default: 10)
+    pub max_parallel: Option<usize>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -2652,6 +2668,126 @@ impl TermLinkTools {
             .unwrap_or_else(json_err),
         }
     }
+
+    #[tool(
+        name = "termlink_batch_exec",
+        description = "Run a shell command across multiple sessions matching a filter (tag, role, name). Executes concurrently and returns per-session results with stdout/stderr/exit_code. Useful for fleet-wide operations like 'git status' across all workers or 'echo ready' to check liveness."
+    )]
+    async fn termlink_batch_exec(&self, Parameters(p): Parameters<BatchExecParams>) -> String {
+        let sessions = match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => return json_err(format!("failed to list sessions: {e}")),
+        };
+        let filtered: Vec<_> = sessions
+            .iter()
+            .filter(|s| {
+                if p.tag.as_ref().is_some_and(|tag| !s.tags.iter().any(|t| t == tag)) {
+                    return false;
+                }
+                if p.role.as_ref().is_some_and(|role| !s.roles.iter().any(|r| r == role)) {
+                    return false;
+                }
+                if p.name.as_ref().is_some_and(|name| !s.display_name.contains(name.as_str())) {
+                    return false;
+                }
+                true
+            })
+            .collect();
+
+        if filtered.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "results": [],
+                "total": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "message": "No sessions matched the filter"
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let timeout_secs = p.timeout.unwrap_or(30);
+        let max_parallel = p.max_parallel.unwrap_or(10);
+        let command = p.command.clone();
+
+        // Execute concurrently with a semaphore for max parallelism
+        let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(max_parallel));
+        let mut handles = Vec::new();
+
+        for reg in &filtered {
+            let sem = semaphore.clone();
+            let socket = reg.socket_path().to_path_buf();
+            let session_id = reg.id.as_str().to_string();
+            let display_name = reg.display_name.clone();
+            let cmd = command.clone();
+            let timeout = timeout_secs;
+
+            handles.push(tokio::spawn(async move {
+                let _permit = sem.acquire().await.unwrap();
+                let params = serde_json::json!({
+                    "command": cmd,
+                    "timeout": timeout,
+                });
+                let rpc_timeout = std::time::Duration::from_secs(timeout + 5);
+                match tokio::time::timeout(
+                    rpc_timeout,
+                    client::rpc_call(&socket, "command.exec", params),
+                )
+                .await
+                {
+                    Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                        Ok(val) => serde_json::json!({
+                            "session": session_id,
+                            "display_name": display_name,
+                            "ok": true,
+                            "stdout": val.get("stdout").and_then(|v| v.as_str()).unwrap_or(""),
+                            "stderr": val.get("stderr").and_then(|v| v.as_str()).unwrap_or(""),
+                            "exit_code": val.get("exit_code").and_then(|v| v.as_i64()).unwrap_or(-1),
+                        }),
+                        Err(e) => serde_json::json!({
+                            "session": session_id,
+                            "display_name": display_name,
+                            "ok": false,
+                            "error": e,
+                        }),
+                    },
+                    Ok(Err(e)) => serde_json::json!({
+                        "session": session_id,
+                        "display_name": display_name,
+                        "ok": false,
+                        "error": format!("connection failed: {e}"),
+                    }),
+                    Err(_) => serde_json::json!({
+                        "session": session_id,
+                        "display_name": display_name,
+                        "ok": false,
+                        "error": format!("timeout after {timeout}s"),
+                    }),
+                }
+            }));
+        }
+
+        let mut results = Vec::new();
+        for handle in handles {
+            match handle.await {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(serde_json::json!({"ok": false, "error": format!("task panic: {e}")})),
+            }
+        }
+
+        let total = results.len();
+        let succeeded = results.iter().filter(|r| r["ok"] == true).count();
+        let failed = total - succeeded;
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": failed == 0,
+            "results": results,
+            "total": total,
+            "succeeded": succeeded,
+            "failed": failed,
+        }))
+        .unwrap_or_else(json_err)
+    }
 }
 
 #[cfg(test)]
@@ -2840,6 +2976,37 @@ mod tests {
         assert_eq!(p.remove_roles.as_ref().unwrap(), &["idle"]);
         assert!(p.name.is_none());
         assert!(p.roles.is_none());
+    }
+
+    #[test]
+    fn batch_exec_params_full() {
+        let json = serde_json::json!({
+            "command": "echo hello",
+            "tag": "worker",
+            "role": "builder",
+            "name": "wk-",
+            "timeout": 60,
+            "max_parallel": 5
+        });
+        let p: BatchExecParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.command, "echo hello");
+        assert_eq!(p.tag.as_deref(), Some("worker"));
+        assert_eq!(p.role.as_deref(), Some("builder"));
+        assert_eq!(p.name.as_deref(), Some("wk-"));
+        assert_eq!(p.timeout, Some(60));
+        assert_eq!(p.max_parallel, Some(5));
+    }
+
+    #[test]
+    fn batch_exec_params_minimal() {
+        let json = serde_json::json!({"command": "date"});
+        let p: BatchExecParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.command, "date");
+        assert!(p.tag.is_none());
+        assert!(p.role.is_none());
+        assert!(p.name.is_none());
+        assert!(p.timeout.is_none());
+        assert!(p.max_parallel.is_none());
     }
 
     #[test]

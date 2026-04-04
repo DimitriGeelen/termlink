@@ -74,10 +74,11 @@ async fn test_list_tools() {
         "termlink_dispatch_status",
         "termlink_overview",
         "termlink_send",
+        "termlink_batch_exec",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 42, "expected at least 42 tools, got {}", tools.len());
+    assert!(tools.len() >= 43, "expected at least 43 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1361,7 +1362,7 @@ async fn test_overview_empty_workspace() {
     assert!(parsed["sessions"].as_array().unwrap().is_empty());
     assert!(parsed["runtime_dir"].is_string());
     assert!(parsed["version"].is_string());
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 42);
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 43);
 
     client.cancel().await.unwrap();
 }
@@ -2055,6 +2056,54 @@ async fn test_send_ping_live_session() {
     assert_eq!(parsed["target"], "send-target");
     assert_eq!(parsed["method"], "termlink.ping");
     assert!(parsed["result"].is_object(), "expected result object");
+
+    client.cancel().await.unwrap();
+}
+
+// === batch_exec tests ===
+
+#[tokio::test]
+async fn test_batch_exec_no_matches() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-batch-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_batch_exec", json!({
+        "command": "echo hello",
+        "tag": "nonexistent-tag"
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["total"], 0);
+    assert_eq!(parsed["succeeded"], 0);
+    assert!(parsed["message"].as_str().unwrap().contains("No sessions"), "should say no matches: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_batch_exec_filter_by_name() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-batch-filter");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Create two sessions — only one should match
+    let (_h1, _r1) = start_session(&dir.sessions_dir(), "batch-alpha", vec![]).await;
+    let (_h2, _r2) = start_session(&dir.sessions_dir(), "batch-beta", vec![]).await;
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_batch_exec", json!({
+        "command": "echo hello",
+        "name": "batch-alpha"
+    })).await;
+
+    // The exec will fail (no shell on test session) but we can verify filtering worked
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["total"], 1, "should match exactly one session: {text}");
 
     client.cancel().await.unwrap();
 }
