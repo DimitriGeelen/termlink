@@ -70,21 +70,21 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         anyhow::bail!("--auto-merge requires --isolate");
     }
 
-    // Validate --isolate requirements
+    // Validate --isolate and --workdir mutual exclusion (before git check so error is precise)
+    if isolate && workdir.is_some() {
+        if json_output {
+            super::json_error_exit(json!({"ok": false, "error": "--isolate and --workdir are mutually exclusive (--isolate sets workdir automatically)"}));
+        }
+        anyhow::bail!("--isolate and --workdir are mutually exclusive (--isolate sets workdir automatically)");
+    }
+
+    // Validate --isolate requires a git repository
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
-    if isolate {
-        if !crate::manifest::is_git_repo(&project_root) {
-            if json_output {
-                super::json_error_exit(json!({"ok": false, "error": "--isolate requires a git repository"}));
-            }
-            anyhow::bail!("--isolate requires a git repository");
+    if isolate && !crate::manifest::is_git_repo(&project_root) {
+        if json_output {
+            super::json_error_exit(json!({"ok": false, "error": "--isolate requires a git repository"}));
         }
-        if workdir.is_some() {
-            if json_output {
-                super::json_error_exit(json!({"ok": false, "error": "--isolate and --workdir are mutually exclusive (--isolate sets workdir automatically)"}));
-            }
-            anyhow::bail!("--isolate and --workdir are mutually exclusive (--isolate sets workdir automatically)");
-        }
+        anyhow::bail!("--isolate requires a git repository");
     }
 
     // Check hub is running (needed for collect)
