@@ -1378,7 +1378,7 @@ impl TermLinkTools {
                 }
             }
             Err(e) => {
-                return format!("Error scanning sessions: {e}");
+                return json_err(format!("scanning sessions: {e}"));
             }
         }
 
