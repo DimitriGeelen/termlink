@@ -416,6 +416,8 @@ pub(crate) enum Command {
         count: u64,
         #[arg(long)]
         payload_only: bool,
+        #[arg(long)]
+        since: Option<u64>,
     },
 
     /// List event topics from one or all sessions
@@ -1667,6 +1669,10 @@ pub(crate) enum EventCommand {
         /// Output only event payloads (one JSON per line)
         #[arg(long)]
         payload_only: bool,
+
+        /// Start from this sequence number (replay history from seq onwards)
+        #[arg(long)]
+        since: Option<u64>,
     },
 
     /// Emit an event to a session's event bus

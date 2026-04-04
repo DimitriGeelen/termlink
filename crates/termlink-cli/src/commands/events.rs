@@ -338,16 +338,22 @@ pub(crate) async fn cmd_emit_to(
     }
 }
 
+pub(crate) struct WatchOpts<'a> {
+    pub interval_ms: u64,
+    pub topic_filter: Option<&'a str>,
+    pub json: bool,
+    pub timeout_secs: u64,
+    pub max_count: u64,
+    pub payload_only: bool,
+    pub since: Option<u64>,
+}
+
 pub(crate) async fn cmd_watch(
     targets: Vec<String>,
-    interval_ms: u64,
-    topic_filter: Option<&str>,
-    json: bool,
-    timeout_secs: u64,
-    max_count: u64,
-    payload_only: bool,
+    opts: WatchOpts<'_>,
 ) -> Result<()> {
     use std::collections::HashMap;
+    let WatchOpts { interval_ms, topic_filter, json, timeout_secs, max_count, payload_only, since } = opts;
 
     // Resolve targets: if empty, watch all live sessions
     let registrations = if targets.is_empty() {
@@ -414,16 +420,16 @@ pub(crate) async fn cmd_watch(
         eprintln!();
     }
 
+    // Initialize cursors — use --since value if provided, otherwise start from live
     let mut cursors: HashMap<String, Option<u64>> = registrations
         .iter()
-        .map(|r| (r.id.as_str().to_string(), None))
+        .map(|r| (r.id.as_str().to_string(), since))
         .collect();
 
     // Use event.subscribe for push-based delivery. The server blocks until
     // events arrive (near-zero latency) instead of client-side sleep+poll.
-    // For multi-session, divide timeout across sessions to stay responsive.
-    let per_session_timeout = interval_ms / registrations.len().max(1) as u64;
-    let subscribe_timeout = per_session_timeout.max(100); // min 100ms to avoid busy-loop
+    // Subscribe calls are dispatched concurrently across sessions.
+    let subscribe_timeout = interval_ms.max(100); // min 100ms to avoid busy-loop
 
     let deadline = if timeout_secs > 0 {
         Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs))
@@ -443,7 +449,7 @@ pub(crate) async fn cmd_watch(
             break;
         }
 
-        // Check for Ctrl+C with zero-duration sleep (non-blocking check)
+        // Dispatch subscribe calls concurrently across all sessions
         tokio::select! {
             biased;
             _ = tokio::signal::ctrl_c() => {
@@ -453,26 +459,45 @@ pub(crate) async fn cmd_watch(
                 }
                 break;
             }
-            _ = async {
+            results = async {
+                let mut join_set = tokio::task::JoinSet::new();
                 for reg in &registrations {
-                    let sid = reg.id.as_str();
-                    let name = session_names.get(sid).map(|s| s.as_str()).unwrap_or(sid);
+                    let sid = reg.id.as_str().to_string();
+                    let addr = reg.socket_path().to_path_buf();
+                    let cursor = cursors.get(&sid).and_then(|c| *c);
+                    let topic = topic_filter.map(String::from);
+                    let timeout_ms = subscribe_timeout;
 
-                    let mut params = serde_json::json!({
-                        "timeout_ms": subscribe_timeout,
-                    });
-                    if let Some(cursor) = cursors.get(sid).and_then(|c| *c) {
-                        params["since"] = serde_json::json!(cursor);
-                    }
-                    if let Some(t) = topic_filter {
-                        params["topic"] = serde_json::json!(t);
-                    }
-
-                    let resp = match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
-                        Ok(r) => r,
-                        Err(_) => {
-                            continue;
+                    join_set.spawn(async move {
+                        let mut params = serde_json::json!({
+                            "timeout_ms": timeout_ms,
+                        });
+                        if let Some(c) = cursor {
+                            params["since"] = serde_json::json!(c);
                         }
+                        if let Some(t) = &topic {
+                            params["topic"] = serde_json::json!(t);
+                        }
+
+                        let resp = client::rpc_call(&addr, "event.subscribe", params).await;
+                        (sid, resp)
+                    });
+                }
+
+                let mut all_results = Vec::new();
+                while let Some(result) = join_set.join_next().await {
+                    if let Ok(r) = result {
+                        all_results.push(r);
+                    }
+                }
+                all_results
+            } => {
+                for (sid, resp) in results {
+                    let name = session_names.get(&sid).map(|s| s.as_str()).unwrap_or(&sid);
+
+                    let resp = match resp {
+                        Ok(r) => r,
+                        Err(_) => continue,
                     };
 
                     if let Ok(result) = client::unwrap_result(resp) {
@@ -491,7 +516,7 @@ pub(crate) async fn cmd_watch(
                                     println!("{}", serde_json::json!({
                                         "ok": true,
                                         "session": name,
-                                        "session_id": sid,
+                                        "session_id": &sid,
                                         "seq": seq,
                                         "topic": topic,
                                         "payload": payload,
@@ -508,18 +533,18 @@ pub(crate) async fn cmd_watch(
                                     );
                                 }
 
-                                cursors.insert(sid.to_string(), Some(seq));
+                                cursors.insert(sid.clone(), Some(seq));
                                 total_received += 1;
                             }
                         }
                         // Update cursor from next_seq if no events were returned
                         if let Some(next) = result["next_seq"].as_u64()
-                            && cursors.get(sid).and_then(|c| *c).is_none() && next > 0 {
-                                cursors.insert(sid.to_string(), Some(next.saturating_sub(1)));
+                            && cursors.get(&sid).and_then(|c| *c).is_none() && next > 0 {
+                                cursors.insert(sid.clone(), Some(next.saturating_sub(1)));
                             }
                     }
                 }
-            } => {}
+            }
         }
 
         if max_count > 0 && total_received >= max_count {
