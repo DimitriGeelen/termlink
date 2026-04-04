@@ -3,7 +3,7 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-04-04T21:47:34Z
+# Generated: 2026-04-04T22:00:57Z
 # ============================================================================
 
 task_id: T-869
@@ -17,11 +17,11 @@ completed: 2026-04-04T21:47:33Z
 duration_days: 0
 updates_count: 2
 first_commit: 2026-04-04T23:47:24+02:00
-last_commit: 2026-04-04T23:47:24+02:00
+last_commit: 2026-04-04T23:47:44+02:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  Add age field to CLI list --json output — consistent with MCP and table view
+  Add age field to CLI list --json output — consistent with MCP and table view. Complete — age field in CLI JSON output
 
 # Key outcomes
 outcomes:
@@ -41,17 +41,21 @@ decisions:
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
+  - ".context/episodic/T-869.yaml"
   - "crates/termlink-cli/src/commands/session.rs"
   - ".tasks/active/T-869-add-age-field-to-cli-list---json-output.md"
+  - ".tasks/completed/T-869-add-age-field-to-cli-list---json-output.md"
 
 # Timeline (auto-mined from git log)
 git_timeline:
   - time: "2026-04-04T23:47:24"
     action: "T-869: Add age field to CLI list --json output — consistent with MCP and table view"
+  - time: "2026-04-04T23:47:44"
+    action: "T-869: Complete — age field in CLI JSON output"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 1 commit(s), 1 min
+  # Completed successfully in 2 commit(s), 1 min
 
 # Related tasks
 related_tasks:
@@ -65,9 +69,9 @@ tags: []
 # Passive metrics (derived automatically — do not edit)
 metrics:
   wall_clock_minutes: 1
-  commits: 1
-  files_changed: 2
-  lines_added: 71
+  commits: 2
+  files_changed: 4
+  lines_added: 219
   lines_removed: 0
 
 # Metadata

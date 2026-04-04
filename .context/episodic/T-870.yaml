@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-870: Add termlink_batch_ping MCP tool — lightweight fleet health check
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T21:53:59Z
+# ============================================================================
+
+task_id: T-870
+task_name: "Add termlink_batch_ping MCP tool — lightweight fleet health check"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T21:47:57Z
+completed: 2026-04-04T21:53:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T23:53:18+02:00
+last_commit: 2026-04-04T23:53:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_batch_ping MCP tool — fleet health check with latency, 44 MCP tools, 853 tests. Complete — fleet health check with per-session latency and age
+
+# Key outcomes
+outcomes:
+  - "`BatchPingParams` struct with tag/role/name filters and timeout"
+  - "`termlink_batch_ping` tool pings all matching sessions concurrently"
+  - "Returns `{ok, results: [{session, display_name, alive, latency_ms, age}...], total, alive, dead}`"
+  - "Unit tests for BatchPingParams (full + empty)"
+  - "MCP integration tests: batch ping no matches + live sessions"
+  - "44 MCP tools total"
+  - "Zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/mcp_integration.rs"
+  - ".tasks/active/T-870-add-termlinkbatchping-mcp-tool--lightwei.md"
+  - ".tasks/completed/T-870-add-termlinkbatchping-mcp-tool--lightwei.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T23:53:18"
+    action: "T-870: Add termlink_batch_ping MCP tool — fleet health check with latency, 44 MCP tools, 853 tests"
+  - time: "2026-04-04T23:53:48"
+    action: "T-870: Complete — fleet health check with per-session latency and age"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 4
+  lines_added: 341
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-870-add-termlinkbatchping-mcp-tool--lightwei.md
+generated_by: context-agent-hybrid
