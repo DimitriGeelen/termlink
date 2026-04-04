@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-866: Add AGE column to termlink list — human-readable session uptime
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T21:31:42Z
+# ============================================================================
+
+task_id: T-866
+task_name: "Add AGE column to termlink list — human-readable session uptime"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T21:26:46Z
+completed: 2026-04-04T21:31:41Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T23:31:32+02:00
+last_commit: 2026-04-04T23:31:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add AGE column to termlink list — human-readable session uptime (6s/5m/2h/3d), 846 tests
+
+# Key outcomes
+outcomes:
+  - "`format_age` utility function converts Unix timestamp to \"Xs/Xm/Xh/Xd\" relative time string"
+  - "`termlink list` table includes AGE column between STATE and PID"
+  - "Unit tests for `format_age` edge cases (seconds, minutes, hours, days, invalid, future)"
+  - "Zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/session.rs"
+  - ".tasks/active/T-866-add-age-column-to-termlink-list--human-r.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T23:31:32"
+    action: "T-866: Add AGE column to termlink list — human-readable session uptime (6s/5m/2h/3d), 846 tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 142
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-866-add-age-column-to-termlink-list--human-r.md
+generated_by: context-agent-hybrid
