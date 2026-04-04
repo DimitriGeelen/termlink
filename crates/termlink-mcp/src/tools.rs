@@ -4,6 +4,7 @@ use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use termlink_protocol::format_age;
 use termlink_session::{client, manager};
 
 /// TermLink MCP server — exposes terminal orchestration as structured tools.
@@ -429,32 +430,6 @@ pub struct SessionInfo {
     pub roles: Vec<String>,
     pub capabilities: Vec<String>,
     pub metadata: serde_json::Value,
-}
-
-/// Format a Unix timestamp string ("1774791796Z") as a human-readable age.
-fn format_age(timestamp_str: &str) -> String {
-    let ts_str = timestamp_str.trim_end_matches('Z');
-    let ts: u64 = match ts_str.parse() {
-        Ok(v) => v,
-        Err(_) => return "?".to_string(),
-    };
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    if ts > now {
-        return "0s".to_string();
-    }
-    let diff = now - ts;
-    if diff < 60 {
-        format!("{}s", diff)
-    } else if diff < 3600 {
-        format!("{}m", diff / 60)
-    } else if diff < 86400 {
-        format!("{}h", diff / 3600)
-    } else {
-        format!("{}d", diff / 86400)
-    }
 }
 
 // === Tool implementations ===
