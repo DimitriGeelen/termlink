@@ -307,6 +307,8 @@ pub struct CollectParams {
     pub timeout_ms: Option<u64>,
     /// Per-session cursors for continuation (map of session_name → last_seen_seq)
     pub since: Option<serde_json::Value>,
+    /// Default sequence number for all sessions when no per-session cursor is provided. Use this to replay history from a specific point without knowing session IDs.
+    pub since_default: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -1964,6 +1966,9 @@ impl TermLinkTools {
         if let Some(ref since) = p.since {
             params["since"] = since.clone();
         }
+        if let Some(since_default) = p.since_default {
+            params["since_default"] = serde_json::json!(since_default);
+        }
 
         let rpc_timeout = std::time::Duration::from_millis(timeout_ms + 5000);
         match tokio::time::timeout(rpc_timeout, client::rpc_call(&hub_socket, "event.collect", params)).await {
@@ -3354,6 +3359,15 @@ mod tests {
         assert!(p.targets.is_none());
         assert!(p.topic.is_none());
         assert!(p.timeout_ms.is_none());
+        assert!(p.since.is_none());
+        assert!(p.since_default.is_none());
+    }
+
+    #[test]
+    fn collect_params_since_default() {
+        let json = serde_json::json!({"since_default": 42});
+        let p: CollectParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.since_default, Some(42));
         assert!(p.since.is_none());
     }
 
