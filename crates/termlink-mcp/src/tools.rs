@@ -393,10 +393,38 @@ pub struct SessionInfo {
     pub uid: u32,
     pub created_at: String,
     pub heartbeat_at: String,
+    /// Human-readable age (e.g., "3d", "2h", "45m", "12s")
+    pub age: String,
     pub tags: Vec<String>,
     pub roles: Vec<String>,
     pub capabilities: Vec<String>,
     pub metadata: serde_json::Value,
+}
+
+/// Format a Unix timestamp string ("1774791796Z") as a human-readable age.
+fn format_age(timestamp_str: &str) -> String {
+    let ts_str = timestamp_str.trim_end_matches('Z');
+    let ts: u64 = match ts_str.parse() {
+        Ok(v) => v,
+        Err(_) => return "?".to_string(),
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    if ts > now {
+        return "0s".to_string();
+    }
+    let diff = now - ts;
+    if diff < 60 {
+        format!("{}s", diff)
+    } else if diff < 3600 {
+        format!("{}m", diff / 60)
+    } else if diff < 86400 {
+        format!("{}h", diff / 3600)
+    } else {
+        format!("{}d", diff / 86400)
+    }
 }
 
 // === Tool implementations ===
@@ -467,6 +495,7 @@ impl TermLinkTools {
                         uid: s.uid,
                         created_at: s.created_at.clone(),
                         heartbeat_at: s.heartbeat_at.clone(),
+                        age: format_age(&s.created_at),
                         tags: s.tags.clone(),
                         roles: s.roles.clone(),
                         capabilities: s.capabilities.clone(),
@@ -1343,12 +1372,14 @@ impl TermLinkTools {
             .into_iter()
             .map(|reg| {
                 let alive = liveness::process_exists(reg.pid);
+                let age = format_age(&reg.created_at);
                 serde_json::json!({
                     "id": reg.id.as_str(),
                     "name": reg.display_name,
                     "state": reg.state.to_string(),
                     "alive": alive,
                     "pid": reg.pid,
+                    "age": age,
                     "tags": reg.tags,
                     "roles": reg.roles,
                 })
@@ -3131,6 +3162,7 @@ mod tests {
             uid: 1000,
             created_at: "2026-01-01T00:00:00Z".into(),
             heartbeat_at: "2026-01-01T00:01:00Z".into(),
+            age: "5d".into(),
             tags: vec!["prod".into()],
             roles: vec!["compute".into()],
             capabilities: vec!["execute".into()],
