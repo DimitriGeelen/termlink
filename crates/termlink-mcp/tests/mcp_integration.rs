@@ -322,7 +322,11 @@ async fn test_run_command() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_run", json!({"command": "echo hello-from-mcp"})).await;
 
-    assert!(text.contains("hello-from-mcp"), "expected output, got: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], true, "run should succeed: {text}");
+    assert_eq!(parsed["exit_code"], 0);
+    assert!(parsed["stdout"].as_str().unwrap_or("").contains("hello-from-mcp"));
 
     client.cancel().await.unwrap();
 }
@@ -336,7 +340,10 @@ async fn test_run_command_exit_code() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_run", json!({"command": "false"})).await;
 
-    assert!(text.contains("exit_code"), "expected exit code info: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], false, "run of false should not be ok");
+    assert_ne!(parsed["exit_code"], 0, "exit code should be non-zero");
 
     client.cancel().await.unwrap();
 }

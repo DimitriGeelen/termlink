@@ -802,24 +802,15 @@ impl TermLinkTools {
 
         match executor::execute(&p.command, None, None, Some(timeout), None).await {
             Ok(result) => {
-                let mut output = String::new();
-                if !result.stdout.is_empty() {
-                    output.push_str(&result.stdout);
-                }
-                if !result.stderr.is_empty() {
-                    if !output.is_empty() {
-                        output.push('\n');
-                    }
-                    output.push_str(&format!("[stderr] {}", result.stderr));
-                }
-                if result.exit_code != 0 {
-                    output.push_str(&format!("\n[exit_code: {}]", result.exit_code));
-                }
-                if output.is_empty() {
-                    format!("[exit_code: {}]", result.exit_code)
-                } else {
-                    output
-                }
+                let response = serde_json::json!({
+                    "ok": result.exit_code == 0,
+                    "exit_code": result.exit_code,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "command": p.command,
+                });
+                serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|e| format!("Error: {e}"))
             }
             Err(e) => format!("Error: {e}"),
         }
