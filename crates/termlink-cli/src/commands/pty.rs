@@ -125,46 +125,12 @@ pub(crate) async fn cmd_interact(
             full_output
         };
 
-        let marker_with_exit = format!("{marker} exit=");
-        let has_marker = output.contains(&marker_with_exit) && {
-            let mut found_digit = false;
-            for line in output.lines() {
-                if let Some(pos) = line.find(&marker_with_exit) {
-                    let after = &line[pos + marker_with_exit.len()..];
-                    if after.starts_with(|c: char| c.is_ascii_digit()) {
-                        found_digit = true;
-                        break;
-                    }
-                }
-            }
-            found_digit
-        };
-        if has_marker {
+        if has_marker(output, &marker) {
             let elapsed_ms = start.elapsed().as_millis();
 
-            let mut exit_code: Option<i32> = None;
-            for line in output.lines() {
-                if line.contains(&marker)
-                    && let Some(exit_str) = line.split("exit=").nth(1) {
-                        exit_code = exit_str.trim().parse().ok();
-                    }
-            }
+            let exit_code = parse_exit_code(output, &marker);
 
-            let clean_output = {
-                let after_cmd_echo = output.find('\n')
-                    .map(|pos| &output[pos + 1..])
-                    .unwrap_or(output);
-
-                if let Some(pos) = after_cmd_echo.find(&marker_with_exit) {
-                    let before = &after_cmd_echo[..pos];
-                    before.rfind('\n')
-                        .map(|nl| &after_cmd_echo[..nl])
-                        .unwrap_or("")
-                        .to_string()
-                } else {
-                    after_cmd_echo.to_string()
-                }
-            };
+            let clean_output = extract_clean_output(output, &marker);
 
             let final_output = if strip_ansi {
                 strip_ansi_codes(&clean_output)
@@ -531,19 +497,9 @@ async fn attach_loop(
                             let new_buffered = result["total_buffered"].as_u64().unwrap_or(0);
 
                             if new_buffered > last_buffered {
-                                let delta = (new_buffered - last_buffered) as usize;
                                 let output = result["output"].as_str().unwrap_or("");
                                 let output_bytes = output.as_bytes();
-
-                                // delta is computed from total scrollback, but output
-                                // only contains the last N bytes (e.g. 8192). When
-                                // delta exceeds the returned buffer, all returned
-                                // bytes are new — print the whole buffer.
-                                let new_data = if delta >= output_bytes.len() {
-                                    output_bytes
-                                } else {
-                                    &output_bytes[output_bytes.len() - delta..]
-                                };
+                                let new_data = compute_output_delta(output_bytes, last_buffered, new_buffered);
 
                                 if !new_data.is_empty() {
                                     let stdout = std::io::stdout();
@@ -831,4 +787,249 @@ async fn stream_loop(stream: tokio::net::UnixStream) -> Result<()> {
     }
 
     Ok(())
+}
+
+// === Extracted pure functions ===
+
+/// Check if the output contains the completion marker with a valid exit code.
+pub(crate) fn has_marker(output: &str, marker: &str) -> bool {
+    let marker_with_exit = format!("{marker} exit=");
+    output.contains(&marker_with_exit) && {
+        output.lines().any(|line| {
+            if let Some(pos) = line.find(&marker_with_exit) {
+                let after = &line[pos + marker_with_exit.len()..];
+                after.starts_with(|c: char| c.is_ascii_digit())
+            } else {
+                false
+            }
+        })
+    }
+}
+
+/// Extract the exit code from output containing a marker line.
+pub(crate) fn parse_exit_code(output: &str, marker: &str) -> Option<i32> {
+    for line in output.lines() {
+        if line.contains(marker) && let Some(exit_str) = line.split("exit=").nth(1) {
+            return exit_str.trim().parse().ok();
+        }
+    }
+    None
+}
+
+/// Strip the command echo (first line) and marker line from output,
+/// returning only the command's actual output.
+pub(crate) fn extract_clean_output(output: &str, marker: &str) -> String {
+    let marker_with_exit = format!("{marker} exit=");
+
+    let after_cmd_echo = output
+        .find('\n')
+        .map(|pos| &output[pos + 1..])
+        .unwrap_or(output);
+
+    if let Some(pos) = after_cmd_echo.find(&marker_with_exit) {
+        let before = &after_cmd_echo[..pos];
+        before
+            .rfind('\n')
+            .map(|nl| &after_cmd_echo[..nl])
+            .unwrap_or("")
+            .to_string()
+    } else {
+        after_cmd_echo.to_string()
+    }
+}
+
+/// Compute which bytes are new in a polled output buffer.
+///
+/// `buffer` is the latest output slice (e.g. last 8192 bytes).
+/// `last_buffered` / `new_buffered` are cumulative byte counters from the session.
+/// Returns the slice of `buffer` that represents new data since `last_buffered`.
+pub(crate) fn compute_output_delta(
+    buffer: &[u8],
+    last_buffered: u64,
+    new_buffered: u64,
+) -> &[u8] {
+    if new_buffered <= last_buffered {
+        return &[];
+    }
+    let delta = (new_buffered - last_buffered) as usize;
+    if delta >= buffer.len() {
+        buffer
+    } else {
+        &buffer[buffer.len() - delta..]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MARKER: &str = "___TERMLINK_DONE_abc_123___";
+
+    // --- has_marker tests ---
+
+    #[test]
+    fn has_marker_with_exit_code() {
+        let output = format!("some output\n{MARKER} exit=0\n$");
+        assert!(has_marker(&output, MARKER));
+    }
+
+    #[test]
+    fn has_marker_nonzero_exit() {
+        let output = format!("error output\n{MARKER} exit=127\n$");
+        assert!(has_marker(&output, MARKER));
+    }
+
+    #[test]
+    fn has_marker_without_exit_code() {
+        let output = format!("some output\n{MARKER}\n$");
+        assert!(!has_marker(&output, MARKER));
+    }
+
+    #[test]
+    fn has_marker_partial_marker() {
+        let output = format!("some output\n{MARKER} exit=\n$");
+        assert!(!has_marker(&output, MARKER), "exit= without digit should not match");
+    }
+
+    #[test]
+    fn has_marker_not_present() {
+        let output = "just regular output\nno marker here\n$";
+        assert!(!has_marker(output, MARKER));
+    }
+
+    #[test]
+    fn has_marker_empty_output() {
+        assert!(!has_marker("", MARKER));
+    }
+
+    #[test]
+    fn has_marker_embedded_in_longer_line() {
+        let output = format!("prefix {MARKER} exit=42 suffix");
+        assert!(has_marker(&output, MARKER));
+    }
+
+    // --- parse_exit_code tests ---
+
+    #[test]
+    fn parse_exit_code_zero() {
+        let output = format!("output\n{MARKER} exit=0\n$");
+        assert_eq!(parse_exit_code(&output, MARKER), Some(0));
+    }
+
+    #[test]
+    fn parse_exit_code_nonzero() {
+        let output = format!("output\n{MARKER} exit=1\n$");
+        assert_eq!(parse_exit_code(&output, MARKER), Some(1));
+    }
+
+    #[test]
+    fn parse_exit_code_127() {
+        let output = format!("output\n{MARKER} exit=127\n$");
+        assert_eq!(parse_exit_code(&output, MARKER), Some(127));
+    }
+
+    #[test]
+    fn parse_exit_code_no_marker() {
+        assert_eq!(parse_exit_code("no marker here", MARKER), None);
+    }
+
+    #[test]
+    fn parse_exit_code_marker_without_exit() {
+        let output = format!("{MARKER} something_else");
+        assert_eq!(parse_exit_code(&output, MARKER), None);
+    }
+
+    #[test]
+    fn parse_exit_code_negative() {
+        let output = format!("{MARKER} exit=-1");
+        assert_eq!(parse_exit_code(&output, MARKER), Some(-1));
+    }
+
+    // --- extract_clean_output tests ---
+
+    #[test]
+    fn extract_clean_output_normal() {
+        let output = format!("ls; echo \"{MARKER} exit=$?\"\nfile1.txt\nfile2.txt\n{MARKER} exit=0\n$");
+        let clean = extract_clean_output(&output, MARKER);
+        assert_eq!(clean, "file1.txt\nfile2.txt");
+    }
+
+    #[test]
+    fn extract_clean_output_single_line() {
+        let output = format!("echo hi; echo \"{MARKER} exit=$?\"\nhi\n{MARKER} exit=0\n$");
+        let clean = extract_clean_output(&output, MARKER);
+        assert_eq!(clean, "hi");
+    }
+
+    #[test]
+    fn extract_clean_output_empty_result() {
+        let output = format!("true; echo \"{MARKER} exit=$?\"\n{MARKER} exit=0\n$");
+        let clean = extract_clean_output(&output, MARKER);
+        assert_eq!(clean, "");
+    }
+
+    #[test]
+    fn extract_clean_output_no_marker() {
+        let output = "echo hi\nhi\n$";
+        let clean = extract_clean_output(output, MARKER);
+        assert_eq!(clean, "hi\n$");
+    }
+
+    #[test]
+    fn extract_clean_output_no_newline() {
+        let output = format!("{MARKER} exit=0");
+        let clean = extract_clean_output(&output, MARKER);
+        assert_eq!(clean, "");
+    }
+
+    // --- compute_output_delta tests ---
+
+    #[test]
+    fn delta_new_data_within_buffer() {
+        let buffer = b"hello world";
+        let new_data = compute_output_delta(buffer, 100, 105);
+        assert_eq!(new_data, b"world");
+    }
+
+    #[test]
+    fn delta_exceeds_buffer() {
+        let buffer = b"short";
+        let new_data = compute_output_delta(buffer, 0, 1000);
+        assert_eq!(new_data, buffer.as_slice());
+    }
+
+    #[test]
+    fn delta_exact_buffer_size() {
+        let buffer = b"exact";
+        let new_data = compute_output_delta(buffer, 100, 105);
+        assert_eq!(new_data, buffer.as_slice());
+    }
+
+    #[test]
+    fn delta_no_change() {
+        let buffer = b"anything";
+        let new_data = compute_output_delta(buffer, 100, 100);
+        assert!(new_data.is_empty());
+    }
+
+    #[test]
+    fn delta_backwards() {
+        let buffer = b"anything";
+        let new_data = compute_output_delta(buffer, 200, 100);
+        assert!(new_data.is_empty());
+    }
+
+    #[test]
+    fn delta_one_byte() {
+        let buffer = b"abcde";
+        let new_data = compute_output_delta(buffer, 50, 51);
+        assert_eq!(new_data, b"e");
+    }
+
+    #[test]
+    fn delta_empty_buffer() {
+        let buffer: &[u8] = &[];
+        let new_data = compute_output_delta(buffer, 0, 10);
+        assert!(new_data.is_empty());
+    }
 }
