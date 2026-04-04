@@ -4,16 +4,16 @@ name: "Add unit tests to termlink-mcp crate — parse_signal, parameter serde, f
 description: >
   Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter extraction
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-03T23:47:39Z
-last_update: 2026-04-03T23:47:39Z
-date_finished: null
+last_update: 2026-04-04T00:00:13Z
+date_finished: 2026-04-04T00:00:13Z
 ---
 
 # T-838: Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter extraction
@@ -35,7 +35,7 @@ The termlink-mcp crate (tools.rs: 2210 lines, server.rs: 412 lines) has zero uni
 
 cargo test -p termlink-mcp --lib 2>&1 | tail -5
 cargo test -p termlink -- session::tests 2>&1 | tail -5
-cargo clippy --workspace --all-targets 2>&1 | grep -c "warning:" | grep -q "^0$"
+test "$(cargo clippy --workspace --all-targets 2>&1 | grep -c 'warning:')" = "0"
 
 ## Decisions
 
@@ -54,3 +54,6 @@ cargo clippy --workspace --all-targets 2>&1 | grep -c "warning:" | grep -q "^0$"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-838-add-unit-tests-to-termlink-mcp-crate--pa.md
 - **Context:** Initial task creation
+
+### 2026-04-04T00:00:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

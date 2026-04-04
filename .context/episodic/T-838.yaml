@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-838: Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter extraction
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T00:00:14Z
+# ============================================================================
+
+task_id: T-838
+task_name: "Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter extraction"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-03T23:47:39Z
+completed: 2026-04-04T00:00:13Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-04T01:59:33+02:00
+last_commit: 2026-04-04T01:59:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 34 unit tests to MCP crate + extract session filter function — 749 total tests, 0 clippy warnings
+
+# Key outcomes
+outcomes:
+  - "`parse_signal` in tools.rs has tests covering all named signals, SIG-prefixed variants, numeric input, and invalid input"
+  - "Parameter struct deserialization tests verify required vs optional fields for at least 3 param types"
+  - "`filter_sessions` extracted as standalone function in CLI session.rs with unit tests for tag, name, role, and capability filtering"
+  - "All new tests pass: `cargo test -p termlink-mcp` and `cargo test -p termlink -- session::tests`"
+  - "Zero clippy warnings: `cargo clippy --workspace --all-targets`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-838-add-unit-tests-to-termlink-mcp-crate--pa.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T01:59:33"
+    action: "T-838: Add 34 unit tests to MCP crate + extract session filter function — 749 total tests, 0 clippy warnings"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 6
+  lines_added: 499
+  lines_removed: 34
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-838-add-unit-tests-to-termlink-mcp-crate--pa.md
+generated_by: context-agent-hybrid
