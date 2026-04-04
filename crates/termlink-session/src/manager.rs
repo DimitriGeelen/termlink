@@ -557,4 +557,123 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    /// Helper: write a fake registration that appears alive (uses current PID).
+    fn write_fake_registration(
+        sessions_dir: &Path,
+        name: &str,
+        tags: Vec<String>,
+        roles: Vec<String>,
+        caps: Vec<String>,
+    ) -> (crate::identity::SessionId, PathBuf) {
+        let id = crate::identity::SessionId::generate();
+        let socket_path = sessions_dir.join(format!("{id}.sock"));
+        let json_path = sessions_dir.join(format!("{id}.json"));
+        // Create fake socket so file exists
+        std::fs::write(&socket_path, b"fake").unwrap();
+
+        let config = SessionConfig {
+            display_name: Some(name.into()),
+            tags,
+            roles,
+            capabilities: caps,
+        };
+        let mut reg = Registration::new(id.clone(), config, socket_path);
+        reg.state = crate::SessionState::Ready;
+        // Keep current PID so liveness check passes
+        reg.write_atomic(&json_path).unwrap();
+        (id, json_path)
+    }
+
+    #[test]
+    fn find_session_in_by_id() {
+        let dir = unique_test_dir("find-id");
+        let (id, _) = write_fake_registration(&dir, "worker-a", vec![], vec![], vec![]);
+
+        let found = find_session_in(&dir, id.as_str()).unwrap();
+        assert_eq!(found.display_name, "worker-a");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn find_session_in_by_name() {
+        let dir = unique_test_dir("find-name");
+        write_fake_registration(&dir, "my-builder", vec![], vec![], vec![]);
+
+        let found = find_session_in(&dir, "my-builder").unwrap();
+        assert_eq!(found.display_name, "my-builder");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn find_session_in_not_found() {
+        let dir = unique_test_dir("find-404");
+        write_fake_registration(&dir, "exists", vec![], vec![], vec![]);
+
+        let result = find_session_in(&dir, "ghost");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            SessionError::NotFound(q) => assert_eq!(q, "ghost"),
+            other => panic!("Expected NotFound, got: {other:?}"),
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn find_session_in_ambiguous_name() {
+        let dir = unique_test_dir("find-ambig");
+        write_fake_registration(&dir, "worker", vec![], vec![], vec![]);
+        write_fake_registration(&dir, "worker", vec![], vec![], vec![]);
+
+        let result = find_session_in(&dir, "worker");
+        assert!(result.is_err());
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(err_msg.contains("Ambiguous"), "Expected ambiguous error, got: {err_msg}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn find_session_in_empty_dir() {
+        let dir = unique_test_dir("find-empty");
+        let result = find_session_in(&dir, "anything");
+        assert!(result.is_err());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn list_sessions_in_filters_stale() {
+        let dir = unique_test_dir("list-stale");
+
+        // Alive registration (current PID)
+        write_fake_registration(&dir, "alive-one", vec![], vec![], vec![]);
+
+        // Stale registration (dead PID)
+        let stale_id = crate::identity::SessionId::generate();
+        let stale_socket = dir.join(format!("{stale_id}.sock"));
+        let stale_json = dir.join(format!("{stale_id}.json"));
+        std::fs::write(&stale_socket, b"fake").unwrap();
+        let mut stale_reg = Registration::new(
+            stale_id,
+            SessionConfig { display_name: Some("dead-one".into()), ..Default::default() },
+            stale_socket,
+        );
+        stale_reg.pid = 4_000_000; // dead PID
+        stale_reg.write_atomic(&stale_json).unwrap();
+
+        // Without stale
+        let sessions = list_sessions_in(&dir, false).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].display_name, "alive-one");
+
+        // With stale
+        let sessions = list_sessions_in(&dir, true).unwrap();
+        assert_eq!(sessions.len(), 2);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
