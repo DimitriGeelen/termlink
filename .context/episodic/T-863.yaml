@@ -1,0 +1,133 @@
+# ============================================================================
+# EPISODIC MEMORY - T-863: Fix pre-push hook missing .agentic-framework audit path
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T20:50:09Z
+# ============================================================================
+
+task_id: T-863
+task_name: "Fix pre-push hook missing .agentic-framework audit path"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T20:43:14Z
+completed: 2026-04-04T20:50:08Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T22:46:22+02:00
+last_commit: 2026-04-04T22:46:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Commit housekeeping — 17 completed tasks, episodics, locks, context artifacts
+
+# Key outcomes
+outcomes:
+  - "Pre-push hook checks `$PROJECT_ROOT/.agentic-framework/agents/audit/audit.sh` path"
+  - "`git push origin main` succeeds (8 unpushed commits reach OneDev)"
+  - "Error message lists all checked paths including `.agentic-framework/`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-04.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/episodic/T-846.yaml"
+  - ".context/episodic/T-848.yaml"
+  - ".context/episodic/T-852.yaml"
+  - ".context/episodic/T-854.yaml"
+  - ".context/episodic/T-855.yaml"
+  - ".context/episodic/T-856.yaml"
+  - ".context/episodic/T-857.yaml"
+  - ".context/episodic/T-859.yaml"
+  - ".context/episodic/T-862.yaml"
+  - ".context/locks/T-847.lock"
+  - ".context/locks/T-848.lock"
+  - ".context/locks/T-849.lock"
+  - ".context/locks/T-850.lock"
+  - ".context/locks/T-851.lock"
+  - ".context/locks/T-852.lock"
+  - ".context/locks/T-853.lock"
+  - ".context/locks/T-854.lock"
+  - ".context/locks/T-855.lock"
+  - ".context/locks/T-856.lock"
+  - ".context/locks/T-857.lock"
+  - ".context/locks/T-858.lock"
+  - ".context/locks/T-859.lock"
+  - ".context/locks/T-860.lock"
+  - ".context/locks/T-861.lock"
+  - ".context/locks/T-862.lock"
+  - ".context/pickup/inbox/P-008-bug-report.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.agent-dispatch-counter"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/.dispatch-approval"
+  - ".context/working/.edit-counter"
+  - ".context/working/.session-metrics.yaml"
+  - ".tasks/active/T-260-pickup-from-fw-t-141-pre-push-hook-missi.md"
+  - ".tasks/active/T-842-add-mcp-tool-count-to-doctor-output-and-.md"
+  - ".tasks/active/T-843-add-unit-tests-for-pty-command-pure-func.md"
+  - ".tasks/active/T-844-add-mcp-integration-tests-for-untested-t.md"
+  - ".tasks/active/T-845-add-termlinktokeninspect-mcp-tool--decod.md"
+  - ".tasks/active/T-863-fix-pre-push-hook-missing-agentic-framew.md"
+  - ".tasks/completed/T-846-add-unit-tests-for-protocol-events-sessi.md"
+  - ".tasks/completed/T-847-add-termlinkfilereceive-mcp-tool--receiv.md"
+  - ".tasks/completed/T-848-add-termlinkdispatchstatus-mcp-tool--que.md"
+  - ".tasks/completed/T-849-add-mcp-integration-tests-for-termlinkex.md"
+  - ".tasks/completed/T-850-improve-termlinkexec-mcp-tool-to-return-.md"
+  - ".tasks/completed/T-851-improve-termlinkrun-mcp-tool-to-return-s.md"
+  - ".tasks/completed/T-852-improve-termlinkinteract-mcp-tool-to-ret.md"
+  - ".tasks/completed/T-853-add-termlinkoverview-mcp-tool--single-ca.md"
+  - ".tasks/completed/T-854-add-mcp-integration-tests-for-kv-operati.md"
+  - ".tasks/completed/T-855-add-unit-tests-for-hub-router-extractstr.md"
+  - ".tasks/completed/T-856-fix-dispatch-test-ordering-bug--mutual-e.md"
+  - ".tasks/completed/T-857-fix-flaky-clieventwaitjsonoutput-test--i.md"
+  - ".tasks/completed/T-858-add-termlinkdispatch-mcp-tool--spawn-n-w.md"
+  - ".tasks/completed/T-859-add-unit-tests-for-session-manager-finds.md"
+  - ".tasks/completed/T-860-add-filtering-to-termlinklistsessions-mc.md"
+  - ".tasks/completed/T-861-standardize-mcp-tool-error-responses-to-.md"
+  - ".tasks/completed/T-862-fix-remaining-plain-text-error-in-termli.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T22:46:22"
+    action: "T-863: Commit housekeeping — 17 completed tasks, episodics, locks, context artifacts"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 45
+  lines_added: 1162
+  lines_removed: 330
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-863-fix-pre-push-hook-missing-agentic-framew.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-872: termlink event subscribe CLI subcommand — direct event.subscribe exposure for scripting and debugging
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T23:30:26Z
+# ============================================================================
+
+task_id: T-872
+task_name: "termlink event subscribe CLI subcommand — direct event.subscribe exposure for scripting and debugging"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T22:36:53Z
+completed: 2026-04-04T22:49:22Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-05T00:49:01+02:00
+last_commit: 2026-04-05T00:49:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Concurrent multi-session watch + --since flag for event.subscribe CLI
+
+# Key outcomes
+outcomes:
+  - "`event watch` with multiple sessions dispatches subscribe calls concurrently via tokio::JoinSet"
+  - "`--since` flag added to `event watch` CLI, passed to event.subscribe RPC"
+  - "Existing watch tests still pass"
+  - "`cargo clippy --workspace` passes with no warnings (0 warnings)"
+  - "`cargo test --workspace` passes (857 tests, 0 failures)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-872-termlink-event-subscribe-cli-subcommand-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-05T00:49:01"
+    action: "T-872: Concurrent multi-session watch + --since flag for event.subscribe CLI"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 4
+  lines_added: 128
+  lines_removed: 34
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-872-termlink-event-subscribe-cli-subcommand-.md
+generated_by: context-agent-hybrid
