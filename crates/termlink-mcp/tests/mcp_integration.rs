@@ -72,10 +72,11 @@ async fn test_list_tools() {
         "termlink_version", "termlink_token_create", "termlink_token_inspect",
         "termlink_file_receive",
         "termlink_dispatch_status",
+        "termlink_overview",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 40, "expected at least 40 tools, got {}", tools.len());
+    assert!(tools.len() >= 41, "expected at least 41 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1268,6 +1269,59 @@ async fn test_pty_mode_nonexistent_session() {
     client.cancel().await.unwrap();
 }
 
+// ─── Overview Tests ───────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_overview_empty_workspace() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-overview-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_overview", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {result}"));
+
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["session_count"], 0);
+    assert!(parsed["sessions"].as_array().unwrap().is_empty());
+    assert!(parsed["runtime_dir"].is_string());
+    assert!(parsed["version"].is_string());
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 41);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_overview_with_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-overview-sessions");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h1, _r1) = start_session(&dir.sessions_dir(), "overview-s1", vec!["worker".into()]).await;
+    let (_h2, _r2) = start_session(&dir.sessions_dir(), "overview-s2", vec![]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_overview", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&result)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {result}"));
+
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["session_count"], 2);
+    let sessions = parsed["sessions"].as_array().unwrap();
+    assert_eq!(sessions.len(), 2);
+    // Check that session details include expected fields
+    assert!(sessions[0]["id"].is_string());
+    assert!(sessions[0]["name"].is_string());
+    assert!(sessions[0]["state"].is_string());
+    assert!(sessions[0]["alive"].is_boolean());
+
+    client.cancel().await.unwrap();
+    _h1.abort();
+    _h2.abort();
+}
+
 // ─── Exec Tests ───────────────────────────────────────────────────
 
 #[tokio::test]
@@ -1621,7 +1675,7 @@ async fn test_version() {
     assert!(parsed["commit"].is_string(), "commit should be a string");
     assert!(parsed["target"].is_string(), "target should be a string");
     assert!(parsed["mcp_tools"].is_number(), "mcp_tools should be a number");
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 40, "expected at least 40 tools");
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 41, "expected at least 41 tools");
 
     client.cancel().await.unwrap();
 }

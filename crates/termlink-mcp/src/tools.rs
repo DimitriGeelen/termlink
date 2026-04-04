@@ -1260,6 +1260,61 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_overview",
+        description = "Get a single-call overview of the TermLink workspace: active sessions, hub status, runtime directory, and version. Use this as a first call to understand the current environment before performing operations."
+    )]
+    async fn termlink_overview(&self) -> String {
+        use termlink_session::{discovery, liveness};
+
+        let runtime_dir = discovery::runtime_dir();
+        let sessions_dir = discovery::sessions_dir();
+
+        // Enumerate sessions
+        let sessions: Vec<serde_json::Value> = manager::list_sessions(false)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|reg| {
+                let alive = liveness::process_exists(reg.pid);
+                serde_json::json!({
+                    "id": reg.id.as_str(),
+                    "name": reg.display_name,
+                    "state": reg.state.to_string(),
+                    "alive": alive,
+                    "pid": reg.pid,
+                    "tags": reg.tags,
+                    "roles": reg.roles,
+                })
+            })
+            .collect();
+
+        let session_count = sessions.len();
+
+        // Hub status
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        let pidfile = termlink_hub::pidfile::hub_pidfile_path();
+        let hub_running = matches!(
+            termlink_hub::pidfile::check(&pidfile),
+            termlink_hub::pidfile::PidfileStatus::Running(_)
+        );
+
+        let version = env!("CARGO_PKG_VERSION");
+        let mcp_tools = crate::tool_count();
+
+        let response = serde_json::json!({
+            "ok": true,
+            "session_count": session_count,
+            "sessions": sessions,
+            "hub_running": hub_running,
+            "hub_socket": hub_socket.display().to_string(),
+            "runtime_dir": runtime_dir.display().to_string(),
+            "sessions_dir": sessions_dir.display().to_string(),
+            "version": version,
+            "mcp_tools": mcp_tools,
+        });
+        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
         name = "termlink_clean",
         description = "Remove stale TermLink sessions (dead processes) and orphaned sockets. Returns a report of what was cleaned. Use this to recover from crashed sessions or fix issues found by termlink_doctor."
     )]
