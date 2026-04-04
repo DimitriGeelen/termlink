@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T09:00:12Z
-last_update: 2026-04-04T09:00:12Z
+last_update: 2026-04-04T09:05:12Z
 date_finished: null
 ---
 
@@ -35,7 +35,7 @@ Extract pure logic from `cmd_interact` in pty.rs (marker detection, exit code pa
 
 ## Verification
 
-cargo test -p termlink --lib -- pty 2>&1 | tail -5
+cargo test -p termlink -- pty::tests 2>&1 | tail -5
 cargo test --workspace 2>&1 | tail -3
 test "$(cargo clippy --workspace --all-targets 2>&1 | grep -c 'warning:')" = "0"
 
