@@ -293,6 +293,14 @@ pub struct FileSendParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct FileReceiveParams {
+    /// Session ID or display name to receive the file from
+    pub target: String,
+    /// Directory to write the received file into (must exist)
+    pub output_dir: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct TokenCreateParams {
     /// Session ID or display name (must have --token-secret enabled)
     pub target: String,
@@ -2022,6 +2030,141 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_file_receive",
+        description = "Receive the most recent file from a target session's event stream. Polls the session's events for a completed file transfer (file.init + file.chunk + file.complete), reassembles the chunks, verifies SHA-256 integrity, and writes the file to the specified output directory."
+    )]
+    async fn termlink_file_receive(&self, Parameters(p): Parameters<FileReceiveParams>) -> String {
+        use base64::Engine;
+        use sha2::{Digest, Sha256};
+        use termlink_protocol::events::{file_topic, FileInit, FileChunk, FileComplete};
+
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: session '{}' not found: {e}", p.target),
+        };
+
+        let out_path = std::path::Path::new(&p.output_dir);
+        if !out_path.is_dir() {
+            return format!("Error: output directory '{}' does not exist or is not a directory", p.output_dir);
+        }
+
+        // Poll all events from the session
+        let timeout = std::time::Duration::from_secs(10);
+        let poll_result = match tokio::time::timeout(
+            timeout,
+            client::rpc_call(reg.socket_path(), "event.poll", serde_json::json!({})),
+        ).await {
+            Ok(Ok(resp)) => resp,
+            Ok(Err(e)) => return format!("Error: failed to poll events: {e}"),
+            Err(_) => return "Error: event poll timed out after 10s".into(),
+        };
+
+        let result = match client::unwrap_result(poll_result) {
+            Ok(r) => r,
+            Err(e) => return format!("Error: event poll failed: {e}"),
+        };
+
+        let events = match result["events"].as_array() {
+            Some(arr) => arr,
+            None => return "Error: no events array in poll response".into(),
+        };
+
+        // Find the last complete file transfer: scan for the last file.init
+        let mut last_init: Option<FileInit> = None;
+        for event in events.iter() {
+            let topic = event["topic"].as_str().unwrap_or("");
+            if topic == file_topic::INIT
+                && let Ok(init) = serde_json::from_value::<FileInit>(event["payload"].clone())
+            {
+                last_init = Some(init);
+            }
+        }
+
+        let init = match last_init {
+            Some(i) => i,
+            None => return "Error: no file transfer found in session events".into(),
+        };
+
+        // Collect chunks matching this transfer_id
+        let decoder = base64::engine::general_purpose::STANDARD;
+        let mut chunks: std::collections::BTreeMap<u32, Vec<u8>> = std::collections::BTreeMap::new();
+
+        for event in events.iter() {
+            let topic = event["topic"].as_str().unwrap_or("");
+            if topic == file_topic::CHUNK
+                && let Ok(chunk) = serde_json::from_value::<FileChunk>(event["payload"].clone())
+                && chunk.transfer_id == init.transfer_id
+            {
+                match decoder.decode(&chunk.data) {
+                    Ok(data) => { chunks.insert(chunk.index, data); }
+                    Err(e) => return format!("Error: invalid base64 in chunk {}: {e}", chunk.index),
+                }
+            }
+        }
+
+        if chunks.len() as u32 != init.total_chunks {
+            return format!(
+                "Error: incomplete transfer — got {}/{} chunks for transfer {}",
+                chunks.len(), init.total_chunks, init.transfer_id
+            );
+        }
+
+        // Find the file.complete event for SHA-256 verification
+        let mut expected_sha256: Option<String> = None;
+        for event in events.iter() {
+            let topic = event["topic"].as_str().unwrap_or("");
+            if topic == file_topic::COMPLETE
+                && let Ok(complete) = serde_json::from_value::<FileComplete>(event["payload"].clone())
+                && complete.transfer_id == init.transfer_id
+            {
+                expected_sha256 = Some(complete.sha256);
+            }
+        }
+
+        let expected_sha256 = match expected_sha256 {
+            Some(s) => s,
+            None => return format!("Error: no file.complete event for transfer {}", init.transfer_id),
+        };
+
+        // Reassemble file data
+        let mut file_data = Vec::new();
+        for i in 0..init.total_chunks {
+            match chunks.get(&i) {
+                Some(data) => file_data.extend_from_slice(data),
+                None => return format!("Error: missing chunk {}/{}", i, init.total_chunks),
+            }
+        }
+
+        // Verify SHA-256
+        let mut hasher = Sha256::new();
+        hasher.update(&file_data);
+        let actual_sha256 = format!("{:x}", hasher.finalize());
+
+        if actual_sha256 != expected_sha256 {
+            return format!(
+                "Error: SHA-256 mismatch — expected {expected_sha256}, got {actual_sha256}"
+            );
+        }
+
+        // Write file
+        let dest = out_path.join(&init.filename);
+        if let Err(e) = std::fs::write(&dest, &file_data) {
+            return format!("Error: failed to write file '{}': {e}", dest.display());
+        }
+
+        let response = serde_json::json!({
+            "ok": true,
+            "target": p.target,
+            "filename": init.filename,
+            "path": dest.display().to_string(),
+            "size": file_data.len(),
+            "sha256": actual_sha256,
+            "transfer_id": init.transfer_id,
+        });
+        serde_json::to_string_pretty(&response).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
         name = "termlink_hub_start",
         description = "Start the hub server in the background. The hub enables multi-session features like collect, broadcast, and discover. Returns immediately with hub pid and socket path. No-op if hub is already running."
     )]
@@ -2550,6 +2693,14 @@ mod tests {
         let p: FileSendParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.target, "remote-1");
         assert_eq!(p.path, "/tmp/data.tar.gz");
+    }
+
+    #[test]
+    fn file_receive_params_required() {
+        let json = serde_json::json!({"target": "worker-1", "output_dir": "/tmp/received"});
+        let p: FileReceiveParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "worker-1");
+        assert_eq!(p.output_dir, "/tmp/received");
     }
 
     #[test]

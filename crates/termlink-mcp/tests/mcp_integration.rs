@@ -70,10 +70,11 @@ async fn test_list_tools() {
         "termlink_interact", "termlink_doctor", "termlink_clean",
         "termlink_tag", "termlink_request", "termlink_resize",
         "termlink_version", "termlink_token_create", "termlink_token_inspect",
+        "termlink_file_receive",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 39, "expected at least 39 tools, got {}", tools.len());
+    assert!(tools.len() >= 40, "expected at least 40 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1378,6 +1379,46 @@ async fn test_file_send_nonexistent_file() {
     _h.abort();
 }
 
+// ─── File Receive Tests ───────────────────────────────────────────
+
+#[tokio::test]
+async fn test_file_receive_nonexistent_session() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-file-recv-noexist");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_file_receive", json!({
+        "target": "nonexistent",
+        "output_dir": "/tmp"
+    })).await;
+    assert!(result.contains("Error"), "should error for nonexistent session: {result}");
+    assert!(result.contains("not found"), "should mention not found: {result}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_file_receive_no_transfer() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-file-recv-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let (_h, _reg) = start_session(&dir.sessions_dir(), "empty-session", vec![]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let client = mcp_client().await;
+    let result = call(&client, "termlink_file_receive", json!({
+        "target": "empty-session",
+        "output_dir": "/tmp"
+    })).await;
+    assert!(result.contains("Error"), "should error when no file transfer: {result}");
+    assert!(result.contains("no file transfer"), "should mention no transfer: {result}");
+
+    client.cancel().await.unwrap();
+    _h.abort();
+}
+
 // ─── Agent Ask Tests ───────────────────────────────────────────────
 
 #[tokio::test]
@@ -1502,7 +1543,7 @@ async fn test_version() {
     assert!(parsed["commit"].is_string(), "commit should be a string");
     assert!(parsed["target"].is_string(), "target should be a string");
     assert!(parsed["mcp_tools"].is_number(), "mcp_tools should be a number");
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 39, "expected at least 39 tools");
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 40, "expected at least 40 tools");
 
     client.cancel().await.unwrap();
 }
