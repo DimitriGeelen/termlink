@@ -624,6 +624,21 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
     // Output results
     let collected_count = collected_events.len() as u64;
     let timed_out = collected_count < registered_count;
+    let total_elapsed = collect_start.elapsed();
+    let total_elapsed_secs = total_elapsed.as_secs_f64();
+
+    // Compute per-worker elapsed from event timestamps relative to collect_start
+    let collect_start_unix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .saturating_sub(total_elapsed.as_secs());
+    for event in &mut collected_events {
+        if let Some(ts) = event["timestamp"].as_u64() {
+            let worker_elapsed = ts.saturating_sub(collect_start_unix);
+            event["elapsed_secs"] = json!(worker_elapsed);
+        }
+    }
 
     if json_output {
         let mut result = json!({
@@ -633,6 +648,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
             "workers_registered": registered_count,
             "events_collected": collected_count,
             "timed_out": timed_out,
+            "elapsed_secs": (total_elapsed_secs * 10.0).round() / 10.0,
             "topic": topic,
             "results": collected_events,
         });
@@ -651,7 +667,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
         println!();
-        println!("Dispatch {dispatch_id} complete:");
+        println!("Dispatch {dispatch_id} complete ({:.1}s):", total_elapsed_secs);
         println!(
             "  Workers: {count} spawned, {registered_count} registered, {collected_count} reported"
         );
@@ -667,7 +683,8 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         for event in &collected_events {
             let worker = event["worker"].as_str().unwrap_or("?");
             let payload = &event["payload"];
-            println!("  [{worker}] {}", serde_json::to_string(payload)?);
+            let elapsed = event["elapsed_secs"].as_u64().map(|s| format!(" ({s}s)")).unwrap_or_default();
+            println!("  [{worker}]{elapsed} {}", serde_json::to_string(payload)?);
         }
 
         if isolate && !branch_names_created.is_empty() {
