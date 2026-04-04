@@ -2423,4 +2423,56 @@ mod tests {
             panic!("Expected error for missing topic");
         }
     }
+
+    // --- extract_string_array tests ---
+
+    #[test]
+    fn extract_string_array_with_strings() {
+        let params = json!({"tags": ["alpha", "beta", "gamma"]});
+        let result = extract_string_array(&params, "tags");
+        assert_eq!(result, vec!["alpha", "beta", "gamma"]);
+    }
+
+    #[test]
+    fn extract_string_array_missing_key() {
+        let params = json!({"other": "value"});
+        let result = extract_string_array(&params, "tags");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn extract_string_array_null_value() {
+        let params = json!({"tags": null});
+        let result = extract_string_array(&params, "tags");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn extract_string_array_non_array() {
+        let params = json!({"tags": "single-string"});
+        let result = extract_string_array(&params, "tags");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn extract_string_array_mixed_types() {
+        // Non-string elements should be filtered out
+        let params = json!({"items": ["valid", 42, "also-valid", true, null]});
+        let result = extract_string_array(&params, "items");
+        assert_eq!(result, vec!["valid", "also-valid"]);
+    }
+
+    #[test]
+    fn extract_string_array_empty_array() {
+        let params = json!({"tags": []});
+        let result = extract_string_array(&params, "tags");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn extract_string_array_empty_params() {
+        let params = json!({});
+        let result = extract_string_array(&params, "anything");
+        assert!(result.is_empty());
+    }
 }
