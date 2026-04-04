@@ -4,7 +4,7 @@ name: "Add MCP integration tests for termlink_version and termlink_token_create 
 description: >
   Add MCP integration tests for termlink_version and termlink_token_create tools
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T00:16:59Z
-last_update: 2026-04-04T00:16:59Z
-date_finished: null
+last_update: 2026-04-04T00:22:17Z
+date_finished: 2026-04-04T00:22:17Z
 ---
 
 # T-841: Add MCP integration tests for termlink_version and termlink_token_create tools
@@ -68,3 +68,6 @@ test "$(cargo clippy --workspace --all-targets 2>&1 | grep -c 'warning:')" = "0"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-841-add-mcp-integration-tests-for-termlinkve.md
 - **Context:** Initial task creation
+
+### 2026-04-04T00:22:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
