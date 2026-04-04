@@ -76,10 +76,11 @@ async fn test_list_tools() {
         "termlink_send",
         "termlink_batch_exec",
         "termlink_batch_ping",
+        "termlink_batch_tag",
     ] {
         assert!(names.iter().any(|n| n == expected), "missing tool: {expected}");
     }
-    assert!(tools.len() >= 44, "expected at least 44 tools, got {}", tools.len());
+    assert!(tools.len() >= 45, "expected at least 45 tools, got {}", tools.len());
 
     client.cancel().await.unwrap();
 }
@@ -1363,7 +1364,7 @@ async fn test_overview_empty_workspace() {
     assert!(parsed["sessions"].as_array().unwrap().is_empty());
     assert!(parsed["runtime_dir"].is_string());
     assert!(parsed["version"].is_string());
-    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 44);
+    assert!(parsed["mcp_tools"].as_u64().unwrap() >= 45);
 
     client.cancel().await.unwrap();
 }
@@ -2160,6 +2161,44 @@ async fn test_batch_ping_live_sessions() {
         assert!(r["age"].is_string(), "should have age");
         assert!(r["display_name"].as_str().unwrap().starts_with("ping-"));
     }
+
+    client.cancel().await.unwrap();
+}
+
+// === batch_tag tests ===
+
+#[tokio::test]
+async fn test_batch_tag_no_matches() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-btag-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_batch_tag", json!({
+        "filter_tag": "nonexistent",
+        "add_tags": ["test"]
+    })).await;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {text}"));
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["total"], 0);
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_batch_tag_no_operation() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-btag-noop");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_batch_tag", json!({
+        "filter_name": "something"
+    })).await;
+
+    assert!(text.contains("error"), "should error with no update operation: {text}");
 
     client.cancel().await.unwrap();
 }
