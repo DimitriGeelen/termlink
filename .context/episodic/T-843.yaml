@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-843: Add unit tests for PTY command pure functions — marker extraction, exit code parsing, output delta
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T09:07:33Z
+# ============================================================================
+
+task_id: T-843
+task_name: "Add unit tests for PTY command pure functions — marker extraction, exit code parsing, output delta"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T09:00:12Z
+completed: 2026-04-04T09:06:36Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-04T11:05:12+02:00
+last_commit: 2026-04-04T11:06:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Extract PTY pure functions and add 25 unit tests — 780 total tests, 0 clippy warnings. Fix verification command for binary crate
+
+# Key outcomes
+outcomes:
+  - "Extract `has_marker()` function — detects completion marker with exit code in output"
+  - "Extract `parse_exit_code()` function — extracts exit code from marker line"
+  - "Extract `extract_clean_output()` function — strips command echo and marker from output"
+  - "Extract `compute_output_delta()` function — calculates new bytes from buffered output"
+  - "Unit tests cover: marker found, marker not found, marker without exit code, exit code 0/1/127, multi-line output, empty output, delta edge cases (25 tests)"
+  - "`cargo test --workspace` passes (780 tests)"
+  - "`cargo clippy --workspace --all-targets` has no warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification command for binary crate"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/pty.rs"
+  - ".tasks/active/T-843-add-unit-tests-for-pty-command-pure-func.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T11:05:12"
+    action: "T-843: Extract PTY pure functions and add 25 unit tests — 780 total tests, 0 clippy warnings"
+  - time: "2026-04-04T11:06:29"
+    action: "T-843: Fix verification command for binary crate"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 2
+  lines_added: 309
+  lines_removed: 50
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-843-add-unit-tests-for-pty-command-pure-func.md
+generated_by: context-agent-hybrid
