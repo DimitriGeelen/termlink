@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-842: Add MCP tool count to doctor output and version string
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-04T08:58:13Z
+# ============================================================================
+
+task_id: T-842
+task_name: "Add MCP tool count to doctor output and version string"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-04T00:23:35Z
+completed: 2026-04-04T08:55:21Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-04T10:55:15+02:00
+last_commit: 2026-04-04T10:55:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add MCP tool count to version and doctor output — 38 MCP tools shown in CLI
+
+# Key outcomes
+outcomes:
+  - "`termlink_mcp` crate exposes a `pub fn tool_count() -> usize` function"
+  - "`termlink version` text output includes MCP tool count (e.g. `termlink 0.9.414 (e6d55ea) [x86_64-unknown-linux-gnu] — 38 MCP tools`)"
+  - "`termlink version --json` output includes `\"mcp_tools\"` field"
+  - "`termlink doctor` version check includes MCP tool count"
+  - "`cargo test --workspace` passes (755 tests)"
+  - "`cargo clippy --workspace --all-targets` has no warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-mcp/src/lib.rs"
+  - ".tasks/active/T-842-add-mcp-tool-count-to-doctor-output-and-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-04T10:55:15"
+    action: "T-842: Add MCP tool count to version and doctor output — 38 MCP tools shown in CLI"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 511 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 511
+  commits: 1
+  files_changed: 4
+  lines_added: 71
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-842-add-mcp-tool-count-to-doctor-output-and-.md
+generated_by: context-agent-hybrid
