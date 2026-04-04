@@ -13,31 +13,7 @@ use termlink_session::server;
 
 use crate::util::{parse_signal, truncate};
 
-/// Format a Unix timestamp string ("1774791796Z") as a human-readable age ("3d", "2h", "45m", "12s").
-fn format_age(timestamp_str: &str) -> String {
-    let ts_str = timestamp_str.trim_end_matches('Z');
-    let ts: u64 = match ts_str.parse() {
-        Ok(v) => v,
-        Err(_) => return "?".to_string(),
-    };
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    if ts > now {
-        return "0s".to_string();
-    }
-    let diff = now - ts;
-    if diff < 60 {
-        format!("{}s", diff)
-    } else if diff < 3600 {
-        format!("{}m", diff / 60)
-    } else if diff < 86400 {
-        format!("{}h", diff / 3600)
-    } else {
-        format!("{}d", diff / 86400)
-    }
-}
+use termlink_protocol::format_age;
 
 /// Filter a list of session registrations by tag, name, role, and capability.
 ///
@@ -1260,59 +1236,5 @@ mod tests {
         assert_eq!(original_names, after_names, "unknown sort key should preserve order");
     }
 
-    #[test]
-    fn format_age_seconds() {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        assert_eq!(format_age(&format!("{}Z", now - 30)), "30s");
-        assert_eq!(format_age(&format!("{}Z", now - 5)), "5s");
-        assert_eq!(format_age(&format!("{}Z", now)), "0s");
-    }
-
-    #[test]
-    fn format_age_minutes() {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        assert_eq!(format_age(&format!("{}Z", now - 120)), "2m");
-        assert_eq!(format_age(&format!("{}Z", now - 3540)), "59m");
-    }
-
-    #[test]
-    fn format_age_hours() {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        assert_eq!(format_age(&format!("{}Z", now - 3600)), "1h");
-        assert_eq!(format_age(&format!("{}Z", now - 7200)), "2h");
-    }
-
-    #[test]
-    fn format_age_days() {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        assert_eq!(format_age(&format!("{}Z", now - 86400)), "1d");
-        assert_eq!(format_age(&format!("{}Z", now - 604800)), "7d");
-    }
-
-    #[test]
-    fn format_age_invalid() {
-        assert_eq!(format_age("not-a-number"), "?");
-        assert_eq!(format_age(""), "?");
-    }
-
-    #[test]
-    fn format_age_future_timestamp() {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        assert_eq!(format_age(&format!("{}Z", now + 1000)), "0s");
-    }
+    // format_age tests moved to termlink-protocol crate (T-874)
 }
