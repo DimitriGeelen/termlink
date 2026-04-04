@@ -409,6 +409,10 @@ async fn handle_event_collect(
         .cloned()
         .unwrap_or_default();
 
+    // Global since_default: used as fallback when no per-session cursor exists.
+    // Enables --since flag at CLI level to replay history from a sequence number.
+    let since_default = params.get("since_default").and_then(|s| s.as_u64());
+
     let topic_filter = params.get("topic").and_then(|t| t.as_str());
 
     // Optional timeout_ms: when set, use event.subscribe (server-side blocking)
@@ -437,6 +441,8 @@ async fn handle_event_collect(
                 let mut p = json!({"timeout_ms": effective_timeout});
                 if let Some(seq_val) = since_map.get(&sid) {
                     p["since"] = seq_val.clone();
+                } else if let Some(default_seq) = since_default {
+                    p["since"] = json!(default_seq);
                 }
                 if let Some(t) = &topic_filter {
                     p["topic"] = json!(t);
@@ -446,6 +452,8 @@ async fn handle_event_collect(
                 let mut p = json!({});
                 if let Some(seq_val) = since_map.get(&sid) {
                     p["since"] = seq_val.clone();
+                } else if let Some(default_seq) = since_default {
+                    p["since"] = json!(default_seq);
                 }
                 if let Some(t) = &topic_filter {
                     p["topic"] = json!(t);

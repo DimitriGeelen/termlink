@@ -778,15 +778,21 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
     Ok(())
 }
 
+pub(crate) struct CollectOpts<'a> {
+    pub topic_filter: Option<&'a str>,
+    pub interval_ms: u64,
+    pub max_count: u64,
+    pub json: bool,
+    pub timeout_secs: u64,
+    pub payload_only: bool,
+    pub since: Option<u64>,
+}
+
 pub(crate) async fn cmd_collect(
     targets: Vec<String>,
-    topic_filter: Option<&str>,
-    interval_ms: u64,
-    max_count: u64,
-    json: bool,
-    timeout_secs: u64,
-    payload_only: bool,
+    opts: CollectOpts<'_>,
 ) -> Result<()> {
+    let CollectOpts { topic_filter, interval_ms, max_count, json, timeout_secs, payload_only, since } = opts;
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
         if json {
@@ -850,6 +856,9 @@ pub(crate) async fn cmd_collect(
                 }
                 if !cursors.as_object().unwrap_or(&serde_json::Map::new()).is_empty() {
                     params["since"] = cursors.clone();
+                } else if let Some(s) = since {
+                    // First iteration: use global --since as default for all sessions
+                    params["since_default"] = serde_json::json!(s);
                 }
 
                 client::rpc_call(&hub_socket, "event.collect", params).await
