@@ -449,6 +449,8 @@ pub(crate) enum Command {
         timeout: u64,
         #[arg(long)]
         payload_only: bool,
+        #[arg(long)]
+        since: Option<u64>,
     },
 
     /// Wait for a session to emit an event matching a topic, then exit
@@ -1813,6 +1815,10 @@ pub(crate) enum EventCommand {
         /// Output only event payloads (one JSON per line)
         #[arg(long)]
         payload_only: bool,
+
+        /// Start from this sequence number for all sessions (replay history)
+        #[arg(long)]
+        since: Option<u64>,
     },
 }
 
