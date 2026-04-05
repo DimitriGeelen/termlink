@@ -360,6 +360,8 @@ pub struct DispatchParams {
     pub cap: Option<Vec<String>>,
     /// Environment variables to set in workers (map of KEY → VALUE)
     pub env: Option<std::collections::HashMap<String, String>>,
+    /// Working directory for workers (each worker cd's into this before executing)
+    pub workdir: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -1997,6 +1999,7 @@ impl TermLinkTools {
         let tags = p.tags.unwrap_or_default();
         let cap = p.cap.unwrap_or_default();
         let env_vars = p.env.unwrap_or_default();
+        let workdir = p.workdir;
 
         // Generate unique dispatch ID
         let dispatch_id = format!(
@@ -2036,10 +2039,15 @@ impl TermLinkTools {
                 register_args.push(cap.join(","));
             }
 
-            let user_cmd = p.command.iter()
+            let raw_cmd = p.command.iter()
                 .map(|arg| shell_escape(arg))
                 .collect::<Vec<_>>()
                 .join(" ");
+            let user_cmd = if let Some(ref wd) = workdir {
+                format!("cd {} && {}", shell_escape(wd), raw_cmd)
+            } else {
+                raw_cmd
+            };
 
             let mut env_prefix = String::new();
             if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
@@ -4183,6 +4191,7 @@ mod tests {
         let env = p.env.as_ref().unwrap();
         assert_eq!(env.get("API_KEY").unwrap(), "secret");
         assert_eq!(env.get("DEBUG").unwrap(), "1");
+        assert!(p.workdir.is_none());
     }
 
     #[test]
@@ -4201,6 +4210,19 @@ mod tests {
         assert!(p.tags.is_none());
         assert!(p.cap.is_none());
         assert!(p.env.is_none());
+        assert!(p.workdir.is_none());
+    }
+
+    #[test]
+    fn dispatch_params_with_workdir() {
+        let json = serde_json::json!({
+            "count": 2,
+            "command": ["make", "test"],
+            "workdir": "/opt/project",
+        });
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.count, 2);
+        assert_eq!(p.workdir.as_deref(), Some("/opt/project"));
     }
 
     #[test]
