@@ -335,6 +335,8 @@ pub struct DispatchParams {
     pub tags: Option<Vec<String>>,
     /// Capabilities to advertise on workers (e.g., "code", "test")
     pub cap: Option<Vec<String>>,
+    /// Environment variables to set in workers (map of KEY → VALUE)
+    pub env: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -1913,6 +1915,7 @@ impl TermLinkTools {
         let roles = p.roles.unwrap_or_default();
         let tags = p.tags.unwrap_or_default();
         let cap = p.cap.unwrap_or_default();
+        let env_vars = p.env.unwrap_or_default();
 
         // Generate unique dispatch ID
         let dispatch_id = format!(
@@ -1964,6 +1967,10 @@ impl TermLinkTools {
             env_prefix.push_str(&format!("export TERMLINK_DISPATCH_ID={}; ", shell_escape(&dispatch_id)));
             env_prefix.push_str(&format!("export TERMLINK_ORCHESTRATOR={}; ", std::process::id()));
             env_prefix.push_str(&format!("export TERMLINK_WORKER_NAME={}; ", shell_escape(&worker_name)));
+            // User-supplied env vars
+            for (key, val) in &env_vars {
+                env_prefix.push_str(&format!("export {}={}; ", shell_escape(key), shell_escape(val)));
+            }
 
             let mut reg_parts = vec![termlink_bin.clone()];
             reg_parts.extend(register_args);
@@ -3809,6 +3816,7 @@ mod tests {
             "roles": ["worker"],
             "tags": ["team:infra"],
             "cap": ["code", "review"],
+            "env": {"API_KEY": "secret", "DEBUG": "1"},
         });
         let p: DispatchParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.count, 3);
@@ -3819,6 +3827,9 @@ mod tests {
         assert_eq!(p.roles.as_ref().unwrap(), &["worker"]);
         assert_eq!(p.tags.as_ref().unwrap(), &["team:infra"]);
         assert_eq!(p.cap.as_ref().unwrap(), &["code", "review"]);
+        let env = p.env.as_ref().unwrap();
+        assert_eq!(env.get("API_KEY").unwrap(), "secret");
+        assert_eq!(env.get("DEBUG").unwrap(), "1");
     }
 
     #[test]
@@ -3836,6 +3847,7 @@ mod tests {
         assert!(p.roles.is_none());
         assert!(p.tags.is_none());
         assert!(p.cap.is_none());
+        assert!(p.env.is_none());
     }
 
     #[test]

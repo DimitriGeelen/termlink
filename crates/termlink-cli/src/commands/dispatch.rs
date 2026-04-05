@@ -22,6 +22,7 @@ pub(crate) struct DispatchOpts {
     pub roles: Vec<String>,
     pub tags: Vec<String>,
     pub cap: Vec<String>,
+    pub env_vars: Vec<String>,
     pub backend: SpawnBackend,
     pub workdir: Option<std::path::PathBuf>,
     pub isolate: bool,
@@ -32,7 +33,7 @@ pub(crate) struct DispatchOpts {
 
 /// Run the `termlink dispatch` command.
 pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
-    let DispatchOpts { count, timeout, topic, name_prefix, roles, tags, cap, backend, workdir, isolate, auto_merge, json_output, command } = opts;
+    let DispatchOpts { count, timeout, topic, name_prefix, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json_output, command } = opts;
     if count == 0 {
         if json_output {
             super::json_error_exit(serde_json::json!({"ok": false, "error": "--count must be at least 1"}));
@@ -248,6 +249,16 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
                         effective_workdir.as_deref().unwrap_or(".")
                     ))
                 ));
+            }
+            // User-supplied --env KEY=VALUE pairs
+            for kv in &env_vars {
+                if let Some((key, val)) = kv.split_once('=') {
+                    env.push_str(&format!(
+                        "export {}={}; ",
+                        shell_escape(key),
+                        shell_escape(val)
+                    ));
+                }
             }
             env
         };
@@ -895,7 +906,8 @@ mod tests {
     fn test_opts() -> DispatchOpts {
         DispatchOpts {
             count: 1, timeout: 5, topic: "task.completed".into(), name_prefix: None,
-            roles: vec![], tags: vec![], cap: vec![], backend: SpawnBackend::Background,
+            roles: vec![], tags: vec![], cap: vec![], env_vars: vec![],
+            backend: SpawnBackend::Background,
             workdir: None, isolate: false, auto_merge: false, json_output: false,
             command: vec!["echo".into(), "hello".into()],
         }
