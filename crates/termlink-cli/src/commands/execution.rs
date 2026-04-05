@@ -300,6 +300,7 @@ pub(crate) struct SpawnOpts {
     pub roles: Vec<String>,
     pub tags: Vec<String>,
     pub cap: Vec<String>,
+    pub env_vars: Vec<String>,
     pub wait: bool,
     pub wait_timeout: u64,
     pub shell: bool,
@@ -309,12 +310,12 @@ pub(crate) struct SpawnOpts {
 }
 
 pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
-    let SpawnOpts { name, roles, tags, cap, wait, wait_timeout, shell, backend, json, command } = opts;
+    let SpawnOpts { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, command } = opts;
     let session_name = name.clone().unwrap_or_else(|| {
         format!("spawn-{}", std::process::id())
     });
 
-    let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, &cap, shell, &command)?;
+    let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, &cap, &env_vars, shell, &command)?;
 
     let resolved = resolve_spawn_backend(&backend);
     let spawn_result = match resolved {
@@ -397,6 +398,7 @@ fn build_spawn_shell_cmd(
     roles: &[String],
     tags: &[String],
     cap: &[String],
+    env_vars: &[String],
     shell: bool,
     command: &[String],
 ) -> Result<String> {
@@ -425,14 +427,25 @@ fn build_spawn_shell_cmd(
         register_args.push("--shell".to_string());
     }
 
+    // Build env prefix from runtime dir + user-supplied --env vars
+    let mut env_exports = String::new();
+    if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
+        env_exports.push_str(&format!("export TERMLINK_RUNTIME_DIR={}; ", shell_escape(&rd)));
+    }
+    for kv in env_vars {
+        if let Some((key, val)) = kv.split_once('=') {
+            env_exports.push_str(&format!("export {}={}; ", shell_escape(key), shell_escape(val)));
+        }
+    }
+
     let shell_cmd = if command.is_empty() {
         let mut parts = vec![termlink_path.to_string()];
         parts.extend(register_args.iter().cloned());
 
-        if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
-            format!("TERMLINK_RUNTIME_DIR={} {}", shell_escape(&rd), parts.join(" "))
-        } else {
+        if env_exports.is_empty() {
             parts.join(" ")
+        } else {
+            format!("{env_exports}{}", parts.join(" "))
         }
     } else {
         let mut reg_parts = vec![termlink_path.to_string()];
@@ -442,14 +455,9 @@ fn build_spawn_shell_cmd(
             .map(|arg| shell_escape(arg))
             .collect::<Vec<_>>()
             .join(" ");
-        let env_prefix = if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
-            format!("export TERMLINK_RUNTIME_DIR={}; ", shell_escape(&rd))
-        } else {
-            String::new()
-        };
 
         format!(
-            "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
+            "{env_exports}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
             reg_parts.join(" ")
         )
     };
@@ -555,7 +563,7 @@ mod tests {
 
     #[test]
     fn spawn_cmd_shell_only() {
-        let cmd = build_spawn_shell_cmd("demo", &[], &[], &[], true, &[]).unwrap();
+        let cmd = build_spawn_shell_cmd("demo", &[], &[], &[], &[], true, &[]).unwrap();
         // Should contain register with --name and --shell
         assert!(cmd.contains("register"), "should contain 'register': {cmd}");
         assert!(cmd.contains("--name"), "should contain '--name': {cmd}");
@@ -568,7 +576,7 @@ mod tests {
     #[test]
     fn spawn_cmd_with_command() {
         let cmd = build_spawn_shell_cmd(
-            "worker-1", &[], &[], &[], false,
+            "worker-1", &[], &[], &[], &[], false,
             &["echo".to_string(), "hello".to_string()],
         ).unwrap();
         // Should have background register + user command
@@ -584,6 +592,7 @@ mod tests {
             &["compute".into(), "storage".into()],
             &["prod".into()],
             &["execute".into()],
+            &[],
             true,
             &[],
         ).unwrap();
@@ -598,7 +607,7 @@ mod tests {
     #[test]
     fn spawn_cmd_empty_command_gets_shell() {
         // When command is empty, --shell should be added automatically
-        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], false, &[]).unwrap();
+        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], &[], false, &[]).unwrap();
         assert!(cmd.contains("--shell"), "empty command should force --shell: {cmd}");
     }
 
@@ -606,10 +615,18 @@ mod tests {
     fn spawn_cmd_with_command_no_shell() {
         // When command is provided and shell=false, --shell should NOT appear
         let cmd = build_spawn_shell_cmd(
-            "test", &[], &[], &[], false,
+            "test", &[], &[], &[], &[], false,
             &["ls".to_string()],
         ).unwrap();
         assert!(!cmd.contains("--shell"), "command mode should not have --shell: {cmd}");
+    }
+
+    #[test]
+    fn spawn_cmd_with_env_vars() {
+        let env = vec!["FOO=bar".to_string(), "BAZ=qux".to_string()];
+        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], &env, false, &["echo".into()]).unwrap();
+        assert!(cmd.contains("export FOO=bar"), "should export FOO: {cmd}");
+        assert!(cmd.contains("export BAZ=qux"), "should export BAZ: {cmd}");
     }
 
     // -- resolve_spawn_backend tests --

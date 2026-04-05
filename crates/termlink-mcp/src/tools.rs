@@ -147,6 +147,8 @@ pub struct SpawnParams {
     pub tags: Option<Vec<String>>,
     /// Capabilities to advertise (e.g., "code", "test", "review")
     pub cap: Option<Vec<String>>,
+    /// Environment variables to set in the session (map of KEY → VALUE)
+    pub env: Option<std::collections::HashMap<String, String>>,
     /// Command to run in the session (if empty, starts a shell)
     pub command: Option<Vec<String>>,
     /// Wait for session to register before returning (default: true)
@@ -856,6 +858,7 @@ impl TermLinkTools {
         let roles = p.roles.unwrap_or_default();
         let tags = p.tags.unwrap_or_default();
         let cap = p.cap.unwrap_or_default();
+        let env_vars = p.env.unwrap_or_default();
         let command = p.command.unwrap_or_default();
         let wait = p.wait.unwrap_or(true);
         let wait_timeout = p.wait_timeout.unwrap_or(10);
@@ -886,16 +889,26 @@ impl TermLinkTools {
             register_args.push("--shell".to_string());
         }
 
+        // Build env prefix from user-supplied env vars
+        let mut env_prefix = String::new();
+        for (key, val) in &env_vars {
+            env_prefix.push_str(&format!("export {}={}; ", shell_escape(key), shell_escape(val)));
+        }
+
         let shell_cmd = if command.is_empty() {
             let mut parts = vec![termlink_bin];
             parts.extend(register_args);
-            parts.join(" ")
+            if env_prefix.is_empty() {
+                parts.join(" ")
+            } else {
+                format!("{env_prefix}{}", parts.join(" "))
+            }
         } else {
             let mut reg_parts = vec![termlink_bin];
             reg_parts.extend(register_args);
             let user_cmd = command.join(" ");
             format!(
-                "{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
+                "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
                 reg_parts.join(" ")
             )
         };
@@ -3466,6 +3479,7 @@ mod tests {
         assert!(p.roles.is_none());
         assert!(p.tags.is_none());
         assert!(p.cap.is_none());
+        assert!(p.env.is_none());
         assert!(p.command.is_none());
         assert!(p.wait.is_none());
         assert!(p.wait_timeout.is_none());
@@ -3478,6 +3492,7 @@ mod tests {
             "roles": ["ci"],
             "tags": ["linux"],
             "cap": ["code", "test"],
+            "env": {"API_KEY": "abc123"},
             "command": ["make", "build"],
             "wait": true,
             "wait_timeout": 30
@@ -3485,6 +3500,7 @@ mod tests {
         let p: SpawnParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.name.as_deref(), Some("builder"));
         assert_eq!(p.cap.as_ref().unwrap(), &["code", "test"]);
+        assert_eq!(p.env.as_ref().unwrap().get("API_KEY").unwrap(), "abc123");
         assert_eq!(p.command.as_ref().unwrap(), &["make", "build"]);
         assert_eq!(p.wait, Some(true));
     }
