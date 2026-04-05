@@ -336,8 +336,9 @@ async fn test_wait_receives_event() {
     let text = call(&client, "termlink_wait",
         json!({"target": "mcp-wait-tgt", "topic": "test.done", "timeout": 5})).await;
 
-    assert!(!text.contains("Timeout"), "wait timed out: {text}");
-    assert!(text.contains("ok") || text.contains("Event received"), "unexpected: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "wait failed: {text}");
+    assert_eq!(parsed["topic"], "test.done");
 
     client.cancel().await.unwrap();
     _h.abort();
@@ -355,7 +356,9 @@ async fn test_wait_timeout() {
     let text = call(&client, "termlink_wait",
         json!({"target": "mcp-wait-to-tgt", "topic": "never.happens", "timeout": 1})).await;
 
-    assert!(text.contains("Timeout"), "expected timeout: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], false, "expected timeout: {text}");
+    assert!(parsed["error"].as_str().unwrap().contains("timeout"), "expected timeout: {text}");
 
     client.cancel().await.unwrap();
     _h.abort();
@@ -1022,7 +1025,9 @@ async fn test_request_timeout() {
         "timeout": 1
     })).await;
 
-    assert!(result.contains("Timeout"), "should timeout: {result}");
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["ok"], false, "should timeout: {result}");
+    assert!(parsed["error"].as_str().unwrap().contains("timeout"), "should timeout: {result}");
 
     client.cancel().await.unwrap();
 }
