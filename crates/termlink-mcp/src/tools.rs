@@ -451,6 +451,20 @@ pub struct BatchTagParams {
     pub remove_roles: Option<Vec<String>>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct BatchRunParams {
+    /// List of shell commands to execute in parallel ephemeral sessions
+    pub commands: Vec<String>,
+    /// Timeout per command in seconds (default: 30)
+    pub timeout: Option<u64>,
+    /// Working directory for all commands
+    pub cwd: Option<String>,
+    /// Environment variables for all commands (map of KEY → VALUE)
+    pub env: Option<std::collections::HashMap<String, String>>,
+    /// Maximum parallel executions (default: 10)
+    pub max_parallel: Option<usize>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -3368,6 +3382,81 @@ impl TermLinkTools {
         }))
         .unwrap_or_else(json_err)
     }
+
+    #[tool(
+        name = "termlink_batch_run",
+        description = "Execute multiple commands in parallel ephemeral sessions. Each command runs in its own isolated session and results are collected. Useful for parallelizing independent tasks like running tests in different directories, checking multiple repos, or executing independent build steps."
+    )]
+    async fn termlink_batch_run(&self, Parameters(p): Parameters<BatchRunParams>) -> String {
+        use termlink_session::executor;
+
+        if p.commands.is_empty() {
+            return json_err("commands list is empty");
+        }
+
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(30));
+        let max_parallel = p.max_parallel.unwrap_or(10);
+        let env = p.env.unwrap_or_default();
+        let cwd = p.cwd;
+
+        let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(max_parallel));
+        let env = std::sync::Arc::new(env);
+        let cwd = std::sync::Arc::new(cwd);
+        let mut handles = Vec::new();
+
+        for (i, command) in p.commands.iter().enumerate() {
+            let sem = semaphore.clone();
+            let cmd = command.clone();
+            let task_timeout = timeout;
+            let env = env.clone();
+            let cwd = cwd.clone();
+
+            handles.push(tokio::spawn(async move {
+                let _permit = sem.acquire().await.unwrap();
+                let env_ref = if env.is_empty() { None } else { Some(env.as_ref()) };
+                match executor::execute(&cmd, cwd.as_deref(), env_ref, Some(task_timeout), None).await {
+                    Ok(result) => serde_json::json!({
+                        "index": i,
+                        "command": cmd,
+                        "ok": result.exit_code == 0,
+                        "exit_code": result.exit_code,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                    }),
+                    Err(e) => serde_json::json!({
+                        "index": i,
+                        "command": cmd,
+                        "ok": false,
+                        "error": e.to_string(),
+                    }),
+                }
+            }));
+        }
+
+        let mut results = Vec::new();
+        for handle in handles {
+            match handle.await {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(serde_json::json!({"ok": false, "error": format!("task panic: {e}")})),
+            }
+        }
+
+        // Sort by index to maintain command order
+        results.sort_by_key(|r| r["index"].as_u64().unwrap_or(0));
+
+        let total = results.len();
+        let succeeded = results.iter().filter(|r| r["ok"] == true).count();
+        let failed = total - succeeded;
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": failed == 0,
+            "results": results,
+            "total": total,
+            "succeeded": succeeded,
+            "failed": failed,
+        }))
+        .unwrap_or_else(json_err)
+    }
 }
 
 #[cfg(test)]
@@ -3938,6 +4027,34 @@ mod tests {
         // Missing count
         let json = serde_json::json!({"command": ["echo"]});
         assert!(serde_json::from_value::<DispatchParams>(json).is_err());
+    }
+
+    #[test]
+    fn batch_run_params_full() {
+        let json = serde_json::json!({
+            "commands": ["echo a", "echo b", "echo c"],
+            "timeout": 15,
+            "cwd": "/tmp",
+            "env": {"FOO": "bar"},
+            "max_parallel": 5,
+        });
+        let p: BatchRunParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.commands.len(), 3);
+        assert_eq!(p.timeout, Some(15));
+        assert_eq!(p.cwd.as_deref(), Some("/tmp"));
+        assert_eq!(p.max_parallel, Some(5));
+        assert_eq!(p.env.as_ref().unwrap().get("FOO").unwrap(), "bar");
+    }
+
+    #[test]
+    fn batch_run_params_minimal() {
+        let json = serde_json::json!({"commands": ["ls"]});
+        let p: BatchRunParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.commands, vec!["ls"]);
+        assert!(p.timeout.is_none());
+        assert!(p.cwd.is_none());
+        assert!(p.env.is_none());
+        assert!(p.max_parallel.is_none());
     }
 
     #[test]
