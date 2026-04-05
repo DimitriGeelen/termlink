@@ -2260,6 +2260,8 @@ impl TermLinkTools {
         let version = env!("CARGO_PKG_VERSION");
         let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
         let target = option_env!("BUILD_TARGET").unwrap_or("unknown");
+        let registered_endpoints = self.endpoints.lock().await.len();
+        let mcp_tools = crate::tool_count();
 
         let result = serde_json::json!({
             "ok": true,
@@ -2275,6 +2277,8 @@ impl TermLinkTools {
                 "stale": stale,
                 "total": all,
             },
+            "mcp_tools": mcp_tools,
+            "registered_endpoints": registered_endpoints,
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
