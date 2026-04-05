@@ -4,16 +4,16 @@ name: "Add termlink_register MCP tool — self-registration for AI agent session
 description: >
   Add termlink_register MCP tool — self-registration for AI agent sessions
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-03T22:26:54Z
-last_update: 2026-04-03T22:27:47Z
-date_finished: null
+last_update: 2026-04-05T07:54:26Z
+date_finished: 2026-04-05T07:54:26Z
 ---
 
 # T-834: Add termlink_register MCP tool — self-registration for AI agent sessions
@@ -72,3 +72,6 @@ cargo clippy --workspace --all-targets
 
 ### 2026-04-03T22:27:47Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-05T07:54:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
