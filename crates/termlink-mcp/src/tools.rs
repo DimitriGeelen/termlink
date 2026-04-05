@@ -1,16 +1,30 @@
+use std::sync::Arc;
+
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 use termlink_protocol::format_age;
-use termlink_session::{client, manager};
+use termlink_session::{client, endpoint::EndpointHandle, manager};
 
 /// TermLink MCP server — exposes terminal orchestration as structured tools.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TermLinkTools {
     pub tool_router: ToolRouter<Self>,
+    /// Background endpoints registered via `termlink_register`.
+    endpoints: Arc<Mutex<Vec<EndpointHandle>>>,
+}
+
+impl std::fmt::Debug for TermLinkTools {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TermLinkTools")
+            .field("tool_router", &self.tool_router)
+            .field("endpoints", &"[...]")
+            .finish()
+    }
 }
 
 impl Default for TermLinkTools {
@@ -23,6 +37,7 @@ impl TermLinkTools {
     pub fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
+            endpoints: Arc::new(Mutex::new(Vec::new())),
         }
     }
 }
@@ -473,6 +488,24 @@ pub struct BatchRunParams {
 pub struct HelpParams {
     /// Filter by category: session, execution, events, kv, files, hub, batch, dispatch, tokens, diagnostics. Omit to see all.
     pub category: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RegisterParams {
+    /// Display name for this endpoint (e.g., "my-agent")
+    pub name: Option<String>,
+    /// Roles this endpoint provides (e.g., ["coder", "reviewer"])
+    pub roles: Option<Vec<String>>,
+    /// Tags for discovery (e.g., ["team-a", "gpu"])
+    pub tags: Option<Vec<String>>,
+    /// Capabilities (e.g., ["events", "kv"])
+    pub cap: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct DeregisterParams {
+    /// Session ID of the endpoint to deregister
+    pub session_id: String,
 }
 
 // === Result types ===
@@ -2904,6 +2937,8 @@ impl TermLinkTools {
                 ("termlink_discover", "Find sessions by tags/roles/capabilities"),
                 ("termlink_spawn", "Spawn a new session in the background"),
                 ("termlink_run", "Execute command in ephemeral session"),
+                ("termlink_register", "Register as a discoverable endpoint"),
+                ("termlink_deregister", "Deregister a previously registered endpoint"),
                 ("termlink_clean", "Remove stale session registrations"),
                 ("termlink_tag", "Update tags/roles on a session"),
                 ("termlink_overview", "Aggregated system overview"),
@@ -3575,6 +3610,64 @@ impl TermLinkTools {
         }))
         .unwrap_or_else(json_err)
     }
+
+    #[tool(
+        name = "termlink_register",
+        description = "Register this MCP server as a TermLink endpoint — makes it discoverable via termlink list/discover and able to receive events, KV operations, and status queries. The endpoint runs in the background for the lifetime of the MCP server. Returns the session ID immediately."
+    )]
+    async fn termlink_register(&self, Parameters(p): Parameters<RegisterParams>) -> String {
+        use termlink_session::registration::SessionConfig;
+
+        let config = SessionConfig {
+            display_name: p.name,
+            roles: p.roles.unwrap_or_default(),
+            tags: p.tags.unwrap_or_default(),
+            capabilities: p.cap.unwrap_or_default(),
+        };
+
+        let endpoint = match termlink_session::endpoint::Endpoint::start(config).await {
+            Ok(e) => e,
+            Err(e) => return json_err(format!("failed to register endpoint: {e}")),
+        };
+
+        let session_id = endpoint.id().to_string();
+        let socket_path = endpoint.socket_path().display().to_string();
+        let handle = endpoint.run_background();
+
+        self.endpoints.lock().await.push(handle);
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "session_id": session_id,
+            "socket_path": socket_path,
+            "mode": "endpoint",
+            "capabilities": ["events", "kv", "status"],
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_deregister",
+        description = "Deregister an endpoint previously created with termlink_register. Stops the background RPC server and removes the session from the hub."
+    )]
+    async fn termlink_deregister(&self, Parameters(p): Parameters<DeregisterParams>) -> String {
+        let mut endpoints = self.endpoints.lock().await;
+        let idx = endpoints.iter().position(|h| h.id().to_string() == p.session_id);
+
+        match idx {
+            Some(i) => {
+                let handle = endpoints.remove(i);
+                handle.stop();
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "session_id": p.session_id,
+                    "message": "endpoint deregistered",
+                }))
+                .unwrap_or_else(json_err)
+            }
+            None => json_err(format!("no registered endpoint with id '{}'", p.session_id)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -4173,6 +4266,44 @@ mod tests {
         assert!(p.cwd.is_none());
         assert!(p.env.is_none());
         assert!(p.max_parallel.is_none());
+    }
+
+    #[test]
+    fn register_params_full() {
+        let json = serde_json::json!({
+            "name": "my-agent",
+            "roles": ["coder", "reviewer"],
+            "tags": ["team-a"],
+            "cap": ["events", "kv"]
+        });
+        let p: RegisterParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.name.as_deref(), Some("my-agent"));
+        assert_eq!(p.roles.as_deref(), Some(&["coder".to_string(), "reviewer".to_string()][..]));
+        assert_eq!(p.tags.as_deref(), Some(&["team-a".to_string()][..]));
+        assert_eq!(p.cap.as_deref(), Some(&["events".to_string(), "kv".to_string()][..]));
+    }
+
+    #[test]
+    fn register_params_minimal() {
+        let json = serde_json::json!({});
+        let p: RegisterParams = serde_json::from_value(json).unwrap();
+        assert!(p.name.is_none());
+        assert!(p.roles.is_none());
+        assert!(p.tags.is_none());
+        assert!(p.cap.is_none());
+    }
+
+    #[test]
+    fn deregister_params() {
+        let json = serde_json::json!({"session_id": "abc-123"});
+        let p: DeregisterParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.session_id, "abc-123");
+    }
+
+    #[test]
+    fn deregister_params_missing_required() {
+        let json = serde_json::json!({});
+        assert!(serde_json::from_value::<DeregisterParams>(json).is_err());
     }
 
     #[test]

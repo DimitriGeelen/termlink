@@ -4,10 +4,10 @@ name: "Add termlink_register MCP tool — self-registration for AI agent session
 description: >
   Add termlink_register MCP tool — self-registration for AI agent sessions
 
-status: issues
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -20,40 +20,33 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Original blocker: `register --self` is blocking (runs until shutdown). Solved by using `Endpoint::run_background()` which returns an `EndpointHandle` that runs in a tokio background task. The MCP server holds handles in shared state — endpoints stay alive for the MCP server's lifetime and clean up on drop.
+
+Also adds `termlink_deregister` to allow explicit cleanup of registered endpoints.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `termlink_register` MCP tool accepts name, roles, tags, cap parameters
+- [x] Tool starts endpoint via `Endpoint::run_background()` and returns session ID immediately
+- [x] Endpoint handles stored in `Arc<Mutex<Vec<EndpointHandle>>>` on `TermLinkTools`
+- [x] `termlink_deregister` MCP tool accepts session ID and stops the matching endpoint
+- [x] Unit tests for RegisterParams and DeregisterParams deserialization
+- [x] All existing tests pass (`cargo test --workspace`)
+- [x] Zero clippy warnings (`cargo clippy --workspace --all-targets`)
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Register an endpoint via MCP tool and verify it appears in `termlink list`
+  **Steps:**
+  1. Call `termlink_register` with `{"name": "test-agent", "tags": ["mcp-test"]}`
+  2. Run `cd /opt/termlink && cargo run -- list --tag mcp-test`
+  **Expected:** Session appears with name "test-agent" and tag "mcp-test"
+  **If not:** Check MCP server logs for endpoint startup errors
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+cargo test --workspace
+cargo clippy --workspace --all-targets
 
 ## Decisions
 
