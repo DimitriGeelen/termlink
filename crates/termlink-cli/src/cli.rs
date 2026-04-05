@@ -674,6 +674,10 @@ pub(crate) enum Command {
         #[arg(long, value_delimiter = ',')]
         cap: Vec<String>,
 
+        /// Environment variables for the session (repeatable: --env KEY=VALUE)
+        #[arg(long = "env", value_name = "KEY=VALUE")]
+        env_vars: Vec<String>,
+
         /// Wait for the session to register before returning
         #[arg(long)]
         wait: bool,
