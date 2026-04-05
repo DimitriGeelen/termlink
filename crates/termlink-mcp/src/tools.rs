@@ -63,6 +63,8 @@ pub struct ExecParams {
     pub cwd: Option<String>,
     /// Timeout in seconds (default: 30)
     pub timeout: Option<u64>,
+    /// Environment variables to set (map of KEY → VALUE)
+    pub env: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -584,6 +586,9 @@ impl TermLinkTools {
         });
         if let Some(cwd) = &p.cwd {
             params["cwd"] = serde_json::json!(cwd);
+        }
+        if let Some(env) = &p.env {
+            params["env"] = serde_json::json!(env);
         }
 
         match client::rpc_call(reg.socket_path(), "command.execute", params).await {
