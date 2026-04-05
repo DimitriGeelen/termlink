@@ -12,6 +12,18 @@ pub use transport::TransportAddr;
 ///
 /// Returns "5s", "3m", "2h", or "7d" depending on elapsed time.
 /// Returns "?" for unparseable timestamps, "0s" for future timestamps.
+/// Protocol version for the data plane binary frames.
+pub const DATA_PLANE_VERSION: u8 = 1;
+
+/// Magic bytes for data plane frame sync: "TL" (0x54, 0x4C).
+pub const FRAME_MAGIC: [u8; 2] = [0x54, 0x4C];
+
+/// Fixed header size for data plane frames (including magic).
+pub const FRAME_HEADER_SIZE: usize = 22;
+
+/// Maximum payload size: 16 MiB.
+pub const MAX_PAYLOAD_SIZE: u32 = 16 * 1024 * 1024;
+
 pub fn format_age(timestamp_str: &str) -> String {
     let ts_str = timestamp_str.trim_end_matches('Z');
     let ts: u64 = match ts_str.parse() {
@@ -96,15 +108,3 @@ mod tests {
         assert_eq!(format_age(&format!("{}Z", now + 1000)), "0s");
     }
 }
-
-/// Protocol version for the data plane binary frames.
-pub const DATA_PLANE_VERSION: u8 = 1;
-
-/// Magic bytes for data plane frame sync: "TL" (0x54, 0x4C).
-pub const FRAME_MAGIC: [u8; 2] = [0x54, 0x4C];
-
-/// Fixed header size for data plane frames (including magic).
-pub const FRAME_HEADER_SIZE: usize = 22;
-
-/// Maximum payload size: 16 MiB.
-pub const MAX_PAYLOAD_SIZE: u32 = 16 * 1024 * 1024;
