@@ -250,12 +250,17 @@ async fn test_kv_set_get_list_del() {
     // Set
     let text = call(&client, "termlink_kv_set",
         json!({"target": "mcp-kv-target", "key": "status", "value": "active"})).await;
-    assert!(text.contains("Set") || text.contains("Updated"), "kv set failed: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "kv set failed: {text}");
+    assert_eq!(parsed["key"], "status");
 
     // Get
     let text = call(&client, "termlink_kv_get",
         json!({"target": "mcp-kv-target", "key": "status"})).await;
-    assert!(text.contains("active"), "expected 'active', got: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "kv get failed: {text}");
+    assert_eq!(parsed["found"], true);
+    assert_eq!(parsed["value"], "active");
 
     // List
     let text = call(&client, "termlink_kv_list",
@@ -265,12 +270,15 @@ async fn test_kv_set_get_list_del() {
     // Delete
     let text = call(&client, "termlink_kv_del",
         json!({"target": "mcp-kv-target", "key": "status"})).await;
-    assert!(text.contains("Deleted"), "kv del failed: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "kv del failed: {text}");
+    assert_eq!(parsed["deleted"], true);
 
     // Get deleted — not found
     let text = call(&client, "termlink_kv_get",
         json!({"target": "mcp-kv-target", "key": "status"})).await;
-    assert!(text.contains("not found"), "expected not found: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["found"], false, "expected not found: {text}");
 
     client.cancel().await.unwrap();
     _h.abort();
