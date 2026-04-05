@@ -172,6 +172,8 @@ pub struct SpawnParams {
     pub wait: Option<bool>,
     /// Wait timeout in seconds (default: 10)
     pub wait_timeout: Option<u64>,
+    /// Working directory for the spawned session (cd into before executing)
+    pub cwd: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -963,20 +965,22 @@ impl TermLinkTools {
             env_prefix.push_str(&format!("export {}={}; ", shell_escape(key), shell_escape(val)));
         }
 
+        let cd_prefix = if let Some(ref wd) = p.cwd {
+            format!("cd {} && ", shell_escape(wd))
+        } else {
+            String::new()
+        };
+
         let shell_cmd = if command.is_empty() {
             let mut parts = vec![termlink_bin];
             parts.extend(register_args);
-            if env_prefix.is_empty() {
-                parts.join(" ")
-            } else {
-                format!("{env_prefix}{}", parts.join(" "))
-            }
+            format!("{cd_prefix}{env_prefix}{}", parts.join(" "))
         } else {
             let mut reg_parts = vec![termlink_bin];
             reg_parts.extend(register_args);
             let user_cmd = command.join(" ");
             format!(
-                "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
+                "{cd_prefix}{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null",
                 reg_parts.join(" ")
             )
         };
@@ -3828,6 +3832,7 @@ mod tests {
         assert!(p.command.is_none());
         assert!(p.wait.is_none());
         assert!(p.wait_timeout.is_none());
+        assert!(p.cwd.is_none());
     }
 
     #[test]
@@ -3848,6 +3853,18 @@ mod tests {
         assert_eq!(p.env.as_ref().unwrap().get("API_KEY").unwrap(), "abc123");
         assert_eq!(p.command.as_ref().unwrap(), &["make", "build"]);
         assert_eq!(p.wait, Some(true));
+        assert!(p.cwd.is_none());
+    }
+
+    #[test]
+    fn spawn_params_with_cwd() {
+        let json = serde_json::json!({
+            "name": "builder",
+            "command": ["make"],
+            "cwd": "/opt/project",
+        });
+        let p: SpawnParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.cwd.as_deref(), Some("/opt/project"));
     }
 
     #[test]
