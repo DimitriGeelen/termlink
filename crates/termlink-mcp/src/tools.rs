@@ -33,6 +33,17 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// Shell-escape a string for safe embedding in sh -c commands.
+fn mcp_shell_escape(s: &str) -> String {
+    if s.is_empty() {
+        return "''".to_string();
+    }
+    if s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.' || c == '/' || c == ':') {
+        return s.to_string();
+    }
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
 // === Parameter types ===
 
 #[derive(Deserialize, JsonSchema)]
@@ -309,6 +320,24 @@ pub struct CollectParams {
     pub since: Option<serde_json::Value>,
     /// Default sequence number for all sessions when no per-session cursor is provided. Use this to replay history from a specific point without knowing session IDs.
     pub since_default: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct DispatchParams {
+    /// Number of workers to spawn (required, >= 1)
+    pub count: u32,
+    /// Command for each worker to execute (required)
+    pub command: Vec<String>,
+    /// Collection timeout in seconds (default: 120)
+    pub timeout: Option<u64>,
+    /// Event topic to collect (default: "task.completed")
+    pub topic: Option<String>,
+    /// Worker name prefix (default: "worker")
+    pub name_prefix: Option<String>,
+    /// Roles to assign to workers
+    pub roles: Option<Vec<String>>,
+    /// Tags to assign to workers
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -1847,6 +1876,254 @@ impl TermLinkTools {
             "expired": expired,
             "pending_dispatches": pending_details,
         });
+        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_dispatch",
+        description = "Atomic multi-worker dispatch: spawns N background workers, tags them with a dispatch ID, and collects results via the hub. Each worker runs the specified command. Returns structured results from all workers. Requires the hub to be running. Use this for fan-out/fan-in orchestration patterns where you need multiple sessions to work in parallel and collect their results."
+    )]
+    async fn termlink_dispatch(&self, Parameters(p): Parameters<DispatchParams>) -> String {
+        // Validate inputs
+        if p.count == 0 {
+            return json_err("count must be at least 1");
+        }
+        if p.command.is_empty() {
+            return json_err("command is required");
+        }
+
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running. Start it with: termlink hub start (dispatch requires the hub for event collection)");
+        }
+
+        let termlink_bin = match std::env::current_exe() {
+            Ok(p) => p.to_string_lossy().to_string(),
+            Err(e) => return json_err(format!("cannot determine termlink binary: {e}")),
+        };
+
+        let count = p.count;
+        let timeout = p.timeout.unwrap_or(120);
+        let topic = p.topic.unwrap_or_else(|| "task.completed".into());
+        let prefix = p.name_prefix.unwrap_or_else(|| "worker".into());
+        let roles = p.roles.unwrap_or_default();
+        let tags = p.tags.unwrap_or_default();
+
+        // Generate unique dispatch ID
+        let dispatch_id = format!(
+            "D-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        );
+
+        // Spawn N workers
+        let mut worker_names = Vec::with_capacity(count as usize);
+        let mut spawn_errors: Vec<String> = Vec::new();
+
+        for i in 1..=count {
+            let worker_name = format!("{prefix}-{i}");
+            worker_names.push(worker_name.clone());
+
+            let mut worker_tags = tags.clone();
+            worker_tags.push(format!("_dispatch.id:{dispatch_id}"));
+            worker_tags.push(format!("_dispatch.worker:{i}"));
+
+            let mut register_args = vec![
+                "register".to_string(),
+                "--name".to_string(),
+                worker_name.clone(),
+                "--tags".to_string(),
+                worker_tags.join(","),
+            ];
+            if !roles.is_empty() {
+                register_args.push("--roles".to_string());
+                register_args.push(roles.join(","));
+            }
+
+            let user_cmd = p.command.iter()
+                .map(|arg| mcp_shell_escape(arg))
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            let mut env_prefix = String::new();
+            if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
+                env_prefix.push_str(&format!("export TERMLINK_RUNTIME_DIR={}; ", mcp_shell_escape(&rd)));
+            }
+            env_prefix.push_str(&format!("export TERMLINK_DISPATCH_ID={}; ", mcp_shell_escape(&dispatch_id)));
+            env_prefix.push_str(&format!("export TERMLINK_ORCHESTRATOR={}; ", std::process::id()));
+            env_prefix.push_str(&format!("export TERMLINK_WORKER_NAME={}; ", mcp_shell_escape(&worker_name)));
+
+            let mut reg_parts = vec![termlink_bin.clone()];
+            reg_parts.extend(register_args);
+
+            let shell_cmd = format!(
+                "{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nwait $TL_PID",
+                reg_parts.join(" ")
+            );
+
+            match std::process::Command::new("setsid")
+                .args(["sh", "-c", &shell_cmd])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .stdin(std::process::Stdio::null())
+                .spawn()
+                .or_else(|_| {
+                    std::process::Command::new("sh")
+                        .args(["-c", &shell_cmd])
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .stdin(std::process::Stdio::null())
+                        .spawn()
+                }) {
+                Ok(_) => {}
+                Err(e) => spawn_errors.push(format!("{worker_name}: {e}")),
+            }
+        }
+
+        if spawn_errors.len() == count as usize {
+            return json_err(format!("All workers failed to spawn: {}", spawn_errors.join("; ")));
+        }
+
+        // Wait for workers to register
+        let register_timeout = std::time::Duration::from_secs(30);
+        let start = std::time::Instant::now();
+        let mut registered = vec![false; count as usize];
+
+        loop {
+            if registered.iter().all(|r| *r) {
+                break;
+            }
+            if start.elapsed() > register_timeout {
+                break;
+            }
+            for (i, name) in worker_names.iter().enumerate() {
+                if !registered[i] && manager::find_session(name).is_ok() {
+                    registered[i] = true;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+
+        let registered_count = registered.iter().filter(|r| **r).count() as u64;
+
+        // Collect events via hub
+        let collect_timeout = std::time::Duration::from_secs(timeout);
+        let subscribe_timeout_ms: u64 = 500;
+        let collect_start = std::time::Instant::now();
+        let mut cursors = serde_json::json!({});
+        let mut collected_events: Vec<serde_json::Value> = Vec::new();
+        let mut crashed_workers: Vec<String> = Vec::new();
+
+        loop {
+            if collected_events.len() as u64 >= registered_count {
+                break;
+            }
+            if collect_start.elapsed() > collect_timeout {
+                break;
+            }
+
+            let mut params = serde_json::json!({
+                "topic": topic,
+                "timeout_ms": subscribe_timeout_ms,
+            });
+            let target_names: Vec<&str> = worker_names
+                .iter()
+                .zip(registered.iter())
+                .filter(|(_, r)| **r)
+                .map(|(n, _)| n.as_str())
+                .collect();
+            if !target_names.is_empty() {
+                params["targets"] = serde_json::json!(target_names);
+            }
+            if !cursors.as_object().unwrap_or(&serde_json::Map::new()).is_empty() {
+                params["since"] = cursors.clone();
+            }
+
+            let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
+
+            if let Ok(result) = client::unwrap_result(resp) {
+                if let Some(events) = result["events"].as_array() {
+                    for event in events {
+                        let session_name = event["session_name"]
+                            .as_str()
+                            .unwrap_or("?")
+                            .to_string();
+                        collected_events.push(serde_json::json!({
+                            "worker": session_name,
+                            "payload": event["payload"],
+                            "seq": event["seq"],
+                            "timestamp": event["timestamp"],
+                        }));
+                    }
+                }
+
+                let has_events = result["events"]
+                    .as_array()
+                    .is_some_and(|a| !a.is_empty());
+                if has_events
+                    && let Some(new_cursors) = result.get("cursors")
+                    && let Some(obj) = new_cursors.as_object()
+                {
+                    for (k, v) in obj {
+                        cursors[k] = v.clone();
+                    }
+                }
+            }
+
+            // Early crash detection
+            let mut alive_remaining = 0u64;
+            for (i, name) in worker_names.iter().enumerate() {
+                if !registered[i] { continue; }
+                let has_result = collected_events.iter().any(|e| e["worker"].as_str() == Some(name.as_str()));
+                let already_dead = crashed_workers.iter().any(|d| d == name);
+                if has_result || already_dead { continue; }
+                if manager::find_session(name).is_err() {
+                    crashed_workers.push(name.clone());
+                } else {
+                    alive_remaining += 1;
+                }
+            }
+            if !crashed_workers.is_empty() && alive_remaining == 0 {
+                break;
+            }
+        }
+
+        // Cleanup: signal workers to exit
+        for name in &worker_names {
+            if let Ok(reg) = manager::find_session(name) {
+                unsafe { libc::kill(reg.pid as i32, libc::SIGTERM); }
+            }
+        }
+
+        // Build result
+        let collected_count = collected_events.len() as u64;
+        let timed_out = collected_count < registered_count;
+        let total_elapsed = collect_start.elapsed().as_secs_f64();
+
+        let mut result = serde_json::json!({
+            "ok": !timed_out && crashed_workers.is_empty(),
+            "dispatch_id": dispatch_id,
+            "workers_spawned": count,
+            "workers_registered": registered_count,
+            "events_collected": collected_count,
+            "timed_out": timed_out,
+            "elapsed_secs": (total_elapsed * 10.0).round() / 10.0,
+            "topic": topic,
+            "results": collected_events,
+        });
+        if !spawn_errors.is_empty() {
+            result["spawn_errors"] = serde_json::json!(spawn_errors);
+        }
+        if !crashed_workers.is_empty() {
+            result["crashed_workers"] = serde_json::json!(crashed_workers);
+        }
+
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
 
@@ -3507,5 +3784,75 @@ mod tests {
         let json = serde_json::json!({});
         let result = serde_json::from_value::<TokenInspectParams>(json);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn dispatch_params_full() {
+        let json = serde_json::json!({
+            "count": 3,
+            "command": ["echo", "hello"],
+            "timeout": 60,
+            "topic": "build.done",
+            "name_prefix": "builder",
+            "roles": ["worker"],
+            "tags": ["team:infra"],
+        });
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.count, 3);
+        assert_eq!(p.command, vec!["echo", "hello"]);
+        assert_eq!(p.timeout, Some(60));
+        assert_eq!(p.topic.as_deref(), Some("build.done"));
+        assert_eq!(p.name_prefix.as_deref(), Some("builder"));
+        assert_eq!(p.roles.as_ref().unwrap(), &["worker"]);
+        assert_eq!(p.tags.as_ref().unwrap(), &["team:infra"]);
+    }
+
+    #[test]
+    fn dispatch_params_minimal() {
+        let json = serde_json::json!({
+            "count": 1,
+            "command": ["ls"],
+        });
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.count, 1);
+        assert_eq!(p.command, vec!["ls"]);
+        assert!(p.timeout.is_none());
+        assert!(p.topic.is_none());
+        assert!(p.name_prefix.is_none());
+        assert!(p.roles.is_none());
+        assert!(p.tags.is_none());
+    }
+
+    #[test]
+    fn dispatch_params_missing_required() {
+        // Missing command
+        let json = serde_json::json!({"count": 1});
+        assert!(serde_json::from_value::<DispatchParams>(json).is_err());
+
+        // Missing count
+        let json = serde_json::json!({"command": ["echo"]});
+        assert!(serde_json::from_value::<DispatchParams>(json).is_err());
+    }
+
+    #[test]
+    fn mcp_shell_escape_safe_string() {
+        assert_eq!(mcp_shell_escape("hello"), "hello");
+        assert_eq!(mcp_shell_escape("path/to/file.txt"), "path/to/file.txt");
+    }
+
+    #[test]
+    fn mcp_shell_escape_special_chars() {
+        assert_eq!(mcp_shell_escape("hello world"), "'hello world'");
+        assert_eq!(mcp_shell_escape("a;b"), "'a;b'");
+    }
+
+    #[test]
+    fn mcp_shell_escape_single_quotes() {
+        assert_eq!(mcp_shell_escape("it's"), "'it'\\''s'");
+    }
+
+    #[test]
+    fn mcp_shell_escape_empty() {
+        assert_eq!(mcp_shell_escape(""), "''");
     }
 }
