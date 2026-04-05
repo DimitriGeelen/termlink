@@ -469,6 +469,12 @@ pub struct BatchRunParams {
     pub max_parallel: Option<usize>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct HelpParams {
+    /// Filter by category: session, execution, events, kv, files, hub, batch, dispatch, tokens, diagnostics. Omit to see all.
+    pub category: Option<String>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -2883,6 +2889,104 @@ impl TermLinkTools {
             "mcp_tools": tool_count,
         }))
         .unwrap_or_else(|_| format!("termlink {version} ({commit}) [{target}]"))
+    }
+
+    #[tool(
+        name = "termlink_help",
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, batch, dispatch, tokens, diagnostics."
+    )]
+    async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
+        let categories: Vec<(&str, Vec<(&str, &str)>)> = vec![
+            ("session", vec![
+                ("termlink_list_sessions", "List registered sessions with filtering"),
+                ("termlink_ping", "Ping a session to check liveness"),
+                ("termlink_status", "Get detailed session status"),
+                ("termlink_discover", "Find sessions by tags/roles/capabilities"),
+                ("termlink_spawn", "Spawn a new session in the background"),
+                ("termlink_run", "Execute command in ephemeral session"),
+                ("termlink_clean", "Remove stale session registrations"),
+                ("termlink_tag", "Update tags/roles on a session"),
+                ("termlink_overview", "Aggregated system overview"),
+            ]),
+            ("execution", vec![
+                ("termlink_exec", "Execute command on a session"),
+                ("termlink_interact", "Interactive command execution with stdin"),
+                ("termlink_signal", "Send signal to a session"),
+            ]),
+            ("events", vec![
+                ("termlink_emit", "Emit event on a session"),
+                ("termlink_emit_to", "Emit event to a target session"),
+                ("termlink_broadcast", "Broadcast event to all sessions"),
+                ("termlink_event_poll", "Poll session event bus"),
+                ("termlink_event_subscribe", "Subscribe to session events (long-poll)"),
+                ("termlink_wait", "Wait for specific event topic"),
+                ("termlink_collect", "Collect events from multiple sessions via hub"),
+                ("termlink_topics", "List event topics on a session"),
+            ]),
+            ("kv", vec![
+                ("termlink_kv_set", "Set key-value on session store"),
+                ("termlink_kv_get", "Get value from session store"),
+                ("termlink_kv_list", "List all keys in session store"),
+                ("termlink_kv_del", "Delete key from session store"),
+            ]),
+            ("files", vec![
+                ("termlink_file_send", "Send file to a session"),
+                ("termlink_file_receive", "Receive file from a session"),
+            ]),
+            ("hub", vec![
+                ("termlink_hub_status", "Check hub running status"),
+                ("termlink_hub_start", "Start the event hub"),
+                ("termlink_hub_stop", "Stop the event hub"),
+            ]),
+            ("batch", vec![
+                ("termlink_batch_exec", "Run command across multiple sessions"),
+                ("termlink_batch_ping", "Ping multiple sessions"),
+                ("termlink_batch_tag", "Tag/role operations across sessions"),
+                ("termlink_batch_run", "Run commands in parallel ephemeral sessions"),
+            ]),
+            ("dispatch", vec![
+                ("termlink_dispatch", "Atomic spawn+tag+collect for N workers"),
+                ("termlink_dispatch_status", "Check dispatch manifest status"),
+            ]),
+            ("tokens", vec![
+                ("termlink_token_create", "Create authentication token"),
+                ("termlink_token_inspect", "Inspect token contents"),
+            ]),
+            ("diagnostics", vec![
+                ("termlink_info", "Runtime info and paths"),
+                ("termlink_doctor", "Health check"),
+                ("termlink_version", "Version and build info"),
+                ("termlink_pty_mode", "Query terminal mode"),
+                ("termlink_output", "Read PTY output"),
+                ("termlink_inject", "Inject text into PTY"),
+                ("termlink_resize", "Resize PTY terminal"),
+                ("termlink_request", "Request-reply pattern"),
+                ("termlink_agent_ask", "Ask an agent session"),
+                ("termlink_send", "Send raw JSON-RPC"),
+            ]),
+        ];
+
+        let filter = p.category.as_deref();
+        let mut result = serde_json::json!({});
+        let mut tool_count = 0;
+
+        for (cat_name, tools) in &categories {
+            if let Some(f) = filter && *cat_name != f {
+                continue;
+            }
+            let tools_json: Vec<serde_json::Value> = tools.iter()
+                .map(|(name, desc)| serde_json::json!({"name": name, "description": desc}))
+                .collect();
+            tool_count += tools_json.len();
+            result[cat_name] = serde_json::json!(tools_json);
+        }
+
+        if filter.is_some() && tool_count == 0 {
+            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, batch, dispatch, tokens, diagnostics", filter.unwrap()));
+        }
+
+        result["total_tools"] = serde_json::json!(tool_count);
+        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
 
     #[tool(
