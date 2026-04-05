@@ -2224,3 +2224,81 @@ async fn test_batch_tag_no_operation() {
 
     client.cancel().await.unwrap();
 }
+
+// === Register / Deregister tests ===
+
+#[tokio::test]
+async fn test_register_creates_endpoint() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-register");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+
+    // Register an endpoint
+    let text = call(&client, "termlink_register", json!({
+        "name": "test-agent",
+        "tags": ["mcp-test"],
+        "roles": ["worker"],
+    })).await;
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "register failed: {text}");
+    let session_id = parsed["session_id"].as_str().unwrap().to_string();
+    assert!(!session_id.is_empty(), "session_id should not be empty");
+    assert_eq!(parsed["mode"], "endpoint");
+
+    // Verify it appears in list_sessions
+    let text = call(&client, "termlink_list_sessions", json!({})).await;
+    assert!(text.contains("test-agent"), "registered endpoint should appear in list: {text}");
+
+    // Deregister
+    let text = call(&client, "termlink_deregister", json!({
+        "session_id": session_id,
+    })).await;
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "deregister failed: {text}");
+
+    // Small delay for cleanup
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    // Verify it no longer appears
+    let text = call(&client, "termlink_list_sessions", json!({})).await;
+    assert!(!text.contains("test-agent"), "deregistered endpoint should not appear: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_deregister_invalid_id() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-dereg-bad");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+
+    let text = call(&client, "termlink_deregister", json!({
+        "session_id": "nonexistent-id",
+    })).await;
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], false, "should fail for invalid id: {text}");
+    assert!(parsed["error"].as_str().unwrap().contains("no registered endpoint"), "wrong error: {text}");
+
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_register_minimal() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-reg-min");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+
+    // Register with no parameters
+    let text = call(&client, "termlink_register", json!({})).await;
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "minimal register failed: {text}");
+    assert!(parsed["session_id"].as_str().is_some(), "should have session_id: {text}");
+
+    client.cancel().await.unwrap();
+}
