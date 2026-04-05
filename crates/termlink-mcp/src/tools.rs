@@ -130,6 +130,8 @@ pub struct WaitParams {
     pub topic: String,
     /// Timeout in seconds (default: 30)
     pub timeout: Option<u64>,
+    /// Start from this sequence number (replay history from seq onwards)
+    pub since: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -152,6 +154,8 @@ pub struct SpawnParams {
     pub roles: Option<Vec<String>>,
     /// Tags to assign
     pub tags: Option<Vec<String>>,
+    /// Capabilities to advertise (e.g., "code", "test", "review")
+    pub cap: Option<Vec<String>>,
     /// Command to run in the session (if empty, starts a shell)
     pub command: Option<Vec<String>>,
     /// Wait for session to register before returning (default: true)
@@ -338,6 +342,8 @@ pub struct DispatchParams {
     pub roles: Option<Vec<String>>,
     /// Tags to assign to workers
     pub tags: Option<Vec<String>>,
+    /// Capabilities to advertise on workers (e.g., "code", "test")
+    pub cap: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -856,6 +862,7 @@ impl TermLinkTools {
         let session_name = p.name.unwrap_or_else(|| format!("mcp-spawn-{}", std::process::id()));
         let roles = p.roles.unwrap_or_default();
         let tags = p.tags.unwrap_or_default();
+        let cap = p.cap.unwrap_or_default();
         let command = p.command.unwrap_or_default();
         let wait = p.wait.unwrap_or(true);
         let wait_timeout = p.wait_timeout.unwrap_or(10);
@@ -877,6 +884,10 @@ impl TermLinkTools {
         if !tags.is_empty() {
             register_args.push("--tags".to_string());
             register_args.push(tags.join(","));
+        }
+        if !cap.is_empty() {
+            register_args.push("--cap".to_string());
+            register_args.push(cap.join(","));
         }
         if command.is_empty() {
             register_args.push("--shell".to_string());
@@ -1728,8 +1739,10 @@ impl TermLinkTools {
         let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
         let subscribe_timeout: u64 = 5000; // 5s per subscribe call
 
-        // Check for already-existing events via poll (catches seq 0+), then subscribe for live
-        let mut cursor: Option<u64> = {
+        // If since is provided, start from that sequence; otherwise poll for existing events
+        let mut cursor: Option<u64> = if p.since.is_some() {
+            p.since
+        } else {
             let params = serde_json::json!({"topic": p.topic});
             match client::rpc_call(reg.socket_path(), "event.poll", params).await {
                 Ok(resp) => {
@@ -1908,6 +1921,7 @@ impl TermLinkTools {
         let prefix = p.name_prefix.unwrap_or_else(|| "worker".into());
         let roles = p.roles.unwrap_or_default();
         let tags = p.tags.unwrap_or_default();
+        let cap = p.cap.unwrap_or_default();
 
         // Generate unique dispatch ID
         let dispatch_id = format!(
@@ -1941,6 +1955,10 @@ impl TermLinkTools {
             if !roles.is_empty() {
                 register_args.push("--roles".to_string());
                 register_args.push(roles.join(","));
+            }
+            if !cap.is_empty() {
+                register_args.push("--cap".to_string());
+                register_args.push(cap.join(","));
             }
 
             let user_cmd = p.command.iter()
@@ -3449,6 +3467,7 @@ mod tests {
         assert!(p.name.is_none());
         assert!(p.roles.is_none());
         assert!(p.tags.is_none());
+        assert!(p.cap.is_none());
         assert!(p.command.is_none());
         assert!(p.wait.is_none());
         assert!(p.wait_timeout.is_none());
@@ -3460,12 +3479,14 @@ mod tests {
             "name": "builder",
             "roles": ["ci"],
             "tags": ["linux"],
+            "cap": ["code", "test"],
             "command": ["make", "build"],
             "wait": true,
             "wait_timeout": 30
         });
         let p: SpawnParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.name.as_deref(), Some("builder"));
+        assert_eq!(p.cap.as_ref().unwrap(), &["code", "test"]);
         assert_eq!(p.command.as_ref().unwrap(), &["make", "build"]);
         assert_eq!(p.wait, Some(true));
     }
@@ -3796,6 +3817,7 @@ mod tests {
             "name_prefix": "builder",
             "roles": ["worker"],
             "tags": ["team:infra"],
+            "cap": ["code", "review"],
         });
         let p: DispatchParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.count, 3);
@@ -3805,6 +3827,7 @@ mod tests {
         assert_eq!(p.name_prefix.as_deref(), Some("builder"));
         assert_eq!(p.roles.as_ref().unwrap(), &["worker"]);
         assert_eq!(p.tags.as_ref().unwrap(), &["team:infra"]);
+        assert_eq!(p.cap.as_ref().unwrap(), &["code", "review"]);
     }
 
     #[test]
@@ -3821,6 +3844,33 @@ mod tests {
         assert!(p.name_prefix.is_none());
         assert!(p.roles.is_none());
         assert!(p.tags.is_none());
+        assert!(p.cap.is_none());
+    }
+
+    #[test]
+    fn wait_params_with_since() {
+        let json = serde_json::json!({
+            "target": "worker-1",
+            "topic": "task.completed",
+            "timeout": 60,
+            "since": 42,
+        });
+        let p: WaitParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "worker-1");
+        assert_eq!(p.topic, "task.completed");
+        assert_eq!(p.timeout, Some(60));
+        assert_eq!(p.since, Some(42));
+    }
+
+    #[test]
+    fn wait_params_without_since() {
+        let json = serde_json::json!({
+            "target": "worker-1",
+            "topic": "task.completed",
+        });
+        let p: WaitParams = serde_json::from_value(json).unwrap();
+        assert!(p.since.is_none());
+        assert!(p.timeout.is_none());
     }
 
     #[test]
