@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-899: Add registered endpoint count to termlink_info MCP tool output
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-05T08:48:50Z
+# ============================================================================
+
+task_id: T-899
+task_name: "Add registered endpoint count to termlink_info MCP tool output"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-05T08:45:12Z
+completed: 2026-04-05T08:47:52Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-05T10:47:38+02:00
+last_commit: 2026-04-05T10:47:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add registered_endpoints and mcp_tools counts to termlink_info output
+
+# Key outcomes
+outcomes:
+  - "info output includes `registered_endpoints` count from shared state"
+  - "info output includes `mcp_tools` count"
+  - "All tests pass (881 total), zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-899-add-registered-endpoint-count-to-termlin.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-05T10:47:38"
+    action: "T-899: Add registered_endpoints and mcp_tools counts to termlink_info output"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 57
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-899-add-registered-endpoint-count-to-termlin.md
+generated_by: context-agent-hybrid
