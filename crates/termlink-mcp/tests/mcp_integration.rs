@@ -1685,7 +1685,9 @@ async fn test_agent_ask_timeout() {
         "params": {"code": "hello"},
         "timeout": 1
     })).await;
-    assert!(result.contains("Timeout"), "should timeout with no responder: {result}");
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["ok"], false, "should timeout with no responder: {result}");
+    assert!(parsed["error"].as_str().unwrap().contains("timeout"), "should timeout: {result}");
 
     client.cancel().await.unwrap();
     _h.abort();
