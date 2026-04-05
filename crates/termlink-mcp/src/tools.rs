@@ -419,6 +419,8 @@ pub struct BatchExecParams {
     pub timeout: Option<u64>,
     /// Maximum parallel executions (default: 10)
     pub max_parallel: Option<usize>,
+    /// Environment variables to set for the command (map of KEY → VALUE)
+    pub env: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -3081,6 +3083,7 @@ impl TermLinkTools {
         let timeout_secs = p.timeout.unwrap_or(30);
         let max_parallel = p.max_parallel.unwrap_or(10);
         let command = p.command.clone();
+        let env = std::sync::Arc::new(p.env);
 
         // Execute concurrently with a semaphore for max parallelism
         let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(max_parallel));
@@ -3093,13 +3096,17 @@ impl TermLinkTools {
             let display_name = reg.display_name.clone();
             let cmd = command.clone();
             let timeout = timeout_secs;
+            let env = env.clone();
 
             handles.push(tokio::spawn(async move {
                 let _permit = sem.acquire().await.unwrap();
-                let params = serde_json::json!({
+                let mut params = serde_json::json!({
                     "command": cmd,
                     "timeout": timeout,
                 });
+                if let Some(ref env_map) = *env {
+                    params["env"] = serde_json::json!(env_map);
+                }
                 let rpc_timeout = std::time::Duration::from_secs(timeout + 5);
                 match tokio::time::timeout(
                     rpc_timeout,
