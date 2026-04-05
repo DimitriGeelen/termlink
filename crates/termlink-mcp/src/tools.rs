@@ -1635,11 +1635,12 @@ impl TermLinkTools {
             serde_json::json!({ "cols": p.cols, "rows": p.rows }),
         ).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => format!(
-                    "Resized to {}x{}",
-                    result["cols"].as_u64().unwrap_or(p.cols as u64),
-                    result["rows"].as_u64().unwrap_or(p.rows as u64),
-                ),
+                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "cols": result["cols"].as_u64().unwrap_or(p.cols as u64),
+                    "rows": result["rows"].as_u64().unwrap_or(p.rows as u64),
+                }))
+                .unwrap_or_else(json_err),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
@@ -1712,10 +1713,10 @@ impl TermLinkTools {
         loop {
             let remaining = deadline.duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                return format!(
-                    "Timeout: no reply on '{}' within {}s (request_id: {})",
+                return json_err(format!(
+                    "timeout: no reply on '{}' within {}s (request_id: {})",
                     p.reply_topic, timeout_secs, request_id
-                );
+                ));
             }
 
             let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
@@ -1740,8 +1741,13 @@ impl TermLinkTools {
                                     .unwrap_or(true);
 
                                 if matches {
-                                    return serde_json::to_string_pretty(event_payload)
-                                        .unwrap_or_else(|_| "Reply received".into());
+                                    return serde_json::to_string_pretty(&serde_json::json!({
+                                        "ok": true,
+                                        "request_id": request_id,
+                                        "reply_topic": p.reply_topic,
+                                        "response": event_payload,
+                                    }))
+                                    .unwrap_or_else(json_err);
                                 }
                             }
 
@@ -1832,16 +1838,12 @@ impl TermLinkTools {
                         // Check if matching event already exists
                         if let Some(events) = result["events"].as_array()
                             && let Some(event) = events.first() {
-                                let payload = &event["payload"];
-                                let text = if payload.is_null()
-                                    || payload.as_object().is_some_and(|o| o.is_empty())
-                                {
-                                    format!("Event received: {}", p.topic)
-                                } else {
-                                    serde_json::to_string_pretty(payload)
-                                        .unwrap_or_else(|_| format!("Event received: {}", p.topic))
-                                };
-                                return text;
+                                return serde_json::to_string_pretty(&serde_json::json!({
+                                    "ok": true,
+                                    "topic": p.topic,
+                                    "event": event,
+                                }))
+                                .unwrap_or_else(json_err);
                             }
                         result["next_seq"].as_u64().map(|n| n.saturating_sub(1))
                     } else {
@@ -1855,7 +1857,10 @@ impl TermLinkTools {
         loop {
             let remaining = deadline.duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                return format!("Timeout waiting for event topic '{}' ({}s)", p.topic, timeout_secs);
+                return json_err(format!(
+                    "timeout waiting for event topic '{}' ({}s)",
+                    p.topic, timeout_secs
+                ));
             }
 
             let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
@@ -1872,15 +1877,12 @@ impl TermLinkTools {
                     if let Ok(result) = client::unwrap_result(resp) {
                         if let Some(events) = result["events"].as_array()
                             && let Some(event) = events.first() {
-                                let payload = &event["payload"];
-                                return if payload.is_null()
-                                    || payload.as_object().is_some_and(|o| o.is_empty())
-                                {
-                                    format!("Event received: {}", p.topic)
-                                } else {
-                                    serde_json::to_string_pretty(payload)
-                                        .unwrap_or_else(|_| format!("Event received: {}", p.topic))
-                                };
+                                return serde_json::to_string_pretty(&serde_json::json!({
+                                    "ok": true,
+                                    "topic": p.topic,
+                                    "event": event,
+                                }))
+                                .unwrap_or_else(json_err);
                             }
                         if let Some(next) = result["next_seq"].as_u64() {
                             cursor = Some(next.saturating_sub(1));
