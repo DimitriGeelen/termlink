@@ -297,7 +297,9 @@ async fn test_emit_and_event_poll() {
     // Emit
     let text = call(&client, "termlink_emit",
         json!({"target": "mcp-events-tgt", "topic": "test.hello", "payload": {"msg": "world"}})).await;
-    assert!(text.contains("Emitted"), "emit failed: {text}");
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["ok"], true, "emit failed: {text}");
+    assert_eq!(parsed["topic"], "test.hello");
 
     // Poll
     let text = call(&client, "termlink_event_poll",
@@ -819,9 +821,12 @@ async fn test_tag_add() {
         "add": ["project:alpha", "env:staging"]
     })).await;
 
-    assert!(result.contains("Updated"), "should confirm update: {result}");
-    assert!(result.contains("project:alpha"), "should include added tag: {result}");
-    assert!(result.contains("env:staging"), "should include added tag: {result}");
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["ok"], true, "should confirm update: {result}");
+    let tags = parsed["tags"].as_array().unwrap();
+    let tag_strs: Vec<&str> = tags.iter().filter_map(|t| t.as_str()).collect();
+    assert!(tag_strs.contains(&"project:alpha"), "should include added tag: {result}");
+    assert!(tag_strs.contains(&"env:staging"), "should include added tag: {result}");
 
     client.cancel().await.unwrap();
 }
@@ -841,15 +846,19 @@ async fn test_tag_set_and_remove() {
         "target": "tag-setrm",
         "set": ["a", "b", "c"]
     })).await;
-    assert!(result.contains("Updated"), "set should work: {result}");
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["ok"], true, "set should work: {result}");
 
     // Remove one
     let result = call(&client, "termlink_tag", json!({
         "target": "tag-setrm",
         "remove": ["b"]
     })).await;
-    assert!(result.contains("Updated"), "remove should work: {result}");
-    assert!(!result.contains(", b,") && !result.contains("[b]"), "b should be removed: {result}");
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["ok"], true, "remove should work: {result}");
+    let tags = parsed["tags"].as_array().unwrap();
+    let tag_strs: Vec<&str> = tags.iter().filter_map(|t| t.as_str()).collect();
+    assert!(!tag_strs.contains(&"b"), "b should be removed: {result}");
 
     client.cancel().await.unwrap();
 }

@@ -739,11 +739,12 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "command.signal", serde_json::json!({"signal": sig_num})).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => format!(
-                    "Signal {} sent to PID {}",
-                    result["signal"].as_i64().unwrap_or(sig_num as i64),
-                    result["pid"].as_u64().unwrap_or(0),
-                ),
+                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "signal": result["signal"].as_i64().unwrap_or(sig_num as i64),
+                    "pid": result["pid"].as_u64().unwrap_or(0),
+                }))
+                .unwrap_or_else(json_err),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
@@ -767,11 +768,12 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "event.emit", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => format!(
-                    "Emitted: {} (seq: {})",
-                    result["topic"].as_str().unwrap_or("?"),
-                    result["seq"].as_u64().unwrap_or(0),
-                ),
+                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "topic": result["topic"].as_str().unwrap_or("?"),
+                    "seq": result["seq"].as_u64().unwrap_or(0),
+                }))
+                .unwrap_or_else(json_err),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
@@ -799,12 +801,13 @@ impl TermLinkTools {
 
         match client::rpc_call(&hub_socket, "event.emit_to", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => format!(
-                    "Pushed to {}: {} (seq: {})",
-                    result["target"].as_str().unwrap_or("?"),
-                    result["topic"].as_str().unwrap_or("?"),
-                    result["seq"].as_u64().unwrap_or(0),
-                ),
+                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "target": result["target"].as_str().unwrap_or("?"),
+                    "topic": result["topic"].as_str().unwrap_or("?"),
+                    "seq": result["seq"].as_u64().unwrap_or(0),
+                }))
+                .unwrap_or_else(json_err),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
@@ -1180,18 +1183,14 @@ impl TermLinkTools {
 
         match client::rpc_call(&hub_socket, "event.broadcast", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => {
-                    let targeted = result["targeted"].as_u64().unwrap_or(0);
-                    let succeeded = result["succeeded"].as_u64().unwrap_or(0);
-                    let failed = result["failed"].as_u64().unwrap_or(0);
-                    format!(
-                        "Broadcast '{}': {}/{} succeeded{}",
-                        result["topic"].as_str().unwrap_or(&p.topic),
-                        succeeded,
-                        targeted,
-                        if failed > 0 { format!(" ({} failed)", failed) } else { String::new() },
-                    )
-                }
+                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "topic": result["topic"].as_str().unwrap_or(&p.topic),
+                    "targeted": result["targeted"].as_u64().unwrap_or(0),
+                    "succeeded": result["succeeded"].as_u64().unwrap_or(0),
+                    "failed": result["failed"].as_u64().unwrap_or(0),
+                }))
+                .unwrap_or_else(json_err),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
@@ -1795,30 +1794,13 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "session.update", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => {
-                    let tags = result["tags"]
-                        .as_array()
-                        .map(|a| {
-                            a.iter()
-                                .filter_map(|t| t.as_str())
-                                .collect::<Vec<_>>()
-                        })
-                        .unwrap_or_default();
-                    let roles = result["roles"]
-                        .as_array()
-                        .map(|a| {
-                            a.iter()
-                                .filter_map(|r| r.as_str())
-                                .collect::<Vec<_>>()
-                        })
-                        .unwrap_or_default();
-                    let name = result["display_name"].as_str().unwrap_or(&p.target);
-                    let mut parts = vec![format!("tags=[{}]", tags.join(", "))];
-                    if !roles.is_empty() {
-                        parts.push(format!("roles=[{}]", roles.join(", ")));
-                    }
-                    format!("Updated {}: {}", name, parts.join(", "))
-                }
+                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "target": result["display_name"].as_str().unwrap_or(&p.target),
+                    "tags": result["tags"],
+                    "roles": result["roles"],
+                }))
+                .unwrap_or_else(json_err),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
