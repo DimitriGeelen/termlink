@@ -419,6 +419,8 @@ pub struct BatchExecParams {
     pub timeout: Option<u64>,
     /// Maximum parallel executions (default: 10)
     pub max_parallel: Option<usize>,
+    /// Working directory for the command
+    pub cwd: Option<String>,
     /// Environment variables to set for the command (map of KEY → VALUE)
     pub env: Option<std::collections::HashMap<String, String>>,
 }
@@ -3083,6 +3085,7 @@ impl TermLinkTools {
         let timeout_secs = p.timeout.unwrap_or(30);
         let max_parallel = p.max_parallel.unwrap_or(10);
         let command = p.command.clone();
+        let cwd = std::sync::Arc::new(p.cwd);
         let env = std::sync::Arc::new(p.env);
 
         // Execute concurrently with a semaphore for max parallelism
@@ -3096,6 +3099,7 @@ impl TermLinkTools {
             let display_name = reg.display_name.clone();
             let cmd = command.clone();
             let timeout = timeout_secs;
+            let cwd = cwd.clone();
             let env = env.clone();
 
             handles.push(tokio::spawn(async move {
@@ -3104,6 +3108,9 @@ impl TermLinkTools {
                     "command": cmd,
                     "timeout": timeout,
                 });
+                if let Some(ref dir) = *cwd {
+                    params["cwd"] = serde_json::json!(dir);
+                }
                 if let Some(ref env_map) = *env {
                     params["env"] = serde_json::json!(env_map);
                 }
