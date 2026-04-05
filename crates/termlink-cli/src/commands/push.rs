@@ -184,42 +184,4 @@ async fn inject_rpc(client: &mut client::Client, session: &str, text: &str) -> R
 }
 
 /// Escape a string for use in a shell command.
-fn shell_escape(s: &str) -> String {
-    if s.chars().all(|c| c.is_alphanumeric() || c == '/' || c == '.' || c == '-' || c == '_') {
-        s.to_string()
-    } else {
-        format!("'{}'", s.replace('\'', "'\\''"))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn shell_escape_safe_string() {
-        assert_eq!(shell_escape("hello"), "hello");
-        assert_eq!(shell_escape("/tmp/foo-bar_baz.txt"), "/tmp/foo-bar_baz.txt");
-        assert_eq!(shell_escape("abc123"), "abc123");
-    }
-
-    #[test]
-    fn shell_escape_special_chars() {
-        assert_eq!(shell_escape("hello world"), "'hello world'");
-        assert_eq!(shell_escape("file name.txt"), "'file name.txt'");
-        assert_eq!(shell_escape("a;b"), "'a;b'");
-        assert_eq!(shell_escape("$(cmd)"), "'$(cmd)'");
-    }
-
-    #[test]
-    fn shell_escape_single_quotes() {
-        assert_eq!(shell_escape("it's"), "'it'\\''s'");
-        assert_eq!(shell_escape("a'b'c"), "'a'\\''b'\\''c'");
-    }
-
-    #[test]
-    fn shell_escape_empty_string() {
-        // Empty string: all chars are alphanumeric (vacuously true), so returns as-is
-        assert_eq!(shell_escape(""), "");
-    }
-}
+use termlink_protocol::shell_escape;
