@@ -1901,26 +1901,27 @@ impl TermLinkTools {
     async fn termlink_dispatch_status(&self) -> String {
         let project_root = match std::env::current_dir() {
             Ok(d) => d,
-            Err(e) => return format!("{{\"ok\":false,\"error\":\"Failed to get current directory: {e}\"}}"),
+            Err(e) => return json_err(format!("failed to get current directory: {e}")),
         };
         let manifest_path = project_root.join(".termlink").join("dispatch-manifest.json");
 
         if !manifest_path.exists() {
-            return serde_json::json!({
+            return serde_json::to_string_pretty(&serde_json::json!({
                 "ok": true,
                 "total": 0,
                 "message": "No dispatch manifest (no dispatches have used --isolate yet)"
-            }).to_string();
+            }))
+            .unwrap_or_else(json_err);
         }
 
         let content = match std::fs::read_to_string(&manifest_path) {
             Ok(c) => c,
-            Err(e) => return format!("{{\"ok\":false,\"error\":\"Failed to read dispatch manifest: {e}\"}}"),
+            Err(e) => return json_err(format!("failed to read dispatch manifest: {e}")),
         };
 
         let manifest: serde_json::Value = match serde_json::from_str(&content) {
             Ok(m) => m,
-            Err(e) => return format!("{{\"ok\":false,\"error\":\"Failed to parse dispatch manifest: {e}\"}}"),
+            Err(e) => return json_err(format!("failed to parse dispatch manifest: {e}")),
         };
 
         let dispatches = manifest["dispatches"].as_array();
@@ -2868,10 +2869,10 @@ impl TermLinkTools {
         loop {
             let remaining = deadline.duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                return format!(
-                    "Timeout: no agent response within {}s (action: {}, request_id: {})",
+                return json_err(format!(
+                    "timeout: no agent response within {}s (action: {}, request_id: {})",
                     timeout_secs, p.action, request_id
-                );
+                ));
             }
 
             let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
