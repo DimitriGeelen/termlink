@@ -8,10 +8,6 @@ pub mod transport;
 pub use error::ProtocolError;
 pub use transport::TransportAddr;
 
-/// Format a Unix timestamp string (e.g. "1774791796Z") as a human-readable age.
-///
-/// Returns "5s", "3m", "2h", or "7d" depending on elapsed time.
-/// Returns "?" for unparseable timestamps, "0s" for future timestamps.
 /// Protocol version for the data plane binary frames.
 pub const DATA_PLANE_VERSION: u8 = 1;
 
@@ -41,6 +37,10 @@ pub fn shell_escape(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
 
+/// Format a Unix timestamp string (e.g. "1774791796Z") as a human-readable age.
+///
+/// Returns "5s", "3m", "2h", or "7d" depending on elapsed time.
+/// Returns "?" for unparseable timestamps, "0s" for future timestamps.
 pub fn format_age(timestamp_str: &str) -> String {
     let ts_str = timestamp_str.trim_end_matches('Z');
     let ts: u64 = match ts_str.parse() {
