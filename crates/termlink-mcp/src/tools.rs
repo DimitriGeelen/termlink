@@ -1001,16 +1001,32 @@ impl TermLinkTools {
             let timeout = std::time::Duration::from_secs(wait_timeout);
             loop {
                 if manager::find_session(&session_name).is_ok() {
-                    return format!("Spawned session '{}' (ready)", session_name);
+                    return serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "session_name": session_name,
+                        "status": "ready",
+                    }))
+                    .unwrap_or_else(json_err);
                 }
                 if start.elapsed() > timeout {
-                    return format!("Spawned session '{}' (timeout waiting for registration)", session_name);
+                    return serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "session_name": session_name,
+                        "status": "timeout",
+                        "message": "spawned but timed out waiting for registration",
+                    }))
+                    .unwrap_or_else(json_err);
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
             }
         }
 
-        format!("Spawned session '{}'", session_name)
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "session_name": session_name,
+            "status": "spawned",
+        }))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -1055,12 +1071,12 @@ impl TermLinkTools {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
                     let replaced = result["replaced"].as_bool().unwrap_or(false);
-                    format!(
-                        "{} {}={}",
-                        if replaced { "Updated" } else { "Set" },
-                        result["key"].as_str().unwrap_or("?"),
-                        serde_json::to_string(&p.value).unwrap_or_default(),
-                    )
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "key": result["key"].as_str().unwrap_or("?"),
+                        "replaced": replaced,
+                    }))
+                    .unwrap_or_else(json_err)
                 }
                 Err(e) => json_err(e),
             },
@@ -1081,12 +1097,14 @@ impl TermLinkTools {
         match client::rpc_call(reg.socket_path(), "kv.get", serde_json::json!({"key": p.key})).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
-                    if result["found"].as_bool().unwrap_or(false) {
-                        serde_json::to_string_pretty(&result["value"])
-                            .unwrap_or_else(|_| "null".into())
-                    } else {
-                        format!("Key '{}' not found", p.key)
-                    }
+                    let found = result["found"].as_bool().unwrap_or(false);
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "key": p.key,
+                        "found": found,
+                        "value": if found { result["value"].clone() } else { serde_json::Value::Null },
+                    }))
+                    .unwrap_or_else(json_err)
                 }
                 Err(e) => json_err(e),
             },
@@ -1127,11 +1145,13 @@ impl TermLinkTools {
         match client::rpc_call(reg.socket_path(), "kv.delete", serde_json::json!({"key": p.key})).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
-                    if result["deleted"].as_bool().unwrap_or(false) {
-                        format!("Deleted '{}'", p.key)
-                    } else {
-                        format!("Key '{}' not found", p.key)
-                    }
+                    let deleted = result["deleted"].as_bool().unwrap_or(false);
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "key": p.key,
+                        "deleted": deleted,
+                    }))
+                    .unwrap_or_else(json_err)
                 }
                 Err(e) => json_err(e),
             },
