@@ -163,6 +163,10 @@ pub struct RunParams {
     pub command: String,
     /// Timeout in seconds (default: 30)
     pub timeout: Option<u64>,
+    /// Working directory for the command
+    pub cwd: Option<String>,
+    /// Environment variables to set (map of KEY → VALUE)
+    pub env: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -949,8 +953,10 @@ impl TermLinkTools {
         use termlink_session::executor;
 
         let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(30));
+        let env = p.env.unwrap_or_default();
+        let env_ref = if env.is_empty() { None } else { Some(&env) };
 
-        match executor::execute(&p.command, None, None, Some(timeout), None).await {
+        match executor::execute(&p.command, p.cwd.as_deref(), env_ref, Some(timeout), None).await {
             Ok(result) => {
                 let response = serde_json::json!({
                     "ok": result.exit_code == 0,
@@ -3469,6 +3475,32 @@ mod tests {
         assert_eq!(p.tags.as_ref().unwrap().len(), 2);
         assert_eq!(p.roles.as_ref().unwrap()[0], "worker");
         assert_eq!(p.name.as_deref(), Some("agent"));
+    }
+
+    #[test]
+    fn run_params_with_env_and_cwd() {
+        let json = serde_json::json!({
+            "command": "echo hello",
+            "timeout": 10,
+            "cwd": "/tmp",
+            "env": {"FOO": "bar", "PATH": "/usr/bin"},
+        });
+        let p: RunParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.command, "echo hello");
+        assert_eq!(p.timeout, Some(10));
+        assert_eq!(p.cwd.as_deref(), Some("/tmp"));
+        let env = p.env.as_ref().unwrap();
+        assert_eq!(env.get("FOO").unwrap(), "bar");
+    }
+
+    #[test]
+    fn run_params_minimal() {
+        let json = serde_json::json!({"command": "ls"});
+        let p: RunParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.command, "ls");
+        assert!(p.timeout.is_none());
+        assert!(p.cwd.is_none());
+        assert!(p.env.is_none());
     }
 
     #[test]
