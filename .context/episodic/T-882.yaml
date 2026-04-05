@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-882: Extract shell_escape to termlink-protocol — remove 3-way duplication
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-05T06:55:27Z
+# ============================================================================
+
+task_id: T-882
+task_name: "Extract shell_escape to termlink-protocol — remove 3-way duplication"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-05T06:48:35Z
+completed: 2026-04-05T06:54:24Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-05T08:54:15+02:00
+last_commit: 2026-04-05T08:54:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Extract shell_escape to termlink-protocol — remove 3-way duplication
+
+# Key outcomes
+outcomes:
+  - "`pub fn shell_escape()` exists in `termlink-protocol/src/lib.rs`"
+  - "CLI `util.rs` uses `termlink_protocol::shell_escape` instead of local definition"
+  - "CLI `push.rs` uses `termlink_protocol::shell_escape` instead of local definition"
+  - "MCP `tools.rs` uses `termlink_protocol::shell_escape` instead of `mcp_shell_escape`"
+  - "Tests for `shell_escape` exist in protocol crate"
+  - "`cargo test --workspace` passes"
+  - "`cargo clippy --workspace --all-targets` produces no new warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/push.rs"
+  - "crates/termlink-cli/src/util.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-protocol/src/lib.rs"
+  - ".tasks/active/T-882-extract-shellescape-to-termlink-protocol.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-05T08:54:15"
+    action: "T-882: Extract shell_escape to termlink-protocol — remove 3-way duplication"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 5
+  lines_added: 117
+  lines_removed: 70
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-882-extract-shellescape-to-termlink-protocol.md
+generated_by: context-agent-hybrid
