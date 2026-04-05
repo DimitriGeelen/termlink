@@ -729,6 +729,10 @@ pub(crate) enum Command {
         #[arg(long, value_delimiter = ',')]
         cap: Vec<String>,
 
+        /// Environment variables for workers (repeatable: --env KEY=VALUE)
+        #[arg(long = "env", value_name = "KEY=VALUE")]
+        env_vars: Vec<String>,
+
         /// Spawn backend: auto, terminal, tmux, background
         #[arg(long, default_value = "auto")]
         backend: SpawnBackend,
