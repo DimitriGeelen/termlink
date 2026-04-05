@@ -24,6 +24,23 @@ pub const FRAME_HEADER_SIZE: usize = 22;
 /// Maximum payload size: 16 MiB.
 pub const MAX_PAYLOAD_SIZE: u32 = 16 * 1024 * 1024;
 
+/// Shell-escape a string for safe embedding in `sh -c` commands.
+///
+/// Safe characters (alphanumeric + common path chars) pass through unchanged.
+/// Everything else gets wrapped in single quotes with embedded quotes escaped.
+/// Empty strings return `''`.
+pub fn shell_escape(s: &str) -> String {
+    if s.is_empty() {
+        return "''".to_string();
+    }
+    if s.chars().all(|c| {
+        c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.' || c == '/' || c == ':'
+    }) {
+        return s.to_string();
+    }
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
 pub fn format_age(timestamp_str: &str) -> String {
     let ts_str = timestamp_str.trim_end_matches('Z');
     let ts: u64 = match ts_str.parse() {
@@ -106,5 +123,31 @@ mod tests {
             .unwrap()
             .as_secs();
         assert_eq!(format_age(&format!("{}Z", now + 1000)), "0s");
+    }
+
+    #[test]
+    fn shell_escape_safe_string() {
+        assert_eq!(shell_escape("hello"), "hello");
+        assert_eq!(shell_escape("/tmp/foo-bar_baz.txt"), "/tmp/foo-bar_baz.txt");
+        assert_eq!(shell_escape("abc123"), "abc123");
+        assert_eq!(shell_escape("host:port"), "host:port");
+    }
+
+    #[test]
+    fn shell_escape_special_chars() {
+        assert_eq!(shell_escape("hello world"), "'hello world'");
+        assert_eq!(shell_escape("a;b"), "'a;b'");
+        assert_eq!(shell_escape("$(cmd)"), "'$(cmd)'");
+    }
+
+    #[test]
+    fn shell_escape_single_quotes() {
+        assert_eq!(shell_escape("it's"), "'it'\\''s'");
+        assert_eq!(shell_escape("a'b'c"), "'a'\\''b'\\''c'");
+    }
+
+    #[test]
+    fn shell_escape_empty() {
+        assert_eq!(shell_escape(""), "''");
     }
 }

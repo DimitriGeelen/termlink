@@ -33,16 +33,7 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
-/// Shell-escape a string for safe embedding in sh -c commands.
-fn mcp_shell_escape(s: &str) -> String {
-    if s.is_empty() {
-        return "''".to_string();
-    }
-    if s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.' || c == '/' || c == ':') {
-        return s.to_string();
-    }
-    format!("'{}'", s.replace('\'', "'\\''"))
-}
+use termlink_protocol::shell_escape;
 
 // === Parameter types ===
 
@@ -1962,17 +1953,17 @@ impl TermLinkTools {
             }
 
             let user_cmd = p.command.iter()
-                .map(|arg| mcp_shell_escape(arg))
+                .map(|arg| shell_escape(arg))
                 .collect::<Vec<_>>()
                 .join(" ");
 
             let mut env_prefix = String::new();
             if let Ok(rd) = std::env::var("TERMLINK_RUNTIME_DIR") {
-                env_prefix.push_str(&format!("export TERMLINK_RUNTIME_DIR={}; ", mcp_shell_escape(&rd)));
+                env_prefix.push_str(&format!("export TERMLINK_RUNTIME_DIR={}; ", shell_escape(&rd)));
             }
-            env_prefix.push_str(&format!("export TERMLINK_DISPATCH_ID={}; ", mcp_shell_escape(&dispatch_id)));
+            env_prefix.push_str(&format!("export TERMLINK_DISPATCH_ID={}; ", shell_escape(&dispatch_id)));
             env_prefix.push_str(&format!("export TERMLINK_ORCHESTRATOR={}; ", std::process::id()));
-            env_prefix.push_str(&format!("export TERMLINK_WORKER_NAME={}; ", mcp_shell_escape(&worker_name)));
+            env_prefix.push_str(&format!("export TERMLINK_WORKER_NAME={}; ", shell_escape(&worker_name)));
 
             let mut reg_parts = vec![termlink_bin.clone()];
             reg_parts.extend(register_args);
@@ -3885,24 +3876,24 @@ mod tests {
     }
 
     #[test]
-    fn mcp_shell_escape_safe_string() {
-        assert_eq!(mcp_shell_escape("hello"), "hello");
-        assert_eq!(mcp_shell_escape("path/to/file.txt"), "path/to/file.txt");
+    fn shell_escape_safe_string() {
+        assert_eq!(shell_escape("hello"), "hello");
+        assert_eq!(shell_escape("path/to/file.txt"), "path/to/file.txt");
     }
 
     #[test]
-    fn mcp_shell_escape_special_chars() {
-        assert_eq!(mcp_shell_escape("hello world"), "'hello world'");
-        assert_eq!(mcp_shell_escape("a;b"), "'a;b'");
+    fn shell_escape_special_chars() {
+        assert_eq!(shell_escape("hello world"), "'hello world'");
+        assert_eq!(shell_escape("a;b"), "'a;b'");
     }
 
     #[test]
-    fn mcp_shell_escape_single_quotes() {
-        assert_eq!(mcp_shell_escape("it's"), "'it'\\''s'");
+    fn shell_escape_single_quotes() {
+        assert_eq!(shell_escape("it's"), "'it'\\''s'");
     }
 
     #[test]
-    fn mcp_shell_escape_empty() {
-        assert_eq!(mcp_shell_escape(""), "''");
+    fn shell_escape_empty() {
+        assert_eq!(shell_escape(""), "''");
     }
 }

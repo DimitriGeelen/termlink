@@ -112,13 +112,7 @@ pub(crate) fn resize_payload(cols: u16, rows: u16) -> [u8; 4] {
 }
 
 /// Escape a string for use in a shell command.
-pub(crate) fn shell_escape(s: &str) -> String {
-    if s.contains(|c: char| c.is_whitespace() || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`') {
-        format!("'{}'", s.replace('\'', "'\\''"))
-    } else {
-        s.to_string()
-    }
-}
+pub(crate) use termlink_protocol::shell_escape;
 
 /// Resolve a session target: if provided, return it; if None, prompt the user
 /// to pick from available sessions (interactive picker).
