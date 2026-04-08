@@ -645,11 +645,17 @@ fn extract_string_array(params: &serde_json::Value, key: &str) -> Vec<String> {
 ///   3. If the first fails, try the next candidate (failover)
 ///   4. Return the specialist's response plus routing metadata
 ///
+/// When `task_type` is provided, sessions with a matching `task-type:<type>` tag are
+/// sorted before other candidates (preferred but not required). This enables task-aware
+/// routing without breaking existing method-based routing.
+///
 /// Params: {
 ///   selector: { tags?: [...], roles?: [...], capabilities?: [...], name?: string },
 ///   method: string,       // RPC method to call on the specialist
 ///   params: object,       // params to pass to the specialist
 ///   timeout_secs?: number // per-target timeout (default: 5)
+///   task_type?: string    // task workflow type (build/test/audit/review) — prefers
+///                         // specialists with matching "task-type:<type>" tag
 /// }
 ///
 /// Response: {
@@ -675,12 +681,23 @@ async fn handle_orchestrator_route(
         .and_then(|m| m.as_bool())
         .unwrap_or(false);
 
+    // Optional task workflow type (build/test/audit/review) — prefers matching specialists
+    let task_type = params.get("task_type").and_then(|t| t.as_str()).map(String::from);
+
+    // Build the cache/bypass key: "method" or "method::task_type" when task_type is present.
+    // This ensures task-type-specific routes are cached separately from generic ones.
+    let routing_key = match &task_type {
+        Some(tt) => format!("{method}::{tt}"),
+        None => method.clone(),
+    };
+
     // Check bypass registry before routing to a specialist (skip for mutating commands)
     if !mutating {
         let registry = crate::bypass::BypassRegistry::load();
-        if let Some(entry) = registry.check(&method) {
+        if let Some(entry) = registry.check(&routing_key) {
             tracing::info!(
                 method = %method,
+                routing_key = %routing_key,
                 run_count = entry.run_count,
                 "orchestrator.route: bypass registry hit — command is Tier 3"
             );
@@ -691,6 +708,7 @@ async fn handle_orchestrator_route(
                     "command": method,
                     "tier": entry.tier,
                     "run_count": entry.run_count,
+                    "task_type": task_type,
                     "note": "routing shortcut, not execution authorization",
                 }),
             )
@@ -701,7 +719,7 @@ async fn handle_orchestrator_route(
     // Layer 2: Check route cache (between bypass and full discovery)
     if !mutating {
         let route_cache = crate::route_cache::RouteCache::load();
-        match route_cache.lookup(&method) {
+        match route_cache.lookup(&routing_key) {
             crate::route_cache::CacheLookup::Hit(entry) => {
                 tracing::info!(
                     method = %method,
@@ -755,25 +773,25 @@ async fn handle_orchestrator_route(
 
                     match result {
                         Ok(Ok(RpcResponse::Success(resp))) => {
-                            // Record cache hit
+                            // Record cache hit (keyed by routing_key for task-type awareness)
                             let cache_path = crate::route_cache::cache_path();
-                            let method_clone = method.clone();
+                            let rk_clone = routing_key.clone();
                             if let Ok(mut cache) = std::fs::read_to_string(&cache_path)
                                 .ok()
                                 .and_then(|d| serde_json::from_str::<crate::route_cache::RouteCache>(&d).ok())
                                 .ok_or(())
                                 .or_else(|_| Ok::<_, ()>(crate::route_cache::RouteCache::default()))
                             {
-                                cache.record_hit(&method_clone);
+                                cache.record_hit(&rk_clone);
                                 let _ = cache.save_to(&cache_path);
                             }
 
                             // Also record in bypass registry
                             if !mutating {
                                 let reg_path = crate::bypass::registry_path();
-                                let method_clone2 = method.clone();
+                                let rk_clone2 = routing_key.clone();
                                 let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                                    let _ = r.record_orchestrated_run(&method_clone2, crate::bypass::RunOutcome::Success);
+                                    let _ = r.record_orchestrated_run(&rk_clone2, crate::bypass::RunOutcome::Success);
                                 });
                             }
 
@@ -795,17 +813,18 @@ async fn handle_orchestrator_route(
                             // Cache route failed — invalidate and fall through to full discovery
                             tracing::warn!(
                                 method = %method,
+                                routing_key = %routing_key,
                                 "orchestrator.route: cached route failed, falling through to full discovery"
                             );
                             let cache_path = crate::route_cache::cache_path();
-                            let method_clone = method.clone();
+                            let rk_clone = routing_key.clone();
                             if let Ok(mut cache) = std::fs::read_to_string(&cache_path)
                                 .ok()
                                 .and_then(|d| serde_json::from_str::<crate::route_cache::RouteCache>(&d).ok())
                                 .ok_or(())
                                 .or_else(|_| Ok::<_, ()>(crate::route_cache::RouteCache::default()))
                             {
-                                cache.invalidate(&method_clone);
+                                cache.invalidate(&rk_clone);
                                 let _ = cache.save_to(&cache_path);
                             }
                         }
@@ -864,6 +883,14 @@ async fn handle_orchestrator_route(
                 })
         })
         .collect();
+
+    // Task-type preference: sort candidates so sessions with a matching
+    // "task-type:<type>" tag appear before others. This is a stable sort —
+    // within each group the original order (creation time) is preserved.
+    if let Some(ref tt) = task_type {
+        let task_type_tag = format!("task-type:{tt}");
+        candidates.sort_by_key(|s| if s.tags.contains(&task_type_tag) { 0u8 } else { 1u8 });
+    }
 
     // Also check remote sessions
     if let Some(store) = remote_store() {
@@ -951,12 +978,12 @@ async fn handle_orchestrator_route(
                 // Record successful orchestrated run (skip for mutating commands)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
-                    let method_clone = method.clone();
+                    let rk_clone = routing_key.clone();
                     let _ =
                         crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                            if r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::Success) {
+                            if r.record_orchestrated_run(&rk_clone, crate::bypass::RunOutcome::Success) {
                                 tracing::info!(
-                                    method = %method_clone,
+                                    routing_key = %rk_clone,
                                     "orchestrator.route: command promoted to bypass registry"
                                 );
                             }
@@ -964,17 +991,17 @@ async fn handle_orchestrator_route(
 
                     // Record route in cache (Layer 2) for future lookups
                     let cache_path = crate::route_cache::cache_path();
-                    let method_for_cache = method.clone();
+                    let rk_for_cache = routing_key.clone();
                     let specialist_name = reg.display_name.clone();
                     let mut route_cache = crate::route_cache::RouteCache::load_from(&cache_path);
                     route_cache.record_route(
-                        &method_for_cache,
+                        &rk_for_cache,
                         &specialist_name,
                         crate::route_cache::RequestSchema::default(),
                     );
                     let _ = route_cache.save_to(&cache_path);
                     tracing::debug!(
-                        method = %method_for_cache,
+                        routing_key = %rk_for_cache,
                         specialist = %specialist_name,
                         "orchestrator.route: recorded route in cache"
                     );
@@ -997,9 +1024,9 @@ async fn handle_orchestrator_route(
                 // Command failures don't open the circuit (session is alive, just rejected the call)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
-                    let method_clone = method.clone();
+                    let rk_clone = routing_key.clone();
                     let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                        r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::CommandFailure);
+                        r.record_orchestrated_run(&rk_clone, crate::bypass::RunOutcome::CommandFailure);
                     });
                 }
                 last_error = format!("{}: {}", reg.display_name, e.error.message);
@@ -1014,9 +1041,9 @@ async fn handle_orchestrator_route(
                 // Connection error = infra failure (specialist never received the call)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
-                    let method_clone = method.clone();
+                    let rk_clone = routing_key.clone();
                     let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                        r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::InfraFailure);
+                        r.record_orchestrated_run(&rk_clone, crate::bypass::RunOutcome::InfraFailure);
                     });
                 }
                 last_error = format!("{}: {}", reg.display_name, e);
@@ -1031,9 +1058,9 @@ async fn handle_orchestrator_route(
                 // Timeout = infra failure (specialist didn't respond in time)
                 if !mutating {
                     let reg_path = crate::bypass::registry_path();
-                    let method_clone = method.clone();
+                    let rk_clone = routing_key.clone();
                     let _ = crate::bypass::BypassRegistry::locked_update(&reg_path, |r| {
-                        r.record_orchestrated_run(&method_clone, crate::bypass::RunOutcome::InfraFailure);
+                        r.record_orchestrated_run(&rk_clone, crate::bypass::RunOutcome::InfraFailure);
                     });
                 }
                 last_error = format!("{}: timeout", reg.display_name);
@@ -1268,6 +1295,38 @@ mod tests {
     ) {
         let config = SessionConfig {
             display_name: Some(name.into()),
+            ..Default::default()
+        };
+        let session = termlink_session::Session::register_in(config, sessions_dir)
+            .await
+            .unwrap();
+
+        let session_id = session.id().clone();
+        let (registration, listener, _) = session.into_parts();
+        let reg = registration.clone();
+        let json_path = Registration::json_path(sessions_dir, &session_id);
+        let ctx = SessionContext::new(registration)
+            .with_registration_path(json_path);
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let handle = tokio::spawn(async move {
+            server::run_accept_loop(listener, shared).await;
+        });
+
+        (handle, reg)
+    }
+
+    async fn start_test_session_with_tags(
+        sessions_dir: &Path,
+        name: &str,
+        tags: Vec<String>,
+    ) -> (
+        tokio::task::JoinHandle<()>,
+        Registration,
+    ) {
+        let config = SessionConfig {
+            display_name: Some(name.into()),
+            tags,
             ..Default::default()
         };
         let session = termlink_session::Session::register_in(config, sessions_dir)
@@ -2286,6 +2345,146 @@ mod tests {
 
         unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
         handle.abort();
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_task_type_prefers_tagged_specialist() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        // Start a generic specialist (no task-type tag)
+        let (h_generic, _) = start_test_session(&sessions_dir, "generic-specialist").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // Start a build-specialist (with task-type:build tag)
+        let (h_build, _) = start_test_session_with_tags(
+            &sessions_dir,
+            "build-specialist",
+            vec!["task-type:build".into()],
+        )
+        .await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Route with task_type=build — should prefer build-specialist
+        let params = json!({
+            "selector": {},
+            "method": "termlink.ping",
+            "params": {},
+            "task_type": "build",
+        });
+
+        let resp = handle_orchestrator_route(json!("tt-1"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(
+                r.result["routed_to"]["display_name"], "build-specialist",
+                "Task-type routing should prefer the tagged specialist"
+            );
+            assert_eq!(r.result["candidates"], 2);
+        } else {
+            panic!("Expected success, got error");
+        }
+
+        h_generic.abort();
+        h_build.abort();
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_task_type_falls_back_when_no_match() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        // Start a test-specialist (tagged for test, not audit)
+        let (h_test, _) = start_test_session_with_tags(
+            &sessions_dir,
+            "test-specialist",
+            vec!["task-type:test".into()],
+        )
+        .await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Route with task_type=audit — no specialist has that tag, should fall back
+        let params = json!({
+            "selector": {},
+            "method": "termlink.ping",
+            "params": {},
+            "task_type": "audit",
+        });
+
+        let resp = handle_orchestrator_route(json!("tt-2"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(
+                r.result["routed_to"]["display_name"], "test-specialist",
+                "Should fall back to available specialist when no task-type match"
+            );
+            assert_eq!(r.result["candidates"], 1);
+        } else {
+            panic!("Expected success via fallback, got error");
+        }
+
+        h_test.abort();
+    }
+
+    #[tokio::test]
+    async fn orchestrator_route_no_task_type_backward_compatible() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        // Start a generic and a tagged specialist
+        let (h_generic, _) = start_test_session(&sessions_dir, "generic-specialist").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let (h_build, _) = start_test_session_with_tags(
+            &sessions_dir,
+            "build-specialist",
+            vec!["task-type:build".into()],
+        )
+        .await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Route WITHOUT task_type — should succeed with both candidates available
+        let params = json!({
+            "selector": {},
+            "method": "termlink.ping",
+            "params": {},
+        });
+
+        let resp = handle_orchestrator_route(json!("tt-3"), &params).await;
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+        if let RpcResponse::Success(r) = resp {
+            // Without task_type, routing succeeds and both candidates are visible
+            assert_eq!(r.result["candidates"], 2);
+            // Any specialist is fine — the key is routing works without task_type
+            let name = r.result["routed_to"]["display_name"].as_str().unwrap();
+            assert!(
+                name == "generic-specialist" || name == "build-specialist",
+                "Expected one of the specialists, got {name}"
+            );
+        } else {
+            panic!("Expected success, got error");
+        }
+
+        h_generic.abort();
+        h_build.abort();
     }
 
     #[tokio::test]
