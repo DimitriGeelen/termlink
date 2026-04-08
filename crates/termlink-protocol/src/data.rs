@@ -14,6 +14,7 @@ pub enum FrameType {
     Ping = 0x5,
     Pong = 0x6,
     Close = 0x7,
+    Governance = 0x8,
 }
 
 impl FrameType {
@@ -27,6 +28,7 @@ impl FrameType {
             0x5 => Ok(Self::Ping),
             0x6 => Ok(Self::Pong),
             0x7 => Ok(Self::Close),
+            0x8 => Ok(Self::Governance),
             other => Err(ProtocolError::UnknownFrameType(other)),
         }
     }
@@ -247,6 +249,7 @@ mod tests {
             (FrameType::Ping, 0x5),
             (FrameType::Pong, 0x6),
             (FrameType::Close, 0x7),
+            (FrameType::Governance, 0x8),
         ] {
             let frame = Frame::new(ft, FrameFlags::empty(), 0, 0, vec![]);
             let encoded = frame.encode();
@@ -259,8 +262,8 @@ mod tests {
     #[test]
     fn unknown_frame_type_rejected() {
         assert!(matches!(
-            FrameType::from_u8(0x08),
-            Err(ProtocolError::UnknownFrameType(0x08))
+            FrameType::from_u8(0x09),
+            Err(ProtocolError::UnknownFrameType(0x09))
         ));
         assert!(matches!(
             FrameType::from_u8(0xFF),

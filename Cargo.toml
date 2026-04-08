@@ -56,6 +56,9 @@ rustls = "0.23"
 rustls-pemfile = "2"
 rcgen = "0.13"
 
+# Regex
+regex = "1"
+
 # Platform
 libc = "0.2"
 

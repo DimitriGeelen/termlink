@@ -2,6 +2,7 @@ pub mod control;
 pub mod data;
 pub mod error;
 pub mod events;
+pub mod governance;
 pub mod jsonrpc;
 pub mod transport;
 

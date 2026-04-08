@@ -13,11 +13,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 
 use termlink_protocol::data::{FrameFlags, FrameType};
 
 use crate::codec::{FrameReader, FrameWriter};
+use crate::governance_subscriber::{GovernanceConfig, GovernanceSubscriber};
 use crate::pty::PtySession;
 
 /// Data plane socket path: `{session_socket}.data`
@@ -47,6 +48,34 @@ pub async fn run(
 
     run_data_accept_loop(listener, pty, output_rx).await;
     Ok(())
+}
+
+/// Run the data plane server with an attached governance subscriber.
+///
+/// Like [`run`], but also spawns a [`GovernanceSubscriber`] that watches Output
+/// frames for pattern matches. Returns a receiver for governance frames.
+///
+/// The governance subscriber is non-blocking — it receives a copy of output data
+/// via the broadcast channel and processes it in its own task.
+pub async fn run_with_governance(
+    data_socket: &Path,
+    pty: Arc<PtySession>,
+    output_rx: broadcast::Receiver<Vec<u8>>,
+    config: GovernanceConfig,
+) -> std::io::Result<mpsc::Receiver<termlink_protocol::data::Frame>> {
+    // Governance subscriber gets its own receiver from the broadcast
+    let gov_output_rx = output_rx.resubscribe();
+    let (gov_tx, gov_rx) = mpsc::channel(256);
+
+    let subscriber = GovernanceSubscriber::new(config);
+    tokio::spawn(async move {
+        subscriber.run(gov_output_rx, gov_tx).await;
+    });
+
+    // Start the normal data plane server
+    run(data_socket, pty, output_rx).await?;
+
+    Ok(gov_rx)
 }
 
 /// Accept loop for data plane connections.

@@ -11,6 +11,7 @@ pub mod codec;
 pub mod data_server;
 pub mod events;
 pub mod executor;
+pub mod governance_subscriber;
 pub mod handler;
 pub mod pty;
 pub mod scrollback;
