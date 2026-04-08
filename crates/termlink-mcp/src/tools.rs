@@ -50,6 +50,31 @@ fn json_err(msg: impl std::fmt::Display) -> String {
 
 use termlink_protocol::shell_escape;
 
+// === Task governance gate ===
+
+/// Check whether task governance is enforced and a task_id is required.
+///
+/// When `TERMLINK_TASK_GOVERNANCE=1`, tools that mutate or interact with sessions
+/// must include a `task_id` parameter. If missing, this returns an error string
+/// that the tool should return directly.
+///
+/// When governance is not enabled (default), this always returns Ok(()).
+fn check_task_governance(task_id: &Option<String>, tool_name: &str) -> Result<(), String> {
+    let governance = std::env::var("TERMLINK_TASK_GOVERNANCE").unwrap_or_default();
+    if governance != "1" {
+        return Ok(());
+    }
+    match task_id {
+        Some(id) if !id.trim().is_empty() => Ok(()),
+        _ => Err(json_err(format!(
+            "Task governance is enabled (TERMLINK_TASK_GOVERNANCE=1). \
+             The '{tool_name}' tool requires a 'task_id' parameter. \
+             Provide the task ID of the task you are working on \
+             (e.g., \"task_id\": \"T-123\")."
+        ))),
+    }
+}
+
 // === Parameter types ===
 
 #[derive(Deserialize, JsonSchema)]
@@ -80,6 +105,8 @@ pub struct ExecParams {
     pub timeout: Option<u64>,
     /// Environment variables to set (map of KEY → VALUE)
     pub env: Option<std::collections::HashMap<String, String>>,
+    /// Task ID for governance tracking (required when TERMLINK_TASK_GOVERNANCE=1)
+    pub task_id: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -174,6 +201,8 @@ pub struct SpawnParams {
     pub wait_timeout: Option<u64>,
     /// Working directory for the spawned session (cd into before executing)
     pub cwd: Option<String>,
+    /// Task ID for governance tracking (required when TERMLINK_TASK_GOVERNANCE=1)
+    pub task_id: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -240,6 +269,8 @@ pub struct InteractParams {
     pub timeout: Option<u64>,
     /// Poll interval in milliseconds (default: 200)
     pub poll_ms: Option<u64>,
+    /// Task ID for governance tracking (required when TERMLINK_TASK_GOVERNANCE=1)
+    pub task_id: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -364,6 +395,8 @@ pub struct DispatchParams {
     pub env: Option<std::collections::HashMap<String, String>>,
     /// Working directory for workers (each worker cd's into this before executing)
     pub workdir: Option<String>,
+    /// Task ID for governance tracking (required when TERMLINK_TASK_GOVERNANCE=1)
+    pub task_id: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -636,6 +669,10 @@ impl TermLinkTools {
         description = "Execute a command on a TermLink session and return stdout/stderr/exit_code"
     )]
     async fn termlink_exec(&self, Parameters(p): Parameters<ExecParams>) -> String {
+        if let Err(e) = check_task_governance(&p.task_id, "termlink_exec") {
+            return e;
+        }
+
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
             Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
@@ -927,9 +964,18 @@ impl TermLinkTools {
         description = "Spawn a new TermLink session in the background. Returns the session name. Use with --wait to block until registered."
     )]
     async fn termlink_spawn(&self, Parameters(p): Parameters<SpawnParams>) -> String {
+        if let Err(e) = check_task_governance(&p.task_id, "termlink_spawn") {
+            return e;
+        }
+
         let session_name = p.name.unwrap_or_else(|| format!("mcp-spawn-{}", std::process::id()));
         let roles = p.roles.unwrap_or_default();
-        let tags = p.tags.unwrap_or_default();
+        let mut tags = p.tags.unwrap_or_default();
+
+        // Add task_id as a tag for observability
+        if let Some(ref tid) = p.task_id {
+            tags.push(format!("task:{tid}"));
+        }
         let cap = p.cap.unwrap_or_default();
         let env_vars = p.env.unwrap_or_default();
         let command = p.command.unwrap_or_default();
@@ -1202,6 +1248,10 @@ impl TermLinkTools {
         description = "Run a shell command in a PTY session and return its output. Injects the command, waits for completion via a unique marker, and returns clean output with exit code. This is the preferred tool for running commands in terminal sessions — it handles injection, waiting, and output capture atomically."
     )]
     async fn termlink_interact(&self, Parameters(p): Parameters<InteractParams>) -> String {
+        if let Err(e) = check_task_governance(&p.task_id, "termlink_interact") {
+            return e;
+        }
+
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
             Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
@@ -1982,6 +2032,10 @@ impl TermLinkTools {
         description = "Atomic multi-worker dispatch: spawns N background workers, tags them with a dispatch ID, and collects results via the hub. Each worker runs the specified command. Returns structured results from all workers. Requires the hub to be running. Use this for fan-out/fan-in orchestration patterns where you need multiple sessions to work in parallel and collect their results."
     )]
     async fn termlink_dispatch(&self, Parameters(p): Parameters<DispatchParams>) -> String {
+        if let Err(e) = check_task_governance(&p.task_id, "termlink_dispatch") {
+            return e;
+        }
+
         // Validate inputs
         if p.count == 0 {
             return json_err("count must be at least 1");
@@ -2005,10 +2059,15 @@ impl TermLinkTools {
         let topic = p.topic.unwrap_or_else(|| "task.completed".into());
         let prefix = p.name_prefix.unwrap_or_else(|| "worker".into());
         let roles = p.roles.unwrap_or_default();
-        let tags = p.tags.unwrap_or_default();
+        let mut tags = p.tags.unwrap_or_default();
         let cap = p.cap.unwrap_or_default();
         let env_vars = p.env.unwrap_or_default();
         let workdir = p.workdir;
+
+        // Add task_id as a tag for observability
+        if let Some(ref tid) = p.task_id {
+            tags.push(format!("task:{tid}"));
+        }
 
         // Generate unique dispatch ID
         let dispatch_id = format!(
@@ -4374,5 +4433,154 @@ mod tests {
     #[test]
     fn shell_escape_empty() {
         assert_eq!(shell_escape(""), "''");
+    }
+
+    // === Task governance tests ===
+
+    #[test]
+    fn governance_disabled_allows_without_task_id() {
+        // Ensure governance env var is not set (default)
+        unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+        let result = check_task_governance(&None, "termlink_exec");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn governance_disabled_allows_with_task_id() {
+        unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+        let result = check_task_governance(&Some("T-123".into()), "termlink_exec");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn governance_enabled_blocks_without_task_id() {
+        unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
+        let result = check_task_governance(&None, "termlink_spawn");
+        unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("task_id"), "error should mention task_id: {err}");
+        assert!(err.contains("termlink_spawn"), "error should mention tool name: {err}");
+    }
+
+    #[test]
+    fn governance_enabled_allows_with_task_id() {
+        unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
+        let result = check_task_governance(&Some("T-456".into()), "termlink_dispatch");
+        unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn governance_enabled_blocks_empty_task_id() {
+        unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
+        let result = check_task_governance(&Some("".into()), "termlink_exec");
+        unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn governance_enabled_blocks_whitespace_task_id() {
+        unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
+        let result = check_task_governance(&Some("   ".into()), "termlink_interact");
+        unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn governance_other_values_treated_as_disabled() {
+        // "0", "true", "yes" should NOT enable governance — only "1"
+        for val in &["0", "true", "yes", "enabled"] {
+            unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", val) };
+            let result = check_task_governance(&None, "termlink_exec");
+            unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+            assert!(result.is_ok(), "governance should be disabled for value '{val}'");
+        }
+    }
+
+    #[test]
+    fn governance_error_is_valid_json() {
+        unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
+        let result = check_task_governance(&None, "termlink_exec");
+        unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
+
+        let err = result.unwrap_err();
+        let parsed: serde_json::Value = serde_json::from_str(&err).expect("error should be valid JSON");
+        assert_eq!(parsed["ok"], false);
+        assert!(parsed["error"].is_string());
+    }
+
+    // === Param deserialization tests for task_id ===
+
+    #[test]
+    fn exec_params_with_task_id() {
+        let json = serde_json::json!({
+            "target": "s1",
+            "command": "echo hi",
+            "task_id": "T-100"
+        });
+        let p: ExecParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.task_id.as_deref(), Some("T-100"));
+    }
+
+    #[test]
+    fn exec_params_without_task_id() {
+        let json = serde_json::json!({"target": "s1", "command": "echo hi"});
+        let p: ExecParams = serde_json::from_value(json).unwrap();
+        assert!(p.task_id.is_none());
+    }
+
+    #[test]
+    fn spawn_params_with_task_id() {
+        let json = serde_json::json!({"name": "builder", "task_id": "T-200"});
+        let p: SpawnParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.task_id.as_deref(), Some("T-200"));
+    }
+
+    #[test]
+    fn spawn_params_without_task_id() {
+        let json = serde_json::json!({});
+        let p: SpawnParams = serde_json::from_value(json).unwrap();
+        assert!(p.task_id.is_none());
+    }
+
+    #[test]
+    fn interact_params_with_task_id() {
+        let json = serde_json::json!({
+            "target": "s1",
+            "command": "ls",
+            "task_id": "T-300"
+        });
+        let p: InteractParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.task_id.as_deref(), Some("T-300"));
+    }
+
+    #[test]
+    fn interact_params_without_task_id() {
+        let json = serde_json::json!({"target": "s1", "command": "ls"});
+        let p: InteractParams = serde_json::from_value(json).unwrap();
+        assert!(p.task_id.is_none());
+    }
+
+    #[test]
+    fn dispatch_params_with_task_id() {
+        let json = serde_json::json!({
+            "count": 2,
+            "command": ["echo", "hello"],
+            "task_id": "T-400"
+        });
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.task_id.as_deref(), Some("T-400"));
+    }
+
+    #[test]
+    fn dispatch_params_without_task_id() {
+        let json = serde_json::json!({"count": 1, "command": ["ls"]});
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert!(p.task_id.is_none());
     }
 }
