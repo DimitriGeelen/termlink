@@ -246,3 +246,178 @@ Spikes 3 and 4 (prototype + enforcement testing) are deferred pending path decis
 ### 2026-04-09 — Go recommendation
 
 **Recommendation:** GO on Option 4 (Native Rust relay). Score 18/20. All go criteria met except A-3 (stream rewriting) which is the first build spike. 7-task build decomposition proposed.
+
+### 2026-04-09 — A-3 de-risking via stop_reason analysis
+
+**Research:** Analyzed Anthropic's [stop_reason handling docs](https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons) and [streaming recovery docs](https://platform.claude.com/docs/en/build-with-claude/streaming).
+
+**Key findings:**
+1. SDK tool_use loop: `for content in response.content: if content.type == "tool_use"` — if no tool_use blocks exist, loop simply doesn't execute. No crash.
+2. "Tool use and extended thinking blocks cannot be partially recovered" — SDK treats missing tool_use as non-fatal.
+3. `stop_reason` is in `message_delta` event — the relay can rewrite it.
+
+**Two rewriting strategies identified:**
+
+| Strategy | What relay does | Claude Code sees | Risk |
+|----------|----------------|------------------|------|
+| A: Full rewrite | Strip tool_use blocks + change `stop_reason` to `end_turn` + inject text block | Normal text response, clean end_turn | Low — completely consistent message |
+| B: Partial strip | Strip tool_use blocks only, leave `stop_reason: tool_use` | stop_reason=tool_use but no tool_use content | Medium — mismatch may confuse Claude Code's internal state |
+
+**Strategy A is recommended.** It produces a valid, internally consistent response. The relay rewrites 3 things:
+1. Replace `content_block_start(tool_use)` → `content_block_start(text)` with governance message
+2. Replace `content_block_delta(input_json_delta)` → `content_block_delta(text_delta)` (or suppress)
+3. Replace `message_delta.stop_reason: "tool_use"` → `message_delta.stop_reason: "end_turn"`
+
+**A-3 risk assessment revised:** From HIGH (untested, unknown behavior) to **LOW** (consistent message, no state mismatch). The first build spike should still validate empirically, but the theoretical risk is substantially reduced.
+
+### Open Questions — Tier 1 (consolidated from 3 deep dives)
+
+| # | Question | Status | Resolution path |
+|---|----------|--------|----------------|
+| 1 | A-3: Stream rewriting | **De-risked** (Strategy A) | First build spike validates empirically |
+| 2 | Fail-open vs fail-closed | **Proposed: fail-open with audit** (Worker 3 degradation ladder) | Design decision, not research |
+| 3 | API key isolation | **Deferred** — strongest defense but adds complexity. Start without, add as hardening | Separate task if needed |
+| 4 | Multi-tool responses | **Answered** — strip only blocked blocks, keep others. Strategy A per-block. | Rewrite stop_reason only if ALL tool_use blocks stripped |
+
+### Open Questions — Tier 2 (design decisions)
+
+#### Q5: Governance rule format
+
+**Decision: TOML, matching existing TermLink config pattern.**
+
+TermLink already uses TOML for hub profiles (`~/.termlink/hubs.toml`). The existing `GovernanceConfig` struct in `governance_subscriber.rs` takes patterns programmatically — no file loading yet. The relay config should follow the same pattern:
+
+```toml
+# ~/.termlink/relay.toml
+
+[relay]
+listen = "127.0.0.1:4100"       # or unix socket
+upstream = "https://api.anthropic.com"
+fail_mode = "open"               # "open" or "closed"
+
+[[rules]]
+name = "task-gate"
+description = "No file mutations without active task"
+tools = ["Write", "Edit", "Bash"]
+condition = "no-active-task"     # checks .tasks/active/*.md via hub
+action = "block"
+message = "No active task. Create one first."
+
+[[rules]]
+name = "protect-governance"
+description = "Block writes to governance files"
+tools = ["Write", "Edit"]
+path_patterns = ["**/.claude/**", "**/hooks/**", "**/.tasks/**"]
+action = "block"
+message = "Protected path. Cannot modify governance files."
+
+[[rules]]
+name = "inception-discipline"
+description = "Block package installs during inception"
+tools = ["Bash"]
+workflow_types = ["inception"]
+input_patterns = ["install", "cargo add", "pip install", "npm install"]
+action = "block"
+message = "Package installation not allowed during inception."
+```
+
+**Hot-reload: Yes, via file watch (inotify/kqueue).** The data plane subscriber already runs as an async task — same pattern for relay config reload. SIGHUP as fallback.
+
+#### Q6: Allowlist vs blocklist
+
+**Decision: Blocklist to start, with allowlist option.**
+
+Blocklist is practical for adoption — the relay works immediately without configuration, blocking only known-dangerous patterns. Allowlist is more secure but requires enumerating every permitted tool, which is fragile when Claude Code adds new tools.
+
+The rule format supports both:
+- `tools = ["Write", "Edit"]` + `action = "block"` → blocklist
+- `tools = ["Read", "Glob", "Grep"]` + `action = "allow"` → allowlist (everything else blocked)
+
+Default: blocklist with the task-gate rule (block Write/Edit/Bash without active task).
+
+#### Q7: Unix socket vs TCP for local listener
+
+**Decision: TCP by default, Unix socket as option.**
+
+Reasoning:
+- `ANTHROPIC_BASE_URL` expects an HTTP URL (`http://localhost:PORT`), not a Unix socket path
+- `ANTHROPIC_UNIX_SOCKET` exists in the binary (confirmed Spike 2) but its behavior is undocumented
+- TCP is universally supported and debuggable (`curl http://localhost:4100/health`)
+- Unix socket can be added later for zero-port-conflict, lower-latency operation
+
+Default port: **4100** (avoids conflict with ccproxy 4000, common dev ports 3000/8000/8080).
+
+#### Q8: Stream buffer strategy for content-aware gating
+
+**Decision: Two-tier — instant gate + deferred gate.**
+
+| Tier | When | Buffer? | Latency | Capability |
+|------|------|---------|---------|------------|
+| Fast gate | `content_block_start` arrives | No | ~0ms | Gate by tool name only |
+| Content gate | Accumulate `input_json_delta` until `content_block_stop` | Yes, per-block | Adds block duration | Gate by tool input (paths, commands) |
+
+For fast gate (tool name): forward `content_block_start` immediately if tool name is allowed. Block immediately if tool name is denied. Zero added latency.
+
+For content gate (e.g., "block Write to .claude/"): hold `content_block_start` and all deltas, accumulate input JSON, parse on `content_block_stop`, then either forward all held events or replace with governance text block. Adds latency equal to block streaming duration (typically 100-500ms for tool input).
+
+**Optimization:** Most rules are fast-gate (tool name + active task). Content gate is only needed for path-based rules. The relay should try fast-gate first, only buffer if a content-gate rule matches the tool name.
+
+#### Q9: How relay learns active task state
+
+**Decision: Hub query with in-memory cache (5s TTL).**
+
+Three options evaluated:
+
+| Approach | Latency | Consistency | Complexity |
+|----------|---------|-------------|------------|
+| Direct file read (`.tasks/active/`, `focus.yaml`) | ~1ms | Immediate | Low — but couples relay to filesystem layout |
+| Hub query (`session.discover` or custom RPC) | ~2ms (Unix socket) | 30s stale (supervisor sweep) | Medium — relay is a hub client |
+| Push from framework (inotify on task files) | ~0ms (cached) | Immediate | High — requires new push mechanism |
+
+Hub query is the cleanest: relay calls the hub (which already tracks sessions and can be extended with a `governance.state` RPC), caches result for 5 seconds. On cache miss, query takes ~2ms over Unix socket. Framework changes to task files are detected on next cache refresh.
+
+Direct file read is a pragmatic fallback if hub query adds too much coupling. The relay just checks `ls .tasks/active/T-*.md | wc -l > 0` — crude but effective for the task-gate rule.
+
+**Recommendation: Start with direct file read (simple), migrate to hub query when governance RPC is built.**
+
+#### Q10: Subagent identification
+
+**Partial answer: Possible via request metadata, not SSE stream.**
+
+The relay sees HTTP requests from Claude Code → Anthropic API. Each request has headers that may include session/agent metadata. The Anthropic SDK sets custom headers via `ANTHROPIC_CUSTOM_HEADERS` env var (confirmed in binary).
+
+The relay CANNOT distinguish parent from subagent in the SSE response stream alone — tool_use blocks don't carry agent identity. But it CAN distinguish at the request level if different sessions use different API keys or custom headers.
+
+**Practical approach:** For now, all sessions through the relay get the same governance rules. Per-agent rules require either:
+- Different relay ports per agent (overkill)
+- Custom header injection by TermLink dispatch (`X-Termlink-Agent: worker-1`)
+- API key per session (ties to Q3, API key isolation)
+
+**Deferred to build phase.** Same rules for all sessions is sufficient for v1.
+
+#### Q11: Prompt caching interaction
+
+**Answer: Relay does NOT invalidate prompt cache.**
+
+Anthropic's prompt cache is based on **request body content hash** (tools, system message, message history — in that order). The relay:
+- Forwards the request body **unmodified** (request-side passthrough)
+- Only modifies the **response** stream (SSE events)
+- Does not add/remove headers that affect caching (`anthropic-version`, `anthropic-beta` passed through)
+
+Therefore: **prompt cache hit rates are unaffected by the relay.** The `cache_creation_input_tokens` and `cache_read_input_tokens` fields in `message_delta` remain accurate.
+
+The relay can even **monitor** cache efficiency from the response usage data — another observability benefit for free.
+
+#### Q12: Non-streaming endpoint handling
+
+**Decision: Proxy all `/v1/*` endpoints, govern only `/v1/messages` with `stream: true`.**
+
+Claude Code makes several API calls:
+- `/v1/messages` (streaming) — main conversation, tool calls here
+- `/v1/messages` (non-streaming) — rare, used for some SDK operations
+- `/v1/messages/count_tokens` — token counting, no tool calls
+- `/v1/models` — model listing, no tool calls
+
+Only `/v1/messages` with `"stream": true` contains tool_use blocks. All other endpoints should be forwarded verbatim (transparent proxy). For non-streaming `/v1/messages`, the relay can inspect the complete JSON response (simpler than SSE parsing) and apply the same governance rules.
+
+**Default: passthrough for everything except streaming messages.** Non-streaming governance can be added later if needed.

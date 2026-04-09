@@ -229,7 +229,66 @@ During this inception session, the agent (me) violated inception discipline by r
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-908 go --rationale "..." -->
+<!-- INCEPTION ONGOING — Human explicitly requested more sessions before go/no-go.
+     Agent recommendation is GO (Option 4, 18/20) but decision authority is HUMAN.
+     Do NOT attempt to record a decision without explicit human instruction.
+     Filled at completion via: fw inception decide T-908 go|no-go --rationale "..." -->
+
+## State of Inception (2026-04-09)
+
+### What we know (validated)
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| A-1: `ANTHROPIC_BASE_URL` respected | **Validated** | Binary string extraction, SDK docs |
+| A-2: SSE parseable incrementally | **Validated** | Tool name in `content_block_start`, clean block boundaries |
+| A-3: Stream rewriting safe | **De-risked (LOW)** | Strategy A: rewrite stop_reason + replace block → consistent message. SDK handles missing tool_use gracefully. Needs empirical validation. |
+| A-4: Subagent env inheritance | **High confidence** | Standard POSIX behavior |
+| A-6: API key passthrough | **Validated** | SDK forwards `x-api-key` header |
+| Market gap | **Confirmed** | 28 projects surveyed. No existing solution filters streaming SSE output. |
+| Failure modes | **All 5 mapped** | Worker 1 deep dive. FM1-FM4 closed, FM5 partially closed. |
+| Orchestration convergence | **Confirmed** | Relay = Layer -1, completes T-233/T-902/T-903/T-904 stack |
+| Constitutional score | **18/20** | Option 4 (native Rust). Highest of 5 options. |
+| Live failure evidence | **Observed** | FM5 during this session (agent installed package during inception) |
+
+### Design decisions made
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Implementation | Native Rust (`termlink-relay` crate) | 18/20, no throwaway work, single binary |
+| Scope | API control plane (governance + routing + observability) | Natural convergence point |
+| Rule format | TOML (`~/.termlink/relay.toml`) with hot-reload | Matches existing `hubs.toml` |
+| Tool filtering | Blocklist default, allowlist option | Practical adoption |
+| Local listener | TCP :4100 default, Unix socket optional | `ANTHROPIC_BASE_URL` expects HTTP URL |
+| Buffer strategy | Two-tier: fast gate (tool name, 0ms) + content gate (input JSON, ~100-500ms) | Most rules are fast-gate |
+| Task state | Direct file read to start, hub query later | Simple first, clean later |
+| Subagent rules | Same rules for all sessions in v1 | Per-agent deferred |
+| Prompt caching | Not affected (relay modifies response only) | Cache keyed on request body |
+| Non-streaming | Passthrough (govern streaming messages only) | Only streaming has tool_use |
+| Fail mode | Fail-open with audit (degradation ladder) | Usability over hard security |
+| Stop_reason rewriting | Strategy A: full rewrite (block → text + end_turn) | Consistent message, no state mismatch |
+
+### What remains before go/no-go
+
+| Item | Type | Effort |
+|------|------|--------|
+| A-3 empirical validation | Spike (first build task if GO) | 1 day |
+| Framework integration design | How relay interacts with hooks, CLAUDE.md, handover, context fabric | 1 session |
+| `termlink claude` launcher UX | How users start the governed stack | Design |
+| Crate dependency impact | hyper 1.x doubles external deps — is this acceptable? | Review |
+| Human review of 3 deep dive reports | 191 + 207 + 227 lines of analysis | Human time |
+
+### Artifacts inventory
+
+| File | Lines | Content |
+|------|-------|---------|
+| `.tasks/active/T-908-*.md` | 245 | Task file with problem, assumptions, criteria, recommendation, decisions |
+| `docs/reports/T-908-api-relay-governance.md` | ~350 | Research artifact: spikes 1+2, landscape, ccproxy, dialogue log, tier 1+2 answers |
+| `docs/reports/T-908-deepdive-governance.md` | 191 | FM1-FM5 mapping, relay capabilities, comparison table, 7 open Qs |
+| `docs/reports/T-908-deepdive-orchestration.md` | 207 | Layer -1 concept, per-request routing, convergence, 10 open Qs |
+| `docs/reports/T-908-deepdive-architecture.md` | 227 | Crate placement, Rust survey, 8 failure modes, degradation, 8 open Qs |
+
+**Agent recommendation: GO.** Decision authority: human. Inception remains open.
 
 ## Updates
 
