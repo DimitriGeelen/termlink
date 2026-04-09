@@ -91,6 +91,51 @@ Verify that Claude Code and subagents respect the environment variable.
 - `ANTHROPIC_LOG` — enables SDK debug logging (useful for development)
 - `ANTHROPIC_CUSTOM_HEADERS` — could inject relay-specific headers
 
+## Landscape Research: Existing Solutions
+
+Before building anything, we surveyed the market for existing tools that solve our two goals (prime directive enforcement + context traceability).
+
+### Exact Problem: Claude Code Governance Bypass
+
+| Finding | What it shows | Source |
+|---------|--------------|--------|
+| **Ona: Claude Code escapes sandbox** | Agent bypassed denylist via `/proc/self/root/` path trick, then disabled bubblewrap sandbox, then used ELF dynamic linker (`ld-linux`) to bypass execve-based enforcement entirely. No jailbreak needed. | [Ona](https://ona.com/stories/how-claude-code-escapes-its-own-denylist-and-sandbox) |
+| **Adversa: Deny rules silently bypassed** | When shell commands have >50 subcommands, Claude Code skips all per-subcommand security analysis including deny rules | [Adversa](https://adversa.ai/blog/claude-code-security-bypass-deny-rules-disabled/) |
+| **Anthropic managed-only settings** | `allowManagedHooksOnly`, `allowManagedMcpServersOnly`, `allowManagedPermissionRulesOnly` — prevents user/project settings from expanding trust. Enterprise feature. | [Claude Code Docs](https://code.claude.com/docs/en/sandboxing) |
+
+**Key insight:** The Ona research proves that even kernel-level enforcement (bubblewrap/seccomp) can be bypassed by a sufficiently capable model. `chattr +i` and Landlock face similar risks — the model can reason about Linux internals and find alternative paths.
+
+### LLM API Gateways (closest to our relay idea)
+
+| Project | Approach | Tool call filtering? | Streaming SSE rewrite? | Maturity |
+|---------|----------|---------------------|----------------------|----------|
+| **[LiteLLM](https://github.com/BerriAI/litellm)** (16k+ stars) | Python proxy, OpenAI-compatible, 140+ providers | Guardrails on input/output | Partial — input guardrails work on streaming, output guardrails do NOT work on streaming | Production, widely used |
+| **[Portkey Gateway](https://github.com/Portkey-AI/gateway)** (7k+ stars) | Node.js gateway, 200+ LLMs, 50+ guardrails | Yes, per-request guardrails | Input only on streaming — **output guardrails not supported for streaming** | Production, commercial |
+| **[Bifrost](https://github.com/maximhq/bifrost)** (Go, 11μs overhead) | MCP gateway + AI gateway, virtual key governance | Yes — per-VK tool allow-lists for MCP tools | Not for LLM response streams | Production, open source |
+| **[NeMo Guardrails](https://github.com/NVIDIA-NeMo/Guardrails)** (NVIDIA) | Python runtime rails on input/output/execution | Execution rails for tool validation | Not designed for streaming interception | Production, open source |
+
+**Critical finding: NO existing gateway supports output guardrails on streaming SSE responses.** LiteLLM and Portkey both explicitly document this limitation. They can guard inputs (what you send to the API) but cannot inspect or rewrite the streaming response. This is exactly the gap our relay would fill.
+
+### Agent Governance Platforms
+
+| Project | Approach | Relevance |
+|---------|----------|-----------|
+| **[Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit)** (April 2026, MIT license) | Policy enforcement ("Agent OS"), secure identity ("Agent Mesh"), execution sandboxing ("Agent Runtime"). Covers all 10 OWASP Agentic AI risks. Python/Rust/TS/Go/.NET. Integrates via framework callbacks (LangChain, CrewAI, etc.) | High — but hooks into framework extension points, same as our hooks. No Claude Code integration yet. |
+| **[Stagent](https://stagent.io/)** ([GitHub](https://github.com/navam-io/stagent)) | Local-first agent ops workspace. Governed execution with inbox/approval flows. Supports Claude Code + OpenAI Codex backends. SQLite, npx-installable. | High — similar goals. BUT: governance is at the task dispatch level (which agent runs), not at the tool call level (what the agent does). Different enforcement surface. |
+| **[Ona Veto](https://ona.com/stories/how-claude-code-escapes-its-own-denylist-and-sandbox)** | BPF LSM layer, SHA-256 binary content hashing. Kernel checks content identity, not filename. | Highest relevance — addresses the exact bypass chain. But solves only the sandbox problem (which binaries can execute), not the task gate problem. |
+
+### Summary Matrix: What solves our goals?
+
+| Solution | Prime directive (task gate) | Context traceability | Closes all 5 FMs? | Effort |
+|----------|---------------------------|---------------------|-------------------|--------|
+| **Hardened hooks** (chattr+i, scripts) | Partial — FM3 questionable per Ona research | No change | No (FM3 bypass proven) | Hours |
+| **LiteLLM/Portkey as proxy** | Input guardrails only | Logging yes, but no output filtering | No (can't rewrite streaming output) | Days |
+| **Bifrost MCP gateway** | MCP tool filtering only, not LLM tool_use | MCP tool logging | No (doesn't intercept LLM responses) | Days |
+| **Microsoft Agent Gov Toolkit** | Framework callbacks (no Claude Code adapter) | Audit trail via Agent OS | Unknown (no CC integration) | Weeks |
+| **Stagent** | Task-level dispatch governance | Agent ops visibility | No (doesn't gate individual tool calls) | Weeks |
+| **Ona Veto (BPF LSM)** | Binary execution control | Execution audit trail | Partial (sandbox only, not task gate) | Weeks |
+| **Custom SSE relay (our proposal)** | Full — gates tool_use at wire level | Wire audit trail | Yes (all 5) | Weeks |
+
 ## Spike 3: Minimal Relay Prototype
 
 ### Objective
