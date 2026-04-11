@@ -1,4 +1,38 @@
 # Concerns Register — Unified gap and risk tracking (T-397)
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
-concerns: []
+concerns:
+- id: G-002
+  type: gap
+  title: termlink dispatch shell template omits `;` separators, workers never run child command
+  description: 'When `termlink dispatch` launches a worker, it constructs a `sh -c` script that registers the session in background and then runs the child command. Observed on 2026-04-11 during T-909 risk-eval: ps shows the shell template flattens to `... termlink register ... & TL_PID=$! sleep 1 bash -c ''claude ...'' wait $TL_PID` — missing `;` between `TL_PID=$!`, `sleep 1`, `bash -c`, and `wait`. POSIX sh parses this as a single command `TL_PID=$! sleep 1 bash -c ''...'' wait $TL_PID` (var assignment prefix on `sleep` with bogus numeric args). `sleep` errors on non-numeric, and the `bash -c ''claude ...''` never executes. Workers appear ready in `termlink list` but the child command is never invoked; they hang in `wait` waiting for the registrar to exit. Reproducer: `termlink dispatch --count 1 --name test --backend background --timeout 60 -- bash -c ''echo hello > /tmp/test.txt''` — /tmp/test.txt is never written.'
+  spec_reference: 'T-282 (dispatch command spec), T-280 (dispatch readiness)'
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-04-11 13:32Z: 3 dispatched risk-eval workers (risk-tech-1, risk-state-1, risk-blast-1) registered but never ran `claude -p`. Confirmed by pstree showing only `termlink register` as child of the worker sh — no bash/claude grandchild. Forced fallback to direct bash backgrounding.'
+  detection_lag_days: '?'
+  what_works_now: 'termlink register (foreground) works. termlink spawn / run may work (different code path, not verified). Direct `claude -p ... &` backgrounding from bash works as a fallback.'
+  what_remains: 'Locate the shell template construction in termlink source (likely in dispatch.rs or spawn.rs), add `;` separators or switch to a heredoc with proper newline handling, write a regression test that verifies the child command actually runs.'
+  mitigation_candidate: '1. Kill broken workers via SIGTERM on the parent `termlink dispatch` PID. 2. Fall back to direct bash `claude -p ... &` for parallel workers. 3. Fix dispatch template in termlink source. 4. Add integration test: `termlink dispatch ... -- bash -c ''touch /tmp/proof''` and assert /tmp/proof exists.'
+  status: watching
+  created: 2026-04-11
+  last_reviewed: 2026-04-11
+  related_tasks: [T-282, T-280, T-909]
+
+- id: G-001
+  type: gap
+  title: TermLink .agentic-framework is a symlink, not a vendored copy — breaks PROJECT_ROOT resolution and risks state contamination
+  description: '/opt/termlink/.agentic-framework is a symlink to /opt/999-Agentic-Engineering-Framework (the framework source repo), rather than a vendored copy. Other consumer projects (e.g., /opt/025-WokrshopDesigner) use a real directory. The framework is effectively blind to this misconfiguration — fw upgrade, hooks, and doctor all appear to work because path resolution still succeeds, just to the wrong project root. Surfaced 2026-04-11 when starting Watchtower: the script default for PROJECT_ROOT resolved to /opt/999-... via symlink traversal, serving framework tasks instead of termlink tasks.'
+  spec_reference: 'T-288 (termlink vendor — per-project binary isolation), T-290/L-027 (Consumer project hooks must pass PROJECT_ROOT explicitly)'
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-04-11: Watchtower started with PROJECT_ROOT defaulting via $(cd .. && pwd) which resolved through symlink to /opt/999-..., showing framework tasks instead of TermLink tasks. User caught the symlink during path inspection. Second live incident 2026-04-11 13:30Z during T-909 risk-eval session: running `watchtower.sh stop` from /opt/termlink stopped the /opt/999-... framework watchtower instance because both share the same PID file at .context/working/watchtower.pid (resolved via symlink). Confirms cross-project PID/log/state collision risk.'
+  detection_lag_days: '>7'
+  resolution_in_progress: 'T-909 inception — risk evaluation via 3 termlink dispatch workers (technical, state, blast radius angles) before applying the fix'
+  what_works_now: 'Explicit PROJECT_ROOT=/opt/termlink override works. L-027 learning already documented the pattern. T-288 (termlink vendor) exists as the intended long-term solution.'
+  what_remains: 'Apply the fix (replace symlink with vendored copy), retrospectively verify whether /opt/999-... has been contaminated by TermLink state writes through the symlink, codify a doctor check to detect consumer projects using symlinks.'
+  mitigation_candidate: '1. Replace symlink with vendored copy. 2. Add fw doctor check: warn if .agentic-framework is a symlink in a consumer project. 3. Add fw upgrade pre-flight: refuse to upgrade consumer projects using symlinks (suggest vendoring first).'
+  status: watching
+  created: 2026-04-11
+  last_reviewed: 2026-04-11
+  related_tasks: [T-288, T-290, T-909, T-908]
