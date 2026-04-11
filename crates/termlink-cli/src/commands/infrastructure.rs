@@ -1,6 +1,28 @@
 use anyhow::{Context, Result};
 use serde_json::json;
 
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        let mut term = match signal(SignalKind::terminate()) {
+            Ok(s) => s,
+            Err(_) => {
+                tokio::signal::ctrl_c().await.ok();
+                return;
+            }
+        };
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {},
+            _ = term.recv() => {},
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        tokio::signal::ctrl_c().await.ok();
+    }
+}
+
 pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool) -> Result<()> {
     let socket_path = termlink_hub::server::hub_socket_path();
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
@@ -50,10 +72,10 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool) -> 
 
     if !json_output {
         println!();
-        println!("Listening for connections... (Ctrl+C to stop)");
+        println!("Listening for connections... (Ctrl+C or SIGTERM to stop)");
     }
 
-    tokio::signal::ctrl_c().await.ok();
+    wait_for_shutdown_signal().await;
 
     if !json_output {
         println!();
