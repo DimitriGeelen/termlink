@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 
-use termlink_session::client;
 use termlink_session::manager;
 
 use crate::cli::KvAction;
@@ -354,244 +353,167 @@ pub(crate) async fn cmd_discover(
     Ok(())
 }
 
-pub(crate) async fn cmd_kv(target: &str, action: KvAction, json: bool, raw: bool, keys: bool, timeout_secs: u64) -> Result<()> {
-    let reg = match manager::find_session(target) {
-        Ok(r) => r,
-        Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-            }
-            return Err(e).context(format!("Session '{}' not found", target));
-        }
-    };
+pub(crate) async fn cmd_kv(
+    tgt: &crate::target::TargetOpts,
+    action: KvAction,
+    json: bool,
+    raw: bool,
+    keys: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let target = tgt.session.as_str();
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+
+    // Small local helper: call_session + timeout + consistent json-error
+    // exit. Keeps every branch below to a single line.
+    async fn call(
+        tgt: &crate::target::TargetOpts,
+        method: &str,
+        params: serde_json::Value,
+        timeout_dur: std::time::Duration,
+        json: bool,
+        target: &str,
+        timeout_secs: u64,
+    ) -> Result<serde_json::Value> {
+        match tokio::time::timeout(timeout_dur, crate::target::call_session(tgt, method, params)).await {
+            Ok(Ok(v)) => Ok(v),
+            Ok(Err(e)) => {
+                if json {
+                    super::json_error_exit(serde_json::json!({
+                        "ok": false, "target": target, "error": format!("{method} failed: {e}")
+                    }));
+                }
+                Err(e.context(format!("{method} failed")))
+            }
+            Err(_) => {
+                if json {
+                    super::json_error_exit(serde_json::json!({
+                        "ok": false, "target": target,
+                        "error": format!("{method} timed out after {timeout_secs}s")
+                    }));
+                }
+                anyhow::bail!("{method} timed out after {timeout_secs}s")
+            }
+        }
+    }
+
+    // Helper to wrap success result as {"ok": true, ...fields} for JSON output.
+    fn wrap_ok(result: &serde_json::Value) -> serde_json::Value {
+        let mut wrapped = serde_json::json!({"ok": true});
+        if let Some(obj) = result.as_object() {
+            for (k, v) in obj {
+                wrapped[k] = v.clone();
+            }
+        }
+        wrapped
+    }
 
     match action {
         KvAction::Set { key, value } => {
             let json_value: serde_json::Value = serde_json::from_str(&value)
                 .unwrap_or(serde_json::Value::String(value));
-
-            let rpc = client::rpc_call(
-                reg.socket_path(),
+            let result = call(
+                tgt,
                 "kv.set",
                 serde_json::json!({"key": key, "value": json_value}),
-            );
-            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => match r {
-                    Ok(v) => v,
-                    Err(e) => {
-                        if json {
-                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                        }
-                        return Err(e).context("Failed to connect to session");
-                    }
-                },
-                Err(_) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.set timed out after {}s", timeout_secs)}));
-                    }
-                    anyhow::bail!("kv.set timed out after {}s", timeout_secs);
-                }
-            };
-
-            match client::unwrap_result(resp) {
-                Ok(result) => {
-                    if json {
-                        let mut wrapped = serde_json::json!({"ok": true});
-                        if let Some(obj) = result.as_object() {
-                            for (k, v) in obj {
-                                wrapped[k] = v.clone();
-                            }
-                        }
-                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
-                    } else {
-                        let replaced = result["replaced"].as_bool().unwrap_or(false);
-                        println!(
-                            "{} {}={}",
-                            if replaced { "Updated" } else { "Set" },
-                            result["key"].as_str().unwrap_or("?"),
-                            serde_json::to_string(&json_value)?,
-                        );
-                    }
-                }
-                Err(e) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                    }
-                    anyhow::bail!("kv.set failed: {}", e);
-                }
+                timeout_dur,
+                json,
+                target,
+                timeout_secs,
+            )
+            .await?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&wrap_ok(&result))?);
+            } else {
+                let replaced = result["replaced"].as_bool().unwrap_or(false);
+                println!(
+                    "{} {}={}",
+                    if replaced { "Updated" } else { "Set" },
+                    result["key"].as_str().unwrap_or("?"),
+                    serde_json::to_string(&json_value)?,
+                );
             }
         }
         KvAction::Get { key } => {
-            let rpc = client::rpc_call(
-                reg.socket_path(),
+            let result = call(
+                tgt,
                 "kv.get",
                 serde_json::json!({"key": key}),
-            );
-            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => match r {
-                    Ok(v) => v,
-                    Err(e) => {
-                        if json {
-                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                        }
-                        return Err(e).context("Failed to connect to session");
-                    }
-                },
-                Err(_) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.get timed out after {}s", timeout_secs)}));
-                    }
-                    anyhow::bail!("kv.get timed out after {}s", timeout_secs);
-                }
-            };
-
-            match client::unwrap_result(resp) {
-                Ok(result) => {
-                    if json {
-                        let mut wrapped = serde_json::json!({"ok": true});
-                        if let Some(obj) = result.as_object() {
-                            for (k, v) in obj {
-                                wrapped[k] = v.clone();
-                            }
-                        }
-                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
-                    } else if result["found"].as_bool().unwrap_or(false) {
-                        let value = &result["value"];
-                        if raw {
-                            if let Some(s) = value.as_str() {
-                                println!("{}", s);
-                            } else {
-                                println!("{}", serde_json::to_string(value)?);
-                            }
-                        } else {
-                            println!("{}", serde_json::to_string_pretty(value)?);
-                        }
+                timeout_dur,
+                json,
+                target,
+                timeout_secs,
+            )
+            .await?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&wrap_ok(&result))?);
+            } else if result["found"].as_bool().unwrap_or(false) {
+                let value = &result["value"];
+                if raw {
+                    if let Some(s) = value.as_str() {
+                        println!("{}", s);
                     } else {
-                        eprintln!("Key '{}' not found", key);
-                        std::process::exit(1);
+                        println!("{}", serde_json::to_string(value)?);
                     }
+                } else {
+                    println!("{}", serde_json::to_string_pretty(value)?);
                 }
-                Err(e) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                    }
-                    anyhow::bail!("kv.get failed: {}", e);
-                }
+            } else {
+                eprintln!("Key '{}' not found", key);
+                std::process::exit(1);
             }
         }
         KvAction::List => {
-            let rpc = client::rpc_call(
-                reg.socket_path(),
+            let result = call(
+                tgt,
                 "kv.list",
                 serde_json::json!({}),
-            );
-            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => match r {
-                    Ok(v) => v,
-                    Err(e) => {
-                        if json {
-                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                        }
-                        return Err(e).context("Failed to connect to session");
-                    }
-                },
-                Err(_) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.list timed out after {}s", timeout_secs)}));
-                    }
-                    anyhow::bail!("kv.list timed out after {}s", timeout_secs);
-                }
-            };
-
-            match client::unwrap_result(resp) {
-                Ok(result) => {
-                    if json {
-                        let mut wrapped = serde_json::json!({"ok": true});
-                        if let Some(obj) = result.as_object() {
-                            for (k, v) in obj {
-                                wrapped[k] = v.clone();
-                            }
-                        }
-                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
-                    } else if keys {
-                        if let Some(entries) = result["entries"].as_array() {
-                            for entry in entries {
-                                println!("{}", entry["key"].as_str().unwrap_or("?"));
-                            }
-                        }
-                    } else {
-                        let entries = result["entries"].as_array();
-                        if let Some(entries) = entries {
-                            if entries.is_empty() {
-                                println!("No key-value pairs.");
-                            } else {
-                                for entry in entries {
-                                    let key = entry["key"].as_str().unwrap_or("?");
-                                    let value = &entry["value"];
-                                    println!("{}={}", key, serde_json::to_string(value)?);
-                                }
-                                println!();
-                                println!("{} pair(s)", result["count"]);
-                            }
-                        }
+                timeout_dur,
+                json,
+                target,
+                timeout_secs,
+            )
+            .await?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&wrap_ok(&result))?);
+            } else if keys {
+                if let Some(entries) = result["entries"].as_array() {
+                    for entry in entries {
+                        println!("{}", entry["key"].as_str().unwrap_or("?"));
                     }
                 }
-                Err(e) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
+            } else if let Some(entries) = result["entries"].as_array() {
+                if entries.is_empty() {
+                    println!("No key-value pairs.");
+                } else {
+                    for entry in entries {
+                        let key = entry["key"].as_str().unwrap_or("?");
+                        let value = &entry["value"];
+                        println!("{}={}", key, serde_json::to_string(value)?);
                     }
-                    anyhow::bail!("kv.list failed: {}", e);
+                    println!();
+                    println!("{} pair(s)", result["count"]);
                 }
             }
         }
         KvAction::Del { key } => {
-            let rpc = client::rpc_call(
-                reg.socket_path(),
+            let result = call(
+                tgt,
                 "kv.delete",
                 serde_json::json!({"key": key}),
-            );
-            let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-                Ok(r) => match r {
-                    Ok(v) => v,
-                    Err(e) => {
-                        if json {
-                            super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                        }
-                        return Err(e).context("Failed to connect to session");
-                    }
-                },
-                Err(_) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("kv.delete timed out after {}s", timeout_secs)}));
-                    }
-                    anyhow::bail!("kv.delete timed out after {}s", timeout_secs);
-                }
-            };
-
-            match client::unwrap_result(resp) {
-                Ok(result) => {
-                    if json {
-                        let mut wrapped = serde_json::json!({"ok": true});
-                        if let Some(obj) = result.as_object() {
-                            for (k, v) in obj {
-                                wrapped[k] = v.clone();
-                            }
-                        }
-                        println!("{}", serde_json::to_string_pretty(&wrapped)?);
-                    } else if result["deleted"].as_bool().unwrap_or(false) {
-                        println!("Deleted '{}'", key);
-                    } else {
-                        eprintln!("Key '{}' not found", key);
-                        std::process::exit(1);
-                    }
-                }
-                Err(e) => {
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{e}")}));
-                    }
-                    anyhow::bail!("kv.delete failed: {}", e);
-                }
+                timeout_dur,
+                json,
+                target,
+                timeout_secs,
+            )
+            .await?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&wrap_ok(&result))?);
+            } else if result["deleted"].as_bool().unwrap_or(false) {
+                println!("Deleted '{}'", key);
+            } else {
+                eprintln!("Key '{}' not found", key);
+                std::process::exit(1);
             }
         }
     }
