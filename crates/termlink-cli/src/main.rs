@@ -39,7 +39,25 @@ async fn main() -> Result<()> {
             let filter = commands::session::ListFilterOpts { include_stale: all, tag: tag.as_deref(), name: name.as_deref(), role: role.as_deref(), cap: cap.as_deref(), wait, wait_timeout };
             commands::session::cmd_list(&filter, &display, sort.as_deref()).await
         }
-        Command::Ping { target, json, timeout } => commands::session::cmd_ping(&resolve_target(target)?, json, timeout).await,
+        Command::Ping { target, json, timeout, hub, secret_file, secret, scope } => {
+            let session = if hub.is_some() {
+                // Cross-host: session name is mandatory (no interactive picker
+                // over TCP yet — that would need a remote discover round-trip).
+                target.ok_or_else(|| anyhow::anyhow!(
+                    "--target requires an explicit session name (positional arg)"
+                ))?
+            } else {
+                resolve_target(target)?
+            };
+            let opts = target::TargetOpts {
+                hub,
+                secret_file,
+                secret,
+                scope,
+                session,
+            };
+            commands::session::cmd_ping(&opts, json, timeout).await
+        }
         Command::Status { target, json, short, timeout } => commands::session::cmd_status(&resolve_target(target)?, json, short, timeout).await,
         Command::Info { json, short, check } => commands::session::cmd_info(json, short, check),
         Command::Send { target, method, params, json, timeout } => commands::session::cmd_send(&target, &method, &params, json, timeout).await,

@@ -30,8 +30,13 @@ pub(crate) struct TargetOpts {
     /// Remote hub address, e.g. "host:4112". When set, the command is
     /// forwarded through the hub; when omitted, the command runs against a
     /// local session via its unix socket.
-    #[arg(long, global = true)]
-    pub target: Option<String>,
+    ///
+    /// Rust field is named `hub` so it does not collide with consumer
+    /// commands whose own `target` field historically names a session (e.g.
+    /// `Ping { target: Option<String> }`). The CLI flag stays `--target`
+    /// per the T-921 inception decision.
+    #[arg(long = "target", global = true)]
+    pub hub: Option<String>,
 
     /// Path to a hex-encoded HMAC secret file for the remote hub.
     #[arg(long = "secret-file", global = true)]
@@ -74,8 +79,8 @@ impl TargetOpts {
                 .with_context(|| format!("Secret file not found: {}", path.display()))?
                 .trim()
                 .to_string()
-        } else if let Some(target) = &self.target {
-            let (host, _port) = parse_hub_addr(target)?;
+        } else if let Some(hub) = &self.hub {
+            let (host, _port) = parse_hub_addr(hub)?;
             let home = home.context(
                 "Cannot locate $HOME for implicit secret lookup — set HOME or pass --secret-file",
             )?;
@@ -178,8 +183,8 @@ pub(crate) fn default_scope_for(method: &str) -> &'static str {
 }
 
 /// Dispatch an RPC call to a session, routing through the hub when
-/// `opts.target` is set and hitting the session's local unix socket
-/// otherwise. Returns the `result` payload on success.
+/// `opts.hub` is set and hitting the session's local unix socket otherwise.
+/// Returns the `result` payload on success.
 pub(crate) async fn call_session(
     opts: &TargetOpts,
     method: &str,
@@ -187,7 +192,7 @@ pub(crate) async fn call_session(
 ) -> Result<Value> {
     use termlink_protocol::jsonrpc::RpcResponse;
 
-    if let Some(hub) = &opts.target {
+    if let Some(hub) = &opts.hub {
         // Cross-host path: forward through the hub.
         let secret_bytes = opts.resolve_secret()?;
         let secret_hex: String =
@@ -241,7 +246,7 @@ mod tests {
 
     fn base_opts() -> TargetOpts {
         TargetOpts {
-            target: None,
+            hub: None,
             secret_file: None,
             secret: None,
             scope: None,
@@ -256,7 +261,7 @@ mod tests {
     #[test]
     fn resolve_secret_prefers_explicit_hex() {
         let mut opts = base_opts();
-        opts.target = Some("example.com:4112".into());
+        opts.hub = Some("example.com:4112".into());
         opts.secret = Some(HEX_32.into());
         opts.secret_file = Some(PathBuf::from("/no/such/file")); // would error if read
 
@@ -274,7 +279,7 @@ mod tests {
         std::fs::write(&path, format!("{HEX_32}\n")).unwrap(); // trailing newline handled
 
         let mut opts = base_opts();
-        opts.target = Some("example.com:4112".into());
+        opts.hub = Some("example.com:4112".into());
         opts.secret_file = Some(path);
 
         let bytes = opts.resolve_secret_with_home(None).unwrap();
@@ -289,7 +294,7 @@ mod tests {
         std::fs::write(secrets_dir.join("hostA.hex"), HEX_32).unwrap();
 
         let mut opts = base_opts();
-        opts.target = Some("hostA:4112".into());
+        opts.hub = Some("hostA:4112".into());
 
         let bytes = opts.resolve_secret_with_home(Some(dir.path())).unwrap();
         assert_eq!(bytes.len(), 32);
@@ -299,7 +304,7 @@ mod tests {
     fn resolve_secret_errors_when_target_set_but_no_source_available() {
         let dir = tempdir().unwrap(); // empty — no secrets file
         let mut opts = base_opts();
-        opts.target = Some("nowhere:4112".into());
+        opts.hub = Some("nowhere:4112".into());
 
         let err = opts
             .resolve_secret_with_home(Some(dir.path()))
