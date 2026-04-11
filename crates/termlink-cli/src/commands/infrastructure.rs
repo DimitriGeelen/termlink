@@ -211,6 +211,93 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
+    // 4b. UFW rule vs. TCP listener consistency (T-934)
+    //
+    // Catches the exact state that triggered T-930: a firewall rule on
+    // the hub's TCP port exists but nothing is bound to it, so cross-host
+    // callers get connection-refused with no actionable signal. Parse
+    // `ufw status` for any rule whose comment mentions "termlink" (case-
+    // insensitive) and extract the port. If no corresponding listener is
+    // found via `ss -tln`, emit a warn check.
+    //
+    // The whole block is best-effort: ufw unavailable or unreadable is a
+    // skipped check, not a warning. That keeps the signal high for
+    // environments actually using ufw + termlink together.
+    {
+        let ufw_output = std::process::Command::new("ufw")
+            .arg("status")
+            .output();
+        if let Ok(out) = ufw_output
+            && out.status.success()
+        {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let mut termlink_ports: Vec<u16> = Vec::new();
+            for line in stdout.lines() {
+                if !line.to_lowercase().contains("termlink") {
+                    continue;
+                }
+                // Format: "9100/tcp  ALLOW  192.168.10.0/24  # TermLink..."
+                if let Some(first) = line.split_whitespace().next()
+                    && let Some(port_str) = first.strip_suffix("/tcp")
+                    && let Ok(port) = port_str.parse::<u16>()
+                {
+                    termlink_ports.push(port);
+                }
+            }
+            if !termlink_ports.is_empty() {
+                let ss_output = std::process::Command::new("ss")
+                    .args(["-tln"])
+                    .output()
+                    .ok();
+                let listening = ss_output
+                    .as_ref()
+                    .and_then(|o| {
+                        if o.status.success() {
+                            Some(String::from_utf8_lossy(&o.stdout).to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default();
+                let mut missing: Vec<u16> = Vec::new();
+                for port in &termlink_ports {
+                    let needle = format!(":{port} ");
+                    if !listening.contains(&needle) {
+                        missing.push(*port);
+                    }
+                }
+                if missing.is_empty() {
+                    check!(
+                        "ufw_listener",
+                        pass,
+                        format!(
+                            "ufw allows {} — listener present",
+                            termlink_ports
+                                .iter()
+                                .map(|p| format!("{p}/tcp"))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    );
+                } else {
+                    check!(
+                        "ufw_listener",
+                        warn,
+                        format!(
+                            "ufw allows {} but nothing is listening — run 'termlink hub start --tcp 0.0.0.0:{}' or start termlink-hub.service",
+                            missing
+                                .iter()
+                                .map(|p| format!("{p}/tcp"))
+                                .collect::<Vec<_>>()
+                                .join(", "),
+                            missing[0]
+                        )
+                    );
+                }
+            }
+        }
+    }
+
     // 5. Orphaned sockets (sockets without matching registration JSON)
     if sessions_dir.exists() {
         let mut orphan_count = 0u32;
