@@ -644,38 +644,31 @@ pub(crate) async fn cmd_ping(
     }
 }
 
-pub(crate) async fn cmd_status(target: &str, json: bool, short: bool, timeout_secs: u64) -> Result<()> {
-    let reg = match manager::find_session(target) {
-        Ok(r) => r,
-        Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-            }
-            return Err(e).context(format!("Session '{}' not found", target));
-        }
-    };
-
+pub(crate) async fn cmd_status(
+    opts: &crate::target::TargetOpts,
+    json: bool,
+    short: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let target = opts.session.as_str();
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    let rpc_future = client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({}));
-    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => match result {
-            Ok(r) => r,
-            Err(e) => {
-                if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
-                }
-                return Err(e).context("Failed to connect to session");
-            }
-        },
+
+    let call_future = crate::target::call_session(opts, "query.status", serde_json::json!({}));
+    let outcome: Result<serde_json::Value> = match tokio::time::timeout(timeout_dur, call_future).await {
+        Ok(r) => r,
         Err(_) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Status query timed out after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "target": target,
+                    "error": format!("Status query timed out after {}s", timeout_secs),
+                }));
             }
             anyhow::bail!("Status query timed out after {}s", timeout_secs);
         }
     };
 
-    match client::unwrap_result(resp) {
+    match outcome {
         Ok(result) => {
             if json {
                 let mut wrapped = serde_json::json!({"ok": true});
