@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-930, T-931, T-933]
 created: 2026-04-11T22:29:34Z
-last_update: 2026-04-11T23:02:57Z
+last_update: 2026-04-11T23:04:20Z
 date_finished: null
 ---
 
@@ -34,9 +34,9 @@ Documentation is sufficient — no code change needed.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `docs/operations/termlink-hub-runtime-migration.md` exists with: (a) symptom to identify a stale `/tmp/termlink-0/`, (b) one-line command to remove it, (c) explanation of why the move happened, linking back to T-930 / T-931.
-- [ ] Stale `/tmp/termlink-0/` on .107 is cleaned up as the live proof-of-concept for the documented procedure.
-- [ ] Post-cleanup: systemd hub still active, `termlink doctor` still passes the ufw_listener check, persistent secret at `/var/lib/termlink/hub.secret` is unchanged.
+- [x] `docs/operations/termlink-hub-runtime-migration.md` exists with symptom, one-line command, why, verification steps.
+- [x] Stale `/tmp/termlink-0/` on .107 removed via `sudo rm -rf /tmp/termlink-0`.
+- [x] Post-cleanup: systemd hub still active (PID unchanged 2178741), `termlink doctor` still passes `ufw_listener`, persistent secret `b3076eb7…` byte-identical before/after.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
