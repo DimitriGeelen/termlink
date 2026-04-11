@@ -88,9 +88,14 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         anyhow::bail!("--isolate requires a git repository");
     }
 
-    // Check hub is running (needed for collect)
+    // Check hub is running (needed for collect).
+    // File-existence is necessary but not sufficient — a stale socket file
+    // can persist after the hub process dies. Verify by actually attempting
+    // to connect; if no one is accept()ing, fail fast (T-916).
     let hub_socket = termlink_hub::server::hub_socket_path();
-    if !hub_socket.exists() {
+    let hub_alive = hub_socket.exists()
+        && tokio::net::UnixStream::connect(&hub_socket).await.is_ok();
+    if !hub_alive {
         if json_output {
             super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub start (dispatch requires the hub for event collection)"}));
         }
@@ -361,6 +366,11 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
     let mut cursors = json!({});
     let mut collected_events = Vec::new();
     let mut crashed_workers: Vec<String> = Vec::new();
+    // Track consecutive event.collect failures so we can bail when the hub
+    // becomes unreachable mid-dispatch instead of spinning until --timeout.
+    // Reset on each successful call. Bail at MAX_CONSECUTIVE (T-916).
+    let mut consecutive_collect_errors: u32 = 0;
+    const MAX_CONSECUTIVE_COLLECT_ERRORS: u32 = 5;
 
     loop {
         if collected_events.len() as u64 >= registered_count {
@@ -395,9 +405,21 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         }
 
         let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
-            Ok(r) => r,
+            Ok(r) => {
+                consecutive_collect_errors = 0;
+                r
+            }
             Err(e) => {
                 tracing::debug!(error = %e, "Collect error");
+                consecutive_collect_errors += 1;
+                if consecutive_collect_errors >= MAX_CONSECUTIVE_COLLECT_ERRORS {
+                    if !json_output {
+                        eprintln!(
+                            "Hub unreachable after {MAX_CONSECUTIVE_COLLECT_ERRORS} consecutive event.collect failures (last error: {e}); aborting collection."
+                        );
+                    }
+                    break;
+                }
                 continue;
             }
         };
