@@ -40,10 +40,37 @@ impl ShutdownHandle {
     }
 }
 
-/// Generate a hub secret and write it to the hub.secret file (mode 0600).
+/// Load an existing hub secret from disk if present and valid. Returns
+/// `Some(hex)` on valid existing secret, `None` if missing or unparseable.
+fn load_existing_hub_secret() -> Option<String> {
+    let path = hub_secret_path();
+    let contents = std::fs::read_to_string(&path).ok()?;
+    let hex = contents.trim();
+    if hex.len() != 64 {
+        return None;
+    }
+    if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(hex.to_string())
+}
+
+/// Return the hub secret, reusing the on-disk value when possible (T-933).
 ///
-/// Returns the hex-encoded secret string.
+/// If `hub.secret` already exists and parses as a valid 64-char hex string,
+/// it is reused — this preserves HMAC auth across hub restarts so
+/// cross-host agents don't have to re-distribute their cached secret on
+/// every bounce. Otherwise a fresh secret is generated and written to disk
+/// with mode 0600.
 fn generate_and_write_hub_secret() -> std::io::Result<String> {
+    if let Some(existing) = load_existing_hub_secret() {
+        tracing::info!(
+            path = %hub_secret_path().display(),
+            "Hub secret loaded from disk (persist-if-present, T-933)"
+        );
+        return Ok(existing);
+    }
+
     let secret = auth::generate_secret();
     let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
 
@@ -149,9 +176,10 @@ pub async fn run_with_tcp(
     tokio::spawn(async move {
         run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
 
-        // Cleanup on exit
+        // Cleanup on exit. Secret file is intentionally preserved (T-933:
+        // persist-if-present) so cross-host agents don't need to
+        // re-distribute credentials on every hub restart.
         let _ = std::fs::remove_file(&socket_path_owned);
-        let _ = std::fs::remove_file(hub_secret_path());
         tls::cleanup();
         pidfile::remove(&pidfile_path);
         tracing::info!("Hub shut down cleanly");
@@ -206,8 +234,8 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
     run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
 
-    // Cleanup on exit
-    let _ = std::fs::remove_file(hub_secret_path());
+    // Cleanup on exit. Secret file is intentionally preserved (T-933:
+    // persist-if-present).
     tls::cleanup();
     pidfile::remove(&pidfile_path);
     Ok(())
@@ -636,6 +664,34 @@ mod tests {
     fn start_hub(socket: PathBuf) -> tokio::task::JoinHandle<()> {
         let (handle, _tx) = start_hub_with_shutdown(socket);
         handle
+    }
+
+    /// T-933: two calls to generate_and_write_hub_secret() against the same
+    /// runtime dir must return the same secret (persist-if-present).
+    #[tokio::test]
+    async fn hub_secret_persists_across_calls() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let first = generate_and_write_hub_secret().expect("first generate");
+        assert_eq!(first.len(), 64, "secret should be 64 hex chars");
+        assert!(first.chars().all(|c| c.is_ascii_hexdigit()));
+
+        let second = generate_and_write_hub_secret().expect("second generate");
+        assert_eq!(
+            first, second,
+            "second call must reuse the on-disk secret, not regenerate"
+        );
+
+        // Corrupt the file and verify we regenerate on invalid contents.
+        std::fs::write(dir.join("hub.secret"), "not-hex").unwrap();
+        let third = generate_and_write_hub_secret().expect("regen after corrupt");
+        assert_ne!(third, "not-hex");
+        assert_eq!(third.len(), 64);
+        assert!(third.chars().all(|c| c.is_ascii_hexdigit()));
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
     }
 
     /// Tests discover + forward in a single test to avoid env var races.
