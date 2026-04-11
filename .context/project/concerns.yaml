@@ -2,6 +2,23 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-003
+  type: gap
+  title: TermLink hub on .107 has no TCP listener by default and no supervisor, breaking cross-host parity work
+  description: 'The T-921 cross-host parity program (T-923 hub forwarder test, T-924 TargetOpts helper, T-925..T-929 five-command --target rollout) assumes a TCP-bound hub exists on each host. On .107 (this box) the hub IS currently running (doctor reports PID 856273 responding) but it is bound to the unix socket only — ss -tln shows nothing on 9100 or 4112, even though UFW rule 9100/tcp ALLOW 192.168.10.0/24 is in place. So the firewall is open on a port nothing is listening to. A sibling agent on 2026-04-11 ~23:30 found the hub had been dead earlier in the day (stale pidfile PID 1517402, 1 orphaned socket) — someone fixed it, but nothing structural prevents it from happening again. Two sub-gaps: (a) termlink hub start binds unix only; you need --tcp 0.0.0.0:9100 to open the LAN path, and no one runs it that way here; (b) no systemd unit / watchdog / restart policy exists, so a silent death goes unnoticed until someone tries a cross-host call and gets connection-refused.'
+  spec_reference: 'T-921 (inception), T-923 (hub forwarder end-to-end test), T-925..T-929 (per-command --target rollouts), T-920/T-182 (hub TCP primitive), crates/termlink-cli/src/commands/infrastructure.rs (hub start), /etc/cron.d/agentic-audit-termlink (has cron but no hub-supervisor equivalent)'
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-04-11 ~23:30Z: sibling agent session investigating push-to-.107 found hub dead with stale pidfile; re-check 2026-04-11 ~23:35Z found hub up on unix socket only. The five new --target CLI flags (T-925..T-929) landed in this session are untestable end-to-end on this box because nothing is listening on TCP and no long-lived target session exists on the remote side.'
+  detection_lag_days: '>7'
+  what_works_now: 'Hub local routing works fine (9 sessions registered, all responding). The T-923 integration test binds TCP in-process and proves the forwarder path works end-to-end (8/8 hub forward tests pass in CI). Cross-host mechanism is correct at the code level — just not wired into the production hub start on this box.'
+  what_remains: '1. Decide whether the hub should bind TCP by default in this environment (policy, not code). 2. Run the hub under a supervisor (systemd unit preferred — matches the cron pattern used for /etc/cron.d/agentic-audit-termlink). 3. Establish a long-lived target session on .107 if the goal is push-to-host, not push-to-session. 4. Document the hub-secret distribution story — currently no secret exists because TCP is off. 5. Codify a doctor check: warn when a consumer project relies on --target but the hub has no TCP listener. Tracked as inception task T-930.'
+  mitigation_candidate: '1. Short-term: manual termlink hub stop && termlink hub start --tcp 0.0.0.0:9100 on .107 when needed (non-durable — dies on reboot). 2. Medium-term: systemd unit termlink-hub.service with ExecStart referencing --tcp flag, Restart=on-failure, and a logrotate stanza. 3. Long-term: inception T-930 decides supervisor policy (systemd vs. watchdog vs. none) and the TCP-default question (always on vs. opt-in via config).'
+  status: watching
+  created: 2026-04-11
+  last_reviewed: 2026-04-11
+  related_tasks: [T-921, T-923, T-924, T-925, T-926, T-927, T-928, T-929, T-930]
+
 - id: G-002
   type: gap
   title: termlink dispatch hangs when worker user-command fails fast — `wait $TL_PID` blocks on alive registrar
