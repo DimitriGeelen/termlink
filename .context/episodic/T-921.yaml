@@ -1,0 +1,70 @@
+# ============================================================================
+# EPISODIC MEMORY - T-921: Full cross-host parity — every termlink CLI command works network-wide
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T20:19:56Z
+# ============================================================================
+
+task_id: T-921
+task_name: "Full cross-host parity — every termlink CLI command works network-wide"
+workflow_type: inception
+enrichment_status: git-derived  # Auto-filled from git; AC/decisions not in task file
+
+# Timeline
+created: 2026-04-11T19:33:05Z
+completed: 2026-04-11T20:19:55Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-11T21:53:50+02:00
+last_commit: 2026-04-11T21:53:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception framing + CLI census (Spike 1 complete)
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-921-cross-host-parity.md"
+  - ".tasks/active/T-921-full-cross-host-parity--every-termlink-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-11T21:53:50"
+    action: "T-921: Inception framing + CLI census (Spike 1 complete)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 46 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 46
+  commits: 1
+  files_changed: 2
+  lines_added: 276
+  lines_removed: 20
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-921-full-cross-host-parity--every-termlink-c.md
+generated_by: context-agent-hybrid
