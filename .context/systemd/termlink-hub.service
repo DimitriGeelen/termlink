@@ -32,13 +32,6 @@ ExecStop=/root/.cargo/bin/termlink hub stop --json
 Restart=on-failure
 RestartSec=5
 
-# Temporary workaround until T-932 lands: cmd_hub_start only traps SIGINT
-# via tokio::signal::ctrl_c(). SIGTERM falls through and skips cleanup.
-# Telling systemd to send SIGINT instead preserves clean shutdown.
-# DELETE this line once T-932 (select! on ctrl_c + SignalKind::terminate)
-# is merged.
-KillSignal=SIGINT
-
 # Modest hardening — matches watchtower-vinix24 posture implicitly.
 # NOTE: ProtectHome is read-only (not yes) because the termlink binary
 # lives at /root/.cargo/bin/termlink on this box and ProtectHome=yes

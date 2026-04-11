@@ -4,7 +4,7 @@ name: "Hub SIGTERM handling — select! on ctrl_c + SignalKind::terminate"
 description: >
   cmd_hub_start in crates/termlink-cli/src/commands/infrastructure.rs:56 only listens on tokio::signal::ctrl_c() which is SIGINT-only. SIGTERM from systemctl stop falls through without triggering handle.shutdown(), skipping clean-shutdown cleanup (socket/secret/pidfile removal). Fix: select! on ctrl_c + tokio::signal::unix::SignalKind::terminate(). Add unit test that spawns hub, sends SIGTERM, verifies runtime dir is cleaned. Unblocks removing KillSignal=SIGINT from T-931 unit file. From T-930 decomposition.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-930, T-931]
 created: 2026-04-11T22:29:21Z
-last_update: 2026-04-11T22:29:21Z
+last_update: 2026-04-11T22:41:46Z
 date_finished: null
 ---
 
@@ -20,14 +20,20 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-930 Spike 2 discovered that `cmd_hub_start` only listens on
+`tokio::signal::ctrl_c()` (SIGINT). SIGTERM from `systemctl stop` falls
+through without calling `handle.shutdown()`, so clean-shutdown cleanup
+(socket, secret, pidfile, TLS) is skipped. T-931's unit file works around
+this with `KillSignal=SIGINT`; this task deletes that workaround.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `cmd_hub_start` in `crates/termlink-cli/src/commands/infrastructure.rs` uses `tokio::select!` on both `ctrl_c()` and `SignalKind::terminate()` — either signal triggers graceful shutdown via `handle.shutdown()`.
+- [ ] `cargo build --workspace` succeeds (no new warnings).
+- [ ] `cargo test -p termlink` existing tests pass (no regressions).
+- [ ] `.context/systemd/termlink-hub.service` has the `KillSignal=SIGINT` line removed with its accompanying comment block.
+- [ ] Live test on .107: `sudo systemctl restart termlink-hub` → hub restarts cleanly (no stale socket/secret/pidfile), `systemctl status` shows active, `ss -tln | grep 9100` shows listener.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -67,3 +73,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-932-hub-sigterm-handling--select-on-ctrlc--s.md
 - **Context:** Initial task creation
+
+### 2026-04-11T22:41:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
