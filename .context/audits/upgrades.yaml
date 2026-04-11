@@ -60,3 +60,83 @@ upgrades:
     from_version: "1.4.673"
     to_version: "1.4.682"
     framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T10:42:27Z
+    from_version: "1.4.682"
+    to_version: "1.4.707"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T10:57:28Z
+    from_version: "1.4.707"
+    to_version: "1.4.718"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T13:05:39Z
+    from_version: "1.4.718"
+    to_version: "1.4.736"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T13:16:53Z
+    from_version: "1.4.736"
+    to_version: "1.4.741"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T18:41:51Z
+    from_version: "1.4.741"
+    to_version: "1.5.742"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T20:56:16Z
+    from_version: "1.5.742"
+    to_version: "1.5.30"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T22:22:13Z
+    from_version: "1.5.30"
+    to_version: "1.5.35"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T22:35:16Z
+    from_version: "1.5.35"
+    to_version: "1.5.39"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-06T23:28:34Z
+    from_version: "1.5.39"
+    to_version: "1.5.51"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-07T08:03:06Z
+    from_version: "1.5.51"
+    to_version: "1.5.54"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-07T09:46:07Z
+    from_version: "1.5.54"
+    to_version: "1.5.60"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-07T10:14:24Z
+    from_version: "1.5.60"
+    to_version: "1.5.63"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-07T10:25:07Z
+    from_version: "1.5.63"
+    to_version: "1.5.66"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-07T10:38:11Z
+    from_version: "1.5.66"
+    to_version: "1.5.70"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-09T12:30:27Z
+    from_version: "1.5.70"
+    to_version: "1.5.199"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-11T08:23:46Z
+    from_version: "1.5.199"
+    to_version: "1.5.215"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-11T09:21:28Z
+    from_version: "1.5.215"
+    to_version: "1.5.237"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-11T10:43:06Z
+    from_version: "1.5.237"
+    to_version: "1.5.242"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-11T10:50:40Z
+    from_version: "1.5.242"
+    to_version: "1.5.246"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-11T12:23:05Z
+    from_version: "1.5.246"
+    to_version: "0.9.585"
+    framework_root: "/opt/termlink/.agentic-framework"

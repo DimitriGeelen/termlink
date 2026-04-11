@@ -1,10 +1,10 @@
 # Agentic Engineering Framework - Project Configuration
 # framework_path removed (T-498) — fw resolves from .agentic-framework/bin/fw location
 project_name: 010-termlink
-version: 1.5.199
+version: 0.9.585
 provider: generic
 initialized_at: 2026-03-25T17:34:50Z
 
 upstream_repo: DimitriGeelen/agentic-engineering-framework
-upgraded_from: 1.5.70
-last_upgrade: 2026-04-09T12:30:27Z
+upgraded_from: 1.5.246
+last_upgrade: 2026-04-11T12:23:05Z
