@@ -4,16 +4,16 @@ name: "Full cross-host parity — every termlink CLI command works network-wide"
 description: >
   Phase 2 of the network-everything program. T-920 wraps the existing remote family in MCP; this inception scopes what it takes to make ALL termlink CLI commands (~50) work cross-host. Questions: unified remote-target parameter on every command, or keep the 'remote' subcommand namespace and add per-command wrappers? Which commands actually need cross-host semantics vs being local-only by design? How do we route RPC through the hub vs direct-to-target? Decisions needed before building anything.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:05Z
-last_update: 2026-04-11T19:49:37Z
-date_finished: null
+last_update: 2026-04-11T20:19:55Z
+date_finished: 2026-04-11T20:19:55Z
 ---
 
 # T-921: Full cross-host parity — every termlink CLI command works network-wide
@@ -122,18 +122,18 @@ Time-box: **one session**, dialogue-driven. No production code. Deliverable = de
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Option A (unified --target flag) + Option C (remote call) as escape hatch. Human confirmed 'where good go' after reviewing strawman/steelman and weighted directive scores in docs/reports/T-921-cross-host-parity.md.
+
+**Date**: 2026-04-11T20:19:55Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Option A (unified --target flag) + Option C (remote call) as escape hatch. Human confirmed 'where good go' after reviewing strawman/steelman and weighted directive scores in docs/reports/T-921-cross-host-parity.md.
+
+**Date**: 2026-04-11T20:19:55Z
 
 ## Updates
 
@@ -143,3 +143,12 @@ Time-box: **one session**, dialogue-driven. No production code. Deliverable = de
 ### 2026-04-11T19:49:37Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-11T20:19:55Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Option A (unified --target flag) + Option C (remote call) as escape hatch. Human confirmed 'where good go' after reviewing strawman/steelman and weighted directive scores in docs/reports/T-921-cross-host-parity.md.
+
+### 2026-04-11T20:19:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
