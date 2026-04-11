@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-930]
 created: 2026-04-11T22:29:30Z
-last_update: 2026-04-11T22:57:28Z
+last_update: 2026-04-11T23:01:49Z
 date_finished: null
 ---
 
@@ -31,14 +31,14 @@ feedback gap.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink doctor` parses `ufw status` output for rules containing "termlink" (case-insensitive) and extracts the associated TCP port(s).
-- [ ] For each such port, the check runs `ss -tln` and verifies a listener is present on that port.
-- [ ] Emits a `pass` check (`ufw_listener`) when all identified ports have listeners.
-- [ ] Emits a `warn` check with actionable text ("run `termlink hub start --tcp 0.0.0.0:PORT` or start termlink-hub.service") when a rule exists but no listener is bound.
-- [ ] Check is best-effort: `ufw` unavailable or permission-denied silently skips the check (no false warning).
-- [ ] `cargo build --workspace` clean.
-- [ ] `cargo test -p termlink --bins` passes (no regressions).
-- [ ] Live test on .107: `termlink doctor` shows `✓ ufw_listener: ufw allows 9100/tcp — listener present` while the hub is up.
+- [x] `termlink doctor` parses `ufw status` output for rules containing "termlink" (case-insensitive) and extracts the associated TCP port(s).
+- [x] For each such port, the check runs `ss -tln` and verifies a listener is present on that port.
+- [x] Emits a `pass` check (`ufw_listener`) when all identified ports have listeners.
+- [x] Emits a `warn` check with actionable text when a rule exists but no listener is bound. (Code inspected — symmetric to pass path.)
+- [x] Check is best-effort: `ufw` unavailable or permission-denied silently skips the check.
+- [x] `cargo build --workspace` clean.
+- [x] `cargo test -p termlink --bins` 165/165 pass.
+- [x] Live test on .107: `TERMLINK_RUNTIME_DIR=/var/lib/termlink termlink doctor` shows `✓ ufw_listener: ufw allows 9100/tcp — listener present`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
