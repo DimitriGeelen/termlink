@@ -2,6 +2,7 @@ mod cli;
 mod commands;
 mod config;
 mod manifest;
+mod target;
 mod util;
 
 use anyhow::Result;
