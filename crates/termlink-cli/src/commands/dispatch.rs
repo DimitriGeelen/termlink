@@ -266,8 +266,10 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         let mut reg_parts = vec![termlink_path.clone()];
         reg_parts.extend(register_args);
 
-        // Worker keeps register alive after user_cmd finishes. Dispatch
-        // sends SIGTERM to all workers after collection completes.
+        // Worker captures user_cmd's exit code, then terminates the registrar
+        // so dispatch's early-crash detection (find_session check) sees the
+        // worker as gone. Without this, a fast-failing user_cmd would leave
+        // sh blocked on `wait $TL_PID` forever (G-002).
         let effective_workdir = if isolate {
             worktree_branches
                 .iter()
@@ -281,9 +283,11 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         } else {
             String::new()
         };
-        let shell_cmd = format!(
-            "{cd_prefix}{env_prefix}{} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nwait $TL_PID",
-            reg_parts.join(" ")
+        let shell_cmd = build_worker_shell_cmd(
+            &cd_prefix,
+            &env_prefix,
+            &reg_parts.join(" "),
+            &user_cmd,
         );
 
         let resolved = resolve_spawn_backend(&backend);
@@ -877,6 +881,26 @@ fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     Ok(())
 }
 
+/// Build the shell template that wraps a dispatched worker.
+///
+/// The template starts the registrar in the background, waits for it to bind,
+/// runs the user's command, captures its exit code, then terminates the
+/// registrar so dispatch's early-crash detection sees the worker as gone.
+/// Worker exits with the user_cmd's rc, not the registrar's.
+///
+/// Without the explicit kill + exit, a fast-failing user_cmd would leave sh
+/// blocked on `wait $TL_PID` forever (registrar is long-lived). See G-002.
+fn build_worker_shell_cmd(
+    cd_prefix: &str,
+    env_prefix: &str,
+    register_cmd: &str,
+    user_cmd: &str,
+) -> String {
+    format!(
+        "{cd_prefix}{env_prefix}{register_cmd} &\nTL_PID=$!\nsleep 1\n{user_cmd}\nUSER_RC=$?\nkill $TL_PID 2>/dev/null\nwait $TL_PID 2>/dev/null\nexit $USER_RC"
+    )
+}
+
 fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
     let child = std::process::Command::new("setsid")
         .args(["sh", "-c", shell_cmd])
@@ -911,6 +935,37 @@ mod tests {
             workdir: None, isolate: false, auto_merge: false, json_output: false,
             command: vec!["echo".into(), "hello".into()],
         }
+    }
+
+    #[test]
+    fn worker_shell_cmd_captures_exit_kills_registrar() {
+        let cmd = build_worker_shell_cmd(
+            "cd /tmp && ",
+            "export FOO=bar; ",
+            "termlink register --name w1",
+            "bash -c 'exit 42'",
+        );
+        // Sanity: all the inputs are present.
+        assert!(cmd.contains("cd /tmp && "));
+        assert!(cmd.contains("export FOO=bar; "));
+        assert!(cmd.contains("termlink register --name w1 &"));
+        assert!(cmd.contains("bash -c 'exit 42'"));
+        // G-002 fix invariants:
+        assert!(cmd.contains("USER_RC=$?"), "must capture user_cmd exit code");
+        assert!(cmd.contains("kill $TL_PID"), "must kill registrar after user_cmd");
+        assert!(cmd.contains("exit $USER_RC"), "worker must exit with user_cmd rc");
+    }
+
+    #[test]
+    fn worker_shell_cmd_last_line_is_exit_user_rc() {
+        // Regression for G-002: previous template ended with `wait $TL_PID`,
+        // which blocked forever when user_cmd fast-failed.
+        let cmd = build_worker_shell_cmd("", "", "termlink register", "true");
+        let last = cmd.lines().last().expect("non-empty shell cmd");
+        assert_eq!(
+            last, "exit $USER_RC",
+            "last line must be `exit $USER_RC`, was `{last}` (G-002 regression)"
+        );
     }
 
     #[tokio::test]
