@@ -4,16 +4,16 @@ name: "Fix dispatch timed_out semantic conflating crash with timeout"
 description: >
   Discovered 2026-04-11 during T-914 end-to-end smoke test. dispatch.rs:672 defines: 'let timed_out = collected_count < registered_count;'. This conflates two distinct failure modes: (a) actual timeout (collect_start.elapsed() exceeded --timeout), vs (b) workers crashed before emitting events (collected_count < registered_count but elapsed was 0.5s). Real-world result observed: smoke test ran in 1.01s wall clock with crashed_workers populated correctly, BUT JSON output also reported 'timed_out: true' which is misleading. The 'ok' field and exit code are also derived from 'timed_out' so this also affects success/failure signaling. FIX: define timed_out as 'collect_start.elapsed() >= collect_timeout' (the literal definition), and introduce 'any_failure = timed_out || !crashed_workers.is_empty() || collected_count < registered_count' for ok/exit-code logic. Trivial single-function change.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [termlink, dispatch, bug, semantics, observability]
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: [T-914, T-916]
 created: 2026-04-11T13:54:36Z
-last_update: 2026-04-11T13:54:43Z
-date_finished: null
+last_update: 2026-04-11T13:57:51Z
+date_finished: 2026-04-11T13:57:51Z
 ---
 
 # T-917: Fix dispatch timed_out semantic conflating crash with timeout
@@ -61,3 +61,6 @@ cargo test --package termlink --bin termlink commands::dispatch::tests -- --quie
 
 ### 2026-04-11T13:54:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-11T13:57:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
