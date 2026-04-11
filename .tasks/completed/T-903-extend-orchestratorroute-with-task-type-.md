@@ -4,16 +4,16 @@ name: "Extend orchestrator.route with task-type routing"
 description: >
   Extend orchestrator.route with task-type routing
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-04-08T05:57:27Z
-last_update: 2026-04-08T05:57:27Z
-date_finished: null
+last_update: 2026-04-11T14:32:45Z
+date_finished: 2026-04-11T14:32:45Z
 ---
 
 # T-903: Extend orchestrator.route with task-type routing
@@ -59,3 +59,6 @@ cd /opt/termlink && cargo test -p termlink-hub 2>&1 | tail -5
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-903-extend-orchestratorroute-with-task-type-.md
 - **Context:** Initial task creation
+
+### 2026-04-11T14:32:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

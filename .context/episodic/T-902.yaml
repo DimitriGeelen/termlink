@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-902: Add MCP task-gate governance checks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T14:32:38Z
+# ============================================================================
+
+task_id: T-902
+task_name: "Add MCP task-gate governance checks"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-08T07:50:00Z
+completed: 2026-04-11T14:32:26Z
+duration_days: 3
+updates_count: 1
+first_commit: 2026-04-08T07:54:58+02:00
+last_commit: 2026-04-08T07:54:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add MCP task-gate governance checks
+
+# Key outcomes
+outcomes:
+  - "`task_id: Option<String>` added to ExecParams, SpawnParams, InteractParams, DispatchParams"
+  - "Governance check function reads `TERMLINK_TASK_GOVERNANCE` env var"
+  - "When governance enabled and task_id missing: returns structured JSON error"
+  - "When task_id provided: passed through to session tags on spawn/dispatch"
+  - "Default behavior: no enforcement (backward compatible)"
+  - "Existing tests pass (`cargo test`)"
+  - "New tests cover: with task_id passes, without task_id in strict mode errors, default allows all"
+  - "Param deserialization tests for task_id field"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - "docs/reports/T-902-mcp-governance.md"
+  - ".tasks/active/T-902-add-mcp-task-gate-governance-checks.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-08T07:54:58"
+    action: "T-902: Add MCP task-gate governance checks"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4722 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, governance]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4722
+  commits: 1
+  files_changed: 3
+  lines_added: 327
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-902-add-mcp-task-gate-governance-checks.md
+generated_by: context-agent-hybrid

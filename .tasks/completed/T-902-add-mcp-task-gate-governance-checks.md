@@ -5,17 +5,18 @@ description: >
   Add optional task_id parameter to termlink_exec, termlink_spawn, termlink_dispatch,
   and termlink_interact MCP tools. When TERMLINK_TASK_GOVERNANCE=1, tools without
   task_id return a structured MCP error. Default: no enforcement (backward compatible).
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 priority: medium
 tags: [mcp, governance]
+components: [crates/termlink-mcp/src/tools.rs]
 agents:
   primary: coder
   supporting: []
 created: 2026-04-08T07:50:00Z
-last_update: 2026-04-08T07:50:00Z
-date_finished: null
+last_update: 2026-04-11T14:32:26Z
+date_finished: 2026-04-11T14:32:26Z
 ---
 
 # T-902: Add MCP task-gate governance checks
@@ -50,3 +51,6 @@ Task ID is passed through to session tags as `task:<task_id>` on spawn and dispa
 ## Updates
 
 - 2026-04-08: Implementation started
+
+### 2026-04-11T14:32:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
