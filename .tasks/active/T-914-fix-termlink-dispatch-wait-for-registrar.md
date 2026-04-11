@@ -27,14 +27,14 @@ Fix: capture user_cmd's exit code, kill the registrar, exit with user_cmd's rc. 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `dispatch.rs` worker shell template captures user_cmd exit code via `$?` after user_cmd runs
-- [ ] Template explicitly terminates the registrar (`kill $TL_PID`) after user_cmd finishes — both success and fail paths
-- [ ] Worker exits with user_cmd's exit code (`exit $USER_RC`), not the registrar's
-- [ ] Shell-template construction is extracted into a unit-testable helper (`build_worker_shell_cmd`)
-- [ ] Unit test asserts the helper output contains `USER_RC=$?`, `kill $TL_PID`, and `exit $USER_RC`
-- [ ] Unit test asserts the helper output's last line is `exit $USER_RC` (regression for the `wait $TL_PID` hang)
-- [ ] `cargo build --workspace` succeeds
-- [ ] `cargo test --package termlink-cli dispatch::tests` passes
+- [x] `dispatch.rs` worker shell template captures user_cmd exit code via `$?` after user_cmd runs
+- [x] Template explicitly terminates the registrar (`kill $TL_PID`) after user_cmd finishes — both success and fail paths
+- [x] Worker exits with user_cmd's exit code (`exit $USER_RC`), not the registrar's
+- [x] Shell-template construction is extracted into a unit-testable helper (`build_worker_shell_cmd`)
+- [x] Unit test asserts the helper output contains `USER_RC=$?`, `kill $TL_PID`, and `exit $USER_RC`
+- [x] Unit test asserts the helper output's last line is `exit $USER_RC` (regression for the `wait $TL_PID` hang)
+- [x] `cargo build --workspace` succeeds
+- [x] `cargo test --package termlink --bin termlink commands::dispatch::tests` passes (11/11)
 
 ### Human
 - [ ] [REVIEW] Smoke-test the fix end-to-end with a fast-failing user_cmd
@@ -47,9 +47,11 @@ Fix: capture user_cmd's exit code, kill the registrar, exit with user_cmd's rc. 
 
 ## Verification
 
-# Build and run unit tests on the dispatch helper
+# Build and run unit tests on the dispatch helper.
+# The crate is named `termlink` (binary), not `termlink-cli` — see Cargo.toml.
 cargo build --workspace --quiet
-cargo test --package termlink-cli --lib dispatch::tests::worker_shell_cmd --quiet
+cargo test --package termlink --bin termlink commands::dispatch::tests::worker_shell_cmd_captures_exit_kills_registrar -- --quiet
+cargo test --package termlink --bin termlink commands::dispatch::tests::worker_shell_cmd_last_line_is_exit_user_rc -- --quiet
 
 ## Decisions
 
