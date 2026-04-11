@@ -48,6 +48,117 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// Helper: connect to a remote hub via TOFU TLS and authenticate.
+///
+/// Returns an authenticated [`client::Client`] on success, or a pre-formatted
+/// JSON error string on any validation/connection/auth failure. MCP tools can
+/// early-return the error string directly.
+///
+/// Mirrors the validation order of `commands/remote.rs::connect_remote_hub`,
+/// but returns String errors (not anyhow) so MCP tools stay crash-safe.
+async fn connect_remote_hub_mcp(
+    hub: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    scope: &str,
+) -> Result<client::Client, String> {
+    use termlink_session::auth::{self, PermissionScope};
+
+    // Parse hub address
+    let parts: Vec<&str> = hub.split(':').collect();
+    if parts.len() != 2 {
+        return Err(json_err(format!(
+            "Invalid hub address '{}'. Expected format: host:port",
+            hub
+        )));
+    }
+    let host = parts[0].to_string();
+    let port: u16 = match parts[1].parse() {
+        Ok(p) => p,
+        Err(_) => return Err(json_err(format!("Invalid port in '{}'", hub))),
+    };
+
+    // Read secret
+    let hex = if let Some(path) = secret_file {
+        match std::fs::read_to_string(path) {
+            Ok(s) => s.trim().to_string(),
+            Err(_) => {
+                return Err(json_err(format!("Secret file not found: {}", path)));
+            }
+        }
+    } else if let Some(h) = secret_hex {
+        h.to_string()
+    } else {
+        return Err(json_err("Either secret_file or secret is required"));
+    };
+
+    // Parse hex
+    if hex.len() != 64 {
+        return Err(json_err(format!(
+            "Secret must be 64 hex characters (32 bytes), got {}",
+            hex.len()
+        )));
+    }
+    let secret_bytes: Vec<u8> = match (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16))
+        .collect::<Result<Vec<u8>, _>>()
+    {
+        Ok(b) => b,
+        Err(_) => return Err(json_err("Secret contains invalid hex characters")),
+    };
+    let secret: auth::TokenSecret = match secret_bytes.try_into() {
+        Ok(s) => s,
+        Err(_) => return Err(json_err("Secret must be exactly 32 bytes")),
+    };
+
+    // Parse scope
+    let perm_scope = match scope {
+        "observe" => PermissionScope::Observe,
+        "interact" => PermissionScope::Interact,
+        "control" => PermissionScope::Control,
+        "execute" => PermissionScope::Execute,
+        other => {
+            return Err(json_err(format!(
+                "Invalid scope '{}'. Use: observe, interact, control, execute",
+                other
+            )));
+        }
+    };
+
+    // Generate auth token
+    let token = auth::create_token(&secret, perm_scope, "", 3600);
+
+    // Connect via TOFU TLS
+    let addr = termlink_protocol::TransportAddr::Tcp { host, port };
+    let mut rpc_client = match client::Client::connect_addr(&addr).await {
+        Ok(c) => c,
+        Err(e) => {
+            return Err(json_err(format!(
+                "Cannot connect to {} — is the hub running? ({})",
+                hub, e
+            )));
+        }
+    };
+
+    // Authenticate
+    match rpc_client
+        .call(
+            "hub.auth",
+            serde_json::json!("auth"),
+            serde_json::json!({"token": token.raw}),
+        )
+        .await
+    {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => Ok(rpc_client),
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => Err(json_err(format!(
+            "Authentication failed: {} {}",
+            e.error.code, e.error.message
+        ))),
+        Err(e) => Err(json_err(format!("Authentication error: {}", e))),
+    }
+}
+
 use termlink_protocol::shell_escape;
 
 // === Task governance gate ===
@@ -215,6 +326,73 @@ pub struct RunParams {
     pub cwd: Option<String>,
     /// Environment variables to set (map of KEY → VALUE)
     pub env: Option<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct HubStartParams {
+    /// Optional TCP bind address (e.g., "0.0.0.0:9100"). When set, the hub
+    /// listens on both its Unix socket and the given TCP address, generates
+    /// a hub secret for HMAC auth, and writes a TLS cert for TOFU. Leave
+    /// unset for local-only (Unix socket) operation.
+    pub tcp_addr: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RemoteCallParams {
+    /// Remote hub address in "host:port" format (e.g., "192.168.10.107:9100")
+    pub hub: String,
+    /// JSON-RPC method to invoke on the remote hub (e.g., "session.discover",
+    /// "command.inject", "termlink.ping", "event.broadcast")
+    pub method: String,
+    /// JSON params for the RPC call (tool-specific structure)
+    pub params: Option<serde_json::Value>,
+    /// Path to a file containing the 32-byte hex hub secret. Takes precedence
+    /// over `secret` if both are set.
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret (64 hex characters). Use `secret_file`
+    /// instead in production — this form is for scripting.
+    pub secret: Option<String>,
+    /// Permission scope for the auth token: observe, interact, control, execute.
+    /// Default: "control".
+    pub scope: Option<String>,
+    /// Connection + RPC timeout in seconds. Default: 30.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RemotePingParams {
+    /// Remote hub address in "host:port" format
+    pub hub: String,
+    /// Optional target session name. Omit to ping the hub itself (discover).
+    pub session: Option<String>,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Permission scope. Default: "observe".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 10.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RemoteInjectParams {
+    /// Remote hub address in "host:port" format
+    pub hub: String,
+    /// Target session name on the remote hub
+    pub session: String,
+    /// Text to inject into the remote session's terminal
+    pub text: String,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Append Enter keystroke after the text. Default: false.
+    pub enter: Option<bool>,
+    /// Permission scope. Default: "control".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 30.
+    pub timeout: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -1466,18 +1644,21 @@ impl TermLinkTools {
         // 4. Hub status
         let hub_socket = termlink_hub::server::hub_socket_path();
         let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+        let hub_secret_path = termlink_hub::server::hub_secret_path();
+        let hub_has_tcp = hub_secret_path.exists();
+        let transport = if hub_has_tcp { "unix+tcp" } else { "unix" };
         match termlink_hub::pidfile::check(&pidfile_path) {
             termlink_hub::pidfile::PidfileStatus::Running(pid) => {
                 match client::rpc_call(&hub_socket, "termlink.ping", serde_json::json!({})).await {
-                    Ok(_) => check!("hub", pass, format!("running (PID {pid}), responding")),
-                    Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding")),
+                    Ok(_) => check!("hub", pass, format!("running (PID {pid}), responding, transport={transport}")),
+                    Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding (transport={transport})")),
                 }
             }
             termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
                 check!("hub", warn, format!("stale pidfile (PID {pid} is dead)"));
             }
             termlink_hub::pidfile::PidfileStatus::NotRunning => {
-                check!("hub", pass, "not running");
+                check!("hub", pass, "not running (use termlink_hub_start with tcp_addr=\"0.0.0.0:9100\" for cross-host)");
             }
         }
 
@@ -2791,9 +2972,9 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_hub_start",
-        description = "Start the hub server in the background. The hub enables multi-session features like collect, broadcast, and discover. Returns immediately with hub pid and socket path. No-op if hub is already running."
+        description = "Start the hub server in the background. The hub enables multi-session features like collect, broadcast, and discover. Returns immediately with hub pid, socket path, and (when tcp_addr is set) TCP bind address. No-op if hub is already running. Pass tcp_addr (e.g. \"0.0.0.0:9100\") to enable cross-host RPC via TOFU TLS — required for termlink_remote_* tools to reach this hub from another host."
     )]
-    async fn termlink_hub_start(&self) -> String {
+    async fn termlink_hub_start(&self, Parameters(p): Parameters<HubStartParams>) -> String {
         let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
         let socket_path = termlink_hub::server::hub_socket_path();
 
@@ -2804,11 +2985,13 @@ impl TermLinkTools {
                 "action": "already_running",
                 "pid": pid,
                 "socket": socket_path.display().to_string(),
+                "note": "Hub already running — tcp_addr (if provided) was not applied. Stop and restart if you need to change transport.",
             });
             return serde_json::to_string_pretty(&response).unwrap_or_else(json_err);
         }
 
-        match termlink_hub::server::run(&socket_path).await {
+        let tcp_addr = p.tcp_addr.as_deref();
+        match termlink_hub::server::run_with_tcp(&socket_path, tcp_addr).await {
             Ok(_handle) => {
                 // Leak the handle so the hub stays alive for the MCP server lifetime
                 std::mem::forget(_handle);
@@ -2823,6 +3006,8 @@ impl TermLinkTools {
                     "action": "started",
                     "pid": pid,
                     "socket": socket_path.display().to_string(),
+                    "tcp_addr": tcp_addr,
+                    "transport": if tcp_addr.is_some() { "unix+tcp" } else { "unix" },
                 });
                 serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
             }
@@ -3058,8 +3243,13 @@ impl TermLinkTools {
             ]),
             ("hub", vec![
                 ("termlink_hub_status", "Check hub running status"),
-                ("termlink_hub_start", "Start the event hub"),
+                ("termlink_hub_start", "Start the event hub (pass tcp_addr for cross-host)"),
                 ("termlink_hub_stop", "Stop the event hub"),
+            ]),
+            ("remote", vec![
+                ("termlink_remote_call", "Generic JSON-RPC call to a remote hub (cross-host)"),
+                ("termlink_remote_ping", "Ping a remote hub or session (cross-host)"),
+                ("termlink_remote_inject", "Inject text into a session on a remote hub (cross-host)"),
             ]),
             ("batch", vec![
                 ("termlink_batch_exec", "Run command across multiple sessions"),
@@ -3105,7 +3295,7 @@ impl TermLinkTools {
         }
 
         if filter.is_some() && tool_count == 0 {
-            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, batch, dispatch, tokens, diagnostics", filter.unwrap()));
+            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, remote, batch, dispatch, tokens, diagnostics", filter.unwrap()));
         }
 
         result["total_tools"] = serde_json::json!(tool_count);
@@ -3754,6 +3944,187 @@ impl TermLinkTools {
                 .unwrap_or_else(json_err)
             }
             None => json_err(format!("no registered endpoint with id '{}'", p.session_id)),
+        }
+    }
+
+    // === Remote (cross-host) tools ===
+
+    #[tool(
+        name = "termlink_remote_call",
+        description = "Generic JSON-RPC call to a remote termlink hub over TCP+TOFU TLS. This is the universal cross-host escape hatch — any hub RPC method (session.discover, termlink.ping, command.inject, event.broadcast, agent.request, etc.) can be invoked remotely through this one tool. The remote hub must be started with termlink_hub_start(tcp_addr=\"...\") or CLI `termlink hub start --tcp`. Auth uses a 32-byte HMAC secret shared out-of-band (secret_file or secret). Returns the full JSON-RPC response as a JSON value."
+    )]
+    async fn termlink_remote_call(&self, Parameters(p): Parameters<RemoteCallParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("control");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(30));
+
+        let fut = async move {
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub,
+                p.secret_file.as_deref(),
+                p.secret.as_deref(),
+                scope,
+            )
+            .await
+            {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+
+            let params = p.params.unwrap_or(serde_json::json!({}));
+            let req_id = serde_json::json!(format!("mcp-{}", std::process::id()));
+            match rpc_client.call(&p.method, req_id, params).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "hub": p.hub,
+                        "method": p.method,
+                        "result": r.result,
+                    }))
+                    .unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => json_err(format!(
+                    "RPC error on {}: {} {}",
+                    p.method, e.error.code, e.error.message
+                )),
+                Err(e) => json_err(format!("RPC transport error on {}: {}", p.method, e)),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(30))),
+        }
+    }
+
+    #[tool(
+        name = "termlink_remote_ping",
+        description = "Ping a remote termlink hub (or a specific session on it) over TCP+TOFU TLS. Without a session argument, returns hub liveness + session count via session.discover. With a session argument, returns that session's state via termlink.ping routed through the hub. Useful for cross-host health checks before running heavier remote operations."
+    )]
+    async fn termlink_remote_ping(&self, Parameters(p): Parameters<RemotePingParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("observe");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(10));
+
+        let fut = async move {
+            let start = std::time::Instant::now();
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub,
+                p.secret_file.as_deref(),
+                p.secret.as_deref(),
+                scope,
+            )
+            .await
+            {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+            let auth_ms = start.elapsed().as_millis() as u64;
+
+            let (method, params, kind) = match &p.session {
+                Some(target) => (
+                    "termlink.ping",
+                    serde_json::json!({ "target": target }),
+                    "session",
+                ),
+                None => ("session.discover", serde_json::json!({}), "hub"),
+            };
+
+            let req_id = serde_json::json!("mcp-ping");
+            match rpc_client.call(method, req_id, params).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    let total_ms = start.elapsed().as_millis() as u64;
+                    let rpc_ms = total_ms.saturating_sub(auth_ms);
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "hub": p.hub,
+                        "kind": kind,
+                        "session": p.session,
+                        "result": r.result,
+                        "total_ms": total_ms,
+                        "auth_ms": auth_ms,
+                        "rpc_ms": rpc_ms,
+                    }))
+                    .unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => json_err(format!(
+                    "Ping failed: {} {}",
+                    e.error.code, e.error.message
+                )),
+                Err(e) => json_err(format!("Ping error: {}", e)),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(10))),
+        }
+    }
+
+    #[tool(
+        name = "termlink_remote_inject",
+        description = "Inject text (with optional Enter) into a session on a remote termlink hub over TCP+TOFU TLS. This is the primary cross-host prompt-injection tool — equivalent to termlink_inject but routes through the hub's command.inject method rather than a local Unix socket. The remote hub routes the call to the target session automatically. Use for sending prompts/commands to agents running on another host."
+    )]
+    async fn termlink_remote_inject(&self, Parameters(p): Parameters<RemoteInjectParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("control");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(30));
+        let enter = p.enter.unwrap_or(false);
+
+        let fut = async move {
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub,
+                p.secret_file.as_deref(),
+                p.secret.as_deref(),
+                scope,
+            )
+            .await
+            {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+
+            // Build keys array: text chars, optionally followed by Enter
+            let mut keys: Vec<serde_json::Value> =
+                p.text.chars().map(|c| serde_json::json!(c.to_string())).collect();
+            if enter {
+                keys.push(serde_json::json!("Enter"));
+            }
+
+            let params = serde_json::json!({
+                "target": p.session,
+                "keys": keys,
+            });
+            let req_id = serde_json::json!("mcp-inject");
+            match rpc_client
+                .call("command.inject", req_id, params)
+                .await
+            {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "hub": p.hub,
+                        "session": p.session,
+                        "bytes": p.text.len(),
+                        "enter": enter,
+                        "result": r.result,
+                    }))
+                    .unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    let msg = if e.error.message.contains("not found")
+                        || e.error.message.contains("No route")
+                    {
+                        format!("Session '{}' not found on {}", p.session, p.hub)
+                    } else {
+                        format!("Inject failed: {} {}", e.error.code, e.error.message)
+                    };
+                    json_err(msg)
+                }
+                Err(e) => json_err(format!("Inject error: {}", e)),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(30))),
         }
     }
 }
@@ -4622,5 +4993,133 @@ mod tests {
         assert_eq!(p.model.as_deref(), Some("sonnet"));
         assert_eq!(p.task_id.as_deref(), Some("T-904"));
         assert_eq!(p.count, 3);
+    }
+
+    // === T-920 remote + hub-tcp param tests ===
+
+    #[test]
+    fn hub_start_params_with_tcp() {
+        let json = serde_json::json!({"tcp_addr": "0.0.0.0:9100"});
+        let p: HubStartParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.tcp_addr.as_deref(), Some("0.0.0.0:9100"));
+    }
+
+    #[test]
+    fn hub_start_params_without_tcp() {
+        let json = serde_json::json!({});
+        let p: HubStartParams = serde_json::from_value(json).unwrap();
+        assert!(p.tcp_addr.is_none());
+    }
+
+    #[test]
+    fn remote_call_params_full() {
+        let json = serde_json::json!({
+            "hub": "192.168.10.107:9100",
+            "method": "session.discover",
+            "params": {"tags": ["master"]},
+            "secret_file": "/etc/termlink/secret",
+            "scope": "observe",
+            "timeout": 15,
+        });
+        let p: RemoteCallParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.hub, "192.168.10.107:9100");
+        assert_eq!(p.method, "session.discover");
+        assert_eq!(p.scope.as_deref(), Some("observe"));
+        assert_eq!(p.timeout, Some(15));
+        assert!(p.secret_file.is_some());
+        assert!(p.secret.is_none());
+        assert!(p.params.is_some());
+    }
+
+    #[test]
+    fn remote_call_params_minimal() {
+        let json = serde_json::json!({
+            "hub": "host:9100",
+            "method": "termlink.ping",
+            "secret": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        });
+        let p: RemoteCallParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.method, "termlink.ping");
+        assert!(p.params.is_none());
+        assert!(p.scope.is_none());
+        assert!(p.timeout.is_none());
+        assert_eq!(p.secret.as_ref().unwrap().len(), 64);
+    }
+
+    #[test]
+    fn remote_call_params_missing_required() {
+        // Missing method
+        let json = serde_json::json!({"hub": "host:9100"});
+        assert!(serde_json::from_value::<RemoteCallParams>(json).is_err());
+        // Missing hub
+        let json = serde_json::json!({"method": "termlink.ping"});
+        assert!(serde_json::from_value::<RemoteCallParams>(json).is_err());
+    }
+
+    #[test]
+    fn remote_ping_params_hub_only() {
+        let json = serde_json::json!({
+            "hub": "host:9100",
+            "secret_file": "/tmp/s",
+        });
+        let p: RemotePingParams = serde_json::from_value(json).unwrap();
+        assert!(p.session.is_none());
+    }
+
+    #[test]
+    fn remote_ping_params_with_session() {
+        let json = serde_json::json!({
+            "hub": "host:9100",
+            "session": "worker-1",
+            "secret_file": "/tmp/s",
+            "scope": "interact",
+            "timeout": 5,
+        });
+        let p: RemotePingParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.session.as_deref(), Some("worker-1"));
+        assert_eq!(p.scope.as_deref(), Some("interact"));
+        assert_eq!(p.timeout, Some(5));
+    }
+
+    #[test]
+    fn remote_inject_params_full() {
+        let json = serde_json::json!({
+            "hub": "192.168.10.107:9100",
+            "session": "dashboard-brain",
+            "text": "hello from mcp",
+            "enter": true,
+            "secret_file": "/etc/termlink/secret",
+            "scope": "control",
+            "timeout": 30,
+        });
+        let p: RemoteInjectParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.session, "dashboard-brain");
+        assert_eq!(p.text, "hello from mcp");
+        assert_eq!(p.enter, Some(true));
+        assert_eq!(p.scope.as_deref(), Some("control"));
+    }
+
+    #[test]
+    fn remote_inject_params_defaults() {
+        let json = serde_json::json!({
+            "hub": "host:9100",
+            "session": "a",
+            "text": "x",
+            "secret": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        });
+        let p: RemoteInjectParams = serde_json::from_value(json).unwrap();
+        assert!(p.enter.is_none());
+        assert!(p.scope.is_none());
+        assert!(p.timeout.is_none());
+    }
+
+    #[test]
+    fn remote_inject_params_missing_required() {
+        // Missing text
+        let json = serde_json::json!({"hub": "h:1", "session": "s"});
+        assert!(serde_json::from_value::<RemoteInjectParams>(json).is_err());
+        // Missing session
+        let json = serde_json::json!({"hub": "h:1", "text": "x"});
+        assert!(serde_json::from_value::<RemoteInjectParams>(json).is_err());
     }
 }
