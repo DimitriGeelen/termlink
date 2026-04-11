@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-909: Fix .agentic-framework symlink — replace with vendored copy
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T12:21:20Z
+# ============================================================================
+
+task_id: T-909
+task_name: "Fix .agentic-framework symlink — replace with vendored copy"
+workflow_type: inception
+enrichment_status: git-derived  # Auto-filled from git; AC/decisions not in task file
+
+# Timeline
+created: 2026-04-11T10:49:11Z
+completed: 2026-04-11T12:21:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-11T13:38:27+02:00
+last_commit: 2026-04-11T13:41:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add G-002 termlink dispatch shell template bug + G-001 live evidence. Research artifact + G-002 diagnosis correction
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Add G-002 termlink dispatch shell template bug + G-001 live evidence"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - "docs/reports/T-909-symlink-fix.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-11T13:38:27"
+    action: "T-909: Add G-002 termlink dispatch shell template bug + G-001 live evidence"
+  - time: "2026-04-11T13:41:17"
+    action: "T-909: Research artifact + G-002 diagnosis correction"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 92 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [infrastructure, symlink, vendor]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 92
+  commits: 2
+  files_changed: 2
+  lines_added: 111
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-909-fix-agentic-framework-symlink--replace-w.md
+generated_by: context-agent-hybrid
