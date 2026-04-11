@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-917: Fix dispatch timed_out semantic conflating crash with timeout
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T13:57:53Z
+# ============================================================================
+
+task_id: T-917
+task_name: "Fix dispatch timed_out semantic conflating crash with timeout"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T13:54:36Z
+completed: 2026-04-11T13:57:51Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-11T15:57:10+02:00
+last_commit: 2026-04-11T15:57:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Distinguish timed_out from any_failure in dispatch result
+
+# Key outcomes
+outcomes:
+  - "`timed_out` is computed from elapsed time only (`collect_start.elapsed() >= collect_timeout`)"
+  - "A separate `any_failure` value combines `timed_out || !crashed_workers.is_empty() || collected_count < registered_count` for `ok`/exit-code logic"
+  - "JSON output: `timed_out` reflects actual timeout; `ok` reflects any failure"
+  - "Human output: \"Timed out. Missing: ...\" message only prints when actually timed out (not when crashed) — uses unchanged `timed_out` variable which now has correct semantics"
+  - "Exit code remains non-zero on any failure (verified — exit 1 for crashed_workers case)"
+  - "All 11 existing dispatch tests still pass"
+  - "Real-world verification: dispatch with `bash -c 'exit 42'` against the isolated hub at /tmp/termlink-t914-isolated now outputs `timed_out: false`, `ok: false`, `crashed_workers: [\"t917-1\"]`, exit 1, wall clock 1.01s"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - ".tasks/active/T-917-fix-dispatch-timedout-semantic-conflatin.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-11T15:57:10"
+    action: "T-917: Distinguish timed_out from any_failure in dispatch result"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, dispatch, bug, semantics, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 72
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-917-fix-dispatch-timedout-semantic-conflatin.md
+generated_by: context-agent-hybrid
