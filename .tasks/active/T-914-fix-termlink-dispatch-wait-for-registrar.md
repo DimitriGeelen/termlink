@@ -37,13 +37,13 @@ Fix: capture user_cmd's exit code, kill the registrar, exit with user_cmd's rc. 
 - [x] `cargo test --package termlink --bin termlink commands::dispatch::tests` passes (11/11)
 
 ### Human
-- [ ] [REVIEW] Smoke-test the fix end-to-end with a fast-failing user_cmd
+- [ ] [REVIEW] Smoke-test the fix end-to-end with a fast-failing user_cmd (REQUIRES T-916 fix or healthy hub)
   **Steps:**
-  1. From `/opt/termlink`: `cargo build --release && sudo install -m 755 target/release/termlink /usr/local/bin/termlink`
-  2. Ensure `termlink hub` is running
+  1. **Confirm the hub is alive** first: `pgrep -af "termlink hub"` should show a process. If not: `termlink hub &` (warning: may interfere with the t11xx-rca workers from the framework session — coordinate first).
+  2. From `/opt/termlink`: `cargo build --release && sudo install -m 755 target/release/termlink /usr/local/bin/termlink` (or use `./target/debug/termlink` directly).
   3. Run: `time termlink dispatch --count 1 --backend background --timeout 30 --json -- bash -c 'exit 42'`
-  **Expected:** Returns within ~5s (not 30s). JSON output shows `crashed_workers` populated.
-  **If not:** The `find_session` early-crash check is not triggering. Check `manager::find_session` semantics — it may need a tighter check than process-presence.
+  **Expected:** Returns within ~5s (not 30s). JSON output shows `crashed_workers` populated and `elapsed_secs` < 10.
+  **If not:** Likely T-916 (event.collect masking hub failure) is biting — check stderr for "Connection refused" and verify hub is actually responding. The G-002 fix itself was independently verified via `/tmp/t914-manual-test.sh` and `/tmp/t914-dispatch-watch.sh` (worker dies on schedule). See Decisions section.
 
 ## Verification
 
@@ -55,14 +55,13 @@ cargo test --package termlink --bin termlink commands::dispatch::tests::worker_s
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-04-11 — Smoke test exposed orthogonal bug (filed as T-916)
+
+- **What was tried:** Built debug binary, ran `termlink dispatch --count 1 --backend background --timeout 10 -- bash -c 'exit 42'` to verify wall-clock improvement.
+- **Result:** Dispatch still hung for the full timeout. NOT because the G-002 fix failed (it didn't — see below), but because the hub PID 1517402 was dead in this environment and `event.collect` returned "Connection refused (os error 111)" on every iteration. The collect loop's `continue` on RPC error path never reaches the early-crash detection.
+- **Verification that the G-002 fix IS correct:** (a) 2/2 unit tests on `build_worker_shell_cmd` pass; (b) manual test (`/tmp/t914-manual-test.sh`) confirmed `kill $TL_PID` cleanly terminates the registrar via SIGTERM and `termlink list` correctly removes the dead session within 1s; (c) watch test (`/tmp/t914-dispatch-watch.sh`) showed the dispatched worker process tree was empty by T+5s, confirming the worker dies on schedule per my fix.
+- **What blocks full end-to-end smoke test:** environmental hub being down. Full validation requires: restart hub + re-run dispatch + observe `crashed_workers` populated and elapsed_secs<10. Not done in-session because another active session has 5 t11xx-rca workers running against this same socket directory and a hub restart could disturb them.
+- **Filed T-916** for the orthogonal bug: dispatch's event.collect continue-on-error path silently masks hub failures into infinite hangs.
 
 ## Updates
 
