@@ -24,7 +24,7 @@ tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-11T12:47:25Z
+last_update: 2026-04-11T14:55:00Z
 date_finished: null
 ---
 
@@ -79,3 +79,16 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-915-poll-framework-for-t-909-rca-fixes-fw-up.md
 - **Context:** Initial task creation
+
+### 2026-04-11T14:55:00Z — poll-result [agent]
+- **Action:** Ran the check procedure against `/opt/999-Agentic-Engineering-Framework`
+- **Command used:** `git -C /opt/999-Agentic-Engineering-Framework log --all --oneline --since=2026-04-11`
+- **Scanned for keywords:** inception decide --force, G-020, G-031..G-034, build readiness, episodic defer, fw vendor, T-909
+- **Framework activity since 2026-04-11:** 10+ commits in the T-1100-series. Notable:
+  - `39f9b2a7 T-1101: Register G-032..G-034 + widen G-031 from /opt/termlink T-909 RCA` — gaps *registered* (so the framework has seen our findings) but not fixed.
+  - `eb07962e T-1105: Structural-fix discipline pass — chokepoint+test upgrades for T-1100..T-1104`
+  - `a692c60d T-1106: Structural upgrade — chokepoint+invariant tests for Watchtower port bleed`
+  - T-1107, T-1108: unrelated defense-in-depth / Watchtower rendering
+- **Inspected code paths:** `git log --since=2026-04-09 -- bin/fw agents/inception lib/inception` → only one unrelated commit (`4fb978f4 T-1081: Fix fw gaps — honor T-397 rename to concerns.yaml`)
+- **Result:** No fixes landed for F1 (decide --force bypass), F2 (wrong runnable path), F3 (premature episodic), or F4 (fw vendor docs). Framework has acknowledged the gaps (T-1101) but no remediation commits yet.
+- **Action:** Leaving horizon=later. Will recheck next session.
