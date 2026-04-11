@@ -660,9 +660,15 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
 
     // Output results
     let collected_count = collected_events.len() as u64;
-    let timed_out = collected_count < registered_count;
     let total_elapsed = collect_start.elapsed();
     let total_elapsed_secs = total_elapsed.as_secs_f64();
+    // True only when we actually exceeded --timeout (not when workers crashed
+    // before emitting). Crashes are reported via crashed_workers; timeout is
+    // the elapsed-clock condition. Conflating the two misleads users (T-917).
+    let timed_out = total_elapsed >= collect_timeout;
+    // Any failure: timed out, workers crashed, or under-reported events.
+    let any_failure =
+        timed_out || !crashed_workers.is_empty() || collected_count < registered_count;
 
     // Compute per-worker elapsed from event timestamps relative to collect_start
     let collect_start_unix = std::time::SystemTime::now()
@@ -679,7 +685,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
 
     if json_output {
         let mut result = json!({
-            "ok": !timed_out && crashed_workers.is_empty(),
+            "ok": !any_failure,
             "dispatch_id": dispatch_id,
             "workers_spawned": count,
             "workers_registered": registered_count,
@@ -732,7 +738,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         }
     }
 
-    if timed_out {
+    if any_failure {
         use std::io::Write;
         let _ = std::io::stdout().flush();
         std::process::exit(1);
