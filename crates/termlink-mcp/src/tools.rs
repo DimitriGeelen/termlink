@@ -397,6 +397,10 @@ pub struct DispatchParams {
     pub workdir: Option<String>,
     /// Task ID for governance tracking (required when TERMLINK_TASK_GOVERNANCE=1)
     pub task_id: Option<String>,
+    /// LLM model for workers: "opus", "sonnet", or "haiku". When specified, passed as
+    /// TERMLINK_MODEL env var to workers. If unavailable, falls back through the default
+    /// chain (opus → sonnet → haiku).
+    pub model: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -2124,6 +2128,10 @@ impl TermLinkTools {
             env_prefix.push_str(&format!("export TERMLINK_DISPATCH_ID={}; ", shell_escape(&dispatch_id)));
             env_prefix.push_str(&format!("export TERMLINK_ORCHESTRATOR={}; ", std::process::id()));
             env_prefix.push_str(&format!("export TERMLINK_WORKER_NAME={}; ", shell_escape(&worker_name)));
+            // Model selection
+            if let Some(ref model) = p.model {
+                env_prefix.push_str(&format!("export TERMLINK_MODEL={}; ", shell_escape(model)));
+            }
             // User-supplied env vars
             for (key, val) in &env_vars {
                 env_prefix.push_str(&format!("export {}={}; ", shell_escape(key), shell_escape(val)));
@@ -4582,5 +4590,37 @@ mod tests {
         let json = serde_json::json!({"count": 1, "command": ["ls"]});
         let p: DispatchParams = serde_json::from_value(json).unwrap();
         assert!(p.task_id.is_none());
+    }
+
+    #[test]
+    fn dispatch_params_with_model() {
+        let json = serde_json::json!({
+            "count": 2,
+            "command": ["echo", "hello"],
+            "model": "opus"
+        });
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.model.as_deref(), Some("opus"));
+    }
+
+    #[test]
+    fn dispatch_params_without_model() {
+        let json = serde_json::json!({"count": 1, "command": ["ls"]});
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert!(p.model.is_none());
+    }
+
+    #[test]
+    fn dispatch_params_model_sonnet() {
+        let json = serde_json::json!({
+            "count": 3,
+            "command": ["make", "test"],
+            "model": "sonnet",
+            "task_id": "T-904"
+        });
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.model.as_deref(), Some("sonnet"));
+        assert_eq!(p.task_id.as_deref(), Some("T-904"));
+        assert_eq!(p.count, 3);
     }
 }

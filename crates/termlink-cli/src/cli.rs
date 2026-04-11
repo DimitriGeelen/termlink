@@ -757,6 +757,10 @@ pub(crate) enum Command {
         #[arg(long)]
         json: bool,
 
+        /// LLM model for workers: opus, sonnet, or haiku
+        #[arg(long)]
+        model: Option<String>,
+
         /// Command for each worker to run (after --)
         #[arg(trailing_var_arg = true)]
         command: Vec<String>,

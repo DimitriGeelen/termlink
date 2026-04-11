@@ -13,6 +13,36 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RouteCache {
     pub entries: HashMap<String, RouteCacheEntry>,
+    /// Per-model success rate tracking: maps "model:task_type" → ModelStats.
+    /// Used by the orchestrator to select the best model for a given task type.
+    #[serde(default)]
+    pub model_stats: HashMap<String, ModelStats>,
+}
+
+/// Tracks success/failure rates for a model+task_type combination.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelStats {
+    /// Model name (e.g., "opus", "sonnet", "haiku").
+    pub model: String,
+    /// Task type this stat applies to (e.g., "build", "test", "refactor").
+    pub task_type: String,
+    /// Number of successful dispatches.
+    pub successes: u64,
+    /// Number of failed dispatches.
+    pub failures: u64,
+    /// ISO timestamp of last use.
+    pub last_used: String,
+}
+
+impl ModelStats {
+    /// Success rate as a fraction (0.0–1.0). Returns 0.0 if no data.
+    pub fn success_rate(&self) -> f64 {
+        let total = self.successes + self.failures;
+        if total == 0 {
+            return 0.0;
+        }
+        self.successes as f64 / total as f64
+    }
 }
 
 /// A cached route: maps a capability slug to a specialist session.
@@ -177,6 +207,61 @@ impl RouteCache {
     pub fn schema_matches(entry: &RouteCacheEntry, request_fields: &[&str]) -> bool {
         // All required schema fields must be present in the request
         entry.request_schema.required.iter().all(|f| request_fields.contains(&f.as_str()))
+    }
+
+    // --- Model tracking ---
+
+    /// Record a successful model+task_type dispatch.
+    pub fn record_model_success(&mut self, model: &str, task_type: &str) {
+        let key = format!("{model}:{task_type}");
+        let stats = self.model_stats.entry(key).or_insert_with(|| ModelStats {
+            model: model.to_string(),
+            task_type: task_type.to_string(),
+            successes: 0,
+            failures: 0,
+            last_used: now_iso(),
+        });
+        stats.successes += 1;
+        stats.last_used = now_iso();
+    }
+
+    /// Record a failed model+task_type dispatch.
+    pub fn record_model_failure(&mut self, model: &str, task_type: &str) {
+        let key = format!("{model}:{task_type}");
+        let stats = self.model_stats.entry(key).or_insert_with(|| ModelStats {
+            model: model.to_string(),
+            task_type: task_type.to_string(),
+            successes: 0,
+            failures: 0,
+            last_used: now_iso(),
+        });
+        stats.failures += 1;
+        stats.last_used = now_iso();
+    }
+
+    /// Get the best model for a task type, ranked by success rate.
+    /// Returns None if no stats exist for the given task type.
+    pub fn best_model_for(&self, task_type: &str) -> Option<&str> {
+        let mut best: Option<(&str, f64)> = None;
+        for stats in self.model_stats.values() {
+            if stats.task_type == task_type && (stats.successes + stats.failures) > 0 {
+                let rate = stats.success_rate();
+                match best {
+                    None => best = Some((&stats.model, rate)),
+                    Some((_, best_rate)) if rate > best_rate => {
+                        best = Some((&stats.model, rate));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        best.map(|(m, _)| m)
+    }
+
+    /// Get model stats for a specific model+task_type combination.
+    pub fn model_stats_for(&self, model: &str, task_type: &str) -> Option<&ModelStats> {
+        let key = format!("{model}:{task_type}");
+        self.model_stats.get(&key)
     }
 
     // --- Persistence ---
@@ -619,5 +704,121 @@ mod tests {
             .as_secs();
         // Should be within 2 seconds
         assert!((now_epoch as i64 - epoch as i64).unsigned_abs() < 2);
+    }
+
+    // --- Model stats tests ---
+
+    #[test]
+    fn model_stats_success_rate() {
+        let stats = ModelStats {
+            model: "opus".to_string(),
+            task_type: "build".to_string(),
+            successes: 8,
+            failures: 2,
+            last_used: now_iso(),
+        };
+        assert!((stats.success_rate() - 0.8).abs() < 0.001);
+    }
+
+    #[test]
+    fn model_stats_empty_returns_zero() {
+        let stats = ModelStats {
+            model: "opus".to_string(),
+            task_type: "build".to_string(),
+            successes: 0,
+            failures: 0,
+            last_used: now_iso(),
+        };
+        assert_eq!(stats.success_rate(), 0.0);
+    }
+
+    #[test]
+    fn record_model_success() {
+        let mut cache = RouteCache::default();
+        cache.record_model_success("opus", "build");
+        cache.record_model_success("opus", "build");
+        cache.record_model_success("opus", "build");
+
+        let stats = cache.model_stats_for("opus", "build").unwrap();
+        assert_eq!(stats.successes, 3);
+        assert_eq!(stats.failures, 0);
+        assert!((stats.success_rate() - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn record_model_failure() {
+        let mut cache = RouteCache::default();
+        cache.record_model_failure("haiku", "test");
+        cache.record_model_failure("haiku", "test");
+
+        let stats = cache.model_stats_for("haiku", "test").unwrap();
+        assert_eq!(stats.successes, 0);
+        assert_eq!(stats.failures, 2);
+        assert_eq!(stats.success_rate(), 0.0);
+    }
+
+    #[test]
+    fn record_model_mixed() {
+        let mut cache = RouteCache::default();
+        cache.record_model_success("sonnet", "refactor");
+        cache.record_model_failure("sonnet", "refactor");
+        cache.record_model_success("sonnet", "refactor");
+        cache.record_model_success("sonnet", "refactor");
+
+        let stats = cache.model_stats_for("sonnet", "refactor").unwrap();
+        assert_eq!(stats.successes, 3);
+        assert_eq!(stats.failures, 1);
+        assert!((stats.success_rate() - 0.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn best_model_for_task_type() {
+        let mut cache = RouteCache::default();
+        // opus: 90% success for build
+        for _ in 0..9 { cache.record_model_success("opus", "build"); }
+        cache.record_model_failure("opus", "build");
+        // sonnet: 70% success for build
+        for _ in 0..7 { cache.record_model_success("sonnet", "build"); }
+        for _ in 0..3 { cache.record_model_failure("sonnet", "build"); }
+        // haiku: 50% success for build
+        for _ in 0..5 { cache.record_model_success("haiku", "build"); }
+        for _ in 0..5 { cache.record_model_failure("haiku", "build"); }
+
+        assert_eq!(cache.best_model_for("build"), Some("opus"));
+    }
+
+    #[test]
+    fn best_model_no_data() {
+        let cache = RouteCache::default();
+        assert_eq!(cache.best_model_for("unknown"), None);
+    }
+
+    #[test]
+    fn model_stats_per_task_type_isolation() {
+        let mut cache = RouteCache::default();
+        cache.record_model_success("opus", "build");
+        cache.record_model_failure("opus", "test");
+
+        assert!(cache.model_stats_for("opus", "build").unwrap().success_rate() > 0.5);
+        assert!(cache.model_stats_for("opus", "test").unwrap().success_rate() < 0.5);
+    }
+
+    #[test]
+    fn model_stats_persistence_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("route-cache.json");
+
+        let mut cache = RouteCache::default();
+        cache.record_model_success("opus", "build");
+        cache.record_model_success("opus", "build");
+        cache.record_model_failure("sonnet", "build");
+        cache.save_to(&path).unwrap();
+
+        let loaded = RouteCache::load_from(&path);
+        assert_eq!(loaded.model_stats.len(), 2);
+        let opus = loaded.model_stats_for("opus", "build").unwrap();
+        assert_eq!(opus.successes, 2);
+        let sonnet = loaded.model_stats_for("sonnet", "build").unwrap();
+        assert_eq!(sonnet.failures, 1);
     }
 }

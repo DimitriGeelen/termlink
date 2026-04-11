@@ -148,8 +148,8 @@ async fn main() -> Result<()> {
         Command::Spawn { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, command } => {
             commands::execution::cmd_spawn(commands::execution::SpawnOpts { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, command }).await
         }
-        Command::Dispatch { count, timeout, topic, name, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json, command } => {
-            commands::dispatch::cmd_dispatch(commands::dispatch::DispatchOpts { count, timeout, topic, name_prefix: name, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json_output: json, command }).await
+        Command::Dispatch { count, timeout, topic, name, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json, model, command } => {
+            commands::dispatch::cmd_dispatch(commands::dispatch::DispatchOpts { count, timeout, topic, name_prefix: name, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json_output: json, command, model }).await
         }
         Command::DispatchStatus { check, json } => {
             commands::dispatch::cmd_dispatch_status(check, json)
