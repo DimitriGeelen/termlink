@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-930, T-931]
 created: 2026-04-11T22:29:26Z
-last_update: 2026-04-11T22:51:11Z
+last_update: 2026-04-11T22:56:24Z
 date_finished: null
 ---
 
@@ -32,12 +32,12 @@ redistributed.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `generate_and_write_hub_secret()` reads the existing hub.secret file if it exists AND parses as valid 64-char hex. If valid, it reuses the existing secret; otherwise it generates a fresh one.
-- [ ] Both `remove_file(hub_secret_path())` calls removed from clean-shutdown paths (`run_with_tcp` and `run_blocking`) — the secret persists at rest across hub restarts.
-- [ ] `cargo build --workspace` clean.
-- [ ] New unit test: calling the function twice against the same runtime dir returns the same secret on both calls. Test uses ENV_LOCK + isolated temp dir per L-006.
-- [ ] `cargo test -p termlink-hub` existing tests pass (no regressions).
-- [ ] Live test on .107: note current `/var/lib/termlink/hub.secret`, `sudo systemctl restart termlink-hub`, verify secret is unchanged.
+- [x] `generate_and_write_hub_secret()` reads the existing hub.secret file if it exists AND parses as valid 64-char hex. If valid, it reuses the existing secret; otherwise it generates a fresh one. (via new `load_existing_hub_secret()` helper, commit c071297)
+- [x] Both `remove_file(hub_secret_path())` calls removed from clean-shutdown paths (`run_with_tcp` and `run_blocking`) — the secret persists at rest across hub restarts.
+- [x] `cargo build --workspace` clean.
+- [x] New unit test `hub_secret_persists_across_calls`: two calls return the same secret; corrupted file triggers regeneration.
+- [x] `cargo test -p termlink-hub` 177/177 pass (no regressions).
+- [x] Live test on .107: second `sudo systemctl restart termlink-hub` preserved secret `b3076eb7…`; journalctl shows `"Hub secret loaded from disk (persist-if-present, T-933)"`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
