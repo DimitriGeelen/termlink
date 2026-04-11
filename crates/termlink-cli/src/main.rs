@@ -187,7 +187,16 @@ async fn main() -> Result<()> {
             let opts = commands::metadata::DiscoverOpts { tags: tag, roles: role, caps: cap, name, wait, wait_timeout, id };
             commands::metadata::cmd_discover(opts, &display).await
         }
-        Command::Kv { target, json, timeout, raw, keys, action } => commands::metadata::cmd_kv(&target, action, json, raw, keys, timeout).await,
+        Command::Kv { target, json, timeout, raw, keys, hub, secret_file, secret, scope, action } => {
+            let opts = target::TargetOpts {
+                hub,
+                secret_file,
+                secret,
+                scope,
+                session: target,
+            };
+            commands::metadata::cmd_kv(&opts, action, json, raw, keys, timeout).await
+        }
 
         // Execution
         Command::Run { name, roles, tags, cap, timeout, json, command } => {
