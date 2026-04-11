@@ -171,9 +171,16 @@ async fn main() -> Result<()> {
         }
 
         // Metadata & Discovery
-        Command::Tag { target, set, add, remove, new_name, role, add_role, remove_role, json, timeout } => {
-            let opts = commands::metadata::TagOpts { set, add, remove, new_name, role, add_role, remove_role };
-            commands::metadata::cmd_tag(&target, opts, json, timeout).await
+        Command::Tag { target, set, add, remove, new_name, role, add_role, remove_role, json, timeout, hub, secret_file, secret, scope } => {
+            let tag_opts = commands::metadata::TagOpts { set, add, remove, new_name, role, add_role, remove_role };
+            let tgt_opts = target::TargetOpts {
+                hub,
+                secret_file,
+                secret,
+                scope,
+                session: target,
+            };
+            commands::metadata::cmd_tag(&tgt_opts, tag_opts, json, timeout).await
         }
         Command::Discover { tag, role, cap, name, json, count, first, wait, wait_timeout, id, names, ids, no_header } => {
             let display = ListDisplayOpts { count, first, names, ids, no_header, json };

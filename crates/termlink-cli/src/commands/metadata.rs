@@ -29,21 +29,13 @@ pub(crate) struct DiscoverOpts {
 }
 
 pub(crate) async fn cmd_tag(
-    target: &str,
+    tgt: &crate::target::TargetOpts,
     opts: TagOpts,
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
     let TagOpts { set, add, remove, new_name, role, add_role, remove_role } = opts;
-    let reg = match manager::find_session(target) {
-        Ok(r) => r,
-        Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-            }
-            return Err(e).context(format!("Session '{}' not found", target));
-        }
-    };
+    let target = tgt.session.as_str();
 
     // Read-only mode: show current state when no modification flags given
     let has_tag_changes = !set.is_empty() || !add.is_empty() || !remove.is_empty();
@@ -51,23 +43,18 @@ pub(crate) async fn cmd_tag(
     let has_any_changes = has_tag_changes || has_role_changes || new_name.is_some();
     if !has_any_changes {
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-        let rpc_future = client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({}));
-        let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-            Ok(Ok(r)) => r,
-            Ok(Err(e)) => {
-                if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect: {e}")}));
+        let call_future = crate::target::call_session(tgt, "termlink.ping", serde_json::json!({}));
+        let outcome: Result<serde_json::Value> =
+            match tokio::time::timeout(timeout_dur, call_future).await {
+                Ok(r) => r,
+                Err(_) => {
+                    if json {
+                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Timed out after {}s", timeout_secs)}));
+                    }
+                    anyhow::bail!("Tag query timed out after {}s", timeout_secs);
                 }
-                return Err(e).context("Failed to connect to session");
-            }
-            Err(_) => {
-                if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Timed out after {}s", timeout_secs)}));
-                }
-                anyhow::bail!("Tag query timed out after {}s", timeout_secs);
-            }
-        };
-        match client::unwrap_result(resp) {
+            };
+        match outcome {
             Ok(result) => {
                 if json {
                     println!("{}", serde_json::json!({
@@ -135,26 +122,19 @@ pub(crate) async fn cmd_tag(
     }
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    let rpc_future = client::rpc_call(reg.socket_path(), "session.update", params);
-    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => match result {
+    let call_future = crate::target::call_session(tgt, "session.update", params);
+    let outcome: Result<serde_json::Value> =
+        match tokio::time::timeout(timeout_dur, call_future).await {
             Ok(r) => r,
-            Err(e) => {
+            Err(_) => {
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Tag update timed out after {}s", timeout_secs)}));
                 }
-                return Err(e).context("Failed to connect to session");
+                anyhow::bail!("Tag update timed out after {}s", timeout_secs);
             }
-        },
-        Err(_) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Tag update timed out after {}s", timeout_secs)}));
-            }
-            anyhow::bail!("Tag update timed out after {}s", timeout_secs);
-        }
-    };
+        };
 
-    match client::unwrap_result(resp) {
+    match outcome {
         Ok(result) => {
             if json {
                 let mut wrapped = serde_json::json!({"ok": true});
