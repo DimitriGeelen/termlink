@@ -1,0 +1,56 @@
+# TermLink Hub — cross-host session router (T-931 from T-930 decomposition)
+# Source of truth: /opt/termlink/.context/systemd/termlink-hub.service (git-tracked)
+# Installed to:    /etc/systemd/system/termlink-hub.service (copy)
+# Install with:    .context/systemd/install.sh
+#
+# Supervises the termlink hub daemon so it (a) binds TCP on 9100 by default,
+# (b) restarts on crash, (c) survives reboot. Mirrors the watchtower-vinix24
+# precedent already running on this box.
+
+[Unit]
+Description=TermLink Hub — cross-host session router (TCP+TLS+HMAC)
+Documentation=https://github.com/dgeelen/termlink
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=root
+Group=root
+WorkingDirectory=/opt/termlink
+
+# Persistent runtime dir. /tmp/termlink-0 is tmpfs and wipes on reboot —
+# moving to /var/lib/termlink means hub.secret, hub.sock, and TLS cert
+# survive reboots once T-933 (persist-if-present secret) lands.
+Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink
+StateDirectory=termlink
+StateDirectoryMode=0700
+
+ExecStart=/root/.cargo/bin/termlink hub start --tcp 0.0.0.0:9100 --json
+ExecStop=/root/.cargo/bin/termlink hub stop --json
+
+Restart=on-failure
+RestartSec=5
+
+# Temporary workaround until T-932 lands: cmd_hub_start only traps SIGINT
+# via tokio::signal::ctrl_c(). SIGTERM falls through and skips cleanup.
+# Telling systemd to send SIGINT instead preserves clean shutdown.
+# DELETE this line once T-932 (select! on ctrl_c + SignalKind::terminate)
+# is merged.
+KillSignal=SIGINT
+
+# Modest hardening — matches watchtower-vinix24 posture implicitly.
+# NOTE: ProtectHome is read-only (not yes) because the termlink binary
+# lives at /root/.cargo/bin/termlink on this box and ProtectHome=yes
+# would make it invisible to the service (status=203/EXEC). Moving the
+# binary to /usr/local/bin/ is the right fix but out of scope for T-931.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+# ReadWritePaths lets hub write to its state dir + /tmp (belt-and-braces
+# while TERMLINK_RUNTIME_DIR code path is bedded in; remove /tmp after
+# T-935 migration lands).
+ReadWritePaths=/var/lib/termlink /tmp
+
+[Install]
+WantedBy=multi-user.target
