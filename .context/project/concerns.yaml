@@ -4,16 +4,16 @@
 concerns:
 - id: G-002
   type: gap
-  title: termlink dispatch shell template omits `;` separators, workers never run child command
-  description: 'When `termlink dispatch` launches a worker, it constructs a `sh -c` script that registers the session in background and then runs the child command. Observed on 2026-04-11 during T-909 risk-eval: ps shows the shell template flattens to `... termlink register ... & TL_PID=$! sleep 1 bash -c ''claude ...'' wait $TL_PID` — missing `;` between `TL_PID=$!`, `sleep 1`, `bash -c`, and `wait`. POSIX sh parses this as a single command `TL_PID=$! sleep 1 bash -c ''...'' wait $TL_PID` (var assignment prefix on `sleep` with bogus numeric args). `sleep` errors on non-numeric, and the `bash -c ''claude ...''` never executes. Workers appear ready in `termlink list` but the child command is never invoked; they hang in `wait` waiting for the registrar to exit. Reproducer: `termlink dispatch --count 1 --name test --backend background --timeout 60 -- bash -c ''echo hello > /tmp/test.txt''` — /tmp/test.txt is never written.'
-  spec_reference: 'T-282 (dispatch command spec), T-280 (dispatch readiness)'
+  title: termlink dispatch hangs when worker user-command fails fast — `wait $TL_PID` blocks on alive registrar
+  description: 'Corrected diagnosis (initial G-002 was wrong): the dispatch shell template in crates/termlink-cli/src/commands/dispatch.rs:293 uses `\n` separators which POSIX sh parses correctly. The real bug: the template runs `termlink register ... &; TL_PID=$!; sleep 1; <user_cmd>; wait $TL_PID`. When `<user_cmd>` exits with an error (e.g., `claude -p --dangerously-skip-permissions` refusing to run as root, exit 1 in <100ms), sh falls through to `wait $TL_PID`. Because the backgrounded `termlink register` is a long-lived session waiting for orchestrator instructions, `wait` blocks forever. Dispatch observes "session ready" forever, never sees the user_cmd failure, and times out only after the --timeout flag (900s here). Observed 2026-04-11 during T-909: 3 risk-eval workers appeared ready in `termlink list` but pstree showed no bash/claude grandchild — `bash -c ''claude -p ...''` had already exited with "cannot be used with root/sudo privileges" and left the registrar hanging.'
+  spec_reference: 'T-282 (dispatch command spec), T-280 (dispatch readiness), crates/termlink-cli/src/commands/dispatch.rs:293'
   severity: high
   trigger_fired: true
-  trigger_event: '2026-04-11 13:32Z: 3 dispatched risk-eval workers (risk-tech-1, risk-state-1, risk-blast-1) registered but never ran `claude -p`. Confirmed by pstree showing only `termlink register` as child of the worker sh — no bash/claude grandchild. Forced fallback to direct bash backgrounding.'
+  trigger_event: '2026-04-11 13:32Z: 3 dispatched risk-eval workers registered but claude -p refused root and exited immediately. Dispatch hung in wait-for-registrar. Forced fallback to Agent subagents.'
   detection_lag_days: '?'
-  what_works_now: 'termlink register (foreground) works. termlink spawn / run may work (different code path, not verified). Direct `claude -p ... &` backgrounding from bash works as a fallback.'
-  what_remains: 'Locate the shell template construction in termlink source (likely in dispatch.rs or spawn.rs), add `;` separators or switch to a heredoc with proper newline handling, write a regression test that verifies the child command actually runs.'
-  mitigation_candidate: '1. Kill broken workers via SIGTERM on the parent `termlink dispatch` PID. 2. Fall back to direct bash `claude -p ... &` for parallel workers. 3. Fix dispatch template in termlink source. 4. Add integration test: `termlink dispatch ... -- bash -c ''touch /tmp/proof''` and assert /tmp/proof exists.'
+  what_works_now: 'dispatch works fine for user_cmds that succeed OR that run long enough to be observed. Only fast-failing user_cmds hit this.'
+  what_remains: 'Capture user_cmd exit code explicitly: `{user_cmd}; USER_RC=$?; kill $TL_PID 2>/dev/null; wait $TL_PID 2>/dev/null; exit $USER_RC`. Or use a named-pipe heartbeat. Add regression test: `termlink dispatch ... -- bash -c ''exit 42''` must see exit 42 within ~3s.'
+  mitigation_candidate: '1. Check user_cmd output/exit separately. 2. Shorter --timeout when expecting fast success. 3. Pre-validate user_cmd can run in the target environment (e.g., test `claude -p` can execute before dispatching 3 workers).'
   status: watching
   created: 2026-04-11
   last_reviewed: 2026-04-11
