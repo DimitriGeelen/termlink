@@ -597,3 +597,616 @@ The context fabric (`.fabric/components/`) tracks code-level dependencies: file 
 3. **Rule hot-reload races.** User edits `relay.toml` mid-session. Between the edit and reload, requests use stale rules. Mitigation: signal-based reload (SIGHUP) + version the config, log reload events.
 4. **Audit log growth.** JSONL at `~/.context/relay/` grows unbounded. Mitigation: daily rotation, 30-day retention, gzip rotation. Disk budget: ~1-10MB/day estimated at heavy use.
 
+## Launcher UX Design: `termlink claude`
+
+This section designs how users start the governed stack. The launcher is the primary user touchpoint — if startup is painful, the relay gets skipped.
+
+### Existing Wrappers
+
+The framework already has two launchers to stack under:
+
+| Layer | Binary | Job |
+|-------|--------|-----|
+| Outer | `claude-fw` | Auto-restart on budget critical, optional TermLink session registration |
+| Inner | `claude` | Claude Code CLI |
+
+`claude-fw` supports env vars and flags, runs `claude` in a loop watching for restart signals. TermLink integration is opt-in via `--termlink` or `TL_CLAUDE_ENABLED=1`.
+
+**Design constraint:** The relay launcher must compose with `claude-fw`, not replace it. Layering:
+
+```
+termlink claude [args]   ← sets env, ensures relay, execs claude-fw
+  └── claude-fw [args]   ← auto-restart + optional termlink session
+        └── claude [args] ← the real CLI, reads ANTHROPIC_BASE_URL
+```
+
+### Command Surface
+
+Following the `termlink hub start/stop/status` pattern:
+
+```
+termlink relay start              # Start relay daemon on :4100 (idempotent)
+termlink relay stop               # Stop relay daemon
+termlink relay status [--json]    # Show status, PID, rules, uptime
+termlink relay reload             # Signal SIGHUP to reload relay.toml
+termlink relay audit [--tail]     # Tail the audit log
+termlink relay rules              # Show active rules (parsed from relay.toml)
+
+termlink claude [-- args]         # Ensure relay running, set env, exec claude-fw
+termlink claude --no-relay [args] # Skip relay (emergency bypass)
+termlink claude --no-restart args # Pass through to claude-fw
+```
+
+**Why two verbs (`relay` + `claude`)?**
+- `termlink relay *`: explicit relay lifecycle — for operators, debugging, CI
+- `termlink claude`: ergonomic launcher for daily use — "just start my governed claude"
+
+The `termlink claude` wrapper does NOT expose relay config flags. Rules live in `~/.termlink/relay.toml`, not the command line.
+
+### Lifecycle: Daemon, Not Session-Scoped
+
+**Decision: Relay is a long-lived daemon, one per workstation.**
+
+Alternative rejected: spawn relay per `termlink claude` invocation, tear down on exit. Pros: clean lifecycle, nothing leaking. Cons: (1) startup cost per launch (~200ms for bind + rule parse), (2) subagents spawned outside the parent claude would lose the relay, (3) manual `termlink relay audit` unusable between sessions.
+
+**Daemon model:**
+- `termlink relay start` launches a detached process, writes PID to `~/.termlink/relay.pid`
+- Listens on `127.0.0.1:4100` (or `TERMLINK_RELAY_ADDR`)
+- Survives across claude sessions
+- `termlink claude` checks status, auto-starts if needed
+- `termlink relay stop` for explicit teardown
+- `termlink doctor` warns if daemon PID is stale
+
+**Auto-start logic in `termlink claude`:**
+```
+1. Check ~/.termlink/relay.pid exists and process alive
+2. If no: run `termlink relay start --background`, wait for readiness probe
+3. Verify `curl -sf http://127.0.0.1:4100/health` returns 200
+4. Export ANTHROPIC_BASE_URL=http://127.0.0.1:4100
+5. Exec claude-fw with user args
+```
+
+### Auto-start Failure Modes
+
+| Failure | Behavior |
+|---------|----------|
+| Port 4100 already bound (another relay or unrelated service) | Error, exit 1, suggest `TERMLINK_RELAY_ADDR=127.0.0.1:4101 termlink claude` |
+| `relay.toml` missing | Use built-in defaults (task-gate only), warn user |
+| `relay.toml` parse error | Error, exit 1, print line number and parser error |
+| Relay starts but readiness probe fails | Kill relay, error, exit 1 |
+| Relay starts successfully | Proceed to exec claude-fw |
+
+**Default-on principle.** `termlink claude` without flags enables governance. `--no-relay` is the explicit escape hatch for emergency debugging, logged to the audit stream (so misuse leaves a trail).
+
+### Environment Variable Contract
+
+The launcher exports:
+
+| Variable | Value | Consumer |
+|----------|-------|----------|
+| `ANTHROPIC_BASE_URL` | `http://127.0.0.1:4100` | Claude Code SDK |
+| `TERMLINK_RELAY_PROJECT` | Current working directory | Relay for per-project rules |
+| `TERMLINK_RELAY_SESSION` | Generated session ID | Relay for session-scoped audit |
+| `ANTHROPIC_API_KEY` | Pass-through | Forwarded to Anthropic by relay |
+
+The relay sees these via request headers: the launcher optionally injects `X-Termlink-Project`, `X-Termlink-Session` as custom headers via `ANTHROPIC_CUSTOM_HEADERS` (confirmed env var in Claude Code binary, per Spike 2). This is how the relay distinguishes subagents from parents (Tier 2 Q10 — moved from deferred to partial-answer).
+
+**Subagent inheritance.** Subagents spawned by Claude Code inherit the parent process environment (POSIX, validated A-4). `ANTHROPIC_BASE_URL` flows down, so subagents also hit the relay. Each subagent could get its own `TERMLINK_RELAY_SESSION` if CC propagates a fresh header — needs validation during build spike.
+
+### Composition With `claude-fw`
+
+`claude-fw` already handles auto-restart and optional TermLink PTY session registration. `termlink claude` should NOT duplicate this. Composition:
+
+```bash
+# termlink claude pseudo-implementation
+termlink relay start --if-not-running || exit 1
+export ANTHROPIC_BASE_URL="http://127.0.0.1:${TERMLINK_RELAY_PORT:-4100}"
+export TERMLINK_RELAY_PROJECT="$(pwd)"
+exec claude-fw "$@"
+```
+
+Five lines. No loops, no signal handling, no restart logic — that lives in claude-fw. `termlink claude` is syntactic sugar for "env + claude-fw" with relay assurance.
+
+### API Key Handling: Deferred
+
+The advanced mode (relay holds real API key, issues scoped tokens to Claude Code) is architecturally attractive but adds complexity:
+- Token issuance logic
+- Token validation on every request
+- Token revocation on session end
+- Migration path for users already using `ANTHROPIC_API_KEY`
+
+**Deferred to post-v1.** v1 passes the user's `ANTHROPIC_API_KEY` through transparently. The circumvention defense is weaker (model could exfil the key) but the UX is dramatically simpler. Revisit if threat model demands it.
+
+### Discovery & Help UX
+
+`termlink --help` should surface the `claude` subcommand prominently since it's the daily driver:
+
+```
+USAGE: termlink <COMMAND>
+
+COMMON COMMANDS:
+    claude                 Run Claude Code with governance relay enabled
+    dispatch               Spawn an agent worker
+    ls                     List sessions
+
+INFRASTRUCTURE:
+    hub                    Hub server management
+    relay                  Governance relay management
+    mcp                    MCP server
+
+...
+```
+
+`termlink claude --help` should explain the governance layer in one paragraph with a pointer to `~/.termlink/relay.toml` for configuration.
+
+### Observability From the Launcher
+
+On startup, `termlink claude` should print a one-line status:
+
+```
+$ termlink claude
+termlink: relay running on :4100 (rules: task-gate, write-scope, 12 total)
+```
+
+This mirrors `claude-fw: TermLink session ready.` — keep the signal-to-noise ratio high, one line per subsystem, exit code always available.
+
+### Edge Cases Surfaced
+
+1. **User already set `ANTHROPIC_BASE_URL`** (e.g., to point at Bedrock). Launcher detects, refuses to override silently. Exit with error suggesting `--no-relay` or manual relay config.
+2. **User is not in a TermLink project.** Relay still works (it's workstation-scoped), but `TERMLINK_RELAY_PROJECT` will be the cwd. Relay applies default rules, not project-specific. Warn once.
+3. **Multiple concurrent `termlink claude` invocations.** Daemon already serves all of them. Each gets its own session ID. No port conflicts.
+4. **`termlink claude` in CI or headless.** Works identically — daemon starts, claude runs, daemon keeps running. CI can `termlink relay stop` in a teardown step.
+5. **User switches projects mid-session.** Relay reads project from request header (launcher-injected), so cross-project launches work without restart.
+
+### Launcher Integration Summary
+
+| Aspect | Decision |
+|--------|----------|
+| Verb layout | `termlink relay *` for lifecycle, `termlink claude` for daily use |
+| Relay lifecycle | Long-lived daemon, one per workstation |
+| Auto-start | `termlink claude` starts daemon if not running |
+| Composition | `termlink claude` execs `claude-fw` after env setup |
+| Default | Governance ON, opt-out via `--no-relay` |
+| Project context | Via `TERMLINK_RELAY_PROJECT` env + `X-Termlink-Project` header |
+| Subagent scope | Inherits via env var, per-session via header injection |
+| API key | Pass-through (v1), scoped tokens (deferred) |
+| Config source | `~/.termlink/relay.toml` (not CLI flags) |
+| Daemon port | `127.0.0.1:4100` default, `TERMLINK_RELAY_ADDR` override |
+
+### Residual UX Questions
+
+1. **Should `termlink claude` be the default entry point, replacing `claude-fw`?** Arguable — but not in v1. `claude-fw` users continue to work; `termlink claude` is opt-in.
+2. **How do remote workstations use the relay?** e.g., developer on laptop A dispatches to `.107`. Does .107 need its own relay? Answer: yes, each workstation runs one. Remote launches via `termlink remote exec` would need `termlink claude` on the remote side.
+3. **Relay start latency budget?** Target: <1s cold start (bind + parse rules + health check). Profile during build spike.
+4. **How does `termlink doctor` report relay health?** New check: relay PID alive, port listening, rules parse-clean, last audit write fresh. Add to existing doctor checks.
+
+## Crate Dependency Impact Analysis
+
+This section quantifies what `termlink-relay` would cost in dependencies, binary size, and compile time. The concern (raised in Worker 3 architecture review): "hyper 1.x doubles external deps" — is this acceptable?
+
+### Baseline (Current Workspace)
+
+Measured on main branch at f60d5e3:
+
+| Metric | Value |
+|--------|-------|
+| Unique transitive crates | **170** |
+| Release binary size | **14 MB** (stripped, LTO) |
+| Direct workspace deps (clap + serde + rustls stack) | 21 |
+| Already-present TLS stack | `tokio-rustls` 0.26, `rustls` 0.23, `rustls-pemfile`, `rcgen` |
+| Already-present async runtime | `tokio` 1.x (full features) |
+| Already-present HTTP-adjacent | `bytes`, `regex`, `serde_json` |
+
+The workspace already contains the expensive building blocks for a local TLS server. What's genuinely new is the HTTP/1.1 + SSE protocol handling.
+
+### Option A: Full hyper 1.x Stack
+
+Adding `hyper = "1"`, `hyper-util`, `hyper-rustls`, `http-body-util`:
+
+| Component | Cost |
+|-----------|------|
+| `hyper` 1.x | ~8 direct deps |
+| `hyper-util` (server + client utilities) | ~5 direct deps |
+| `hyper-rustls` (adapter) | ~3 direct deps |
+| `http`, `http-body`, `http-body-util` | ~3 direct deps |
+| `h2` (HTTP/2 — pulled by default) | ~12 direct deps (`tower`, `tower-service`, `fnv`, etc.) |
+| `httparse` | 1 dep |
+| `webpki-roots` or `rustls-native-certs` | 1-5 deps |
+| **Estimated transitive total added** | **40-60 crates** |
+
+Worker 3's "doubles external deps" claim is an overestimate. Realistic impact: **+25-35% transitive crate count** (170 → 215-230). Binary size impact: **+2-4 MB** (estimated from hyper-based proxies like `mitmproxy-rust`, `axum-basic` in public benchmarks). Compile time impact: **+15-25 seconds** on a cold workspace build.
+
+### Option B: Minimal Hand-Rolled HTTP/1.1 + SSE
+
+The relay's protocol needs are narrow:
+- Accept HTTP/1.1 POST `/v1/messages` (one route) — parse request line, headers, body
+- Stream transparent Upgrade-like relay to upstream `api.anthropic.com:443` — TCP + TLS
+- Parse line-delimited SSE events (`\n\n`-delimited frames, `data:` prefix)
+- Write modified SSE events back to the downstream socket
+
+Rough line count: 300-500 lines of Rust for a v1 that handles one route, no chunked encoding quirks (Anthropic streams use `Transfer-Encoding: chunked` — adds ~100 lines).
+
+Added crates: **0-2** (possibly `httparse` for borrowing speed, everything else already in workspace).
+
+| Metric | Cost |
+|--------|------|
+| New direct deps | 0-2 (`httparse` optional) |
+| New transitive crates | 0-5 |
+| Binary size delta | +0.2-0.5 MB |
+| Compile time delta | +2-5 seconds |
+| Maintenance cost | Higher — must handle HTTP/1.1 edge cases manually |
+
+### Option C: Reqwest (Client Only) + Manual Server
+
+`reqwest = { version = "0.12", features = ["rustls-tls", "stream"] }` for the upstream side; hand-rolled TCP server for downstream.
+
+| Metric | Cost |
+|--------|------|
+| New transitive crates | ~30 (reqwest pulls hyper under the hood) |
+| Binary size delta | +2-3 MB |
+| Compile time delta | +10-15 seconds |
+
+Net-net: reqwest brings most of hyper's bulk anyway. Only worth it if we want reqwest's higher-level API for retries, connection pooling.
+
+### Option D: Hyper With `--no-default-features` Pruning
+
+`hyper = { version = "1", default-features = false, features = ["server", "client", "http1"] }`
+
+This disables HTTP/2, removes the `h2` dependency chain (~12 crates), keeps the HTTP/1.1 essentials.
+
+| Metric | Cost |
+|--------|------|
+| New transitive crates | ~20-25 (down from 40-60) |
+| Binary size delta | +1-2 MB |
+| Compile time delta | +8-12 seconds |
+
+**This is the sweet spot: hyper's battle-tested HTTP/1.1 parser and streaming primitives without the HTTP/2 bulk.**
+
+### Comparison Table
+
+| Option | New transitive crates | Binary size Δ | Compile Δ | Dev effort | Risk |
+|--------|----------------------|----------------|-----------|------------|------|
+| A — Full hyper | +40-60 | +2-4 MB | +15-25s | Low | Low |
+| B — Hand-rolled | +0-5 | +0.2-0.5 MB | +2-5s | High (500 LoC) | Medium (edge cases) |
+| C — Reqwest+manual | +30 | +2-3 MB | +10-15s | Medium | Low |
+| D — Hyper minimal | +20-25 | +1-2 MB | +8-12s | Low | Low |
+
+### Recommendation
+
+**Option D (hyper minimal).** Rationale:
+
+1. **Battle-tested parser.** HTTP/1.1 has 20+ years of edge cases (folded headers, LWS, `Transfer-Encoding: chunked`, trailers). Hyper's httparse has been fuzzed for years. Hand-rolling it is not a useful engineering exercise for this project.
+2. **HTTP/2 is not needed.** Localhost traffic between Claude Code and the relay is HTTP/1.1 (Anthropic SDK defaults). Upstream to `api.anthropic.com` is HTTPS/1.1 — Anthropic does not require HTTP/2. Pruning `h2` saves ~12 crates and ~1MB.
+3. **Binary size is still well under 20 MB.** TermLink's guarantees around portability (D4) emphasize "single binary, no runtime deps" — the +1-2 MB is not material.
+4. **Compile time impact is tolerable.** +10 seconds on a cold build is invisible for developer experience. CI caches incremental builds.
+5. **The maintenance burden of Option B is unjustifiable.** Hand-rolling HTTP/1.1 is a liability — every future maintainer must understand the protocol edge cases. Hyper externalizes that.
+
+Revised budget after Option D: **~190 transitive crates, ~16 MB binary, ~2 min cold build from scratch.**
+
+### Supply Chain Risk Audit
+
+Adding dependencies increases supply chain surface. Hyper's top-level deps (at time of writing) are all maintained by the hyper/tokio teams (Sean McArthur, Alex Crichton) or rustls (Dirkjan Ochtman). No long-tail single-maintainer packages introduced. `cargo audit` and `cargo deny` should be run in CI regardless — already on the roadmap per T-901.
+
+### Dependency Gotchas
+
+1. **`aws-lc-rs` vs `ring` backend.** Workspace currently uses `rustls`'s default `aws-lc-rs` backend. Hyper-rustls with `aws-lc-rs` is fine, but some feature flags drag in `ring` too. Pin to `aws-lc-rs` to avoid double-TLS crates.
+2. **`webpki-roots` vs `rustls-native-certs`.** For verifying Anthropic's TLS cert, the relay needs trusted root CAs. Two options: bundle roots via `webpki-roots` (one dep, Mozilla cert list, updates with crate releases) or use system roots via `rustls-native-certs` (one dep, platform-specific). **Recommendation: `webpki-roots`** — deterministic, doesn't require platform cert store (Linux containers may not have one).
+3. **`tokio` feature flags.** Workspace uses `tokio = { features = ["full"] }`. Hyper needs specific features (`net`, `io`, `time`, `rt`). Already satisfied by `full`.
+
+### Impact on Workspace Structure
+
+The proposed crate placement from Worker 3:
+
+```
+crates/
+  termlink-protocol/  (unchanged)
+  termlink-session/   (unchanged)
+  termlink-hub/       (unchanged)
+  termlink-mcp/       (unchanged)
+  termlink-cli/       (imports termlink-relay for launcher subcommand)
+  termlink-relay/     ← NEW
+```
+
+`termlink-relay` depends on: `termlink-protocol` (for `GovernanceEvent`), `termlink-session` (for task state helpers if we go hub-RPC route), `hyper` (minimal), `hyper-util`, `hyper-rustls`, `http-body-util`, `webpki-roots`.
+
+It does NOT depend on `termlink-hub` (avoids circular dep) or `termlink-mcp`. The relay can emit events to the hub via its RPC client, treating the hub as a peer.
+
+### Verdict on "Doubles Deps" Concern
+
+**Not a blocker.** Worker 3's concern was a reasonable yellow flag but overstates the impact. With Option D (hyper minimal features), the addition is ~12% more transitive crates, ~10% larger binary, ~15% longer cold compile. All well within acceptable range for a project whose D4 (portability) directive emphasizes single-binary distribution, which this preserves.
+
+**Decision recorded:** Default to Option D when building. Revisit if profiling shows hyper overhead or if a more exotic upstream (non-Anthropic provider needing HTTP/2) forces inclusion.
+
+## Tier 3 Inventory: Implementation Details
+
+This section walks the implementation-detail questions surfaced across the three deep dives (architecture, governance, orchestration) and attempts partial answers where possible. Questions marked **[BUILD]** are honest deferrals — they need code and measurement, not more writing.
+
+### Cross-Reference: Where Each Question Landed
+
+The deep dives surfaced **25 open questions** with significant overlap. Deduplicating:
+
+| Deep Dive | Unique Qs | Already answered | Tier 3 remaining |
+|-----------|-----------|------------------|-------------------|
+| Architecture (8) | 8 | 6 (Q5,6,7,8,9,11,12 + hybrid) | 2 |
+| Governance (7) | 5 (2 dups) | 3 | 4 |
+| Orchestration (10) | 7 (3 dups) | 3 | 7 |
+| **Total unique** | **20** | **12** | **13** |
+
+### T3-1: Metrics cardinality
+
+**Source:** Architecture Q8.
+
+**Question:** Should per-tool metrics be unbounded (one counter per tool name seen) or bucketed (known tools + "other")?
+
+**Partial answer:** **Bucketed with dynamic promotion.** Start with a known-tool list (Write, Edit, Read, Bash, Glob, Grep, Task, WebFetch, etc.) plus an "other" catchall. When a novel tool name appears 10+ times within a rolling 24h window, promote it to its own bucket. Cap total buckets at 50 — protects Prometheus/Watchtower from label explosion without hiding real usage.
+
+**Why not unbounded:** Models can synthesize tool names (especially MCP tools with arbitrary names). One user connecting a chatty MCP server with 200 tools would balloon the time series. Bounded-with-promotion captures the common case without a runaway tail.
+
+**Build-phase work:** Implement LRU + promotion rule in the metrics layer.
+
+### T3-2: Fail-closed granularity
+
+**Source:** Governance Q2, implied by Architecture.
+
+**Question:** When one `tool_use` block in a multi-block response is blocked, do we strip just that block or block the entire response?
+
+**Partial answer:** **Strip only the blocked block.** Rationale:
+
+1. Multi-block responses are rare but legitimate — a model may emit `text` + `tool_use` + `tool_use` in one turn (e.g., "I'll read two files").
+2. Blocking the whole response punishes legitimate tool calls in the same turn.
+3. Strategy A (stop_reason rewriting) from the A-3 de-risk analysis handles single-block strips cleanly. Extending to multi-block requires rewriting `content_block_start`/`_stop` indices so remaining blocks stay consistent.
+4. If **all** blocks in the response are blocked, rewrite `stop_reason` to `end_turn` and inject a single text block explaining the block set.
+
+**Edge case:** If stripping a middle block leaves the array `[text, tool_use, TEXT_REPLACEMENT, tool_use, text]`, the `content_block_stop` indices must be renumbered. This adds ~50 lines to the rewriter but is mechanical.
+
+**Build-phase work:** Implement index-preserving strip. Test with crafted multi-block responses.
+
+### T3-3: Multi-tool response handling
+
+**Source:** Governance Q6.
+
+**Question:** How does Claude Code handle a response where some tool_use blocks were stripped mid-stream?
+
+**Partial answer:** **Handled by Strategy A.** The stream that reaches Claude Code is always internally consistent (stop_reason matches the block set). CC's parser does not distinguish "originally had 3 tools" from "has 2 tools" — it sees whatever is in the rewritten stream.
+
+The only risk is **block index mismatches** causing CC's streaming JSON parser to error. Strategy A avoids this by renumbering indices. The Anthropic SDK docs explicitly state blocks are indexed from 0 and must be sequential. As long as the rewriter maintains sequential indices, CC's parser has no basis to complain.
+
+**Build-phase work:** A-3 spike validates this with real CC instances.
+
+### T3-4: MCP governance surface
+
+**Source:** Governance Q7.
+
+**Question:** MCP tools execute out-of-band from the Anthropic API. Does the relay cover MCP, or does T-902's MCP task-gate remain the only defense?
+
+**Partial answer:** **Both, at different layers.**
+
+- **Relay:** Sees `tool_use` blocks with the MCP tool name (e.g., `mcp__termlink__termlink_dispatch`). Can gate by name, task state, arguments. **Does NOT see the MCP execution** — that's a separate connection CC opens to the MCP server.
+- **T-902 MCP task gate:** Runs inside the MCP server when the tool is invoked. Sees the actual execution context. Already enforces `task_id` requirement.
+
+**The gap:** Between the relay allowing the `tool_use` and T-902 checking the execution, CC has committed to invoking the tool. T-902 blocks execution, returns an error tool_result. The model sees "call failed." This is the expected path.
+
+**What the relay adds over T-902:** Rule flexibility. T-902 enforces `task_id present`; the relay can enforce arbitrary rules per MCP tool (e.g., "block `mcp__foo__delete_project` regardless of task"). Relay is the policy layer; T-902 is the structural gate.
+
+**No gap in defense.** The concerns are complementary.
+
+**Build-phase work:** Document the two-layer model. Ensure T-902 errors propagate cleanly to the model so it learns.
+
+### T3-5: Latency budget
+
+**Source:** Orchestration Q1.
+
+**Question:** Target latency for a localhost relay hop?
+
+**Partial answer:** **Target: p99 < 5ms added for fast-gate, < 500ms for content-gate.**
+
+Breakdown:
+- Localhost TCP accept + read request headers: ~0.1-0.5 ms
+- Rule evaluation (task gate + tool name match): ~0.1 ms (HashMap lookup)
+- Upstream TLS connect (first request) or pool reuse: ~10-50 ms cold, ~0.1 ms pooled
+- Upstream response time: pass-through, not relay's cost
+- SSE forwarding per event (fast gate): ~0.05 ms per event
+- Content-gate buffering: accumulate `input_json_delta` until `content_block_stop`, typically 50-500 ms of stream time
+
+**Reference points:**
+- Go-based Bifrost claims ~11 μs per routing decision (no HTTP parsing, just map lookup)
+- Hyper cold request: ~500 μs local
+- Anthropic API p50 first token: ~300-1500 ms (dominates all other costs)
+
+The relay's added latency is invisible compared to the upstream API's inherent latency. The budget is "don't be noticeably slower than direct API access" — achievable.
+
+**Build-phase work:** Benchmark with `wrk` against a mock upstream. Profile with `cargo flamegraph`.
+
+### T3-6: Multi-provider format translation
+
+**Source:** Orchestration Q4.
+
+**Question:** Can the relay translate between provider SSE formats (OpenAI ↔ Anthropic) to enable cross-provider routing?
+
+**Partial answer:** **Yes, but deferred to v2.**
+
+Format differences:
+| Aspect | Anthropic | OpenAI |
+|--------|-----------|--------|
+| Event format | `event: <type>\ndata: <json>` | `data: <json>\n\n` (no event line) |
+| Content blocks | Typed (text, tool_use, thinking) | Flat delta with `content` + `tool_calls` fields |
+| Tool calls | `tool_use` blocks with `input_json_delta` | `tool_calls` deltas with function name + arguments |
+| Stop signal | `message_stop` | `[DONE]` sentinel |
+| Prompt caching | `cache_control` markers | No direct equivalent |
+
+Translating OpenAI→Anthropic would let an Anthropic SDK worker transparently use an OpenAI model. Feasible in ~500 lines but non-trivial. Deferred because:
+1. v1's value prop is governance, not multi-provider routing
+2. Translation requires carrying state (ongoing tool call accumulation) through the rewrite
+3. Multi-provider is a nice-to-have once the governance story is solid
+
+**Build-phase work:** Document as v2 roadmap item.
+
+### T3-7: State management persistence
+
+**Source:** Orchestration Q5.
+
+**Question:** Relay needs per-conversation state (token counters, in-flight block accumulation). In-memory or persisted?
+
+**Partial answer:** **In-memory v1, optional SQLite audit sink v2.**
+
+Per-conversation state has two categories:
+1. **Transient:** In-flight block accumulation (cleared on `message_stop`). Must be in-memory for latency.
+2. **Cumulative:** Token counters, governance action counts, rule match counts. Per-session, cleared on session end.
+
+Persistence concerns:
+- **Restart recovery:** If relay crashes, in-flight state is lost. Claude Code sees a broken stream → errors → retries. Not catastrophic.
+- **Audit trail:** JSONL append is already durable (via `.context/relay/audit-*.jsonl`). That IS the persisted state.
+- **Cross-session queries:** "Show me all blocked calls from last week." SQLite would enable. JSONL + grep/jq is adequate for v1.
+
+**Decision:** In-memory for runtime state. JSONL audit for persistence. SQLite deferred.
+
+**Build-phase work:** Define state types, clear on disconnect, flush audit on shutdown.
+
+### T3-8: Layer 2 feedback latency
+
+**Source:** Orchestration Q10.
+
+**Question:** How do per-request relay observations (model success/fail) feed back into `ModelStats` in the hub's route cache without contention?
+
+**Partial answer:** **Event-bus async update.**
+
+Current `ModelStats` lives in `crates/termlink-hub/src/route_cache.rs` as a file-backed store. Direct relay writes create contention with hub reads. Options:
+
+| Approach | Latency | Consistency | Complexity |
+|----------|---------|-------------|------------|
+| Direct file write | 1-10 ms (lock) | Strong | Low |
+| Event bus (`event.emit` to hub) | ~1 ms, eventual | Eventually consistent | Medium |
+| Periodic batch (every 30s) | ~0 ms async, ~30s stale | Eventually consistent | Low |
+
+**Recommendation: event bus.** Relay emits `api.response` events; hub subscriber updates `ModelStats` asynchronously. The hub already consumes events (T-905 GovernanceSubscriber pattern). Adds <1ms to response path, hub's existing locking handles contention.
+
+**Build-phase work:** Extend `api.response` event schema, add hub-side subscriber, verify no contention with `fw metrics`.
+
+### T3-9: A-3 empirical validation
+
+**Source:** Governance Q3, Orchestration Q3, original assumption.
+
+**Question:** Can Claude Code actually handle the rewritten stream without breaking?
+
+**Partial answer:** **BUILD spike. This is the first task post-decision.**
+
+Spike design (≤1 day):
+1. Write 150-line Rust proxy that forwards `POST /v1/messages` to `api.anthropic.com` unmodified
+2. Validate Claude Code works normally through the proxy (baseline test)
+3. Add `tool_use` stripper: when a `tool_use` block appears in the SSE stream, rewrite to text block + fix indices + rewrite stop_reason to `end_turn`
+4. Run a crafted prompt that asks for a tool call, verify:
+   - CC does not crash
+   - CC does not hang
+   - The model's next turn reflects the text block (sees "[blocked]" not the tool)
+   - Token usage accounting stays sensible
+5. Report: PASS / PARTIAL / FAIL with evidence
+
+**If PASS:** A-3 validated, proceed with full build.
+**If PARTIAL:** Identify specific rewriting that works, adjust strategy (e.g., only gate at `content_block_start`, never mid-block).
+**If FAIL:** Re-evaluate Strategy B (return a synthetic error response) or Strategy C (block at TCP level with RST).
+
+Total sunk cost if FAIL: 1 day. Net-net a bargain for eliminating the largest remaining risk.
+
+### T3-10: API key isolation advanced mode
+
+**Source:** Governance Q1, Architecture Q5.
+
+**Question:** Should the relay issue scoped tokens instead of passing through the user's real API key?
+
+**Partial answer:** **Deferred to post-v1. Design sketch:**
+
+Model:
+- User configures their real `ANTHROPIC_API_KEY` in `~/.termlink/relay.toml` (not env)
+- Relay accepts requests authenticated by a relay-scoped token (issued at `termlink claude` startup, e.g., 32-byte random)
+- Relay substitutes the real key when forwarding upstream
+- Tokens are session-scoped, expire on relay restart or `termlink relay revoke <token>`
+
+Benefits:
+- Model cannot exfil the real key (never sees it)
+- Per-session keys enable rate-limit partitioning
+- Token-based auth enables future remote-relay scenarios
+
+Costs:
+- Key storage security (encrypt at rest? use OS keychain?)
+- Token lifecycle management
+- Migration complexity for existing users
+
+**Post-v1 build task:** T-916-candidate (API key isolation).
+
+### T3-11: Rate limit handling
+
+**Source:** New, identified during dependency analysis.
+
+**Question:** What does the relay do when Anthropic returns 429/529?
+
+**Partial answer:** **Transparent forward + event emission v1, retry-with-backoff v2.**
+
+v1 behavior:
+- Forward the 429/529 response to the client verbatim
+- Emit `api.rate_limited` event with retry-after header
+- Hub's model circuit breaker (T-904) consumes this, opens the circuit
+
+v2 enhancements:
+- Relay holds the request briefly, retries once (with jitter) before surfacing error
+- Could route to fallback model mid-request (if Bedrock adapter exists)
+- Queue-and-serve for prompt caching scenarios
+
+**Build-phase work:** v1 is trivial. v2 is its own task post-launch.
+
+### T3-12: Observability export
+
+**Source:** New.
+
+**Question:** What metrics format does the relay export?
+
+**Partial answer:** **Internal events v1, Prometheus endpoint v2.**
+
+v1: emit events via TermLink's existing `event.broadcast` RPC. Watchtower subscribes, renders.
+
+v2: expose `GET /metrics` on a separate admin port (e.g., `:4101`) in Prometheus text format. Enables scraping by external Grafana. Adds `prometheus` crate dependency (~10 transitive crates). Worth it if users want external dashboards.
+
+**Build-phase work:** v1 reuses existing event infra. v2 is a follow-on task.
+
+### T3-13: Config schema migration
+
+**Source:** New.
+
+**Question:** How do users migrate their `relay.toml` when the schema evolves?
+
+**Partial answer:** **Versioned config + compat loader.**
+
+```toml
+version = 1
+
+[[rules]]
+name = "task-gate"
+...
+```
+
+On load, relay reads `version`, upgrades in-memory if older schema, warns to stdout. Refuses to start if newer-than-supported (user must upgrade binary).
+
+**Build-phase work:** Define v1 schema, implement loader with version dispatch, document migration path in docs.
+
+### Tier 3 Summary
+
+| ID | Question | Status | When to resolve |
+|----|----------|--------|-----------------|
+| T3-1 | Metrics cardinality | Partial (bucketed+promote) | Build |
+| T3-2 | Fail-closed granularity | Partial (strip block) | Build |
+| T3-3 | Multi-tool response handling | Partial (Strategy A covers) | Build spike |
+| T3-4 | MCP governance surface | Answered (two-layer) | — |
+| T3-5 | Latency budget | Partial (targets set) | Build benchmark |
+| T3-6 | Multi-provider translation | Deferred | v2 |
+| T3-7 | State persistence | Answered (in-mem + JSONL) | Build |
+| T3-8 | ModelStats feedback | Partial (event bus) | Build |
+| T3-9 | A-3 empirical | **BUILD spike** | First build task |
+| T3-10 | API key isolation | Deferred | Post-v1 |
+| T3-11 | Rate limit handling | Partial (forward v1) | Build |
+| T3-12 | Metrics export | Partial (events v1) | Build + v2 |
+| T3-13 | Config migration | Partial (versioned) | Build |
+
+**No Tier 3 question is a blocker for go/no-go.** Every question either has a working answer or a clear deferral. The inception is **ready for human review and decision** — but the decision remains the human's to make.
+
+
+
+
