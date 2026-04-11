@@ -157,3 +157,10 @@ decisions:
     origin_task: T-233
     rationale: "GO decision after comprehensive inception. Five architectural principles: bypass-first (sub-50ms), lazy learning, format negotiation, trust-aware supervision, zero-config defaults. Child tasks T-239-T-242, T-256 are building blocks — never evaluate them as isolated features."
     directives_served: [D1, D3, D4]
+
+  - id: PD-002
+    decision: "One generic `termlink_remote_call` tool + 2 convenience wrappers (`termlink_remote_ping`, `termlink_remote_inject`)"
+    scope: project
+    date: 2026-04-11
+    task: T-920
+    rationale: "Auto-captured from task file on completion"

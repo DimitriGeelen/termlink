@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-920: Expose termlink remote CLI family + hub TCP as MCP tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T19:40:01Z
+# ============================================================================
+
+task_id: T-920
+task_name: "Expose termlink remote CLI family + hub TCP as MCP tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T19:32:03Z
+completed: 2026-04-11T19:40:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-11T21:39:56+02:00
+last_commit: 2026-04-11T21:39:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Expose hub TCP + cross-host RPC as MCP tools (closes discovery gap)
+
+# Key outcomes
+outcomes:
+  - "`termlink_hub_start` MCP tool accepts an optional `tcp_addr` parameter and starts the hub with TCP binding when set (calls `termlink_hub::server::run_with_tcp` instead of `run` when provided)"
+  - "`termlink_remote_call` MCP tool exists — generic wrapper over `connect_remote_hub` + `rpc_client.call`, accepts `hub`, `method`, `params`, `secret_file?`, `secret?`, `scope?`, `timeout?`; returns the full RPC result as JSON. This single tool exposes every hub RPC method (session.discover, termlink.ping, command.inject, hub.auth, event.broadcast, etc.) over the network."
+  - "`termlink_remote_ping` MCP tool — convenience wrapper for the common \"is this hub/session alive?\" flow"
+  - "`termlink_remote_inject` MCP tool — convenience wrapper for the high-value \"inject text into remote session\" flow"
+  - "`termlink_doctor` reports hub transport (Unix-only vs TCP+Unix) so an MCP agent can tell whether cross-host is available"
+  - "`termlink_overview` / `termlink_help` lists a new \"remote\" group so agents can discover the new tools"
+  - "Param deserialization tests for every new MCP tool (same pattern as `dispatch_params_*` tests in tools.rs)"
+  - "`cargo build --workspace` clean"
+  - "`cargo test -p termlink-mcp` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "One generic `termlink_remote_call` tool + 2 convenience wrappers (`termlink_remote_ping`, `termlink_remote_inject`)"
+    rationale: "Every termlink feature is already reachable as a hub RPC method. A generic wrapper exposes ALL of them in one code path; adding a new hub method automatically makes it MCP-reachable cross-host. Matches the `connect_remote_hub` pattern already proven in `commands/remote.rs`. Minimizes duplication, maximises surface area."
+    alternatives_rejected: ["8 individual per-command tools (list, status, send-file, exec, profile-add/list/remove). Higher code volume for strictly less coverage — the convenience tools pay off only for the most common flows, the generic tool pays off for everything else. Can still add per-command tools later if specific flows warrant it."]
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-920-expose-termlink-remote-cli-family--hub-t.md"
+  - ".tasks/active/T-921-full-cross-host-parity--every-termlink-c.md"
+  - ".tasks/active/T-922-codify-mcp-auto-exposure--every-new-cli-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-11T21:39:56"
+    action: "T-920: Expose hub TCP + cross-host RPC as MCP tools (closes discovery gap)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 4
+  lines_added: 803
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-920-expose-termlink-remote-cli-family--hub-t.md
+generated_by: context-agent-hybrid
