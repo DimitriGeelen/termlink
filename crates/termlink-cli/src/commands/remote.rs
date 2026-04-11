@@ -1227,3 +1227,133 @@ pub(crate) async fn cmd_remote_exec(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const VALID_SECRET_HEX: &str =
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    #[tokio::test]
+    async fn connect_rejects_hub_without_colon() {
+        let err = connect_remote_hub("myhost", None, Some(VALID_SECRET_HEX), "control")
+            .await
+            .err()
+            .expect("expected validation error");
+        assert!(
+            err.to_string().contains("host:port"),
+            "expected host:port hint, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_hub_with_extra_colons() {
+        let err = connect_remote_hub("a:b:c", None, Some(VALID_SECRET_HEX), "control")
+            .await
+            .err()
+            .expect("expected validation error");
+        assert!(
+            err.to_string().contains("host:port"),
+            "expected host:port hint, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_non_numeric_port() {
+        let err = connect_remote_hub("host:abc", None, Some(VALID_SECRET_HEX), "control")
+            .await
+            .err()
+            .expect("expected validation error");
+        assert!(
+            format!("{err:#}").contains("Invalid port"),
+            "expected Invalid port, got: {err:#}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_missing_secret() {
+        let err = connect_remote_hub("host:9100", None, None, "control")
+            .await
+            .err()
+            .expect("expected validation error");
+        assert!(
+            err.to_string().contains("--secret-file or --secret"),
+            "expected secret-required message, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_short_secret() {
+        let err = connect_remote_hub("host:9100", None, Some("abcd"), "control")
+            .await
+            .err()
+            .expect("expected validation error");
+        assert!(
+            err.to_string().contains("64 hex characters"),
+            "expected 64-hex-char message, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_non_hex_secret() {
+        let bad = "z".repeat(64);
+        let err = connect_remote_hub("host:9100", None, Some(&bad), "control")
+            .await
+            .err()
+            .expect("expected validation error");
+        assert!(
+            format!("{err:#}").contains("invalid hex"),
+            "expected invalid-hex message, got: {err:#}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_unknown_scope() {
+        let err = connect_remote_hub("host:9100", None, Some(VALID_SECRET_HEX), "superuser")
+            .await
+            .err()
+            .expect("expected validation error");
+        assert!(
+            err.to_string().contains("Invalid scope"),
+            "expected Invalid scope message, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_missing_secret_file() {
+        let err = connect_remote_hub(
+            "host:9100",
+            Some("/nonexistent/path/that/should/not/exist"),
+            None,
+            "control",
+        )
+        .await
+        .err()
+        .expect("expected validation error");
+        assert!(
+            format!("{err:#}").contains("Secret file not found"),
+            "expected secret-file-not-found message, got: {err:#}"
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_accepts_all_four_permission_scopes() {
+        for scope in ["observe", "interact", "control", "execute"] {
+            let err = connect_remote_hub("127.0.0.1:1", None, Some(VALID_SECRET_HEX), scope)
+                .await
+                .err()
+            .expect("expected validation error");
+            let msg = format!("{err:#}");
+            assert!(
+                !msg.contains("Invalid scope"),
+                "scope {scope} was rejected: {msg}"
+            );
+            assert!(
+                !msg.contains("64 hex characters"),
+                "scope {scope} failed at secret length: {msg}"
+            );
+        }
+    }
+}
+
