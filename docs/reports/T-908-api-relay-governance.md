@@ -421,3 +421,179 @@ Claude Code makes several API calls:
 Only `/v1/messages` with `"stream": true` contains tool_use blocks. All other endpoints should be forwarded verbatim (transparent proxy). For non-streaming `/v1/messages`, the relay can inspect the complete JSON response (simpler than SSE parsing) and apply the same governance rules.
 
 **Default: passthrough for everything except streaming messages.** Non-streaming governance can be added later if needed.
+
+## Framework Integration Design (Session 2, 2026-04-11)
+
+This section explores how the relay sits alongside existing framework primitives. Five interaction points were surveyed: hooks, CLAUDE.md, handover, context fabric, task state.
+
+### Relay vs Hooks: Complementary, Not Replacement
+
+The existing Claude Code hook config at `.claude/settings.json` registers 12 PreToolUse/PostToolUse hooks:
+
+| Hook | Matcher | Purpose |
+|------|---------|---------|
+| `block-plan-mode` | `EnterPlanMode` | Block CC built-in plan mode (framework uses `/plan` skill) |
+| `check-active-task` | `Write\|Edit` | Task gate (P-010) for file modifications |
+| `check-tier0` | `Bash` | Tier 0 destructive command gate (force push, rm -rf) |
+| `check-agent-dispatch` | `Agent` | Dispatch limit gate (max 2 parallel Agent tools) |
+| `check-project-boundary` | `Write\|Edit\|Bash` | Path-based scoping |
+| `budget-gate` | `Write\|Edit\|Bash` | Context budget enforcement (reads JSONL transcript) |
+| `checkpoint post-tool` | `*` (PostToolUse) | Session housekeeping |
+| `error-watchdog` | `Bash` | Observe bash output for known error patterns |
+| `check-dispatch` | `Task\|TaskOutput` | Task tool governance |
+| `loop-detect` | `*` | Detect tool-use loops |
+| `check-fabric-new-file` | `Write` | Trigger fabric registration for new files |
+| `commit-cadence` | `Write\|Edit` | Remind about commits |
+
+**Critical observation:** hooks see the tool call AFTER Claude Code has parsed it from the SSE stream. The relay sees the raw SSE stream BEFORE Claude Code parses it. The two operate on different points of the data flow:
+
+```
+[1] User → CC: prompt
+[2] CC → Anthropic API: POST /v1/messages (request body)
+[3] Anthropic → CC: SSE stream  ←←← RELAY INTERCEPTS HERE
+[4] CC parses tool_use from stream
+[5] CC PreToolUse hook fires  ←←← HOOKS INTERCEPT HERE
+[6] Hook allows → CC executes tool
+    Hook denies → CC sends tool_result with error to model
+[7] CC → Anthropic API: next turn with tool_result
+```
+
+**Behavioral difference:**
+
+| Dimension | Hooks (step 5) | Relay (step 3) |
+|-----------|----------------|----------------|
+| Visibility to model | Model sees a blocked tool_result, can adapt | Model sees nothing — tool_use was never in the stream |
+| Bypass surface | Agent-subagent, Bash shell-outs, self-modified config | None — env var inheritance is structural |
+| Feedback loop | Model learns from block (positive) | Model does not learn (stealth) |
+| Failure mode | Silent failure, script bugs, misconfigured | Single failure point = single binary |
+| Granularity | Per tool_use block, per-path patterns | Per tool_use block, per-request body |
+
+**The integration pattern: two-tier defense.**
+
+- **Tier A — Hooks (preferred path).** Hooks remain the primary enforcement with rich feedback. When a hook blocks, Claude Code generates a `tool_result` with error text, and the model learns to take a different path. This is the pedagogically correct behavior: the model is informed of the rule, not silently censored.
+- **Tier B — Relay (backstop).** Relay enforces the same rules at the wire level. Its job is to close RFC failure modes FM1-FM4: subagent bypass, silent hook failure, self-modification, alternative tool paths. If a hook fires, the relay's check is redundant (same decision). If a hook fails to fire (bug, subagent, self-disabled), the relay is the last line.
+
+**Consistency requirement.** Both tiers must apply the same rule set. A rule lives in exactly one canonical source of truth (`~/.termlink/relay.toml`), and hooks query the same config. Concretely, `fw hook check-active-task` would consult `relay.toml` for its decision, removing duplicated logic.
+
+**Alternative architecture rejected.** Pure relay (no hooks) would eliminate the tier-A feedback loop — models can't adapt to rules they never see. Preserving hooks preserves antifragility (D1): the model learns from blocks, not just the human reviewing audit logs.
+
+### CLAUDE.md: Advisory Stays Advisory
+
+CLAUDE.md is prose instructions the model reads as part of its context. It is inherently advisory — the model may ignore it (FM5). Should the relay auto-extract rules from CLAUDE.md and enforce them?
+
+**No.** Machine extraction of prose rules leads to ambiguity and silent drift. CLAUDE.md explains why a rule exists; `relay.toml` encodes the rule deterministically. The two serve different audiences:
+
+| File | Audience | Format | Enforced by |
+|------|----------|--------|-------------|
+| `CLAUDE.md` | Model + humans | Prose | Model discretion (advisory) |
+| `relay.toml` | Relay daemon | TOML | Relay (structural) |
+| `.claude/settings.json` hooks | CC harness | JSON | Hook scripts (structural) |
+
+Rules exist in three places because they serve three enforcement layers. The human maintains consistency manually when authoring new rules. This matches the framework's existing pattern (hook logic in `fw hook` commands, human-readable explanation in CLAUDE.md).
+
+**Drift detection.** A lint command `fw relay verify` could scan CLAUDE.md for imperative rules ("NEVER", "MUST NOT") and check whether each has a corresponding `relay.toml` rule. Warnings, not errors. Build-phase tooling.
+
+### Event Stream Unification with T-905
+
+T-905 added `crates/termlink-session/src/governance_subscriber.rs` — a data plane subscriber that watches Output frames for regex pattern matches and emits `Governance` frames (frame type 0x8). The relay should emit compatible events so downstream consumers (Watchtower, audit log, metrics) see a unified stream.
+
+Current `GovernanceEvent` schema (`crates/termlink-protocol/src/governance.rs`):
+```rust
+pub struct GovernanceEvent {
+    pub pattern_name: String,
+    pub match_text: String,
+    pub timestamp: u64,
+    pub channel_id: u32,
+}
+```
+
+This fits PTY-level pattern detection but is too narrow for relay events. Relay needs: tool_name, tool_id, task_id, action (block/allow/rewrite), rule_name, request_id.
+
+**Three options:**
+
+| Option | Approach | Pro | Con |
+|--------|----------|-----|-----|
+| A | Extend `GovernanceEvent` with optional fields | Single type, unified consumer | Optional fields proliferate |
+| B | Sibling type `RelayGovernanceEvent`, shared frame type 0x8 | Clean separation, shared transport | Consumers must handle both |
+| C | New frame type 0x9 `RelayGovernance` | Full separation | Two governance streams to consume |
+
+**Recommendation: Option A.** Extend `GovernanceEvent` to include `source: GovernanceSource` enum (`Pty` | `Relay`), and per-source payload fields. Consumers match on `source` and extract relevant fields. This keeps a single semantic stream of "things governance did" regardless of origin.
+
+```rust
+pub struct GovernanceEvent {
+    pub source: GovernanceSource,  // NEW
+    pub timestamp: u64,
+    pub task_id: Option<String>,   // NEW, promoted to top-level
+    // Variant-specific fields
+    pub pty: Option<PtyMatch>,     // source=Pty
+    pub relay: Option<RelayMatch>, // source=Relay
+}
+```
+
+Wire-format backward compatibility: add fields, don't remove. Existing consumers continue to parse `pty` fields; relay-aware consumers parse `relay` fields.
+
+### Task State Discovery
+
+The relay needs to know "is there an active task right now?" for each request. The answer is time-sensitive (task state changes during a session) and session-scoped.
+
+Revisiting Q9 from Tier 2 with the integration lens:
+
+**Option A — Direct file read:** Relay reads `.context/working/focus.yaml` on each request. Simple, no dependencies, but couples relay to project directory layout. Read latency <1ms (page cache).
+
+**Option B — Hub RPC query:** Relay calls `hub.task_state_query(session_id)`. Clean architecture, hub owns state. Adds dependency on hub binary being up. Latency: ~1-2ms (localhost).
+
+**Option C — File watcher cache:** Relay inotify-watches `focus.yaml`, caches in memory, serves at sub-μs. Reduces file reads. Adds inotify dependency.
+
+**Recommendation: Option A, migrate to Option C if profiling shows filesystem hot path.** Option B is architecturally cleanest but creates a liveness dependency: if hub dies, relay cannot gate, fails open. Option A fails open only if filesystem is unreadable (essentially never). Start simple.
+
+**Cross-project consideration.** Relay runs at `localhost:4100`, one per workstation. Multiple TermLink projects could share it. Which `focus.yaml` does the relay read? Answer: relay is scoped to one project (via working directory at startup), OR the relay reads project context from a request header (`X-Termlink-Project: /opt/termlink`). The latter enables one relay for many projects — defer to build phase.
+
+### Handover Integration
+
+The handover agent produces session summaries in `.context/handovers/S-YYYY-MM-DD-HHMM.md`. The relay generates audit events that would enrich these summaries significantly:
+
+- Token usage by model (already tracked via transcript parsing)
+- Tool calls by type, count, blocked/allowed ratio
+- Rules that fired, counts, affected tasks
+- Latency percentiles (p50/p95/p99) per endpoint
+- Model switches (if per-request routing is active)
+
+**Integration path:** Relay writes append-only JSONL audit logs to `.context/relay/audit-YYYY-MM-DD.jsonl`. One line per tool_use decision:
+
+```jsonl
+{"ts":"2026-04-11T14:23:01.234Z","tool":"Write","id":"toolu_01abc","task":"T-908","action":"allow","rule":"task-gate","latency_ms":3}
+{"ts":"2026-04-11T14:23:15.891Z","tool":"Bash","id":"toolu_01def","task":null,"action":"block","rule":"task-gate","latency_ms":2,"reason":"no active task"}
+```
+
+Handover agent scans the audit log for the session window and adds a `## Governance Activity` section to the handover doc. This closes a current observability gap: today's handovers have no visibility into what the relay/hooks actually did.
+
+**Bootstrap concern:** the handover agent must handle missing audit logs (relay disabled, first session after install). Log absence is not an error — section is simply omitted.
+
+### Context Fabric: No Integration
+
+The context fabric (`.fabric/components/`) tracks code-level dependencies: file → depends_on → file. The relay observes runtime tool calls, not code dependencies. There is no natural join.
+
+**Tempting but rejected:** "Track which tools touch which fabric components." This would require inspecting tool inputs (Write paths) and mapping to fabric component IDs. Useful for impact analysis, but it's a fabric feature, not a relay feature. The relay's job is governance; impact analysis belongs to `fw fabric`.
+
+**Boundary decision:** Relay emits audit events. Fabric consumes audit events if it wants to build runtime usage graphs. That's fabric's build task, not relay's.
+
+### Integration Summary Table
+
+| Primitive | Relationship | Notes |
+|-----------|--------------|-------|
+| PreToolUse hooks | Complementary (two-tier) | Hooks = feedback; relay = backstop |
+| CLAUDE.md | Advisory reference | Lint command optional, not enforcing |
+| `relay.toml` | Primary config | Hooks and relay share this source of truth |
+| T-905 governance events | Unified stream | Extend `GovernanceEvent` with source tag |
+| Task state (`focus.yaml`) | Direct file read (v1) | Migrate to hub RPC if needed |
+| Handover | JSONL audit log consumed | New `## Governance Activity` section |
+| Context fabric | No direct coupling | Audit events available if fabric wants them |
+| Watchtower | Shares audit stream | Live governance activity view |
+
+### Residual Integration Risks
+
+1. **Hook/relay rule divergence.** Two enforcement points with the same rules is doubled maintenance. Risk: rules drift, hooks allow what relay blocks, user confusion. Mitigation: shared `relay.toml` as SSoT; `fw relay verify` detects drift.
+2. **Fail-open blast radius.** If relay crashes, fail-open means no wire-level enforcement — only hooks remain. The framework's guarantee ("structural enforcement") silently degrades. Mitigation: health endpoint, Watchtower alarm, kill-switch to force fail-closed when governance is load-bearing.
+3. **Rule hot-reload races.** User edits `relay.toml` mid-session. Between the edit and reload, requests use stale rules. Mitigation: signal-based reload (SIGHUP) + version the config, log reload events.
+4. **Audit log growth.** JSONL at `~/.context/relay/` grows unbounded. Mitigation: daily rotation, 30-day retention, gzip rotation. Disk budget: ~1-10MB/day estimated at heavy use.
+
