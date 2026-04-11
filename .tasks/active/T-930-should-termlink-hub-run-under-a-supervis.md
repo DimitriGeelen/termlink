@@ -4,16 +4,16 @@ name: "Should termlink hub run under a supervisor with TCP bound by default on .
 description: >
   Inception: Should termlink hub run under a supervisor with TCP bound by default on .107?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-11T21:43:54Z
-last_update: 2026-04-11T21:47:24Z
-date_finished: null
+last_update: 2026-04-11T22:28:27Z
+date_finished: 2026-04-11T22:27:40Z
 ---
 
 # T-930: Should termlink hub run under a supervisor with TCP bound by default on .107?
@@ -165,7 +165,7 @@ unilaterally.
 - [ ] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -203,30 +203,268 @@ unilaterally.
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+
+**Rationale:** All three policy questions resolve cleanly in the same
+direction and the precedent for the chosen mechanism already exists
+and is healthy on this box. There is no live tension that would make
+a DEFER prudent.
+
+**Evidence:**
+
+1. **Supervisor policy → systemd.** `watchtower-vinix24.service` has
+   been running 4 days with `Type=exec` + `Restart=on-failure` +
+   `RestartSec=5` on this exact box. Operator comfort is
+   demonstrated. Watchdog alternative (while loop + @reboot cron) is
+   strictly worse — no structured logs, no status query, no Restart
+   semantics, no `ExecStop`. Spike 4 is moot.
+2. **TCP-bound-by-default policy → yes.** UFW rule already allows
+   `9100/tcp` from `192.168.10.0/24`. Running with `--tcp
+   0.0.0.0:9100` in the systemd `ExecStart=` line makes cross-host
+   the default posture, which is what T-921..T-929 just built for.
+   Opt-in TCP leaves a firewall-open / nothing-listening split-brain
+   that already caused a sibling-agent incident on 2026-04-11.
+3. **Secret persistence policy → persist-if-present.** Code read
+   (Spike 3) shows rotation is incidental, not deliberate. Fix is a
+   one-function change: read existing hex if present and valid,
+   otherwise generate. Drop the `remove_file(hub_secret_path())` on
+   clean shutdown. Security delta is effectively zero (the
+   HMAC secret never traverses the wire; compromise recovery is
+   unchanged because a network attacker has no way to read it).
+4. **The parent-ghost discovery.** Spike 1 found the current hub is
+   PPID-linked to a 9-hour-old Claude bash, not init. This is not
+   "unsupervised" — it is *worse* than unsupervised, because an
+   unrelated session's shell owns the process tree. Any systemd unit
+   fixes this by having init (PID 1) adopt the hub.
+5. **SIGTERM-not-caught bug.** The systemd unit exposes this as a
+   build task. Without it, `systemctl stop` skips cleanup. Fix is
+   ~5 lines in `cmd_hub_start` (select! on ctrl_c + SignalKind::terminate).
+   Workaround `KillSignal=SIGINT` in the unit until the fix lands.
+
+**Human checkpoint needed:** Spike 3 proposed persist-if-present.
+The rationale above assumes you agree. If you prefer rotate-on-every-
+restart for stronger ephemeral trust, say so and the decomposition
+shifts (no code change to secret handling, but client tooling needs
+to know how to pick up the new value on every bounce). I believe
+persist is right for dev-tooling-on-LAN.
+
+### Decomposed build tasks (Spike 5, folded in)
+
+Each task sized under one session:
+
+- **T-931** — `termlink-hub.service` unit file + installer. Drop the
+  file under `.context/systemd/termlink-hub.service`, add an
+  installer stanza to copy it into `/etc/systemd/system/` and
+  `systemctl enable --now`. Mirror the `agentic-audit-termlink` cron
+  install pattern.
+- **T-932** — Hub SIGTERM handling. `select!` on `ctrl_c()` +
+  `SignalKind::terminate()` in `cmd_hub_start`. Add a unit test that
+  spawns the hub and sends SIGTERM + verifies clean cleanup.
+- **T-933** — Hub secret persistence. Read-if-present +
+  validate-hex in `generate_and_write_hub_secret()`. Remove the
+  `remove_file(hub_secret_path())` from clean-shutdown cleanup. Add
+  a test that two consecutive starts see the same secret.
+- **T-934** — `termlink doctor` check: "UFW rule for hub port
+  exists but nothing listening" warning. Cheap check, catches the
+  exact state this inception started from.
+- **T-935** — Migrate current `/tmp/termlink-0/` state to
+  `/var/lib/termlink/` on first systemd-managed start. One-shot
+  migration helper or documentation. Lower priority — the migration
+  is "delete /tmp/termlink-0/ and let the unit recreate."
+
+After the decision, these five tasks get created with `fw task
+create --type build`. T-931 is the critical-path deliverable;
+T-932/T-933 unblock future durability; T-934 is observability;
+T-935 is optional cleanup.
+
+### Out-of-scope items (stay punted)
+
+- Dropping hub to a dedicated `termlink` user (stays root for now,
+  matches environment).
+- Shared secret distribution across hosts (T-921 punted this; stays
+  punted).
+- Multi-hub HA / failover (A3 holds).
+- Unifying cron supervisor + hub supervisor under a single
+  framework abstraction (interesting but not this inception).
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: GO
+
+Rationale: All three policy questions resolve cleanly in the same
+direction and the precedent for the chosen mechanism already exists
+and is healthy on this box. There is no live tension that would make
+a DEFER prudent.
+
+Evidence:
+
+1. Supervisor policy → systemd. `watchtower-vinix24.service` has
+   been running 4 days with `Type=exec` + `Restart=on-failure` +
+   `RestartSec=5` on this exact box. Operator comfort is
+   demonstrated. Watchdog alternative (while loop + @reboot cron) is
+   strictly worse — no structured logs, no status query, no Restart
+   semantics, no `ExecStop`. Spike 4 is moot.
+2. TCP-bound-by-default policy → yes. UFW rule already allows
+   `9100/tcp` from `192.168.10.0/24`. Running with `--tcp
+   0.0.0.0:9100` in the systemd `ExecStart=` line makes cross-host
+   the default posture, which is what T-921..T-929 just built for.
+   Opt-in TCP leaves a firewall-open / nothing-listening split-brain
+   that already caused a sibling-agent incident on 2026-04-11.
+3. Secret persistence policy → persist-if-present. Code read
+   (Spike 3) shows rotation is incidental, not deliberate. Fix is a
+   one-function change: read existing hex if present and valid,
+   otherwise generate. Drop the `remove_file(hub_secret_path())` on
+   clean shutdown. Security delta is effectively zero (the
+   HMAC secret never traverses the wire; compromise recovery is
+   unchanged because a network attacker has no way to read it).
+4. The parent-ghost discovery. Spike 1 found the current hub is
+   PPID-linked to a 9-hour-old Claude bash, not init. This is not
+   "unsupervised" — it is *worse* than unsupervised, because an
+   unrelated session's shell owns the process tree. Any systemd unit
+   fixes this by having init (PID 1) adopt the hub.
+5. SIGTERM-not-caught bug. The systemd unit exposes this as a
+   build task. Without it, `systemctl stop` skips cleanup. Fix is
+   ~5 lines in `cmd_hub_start` (select! on ctrl_c + SignalKind::terminate).
+   Workaround `KillSignal=SIGINT` in the unit until the fix lands.
+
+Human checkpoint needed: Spike 3 proposed persist-if-present.
+The rationale above assumes you agree. If you prefer rotate-on-every-
+restart for stronger ephemeral trust, say so and the decomposition
+shifts (no code change to secret handling, but client tooling needs
+to know how to pick up the new value on every bounce). I believe
+persist is right for dev-tooling-on-LAN.
+
+### Decomposed build tasks (Spike 5, folded in)
+
+Each task sized under one session:
+
+- T-931 — `termlink-hub.service` unit file + installer. Drop the
+  file under `.context/systemd/termlink-hub.service`, add an
+  installer stanza to copy it into `/etc/systemd/system/` and
+  `systemctl enable --now`. Mirror the `agentic-audit-termlink` cron
+  install pattern.
+- T-932 — Hub SIGTERM handling. `select!` on `ctrl_c()` +
+  `SignalKind::terminate()` in `cmd_hub_start`. Add a unit test that
+  spawns the hub and sends SIGTERM + verifies clean cleanup.
+- T-933 — Hub secret persistence. Read-if-present +
+  validate-hex in `generate_and_write_hub_secret()`. Remove the
+  `remove_file(hub_secret_path())` from clean-shutdown cleanup. Add
+  a test that two consecutive starts see the same secret.
+- T-934 — `termlink doctor` check: "UFW rule for hub port
+  exists but nothing listening" warning. Cheap check, catches the
+  exact state this inception started from.
+- T-935 — Migrate current `/tmp/termlink-0/` state to
+  `/var/lib/termlink/` on first systemd-managed start. One-shot
+  migration helper or documentation. Lower priority — the migration
+  is "delete /tmp/termlink-0/ and let the unit recreate."
+
+After the decision, these five tasks get created with `fw task
+create --type build`. T-931 is the critical-path deliverable;
+T-932/T-933 unblock future durability; T-934 is observability;
+T-935 is optional cleanup.
+
+### Out-of-scope items (stay punted)
+
+- Dropping hub to a dedicated `termlink` user (stays root for now,
+  matches environment).
+- Shared secret distribution across hosts (T-921 punted this; stays
+  punted).
+- Multi-hub HA / failover (A3 holds).
+- Unifying cron supervisor + hub supervisor under a single
+  framework abstraction (interesting but not this inception).
+
+**Date**: 2026-04-11T22:27:40Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: All three policy questions resolve cleanly in the same
+direction and the precedent for the chosen mechanism already exists
+and is healthy on this box. There is no live tension that would make
+a DEFER prudent.
+
+Evidence:
+
+1. Supervisor policy → systemd. `watchtower-vinix24.service` has
+   been running 4 days with `Type=exec` + `Restart=on-failure` +
+   `RestartSec=5` on this exact box. Operator comfort is
+   demonstrated. Watchdog alternative (while loop + @reboot cron) is
+   strictly worse — no structured logs, no status query, no Restart
+   semantics, no `ExecStop`. Spike 4 is moot.
+2. TCP-bound-by-default policy → yes. UFW rule already allows
+   `9100/tcp` from `192.168.10.0/24`. Running with `--tcp
+   0.0.0.0:9100` in the systemd `ExecStart=` line makes cross-host
+   the default posture, which is what T-921..T-929 just built for.
+   Opt-in TCP leaves a firewall-open / nothing-listening split-brain
+   that already caused a sibling-agent incident on 2026-04-11.
+3. Secret persistence policy → persist-if-present. Code read
+   (Spike 3) shows rotation is incidental, not deliberate. Fix is a
+   one-function change: read existing hex if present and valid,
+   otherwise generate. Drop the `remove_file(hub_secret_path())` on
+   clean shutdown. Security delta is effectively zero (the
+   HMAC secret never traverses the wire; compromise recovery is
+   unchanged because a network attacker has no way to read it).
+4. The parent-ghost discovery. Spike 1 found the current hub is
+   PPID-linked to a 9-hour-old Claude bash, not init. This is not
+   "unsupervised" — it is *worse* than unsupervised, because an
+   unrelated session's shell owns the process tree. Any systemd unit
+   fixes this by having init (PID 1) adopt the hub.
+5. SIGTERM-not-caught bug. The systemd unit exposes this as a
+   build task. Without it, `systemctl stop` skips cleanup. Fix is
+   ~5 lines in `cmd_hub_start` (select! on ctrl_c + SignalKind::terminate).
+   Workaround `KillSignal=SIGINT` in the unit until the fix lands.
+
+Human checkpoint needed: Spike 3 proposed persist-if-present.
+The rationale above assumes you agree. If you prefer rotate-on-every-
+restart for stronger ephemeral trust, say so and the decomposition
+shifts (no code change to secret handling, but client tooling needs
+to know how to pick up the new value on every bounce). I believe
+persist is right for dev-tooling-on-LAN.
+
+### Decomposed build tasks (Spike 5, folded in)
+
+Each task sized under one session:
+
+- T-931 — `termlink-hub.service` unit file + installer. Drop the
+  file under `.context/systemd/termlink-hub.service`, add an
+  installer stanza to copy it into `/etc/systemd/system/` and
+  `systemctl enable --now`. Mirror the `agentic-audit-termlink` cron
+  install pattern.
+- T-932 — Hub SIGTERM handling. `select!` on `ctrl_c()` +
+  `SignalKind::terminate()` in `cmd_hub_start`. Add a unit test that
+  spawns the hub and sends SIGTERM + verifies clean cleanup.
+- T-933 — Hub secret persistence. Read-if-present +
+  validate-hex in `generate_and_write_hub_secret()`. Remove the
+  `remove_file(hub_secret_path())` from clean-shutdown cleanup. Add
+  a test that two consecutive starts see the same secret.
+- T-934 — `termlink doctor` check: "UFW rule for hub port
+  exists but nothing listening" warning. Cheap check, catches the
+  exact state this inception started from.
+- T-935 — Migrate current `/tmp/termlink-0/` state to
+  `/var/lib/termlink/` on first systemd-managed start. One-shot
+  migration helper or documentation. Lower priority — the migration
+  is "delete /tmp/termlink-0/ and let the unit recreate."
+
+After the decision, these five tasks get created with `fw task
+create --type build`. T-931 is the critical-path deliverable;
+T-932/T-933 unblock future durability; T-934 is observability;
+T-935 is optional cleanup.
+
+### Out-of-scope items (stay punted)
+
+- Dropping hub to a dedicated `termlink` user (stays root for now,
+  matches environment).
+- Shared secret distribution across hosts (T-921 punted this; stays
+  punted).
+- Multi-hub HA / failover (A3 holds).
+- Unifying cron supervisor + hub supervisor under a single
+  framework abstraction (interesting but not this inception).
+
+**Date**: 2026-04-11T22:27:40Z
 
 ## Updates
 
@@ -235,3 +473,94 @@ unilaterally.
 
 ### 2026-04-11T21:47:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-11T22:27:40Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: All three policy questions resolve cleanly in the same
+direction and the precedent for the chosen mechanism already exists
+and is healthy on this box. There is no live tension that would make
+a DEFER prudent.
+
+Evidence:
+
+1. Supervisor policy → systemd. `watchtower-vinix24.service` has
+   been running 4 days with `Type=exec` + `Restart=on-failure` +
+   `RestartSec=5` on this exact box. Operator comfort is
+   demonstrated. Watchdog alternative (while loop + @reboot cron) is
+   strictly worse — no structured logs, no status query, no Restart
+   semantics, no `ExecStop`. Spike 4 is moot.
+2. TCP-bound-by-default policy → yes. UFW rule already allows
+   `9100/tcp` from `192.168.10.0/24`. Running with `--tcp
+   0.0.0.0:9100` in the systemd `ExecStart=` line makes cross-host
+   the default posture, which is what T-921..T-929 just built for.
+   Opt-in TCP leaves a firewall-open / nothing-listening split-brain
+   that already caused a sibling-agent incident on 2026-04-11.
+3. Secret persistence policy → persist-if-present. Code read
+   (Spike 3) shows rotation is incidental, not deliberate. Fix is a
+   one-function change: read existing hex if present and valid,
+   otherwise generate. Drop the `remove_file(hub_secret_path())` on
+   clean shutdown. Security delta is effectively zero (the
+   HMAC secret never traverses the wire; compromise recovery is
+   unchanged because a network attacker has no way to read it).
+4. The parent-ghost discovery. Spike 1 found the current hub is
+   PPID-linked to a 9-hour-old Claude bash, not init. This is not
+   "unsupervised" — it is *worse* than unsupervised, because an
+   unrelated session's shell owns the process tree. Any systemd unit
+   fixes this by having init (PID 1) adopt the hub.
+5. SIGTERM-not-caught bug. The systemd unit exposes this as a
+   build task. Without it, `systemctl stop` skips cleanup. Fix is
+   ~5 lines in `cmd_hub_start` (select! on ctrl_c + SignalKind::terminate).
+   Workaround `KillSignal=SIGINT` in the unit until the fix lands.
+
+Human checkpoint needed: Spike 3 proposed persist-if-present.
+The rationale above assumes you agree. If you prefer rotate-on-every-
+restart for stronger ephemeral trust, say so and the decomposition
+shifts (no code change to secret handling, but client tooling needs
+to know how to pick up the new value on every bounce). I believe
+persist is right for dev-tooling-on-LAN.
+
+### Decomposed build tasks (Spike 5, folded in)
+
+Each task sized under one session:
+
+- T-931 — `termlink-hub.service` unit file + installer. Drop the
+  file under `.context/systemd/termlink-hub.service`, add an
+  installer stanza to copy it into `/etc/systemd/system/` and
+  `systemctl enable --now`. Mirror the `agentic-audit-termlink` cron
+  install pattern.
+- T-932 — Hub SIGTERM handling. `select!` on `ctrl_c()` +
+  `SignalKind::terminate()` in `cmd_hub_start`. Add a unit test that
+  spawns the hub and sends SIGTERM + verifies clean cleanup.
+- T-933 — Hub secret persistence. Read-if-present +
+  validate-hex in `generate_and_write_hub_secret()`. Remove the
+  `remove_file(hub_secret_path())` from clean-shutdown cleanup. Add
+  a test that two consecutive starts see the same secret.
+- T-934 — `termlink doctor` check: "UFW rule for hub port
+  exists but nothing listening" warning. Cheap check, catches the
+  exact state this inception started from.
+- T-935 — Migrate current `/tmp/termlink-0/` state to
+  `/var/lib/termlink/` on first systemd-managed start. One-shot
+  migration helper or documentation. Lower priority — the migration
+  is "delete /tmp/termlink-0/ and let the unit recreate."
+
+After the decision, these five tasks get created with `fw task
+create --type build`. T-931 is the critical-path deliverable;
+T-932/T-933 unblock future durability; T-934 is observability;
+T-935 is optional cleanup.
+
+### Out-of-scope items (stay punted)
+
+- Dropping hub to a dedicated `termlink` user (stays root for now,
+  matches environment).
+- Shared secret distribution across hosts (T-921 punted this; stays
+  punted).
+- Multi-hub HA / failover (A3 holds).
+- Unifying cron supervisor + hub supervisor under a single
+  framework abstraction (interesting but not this inception).
+
+### 2026-04-11T22:27:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

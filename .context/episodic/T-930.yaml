@@ -1,0 +1,67 @@
+# ============================================================================
+# EPISODIC MEMORY - T-930: Should termlink hub run under a supervisor with TCP bound by default on .107?
+# ============================================================================
+# STATUS: REQUIRES ENRICHMENT
+# Limited data sources. Review and fill missing sections manually.
+# Generated: 2026-04-11T22:27:42Z
+# ============================================================================
+
+task_id: T-930
+task_name: "Should termlink hub run under a supervisor with TCP bound by default on .107?"
+workflow_type: inception
+enrichment_status: pending  # No git commits or AC found — needs manual enrichment
+
+# Timeline
+created: 2026-04-11T21:43:54Z
+completed: 2026-04-11T22:27:40Z
+duration_days: 0
+updates_count: 5
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - description: "[TODO: What worked well?]"
+    why: "[TODO: Why did it work?]"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 43
+  commits: 1
+  files_changed: 2
+  lines_added: 141
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-930-should-termlink-hub-run-under-a-supervis.md
+generated_by: context-agent-hybrid
