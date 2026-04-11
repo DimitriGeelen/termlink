@@ -83,7 +83,16 @@ async fn main() -> Result<()> {
         Command::Exec { target, command, cwd, timeout, json } => {
             commands::session::cmd_exec(&target, &command, cwd.as_deref(), timeout, json).await
         }
-        Command::Signal { target, signal, json, timeout } => commands::session::cmd_signal(&target, &signal, json, timeout).await,
+        Command::Signal { target, signal, json, timeout, hub, secret_file, secret, scope } => {
+            let opts = target::TargetOpts {
+                hub,
+                secret_file,
+                secret,
+                scope,
+                session: target,
+            };
+            commands::session::cmd_signal(&opts, &signal, json, timeout).await
+        }
 
         // PTY subcommand group
         Command::Pty(pty) => match pty {

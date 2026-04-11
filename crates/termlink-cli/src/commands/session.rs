@@ -916,53 +916,52 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
     Ok(())
 }
 
-pub(crate) async fn cmd_signal(target: &str, signal: &str, json: bool, timeout_secs: u64) -> Result<()> {
-    let reg = match manager::find_session(target) {
-        Ok(r) => r,
-        Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
-            }
-            return Err(e).context(format!("Session '{}' not found", target));
-        }
-    };
+pub(crate) async fn cmd_signal(
+    opts: &crate::target::TargetOpts,
+    signal: &str,
+    json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let target = opts.session.as_str();
 
     let sig_num = match parse_signal(signal) {
         Some(n) => n,
         None => {
-            let msg = format!("Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.", signal);
+            let msg = format!(
+                "Unknown signal: '{}'. Use TERM, INT, KILL, HUP, USR1, USR2, or a number.",
+                signal
+            );
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
+                super::json_error_exit(serde_json::json!({
+                    "ok": false, "target": target, "error": msg
+                }));
             }
             anyhow::bail!("{}", msg);
         }
     };
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    let rpc_future = client::rpc_call(
-        reg.socket_path(),
+    let call_future = crate::target::call_session(
+        opts,
         "command.signal",
         serde_json::json!({ "signal": sig_num }),
     );
-    let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => match result {
+    let outcome: Result<serde_json::Value> =
+        match tokio::time::timeout(timeout_dur, call_future).await {
             Ok(r) => r,
-            Err(e) => {
+            Err(_) => {
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    super::json_error_exit(serde_json::json!({
+                        "ok": false,
+                        "target": target,
+                        "error": format!("Signal timed out after {}s", timeout_secs),
+                    }));
                 }
-                return Err(e).context("Failed to connect to session");
+                anyhow::bail!("Signal timed out after {}s", timeout_secs);
             }
-        },
-        Err(_) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Signal timed out after {}s", timeout_secs)}));
-            }
-            anyhow::bail!("Signal timed out after {}s", timeout_secs);
-        }
-    };
+        };
 
-    match client::unwrap_result(resp) {
+    match outcome {
         Ok(result) => {
             if json {
                 println!("{}", serde_json::json!({

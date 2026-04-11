@@ -173,8 +173,8 @@ pub(crate) fn default_scope_for(method: &str) -> &'static str {
         | "session.update"
         | "kv.set"
         | "kv.delete" => "interact",
-        // Control — lifecycle
-        "session.spawn" | "session.stop" => "control",
+        // Control — lifecycle and process control
+        "session.spawn" | "session.stop" | "command.signal" => "control",
         // Execute — PTY injection
         "command.inject" | "command.run" => "execute",
         // Safe default for unknown methods — requires write privileges
@@ -407,6 +407,7 @@ mod tests {
         assert_eq!(default_scope_for("kv.set"), "interact");
         assert_eq!(default_scope_for("event.emit"), "interact");
         assert_eq!(default_scope_for("session.spawn"), "control");
+        assert_eq!(default_scope_for("command.signal"), "control");
         assert_eq!(default_scope_for("command.inject"), "execute");
         // Unknown methods default to interact — safer than observe.
         assert_eq!(default_scope_for("future.method.we.have.not.seen"), "interact");
