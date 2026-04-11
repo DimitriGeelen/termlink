@@ -58,7 +58,23 @@ async fn main() -> Result<()> {
             };
             commands::session::cmd_ping(&opts, json, timeout).await
         }
-        Command::Status { target, json, short, timeout } => commands::session::cmd_status(&resolve_target(target)?, json, short, timeout).await,
+        Command::Status { target, json, short, timeout, hub, secret_file, secret, scope } => {
+            let session = if hub.is_some() {
+                target.ok_or_else(|| anyhow::anyhow!(
+                    "--target requires an explicit session name (positional arg)"
+                ))?
+            } else {
+                resolve_target(target)?
+            };
+            let opts = target::TargetOpts {
+                hub,
+                secret_file,
+                secret,
+                scope,
+                session,
+            };
+            commands::session::cmd_status(&opts, json, short, timeout).await
+        }
         Command::Info { json, short, check } => commands::session::cmd_info(json, short, check),
         Command::Send { target, method, params, json, timeout } => commands::session::cmd_send(&target, &method, &params, json, timeout).await,
         Command::Interact { target, command, timeout, poll_ms, strip_ansi, json } => {

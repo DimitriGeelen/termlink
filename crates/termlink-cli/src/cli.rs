@@ -166,6 +166,26 @@ pub(crate) enum Command {
         /// Timeout in seconds (default: 5)
         #[arg(long, default_value = "5")]
         timeout: u64,
+
+        /// Remote hub address HOST:PORT — forwards the status query through
+        /// the hub to the named session on that host (T-921 cross-host
+        /// parity).
+        #[arg(long = "target", value_name = "HOST:PORT")]
+        hub: Option<String>,
+
+        /// Path to a hex-encoded HMAC secret file for the remote hub.
+        #[arg(long = "secret-file", value_name = "PATH")]
+        secret_file: Option<std::path::PathBuf>,
+
+        /// Explicit hex-encoded HMAC secret (64 chars / 32 bytes).
+        /// Prefer --secret-file for shell-history hygiene.
+        #[arg(long, value_name = "HEX")]
+        secret: Option<String>,
+
+        /// Auth scope: observe | interact | control | execute.
+        /// Defaults to the per-method minimum (observe for status).
+        #[arg(long, value_name = "NAME")]
+        scope: Option<String>,
     },
 
     /// Show TermLink runtime information and system status
