@@ -253,3 +253,10 @@ learnings:
   date: 2026-03-29
   context: Added via context agent
   application: TBD
+- id: PL-002
+  learning: "Pre-flight liveness checks must verify the service responds, not just that the socket file exists. Stale Unix socket files can persist for days after the owning process dies (e.g., termlink hub PID 1517402 socket from 2026-04-09). A file-only check passes but every subsequent RPC fails with Connection refused, which — if naively swallowed by a 'continue' in an error path — yields an infinite hang instead of a clear error. Defense in depth: (a) actually connect to the socket as part of the pre-flight, (b) never let an error 'continue' skip a safety check unconditionally — track consecutive failures and bail."
+  source: P-001 Reliability
+  task: T-916
+  date: 2026-04-11
+  context: Added via context agent
+  application: TBD
