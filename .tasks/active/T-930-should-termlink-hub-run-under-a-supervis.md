@@ -4,7 +4,7 @@ name: "Should termlink hub run under a supervisor with TCP bound by default on .
 description: >
   Inception: Should termlink hub run under a supervisor with TCP bound by default on .107?
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-11T21:43:54Z
-last_update: 2026-04-11T21:43:54Z
+last_update: 2026-04-11T21:47:24Z
 date_finished: null
 ---
 
@@ -232,3 +232,6 @@ unilaterally.
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-11T21:47:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
