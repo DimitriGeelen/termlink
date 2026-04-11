@@ -2122,6 +2122,130 @@ mod tests {
         handle.abort();
     }
 
+    /// T-923 end-to-end: TCP-bound hub + hub.auth + transparent forwarder
+    /// to a local session, proving the cross-host routing path that T-924's
+    /// call_session() CLI helper will drive.
+    #[tokio::test]
+    async fn tcp_forward_to_local_session_after_auth() {
+        use tokio::io::AsyncWriteExt;
+
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (session_handle, _reg) =
+            start_test_session(&sessions_dir, "fwd-tcp-local").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // manager::find_session() reads sessions_dir() which is relative to
+        // TERMLINK_RUNTIME_DIR; point it at the test runtime.
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let (hub_handle, shutdown_tx, _hub_socket, tcp_port, secret_hex) =
+            start_hub_with_tcp(&dir).await;
+
+        let (mut lines, mut writer) = tcp_connect_and_auth(
+            tcp_port,
+            &secret_hex,
+            termlink_session::auth::PermissionScope::Interact,
+        )
+        .await;
+
+        // Forward termlink.ping through the hub by session display name.
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "termlink.ping",
+            "id": "fwd-1",
+            "params": { "target": "fwd-tcp-local" }
+        });
+        writer
+            .write_all(format!("{}\n", req).as_bytes())
+            .await
+            .unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+
+        assert_eq!(resp["id"], "fwd-1");
+        assert!(
+            resp.get("result").is_some(),
+            "forwarder should return success, got: {resp}"
+        );
+        assert_eq!(resp["result"]["display_name"], "fwd-tcp-local");
+        assert_eq!(resp["result"]["state"], "ready");
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        shutdown_tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        session_handle.abort();
+    }
+
+    /// T-923 scope gap check: the hub rejects a forwarded write-scope method
+    /// BEFORE reaching forward_to_target when the connection only holds
+    /// Observe scope. This proves forwarded calls are not a scope bypass.
+    #[tokio::test]
+    async fn tcp_forward_rejected_when_scope_insufficient() {
+        use tokio::io::AsyncWriteExt;
+
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (session_handle, _reg) =
+            start_test_session(&sessions_dir, "fwd-scope-target").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let (hub_handle, shutdown_tx, _hub_socket, tcp_port, secret_hex) =
+            start_hub_with_tcp(&dir).await;
+
+        let (mut lines, mut writer) = tcp_connect_and_auth(
+            tcp_port,
+            &secret_hex,
+            termlink_session::auth::PermissionScope::Observe,
+        )
+        .await;
+
+        // kv.set requires Interact — connection only has Observe. The hub
+        // must deny the call at the scope gate and MUST NOT forward.
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "kv.set",
+            "id": "scope-1",
+            "params": {
+                "target": "fwd-scope-target",
+                "key": "k",
+                "value": "v"
+            }
+        });
+        writer
+            .write_all(format!("{}\n", req).as_bytes())
+            .await
+            .unwrap();
+        let resp_line = lines.next_line().await.unwrap().unwrap();
+        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
+
+        assert_eq!(
+            resp["error"]["code"].as_i64().unwrap_or(0),
+            -32010,
+            "Observe scope must not reach kv.set forwarder: {resp}"
+        );
+        assert!(
+            resp["error"]["message"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Permission denied"),
+            "expected permission-denied message, got: {resp}"
+        );
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        shutdown_tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        session_handle.abort();
+    }
+
     #[tokio::test]
     async fn orchestrator_route_discovers_and_forwards() {
         let _lock = ENV_LOCK.lock().await;
