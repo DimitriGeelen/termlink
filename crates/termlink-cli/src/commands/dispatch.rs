@@ -29,11 +29,12 @@ pub(crate) struct DispatchOpts {
     pub auto_merge: bool,
     pub json_output: bool,
     pub command: Vec<String>,
+    pub model: Option<String>,
 }
 
 /// Run the `termlink dispatch` command.
 pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
-    let DispatchOpts { count, timeout, topic, name_prefix, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json_output, command } = opts;
+    let DispatchOpts { count, timeout, topic, name_prefix, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json_output, command, model } = opts;
     if count == 0 {
         if json_output {
             super::json_error_exit(serde_json::json!({"ok": false, "error": "--count must be at least 1"}));
@@ -151,6 +152,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
             topic: topic.to_string(),
             prefix: prefix.clone(),
             branches: worktree_branches.clone(),
+            model: model.clone(),
         });
         manifest.save(&project_root)?;
 
@@ -253,6 +255,13 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
                         "{}/target",
                         effective_workdir.as_deref().unwrap_or(".")
                     ))
+                ));
+            }
+            // Model selection
+            if let Some(ref m) = model {
+                env.push_str(&format!(
+                    "export TERMLINK_MODEL={}; ",
+                    shell_escape(m)
                 ));
             }
             // User-supplied --env KEY=VALUE pairs
@@ -962,6 +971,7 @@ mod tests {
             backend: SpawnBackend::Background,
             workdir: None, isolate: false, auto_merge: false, json_output: false,
             command: vec!["echo".into(), "hello".into()],
+            model: None,
         }
     }
 

@@ -30,6 +30,9 @@ pub struct DispatchRecord {
     pub topic: String,
     pub prefix: String,
     pub branches: Vec<BranchEntry>,
+    /// LLM model used for this dispatch (None = default/unspecified).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 /// Individual branch created for a worker.
@@ -366,6 +369,7 @@ mod tests {
                 worktree_path: "/tmp/test".to_string(),
                 has_commits: false,
             }],
+            model: None,
         });
         manifest.save(root).unwrap();
 
@@ -389,6 +393,7 @@ mod tests {
             topic: "task.completed".to_string(),
             prefix: "a".to_string(),
             branches: vec![],
+            model: None,
         });
         manifest.add_dispatch(DispatchRecord {
             id: "D-2-200".to_string(),
@@ -398,6 +403,7 @@ mod tests {
             topic: "task.completed".to_string(),
             prefix: "b".to_string(),
             branches: vec![],
+            model: None,
         });
 
         assert_eq!(manifest.dispatches.len(), 2);
@@ -417,6 +423,7 @@ mod tests {
             topic: "task.completed".to_string(),
             prefix: "w".to_string(),
             branches: vec![],
+            model: None,
         });
 
         let record = manifest.find_dispatch_mut("D-1-100").unwrap();
@@ -469,6 +476,7 @@ mod tests {
                         has_commits: false,
                     },
                 ],
+                model: None,
             }],
         };
 
@@ -545,6 +553,7 @@ mod tests {
             topic: "t".to_string(),
             prefix: "w".to_string(),
             branches: vec![],
+            model: None,
         });
         manifest.add_dispatch(DispatchRecord {
             id: "D-new".to_string(),
@@ -554,6 +563,7 @@ mod tests {
             topic: "t".to_string(),
             prefix: "w".to_string(),
             branches: vec![],
+            model: None,
         });
 
         let cutoff_secs = std::time::SystemTime::now()
@@ -806,6 +816,7 @@ mod tests {
                 worktree_path: wt_path.to_string_lossy().to_string(),
                 has_commits: false,
             }],
+            model: None,
         });
         manifest.save(repo.path()).unwrap();
 
