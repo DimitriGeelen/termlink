@@ -1,15 +1,27 @@
-# Audit Results - 2026-04-12-0916
-timestamp: 2026-04-12T07:16:09Z
-sections: "episodic"
+# Audit Results - 2026-04-12-1245
+timestamp: 2026-04-12T10:45:09Z
+sections: "structure"
 summary:
-  pass: 2
+  pass: 8
   warn: 1
   fail: 0
 findings:
   - level: PASS
-    check: "All completed tasks have episodic summaries"
-  - level: WARN
-    check: "14 episodics have empty or TODO summaries"
-    mitigation: "Fill in summary field with actual task description"
+    check: "Tasks directory exists"
   - level: PASS
-    check: "No orphaned episodic files"
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "All 8 project YAML files parse correctly"
+  - level: PASS
+    check: "Fabric: 80 registered, 0 unregistered"
+  - level: PASS
+    check: "Fabric edges: 78/80 cards enriched (2 without edges)"
+  - level: WARN
+    check: "Fabric drift: 3 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"

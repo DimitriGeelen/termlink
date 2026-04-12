@@ -4,16 +4,16 @@ name: "fw hook-enable command — register hooks in settings.json from CLI"
 description: >
   fw hook-enable command — register hooks in settings.json from CLI
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:49:55Z
-last_update: 2026-04-12T10:49:55Z
-date_finished: null
+last_update: 2026-04-12T10:51:24Z
+date_finished: 2026-04-12T10:51:24Z
 ---
 
 # T-977: fw hook-enable command — register hooks in settings.json from CLI
@@ -63,3 +63,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-977-fw-hook-enable-command--register-hooks-i.md
 - **Context:** Initial task creation
+
+### 2026-04-12T10:51:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

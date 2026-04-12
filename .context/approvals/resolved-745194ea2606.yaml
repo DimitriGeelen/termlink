@@ -5,6 +5,11 @@ command_preview: '.agentic-framework/bin/fw inception decide T-972 go --rational
 risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
   recommendation and rationale, then ask the human to run: fw inception decide T-XXX
   go|no-go --rationale "..."'
-status: pending
+status: approved
 timestamp: '2026-04-12T10:12:09Z'
 type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-12T10:37:06Z'
+  mechanism: watchtower

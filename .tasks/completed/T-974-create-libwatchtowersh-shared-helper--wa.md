@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:27:15Z
-last_update: 2026-04-12T10:35:44Z
+last_update: 2026-04-12T10:37:30Z
 date_finished: 2026-04-12T10:35:44Z
 ---
 
@@ -32,7 +32,7 @@ T-972 RCA identified RC-3: no shared Watchtower URL helper. Each script independ
 - [x] Related tasks updated: T-975 (gate refactor), T-976 (PostToolUse hook)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify `fw task review T-974` opens browser to correct Watchtower URL
+- [x] [RUBBER-STAMP] Verify `fw task review T-974` opens browser to correct Watchtower URL
   **Steps:**
   1. Run: `cd /opt/termlink && fw task review T-974`
   2. Verify browser opens to correct port (3002)
