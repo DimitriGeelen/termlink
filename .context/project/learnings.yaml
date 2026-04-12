@@ -288,3 +288,10 @@ learnings:
   date: 2026-04-12
   context: Added via context agent
   application: TBD
+- id: PL-007
+  learning: "Never output bare terminal commands for the user — always use fw task review for inception decisions, termlink inject for results. The user built the tooling for push-based delivery; dumping commands is a P-002 violation (aspirational rule without structural enforcement). This feedback has been given 3+ times."
+  source: P-001
+  task: T-967
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
