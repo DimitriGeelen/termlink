@@ -4,16 +4,16 @@ name: "Create lib/watchtower.sh shared helper — _watchtower_url and _watchtowe
 description: >
   Extract shared Watchtower URL detection and browser-open logic from review.sh into lib/watchtower.sh. Two functions: _watchtower_url (port detection + host detection) and _watchtower_open (URL + browser open with desktop-user awareness). Refactor review.sh to use them. From T-972 RC-3 fix.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:27:15Z
-last_update: 2026-04-12T10:27:15Z
-date_finished: null
+last_update: 2026-04-12T10:35:44Z
+date_finished: 2026-04-12T10:35:44Z
 ---
 
 # T-974: Create lib/watchtower.sh shared helper — _watchtower_url and _watchtower_open
@@ -29,7 +29,7 @@ T-972 RCA identified RC-3: no shared Watchtower URL helper. Each script independ
 - [x] `lib/watchtower.sh` has `_watchtower_open()` function (URL + browser open, desktop-user aware)
 - [x] `review.sh` refactored to source and use `lib/watchtower.sh` instead of inline port/browser logic
 - [x] `fw task review` still works end-to-end (correct port 3002, QR code, browser open)
-- [ ] Related tasks updated: T-975, T-976
+- [x] Related tasks updated: T-975 (gate refactor), T-976 (PostToolUse hook)
 
 ### Human
 - [ ] [RUBBER-STAMP] Verify `fw task review T-974` opens browser to correct Watchtower URL
@@ -64,3 +64,6 @@ grep -q '_watchtower_url\|_watchtower_open' /opt/termlink/.agentic-framework/lib
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-974-create-libwatchtowersh-shared-helper--wa.md
 - **Context:** Initial task creation
+
+### 2026-04-12T10:35:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
