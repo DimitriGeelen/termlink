@@ -641,6 +641,16 @@ When giving the human a command to run (Tier 0 approvals, inception decisions, v
 3. **Use `bin/fw` not `fw`** — the global `fw` may resolve to a different install
 4. **No bare multi-line** — if multiple commands are needed, chain with `&&` on one line
 
+### Push-Based Delivery (PL-007)
+**NEVER output bare terminal commands for the user to copy-paste.** Use the tooling instead:
+
+1. **Inception decisions:** ALWAYS run `fw task review T-XXX` (without `head` or truncation). This opens Watchtower with recommendation, criteria, QR code, and one-click decision. NEVER tell the user to run `fw inception decide` manually.
+2. **Results/confirmations:** Use `termlink inject` to push results to the user's terminal.
+3. **URLs:** Call the tool that opens/displays them — don't paste bare URLs.
+4. **Any human action needed:** Use `fw task review`, not "run this command."
+
+The user built Watchtower and termlink inject for push-based delivery. Dumping commands defeats the infrastructure investment.
+
 ### Inception Discipline
 When the active task has `workflow_type: inception`:
 1. **State the phase** — Say "This is an inception/exploration task" before doing any work

@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:15:06Z
-last_update: 2026-04-12T09:20:50Z
+last_update: 2026-04-12T09:22:09Z
 date_finished: null
 ---
 
@@ -101,15 +101,24 @@ Currently there's no way to distinguish a "stale orphan" from a "persistent agen
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+
+**Rationale:** Cross-agent coordination with framework agent (T-1135) confirms joint design. Both persistent sessions (`framework-agent`, `termlink-agent`) found dead with orphaned registrations — proving the problem. Implementation is trivial on termlink side (~15 lines for cleanup exemption, ~5 for `--persistent` flag). Framework handles protocol (config, init check), termlink handles mechanism (session management, cleanup).
+
+**Evidence:**
+- Both `framework-agent` and `termlink-agent` sessions dead, zero detection — proves cross-session blindness extends to persistent sessions
+- `clean_stale_sessions()` in `manager.rs:313` has no tag/KV check — purely PID+socket based
+- Framework agent agrees on: KV `persistent=true` for exemption, tag `role:receptionist` for discovery, `.framework.yaml` config for protocol
+- Cost is minimal (~500KB per idle session, zero CPU/network when idle)
+- Implementation split: termlink owns cleanup exemption + health command, framework owns init check + doctor report
+
+**Joint Design (agreed with fw-agent T-1135):**
+- KV: `persistent=true` (machine-readable, cleanup exemption)
+- Tag: `role:receptionist` + `project:<name>` (discovery)
+- `fw context init`: non-blocking health check, WARN if dead
+- `fw doctor`: reports persistent session status
+- Respawn: manual via `fw termlink respawn` (auto-respawn needs explicit opt-in)
+- Config in `.framework.yaml` → `fw upgrade` propagates to consumers
 
 ## Decisions
 
