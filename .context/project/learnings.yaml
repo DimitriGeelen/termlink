@@ -260,3 +260,31 @@ learnings:
   date: 2026-04-11
   context: Added via context agent
   application: TBD
+- id: PL-003
+  learning: "Subagent dispatch outputs must be verified against scope — a backfill agent told to 'only edit ## Recommendation' changed status, date_finished, and overwrote ## Decisions on 6 tasks. Always diff subagent output before committing. Consider: post-dispatch diff check that flags changes outside the specified scope."
+  source: P-001
+  task: T-944
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
+- id: PL-004
+  learning: "When generating files for framework consumption (episodics, audits, reports), check the existing format convention first — the audit expected .yaml but agent generated .md, requiring a rename cycle. One ls of the target directory would have prevented it."
+  source: P-001
+  task: T-944
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
+- id: PL-005
+  learning: "Concerns register (gaps.yaml) should be reviewed for closure when related tasks complete — G-001/G-002/G-003 were all resolved by shipped code (T-909/T-914/T-931..T-935) but stayed 'watching' for days. Stale gaps create false alarm fatigue and undermine the register's credibility. Consider: audit check that flags gaps whose related_tasks are all completed."
+  source: P-001
+  task: T-944
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
+- id: PL-006
+  learning: "Dog-food Watchtower features after building them — the approvals page had 3 compound bugs (no recommendation display, unready tasks mixed with ready, review marker gate blocking web decisions) that would have been caught by submitting one GO decision through the UI. Build → use → fix, not build → ship → forget."
+  source: P-001
+  task: T-944
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
