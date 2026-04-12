@@ -3525,7 +3525,7 @@ PYSEARCH
         if [ -z "$_hook_name" ]; then
             echo "Usage: fw hook <name> [args...]" >&2
             echo "Available hooks: check-active-task, check-tier0, check-project-boundary, budget-gate," >&2
-            echo "  block-plan-mode, block-task-tools, audit-task-tools, checkpoint, error-watchdog, pl007-scanner, check-dispatch, check-dispatch-pre," >&2
+            echo "  block-plan-mode, block-task-tools, audit-task-tools, checkpoint, error-watchdog, check-dispatch, check-dispatch-pre," >&2
             echo "  check-fabric-new-file, check-agent-dispatch, commit-cadence, loop-detect, pre-compact, post-compact-resume" >&2
             exit 1
         fi
@@ -3537,10 +3537,6 @@ PYSEARCH
         export FRAMEWORK_ROOT PROJECT_ROOT
         # T-863: Use bash explicitly — don't require -x (core.filemode=false drops execute bits)
         exec bash "$_hook_script" "$@"
-        ;;
-    hook-enable)
-        # fw hook-enable <name> [--matcher PATTERN] [--event TYPE] — register a hook in settings.json (T-977)
-        exec bash "$FRAMEWORK_ROOT/bin/hook-enable.sh" "$@"
         ;;
     doctor)
         do_doctor "$@"

@@ -49,14 +49,13 @@ do_verify_acs() {
         esac
     done
 
-    # Detect Watchtower URL via shared helper (T-975)
-    source "$FRAMEWORK_ROOT/lib/watchtower.sh" 2>/dev/null || true
-    local wt_base_url
-    wt_base_url=$(_watchtower_url 2>/dev/null || echo "http://localhost:3000")
+    source "$FRAMEWORK_ROOT/lib/config.sh" 2>/dev/null || true
+    local wt_port
+    wt_port=$(type fw_config >/dev/null 2>&1 && fw_config "PORT" 3000 || echo 3000)
 
     # Check if Watchtower is running (needed for HTTP checks)
     local wt_running=false
-    if curl -sf --max-time 2 "${wt_base_url}/" >/dev/null 2>&1; then
+    if curl -sf --max-time 2 "http://localhost:${wt_port}/" >/dev/null 2>&1; then
         wt_running=true
     fi
 
@@ -66,12 +65,12 @@ do_verify_acs() {
     echo ""
 
     # Find all tasks with unchecked Human ACs
-    python3 - "$PROJECT_ROOT" "$filter_task" "$wt_base_url" "$wt_running" "$verbose" "$auto_check" "$execute" << 'PYVERIFY'
+    python3 - "$PROJECT_ROOT" "$filter_task" "$wt_port" "$wt_running" "$verbose" "$auto_check" "$execute" << 'PYVERIFY'
 import os, re, sys, subprocess, json
 
 project_root = sys.argv[1]
 filter_task = sys.argv[2] if len(sys.argv) > 2 else ""
-wt_base_url = sys.argv[3] if len(sys.argv) > 3 else "http://localhost:3000"
+wt_port = sys.argv[3] if len(sys.argv) > 3 else "3000"
 wt_running = sys.argv[4] == "true" if len(sys.argv) > 4 else False
 verbose = sys.argv[5] == "true" if len(sys.argv) > 5 else False
 auto_check = sys.argv[6] == "true" if len(sys.argv) > 6 else False
@@ -132,28 +131,28 @@ def auto_verify_ac(task_id, ac_text):
     # URL/page load checks
     url_patterns = [
         (r'http://localhost:\d+/\S+', None),
-        (r'/review/T-\d+', f"{wt_base_url}"),
-        (r'/config', f"{wt_base_url}"),
-        (r'/approvals', f"{wt_base_url}"),
-        (r'/fabric', f"{wt_base_url}"),
+        (r'/review/T-\d+', f"http://localhost:{wt_port}"),
+        (r'/config', f"http://localhost:{wt_port}"),
+        (r'/approvals', f"http://localhost:{wt_port}"),
+        (r'/fabric', f"http://localhost:{wt_port}"),
     ]
 
     # Watchtower page verification
     if wt_running:
         if '/config' in text or 'config page' in text:
-            return check_url(f"{wt_base_url}/config")
+            return check_url(f"http://localhost:{wt_port}/config")
         if '/review/' in text or 'review page' in text or 'task page' in text:
-            return check_url(f"{wt_base_url}/review/{task_id}")
+            return check_url(f"http://localhost:{wt_port}/review/{task_id}")
         if '/approvals' in text or 'approval' in text:
-            return check_url(f"{wt_base_url}/approvals")
+            return check_url(f"http://localhost:{wt_port}/approvals")
         if 'landing page' in text or 'dashboard' in text or 'summary card' in text:
-            return check_url(f"{wt_base_url}/")
+            return check_url(f"http://localhost:{wt_port}/")
         if 'file link' in text or 'file viewer' in text or 'clickable' in text:
             # Use a file from a viewable directory
-            return check_url(f"{wt_base_url}/file/docs/reports/T-823-automated-human-ac-verification.md")
+            return check_url(f"http://localhost:{wt_port}/file/docs/reports/T-823-automated-human-ac-verification.md")
         if 'qr code' in text or 'qr' in text:
             # QR is generated client-side; verify the review page loads
-            return check_url(f"{wt_base_url}/review/{task_id}")
+            return check_url(f"http://localhost:{wt_port}/review/{task_id}")
 
     # Command execution checks
     if 'fw version' in text:
@@ -326,7 +325,7 @@ if results['pass'] > 0 and not auto_check:
         ip = subprocess.run(["hostname", "-I"], capture_output=True, text=True).stdout.split()[0]
     except:
         ip = "localhost"
-    print(f"  {BOLD}Review verified tasks:{NC} {wt_base_url}/approvals")
+    print(f"  {BOLD}Review verified tasks:{NC} http://{ip}:{wt_port}/approvals")
     print(f"  {BOLD}Auto-check:{NC} fw verify-acs --auto-check --execute")
 
 # Exit code: 0 if any passes, 1 if all fail
