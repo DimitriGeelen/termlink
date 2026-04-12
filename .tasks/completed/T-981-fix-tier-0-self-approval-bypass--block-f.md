@@ -4,7 +4,7 @@ name: "Fix Tier 0 self-approval bypass — block fw tier0 approve in check-tier0
 description: >
   Fix Tier 0 self-approval bypass — block fw tier0 approve in check-tier0.sh patterns
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T13:36:13Z
-last_update: 2026-04-12T13:36:13Z
-date_finished: null
+last_update: 2026-04-12T13:37:55Z
+date_finished: 2026-04-12T13:37:55Z
 ---
 
 # T-981: Fix Tier 0 self-approval bypass — block fw tier0 approve in check-tier0.sh patterns
@@ -51,3 +51,6 @@ grep -q 'tier0.*approve' /opt/termlink/.agentic-framework/agents/context/check-t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-981-fix-tier-0-self-approval-bypass--block-f.md
 - **Context:** Initial task creation
+
+### 2026-04-12T13:37:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

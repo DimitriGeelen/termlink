@@ -4,7 +4,7 @@ name: "Tier 0 self-approval bypass — agent can call fw tier0 approve to unbloc
 description: >
   Inception: Tier 0 self-approval bypass — agent can call fw tier0 approve to unblock its own Tier 0 blocked commands
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T13:18:00Z
-last_update: 2026-04-12T13:18:50Z
-date_finished: null
+last_update: 2026-04-12T13:21:19Z
+date_finished: 2026-04-12T13:21:19Z
 ---
 
 # T-980: Tier 0 self-approval bypass — agent can call fw tier0 approve to unblock its own Tier 0 blocked commands
@@ -86,14 +86,34 @@ The Tier 0 gate (check-tier0.sh) blocks destructive commands but the approval me
 
 ## Decisions
 
-### 2026-04-12 — Fix approach
-- **Chose:** Option A — add `fw\s+tier0\s+approve` to blocked patterns
-- **Why:** Minimal change, structurally sound, preserves both human approval paths
-- **Rejected:** Option B (interactive read — fragile, hangs instead of fails), Option C (Watchtower only — removes convenient CLI path), Option D (two-channel — overengineered)
+**Decision**: GO
 
+**Rationale**: Recommendation: GO (Option A — block `fw tier0 approve` in pattern list)
+
+Rationale: One-line fix that structurally prevents agent self-approval. Human retains two independent approval paths (Watchtower web UI, `!` shell prefix). No same-class bypass vectors found in audit.
+
+Evidence:
+- `check-tier0.sh:88-148` PATTERNS list missing `fw tier0 approve` — confirmed root cause
+- Watchtower approval path is structurally safe (requires HTTP POST from browser)
+- `!` prefix in Claude Code runs commands directly in shell, bypassing all hooks
+- Full audit of PATTERNS found no other self-bypass vectors
+
+**Date**: 2026-04-12T13:21:19Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO (Option A — block `fw tier0 approve` in pattern list)
+
+Rationale: One-line fix that structurally prevents agent self-approval. Human retains two independent approval paths (Watchtower web UI, `!` shell prefix). No same-class bypass vectors found in audit.
+
+Evidence:
+- `check-tier0.sh:88-148` PATTERNS list missing `fw tier0 approve` — confirmed root cause
+- Watchtower approval path is structurally safe (requires HTTP POST from browser)
+- `!` prefix in Claude Code runs commands directly in shell, bypassing all hooks
+- Full audit of PATTERNS found no other self-bypass vectors
+
+**Date**: 2026-04-12T13:21:19Z
 
 ## Updates
 
@@ -102,3 +122,20 @@ The Tier 0 gate (check-tier0.sh) blocks destructive commands but the approval me
 
 ### 2026-04-12T13:18:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T13:21:19Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO (Option A — block `fw tier0 approve` in pattern list)
+
+Rationale: One-line fix that structurally prevents agent self-approval. Human retains two independent approval paths (Watchtower web UI, `!` shell prefix). No same-class bypass vectors found in audit.
+
+Evidence:
+- `check-tier0.sh:88-148` PATTERNS list missing `fw tier0 approve` — confirmed root cause
+- Watchtower approval path is structurally safe (requires HTTP POST from browser)
+- `!` prefix in Claude Code runs commands directly in shell, bypassing all hooks
+- Full audit of PATTERNS found no other self-bypass vectors
+
+### 2026-04-12T13:21:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
