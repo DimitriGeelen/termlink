@@ -1,6 +1,7 @@
 pub mod aggregator;
 pub mod bypass;
 pub mod circuit_breaker;
+pub mod inbox;
 pub mod pidfile;
 pub mod remote_store;
 pub mod route_cache;
