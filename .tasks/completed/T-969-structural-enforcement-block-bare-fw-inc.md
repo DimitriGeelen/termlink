@@ -4,7 +4,7 @@ name: "Structural enforcement: block bare fw inception decide in agent output �
 description: >
   PL-007 structural fix: Add a PostToolUse hook or output filter that detects when an agent outputs 'fw inception decide' as a suggestion to the user. Warn/block and suggest fw task review instead. Converts aspirational rule into structural gate (P-002).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:47:53Z
-last_update: 2026-04-12T09:50:42Z
-date_finished: null
+last_update: 2026-04-12T09:54:34Z
+date_finished: 2026-04-12T09:54:34Z
 ---
 
 # T-969: Structural enforcement: block bare fw inception decide in agent output — force fw task review
@@ -70,3 +70,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-969-structural-enforcement-block-bare-fw-inc.md
 - **Context:** Initial task creation
+
+### 2026-04-12T09:54:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

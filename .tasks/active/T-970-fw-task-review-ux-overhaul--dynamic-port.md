@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:50:48Z
-last_update: 2026-04-12T09:52:28Z
+last_update: 2026-04-12T09:53:55Z
 date_finished: null
 ---
 
@@ -69,9 +69,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Port detection probes for project-specific Watchtower (review.sh)
+- [x] Browser auto-opens via xdg-open/open (review.sh)
+- [x] fw inception decide auto-invokes fw task review when marker missing (inception.sh)
+- [x] PL-007 codified in CLAUDE.md
+- [x] Pickup P-019 sent to framework agent
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
