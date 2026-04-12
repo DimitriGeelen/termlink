@@ -30,13 +30,13 @@ Related: T-940 (runtime dir RCA), T-959 (two-pool architecture), T-942 (inceptio
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `discovery.rs` exposes `all_runtime_dirs()` returning Vec<PathBuf> of candidate dirs
-- [ ] `manager::list_sessions()` iterates all dirs, deduplicates by session ID
-- [ ] `supervisor::sweep()` cleans across all dirs
-- [ ] Hub router `session.discover` returns sessions from all dirs
-- [ ] Existing `runtime_dir()` remains unchanged (backward compat for session registration)
-- [ ] Unit tests for multi-dir listing with sessions in different dirs
-- [ ] All existing hub tests pass (`cargo test -p termlink-hub`)
+- [x] `discovery.rs` exposes `all_runtime_dirs()` returning Vec<PathBuf> of candidate dirs
+- [x] `manager::list_sessions()` iterates all dirs, deduplicates by session ID
+- [x] `supervisor::sweep()` cleans across all dirs
+- [x] Hub router `session.discover` returns sessions from all dirs
+- [x] Existing `runtime_dir()` remains unchanged (backward compat for session registration)
+- [x] Unit tests for multi-dir listing with sessions in different dirs
+- [x] All existing hub tests pass (`cargo test -p termlink-hub`) — 179/179 pass
 
 ## Verification
 
