@@ -69,7 +69,9 @@ concerns:
   what_works_now: "Tier 0 blocks the right commands. Watchtower approval path is structurally safe (requires browser interaction the agent cannot do)."
   what_remains: "1. Add fw tier0 approve to blocked patterns so agent cannot self-approve. 2. Human approves via Watchtower (web) or ! fw tier0 approve (shell ! prefix bypasses hooks). 3. Audit other approval/bypass mechanisms for same class of flaw."
   mitigation_candidate: "Add regex pattern for fw tier0 approve to PATTERNS list in check-tier0.sh. This creates a deliberate catch-22: the agent cannot approve, the human uses Watchtower or ! prefix."
-  status: watching
+  status: closed
+  resolution: "T-981 added fw tier0 approve to check-tier0.sh PATTERNS list (both keyword pre-filter and Python regex). Agent now gets BLOCKED when attempting self-approval. Block message updated to show ! prefix (human-only shell bypass) and Watchtower. Verified: agent call to fw tier0 approve exits with code 2."
   created: 2026-04-12
   last_reviewed: 2026-04-12
-  related_tasks: [T-980]
+  closed: 2026-04-12
+  related_tasks: [T-980, T-981]
