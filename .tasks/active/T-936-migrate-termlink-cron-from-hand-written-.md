@@ -61,34 +61,37 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Three cron layers (live `/etc/cron.d/`, git-tracked crontab stub, `cron-registry.yaml`) were out of sync. The registry has since been populated (11 jobs), the generated crontab uses the vendored binary path (`/opt/termlink/.agentic-framework/bin/fw`), and the only remaining step is to install.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+1. The vendored binary path (`/opt/termlink/.agentic-framework/bin/fw`) is correct for termlink — validated: this is what the project uses.
+2. The pickup processor at `*/15` (every 15 min) is sufficient — replaces the interim every-30s hack.
+3. No jobs will be lost — `cron-registry.yaml` contains all 11 jobs from the live crontab.
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. **Catalogued live cron** — 11 jobs in `/etc/cron.d/agentic-audit-termlink` (done by prior session)
+2. **Populated registry** — `cron-registry.yaml` now has all 11 entries (done by prior session)
+3. **Dry-run validated** — `fw cron install --dry-run` shows clean diff: binary path fix + pickup schedule normalization
+4. **Remaining: install** — `fw cron install` to sync live cron with registry (requires human approval, Tier 0)
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- Requires root to write `/etc/cron.d/` (Tier 0 action)
+- Must not disrupt running cron jobs during switchover (atomic file replace)
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** Migrate termlink cron to registry-based. Fix binary paths. Normalize pickup schedule.
+**OUT:** Upgrading vendored framework version. Changing audit frequencies. Adding new jobs.
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -102,12 +105,13 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Registry contains all live jobs (11/11 — confirmed)
+- Dry-run diff is clean and understood (confirmed: binary path fix + pickup normalization)
+- No jobs will be lost during migration (confirmed: atomic file replace)
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Registry missing jobs vs live cron (not the case — 11/11)
+- Dry-run shows unexpected deletions (not the case)
 
 ## Verification
 
@@ -117,15 +121,17 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO (Option A — Full registry migration)
+
+**Rationale:** The registry is already populated with all 11 jobs. The dry-run shows exactly two intentional changes: (1) binary path switches from global `/root/.agentic-framework/bin/fw` to vendored `/opt/termlink/.agentic-framework/bin/fw` (correct — aligns with T-909 vendoring), and (2) pickup processor schedule normalizes from every-30s hack to every-15m registry entry. No jobs are lost.
+
+**Evidence:**
+- `cron-registry.yaml` has 11 entries matching all live cron jobs
+- `fw cron install --dry-run` diff is clean and understood
+- Binary path fix is correct (vendored framework is source of truth for termlink)
+- Pickup processor at 15m interval is sufficient (inbox processing is idempotent)
+
+**Next step:** Run `cd /opt/termlink && bin/fw cron install` to apply (Tier 0 — requires human approval)
 
 ## Decisions
 
