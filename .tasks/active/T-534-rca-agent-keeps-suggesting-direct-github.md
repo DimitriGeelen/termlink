@@ -82,11 +82,13 @@ Agent repeatedly suggests `git push github` despite memory explicitly prohibitin
 **Rationale**: 4 root causes found. M-1 done (memory updated). M-2 needed: document mirror chain in CLAUDE.md so every session knows the flow structurally.
 
 **Date**: 2026-03-27T18:19:04Z
-## Recommendation
+## Decision
 
-**Recommendation:** GO
+**Decision**: GO
 
-**Rationale:** Four root causes were identified for the recurring GitHub push suggestion. M-1 (memory updated with full mirror chain explanation) is already done. M-2 (documenting the OneDev-to-GitHub mirror chain in CLAUDE.md) is needed so every session knows the flow structurally, preventing recurrence through documentation rather than agent discipline.
+**Rationale**: 4 root causes found. M-1 done (memory updated). M-2 needed: document mirror chain in CLAUDE.md so every session knows the flow structurally.
+
+**Date**: 2026-03-27T18:19:04Z
 
 ## Updates
 
