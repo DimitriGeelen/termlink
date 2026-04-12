@@ -4,16 +4,16 @@ name: "Pickup: Pickup envelopes = messaging channel, termlink sessions = executi
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: learning.
 
-status: captured
+status: work-completed
 workflow_type: inception
-owner: agent
-horizon: next
+owner: human
+horizon: now
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:35Z
-last_update: 2026-04-12T08:40:35Z
-date_finished: null
+last_update: 2026-04-12T15:59:20Z
+date_finished: 2026-04-12T15:59:20Z
 ---
 
 # T-956: Pickup: Pickup envelopes = messaging channel, termlink sessions = execution channel — agents must know the distinction (from termlink)
@@ -105,3 +105,11 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T15:59:20Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-12T15:59:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Learning captured, no build work needed

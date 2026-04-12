@@ -4,16 +4,16 @@ name: "Pickup: L-006: termlink send-file ok:true means hub accepted, NOT deliver
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1125. Type: learning.
 
-status: captured
+status: work-completed
 workflow_type: inception
-owner: agent
-horizon: next
+owner: human
+horizon: now
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:38:33Z
-last_update: 2026-04-12T08:38:33Z
-date_finished: null
+last_update: 2026-04-12T15:59:19Z
+date_finished: 2026-04-12T15:59:19Z
 ---
 
 # T-953: Pickup: L-006: termlink send-file ok:true means hub accepted, NOT delivered — verify receipt independently (from 999-Agentic-Engineering-Framework)
@@ -105,3 +105,11 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T15:59:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-12T15:59:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Learning captured, no build work needed

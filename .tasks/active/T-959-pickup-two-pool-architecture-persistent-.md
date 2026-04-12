@@ -4,16 +4,16 @@ name: "Pickup: Two-pool architecture (persistent /var/lib + ephemeral /tmp) is a
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: pattern.
 
-status: captured
+status: work-completed
 workflow_type: inception
-owner: agent
-horizon: next
+owner: human
+horizon: now
 tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T08:41:35Z
-last_update: 2026-04-12T08:41:35Z
-date_finished: null
+last_update: 2026-04-12T15:59:57Z
+date_finished: 2026-04-12T15:59:57Z
 ---
 
 # T-959: Pickup: Two-pool architecture (persistent /var/lib + ephemeral /tmp) is a valid design — codify it, dont fix it (from termlink)
@@ -105,3 +105,11 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T15:59:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-12T15:59:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Architecture validated, learning captured
