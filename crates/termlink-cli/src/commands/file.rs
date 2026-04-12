@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
 
 use termlink_session::client;
@@ -8,6 +10,65 @@ use termlink_protocol::events::{
 };
 
 use crate::util::{generate_request_id, DEFAULT_CHUNK_SIZE};
+
+/// Delivery route for file transfer events.
+enum DeliveryRoute {
+    /// Direct to session socket.
+    Direct(PathBuf),
+    /// Via hub's event.emit_to (session offline, may trigger inbox spooling).
+    Hub { hub_socket: PathBuf, target: String },
+}
+
+impl DeliveryRoute {
+    /// Send a file event via the appropriate route.
+    async fn emit(
+        &self,
+        topic: &str,
+        payload: serde_json::Value,
+        from: Option<&str>,
+        timeout: std::time::Duration,
+    ) -> Result<serde_json::Value, anyhow::Error> {
+        match self {
+            DeliveryRoute::Direct(socket) => {
+                let params = serde_json::json!({
+                    "topic": topic,
+                    "payload": payload,
+                });
+                let fut = client::rpc_call(socket, "event.emit", params);
+                tokio::time::timeout(timeout, fut)
+                    .await
+                    .map_err(|_| anyhow::anyhow!("timeout"))?
+                    .context("RPC call failed")?;
+                Ok(serde_json::json!({"delivered": true}))
+            }
+            DeliveryRoute::Hub { hub_socket, target } => {
+                let mut params = serde_json::json!({
+                    "target": target,
+                    "topic": topic,
+                    "payload": payload,
+                });
+                if let Some(f) = from {
+                    params["from"] = serde_json::json!(f);
+                }
+                let fut = client::rpc_call(hub_socket, "event.emit_to", params);
+                let resp = tokio::time::timeout(timeout, fut)
+                    .await
+                    .map_err(|_| anyhow::anyhow!("timeout"))?
+                    .context("Hub RPC call failed")?;
+                let result = client::unwrap_result(resp)
+                    .map_err(|e| anyhow::anyhow!("Hub rejected: {e}"))?;
+                Ok(result)
+            }
+        }
+    }
+
+    fn via_label(&self) -> &'static str {
+        match self {
+            DeliveryRoute::Direct(_) => "direct",
+            DeliveryRoute::Hub { .. } => "hub",
+        }
+    }
+}
 
 /// Resolve the effective chunk size (0 means use default) and compute
 /// the number of chunks needed to transfer `file_size` bytes.
@@ -21,13 +82,26 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
-    let reg = match manager::find_session(target) {
-        Ok(r) => r,
-        Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+    // T-989: Resolve delivery route — direct to session, or via hub (enables inbox)
+    let route = match manager::find_session(target) {
+        Ok(r) => DeliveryRoute::Direct(r.socket_path().to_path_buf()),
+        Err(_) => {
+            // Session not found locally — try hub fallback
+            let hub_socket = termlink_hub::server::hub_socket_path();
+            if hub_socket.exists() {
+                if !json {
+                    eprintln!("  Session '{}' not found locally, routing via hub", target);
+                }
+                DeliveryRoute::Hub {
+                    hub_socket,
+                    target: target.to_string(),
+                }
+            } else {
+                if json {
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found and no hub available", target)}));
+                }
+                anyhow::bail!("Session '{}' not found and no hub available for inbox", target);
             }
-            return Err(e).context(format!("Session '{}' not found", target));
         }
     };
 
@@ -76,25 +150,14 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
             return Err(e).context("Failed to serialize file.init");
         }
     };
-    let emit_params = serde_json::json!({
-        "topic": file_topic::INIT,
-        "payload": init_payload,
-    });
-    let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
-    match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => {
-            if let Err(e) = result {
-                if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.init: {}", e)}));
-                }
-                return Err(e).context("Failed to emit file.init");
-            }
-        }
-        Err(_) => {
+    let from_label = format!("cli-{}", std::process::id());
+    match route.emit(file_topic::INIT, init_payload, Some(&from_label), timeout_dur).await {
+        Ok(_) => {}
+        Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("file.init timed out after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.init: {}", e)}));
             }
-            anyhow::bail!("file.init timed out after {}s", timeout_secs);
+            return Err(e).context("Failed to emit file.init");
         }
     }
 
@@ -123,26 +186,14 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
                 return Err(e).context(format!("Failed to serialize chunk {}", i));
             }
         };
-        let emit_params = serde_json::json!({
-            "topic": file_topic::CHUNK,
-            "payload": chunk_payload,
-        });
-        let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
-        match tokio::time::timeout(timeout_dur, rpc_future).await {
-            Ok(result) => {
-                if let Err(e) = result {
-                    let msg = format!("Failed to emit chunk {}/{}", i + 1, total_chunks);
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("{}: {}", msg, e)}));
-                    }
-                    return Err(e).context(msg);
-                }
-            }
-            Err(_) => {
+        match route.emit(file_topic::CHUNK, chunk_payload, Some(&from_label), timeout_dur).await {
+            Ok(_) => {}
+            Err(e) => {
+                let msg = format!("Chunk {}/{} failed: {}", i + 1, total_chunks, e);
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs)}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": &msg}));
                 }
-                anyhow::bail!("Chunk {}/{} timed out after {}s", i + 1, total_chunks, timeout_secs);
+                anyhow::bail!("{}", msg);
             }
         }
 
@@ -169,40 +220,34 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
             return Err(e).context("Failed to serialize file.complete");
         }
     };
-    let emit_params = serde_json::json!({
-        "topic": file_topic::COMPLETE,
-        "payload": complete_payload,
-    });
-    let rpc_future = client::rpc_call(reg.socket_path(), "event.emit", emit_params);
-    match tokio::time::timeout(timeout_dur, rpc_future).await {
-        Ok(result) => {
-            if let Err(e) = result {
-                if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.complete: {}", e)}));
-                }
-                return Err(e).context("Failed to emit file.complete");
-            }
-        }
-        Err(_) => {
+    match route.emit(file_topic::COMPLETE, complete_payload, Some(&from_label), timeout_dur).await {
+        Ok(_) => {}
+        Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("file.complete timed out after {}s", timeout_secs)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.complete: {}", e)}));
             }
-            anyhow::bail!("file.complete timed out after {}s", timeout_secs);
+            return Err(e).context("Failed to emit file.complete");
         }
     }
 
+    let via = route.via_label();
     if json {
         println!("{}", serde_json::json!({
             "ok": true,
             "filename": filename,
             "size": size,
+            "via": via,
             "chunks": total_chunks,
             "transfer_id": transfer_id,
             "sha256": sha256,
             "target": target,
         }));
     } else {
-        eprintln!("Transfer complete. SHA-256: {}", sha256);
+        let route_info = match via {
+            "hub" => " (via hub — may be spooled for later delivery)",
+            _ => "",
+        };
+        eprintln!("Transfer complete{route_info}. SHA-256: {sha256}");
     }
     Ok(())
 }
