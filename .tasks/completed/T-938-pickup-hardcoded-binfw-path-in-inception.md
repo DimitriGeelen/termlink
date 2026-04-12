@@ -4,7 +4,7 @@ name: "Pickup: Hardcoded bin/fw path in inception/review error hints breaks vend
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-921. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [pickup, bug-report, framework]
 components: []
 related_tasks: []
 created: 2026-04-11T23:00:03Z
-last_update: 2026-04-12T13:04:38Z
-date_finished: null
+last_update: 2026-04-12T13:06:33Z
+date_finished: 2026-04-12T13:06:33Z
 ---
 
 # T-938: Pickup: Hardcoded bin/fw path in inception/review error hints breaks vendored consumers (127 exit) (from termlink)
@@ -45,3 +45,6 @@ grep -q 'fw_cmd' /opt/termlink/.agentic-framework/lib/verify-acs.sh
 ### 2026-04-12T13:04:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now
+
+### 2026-04-12T13:06:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
