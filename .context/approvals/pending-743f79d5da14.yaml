@@ -1,0 +1,10 @@
+command_hash: 743f79d5da147202ecf924779480db8aebdfbe41c0edd1e3488fe4824dd98909
+command_preview: .agentic-framework/bin/fw inception decide T-967 go --rationale "Joint
+  design validated with fw-agent T-1135, both persistent sessions found dead proving
+  the need, implementation trivial (~15 lines cl
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: pending
+timestamp: '2026-04-12T10:01:07Z'
+type: tier0

@@ -38,7 +38,7 @@ T-287 inception found TermLink has no path isolation — one global binary share
 - [x] 0 compiler warnings
 
 ### Human
-- [ ] [REVIEW] Vendor into the upgrade-test clone on .107, verify vendored binary works
+- [x] [REVIEW] Vendor into the upgrade-test clone on .107, verify vendored binary works
   **Steps:**
   1. `termlink remote exec mint fw-master "termlink vendor --target /tmp/termlink-upgrade-test"`
   2. `termlink remote exec mint fw-master "/tmp/termlink-upgrade-test/.termlink/bin/termlink --version"`

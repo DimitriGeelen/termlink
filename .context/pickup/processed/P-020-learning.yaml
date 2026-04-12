@@ -1,0 +1,37 @@
+pickup_id: P-020
+version: 1
+type: learning
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:40:45Z"
+payload:
+  summary: "Cross-host agent access requires three things aligned: hub + named sessions + shared runtime dir"
+  detail: "## What we learned
+The sibling agent on .109 could connect to the hub on .107:9100 (TLS handshake succeeded, authenticated) but saw zero sessions. It was blocked for an entire session. The root cause was that only 1 of 3 prerequisites was in place:
+
+1. Hub running on TCP port ✓ (installed via T-931 systemd unit)
+2. Named sessions registered ✗ (no persistent framework-agent or termlink-agent existed)
+3. Sessions in hub's runtime dir ✗ (even after creating sessions, they registered in /tmp/termlink-0 while hub scanned /var/lib/termlink)
+
+All three must be aligned for cross-host access to work. Missing any one = "0 sessions" from the remote caller's perspective.
+
+## The fix sequence (T-940)
+1. Created systemd units for framework-agent and termlink-agent (persistent, restart-on-failure)
+2. Set TERMLINK_RUNTIME_DIR=/var/lib/termlink in agent units (matches hub)
+3. Set TERMLINK_RUNTIME_DIR=/var/lib/termlink system-wide (E1: /etc/profile.d + /etc/environment)
+4. Verified: termlink discover --role framework returns the agent, hub status works, exec works
+
+## How to apply
+When deploying termlink on a new host or troubleshooting cross-host access, check all three:
+  1. ss -tln | grep 9100  (hub listening?)
+  2. TERMLINK_RUNTIME_DIR=/var/lib/termlink termlink list  (sessions registered in hub's pool?)
+  3. termlink discover --role framework  (role-based discovery working?)
+
+If any returns empty, that's the layer to fix. Document this as a deploy checklist.
+
+## Source
+T-940 session on .107, 2026-04-12. Five iterations of debugging before identifying the three-layer requirement."
+  priority: medium
+  tags: [cross-host, topology, hub, sessions, runtime-dir, architecture]

@@ -1,0 +1,33 @@
+pickup_id: P-017
+version: 1
+type: pattern
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:40:02Z"
+payload:
+  summary: "Partial migrations are a recurring bug class — audit should detect incomplete migrations"
+  detail: "## Pattern
+Two separate incidents in one session (2026-04-12) share the same root cause: a migration was started on one component but not propagated to its consumers.
+
+1. Runtime dir (T-940): T-931 migrated the hub to /var/lib/termlink. CLI, ephemeral sessions, and agent sessions stayed at /tmp/termlink-0. Result: cross-host session discovery broken for weeks until caught.
+
+2. Cron registry (T-936): The git-tracked crontab source file was wiped (post-migration stub), but /etc/cron.d/ still had the pre-migration content with 10 jobs. Running fw cron install would have silently deleted all 10 jobs.
+
+## Proposed audit check
+The framework audit system should detect "half-migrated" state:
+- If a component (runtime dir, cron source-of-truth, binary path convention) has TWO different values across its producers and consumers, flag it as a migration-completeness warning.
+- Concrete example: if TERMLINK_RUNTIME_DIR appears in systemd units with value A but the CLI defaults to value B, that's a split.
+- Concrete example: if .context/cron/agentic-audit.crontab has N jobs but /etc/cron.d/ has M jobs (M != N), that's a sync gap.
+
+## Why this matters
+Both incidents were silent — no errors until someone actively tried to use the migrated component from the un-migrated side. The gap can persist for weeks. An audit check would surface it proactively.
+
+## How to apply
+Add a new audit section (e.g., migration-completeness or sync-check) that compares known pairs of files/configs that should be in sync. Start with cron (source vs installed) and systemd (env vars across units).
+
+## Source
+T-940 + T-936 session on .107, 2026-04-12."
+  priority: medium
+  tags: [audit, migration, split-brain, completeness-check]

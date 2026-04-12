@@ -1,0 +1,13 @@
+pickup_id: P-013
+version: 1
+type: learning
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:09:37Z"
+payload:
+  summary: "Canary: 30s pickup processor smoke test — safe to discard"
+  detail: "Dropped at 08:09:37Z to verify 30s cron cycle. Should be processed within ~30s."
+  priority: low
+  tags: [canary, monitoring]

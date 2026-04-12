@@ -1,29 +1,14 @@
 {
   "context7": {
     "command": "npx",
-    "args": [
-      "-y",
-      "@upstash/context7-mcp"
-    ]
+    "args": ["-y", "@upstash/context7-mcp"]
   },
   "playwright": {
     "command": "npx",
-    "args": [
-      "@playwright/mcp@latest",
-      "--no-sandbox"
-    ]
-  },
-  "skills": {
-    "command": "python3",
-    "args": [
-      "/opt/150-skills-manager/skills-mcp-server/server.py"
-    ]
+    "args": ["@playwright/mcp@latest", "--no-sandbox"]
   },
   "termlink": {
     "command": "termlink",
-    "args": [
-      "mcp",
-      "serve"
-    ]
+    "args": ["mcp", "serve"]
   }
 }

@@ -88,63 +88,6 @@ EOF
     echo "  $CONTEXT_DIR/working/focus.yaml"
     echo "  $CONTEXT_DIR/working/.tool-counter (reset to 0)"
 
-    # --- Open concerns check (T-963, T-283 Option B) ---
-    # Surfaces open gaps/risks at session start to prevent cross-session blindness
-    local concerns_file="$CONTEXT_DIR/project/concerns.yaml"
-    if [ -f "$concerns_file" ]; then
-        # Use python3 for reliable YAML parsing
-        local concern_output
-        concern_output=$(python3 -c "
-import yaml, sys
-from datetime import datetime, timezone
-try:
-    data = yaml.safe_load(open('$concerns_file'))
-except:
-    sys.exit(0)
-concerns = data.get('concerns', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-open_items = []
-now = datetime.now(timezone.utc)
-for c in concerns:
-    if not isinstance(c, dict):
-        continue
-    status = c.get('status', 'watching')
-    if status == 'closed':
-        continue
-    cid = c.get('id', '?')
-    title = c.get('title', c.get('summary', 'no description'))
-    created = c.get('created', c.get('registered', ''))
-    age = ''
-    if created:
-        try:
-            if isinstance(created, str):
-                dt = datetime.fromisoformat(created.replace('Z','+00:00'))
-            else:
-                dt = datetime.combine(created, datetime.min.time()).replace(tzinfo=timezone.utc)
-            age = f'{(now - dt).days}d open'
-        except:
-            age = 'age unknown'
-    open_items.append(f'  {cid}: {title[:80]} ({age})')
-if open_items:
-    print(f'{len(open_items)}')
-    print('\\n'.join(open_items))
-" 2>/dev/null) || true
-
-        if [ -n "$concern_output" ]; then
-            local open_count
-            open_count=$(echo "$concern_output" | head -1)
-            local concern_details
-            concern_details=$(echo "$concern_output" | tail -n +2)
-            if [ "$open_count" -gt 0 ] 2>/dev/null; then
-                echo ""
-                echo -e "${RED}=== $open_count Open Concern(s) ===${NC}"
-                echo "$concern_details"
-                echo ""
-                echo "  Review: cat $concerns_file"
-                echo "  Close:  edit status → closed when resolved"
-            fi
-        fi
-    fi
-
     # --- First-session detection (T-125) ---
     local has_handover=false
     local has_tasks=false

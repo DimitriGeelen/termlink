@@ -8,6 +8,9 @@
 #   source "$FRAMEWORK_ROOT/lib/review.sh"
 #   emit_review T-XXX [task_file]
 #
+
+# Ensure _fw_cmd/_emit_user_command are available (T-1143)
+[[ -z "${_FW_PATHS_LOADED:-}" ]] && source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/paths.sh" 2>/dev/null || true
 # Requires: PROJECT_ROOT, BOLD, NC, CYAN (from colors.sh/paths.sh chain)
 
 # Source config for PORT setting (guard protects double-source)
@@ -34,44 +37,22 @@ emit_review() {
         return 1
     fi
 
-    # Determine Watchtower URL (env > running PID > port probe > default)
+    # Determine Watchtower URL (env > running PID port+host > default)
     local base_url="${WATCHTOWER_URL:-}"
     if [ -z "$base_url" ]; then
         local wt_port="" wt_host="" wt_pid=""
-        # Try 1: PID file → ss port lookup
         if [ -f "$PROJECT_ROOT/.context/working/watchtower.pid" ]; then
             wt_pid=$(cat "$PROJECT_ROOT/.context/working/watchtower.pid" 2>/dev/null)
             if [ -n "$wt_pid" ] && kill -0 "$wt_pid" 2>/dev/null; then
                 wt_port=$(ss -tlnp 2>/dev/null | grep "pid=$wt_pid" | grep -oP ':(\d+)\s' | tr -d ': ' | head -1)
             fi
         fi
-        # Try 2: Probe common ports for THIS project's Watchtower (T-970)
-        # Check that the responding server knows this task (prevents cross-project false match)
-        if [ -z "$wt_port" ]; then
-            local default_port
-            default_port=$(fw_config "PORT" 3000 2>/dev/null || echo 3000)
-            for probe_port in "$default_port" 3000 3001 3002 3003 8080; do
-                if curl -sf "http://localhost:$probe_port/api/tasks/$task_id" >/dev/null 2>&1 \
-                   || curl -sf "http://localhost:$probe_port/inception/$task_id" >/dev/null 2>&1; then
-                    wt_port="$probe_port"
-                    break
-                fi
-            done
-            # Fallback: any responding server
-            if [ -z "$wt_port" ]; then
-                for probe_port in "$default_port" 3000 3001 3002 3003 8080; do
-                    if curl -sf "http://localhost:$probe_port/" >/dev/null 2>&1; then
-                        wt_port="$probe_port"
-                        break
-                    fi
-                done
-            fi
-        fi
         wt_host=$(hostname -I 2>/dev/null | awk '{print $1}')
         wt_host="${wt_host:-$(hostname 2>/dev/null)}"
         wt_host="${wt_host:-localhost}"
-        wt_port="${wt_port:-$(fw_config "PORT" 3000 2>/dev/null || echo 3000)}"
-        base_url="http://${wt_host}:${wt_port}"
+        local default_port
+        default_port=$(fw_config "PORT" 3000 2>/dev/null || echo 3000)
+        base_url="http://${wt_host}:${wt_port:-$default_port}"
     fi
     # Detect workflow type for URL routing (T-642)
     local workflow_type=""
@@ -146,38 +127,12 @@ except ImportError:
     # Show decision command for inception tasks (T-973)
     if [ "$workflow_type" = "inception" ]; then
         echo -e "  ${BOLD}After review, run:${NC}"
-        echo "  cd $PROJECT_ROOT && bin/fw inception decide $task_id go --rationale \"your rationale\""
+        echo "  $(_emit_user_command "inception decide $task_id go --rationale \"your rationale\"")"
         echo ""
     fi
 
     echo -e "══════════════════════════════════════════════════"
     echo ""
-
-    # Auto-open browser (T-970/T-971, non-blocking, fail-silent)
-    # When running as root (agent context), open as the desktop user to avoid
-    # Chromium's --no-sandbox error.
-    local _browser_opened=false
-    if [ "$(id -u)" = "0" ]; then
-        local _desktop_user _desktop_uid
-        _desktop_user=$(who 2>/dev/null | grep 'tty[0-9].*(:' | head -1 | awk '{print $1}')
-        if [ -n "$_desktop_user" ]; then
-            _desktop_uid=$(id -u "$_desktop_user" 2>/dev/null)
-            if [ -n "$_desktop_uid" ]; then
-                sudo -u "$_desktop_user" \
-                    DISPLAY=:0 \
-                    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${_desktop_uid}/bus" \
-                    xdg-open "$review_url" >/dev/null 2>&1 &
-                _browser_opened=true
-            fi
-        fi
-    fi
-    if ! $_browser_opened; then
-        if command -v xdg-open >/dev/null 2>&1; then
-            xdg-open "$review_url" >/dev/null 2>&1 &
-        elif command -v open >/dev/null 2>&1; then
-            open "$review_url" >/dev/null 2>&1 &
-        fi
-    fi
 
     # Mark task as reviewed — prerequisite gate for fw inception decide (T-973)
     mkdir -p "$PROJECT_ROOT/.context/working" 2>/dev/null

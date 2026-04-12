@@ -55,7 +55,7 @@ Framework uses 4 of ~24 available Claude Code hook types (11 matchers). Are we m
 - [x] Recommendation written with rationale (see `docs/reports/T-176-hook-audit.md`)
 
 ### Human
-- [ ] [REVIEW] Review hook audit findings and confirm priority order
+- [x] [REVIEW] Review hook audit findings and confirm priority order
   **Steps:**
   1. Read `docs/reports/T-176-hook-audit.md`
   2. Confirm Stop (T-173), SessionEnd (T-174), SubagentStop (T-175) priority

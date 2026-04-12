@@ -1,0 +1,8 @@
+id: R-003
+task_id: T-908
+agent_type: explore
+timestamp: '2026-04-09T12:02:17Z'
+type: artifact
+summary: 'Worker 1: Governance deep dive complete'
+size_bytes: 18605
+payload_ref: docs/reports/T-908-deepdive-governance.md

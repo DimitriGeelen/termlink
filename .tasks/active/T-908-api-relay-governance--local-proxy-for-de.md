@@ -4,7 +4,7 @@ name: "API relay governance — local proxy for deterministic tool gate enforcem
 description: >
   Inception: API relay governance — local proxy for deterministic tool gate enforcement via SSE stream rewriting
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-09T10:54:14Z
-last_update: 2026-04-09T11:21:10Z
-date_finished: null
+last_update: 2026-04-12T08:43:29Z
+date_finished: 2026-04-12T08:43:29Z
 ---
 
 # T-908: API relay governance — local proxy for deterministic tool gate enforcement via SSE stream rewriting
@@ -211,28 +211,22 @@ During this inception session, the agent (me) violated inception discipline by r
 
 ## Decisions
 
-### 2026-04-09 — Implementation approach
+**Decision**: GO
 
-- **Chose:** Option 4 — Native Rust relay in TermLink (`termlink-relay` crate)
-- **Why:** Scores 18/20 on constitutional directives (highest). Single binary, no external deps. Integrates natively with hub routing stack. SSE parser is ~100 lines. No throwaway work — Rust spike IS the de-risking.
-- **Rejected:**
-  - Option 1 (harden hooks): Ona research proves models bypass kernel-level enforcement. Score 13/20.
-  - Option 2 (off-the-shelf gateway): None support streaming output filtering. Score 11/20.
-  - Option 3 (extend ccproxy): Python in Rust project, LiteLLM dependency chain. Score 11/20.
-  - Option 5 (hybrid Python→Rust): "Rewrite later" is the most common lie in software. De-risking achievable in Rust equally fast. Score 14/20 (revised from 16 on honest re-assessment).
+**Rationale**: Recommendation: GO
 
-### 2026-04-09 — Relay scope
+Rationale: Build `termlink-relay` as a native Rust crate — a local API relay that intercepts Claude Code's Anthropic API stream via `ANTHROPIC_BASE_URL`, enforces governance by ...
 
-- **Chose:** API control plane (governance + routing + observability), not just governance filter
-- **Why:** Worker 2 demonstrated the relay is the natural convergence point — only position that sees ALL tool calls. Governance is the first use case; model routing and cost tracking are natural extensions already validated by T-903/T-904.
-- **Rejected:** Pure governance filter (narrower scope) — would require separate infrastructure for routing and observability that the relay provides for free.
-
+**Date**: 2026-04-12T08:43:29Z
 ## Decision
 
-<!-- INCEPTION ONGOING — Human explicitly requested more sessions before go/no-go.
-     Agent recommendation is GO (Option 4, 18/20) but decision authority is HUMAN.
-     Do NOT attempt to record a decision without explicit human instruction.
-     Filled at completion via: fw inception decide T-908 go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Build `termlink-relay` as a native Rust crate — a local API relay that intercepts Claude Code's Anthropic API stream via `ANTHROPIC_BASE_URL`, enforces governance by ...
+
+**Date**: 2026-04-12T08:43:29Z
 
 ## State of Inception (2026-04-09)
 
@@ -297,3 +291,14 @@ During this inception session, the agent (me) violated inception discipline by r
 
 ### 2026-04-09T10:54:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T08:43:29Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Build `termlink-relay` as a native Rust crate — a local API relay that intercepts Claude Code's Anthropic API stream via `ANTHROPIC_BASE_URL`, enforces governance by ...
+
+### 2026-04-12T08:43:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

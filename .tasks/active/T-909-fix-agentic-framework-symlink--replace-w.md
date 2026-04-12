@@ -12,7 +12,7 @@ tags: [infrastructure, symlink, vendor]
 components: []
 related_tasks: [T-288, T-908]
 created: 2026-04-11T10:49:11Z
-last_update: 2026-04-11T12:21:19Z
+last_update: 2026-04-12T07:09:10Z
 date_finished: 2026-04-11T12:21:19Z
 ---
 

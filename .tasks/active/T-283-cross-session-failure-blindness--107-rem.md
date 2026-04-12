@@ -4,7 +4,7 @@ name: "Cross-session failure blindness — .107 remote access as case study for 
 description: >
   Inception: Cross-session failure blindness — .107 remote access as case study for framework observability gap
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T17:50:18Z
-last_update: 2026-03-25T19:55:17Z
-date_finished: null
+last_update: 2026-04-12T08:43:04Z
+date_finished: 2026-04-12T08:43:04Z
 ---
 
 # T-283: Cross-session failure blindness — .107 remote access as case study for framework observability gap
@@ -85,14 +85,13 @@ Cross-session failures are invisible because every observability mechanism is se
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Systemic root cause confirmed — cross-session failures are invisible because every observability mechanism is session-scoped. Structural fix (persistent failure regis...
+
+**Date**: 2026-04-12T08:43:04Z
 
 ## Recommendation
 
@@ -102,7 +101,13 @@ Cross-session failures are invisible because every observability mechanism is se
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Systemic root cause confirmed — cross-session failures are invisible because every observability mechanism is session-scoped. Structural fix (persistent failure regis...
+
+**Date**: 2026-04-12T08:43:04Z
 
 ## Updates
 
@@ -115,3 +120,14 @@ Cross-session failures are invisible because every observability mechanism is se
 ### 2026-03-25T18:00:00Z — research-artifact [agent]
 - **Artifact:** `docs/reports/T-283-synthesis.md`
 - **Content:** 5-agent investigation synthesis — cross-session failure blindness on .107
+
+### 2026-04-12T08:43:04Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Systemic root cause confirmed — cross-session failures are invisible because every observability mechanism is session-scoped. Structural fix (persistent failure regis...
+
+### 2026-04-12T08:43:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

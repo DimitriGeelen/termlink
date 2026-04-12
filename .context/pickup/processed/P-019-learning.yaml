@@ -1,0 +1,42 @@
+pickup_id: P-019
+version: 1
+type: learning
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:40:27Z"
+payload:
+  summary: "Pickup envelopes = messaging channel, termlink sessions = execution channel — agents must know the distinction"
+  detail: "## The confusion
+During this session, we spent significant time looking for a "special termlink command" to send a message to the framework agent. We checked termlink agent ask, termlink remote push, fw dispatch send, and fw pickup send --remote HOST. The sibling agent on .109 also tried to push messages to .107 and was blocked.
+
+## The distinction
+The framework has TWO communication channels, and they serve different purposes:
+
+**Pickup envelopes (messaging):**
+- Drop a YAML envelope in .context/pickup/inbox/
+- Processed asynchronously by fw pickup process (cron every 30s on .107)
+- Auto-creates tasks from envelopes
+- No live connection needed. No session, no hub, no secret.
+- This is the RIGHT channel for: bug reports, feature proposals, learnings, patterns, consult requests
+
+**Termlink sessions (execution):**
+- Named, shell-backed processes registered with the hub
+- Other agents run commands THROUGH them via termlink exec or termlink remote exec
+- Requires: hub running + session registered in hub's runtime dir + auth token
+- This is the RIGHT channel for: running fw commands remotely, querying live state, diagnostics
+
+## Why agents get confused
+The framework documentation doesn't clearly state which channel to use when. Agents default to "I need to talk to the framework agent" → "I should use termlink" → blocked because there's no live session (or was no live session before T-940).
+
+## How to apply
+1. Document this distinction in the framework's cross-host communication guide
+2. When an agent needs to SEND information (report, proposal, learning), guide them to fw pickup send
+3. When an agent needs to RUN something (query, command, diagnostic), guide them to termlink exec
+4. The pickup inbox is always available (file-based). Termlink sessions require infrastructure.
+
+## Source
+T-940 session on .107, 2026-04-12. Both the local agent (this session) and the sibling agent on .109 independently hit this confusion."
+  priority: high
+  tags: [pickup, termlink, messaging, execution, mental-model, cross-host]

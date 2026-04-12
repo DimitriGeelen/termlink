@@ -4,16 +4,16 @@ name: "Event subscription — push-based event delivery to eliminate polling in 
 description: >
   Inception: Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-protocol/src/control.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/events.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/server.rs]
 related_tasks: []
 created: 2026-03-28T23:38:01Z
-last_update: 2026-03-30T11:43:30Z
-date_finished: null
+last_update: 2026-04-12T09:14:50Z
+date_finished: 2026-04-12T08:43:25Z
 ---
 
 # T-690: Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch
@@ -91,14 +91,13 @@ test -f docs/reports/T-690-event-subscription-research.md
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Hybrid approach (broadcast channel + long-poll RPC) achieves near-zero latency without protocol changes. All 3 go criteria met across 2 spikes. Backward compatible wi...
+
+**Date**: 2026-04-12T08:43:24Z
 
 ## Recommendation
 
@@ -108,7 +107,13 @@ test -f docs/reports/T-690-event-subscription-research.md
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Hybrid approach (broadcast channel + long-poll RPC) achieves near-zero latency without protocol changes. All 3 go criteria met across 2 spikes. Backward compatible wi...
+
+**Date**: 2026-04-12T08:43:24Z
 
 ## Updates
 
@@ -117,3 +122,14 @@ test -f docs/reports/T-690-event-subscription-research.md
 
 ### 2026-03-30T11:43:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T08:43:24Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Hybrid approach (broadcast channel + long-poll RPC) achieves near-zero latency without protocol changes. All 3 go criteria met across 2 spikes. Backward compatible wi...
+
+### 2026-04-12T08:43:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

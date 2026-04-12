@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-292: Audit health decay — why do warnings accumulate silently and what structural fix prevents it
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T08:43:13Z
+# ============================================================================
+
+task_id: T-292
+task_name: "Audit health decay — why do warnings accumulate silently and what structural fix prevents it"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-26T11:57:54Z
+completed: 2026-04-12T08:43:11Z
+duration_days: 16
+updates_count: 4
+first_commit: 2026-03-26T13:13:41+01:00
+last_commit: 2026-03-26T13:13:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Audit health decay inception — RCA, research artifact, pickup dispatched to .107
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (5 root causes confirmed against .107 framework source)"
+  - "Assumptions tested (generate-episodic uses `|| true`, no verification, `date -d` on line 173)"
+  - "Recommendation written with rationale (Fix A + Fix D, see research artifact)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-292-audit-health-decay.md"
+  - ".tasks/active/T-292-audit-health-decay--why-do-warnings-accu.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-26T13:13:41"
+    action: "T-292: Audit health decay inception — RCA, research artifact, pickup dispatched to .107"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 24285 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 24285
+  commits: 1
+  files_changed: 2
+  lines_added: 211
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-292-audit-health-decay--why-do-warnings-accu.md
+generated_by: context-agent-hybrid

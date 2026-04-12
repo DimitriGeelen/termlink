@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-964: EventBus broadcast channel — add subscribe() alongside poll()
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T09:13:49Z
+# ============================================================================
+
+task_id: T-964
+task_name: "EventBus broadcast channel — add subscribe() alongside poll()"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T09:12:37Z
+completed: 2026-04-12T09:13:48Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)"
+  - "emit() writes to both ring buffer and broadcast channel"
+  - "subscribe() returns broadcast::Receiver<Event> for push delivery"
+  - "event.subscribe RPC handler with long-poll, topic filter, and since replay (handler.rs)"
+  - "All 39 event tests pass (34 unit + 5 integration)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-964-eventbus-broadcast-channel--add-subscrib.md
+generated_by: context-agent-hybrid

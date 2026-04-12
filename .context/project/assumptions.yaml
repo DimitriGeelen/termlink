@@ -1,4 +1,35 @@
-# Project Assumptions - Tracked via inception workflow
-# Added via: fw assumption add "description" --task T-XXX
-# Validated via: fw assumption validate A-XXX --evidence "..."
-assumptions: []
+assumptions:
+- id: A-001
+  statement: Claude Code respects ANTHROPIC_BASE_URL for all API calls including subagents
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-908
+  created: '2026-04-09'
+  resolved_date: null
+- id: A-002
+  statement: Anthropic SSE streaming tool_use blocks can be parsed incrementally without
+    full response buffering
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-908
+  created: '2026-04-09'
+  resolved_date: null
+- id: A-003
+  statement: Rewriting/stripping a tool_use block from SSE stream does not break Claude
+    Code state machine
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-908
+  created: '2026-04-09'
+  resolved_date: null
+- id: A-004
+  statement: Subagent processes inherit parent environment variables including ANTHROPIC_BASE_URL
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-908
+  created: '2026-04-09'
+  resolved_date: null

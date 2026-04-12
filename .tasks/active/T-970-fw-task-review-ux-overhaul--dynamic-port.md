@@ -4,16 +4,16 @@ name: "fw task review UX overhaul — dynamic port, browser open, push-based del
 description: >
   Inception: fw task review UX overhaul — dynamic port, browser open, push-based delivery
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:50:48Z
-last_update: 2026-04-12T09:53:55Z
-date_finished: null
+last_update: 2026-04-12T09:54:35Z
+date_finished: 2026-04-12T09:54:35Z
 ---
 
 # T-970: fw task review UX overhaul — dynamic port, browser open, push-based delivery
@@ -136,3 +136,6 @@ date_finished: null
 
 ### 2026-04-12T09:52:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T09:54:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

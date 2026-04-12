@@ -1,0 +1,35 @@
+pickup_id: P-022
+version: 1
+type: pattern
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:41:19Z"
+payload:
+  summary: "Two-pool architecture (persistent /var/lib + ephemeral /tmp) is a valid design — codify it, don't fix it"
+  detail: "## What happened
+The runtime dir split (/var/lib/termlink for hub+agents, /tmp/termlink-0 for task workers) started as a bug (T-940). After investigation, we realized the split is actually a reasonable architecture:
+
+- **Persistent pool (/var/lib/termlink):** hub, framework-agent, termlink-agent. Survives reboots. Visible to remote callers via hub TCP. Managed by systemd with restart-on-failure.
+
+- **Ephemeral pool (/tmp/termlink-0):** task workers (t1116-spike, t1117-block-e2e, etc.). Lost on reboot (fine — they're disposable). Local-only visibility. Spawned by fw termlink dispatch, die when task completes.
+
+## Why this is valid
+1. Persistent sessions NEED to survive reboots (hub secret, TLS cert, agent registrations). /var/lib is the right place.
+2. Ephemeral sessions SHOULD be auto-cleaned. /tmp (tmpfs) does this for free.
+3. Remote callers only need to see persistent sessions (agents). They don't need to discover ephemeral task workers.
+4. Local CLI can see both pools if TERMLINK_RUNTIME_DIR is set to /var/lib (E1 fix), but the default /tmp view shows only local workers — which is what most interactive use needs.
+
+## Risk of "fixing" it
+If someone unifies everything into /var/lib, ephemeral session registrations accumulate across reboots (stale .json files pile up until termlink clean runs). If someone unifies into /tmp, hub secret regenerates on every reboot (breaks remote clients).
+
+## How to apply
+Document the two-pool architecture as intentional in the termlink deploy guide. Add a comment in the hub service file explaining why /var/lib was chosen. If E4 (hub multi-dir scanning) lands, it formalizes this split in code.
+
+Do NOT treat the split as a bug to be eliminated. It's a feature that emerged from operational reality.
+
+## Source
+T-940 RCA on .107, 2026-04-12. Initially classified as a bug, reclassified as valid architecture after analysis."
+  priority: low
+  tags: [architecture, runtime-dir, two-pool, persistent, ephemeral, design-decision]

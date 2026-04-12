@@ -4,7 +4,7 @@ name: "Audit health decay — why do warnings accumulate silently and what struc
 description: >
   Inception: Audit health decay — why do warnings accumulate silently and what structural fix prevents it
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-26T11:57:54Z
-last_update: 2026-03-26T11:58:06Z
-date_finished: null
+last_update: 2026-04-12T08:43:11Z
+date_finished: 2026-04-12T08:43:11Z
 ---
 
 # T-292: Audit health decay — why do warnings accumulate silently and what structural fix prevents it
@@ -83,14 +83,13 @@ Over ~2 weeks of development, audit warnings accumulated from 0 to 50+ without a
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: All 5 root causes validated. Fix A (completion gate verifies episodic output exists) and Fix D (portable macOS date handling) cover >80% of decay. Bounded implementat...
+
+**Date**: 2026-04-12T08:43:11Z
 
 ## Recommendation
 
@@ -100,7 +99,13 @@ Over ~2 weeks of development, audit warnings accumulated from 0 to 50+ without a
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: All 5 root causes validated. Fix A (completion gate verifies episodic output exists) and Fix D (portable macOS date handling) cover >80% of decay. Bounded implementat...
+
+**Date**: 2026-04-12T08:43:11Z
 
 ## Updates
 
@@ -112,3 +117,14 @@ Over ~2 weeks of development, audit warnings accumulated from 0 to 50+ without a
 - **Action:** Pushed pickup prompt to fw-agent and fw-master on .107
 - **File:** `/tmp/termlink-inbox/T-292-pickup-prompt.md` (7463 bytes)
 - **Content:** Complete inception with evidence, 4 fix options, go/no-go criteria
+
+### 2026-04-12T08:43:11Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: All 5 root causes validated. Fix A (completion gate verifies episodic output exists) and Fix D (portable macOS date handling) cover >80% of decay. Bounded implementat...
+
+### 2026-04-12T08:43:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

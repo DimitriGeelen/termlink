@@ -54,22 +54,6 @@ if ! echo "$COMMAND" | grep -qEi \
     exit 0
 fi
 
-# ── Inception decide: check for review marker (T-973) ──
-# If the command is fw inception decide AND a review marker exists,
-# the human already reviewed via Watchtower. Allow the agent to act
-# on their verbal approval. The check still fires (logged), but the
-# marker proves human authorization.
-if echo "$COMMAND" | grep -qEi 'fw\s+inception\s+decide'; then
-    INCEPTION_TASK_ID=$(echo "$COMMAND" | grep -oP 'T-\d+' | head -1)
-    if [ -n "$INCEPTION_TASK_ID" ]; then
-        REVIEW_MARKER="${PROJECT_ROOT:-.}/.context/working/.reviewed-${INCEPTION_TASK_ID}"
-        if [ -f "$REVIEW_MARKER" ]; then
-            # Human reviewed via Watchtower — marker is proof of authorization
-            exit 0
-        fi
-    fi
-fi
-
 # ── Detailed pattern matching (Python — only reached for suspicious commands) ──
 MATCH_RESULT=$(echo "$COMMAND" | python3 -c "
 import re, sys
@@ -390,7 +374,7 @@ echo "  Approve in Watchtower:" >&2
 echo "    ${WT_URL}/approvals" >&2
 echo "" >&2
 echo "  Or via CLI:" >&2
-echo "    ./bin/fw tier0 approve" >&2
+echo "    $(_emit_user_command "tier0 approve")" >&2
 echo "" >&2
 echo "  Policy: 011-EnforcementConfig.md §Tier 0" >&2
 echo "══════════════════════════════════════════════════════════" >&2
