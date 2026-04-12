@@ -1,0 +1,29 @@
+# Local patches manifest — files modified from upstream that must survive fw upgrade/vendor
+# Read by do_vendor() in bin/fw to skip overwriting these files.
+# Register new patches: add an entry below with file path (relative to .agentic-framework/), task ID, and description.
+# Remove entries when the fix is upstreamed and the local patch is no longer needed.
+
+patches:
+  - file: lib/harvest.sh
+    task: T-911
+    description: "PROJECT_ROOT for learnings/episodic paths (lines 74, 75, 363)"
+
+  - file: bin/fw
+    task: T-913
+    description: "fw doctor Check 1b — symlink detection for .agentic-framework"
+
+  - file: lib/inception.sh
+    task: T-949
+    description: "Auto-transition captured → started-work before inception decide completion"
+
+  - file: lib/verify-acs.sh
+    task: T-938
+    description: "Dynamic fw_cmd resolution for vendored consumers (bin/fw → .agentic-framework/bin/fw → fw)"
+
+  - file: agents/context/block-task-tools.sh
+    task: T-938
+    description: "Bare fw in error hint messages (not bin/fw)"
+
+  - file: agents/context/check-tier0.sh
+    task: T-981
+    description: "Block fw tier0 approve — prevent agent self-approval bypass"
