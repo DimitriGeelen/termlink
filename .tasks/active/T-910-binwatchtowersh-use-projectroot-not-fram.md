@@ -12,7 +12,7 @@ tags: [infrastructure, watchtower, path-resolution]
 components: []
 related_tasks: []
 created: 2026-04-11T12:28:29Z
-last_update: 2026-04-12T11:22:11Z
+last_update: 2026-04-12T12:52:10Z
 date_finished: null
 ---
 

@@ -152,3 +152,19 @@ upgrades:
     from_version: "1.5.357"
     to_version: "1.5.374"
     framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-12T11:44:38Z
+    from_version: "1.5.374"
+    to_version: "1.5.379"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-12T11:49:53Z
+    from_version: "1.5.379"
+    to_version: "0.9.694"
+    framework_root: "/opt/termlink/.agentic-framework"
+  - timestamp: 2026-04-12T11:54:47Z
+    from_version: "0.9.694"
+    to_version: "1.5.383"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-12T12:12:13Z
+    from_version: "1.5.383"
+    to_version: "1.5.392"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
