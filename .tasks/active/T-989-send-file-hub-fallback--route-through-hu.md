@@ -29,11 +29,11 @@ which triggers inbox spooling for offline targets.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `cmd_file_send` falls back to hub `event.emit_to` when `find_session` fails
-- [ ] Hub fallback sends file.init, file.chunk, file.complete via hub socket
-- [ ] Response distinguishes direct delivery vs hub-spooled (`via` field in JSON output)
-- [ ] When neither local session nor hub is available, error message is clear
-- [ ] All existing CLI tests pass
+- [x] `cmd_file_send` falls back to hub `event.emit_to` when `find_session` fails
+- [x] Hub fallback sends file.init, file.chunk, file.complete via hub socket
+- [x] Response distinguishes direct delivery vs hub-spooled (`via` field in JSON output)
+- [x] When neither local session nor hub is available, error message is clear
+- [x] All existing CLI tests pass — 165/165 + 83/83 integration
 
 ## Verification
 
