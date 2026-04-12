@@ -51,7 +51,7 @@ fi
 # Only invoke Python if the command MIGHT be destructive.
 # This keeps the hook fast (<5ms) for the 95%+ of safe commands.
 if ! echo "$COMMAND" | grep -qEi \
-    'git\s+(push|reset|clean|checkout|restore|branch)\s|--no-verify|rm\s+-|DROP\s|TRUNCATE\s|docker\s+system|kubectl\s+delete|find\s.*-delete|dd\s+if=|chmod\s.*\s000|mkfs|pkill\s|fw\s.*--force|fw\s.*inception\s.*decide'; then
+    'git\s+(push|reset|clean|checkout|restore|branch)\s|--no-verify|rm\s+-|DROP\s|TRUNCATE\s|docker\s+system|kubectl\s+delete|find\s.*-delete|dd\s+if=|chmod\s.*\s000|mkfs|pkill\s|fw\s.*--force|fw\s.*inception\s.*decide|fw\s.*tier0\s.*approve'; then
     exit 0
 fi
 
@@ -145,6 +145,12 @@ PATTERNS = [
     # GO/NO-GO decisions are authority, not initiative. Agent recommends, human decides.
     (r'\bfw\s+inception\s+decide\b',
      'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your recommendation and rationale, then ask the human to run: fw inception decide T-XXX go|no-go --rationale \"...\"'),
+
+    # === Tier 0 self-approval bypass (T-980/G-004) ===
+    # The approval command itself must be blocked — otherwise the agent can self-approve.
+    # Human approves via Watchtower (web) or ! fw tier0 approve (shell ! prefix bypasses hooks).
+    (r'\bfw\s+tier0\s+approve\b',
+     'TIER 0 SELF-APPROVAL BLOCKED: The agent cannot approve its own blocked commands. Human must approve via Watchtower or by running: ! fw tier0 approve'),
 ]
 
 for pattern, description in PATTERNS:
@@ -361,8 +367,8 @@ fi
 echo "  Approve in Watchtower:" >&2
 echo "    ${WT_URL}/approvals" >&2
 echo "" >&2
-echo "  Or via CLI:" >&2
-echo "    $(_emit_user_command "tier0 approve")" >&2
+echo "  Or via CLI (human only — ! prefix bypasses hooks):" >&2
+echo "    ! fw tier0 approve" >&2
 echo "" >&2
 echo "  Policy: 011-EnforcementConfig.md §Tier 0" >&2
 echo "══════════════════════════════════════════════════════════" >&2
