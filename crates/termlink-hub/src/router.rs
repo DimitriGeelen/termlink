@@ -60,6 +60,9 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
+        control::method::EVENT_SUBSCRIBE if is_hub_level(&req.params) => {
+            handle_hub_subscribe(id, &req.params).await
+        }
         control::method::EVENT_EMIT_TO => handle_event_emit_to(id, &req.params).await,
         control::method::ORCHESTRATOR_ROUTE => handle_orchestrator_route(id, &req.params).await,
         control::method::ORCHESTRATOR_BYPASS_STATUS => handle_bypass_status(id),
@@ -381,6 +384,62 @@ async fn handle_event_emit_to(
             .into()
         }
     }
+}
+
+/// Check if a request is hub-level (no `target` param, or `aggregate: true`).
+fn is_hub_level(params: &serde_json::Value) -> bool {
+    params.get("target").is_none()
+        || params.get("aggregate").and_then(|a| a.as_bool()).unwrap_or(false)
+}
+
+/// Handle hub-level `event.subscribe` — return aggregated events from all sessions (T-966).
+///
+/// Params: { timeout_ms?: u64, topic?: string }
+/// No `target` param = hub-level aggregation. With `target` param = forwarded to session.
+async fn handle_hub_subscribe(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+) -> RpcResponse {
+    let agg = match aggregator() {
+        Some(a) => a,
+        None => {
+            return ErrorResponse::internal_error(id, "Event aggregator not initialized").into();
+        }
+    };
+
+    let timeout_ms = params
+        .get("timeout_ms")
+        .and_then(|t| t.as_u64())
+        .unwrap_or(5000);
+    let topic_filter = params.get("topic").and_then(|t| t.as_str());
+
+    let events = agg
+        .collect(Duration::from_millis(timeout_ms), topic_filter)
+        .await;
+
+    let json_events: Vec<serde_json::Value> = events
+        .iter()
+        .map(|e| {
+            json!({
+                "session": e.session_id,
+                "session_name": e.session_name,
+                "seq": e.seq,
+                "topic": e.topic,
+                "payload": e.payload,
+                "timestamp": e.timestamp,
+            })
+        })
+        .collect();
+
+    Response::success(
+        id,
+        json!({
+            "events": json_events,
+            "count": json_events.len(),
+            "sessions": agg.session_count().await,
+        }),
+    )
+    .into()
 }
 
 /// Handle `event.collect` — poll events from multiple sessions (fan-in).
