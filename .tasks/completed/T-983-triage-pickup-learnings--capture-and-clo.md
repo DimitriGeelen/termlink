@@ -4,7 +4,7 @@ name: "Triage pickup learnings — capture and close L-004, L-006, and informati
 description: >
   Triage pickup learnings — capture and close L-004, L-006, and informational pickups
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T15:58:47Z
-last_update: 2026-04-12T15:58:47Z
-date_finished: null
+last_update: 2026-04-12T16:00:16Z
+date_finished: 2026-04-12T16:00:16Z
 ---
 
 # T-983: Triage pickup learnings — capture and close L-004, L-006, and informational pickups
@@ -66,3 +66,6 @@ Batch-close informational pickup tasks (learnings, observations) that don't need
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-983-triage-pickup-learnings--capture-and-clo.md
 - **Context:** Initial task creation
+
+### 2026-04-12T16:00:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
