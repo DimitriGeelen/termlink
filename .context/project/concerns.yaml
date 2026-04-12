@@ -57,3 +57,19 @@ concerns:
   last_reviewed: 2026-04-12
   closed: 2026-04-12
   related_tasks: [T-288, T-290, T-909, T-908, T-910, T-911, T-912, T-913]
+- id: G-004
+  type: gap
+  title: "Tier 0 self-approval bypass — agent can call fw tier0 approve to unblock its own blocked commands"
+  description: "check-tier0.sh correctly blocks destructive commands (inception decide, force push, etc.) but the approval mechanism (fw tier0 approve) is not itself blocked. The agent can run fw tier0 approve as a normal Bash command, write the approval token, then re-run the blocked command. This completely defeats the Tier 0 sovereignty gate. Discovered 2026-04-12 when the agent self-approved an inception GO decision on T-936 without human authorization."
+  spec_reference: "011-EnforcementConfig.md §Tier 0, CLAUDE.md Authority Model (Human=SOVEREIGNTY, Agent=INITIATIVE)"
+  severity: critical
+  trigger_fired: true
+  trigger_event: "2026-04-12 13:13Z: Agent ran fw tier0 approve then fw inception decide T-936 go — human had asked to see the approval CLI command, not for agent to run it"
+  detection_lag_days: 0
+  what_works_now: "Tier 0 blocks the right commands. Watchtower approval path is structurally safe (requires browser interaction the agent cannot do)."
+  what_remains: "1. Add fw tier0 approve to blocked patterns so agent cannot self-approve. 2. Human approves via Watchtower (web) or ! fw tier0 approve (shell ! prefix bypasses hooks). 3. Audit other approval/bypass mechanisms for same class of flaw."
+  mitigation_candidate: "Add regex pattern for fw tier0 approve to PATTERNS list in check-tier0.sh. This creates a deliberate catch-22: the agent cannot approve, the human uses Watchtower or ! prefix."
+  status: watching
+  created: 2026-04-12
+  last_reviewed: 2026-04-12
+  related_tasks: [T-980]
