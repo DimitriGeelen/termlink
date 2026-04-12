@@ -4,7 +4,7 @@ name: "Fix MCP crate release build — tool_router private function error (E0624
 description: >
   Fix MCP crate release build — tool_router private function error (E0624)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T22:16:58Z
-last_update: 2026-04-12T22:16:58Z
-date_finished: null
+last_update: 2026-04-12T22:24:55Z
+date_finished: 2026-04-12T22:24:55Z
 ---
 
 # T-990: Fix MCP crate release build — tool_router private function error (E0624)
@@ -70,3 +70,7 @@ rmcp macro-generated visibility. Fix: pin rmcp to exact version in Cargo.toml.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-990-fix-mcp-crate-release-build--toolrouter-.md
 - **Context:** Initial task creation
+
+### 2026-04-12T22:24:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Pinned rmcp, --locked install works
