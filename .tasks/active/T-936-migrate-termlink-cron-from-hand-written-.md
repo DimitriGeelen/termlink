@@ -53,7 +53,7 @@ tags: [cron, migration, registry, T-448]
 components: []
 related_tasks: [T-921]
 created: 2026-04-11T22:56:36Z
-last_update: 2026-04-12T07:23:20Z
+last_update: 2026-04-12T12:55:02Z
 date_finished: null
 ---
 

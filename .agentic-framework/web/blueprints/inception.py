@@ -210,6 +210,7 @@ def inception_detail(task_id):
         "scope": _md(_extract_section(task_body, "Scope Fence")),
         "criteria": _md(_extract_section(task_body, "Go/No-Go Criteria")),
         "recommendation": _md(_extract_section(task_body, "Recommendation")),
+        "structural_upgrade": _md(_extract_section(task_body, "Structural Upgrade")),
         "decision": _md(_extract_section(task_body, "Decision")),
         "updates": _md(_extract_section(task_body, "Updates")),
     }
@@ -217,10 +218,10 @@ def inception_detail(task_id):
     # T-679: Pre-populate rationale from ## Recommendation section
     rec_raw = _extract_section(task_body, "Recommendation") or ""
     # Strip markdown formatting for the textarea hint.
-    # T-1091: No truncation — this is a single-task detail page, and the human
-    # recording the decision needs the full Recommendation. Prior 500-char cap
-    # left the textarea with fragmented rationale ending in "...". The list-view
-    # 200-char cap in approvals.py is preserved (appropriate for a list row).
+    # T-1091: No truncation — the human recording the decision needs the full
+    # Recommendation. Prior 500-char cap left the textarea with fragmented rationale
+    # ending in "...". T-1150: approvals.py cap also removed — truncating the pre-fill
+    # truncates the permanent decision rationale.
     rationale_hint = re_mod.sub(r"\*\*([^*]+)\*\*", r"\1", rec_raw).strip()
 
     decision_state = _extract_decision(task_body)
@@ -287,15 +288,16 @@ def record_decision(task_id):
     rationale = request.form.get("rationale", "").strip()
     if decision not in ("go", "no-go", "defer") or not rationale:
         abort(400)
-
-    # T-943: Create review marker so fw inception decide doesn't block.
-    # The human is reviewing RIGHT NOW by submitting this form — the marker
-    # gate exists to prevent agents from deciding without human review,
-    # not to add friction when a human is literally clicking the button.
-    review_marker = PROJECT_ROOT / ".context" / "working" / f".reviewed-{task_id}"
-    review_marker.parent.mkdir(parents=True, exist_ok=True)
-    review_marker.touch()
-
+    # T-1120: Create review marker — the human IS reviewing by being on this page.
+    # Without this, fw inception decide blocks with "Task review required" because
+    # the marker is normally created by fw task review (CLI), not Watchtower.
+    import os
+    marker_dir = os.path.join(PROJECT_ROOT, ".context", "working")
+    os.makedirs(marker_dir, exist_ok=True)
+    marker_path = os.path.join(marker_dir, f".reviewed-{task_id}")
+    if not os.path.exists(marker_path):
+        with open(marker_path, "w") as f:
+            f.write(f"reviewed-via-watchtower {task_id}\n")
     stdout, stderr, ok = run_fw_command(
         ["inception", "decide", task_id, decision, "--rationale", rationale],
         timeout=30,
