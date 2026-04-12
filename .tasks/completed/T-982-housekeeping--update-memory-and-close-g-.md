@@ -4,7 +4,7 @@ name: "Housekeeping — update memory and close G-004"
 description: >
   Housekeeping — update memory and close G-004
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T13:38:18Z
-last_update: 2026-04-12T13:38:18Z
-date_finished: null
+last_update: 2026-04-12T13:39:02Z
+date_finished: 2026-04-12T13:39:02Z
 ---
 
 # T-982: Housekeeping — update memory and close G-004
@@ -66,3 +66,6 @@ Update feedback memory with T-980/T-981 lesson. Close G-004 in concerns register
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-982-housekeeping--update-memory-and-close-g-.md
 - **Context:** Initial task creation
+
+### 2026-04-12T13:39:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

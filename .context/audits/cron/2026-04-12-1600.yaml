@@ -1,0 +1,44 @@
+# Audit Results - 2026-04-12-1600
+timestamp: 2026-04-12T14:00:01Z
+sections: "traceability,episodic,discovery-trends"
+summary:
+  pass: 9
+  warn: 6
+  fail: 0
+findings:
+  - level: PASS
+    check: "Git traceability: 97% (1342/1371 commits reference tasks)"
+  - level: WARN
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
+  - level: PASS
+    check: "All commit task refs resolve to actual tasks"
+  - level: WARN
+    check: "Completed task T-938 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-938"
+  - level: WARN
+    check: "Completed task T-981 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-981"
+  - level: WARN
+    check: "Completed task T-949 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-949"
+  - level: WARN
+    check: "14 episodics have empty or TODO summaries"
+    mitigation: "Fill in summary field with actual task description"
+  - level: PASS
+    check: "No orphaned episodic files"
+  - level: PASS
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - level: WARN
+    check: "D5: Task lifecycle — 18 anomaly(s): T-265(3min,human) T-177(3min,human) T-272(0min,human) T-287(17d-active) T-196(22d-active) T-236(20d-active) T-235(20d-active) T-176(24d-active) T-280(17d-active) T-234(20d-active) (+8 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - level: PASS
+    check: "D3: Commit velocity — insufficient data"
+  - level: PASS
+    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+  - level: PASS
+    check: "D6: Completion velocity — normal (PASS recent=14.0 earlier=11.0)"
+  - level: PASS
+    check: "D12: Bypass log — no log file"
+  - level: PASS
+    check: "D9: Control drift — normal (PASS 10_audits_checked)"
