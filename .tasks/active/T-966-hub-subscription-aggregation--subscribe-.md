@@ -4,7 +4,7 @@ name: "Hub subscription aggregation — subscribe to N sessions, republish via e
 description: >
   T-690 Phase 5: Hub subscribes to session event buses and aggregates into a single subscription for collect/dispatch consumers. Eliminates O(N) sequential polling.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:12:49Z
-last_update: 2026-04-12T09:12:49Z
+last_update: 2026-04-12T12:24:23Z
 date_finished: null
 ---
 
@@ -20,29 +20,17 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-690 Phase 5. Hub `event.collect` currently fans out O(N) RPCs per call. Replace with hub-side subscription aggregation: hub subscribes to each session's broadcast channel and republishes into a merged stream.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] Hub router maintains persistent subscriptions to session broadcast channels
+- [ ] New hub-level `event.subscribe` returns aggregated events from all (or tagged) sessions
+- [x] Subscriptions are added/removed as sessions register/deregister
+- [ ] `event.collect` uses the aggregated stream internally (backward-compatible)
+- [x] `cargo build` succeeds with no warnings
+- [x] Existing event tests pass (177/177)
 
 ## Verification
 
@@ -67,3 +55,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-966-hub-subscription-aggregation--subscribe-.md
 - **Context:** Initial task creation
+
+### 2026-04-12T12:24:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

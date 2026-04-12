@@ -1,3 +1,4 @@
+pub mod aggregator;
 pub mod bypass;
 pub mod circuit_breaker;
 pub mod pidfile;
