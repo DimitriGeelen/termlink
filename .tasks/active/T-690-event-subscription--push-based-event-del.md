@@ -104,7 +104,11 @@ test -f docs/reports/T-690-event-subscription-research.md
 
 **Recommendation:** GO
 
-**Rationale:** A hybrid approach combining Option A (EventBus broadcast channel) with Option C (long-poll RPC) delivers near-zero latency event delivery without requiring JSON-RPC protocol changes. Spike 1 confirmed broadcast is fully backward compatible with existing poll(), and Spike 2 confirmed long-poll works over the existing Unix socket with no protocol extension needed. All three go criteria are met.
+**Rationale:** Hybrid approach (broadcast channel + long-poll RPC) achieves near-zero latency without protocol changes. All 3 go criteria met across 2 spikes. Backward compatible with existing poll consumers.
+
+## Decision
+
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
