@@ -295,3 +295,10 @@ learnings:
   date: 2026-04-12
   context: Added via context agent
   application: TBD
+- id: PL-008
+  learning: "Hook registration needs a CLI command (fw hook-enable), not manual JSON editing. B-005 blocks agents from settings.json, and asking humans to edit JSON is poor UX. Every new hook must ship with a registration path."
+  source: PL-007
+  task: T-977
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
