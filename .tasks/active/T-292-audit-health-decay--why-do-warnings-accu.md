@@ -92,9 +92,11 @@ Over ~2 weeks of development, audit warnings accumulated from 0 to 50+ without a
      - **Rejected:** [alternatives and why not]
 -->
 
-## Decision
+## Recommendation
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Recommendation:** GO
+
+**Rationale:** All 5 root causes were validated against framework source. Fix A (completion gate verifies episodic output exists after generation) and Fix D (portable date handling to eliminate silent macOS failures) together address >80% of the decay, are backward-compatible with the update-task.sh API, and require minimal code changes (~30 lines combined).
 
 ## Updates
 

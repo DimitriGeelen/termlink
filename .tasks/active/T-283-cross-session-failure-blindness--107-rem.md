@@ -94,9 +94,11 @@ Cross-session failures are invisible because every observability mechanism is se
      - **Rejected:** [alternatives and why not]
 -->
 
-## Decision
+## Recommendation
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Recommendation:** GO
+
+**Rationale:** The root cause is systemic, not a one-off configuration issue — cross-session failures are invisible because every observability mechanism is session-scoped, violating the framework's own P-002 ("Structural Enforcement Over Agent Discipline"). Option B (persistent cross-session failure register checked at session start) scored highest (4.1) among 5 remediation options and provides the structural foundation needed to prevent recurrence.
 
 ## Updates
 
