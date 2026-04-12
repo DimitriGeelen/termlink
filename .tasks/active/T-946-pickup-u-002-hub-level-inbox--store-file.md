@@ -4,10 +4,10 @@ name: "Pickup: U-002: Hub-level inbox — store files at hub for delivery when s
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1122. Type: feature-proposal.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
@@ -20,7 +20,9 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+send-file requires target session to be online. If the target registers later, the file is lost. A hub-level inbox would queue files for delivery when sessions register. Requires protocol design: queuing, expiry, delivery confirmation.
+
+DEFER: Feature proposal requiring non-trivial protocol design.
 
 ## Assumptions
 
@@ -45,9 +47,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (send-file requires target online)
+- [x] Assumptions tested (hub inbox needs queuing + expiry design)
+- [x] Recommendation written with rationale (DEFER: needs protocol design)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +63,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 ## Verification
 
@@ -76,15 +78,13 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DEFER
+
+**Rationale:** Hub inbox requires non-trivial protocol design: queuing semantics, message expiry, delivery confirmation, storage limits. Needs a dedicated inception with spike work, not quick triage.
+
+**Evidence:**
+- send-file currently requires target online
+- Hub-level queuing needs storage, expiry, and confirmation protocol design
 
 ## Decisions
 

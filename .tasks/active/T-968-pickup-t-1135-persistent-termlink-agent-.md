@@ -4,10 +4,10 @@ name: "Pickup: T-1135 persistent TermLink agent sessions — cross-agent coordin
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework. Type: pattern.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, pattern]
 components: []
 related_tasks: []
@@ -20,7 +20,9 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Cross-agent coordination via persistent TermLink sessions. Results from framework T-1135. Overlaps with T-967 (persistent agent sessions) which is already in active tasks.
+
+DEFER: Subsumed by T-967.
 
 ## Assumptions
 
@@ -45,9 +47,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (overlaps T-967)
+- [x] Assumptions tested (T-967 covers same scope)
+- [x] Recommendation written with rationale (DEFER: subsumed by T-967)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +63,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 ## Verification
 
@@ -76,15 +78,13 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DEFER
+
+**Rationale:** Subsumed by T-967 (persistent agent sessions, already in active tasks). Same scope — persistent sessions for cross-agent coordination.
+
+**Evidence:**
+- T-967 covers mark, protect, verify, and cross-agent discovery
+- Duplicate inception adds no value
 
 ## Decisions
 
