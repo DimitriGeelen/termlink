@@ -44,12 +44,43 @@ pub async fn run(interval: Duration, mut shutdown_rx: watch::Receiver<bool>) {
                         sweep(dir).await;
                     }
                 }
+                // T-988: deliver pending inbox files + clean expired
+                deliver_inbox().await;
+                let expired = crate::inbox::cleanup_expired(crate::inbox::DEFAULT_EXPIRY);
+                if expired > 0 {
+                    tracing::info!(expired, "Supervisor: cleaned expired inbox entries");
+                }
             }
             _ = shutdown_rx.changed() => {
                 if *shutdown_rx.borrow() {
                     tracing::info!("Session supervisor shutting down");
                     break;
                 }
+            }
+        }
+    }
+}
+
+/// Check inbox for pending files and deliver to sessions that are now online (T-988).
+async fn deliver_inbox() {
+    let targets = match crate::inbox::list_all_targets() {
+        Ok(t) => t,
+        Err(_) => return,
+    };
+
+    for (target, _count) in targets {
+        // Try to find the session — if alive, deliver pending files
+        if let Ok(reg) = manager::find_session(&target)
+            && liveness::is_alive(&reg)
+        {
+            let addr = reg.addr.to_transport_addr();
+            let delivered = crate::inbox::deliver_pending(&target, &addr).await;
+            if delivered > 0 {
+                tracing::info!(
+                    target = %target,
+                    delivered = delivered,
+                    "Supervisor: delivered inbox files to now-online session"
+                );
             }
         }
     }

@@ -70,6 +70,8 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         "session.register_remote" => handle_register_remote(id, &req.params),
         "session.heartbeat" => handle_heartbeat(id, &req.params),
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
+        "inbox.list" => handle_inbox_list(id, &req.params),
+        "inbox.status" => handle_inbox_status(id),
         _ => forward_to_target(req, id).await,
     };
 
@@ -313,6 +315,18 @@ async fn handle_event_emit_to(
                     )
                     .into();
                 }
+
+            // T-988: For file events, spool to inbox instead of erroring
+            if let Ok(true) = crate::inbox::deposit(target, topic, &payload, from) {
+                return Response::success(id, json!({
+                    "ok": true,
+                    "spooled": true,
+                    "target": target,
+                    "message": format!("Target '{}' offline — file event spooled to inbox", target),
+                }))
+                .into();
+            }
+
             return ErrorResponse::new(
                 id,
                 control::error_code::SESSION_NOT_FOUND,
@@ -1352,6 +1366,51 @@ pub fn resolve_target_path(target: &str) -> Result<std::path::PathBuf, String> {
     manager::find_session(target)
         .map(|r| r.socket_path().to_path_buf())
         .map_err(|e| e.to_string())
+}
+
+/// Handle `inbox.list` — list pending transfers for a target (T-988).
+///
+/// Params: { target: string }
+fn handle_inbox_list(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let target = match params.get("target").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing 'target' in params").into();
+        }
+    };
+
+    match crate::inbox::list_pending(target) {
+        Ok(transfers) => {
+            Response::success(id, json!({
+                "target": target,
+                "transfers": transfers,
+            }))
+            .into()
+        }
+        Err(e) => {
+            ErrorResponse::internal_error(id, &format!("Inbox list error: {e}")).into()
+        }
+    }
+}
+
+/// Handle `inbox.status` — show inbox overview (T-988).
+fn handle_inbox_status(id: serde_json::Value) -> RpcResponse {
+    match crate::inbox::list_all_targets() {
+        Ok(targets) => {
+            let total: usize = targets.iter().map(|(_, c)| c).sum();
+            Response::success(id, json!({
+                "total_transfers": total,
+                "targets": targets.iter().map(|(name, count)| json!({
+                    "target": name,
+                    "pending": count,
+                })).collect::<Vec<_>>(),
+            }))
+            .into()
+        }
+        Err(e) => {
+            ErrorResponse::internal_error(id, &format!("Inbox status error: {e}")).into()
+        }
+    }
 }
 
 #[cfg(test)]
