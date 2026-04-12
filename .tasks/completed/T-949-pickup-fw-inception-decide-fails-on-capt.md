@@ -4,7 +4,7 @@ name: "Pickup: fw inception decide fails on captured tasks — should auto-trans
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [pickup, bug-report, framework]
 components: []
 related_tasks: []
 created: 2026-04-12T08:12:01Z
-last_update: 2026-04-12T13:00:07Z
-date_finished: null
+last_update: 2026-04-12T13:01:27Z
+date_finished: 2026-04-12T13:01:27Z
 ---
 
 # T-949: Pickup: fw inception decide fails on captured tasks — should auto-transition through started-work (from termlink)
@@ -49,3 +49,6 @@ grep -q 'Auto-transition.*captured.*started-work' /opt/termlink/.agentic-framewo
 ### 2026-04-12T13:00:07Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now
+
+### 2026-04-12T13:01:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
