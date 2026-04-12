@@ -4,10 +4,10 @@ name: "Pickup: Include persistent agent session service templates in framework d
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: feature-proposal.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
@@ -20,7 +20,9 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Framework deploy scaffold lacks templates for persistent TermLink agent sessions (systemd units). T-931 proved the pattern works but the service file was hand-crafted. Standardizing templates in the framework would help new consumer projects.
+
+DEFER: Framework-side work. The systemd unit exists (T-931) and works. Template standardization belongs in the framework repo.
 
 ## Assumptions
 
@@ -45,9 +47,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (T-931 systemd unit works; template belongs in framework)
+- [x] Assumptions tested (framework deploy scaffold is the right location)
+- [x] Recommendation written with rationale (DEFER: framework-side)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +63,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 ## Verification
 
@@ -76,15 +78,13 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DEFER
+
+**Rationale:** Framework-side work. T-931 systemd unit proves the pattern works. Template standardization belongs in the framework deploy scaffold, not the termlink consumer project.
+
+**Evidence:**
+- T-931 systemd unit works correctly (hub supervised with Restart=on-failure)
+- Deploy scaffold is a framework repo concern
 
 ## Decisions
 

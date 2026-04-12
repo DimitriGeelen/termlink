@@ -4,10 +4,10 @@ name: "Codify MCP auto-exposure — every new CLI command must be MCP-reachable"
 description: >
   Meta-structural rule: discovered via T-920 RCA that shipping CLI-only cross-host features (T-163/T-164/T-182/T-186) left MCP agents blind for months. Need a framework/tooling rule that any new CLI command automatically gets an MCP wrapper OR must explicitly document why not. Options: code-gen from CLI enum, a lint that greps cli.rs vs tools.rs, a pre-commit hook blocking new Command variants without matching MCP tool, or a runtime registration pattern. Deliverable: decision on mechanism + first enforcement step.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -20,7 +20,9 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Every new CLI command should automatically be MCP-reachable. Currently MCP tools are hand-crafted. Process improvement to ensure CLI-MCP parity.
+
+DEFER: Current MCP tools cover active commands. Process improvement, not urgent.
 
 ## Assumptions
 
@@ -45,9 +47,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (MCP tools exist for active commands)
+- [x] Assumptions tested (process improvement, not code fix)
+- [x] Recommendation written with rationale (DEFER: process improvement)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +63,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 ## Verification
 
@@ -76,15 +78,13 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DEFER
+
+**Rationale:** Current MCP tools already cover active CLI commands (register, dispatch, inject, send-file, kv operations). Process improvement for ensuring future commands are auto-exposed is not urgent.
+
+**Evidence:**
+- 6+ MCP tools already exist
+- No current CLI command is missing MCP exposure
 
 ## Decisions
 

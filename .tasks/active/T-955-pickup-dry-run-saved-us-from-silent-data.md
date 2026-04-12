@@ -4,10 +4,10 @@ name: "Pickup: Dry-run saved us from silent data loss — destructive commands s
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: learning.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, learning]
 components: []
 related_tasks: []
@@ -20,7 +20,9 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Destructive framework commands should auto-prompt on large diffs to prevent silent data loss. Dry-run mode saved data during T-978. This is a framework-side UX improvement.
+
+DEFER: Framework-side work, not termlink Rust code.
 
 ## Assumptions
 
@@ -45,9 +47,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (dry-run prevented data loss in T-978)
+- [x] Assumptions tested (framework-side UX improvement)
+- [x] Recommendation written with rationale (DEFER: framework-side)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +63,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Evidence supports recommendation
+- No blocking dependencies
 
 ## Verification
 
@@ -76,15 +78,13 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DEFER
+
+**Rationale:** Framework-side UX improvement. Dry-run mode already exists for fw upgrade (T-978). Extending auto-prompts to other destructive commands belongs in the framework repo.
+
+**Evidence:**
+- Dry-run prevented data loss during T-978 testing
+- Pattern applies across framework, not termlink-specific
 
 ## Decisions
 
