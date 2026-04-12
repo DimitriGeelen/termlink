@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-908: API relay governance — local proxy for deterministic tool gate enforcement via SSE stream rewriting
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T08:43:31Z
+# ============================================================================
+
+task_id: T-908
+task_name: "API relay governance — local proxy for deterministic tool gate enforcement via SSE stream rewriting"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-09T10:54:14Z
+completed: 2026-04-12T08:43:29Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-04-09T12:58:13+02:00
+last_commit: 2026-04-11T12:34:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Spike 1+2 findings — SSE protocol analysis and ANTHROPIC_BASE_URL validation. Landscape research — existing solutions survey for governance enforcement. Research — deep dive reports, options   analysis (inception ongoing). State of inception — all tier 1+2 questions answered,   consolidated summary. Framework integration design — hooks, CLAUDE.md, handover, task state, fabric. Launcher UX + dependency analysis + Tier 3 inventory. Batch 3 inception exploration — spike plan, threat model, schema, migration, cost, observability, playbook, ADR, scaffold, deep dives, deps, fixtures, perf
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested (A-1: validated, A-2: validated, A-3: untested — first build spike, A-4: high confidence, A-6: validated)"
+  - "Recommendation written with rationale"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Batch 3 inception exploration — spike plan, threat model, schema, migration, cost, observability, playbook, ADR, scaffold, deep dives, deps, fixtures, perf"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-908-api-relay-governance.md"
+  - "docs/reports/T-908-deepdive-architecture.md"
+  - "docs/reports/T-908-deepdive-governance.md"
+  - "docs/reports/T-908-deepdive-orchestration.md"
+  - ".tasks/active/T-908-api-relay-governance--local-proxy-for-de.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-09T12:58:13"
+    action: "T-908: Spike 1+2 findings — SSE protocol analysis and ANTHROPIC_BASE_URL validation"
+  - time: "2026-04-09T13:21:10"
+    action: "T-908: Landscape research — existing solutions survey for governance enforcement"
+  - time: "2026-04-09T14:08:36"
+    action: "T-908: Research — deep dive reports, options   analysis (inception ongoing)"
+  - time: "2026-04-09T15:04:10"
+    action: "T-908: State of inception — all tier 1+2 questions answered,   consolidated summary"
+  - time: "2026-04-11T11:16:11"
+    action: "T-908: Framework integration design — hooks, CLAUDE.md, handover, task state, fabric"
+  - time: "2026-04-11T11:34:28"
+    action: "T-908: Launcher UX + dependency analysis + Tier 3 inventory"
+  - time: "2026-04-11T12:34:35"
+    action: "T-908: Batch 3 inception exploration — spike plan, threat model, schema, migration, cost, observability, playbook, ADR, scaffold, deep dives, deps, fixtures, perf"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 7 commit(s), 4189 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4189
+  commits: 7
+  files_changed: 5
+  lines_added: 5466
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-908-api-relay-governance--local-proxy-for-de.md
+generated_by: context-agent-hybrid

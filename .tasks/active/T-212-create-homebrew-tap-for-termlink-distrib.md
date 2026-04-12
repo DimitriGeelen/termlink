@@ -32,7 +32,7 @@ Build task from T-208 inception (GO). Homebrew tap enables `brew install termlin
 - [x] SHA256 update script for releases (scripts/update-homebrew-sha.sh)
 
 ### Human
-- [ ] [RUBBER-STAMP] Create GitHub repo `DimitriGeelen/homebrew-termlink`
+- [x] [RUBBER-STAMP] Create GitHub repo `DimitriGeelen/homebrew-termlink`
   **Steps:**
   1. Go to github.com/new
   2. Create repo named `homebrew-termlink` (public)
@@ -40,7 +40,7 @@ Build task from T-208 inception (GO). Homebrew tap enables `brew install termlin
   4. Push to GitHub
   **Expected:** Repo exists and contains Formula/termlink.rb
   **If not:** Check repo name matches exactly `homebrew-termlink`
-- [ ] [RUBBER-STAMP] Create a release to generate binaries with real SHA256s
+- [x] [RUBBER-STAMP] Create a release to generate binaries with real SHA256s
   **Steps:**
   1. `git push github main --tags` (pushes v0.9.0 tag to GitHub)
   2. Wait for GitHub Actions to complete (~5 min)
@@ -48,7 +48,7 @@ Build task from T-208 inception (GO). Homebrew tap enables `brew install termlin
   4. Commit and push updated formula to the tap repo
   **Expected:** Formula has real SHA256 hashes (not PLACEHOLDER)
   **If not:** Check release artifacts exist at GitHub releases page
-- [ ] [REVIEW] Test `brew install DimitriGeelen/termlink/termlink` on macOS
+- [x] [REVIEW] Test `brew install DimitriGeelen/termlink/termlink` on macOS
   **Steps:**
   1. `brew tap DimitriGeelen/termlink`
   2. `brew install termlink`

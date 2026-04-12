@@ -1,0 +1,66 @@
+pickup_id: P-009
+version: 1
+type: bug-report
+source:
+  project: "termlink"
+  task_id: "T-921"
+  agent: "claude-code"
+  timestamp: "2026-04-11T21:24:29Z"
+payload:
+  summary: "Hardcoded 'bin/fw' path in inception/review error hints breaks vendored consumers (127 exit)"
+  detail: "## Symptom
+In vendored consumer projects (e.g. /opt/termlink), running `fw inception decide T-NNN go` without a prior `fw task review T-NNN` emits this error hint:
+
+  Run this first:
+    cd /opt/termlink && bin/fw task review T-NNN
+
+But consumers have no top-level `bin/fw` — the binary lives at `.agentic-framework/bin/fw`. Copy-pasting the suggestion yields exit 127.
+
+On success the symmetric hint at review.sh:127 prints:
+
+  After review, run:
+    cd /opt/termlink && bin/fw inception decide T-NNN go --rationale "..."
+
+— same wrong path.
+
+## Reproduced
+- Project: /opt/termlink (vendored consumer)
+- fw version: v0.9.611
+- Sequence: fw inception decide T-921 go  -->  error points at `bin/fw task review`  -->  exit 127 when run as suggested.
+- Workaround: invoke `./.agentic-framework/bin/fw task review T-921` directly.
+
+## Root cause (framework already knows)
+lib/init.sh:580 carries this comment:
+  "Framework repo uses bin/fw (project-relative), consumers use .agentic-framework/bin/fw (vendored)"
+but the error-message echoes at lib/inception.sh:215 and lib/review.sh:127 hardcode `bin/fw` regardless of layout.
+
+## Proposed fix
+Resolve the path once (in lib/common.sh or equivalent) and reuse:
+
+  if [ -x \"\$PROJECT_ROOT/bin/fw\" ]; then
+      FW_BIN_REL=\"bin/fw\"
+  else
+      FW_BIN_REL=\".agentic-framework/bin/fw\"
+  fi
+
+Then replace both hardcoded sites:
+  lib/inception.sh:215  -->  echo \"  cd \$PROJECT_ROOT && \$FW_BIN_REL task review \$task_id\"
+  lib/review.sh:127     -->  echo \"  cd \$PROJECT_ROOT && \$FW_BIN_REL inception decide \$task_id go --rationale ...\"
+
+Also audit lib/verify-acs.sh:159,161,163,168 — same `bin/fw` string appears there in check_command() calls and may have the same latent bug in consumer layouts.
+
+## Bundled UX polish (same surface, cheap to fix alongside)
+
+1. Post-decision stale hint: lib/inception.sh:317 calls emit_review() which unconditionally prints 'After review, run: fw inception decide ... go'. After a successful decide this is confusing / stale. Suggest emit_review take a phase param (pre|post) and skip the 'After review, run:' block in post mode.
+
+2. Misleading warning wording: 'WARNING: N/N agent AC unchecked (--force bypass)' from update-task.sh (called at inception.sh:303) reads like a failure. It is intentional per T-637/R-033 — the inception decision IS the human authority — so reword to something like: 'Note: N agent ACs bypassed by inception-decision authority (T-637/R-033)'.
+
+## Intentional behaviors observed (NOT bugs — flagging so the framework agent does not chase these)
+- decide go/no-go --> work-completed transition (lib/inception.sh:298-304, intent commented).
+- --force bypass of sovereignty gate on decide (T-637).
+- Auto-episodic generation on decide-go.
+
+## Source
+Session on dimitri-mint-dev host, 2026-04-11, recording T-921 inception decision for termlink. Agent hit the wrong-path error once, recovered manually, then reviewed inception.sh + review.sh source to classify observations before filing this report."
+  priority: medium
+  tags: [inception, review, vendored-consumer, error-messages, ux]

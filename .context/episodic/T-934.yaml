@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-934: termlink doctor — warn on UFW-rule-vs-no-listener mismatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T23:02:06Z
+# ============================================================================
+
+task_id: T-934
+task_name: "termlink doctor — warn on UFW-rule-vs-no-listener mismatch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T22:29:30Z
+completed: 2026-04-11T23:02:05Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-12T01:01:49+02:00
+last_commit: 2026-04-12T01:02:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink doctor — warn on UFW-rule-vs-no-listener mismatch. Check off agent ACs (verified via live doctor run)
+
+# Key outcomes
+outcomes:
+  - "`termlink doctor` parses `ufw status` output for rules containing \"termlink\" (case-insensitive) and extracts the associated TCP port(s)."
+  - "For each such port, the check runs `ss -tln` and verifies a listener is present on that port."
+  - "Emits a `pass` check (`ufw_listener`) when all identified ports have listeners."
+  - "Emits a `warn` check with actionable text when a rule exists but no listener is bound. (Code inspected — symmetric to pass path.)"
+  - "Check is best-effort: `ufw` unavailable or permission-denied silently skips the check."
+  - "`cargo build --workspace` clean."
+  - "`cargo test -p termlink --bins` 165/165 pass."
+  - "Live test on .107: `TERMLINK_RUNTIME_DIR=/var/lib/termlink termlink doctor` shows `✓ ufw_listener: ufw allows 9100/tcp — listener present`."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - ".tasks/active/T-934-termlink-doctor--warn-on-ufw-rule-vs-no-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T01:01:49"
+    action: "T-934: termlink doctor — warn on UFW-rule-vs-no-listener mismatch"
+  - time: "2026-04-12T01:02:05"
+    action: "T-934: Check off agent ACs (verified via live doctor run)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 32 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 32
+  commits: 4
+  files_changed: 9
+  lines_added: 1237
+  lines_removed: 47
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-934-termlink-doctor--warn-on-ufw-rule-vs-no-.md
+generated_by: context-agent-hybrid

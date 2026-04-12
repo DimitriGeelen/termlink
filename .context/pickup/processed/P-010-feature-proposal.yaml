@@ -1,0 +1,35 @@
+pickup_id: P-010
+version: 1
+type: feature-proposal
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T07:48:42Z"
+payload:
+  summary: "Include persistent agent session service templates in framework deploy scaffold"
+  detail: "## Context
+Deploying persistent framework-agent and termlink-agent sessions on .107 required hand-writing two systemd service units from scratch. Every consumer project with a termlink hub will need the same — shell-backed, role-tagged, discoverable sessions with restart-on-failure.
+
+## Proposal
+When fw deploy scaffold (or fw init) creates a project with termlink integration, include template .service files for:
+- framework-agent.service (role: framework,pickup — handles fw pickup, fw audit, fw task list)
+- termlink-agent.service (role: termlink,diagnostics — handles termlink doctor, termlink list, diagnostics)
+
+Templates should be parameterized with PROJECT_ROOT and binary path, and install.sh should handle all units (not just the hub).
+
+## Evidence
+- /opt/termlink/.context/systemd/ now has 3 units + multi-unit install.sh (T-940 work)
+- Pattern proven: both agents running, discoverable, exec-tested, auto-restart confirmed
+- install.sh already supports --only filtering and restart-on-change detection
+
+## Acceptance criteria
+- [ ] fw deploy scaffold produces agent session service templates alongside hub service
+- [ ] install.sh template handles N units generically
+- [ ] Templates are parameterized (not hardcoded to /opt/termlink paths)
+- [ ] Documentation covers the pattern (which roles, which allowed-commands)
+
+## Source
+T-940 RCA on .107, 2026-04-12. Patterns extracted from working deployment."
+  priority: medium
+  tags: [scaffold, systemd, agent-sessions, consumer-template]

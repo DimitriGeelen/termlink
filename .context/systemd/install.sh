@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# T-931 — Install termlink-hub.service as a systemd unit.
+# T-931 — Install termlink systemd units (hub + agent sessions).
 #
-# Source of truth: .context/systemd/termlink-hub.service (git-tracked)
-# Target:          /etc/systemd/system/termlink-hub.service
+# Source of truth: .context/systemd/*.service (git-tracked)
+# Target:          /etc/systemd/system/termlink-*.service
 #
 # Usage:
-#   sudo .context/systemd/install.sh            # install + enable + start
+#   sudo .context/systemd/install.sh            # install + enable + start all
 #   sudo .context/systemd/install.sh --dry-run  # show what would happen
-#   sudo .context/systemd/install.sh --stop     # disable + stop + remove
+#   sudo .context/systemd/install.sh --stop     # disable + stop + remove all
+#   sudo .context/systemd/install.sh --only hub # install only the hub unit
+#
+# Units (ordered — hub starts first, agents depend on it):
+#   1. termlink-hub.service              — TCP hub on 0.0.0.0:9100
+#   2. termlink-framework-agent.service  — persistent shell session (role: framework)
+#   3. termlink-termlink-agent.service   — persistent shell session (role: termlink)
 #
 # Idempotent: copying a byte-identical unit is a no-op, systemctl
 # daemon-reload is safe to run repeatedly.
@@ -15,19 +21,30 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE_UNIT="${SCRIPT_DIR}/termlink-hub.service"
-TARGET_UNIT="/etc/systemd/system/termlink-hub.service"
-SERVICE_NAME="termlink-hub.service"
+
+# Ordered: hub first, agents after (they depend on the hub)
+ALL_UNITS=(
+    termlink-hub.service
+    termlink-framework-agent.service
+    termlink-termlink-agent.service
+)
 
 DRY_RUN=false
 UNINSTALL=false
+ONLY_FILTER=""
 
 for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY_RUN=true ;;
         --stop|--uninstall) UNINSTALL=true ;;
+        --only)
+            # Next arg is the filter — handled below
+            ;;
+        hub|framework-agent|termlink-agent)
+            ONLY_FILTER="termlink-${arg}.service"
+            ;;
         -h|--help)
-            sed -n '2,15p' "$0"
+            sed -n '2,18p' "$0"
             exit 0
             ;;
         *)
@@ -51,29 +68,61 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-if [ ! -f "$SOURCE_UNIT" ]; then
-    echo "ERROR: source unit not found: $SOURCE_UNIT" >&2
+# Filter units if --only was given
+units=()
+for u in "${ALL_UNITS[@]}"; do
+    if [ -z "$ONLY_FILTER" ] || [ "$u" = "$ONLY_FILTER" ]; then
+        units+=("$u")
+    fi
+done
+
+if [ "${#units[@]}" -eq 0 ]; then
+    echo "ERROR: no matching units for filter '$ONLY_FILTER'" >&2
     exit 1
 fi
 
+# --- Uninstall path ---
 if [ "$UNINSTALL" = true ]; then
-    echo "Uninstalling $SERVICE_NAME..."
-    run systemctl disable --now "$SERVICE_NAME" || true
-    run rm -f "$TARGET_UNIT"
+    # Reverse order: agents first, then hub
+    for (( i=${#units[@]}-1; i>=0; i-- )); do
+        local_unit="${units[$i]}"
+        target="/etc/systemd/system/${local_unit}"
+        echo "Uninstalling ${local_unit}..."
+        run systemctl disable --now "$local_unit" 2>/dev/null || true
+        run rm -f "$target"
+    done
     run systemctl daemon-reload
-    echo "Done. termlink-hub is no longer supervised by systemd."
+    echo "Done."
     exit 0
 fi
 
-echo "Installing $SERVICE_NAME..."
-echo "  Source: $SOURCE_UNIT"
-echo "  Target: $TARGET_UNIT"
+# --- Install path ---
 
-if cmp -s "$SOURCE_UNIT" "$TARGET_UNIT" 2>/dev/null; then
-    echo "  (target already matches source — skipping copy)"
-else
-    run cp "$SOURCE_UNIT" "$TARGET_UNIT"
-fi
+# Pre-check: all source files exist
+for u in "${units[@]}"; do
+    source_file="${SCRIPT_DIR}/${u}"
+    if [ ! -f "$source_file" ]; then
+        echo "ERROR: source unit not found: $source_file" >&2
+        exit 1
+    fi
+done
+
+# Copy units, track which changed
+declare -A changed_units
+for u in "${units[@]}"; do
+    source_file="${SCRIPT_DIR}/${u}"
+    target_file="/etc/systemd/system/${u}"
+    echo "Installing ${u}..."
+    echo "  Source: $source_file"
+    echo "  Target: $target_file"
+    if cmp -s "$source_file" "$target_file" 2>/dev/null; then
+        echo "  (target already matches source — skipping copy)"
+        changed_units["$u"]=false
+    else
+        run cp "$source_file" "$target_file"
+        changed_units["$u"]=true
+    fi
+done
 
 run systemctl daemon-reload
 
@@ -86,13 +135,24 @@ if pgrep -f "termlink hub start" >/dev/null 2>&1; then
     sleep 1
 fi
 
-run systemctl enable "$SERVICE_NAME"
-run systemctl start "$SERVICE_NAME"
+# Enable + start/restart in order
+# If unit file changed AND service is already active, restart to pick up new config.
+# Otherwise start (which is a no-op on already-active units with unchanged config).
+for u in "${units[@]}"; do
+    run systemctl enable "$u"
+    if [ "${changed_units[$u]}" = "true" ] && systemctl is-active --quiet "$u" 2>/dev/null; then
+        echo "  (unit file changed, restarting to apply)"
+        run systemctl restart "$u"
+    else
+        run systemctl start "$u"
+    fi
+done
 
 if [ "$DRY_RUN" = false ]; then
     echo ""
     echo "Verify:"
-    echo "  systemctl status $SERVICE_NAME"
+    echo "  systemctl status termlink-hub termlink-framework-agent termlink-termlink-agent"
     echo "  ss -tln | grep 9100"
-    echo "  termlink hub status"
+    echo "  termlink discover --role framework"
+    echo "  termlink discover --role termlink"
 fi

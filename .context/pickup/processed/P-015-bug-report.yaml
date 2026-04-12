@@ -1,0 +1,40 @@
+pickup_id: P-015
+version: 1
+type: bug-report
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:11:31Z"
+payload:
+  summary: "fw inception decide fails on captured tasks — should auto-transition through started-work"
+  detail: "## Symptom
+Running fw inception decide T-940 go fails with:
+  ERROR: Invalid transition 'captured' -> 'work-completed'
+  Valid transitions: captured -> started-work
+
+The inception decide command (lib/inception.sh:301-303) calls:
+  update-task.sh T-XXX --status work-completed --force
+
+But if the task hasn't been manually moved to started-work first, the state machine rejects the transition.
+
+## Workaround
+Manually run: fw task update T-XXX --status started-work
+Then re-run: fw inception decide T-XXX go
+
+## Proposed fix
+In lib/inception.sh, before calling update-task.sh --status work-completed, check current status. If captured, auto-transition to started-work first:
+
+  current_status=$(grep '^status:' "$task_file" | awk '{print $2}')
+  if [ "$current_status" = "captured" ]; then
+      "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status started-work --force --reason "Auto-transition: inception decide requires started-work" 2>&1
+  fi
+  "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status work-completed --force --reason "Inception decision: $decision_upper" 2>&1
+
+## Context
+This is common for inception tasks where the human reviews the research artifact and immediately says Go without an explicit "start work" step. The inception decide IS the human authority (T-637/R-033) — if it's good enough to bypass AC gates, it should be good enough to bypass the started-work prerequisite.
+
+## Source
+T-940 session, 2026-04-12. Hit while recording Go decision."
+  priority: medium
+  tags: [inception, decide, task-status, auto-transition]

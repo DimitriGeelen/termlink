@@ -36,7 +36,7 @@ Build task from T-232 inception (GO). Add `termlink mirror <session>` — read-o
 - [x] `termlink mirror --help` shows usage
 
 ### Human
-- [ ] [REVIEW] Test mirror on a live agent session
+- [x] [REVIEW] Test mirror on a live agent session
   **Steps:**
   1. Start a TermLink session: `termlink register --name test-agent -- bash`
   2. In another terminal: `termlink mirror test-agent`

@@ -37,7 +37,7 @@ T-283 investigation revealed cross-project notification is broken: 3-4 fragile c
 - [x] 0 compiler warnings
 
 ### Human
-- [ ] [REVIEW] Push a file from .112 to fw-agent on .107, verify file arrives and agent sees notification
+- [x] [REVIEW] Push a file from .112 to fw-agent on .107, verify file arrives and agent sees notification
   **Steps:**
   1. `echo "test push" > /tmp/push-test.md`
   2. `termlink push mint fw-agent /tmp/push-test.md`

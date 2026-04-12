@@ -1,0 +1,10 @@
+command_hash: 745194ea2606753354babe4ec65cbaa8285af27d6375375b39acba0a9d98dc33
+command_preview: '.agentic-framework/bin/fw inception decide T-972 go --rationale
+  "Three structural root causes confirmed: framework scripts output bare commands,
+  no agent text governance, no shared URL helper. All thr'
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: pending
+timestamp: '2026-04-12T10:12:09Z'
+type: tier0

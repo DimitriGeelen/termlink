@@ -1,0 +1,41 @@
+# TermLink Agent — persistent named session for cross-host termlink diagnostics & operations
+# Source of truth: /opt/termlink/.context/systemd/termlink-termlink-agent.service (git-tracked)
+# Installed to:    /etc/systemd/system/termlink-termlink-agent.service (copy)
+# Install with:    sudo .context/systemd/install.sh
+#
+# Provides a shell-backed, discoverable session that other agents on the ring20 LAN
+# can target via `termlink agent ask`, `termlink remote exec`, or `termlink remote push`.
+# Handles: termlink doctor, termlink list, termlink discover, fw termlink status, diagnostics.
+
+[Unit]
+Description=TermLink Agent — persistent shell session (role: termlink, diagnostics)
+After=termlink-hub.service
+Wants=termlink-hub.service
+
+[Service]
+Type=exec
+User=root
+Group=root
+WorkingDirectory=/opt/termlink
+
+Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink
+Environment=PROJECT_ROOT=/opt/termlink
+
+ExecStart=/root/.cargo/bin/termlink register \
+  --name termlink-agent \
+  --roles termlink,diagnostics \
+  --tags host=107,project=termlink \
+  --cap data_plane,stream \
+  --shell \
+  --allowed-commands "termlink,fw,cat,ls,head,grep,tail,ss,systemctl status"
+
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/termlink /opt/termlink/.context /tmp
+
+[Install]
+WantedBy=multi-user.target

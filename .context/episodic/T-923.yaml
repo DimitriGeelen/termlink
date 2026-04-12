@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-923: Hub session.forward RPC — forward a call to a local session socket
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T21:03:01Z
+# ============================================================================
+
+task_id: T-923
+task_name: "Hub session.forward RPC — forward a call to a local session socket"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T20:33:52Z
+completed: 2026-04-11T21:02:53Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-11T22:37:46+02:00
+last_commit: 2026-04-11T23:02:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Scope-narrow after discovery — hub forwarder is already built. End-to-end TCP forwarder test + discovery doc — hub forwarder already exists
+
+# Key outcomes
+outcomes:
+  - "Verified claim: `router.rs:56` transparent forwarding behaviour covers all non-hub-local methods through `forward_to_target`. Cite line ranges in the Decisions section."
+  - "Scope enforcement gap assessed: either (a) prove via code-read that the forwarder does honor `hub.auth` scope, or (b) file a concerns.yaml entry and implement a minimal scope check before forwarding sensitive methods."
+  - "Added integration test in `crates/termlink-hub/src/router.rs` (or `server.rs`) that binds the hub on a loopback TCP address, starts a local session, connects a client via `TransportAddr::Tcp`, calls `hub.auth`, then calls `termlink.ping` with `params.target = session_id`, and asserts the response contains the session's `display_name` — proving end-to-end cross-host forwarding."
+  - "`cargo test -p termlink-hub --lib` passes on the new test."
+  - "`cargo build --workspace` clean."
+  - "docs/reports/T-923-hub-forwarder-discovery.md written with: the discovery (forwarder already exists), where it lives, the scope assessment outcome, and the path it enables for T-924."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Skip implementing a new `session.forward` hub RPC method. The hub"
+    rationale: "Building a wrapper would have been duplicate code on top of the"
+    alternatives_rejected: ["Adding a wrapper method `session.forward` that takes"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/router.rs"
+  - "docs/reports/T-923-hub-forwarder-discovery.md"
+  - ".tasks/active/T-923-hub-sessionforward-rpc--forward-a-call-t.md"
+  - ".tasks/active/T-924-shared-targetopts--callsession-cli-helpe.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-11T22:37:46"
+    action: "T-923: Scope-narrow after discovery — hub forwarder is already built"
+  - time: "2026-04-11T23:02:50"
+    action: "T-923: End-to-end TCP forwarder test + discovery doc — hub forwarder already exists"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 29 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 29
+  commits: 2
+  files_changed: 4
+  lines_added: 499
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-923-hub-sessionforward-rpc--forward-a-call-t.md
+generated_by: context-agent-hybrid

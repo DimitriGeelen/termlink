@@ -1,0 +1,40 @@
+pickup_id: P-021
+version: 1
+type: learning
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:41:03Z"
+payload:
+  summary: "Inception decide codepath has 4 stacking UX issues — needs a focused review pass, not individual fixes"
+  detail: "## Observation
+In a single session running fw inception decide on two tasks (T-921 and T-940), we hit four distinct UX issues in the same codepath:
+
+1. **Wrong binary path in error hints** (P-009, lib/inception.sh:215, lib/review.sh:127) — error says "bin/fw" but vendored consumers need ".agentic-framework/bin/fw". Causes exit 127.
+
+2. **Stale "After review, run:" hint post-decision** (P-009 bundled, lib/inception.sh:317) — emit_review() prints "After review, run: fw inception decide T-XXX go" AFTER the decide already succeeded. Confusing.
+
+3. **Misleading AC warning wording** (P-009 bundled) — "WARNING: 5/5 agent AC unchecked (--force bypass)" reads like a failure but is intentional per T-637/R-033. Should say "Note: bypassed by inception-decision authority."
+
+4. **Status transition failure on captured tasks** (P-015, lib/inception.sh:301-303) — inception decide calls update-task.sh --status work-completed but fails if task is still in captured status. Requires manual started-work transition first.
+
+## The meta-issue
+These are not 4 independent bugs. They share a common cause: the inception decide codepath was built incrementally (T-637, T-634, T-973, T-974) without an end-to-end UX review. Each addition solved its specific problem but introduced friction at the seams.
+
+## Recommendation
+Rather than fixing each issue individually (which risks introducing new seams), do a single focused review pass of the full inception decide flow:
+- Map the happy path: user runs decide go → what should happen end-to-end
+- Map the error paths: what errors can occur and what hints should be shown
+- Test from both framework-repo and vendored-consumer perspectives
+- Verify the output makes sense both pre- and post-decision
+
+This is a 1-2 hour review, not a multi-day refactor.
+
+## How to apply
+Create a single build task: "Review and polish inception decide UX (consolidates P-009 + P-015 findings)". Assign to someone who can test from a vendored consumer project (not just the framework repo).
+
+## Source
+T-921 + T-940 sessions on .107, 2026-04-12."
+  priority: medium
+  tags: [inception, decide, ux, review-pass, stacking-issues]

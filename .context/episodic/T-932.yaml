@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-932: Hub SIGTERM handling — select! on ctrl_c + SignalKind::terminate
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T22:50:24Z
+# ============================================================================
+
+task_id: T-932
+task_name: "Hub SIGTERM handling — select! on ctrl_c + SignalKind::terminate"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T22:29:21Z
+completed: 2026-04-11T22:50:23Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-12T00:49:54+02:00
+last_commit: 2026-04-12T00:50:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Hub SIGTERM handling — select! on ctrl_c + SignalKind::terminate. Check off agent ACs (fix verified end-to-end on .107)
+
+# Key outcomes
+outcomes:
+  - "`cmd_hub_start` in `crates/termlink-cli/src/commands/infrastructure.rs` uses `tokio::select!` on both `ctrl_c()` and `SignalKind::terminate()` — either signal triggers graceful shutdown via `handle.shutdown()`. (via `wait_for_shutdown_signal()` helper, commit f62821a)"
+  - "`cargo build --workspace` succeeds (no new warnings)."
+  - "`cargo test -p termlink` existing tests pass (no regressions). 165/165."
+  - "`.context/systemd/termlink-hub.service` has the `KillSignal=SIGINT` line removed with its accompanying comment block."
+  - "Live test on .107: direct `kill -TERM $MainPID` triggered `Hub shut down cleanly` in journalctl via the select! path; `systemctl restart termlink-hub` also works via ExecStop; `ss -tln | grep 9100` shows listener after restart."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Check off agent ACs (fix verified end-to-end on .107)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/systemd/termlink-hub.service"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - ".tasks/active/T-932-hub-sigterm-handling--select-on-ctrlc--s.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T00:49:54"
+    action: "T-932: Hub SIGTERM handling — select! on ctrl_c + SignalKind::terminate"
+  - time: "2026-04-12T00:50:22"
+    action: "T-932: Check off agent ACs (fix verified end-to-end on .107)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 21
+  commits: 4
+  files_changed: 10
+  lines_added: 1166
+  lines_removed: 53
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-932-hub-sigterm-handling--select-on-ctrlc--s.md
+generated_by: context-agent-hybrid

@@ -40,7 +40,7 @@ T-281 added `session.exited` lifecycle events as the crash safety net.
 - [x] `cargo test --workspace` passes with 0 warnings
 
 ### Human
-- [ ] [REVIEW] Dispatch 3 real Claude workers using the command, verify results arrive
+- [x] [REVIEW] Dispatch 3 real Claude workers using the command, verify results arrive
   **Steps:**
   1. Start hub: `termlink hub start`
   2. Run: `termlink dispatch --count 3 --timeout 60 -- bash -c 'echo "Worker reporting"; termlink emit self task.completed --payload "{\"status\":\"done\"}"'`

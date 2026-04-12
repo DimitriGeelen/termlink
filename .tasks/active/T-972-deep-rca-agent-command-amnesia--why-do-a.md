@@ -4,7 +4,7 @@ name: "Deep RCA: Agent command amnesia — why do agents repeatedly output bare 
 description: >
   Inception: Deep RCA: Agent command amnesia — why do agents repeatedly output bare commands despite rules, memory, and structural fixes
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:03:30Z
-last_update: 2026-04-12T10:05:08Z
-date_finished: null
+last_update: 2026-04-12T10:14:30Z
+date_finished: 2026-04-12T10:10:58Z
 ---
 
 # T-972: Deep RCA: Agent command amnesia — why do agents repeatedly output bare commands despite rules, memory, and structural fixes
@@ -133,18 +133,18 @@ We attempted 5 fixes in this session (memory, CLAUDE.md, auto-invoke, port detec
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Three structural root causes confirmed: framework scripts output bare commands, no agent text governance, no shared URL helper. All three must be fixed together.
+
+**Date**: 2026-04-12T10:14:30Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Three structural root causes confirmed: framework scripts output bare commands, no agent text governance, no shared URL helper. All three must be fixed together.
+
+**Date**: 2026-04-12T10:14:30Z
 
 ## Updates
 
@@ -153,3 +153,30 @@ We attempted 5 fixes in this session (memory, CLAUDE.md, auto-invoke, port detec
 
 ### 2026-04-12T10:05:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T10:10:58Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: The problem is structural, not behavioral. Five fixes in one session failed because each addressed a symptom. Three root causes reinforce each other — RC-1 (framework scripts output bare commands), RC-2 (no agent text governance), RC-3 (no shared URL helper). All three must be fixed together.
+
+Evidence:
+- Agent violated PL-007 within 3 minutes of building it (proves behavioral fixes are insufficient)
+- Tier 0 block message itself contains bare command (proves framework is the violation source)
+- Port 3000 hardcoded in 4+ scripts despite T-970 fix in review.sh (proves no shared helper)
+- Same feedback given 3+ times across sessions (proves the pattern is systemic, not one-off)
+
+Build tasks on GO:
+1. Create `lib/watchtower.sh` shared helper (_watchtower_url, _watchtower_open)
+2. Refactor all gate scripts (tier0, inception, AC, verify) to use helper
+3. PostToolUse hook to scan for bare command patterns in tool output
+
+### 2026-04-12T10:10:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+### 2026-04-12T10:14:30Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Three structural root causes confirmed: framework scripts output bare commands, no agent text governance, no shared URL helper. All three must be fixed together.

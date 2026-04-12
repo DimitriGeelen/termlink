@@ -34,7 +34,7 @@ date_finished: 2026-03-27T14:02:27Z
 - [x] `cargo clippy` passes
 
 ### Human
-- [ ] [REVIEW] Run `termlink vendor` in a test project and verify `.claude/settings.local.json` has the MCP entry
+- [x] [REVIEW] Run `termlink vendor` in a test project and verify `.claude/settings.local.json` has the MCP entry
   **Steps:**
   1. `mkdir /tmp/test-vendor && cd /tmp/test-vendor && termlink vendor`
   2. `cat .claude/settings.local.json`

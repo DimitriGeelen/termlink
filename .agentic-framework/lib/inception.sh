@@ -2,6 +2,9 @@
 # fw inception - Inception phase workflow
 # Manages exploration-phase work: problem definition, assumptions, go/no-go
 
+# Ensure _fw_cmd/_emit_user_command are available (T-1143)
+[[ -z "${_FW_PATHS_LOADED:-}" ]] && source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/paths.sh" 2>/dev/null || true
+
 do_inception() {
     local subcmd="${1:-}"
     shift || true
@@ -217,22 +220,16 @@ do_inception_decide() {
         fi
     fi
 
-    # Gate: require fw task review before accepting decision (T-973, T-969)
-    # If no review marker exists, auto-invoke fw task review instead of just blocking.
-    # This ensures the human always sees the full Watchtower experience (link, QR,
-    # recommendation, terminal command) even if the agent bypassed the review step.
+    # Gate: require fw task review before accepting decision (T-973)
     local review_marker="$PROJECT_ROOT/.context/working/.reviewed-$task_id"
     if [ ! -f "$review_marker" ]; then
-        echo -e "${YELLOW}Auto-invoking task review (PL-007)...${NC}" >&2
+        echo -e "${RED}ERROR: Task review required before decision${NC}" >&2
         echo "" >&2
-        # Run fw task review which creates the marker + shows Watchtower
-        "$FRAMEWORK_ROOT/bin/fw" task review "$task_id" >&2
+        echo -e "Run this first:" >&2
+        echo -e "  $(_emit_user_command "task review $task_id")" >&2
         echo "" >&2
-        # Check if the marker was created
-        if [ ! -f "$review_marker" ]; then
-            echo -e "${RED}ERROR: Task review failed — cannot proceed with decision${NC}" >&2
-            exit 1
-        fi
+        echo -e "Then re-run the decide command." >&2
+        exit 1
     fi
 
     # Gate: require ## Recommendation with actual content (T-974)
@@ -313,11 +310,12 @@ PYDECIDE
 EOF
 
     # Complete task if go or no-go (not defer)
-    # --force bypasses sovereignty gate (R-033) because inception decide itself
-    # required Tier 0 approval — human authority was already exercised (T-637)
+    # --skip-sovereignty bypasses only R-033 (sovereignty gate) because inception decide
+    # itself required Tier 0 approval — human authority was already exercised (T-637).
+    # P-010 (AC gate) and P-011 (verification gate) are NOT bypassed (T-1101/T-1142).
     if [ "$decision" = "go" ] || [ "$decision" = "no-go" ]; then
         echo ""
-        "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status work-completed --force --reason "Inception decision: $decision_upper" 2>&1
+        "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status work-completed --skip-sovereignty --reason "Inception decision: $decision_upper" 2>&1
     fi
 
     # Clean up review marker (T-973)

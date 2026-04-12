@@ -1,0 +1,37 @@
+pickup_id: P-014
+version: 1
+type: bug-report
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:11:21Z"
+payload:
+  summary: "install.sh pgrep guard kills systemd-managed hub on every idempotent run"
+  detail: "## Symptom
+Every run of .context/systemd/install.sh — even when no unit files changed — stops and restarts the termlink hub. Causes a brief outage (~1-2s) on every invocation.
+
+## Root cause
+The guard at install.sh line 127:
+  if pgrep -f "termlink hub start" >/dev/null 2>&1; then
+matches the systemd-managed hub process (ExecStart=/root/.cargo/bin/termlink hub start --tcp 0.0.0.0:9100 --json). The guard was written to catch manually-launched hubs, but it can't distinguish manual from systemd-managed.
+
+## Proposed fix
+Check if the hub is already managed by systemd before stopping it:
+  if pgrep -f "termlink hub start" >/dev/null 2>&1; then
+      if ! systemctl is-active --quiet termlink-hub.service 2>/dev/null; then
+          # Only stop manually-launched hubs, not systemd-managed ones
+          run /root/.cargo/bin/termlink hub stop || true
+          sleep 1
+      else
+          echo "  (hub is systemd-managed — skipping manual stop)"
+      fi
+  fi
+
+## Reproduced
+install.sh on .107, 2026-04-12. Ran install.sh with no file changes, hub was stopped and restarted unnecessarily. Journal confirmed PID changed.
+
+## Source
+T-940 session, 2026-04-12, discovered during E2 (restart-on-change) testing."
+  priority: medium
+  tags: [install.sh, systemd, pgrep, hub-restart, idempotent]

@@ -1,0 +1,31 @@
+pickup_id: P-018
+version: 1
+type: learning
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:40:13Z"
+payload:
+  summary: "Dry-run saved us from silent data loss — destructive commands should auto-prompt on large diffs"
+  detail: "## What happened
+Running fw cron install on termlink (dry-run first) revealed it would replace 10 existing cron jobs with 0 jobs. The git-tracked source file was an empty stub from an incomplete migration. Without the dry-run, all 10 scheduled audit/OE/maintenance jobs would have been silently deleted.
+
+## Learning
+The framework CLI does not require or suggest dry-run before destructive operations. The user/agent must remember to pass --dry-run. This is a weak safety posture for commands that can delete production config.
+
+## Proposed improvement
+Commands that produce a large negative diff (deleting significantly more than they add) should:
+1. Auto-show the diff before applying (like git does with interactive rebase)
+2. Prompt for confirmation when the deletion count exceeds a threshold (e.g., "This will remove 10 jobs and add 0. Continue? [y/N]")
+3. Or at minimum: print a WARNING line like "This operation will delete 10 existing entries" before proceeding
+
+Applies to: fw cron install, fw context reset, any command that overwrites config files.
+
+## How to apply
+Add a diff-size guard to destructive commands. If deletions > N (configurable, default 3), require --force or interactive confirmation. The dry-run flag already exists — this just makes the safety net automatic.
+
+## Source
+T-936/T-940 session on .107, 2026-04-12. Caught during cron install attempt on termlink."
+  priority: medium
+  tags: [dry-run, destructive-ops, safety-guard, cron]

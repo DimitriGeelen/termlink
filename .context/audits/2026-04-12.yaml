@@ -1,0 +1,15 @@
+# Audit Results - 2026-04-12-0916
+timestamp: 2026-04-12T07:16:09Z
+sections: "episodic"
+summary:
+  pass: 2
+  warn: 1
+  fail: 0
+findings:
+  - level: PASS
+    check: "All completed tasks have episodic summaries"
+  - level: WARN
+    check: "14 episodics have empty or TODO summaries"
+    mitigation: "Fill in summary field with actual task description"
+  - level: PASS
+    check: "No orphaned episodic files"

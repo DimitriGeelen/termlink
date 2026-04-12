@@ -1,13 +1,4 @@
 {
-  "mcpServers": {
-    "termlink": {
-      "args": [
-        "mcp",
-        "serve"
-      ],
-      "command": ".termlink/bin/termlink"
-    }
-  },
   "permissions": {
     "allow": [
       "Bash(brew info:*)",
@@ -311,7 +302,18 @@
       "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL file send --help 2>&1)",
       "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\n$TL register --help 2>&1)",
       "Bash(TL=\"/Users/dimidev32/.cargo/bin/termlink\"\nSECRET_FILE=\"$HOME/.termlink/remote-107.secret\"\nHUB=\"192.168.10.107:9100\"\n\n$TL remote inject --secret-file \"$SECRET_FILE\" \"$HUB\" fw-agent \\\\\n  \"Do you have any pickup prompts or tasks for the TermLink project \\(010-termlink\\)? List anything pending that needs to be sent to the termlink agent.\" --enter 2>&1)",
-      "Bash(ipconfig getifaddr:*)"
+      "Bash(ipconfig getifaddr:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs"
     ]
+  },
+  "mcpServers": {
+    "termlink": {
+      "args": [
+        "mcp",
+        "serve"
+      ],
+      "command": ".termlink/bin/termlink"
+    }
   }
 }

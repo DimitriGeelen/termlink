@@ -1,0 +1,32 @@
+pickup_id: P-016
+version: 1
+type: learning
+source:
+  project: "termlink"
+  task_id: "T-940"
+  agent: "claude-code"
+  timestamp: "2026-04-12T08:11:39Z"
+payload:
+  summary: "30-second pickup processor cycle is sustainable — zero errors, zero resource concerns"
+  detail: "## Finding
+Tested fw pickup process at 30-second intervals (cron * * * * * with sleep 30 double-pass) for 90 seconds with 3 envelopes in the inbox.
+
+Results:
+- All 3 envelopes processed within one 30s cycle
+- Zero errors in syslog
+- Zero rejected envelopes
+- fw pickup process is lightweight: <100ms per run when inbox is empty, ~200ms per envelope
+- No overlap issues between the two cron passes
+
+## Implication
+For latency-sensitive agent-to-agent workflows (e.g., cross-host pickup delivery via termlink), 30-second processing is viable without special infrastructure. The cron double-pass pattern (run every minute, sleep 30, run again) is a clean workaround for cron's 1-minute minimum resolution.
+
+For sub-10s latency, a systemd timer or inotifywait-based watcher would be needed, but 30s covers most agent communication use cases.
+
+## Applicability
+Any consumer project using the pickup pipeline for inter-agent messaging. Default 15-minute cron may be too slow for interactive workflows.
+
+## Source
+T-940 session on .107, 2026-04-12."
+  priority: low
+  tags: [pickup-processor, cron, 30s, performance, operational]

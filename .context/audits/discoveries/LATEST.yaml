@@ -1,11 +1,12 @@
-timestamp: 2026-04-05T16:30:01Z
+timestamp: 2026-04-12T10:30:01Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (4/633)"
+    check: "D1: Episodic quality — 0% [TODO] (6/676)"
   - id: D2
-    level: PASS
-    check: "D2: Human review queue — 9 task(s) awaiting human action (normal)"
+    level: WARN
+    check: "D2: Human review queue — 5 task(s) waiting >14d: T-282(17d) T-285(17d) T-288(17d) T-531(15d) T-534(15d)"
+    mitigation: "Review with: fw task verify"
   - id: D8
     level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
@@ -17,7 +18,7 @@ findings:
     check: "D11: Gap register staleness — all gaps fresh"
 
 summary:
-  pass: 5
-  warn: 0
+  pass: 4
+  warn: 1
   fail: 0
   total: 5

@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-931: termlink-hub.service systemd unit file + installer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-11T22:41:45Z
+# ============================================================================
+
+task_id: T-931
+task_name: "termlink-hub.service systemd unit file + installer"
+workflow_type: build
+enrichment_status: git-derived  # Auto-filled from git; AC/decisions not in task file
+
+# Timeline
+created: 2026-04-11T22:29:17Z
+completed: 2026-04-11T22:41:44Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-12T00:36:33+02:00
+last_commit: 2026-04-12T00:36:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink-hub.service systemd unit file + installer
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/systemd/install.sh"
+  - ".context/systemd/termlink-hub.service"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T00:36:33"
+    action: "T-931: termlink-hub.service systemd unit file + installer"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 3
+  files_changed: 10
+  lines_added: 1275
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-931-termlink-hubservice-systemd-unit-file--i.md
+generated_by: context-agent-hybrid

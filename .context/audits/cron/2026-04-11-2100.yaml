@@ -1,0 +1,56 @@
+# Audit Results - 2026-04-11-2100
+timestamp: 2026-04-11T19:00:01Z
+sections: "traceability,episodic,discovery-trends"
+summary:
+  pass: 9
+  warn: 10
+  fail: 0
+findings:
+  - level: PASS
+    check: "Git traceability: 97% (1231/1260 commits reference tasks)"
+  - level: WARN
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
+  - level: PASS
+    check: "All commit task refs resolve to actual tasks"
+  - level: WARN
+    check: "Completed task T-894 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-894"
+  - level: WARN
+    check: "Completed task T-895 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-895"
+  - level: WARN
+    check: "Completed task T-896 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-896"
+  - level: WARN
+    check: "Completed task T-897 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-897"
+  - level: WARN
+    check: "Completed task T-900 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-900"
+  - level: WARN
+    check: "Completed task T-904 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-904"
+  - level: WARN
+    check: "Completed task T-905 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-905"
+  - level: PASS
+    check: "All 643 episodic summaries have quality content"
+  - level: PASS
+    check: "No orphaned episodic files"
+  - level: PASS
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - level: WARN
+    check: "D5: Task lifecycle — 21 anomaly(s): T-265(3min,human) T-177(3min,human) T-272(0min,human) T-287(16d-active) T-283(17d-active) T-196(21d-active) T-236(19d-active) T-235(19d-active) T-176(23d-active) T-280(17d-active) (+11 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - level: PASS
+    check: "D3: Commit velocity — insufficient data"
+  - level: PASS
+    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+  - level: WARN
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=3.0 vs earlier_avg=11.0)"
+    mitigation: "Check for blockers or process issues slowing work"
+  - level: PASS
+    check: "D12: Bypass log — no log file"
+  - level: PASS
+    check: "D9: Control drift — normal (PASS 10_audits_checked)"

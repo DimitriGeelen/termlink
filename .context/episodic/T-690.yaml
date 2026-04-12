@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-690: Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T08:43:26Z
+# ============================================================================
+
+task_id: T-690
+task_name: "Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-28T23:38:01Z
+completed: 2026-04-12T08:43:25Z
+duration_days: 14
+updates_count: 3
+first_commit: 2026-03-30T13:49:37+02:00
+last_commit: 2026-03-30T13:56:24+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add broadcast subscription to EventBus — Spike 1 validated. Add event.subscribe long-poll RPC handler — Spike 2 validated
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-protocol/src/control.rs"
+  - "crates/termlink-session/src/auth.rs"
+  - "crates/termlink-session/src/events.rs"
+  - "crates/termlink-session/src/handler.rs"
+  - "crates/termlink-session/src/server.rs"
+  - "docs/reports/T-690-event-subscription-research.md"
+  - ".tasks/active/T-690-event-subscription--push-based-event-del.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-30T13:49:37"
+    action: "T-690: Add broadcast subscription to EventBus — Spike 1 validated"
+  - time: "2026-03-30T13:56:24"
+    action: "T-690: Add event.subscribe long-poll RPC handler — Spike 2 validated"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 20705 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20705
+  commits: 2
+  files_changed: 7
+  lines_added: 522
+  lines_removed: 21
+
+# Metadata
+source_file: /opt/termlink/.tasks/active/T-690-event-subscription--push-based-event-del.md
+generated_by: context-agent-hybrid

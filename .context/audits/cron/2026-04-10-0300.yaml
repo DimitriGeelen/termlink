@@ -1,0 +1,50 @@
+# Audit Results - 2026-04-10-0300
+timestamp: 2026-04-10T01:00:01Z
+sections: "traceability,episodic,discovery-trends"
+summary:
+  pass: 9
+  warn: 8
+  fail: 0
+findings:
+  - level: PASS
+    check: "Git traceability: 97% (1204/1233 commits reference tasks)"
+  - level: WARN
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
+  - level: PASS
+    check: "All commit task refs resolve to actual tasks"
+  - level: WARN
+    check: "Completed task T-894 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-894"
+  - level: WARN
+    check: "Completed task T-895 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-895"
+  - level: WARN
+    check: "Completed task T-896 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-896"
+  - level: WARN
+    check: "Completed task T-897 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-897"
+  - level: WARN
+    check: "Completed task T-900 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-900"
+  - level: PASS
+    check: "All 634 episodic summaries have quality content"
+  - level: PASS
+    check: "No orphaned episodic files"
+  - level: PASS
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - level: WARN
+    check: "D5: Task lifecycle — 24 anomaly(s): T-265(3min,human) T-115(0min,human) T-177(3min,human) T-272(0min,human) T-092(1min,human) T-093(4min,human) T-287(15d-active) T-283(15d-active) T-196(20d-active) T-236(17d-active) (+14 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - level: PASS
+    check: "D3: Commit velocity — insufficient data"
+  - level: PASS
+    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+  - level: WARN
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=0.3 vs earlier_avg=10.9)"
+    mitigation: "Check for blockers or process issues slowing work"
+  - level: PASS
+    check: "D12: Bypass log — no log file"
+  - level: PASS
+    check: "D9: Control drift — normal (PASS 10_audits_checked)"
