@@ -127,7 +127,9 @@ done
 run systemctl daemon-reload
 
 # Stop any manually-running hub so systemd can take ownership cleanly.
-if pgrep -f "termlink hub start" >/dev/null 2>&1; then
+# T-948: Skip if the hub is already systemd-managed (pgrep matches systemd's
+# process too, causing a kill+restart on every idempotent install run).
+if pgrep -f "termlink hub start" >/dev/null 2>&1 && ! systemctl is-active --quiet termlink-hub.service 2>/dev/null; then
     echo ""
     echo "NOTE: a manually-launched 'termlink hub start' process is running."
     echo "      Stopping it so systemd can take ownership of the hub."
