@@ -4,16 +4,16 @@ name: "Pickup: T-1135 persistent TermLink agent sessions — cross-agent coordin
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework. Type: pattern.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T09:44:01Z
-last_update: 2026-04-12T09:44:01Z
-date_finished: null
+last_update: 2026-04-12T21:29:29Z
+date_finished: 2026-04-12T21:29:29Z
 ---
 
 # T-968: Pickup: T-1135 persistent TermLink agent sessions — cross-agent coordination results from framework + termlink project (from 999-Agentic-Engineering-Framework)
@@ -123,3 +123,7 @@ Rationale: Subsumed by T-967 (persistent agent sessions, already in active tasks
 
 Evidence:
 - T-967 covers ma...
+
+### 2026-04-12T21:29:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** DEFER decision recorded
