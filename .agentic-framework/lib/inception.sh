@@ -315,6 +315,12 @@ EOF
     # P-010 (AC gate) and P-011 (verification gate) are NOT bypassed (T-1101/T-1142).
     if [ "$decision" = "go" ] || [ "$decision" = "no-go" ]; then
         echo ""
+        # T-949: Auto-transition captured → started-work before completing
+        local current_status
+        current_status=$(grep '^status:' "$task_file" | awk '{print $2}')
+        if [ "$current_status" = "captured" ]; then
+            "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status started-work --skip-sovereignty --reason "Auto-transition for inception decide" 2>&1
+        fi
         "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status work-completed --skip-sovereignty --reason "Inception decision: $decision_upper" 2>&1
     fi
 
