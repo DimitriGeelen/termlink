@@ -1,22 +1,22 @@
 ---
-id: T-964
-name: "EventBus broadcast channel — add subscribe() alongside poll()"
+id: T-944
+name: "Filter approvals page — only show inception tasks with actual recommendations"
 description: >
-  T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
+  Filter approvals page — only show inception tasks with actual recommendations
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-12T09:12:37Z
-last_update: 2026-04-12T09:12:37Z
-date_finished: null
+created: 2026-04-12T08:07:21Z
+last_update: 2026-04-12T08:12:33Z
+date_finished: 2026-04-12T08:12:33Z
 ---
 
-# T-964: EventBus broadcast channel — add subscribe() alongside poll()
+# T-944: Filter approvals page — only show inception tasks with actual recommendations
 
 ## Context
 
@@ -25,12 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)
-- [x] emit() writes to both ring buffer and broadcast channel
-- [x] subscribe() returns broadcast::Receiver<Event> for push delivery
-- [x] event.subscribe RPC handler with long-poll, topic filter, and since replay (handler.rs)
-- [x] All 39 event tests pass (34 unit + 5 integration)
+- [x] Approvals page splits inception tasks into "Ready for decision" (has recommendation) and "Not ready" (no recommendation)
+- [x] Go/No-Go criteria displayed on each card (not just placeholder text)
+- [x] Tasks without recommendations shown in collapsed "Not ready" section with link to task
+- [x] Pickup P-011 sent to framework agent
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -66,7 +64,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-12T09:12:37Z — task-created [task-create-agent]
+### 2026-04-12T08:07:21Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
+- **Output:** /opt/termlink/.tasks/active/T-944-filter-approvals-page--only-show-incepti.md
 - **Context:** Initial task creation
+
+### 2026-04-12T08:12:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

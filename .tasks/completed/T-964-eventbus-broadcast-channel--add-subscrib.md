@@ -4,7 +4,7 @@ name: "EventBus broadcast channel — add subscribe() alongside poll()"
 description: >
   T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:12:37Z
-last_update: 2026-04-12T09:12:37Z
-date_finished: null
+last_update: 2026-04-12T09:13:48Z
+date_finished: 2026-04-12T09:13:48Z
 ---
 
 # T-964: EventBus broadcast channel — add subscribe() alongside poll()
@@ -70,3 +70,9 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
 - **Context:** Initial task creation
+
+### 2026-04-12T09:13:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-04-12T09:13:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

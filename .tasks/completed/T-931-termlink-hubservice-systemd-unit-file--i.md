@@ -1,22 +1,22 @@
 ---
-id: T-964
-name: "EventBus broadcast channel — add subscribe() alongside poll()"
+id: T-931
+name: "termlink-hub.service systemd unit file + installer"
 description: >
-  T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
+  Create /etc/systemd/system/termlink-hub.service matching the watchtower-vinix24 precedent: Type=exec, User=root, TERMLINK_RUNTIME_DIR=/var/lib/termlink, StateDirectory=termlink, ExecStart=termlink hub start --tcp 0.0.0.0:9100 --json, Restart=on-failure, RestartSec=5, KillSignal=SIGINT (temporary until T-932 lands). Include installer in .context/systemd/ mirroring the agentic-audit-termlink cron install pattern. From T-930 decomposition.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
-related_tasks: []
-created: 2026-04-12T09:12:37Z
-last_update: 2026-04-12T09:12:37Z
-date_finished: null
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
+related_tasks: [T-930, T-932, T-933]
+created: 2026-04-11T22:29:17Z
+last_update: 2026-04-11T22:41:44Z
+date_finished: 2026-04-11T22:41:44Z
 ---
 
-# T-964: EventBus broadcast channel — add subscribe() alongside poll()
+# T-931: termlink-hub.service systemd unit file + installer
 
 ## Context
 
@@ -26,11 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)
-- [x] emit() writes to both ring buffer and broadcast channel
-- [x] subscribe() returns broadcast::Receiver<Event> for push delivery
-- [x] event.subscribe RPC handler with long-poll, topic filter, and since replay (handler.rs)
-- [x] All 39 event tests pass (34 unit + 5 integration)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -66,7 +63,13 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-12T09:12:37Z — task-created [task-create-agent]
+### 2026-04-11T22:29:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
+- **Output:** /opt/termlink/.tasks/active/T-931-termlink-hubservice-systemd-unit-file--i.md
 - **Context:** Initial task creation
+
+### 2026-04-11T22:30:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-04-11T22:41:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

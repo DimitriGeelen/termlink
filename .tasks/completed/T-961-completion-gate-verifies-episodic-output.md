@@ -1,22 +1,22 @@
 ---
-id: T-964
-name: "EventBus broadcast channel — add subscribe() alongside poll()"
+id: T-961
+name: "Completion gate verifies episodic output exists after generation"
 description: >
-  T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
+  Fix A/C from T-292: After generate-episodic runs during task completion, verify the .yaml file actually exists. If not, block completion. Prevents silent episodic generation failures.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-12T09:12:37Z
-last_update: 2026-04-12T09:12:37Z
-date_finished: null
+created: 2026-04-12T08:46:42Z
+last_update: 2026-04-12T09:08:38Z
+date_finished: 2026-04-12T09:08:38Z
 ---
 
-# T-964: EventBus broadcast channel — add subscribe() alongside poll()
+# T-961: Completion gate verifies episodic output exists after generation
 
 ## Context
 
@@ -25,12 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)
-- [x] emit() writes to both ring buffer and broadcast channel
-- [x] subscribe() returns broadcast::Receiver<Event> for push delivery
-- [x] event.subscribe RPC handler with long-poll, topic filter, and since replay (handler.rs)
-- [x] All 39 event tests pass (34 unit + 5 integration)
+- [x] `update-task.sh` checks for `.context/episodic/T-XXX.yaml` after calling `generate-episodic`
+- [x] If episodic file missing after generation, warning with actionable error (doesn't block — warns loudly)
+- [x] Existing tasks without episodic failures still complete (backward compatible)
+- [x] Pickup sent to framework agent (this is a framework-side fix)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -66,7 +64,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-12T09:12:37Z — task-created [task-create-agent]
+### 2026-04-12T08:46:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
+- **Output:** /opt/termlink/.tasks/active/T-961-completion-gate-verifies-episodic-output.md
 - **Context:** Initial task creation
+
+### 2026-04-12T09:08:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
