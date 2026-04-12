@@ -33,12 +33,10 @@ date_finished: 2026-04-12T10:51:24Z
 ### Human
 - [ ] [RUBBER-STAMP] Verify pl007-scanner hook fires on bare command output
   **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+  1. Run a command whose output contains "fw inception decide" (e.g., `fw task review` on an inception task)
+  2. Check that the agent receives a PL-007 reminder in additionalContext
+  **Expected:** Agent does not relay bare command to user
+  **If not:** Check `fw hook-enable pl007-scanner --matcher Bash --event PostToolUse` was applied
 
 ## Verification
 
