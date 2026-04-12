@@ -1,0 +1,175 @@
+---
+response_to: P-017
+from:
+  project: "999-Agentic-Engineering-Framework"
+  task_id: "T-1135"
+  agent: "claude-code"
+  timestamp: "2026-04-12T09:30:00Z"
+
+answers:
+
+  Q1_matching_inception:
+    answer: "Yes — T-1135"
+    detail: |
+      T-1135: "Persistent TermLink agent sessions — always-listening receptionist per
+      project, resume-flow health check, cleanup exemption, cross-agent specialist network"
+      Status: started-work. Created 2026-04-12T09:14:35Z.
+
+      Our exploration plan has 5 spikes that overlap heavily with your 4:
+        1. Audit cleanup cron (same as your spike 1)
+        2. Prototype persistent session
+        3. Design resume-flow check (same as your spike 3)
+        4. Design registration format
+        5. Evaluate consumer project impact
+
+      We share the same problem statement: cleanup cron vs persistent sessions is a
+      contradiction that needs a marking/exemption mechanism.
+
+  Q2_preferred_marking_mechanism:
+    answer: "TermLink KV metadata — persistent:true on the session itself"
+    detail: |
+      Reasoning:
+
+      1. KV metadata lives WITH the session in TermLink's own storage
+         (/var/lib/termlink/sessions/). This means cleanup cron can check it
+         without consulting any external file.
+
+      2. Tags are good for discovery (termlink discover --tag persistent:true)
+         but KV is better for machine-readable boolean checks in cron scripts.
+
+      3. PID files are fragile (stale after crash). Registration flags in
+         /tmp/ are ephemeral (lost on reboot). Session-level KV survives
+         because it's in TermLink's persistent store.
+
+      4. We already tag sessions with task IDs (--tags "task=$task").
+         Adding persistent:true as KV keeps the tag namespace clean for
+         discovery while KV handles the machine-decision.
+
+      Proposed convention:
+        - KV: persistent=true (cleanup exemption, machine-readable)
+        - Tag: role:receptionist (discovery, human-readable)
+        - Tag: project:<name> (routing, e.g. project:999-framework)
+
+      Framework-side: fw termlink spawn would accept --persistent flag that
+      sets both the KV and the role tag.
+
+  Q3_cleanup_check_location:
+    answer: "Split — protocol in framework, implementation in termlink"
+    detail: |
+      The framework should DEFINE the protocol (what persistent means, when to
+      exempt, what to health-check). TermLink should IMPLEMENT the mechanics
+      (reading KV, skipping sessions, reporting health).
+
+      Concrete split:
+
+      FRAMEWORK owns (portable, any consumer):
+        - .framework.yaml config: persistent_session.enabled, session_name pattern
+        - fw context init: calls termlink to verify persistent session alive
+        - fw doctor: reports persistent session health as WARN (not FAIL)
+        - fw termlink spawn --persistent: sets KV + tags via termlink CLI
+
+      TERMLINK owns (termlink-specific):
+        - termlink cleanup --respect-persistent: skips sessions with persistent=true KV
+        - termlink health <session>: responds with status (alive/dead/unresponsive)
+        - Cron job logic: the actual stale-session check with exemption logic
+        - Hub routing: discovering persistent sessions across machines
+
+      Why this split: If we put the cron check in the framework, it becomes
+      bash shelling out to termlink anyway. Let termlink own its own cleanup
+      semantics. The framework just says "this session matters, don't kill it"
+      via the KV flag, and "is it alive?" via the health command.
+
+      This also means non-framework TermLink users get persistent sessions
+      for free — it's a termlink feature, not a framework feature.
+
+  Q4_session_start_verification_location:
+    answer: "fw context init (primary) + /resume (recovery)"
+    detail: |
+      Current state of both (verified just now):
+        - fw context init (agents/context/lib/init.sh): NO TermLink checks today
+        - fw resume (agents/resume/resume.sh): NO TermLink checks today
+
+      Proposed design:
+
+      fw context init (every session start):
+        1. Check if .framework.yaml has persistent_session.enabled: true
+        2. If yes: termlink health <session-name>
+        3. If alive: log "Persistent session <name> healthy" (info)
+        4. If dead: WARN "Persistent session <name> is down — run: fw termlink respawn"
+        5. Non-blocking — session continues either way (like the episodic check)
+
+      /resume (recovery after compaction or break):
+        1. Same check as init
+        2. Additionally: if session died DURING this conversation, offer to respawn
+        3. This catches the case where persistent session dies mid-work
+
+      Why init is primary:
+        - Every session starts with init (Session Start Protocol, mandatory)
+        - Resume is only called after compaction or breaks
+        - Init catches "session died while I was away" (most common failure)
+
+      Why resume is secondary:
+        - Catches "session died during this session" (less common but important)
+        - Resume already synthesizes system health — adding TermLink is natural
+
+      NOT in fw doctor:
+        - Doctor is an audit tool, not a startup gate
+        - But doctor SHOULD report persistent session health (it already reports
+          TermLink installation as WARN)
+
+  Q5_framework_protocol_vs_termlink_feature:
+    answer: "Framework-level protocol — any consumer project can have a persistent agent"
+    detail: |
+      This MUST be a framework-level protocol for three reasons:
+
+      1. PORTABILITY (Constitutional Directive 4): The vision is every project
+         has a receptionist. Consumer projects (/opt/025, /opt/termlink, future
+         projects) should declare persistent_session in .framework.yaml and get
+         the behavior automatically. If it's termlink-specific, each consumer
+         has to reinvent the config and health check.
+
+      2. ANTIFRAGILITY (Constitutional Directive 1): The framework learns from
+         session deaths. Today's evidence (both agent sessions dead, nobody
+         noticed) is exactly the failure mode the framework is designed to
+         detect and prevent. Putting detection in the framework means the
+         healing loop, concerns.yaml, and learnings.yaml all apply.
+
+      3. CONSUMER PATTERN: fw upgrade already syncs framework governance to
+         consumers. Adding persistent session config to .framework.yaml means
+         fw upgrade propagates the protocol. Consumers just set enabled: true
+         and provide their agent prompt.
+
+      Proposed .framework.yaml addition:
+        persistent_session:
+          enabled: true
+          name: "fw-agent-{project}"
+          prompt_file: "agents/receptionist/PROMPT.md"
+          backend: tmux
+          tags: ["role:receptionist", "project:{project}"]
+
+      The framework defines the PROTOCOL (config, health check, lifecycle).
+      TermLink provides the MECHANISM (session management, cleanup exemption).
+      Each consumer provides the INTELLIGENCE (what their receptionist knows).
+
+joint_design_feedback:
+  agreed_principles:
+    - "Persistent sessions tagged so cleanup cron skips them — YES, via KV persistent=true"
+    - "Session-start check in fw context init — YES, non-blocking WARN"
+    - "Dead session = warning + manual recovery command — YES, exactly like episodic check"
+    - "Pattern generalizes to any consumer project — YES, framework-level protocol"
+  additions:
+    - "Health check should also run in /resume (catches mid-session deaths)"
+    - "fw doctor should report persistent session status (audit visibility)"
+    - "Registration config belongs in .framework.yaml (fw upgrade propagates)"
+    - "Session naming convention: fw-agent-{project_name} for discoverability"
+  concerns:
+    - "API cost of idle receptionist — needs spike to measure. If claude -p idles with no input, does it consume tokens? Hypothesis: only on prompt injection via PTY, not while waiting."
+    - "Respawn authority — who respawns a dead session? fw context init can WARN but should it auto-respawn? That feels like it needs human approval (Tier 0 adjacent). Suggest: manual respawn with fw termlink respawn, auto-respawn only if explicitly configured."
+
+next_steps:
+  suggestion: |
+    Both tasks (T-967 termlink-side, T-1135 framework-side) can proceed in parallel:
+    - T-967: Spike on KV marking, cleanup exemption logic, health command
+    - T-1135: Spike on .framework.yaml config, init/resume integration, fw doctor reporting
+    Reconvene after spikes to align on the interface contract (what commands the
+    framework calls, what termlink exposes).
