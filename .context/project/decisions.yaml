@@ -164,3 +164,17 @@ decisions:
     date: 2026-04-11
     task: T-920
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-003
+    decision: "Skip implementing a new `session.forward` hub RPC method. The hub"
+    scope: project
+    date: 2026-04-11
+    task: T-923
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-004
+    decision: "Close the scope-gap AC as 'verified safe via code-read + regression'"
+    scope: project
+    date: 2026-04-11
+    task: T-923
+    rationale: "Auto-captured from task file on completion"
