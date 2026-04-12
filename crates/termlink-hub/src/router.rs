@@ -10,6 +10,7 @@ use termlink_protocol::TransportAddr;
 use termlink_session::client;
 use termlink_session::manager;
 
+use crate::aggregator::{EventAggregator, SessionTarget};
 use crate::remote_store::RemoteStore;
 
 /// Per-target timeout for broadcast/collect operations.
@@ -18,11 +19,24 @@ const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
 /// Global remote session store (initialized once by the hub server).
 static REMOTE_STORE: OnceLock<RemoteStore> = OnceLock::new();
 
+/// Global event aggregator (T-966).
+static AGGREGATOR: OnceLock<EventAggregator> = OnceLock::new();
+
 /// Initialize the global remote store. Called once by the hub server.
 pub fn init_remote_store() -> RemoteStore {
     let store = RemoteStore::new();
     let _ = REMOTE_STORE.set(store.clone());
     store
+}
+
+/// Initialize the global event aggregator. Called once by the hub server.
+pub fn init_aggregator() {
+    let _ = AGGREGATOR.set(EventAggregator::new(4096));
+}
+
+/// Get the global event aggregator.
+pub(crate) fn aggregator() -> Option<&'static EventAggregator> {
+    AGGREGATOR.get()
 }
 
 /// Get the global remote store (returns None if not initialized).
@@ -561,8 +575,22 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
     let tags = extract_string_array(params, "tags");
     let capabilities = extract_string_array(params, "capabilities");
 
+    let display_name_clone = display_name.clone();
+    let host_clone = host.clone();
     let session_id = store.register(crate::remote_store::RemoteSessionInfo { display_name, host, port, pid, roles, tags, capabilities });
     tracing::info!(id = %session_id, "Remote session registered");
+
+    // T-966: Subscribe aggregator to this session's event bus
+    if let Some(agg) = aggregator() {
+        let target = SessionTarget {
+            id: session_id.clone(),
+            display_name: display_name_clone,
+            addr: TransportAddr::tcp(host_clone, port),
+        };
+        tokio::spawn(async move {
+            agg.add_session(target).await;
+        });
+    }
 
     Response::success(id, json!({ "id": session_id })).into()
 }
@@ -613,6 +641,13 @@ fn handle_deregister_remote(id: serde_json::Value, params: &serde_json::Value) -
 
     if store.deregister(session_id) {
         tracing::info!(id = %session_id, "Remote session deregistered");
+        // T-966: Remove aggregator subscription
+        if let Some(agg) = aggregator() {
+            let sid = session_id.to_string();
+            tokio::spawn(async move {
+                agg.remove_session(&sid).await;
+            });
+        }
         Response::success(id, json!({ "ok": true })).into()
     } else {
         ErrorResponse::new(

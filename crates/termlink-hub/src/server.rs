@@ -160,6 +160,9 @@ pub async fn run_with_tcp(
     // Initialize the remote session store
     let remote_store = router::init_remote_store();
 
+    // T-966: Initialize the event aggregator
+    router::init_aggregator();
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {
