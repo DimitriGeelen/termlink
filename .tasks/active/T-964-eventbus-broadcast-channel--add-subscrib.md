@@ -1,22 +1,22 @@
 ---
-id: T-963
-name: "Session-start check for open concerns and recurring failure patterns"
+id: T-964
+name: "EventBus broadcast channel — add subscribe() alongside poll()"
 description: >
-  Fix B from T-283: context init (session start) should read concerns.yaml for open gaps and warn. Prevents cross-session failure blindness by surfacing known issues at start of every session.
+  T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-12T09:09:42Z
-last_update: 2026-04-12T09:11:55Z
+created: 2026-04-12T09:12:37Z
+last_update: 2026-04-12T09:12:37Z
 date_finished: null
 ---
 
-# T-963: Session-start check for open concerns and recurring failure patterns
+# T-964: EventBus broadcast channel — add subscribe() alongside poll()
 
 ## Context
 
@@ -26,10 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `context.sh init` reads concerns.yaml and warns about open (non-closed) gaps
-- [x] Warning includes gap ID, summary, and age
-- [x] No warning when all concerns are closed (backward compatible)
-- [x] Pickup sent to framework agent
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -65,7 +63,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-12T09:09:42Z — task-created [task-create-agent]
+### 2026-04-12T09:12:37Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-963-session-start-check-for-open-concerns-an.md
+- **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
 - **Context:** Initial task creation

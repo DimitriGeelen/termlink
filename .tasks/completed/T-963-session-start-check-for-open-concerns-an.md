@@ -4,7 +4,7 @@ name: "Session-start check for open concerns and recurring failure patterns"
 description: >
   Fix B from T-283: context init (session start) should read concerns.yaml for open gaps and warn. Prevents cross-session failure blindness by surfacing known issues at start of every session.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:09:42Z
-last_update: 2026-04-12T09:11:55Z
-date_finished: null
+last_update: 2026-04-12T09:12:13Z
+date_finished: 2026-04-12T09:12:13Z
 ---
 
 # T-963: Session-start check for open concerns and recurring failure patterns
@@ -69,3 +69,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-963-session-start-check-for-open-concerns-an.md
 - **Context:** Initial task creation
+
+### 2026-04-12T09:12:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
