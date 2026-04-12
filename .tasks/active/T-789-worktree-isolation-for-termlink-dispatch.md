@@ -96,14 +96,11 @@ test -f docs/reports/T-789-worktree-isolation-research.md
   --workdir, --isolate+manifest, --auto-merge, pre-commit gate, audit check.
 
 **Date**: 2026-03-30T13:07:53Z
-## Decision
+## Recommendation
 
-**Decision**: GO
+**Recommendation:** GO
 
-**Rationale**: Option A (7/8). Dispatch manifest makes all 5 failure modes deterministically mitigated. 64 tests specified. Implementation:   
-  --workdir, --isolate+manifest, --auto-merge, pre-commit gate, audit check.
-
-**Date**: 2026-03-30T13:07:53Z
+**Rationale:** Option A scored highest (7/8) against all four framework directives. The dispatch manifest design deterministically mitigates all 5 identified failure modes, with 64 tests specified for verification. Implementation proceeds in phases: --workdir flag first, then --isolate with manifest, --auto-merge, pre-commit gate, and audit check.
 
 ## Updates
 
