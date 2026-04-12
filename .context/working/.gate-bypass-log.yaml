@@ -13,3 +13,8 @@
   flag: '--skip-acceptance-criteria'
   caller: 'check_acceptance_criteria'
   reason: 'Learning captured, no further action needed'
+- timestamp: '2026-04-12T13:13:47Z'
+  task: 'T-936'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

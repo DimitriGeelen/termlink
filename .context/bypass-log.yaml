@@ -40,3 +40,13 @@ bypasses:
   command_hash: 1f7a128d5e159ccc87a2a641b93753facbd75417e7bc04119ea06c84870c1779
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-04-12T13:13:47Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: fw inception decide T-936 go --rationale "Registry populated with
+    all 11 jobs, dry-run diff clean, binary path corrected
+  command_hash: 2ccd27a8e3e21992987855772a4cbd26d8e4b7afcaa76c7d7e4167e5101baea5
+  authorized_by: human
+  mechanism: fw tier0 approve

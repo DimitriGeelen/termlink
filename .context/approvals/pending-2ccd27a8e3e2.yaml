@@ -1,0 +1,9 @@
+command_hash: 2ccd27a8e3e21992987855772a4cbd26d8e4b7afcaa76c7d7e4167e5101baea5
+command_preview: fw inception decide T-936 go --rationale "Registry populated with
+  all 11 jobs, dry-run diff clean, binary path corrected to vendored" 2>&1
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: pending
+timestamp: '2026-04-12T13:12:21Z'
+type: tier0
