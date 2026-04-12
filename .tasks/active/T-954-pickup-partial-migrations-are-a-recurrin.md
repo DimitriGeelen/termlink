@@ -4,10 +4,10 @@ name: "Pickup: Partial migrations are a recurring bug class — audit should det
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: pattern.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, pattern]
 components: []
 related_tasks: []
@@ -20,34 +20,39 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+`fw upgrade` can partially complete — some files get updated, others retain old versions. This leaves the framework in an inconsistent state where some components expect new APIs/patterns while others have old code. Observed in this session (T-984): 6 local patches reverted, T-978 backup code overwritten. The audit system doesn't detect this class of inconsistency.
+
+Related: T-984 (fw upgrade local patch reversion), T-978 (checksum manifest).
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+1. Partial migrations leave detectable signatures (version mismatches between files, missing functions referenced by callers)
+2. The `.upstream-checksums` manifest (T-978) could serve as a basis for consistency checking
+3. This is a framework-side change (audit.sh), not a termlink Rust change
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Assess what "incomplete migration" looks like in practice — DONE (T-984 evidence)
+2. Determine if `.upstream-checksums` can detect inconsistency — DONE (it can compare current vs expected)
+3. Decide: build audit check or subsume into T-984's `.local-patches` manifest
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- Framework audit runs as cron job (every 30 min)
+- Must be fast (no `sha256sum` of 100+ files per run — cache results)
+- Changes go in framework repo (audit.sh), not termlink
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** Assessment of feasibility and relationship to T-984
+**OUT:** Implementation (belongs in framework repo)
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (T-984 session evidence of partial migration)
+- [x] Assumptions tested (upstream-checksums provides basis; audit change is framework-side)
+- [x] Recommendation written with rationale (DEFER: subsume into T-984)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +66,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- T-984 does NOT include audit detection as part of its build scope
+- Partial migration incidents continue after T-984 is deployed
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- T-984's `.local-patches` manifest makes partial migrations detectable by design
+- This is a framework-side change better handled in the framework repo
 
 ## Verification
 
@@ -76,15 +81,16 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DEFER
+
+**Rationale:** This is subsumed by T-984 (fw upgrade local patch reversion). If T-984's `.local-patches` manifest is built, partial migrations become structurally detectable — the manifest tracks which files have local modifications, and `fw upgrade` would preserve them. A separate audit check adds complexity for a problem that T-984 prevents at the source.
+
+Additionally, this is a framework-side change (audit.sh) that belongs in the framework repo, not the termlink consumer project.
+
+**Evidence:**
+- T-984 addresses the root cause (silent overwriting) rather than the symptom (detecting inconsistency)
+- `.upstream-checksums` already exists (108 entries) as a consistency baseline
+- Framework audit runs every 30 min but adding sha256sum for 100+ files is expensive
 
 ## Decisions
 
