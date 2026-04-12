@@ -71,8 +71,8 @@ do_harvest() {
     fi
 
     local project_context="$project_dir/.context/project"
-    local framework_context="$PROJECT_ROOT/.context/project"
-    local harvest_log="$PROJECT_ROOT/.context/harvest.log"
+    local framework_context="$FRAMEWORK_ROOT/.context/project"
+    local harvest_log="$FRAMEWORK_ROOT/.context/harvest.log"
     local project_name
     project_name=$(basename "$project_dir")
 
@@ -360,7 +360,7 @@ harvest_decisions() {
 # --- Episodic Memory Harvesting ---
 harvest_episodics() {
     local project_episodics="$project_dir/.context/episodic"
-    local framework_episodics="$PROJECT_ROOT/.context/episodic/harvested"
+    local framework_episodics="$FRAMEWORK_ROOT/.context/episodic/harvested"
 
     if [ ! -d "$project_episodics" ]; then
         echo -e "  ${CYAN}SKIP${NC}  No .context/episodic/ in project"

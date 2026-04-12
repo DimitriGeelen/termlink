@@ -4,16 +4,16 @@ name: "Pickup: Hub should scan multiple session dirs — eliminates runtime dir 
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: feature-proposal.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T07:49:08Z
-last_update: 2026-04-12T07:49:08Z
-date_finished: null
+last_update: 2026-04-12T17:14:43Z
+date_finished: 2026-04-12T17:14:43Z
 ---
 
 # T-942: Pickup: Hub should scan multiple session dirs — eliminates runtime dir split-brain (from termlink)
@@ -90,20 +90,35 @@ Related: T-940 (RCA for runtime dir unification). T-959 concluded "two-pool arch
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` env var provides a workable override. The systemd unit (T-931) already sets a consistent runti...
+
+**Date**: 2026-04-12T17:14:43Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` env var provides a workable override. The systemd unit (T-931) already sets a consistent runti...
+
+**Date**: 2026-04-12T17:14:43Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:14:43Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: DEFER
+
+Rationale: The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` env var provides a workable override. The systemd unit (T-931) already sets a consistent runti...
+
+### 2026-04-12T17:14:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

@@ -4,16 +4,16 @@ name: "Pickup: Partial migrations are a recurring bug class — audit should det
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: pattern.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:31Z
-last_update: 2026-04-12T08:40:31Z
-date_finished: null
+last_update: 2026-04-12T17:16:34Z
+date_finished: 2026-04-12T17:16:34Z
 ---
 
 # T-954: Pickup: Partial migrations are a recurring bug class — audit should detect incomplete migrations (from termlink)
@@ -92,20 +92,35 @@ Additionally, this is a framework-side change (audit.sh) that belongs in the fra
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: This is subsumed by T-984 (fw upgrade local patch reversion). If T-984's `.local-patches` manifest is built, partial migrations become structurally detectable — th...
+
+**Date**: 2026-04-12T17:16:34Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: This is subsumed by T-984 (fw upgrade local patch reversion). If T-984's `.local-patches` manifest is built, partial migrations become structurally detectable — th...
+
+**Date**: 2026-04-12T17:16:34Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:16:34Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: DEFER
+
+Rationale: This is subsumed by T-984 (fw upgrade local patch reversion). If T-984's `.local-patches` manifest is built, partial migrations become structurally detectable — th...
+
+### 2026-04-12T17:16:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

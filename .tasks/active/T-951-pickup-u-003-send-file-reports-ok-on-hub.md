@@ -4,16 +4,16 @@ name: "Pickup: U-003: send-file reports ok on hub acceptance, not delivery — s
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1125. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-12T08:21:31Z
-last_update: 2026-04-12T08:21:31Z
-date_finished: null
+last_update: 2026-04-12T17:15:26Z
+date_finished: 2026-04-12T17:15:26Z
 ---
 
 # T-951: Pickup: U-003: send-file reports ok on hub acceptance, not delivery — silent file loss to event-only sessions (from 999-Agentic-Engineering-Framework)
@@ -86,20 +86,44 @@ DEFER: Subsumed by T-946 (hub inbox addresses root cause).
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: Subsumed by T-946. Hub inbox addresses the root cause (files for offline sessions) rather than the symptom (misleading ok:true response).
+
+Evidence:
+- ok:true mean...
+
+**Date**: 2026-04-12T17:15:26Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: Subsumed by T-946. Hub inbox addresses the root cause (files for offline sessions) rather than the symptom (misleading ok:true response).
+
+Evidence:
+- ok:true mean...
+
+**Date**: 2026-04-12T17:15:26Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:15:26Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: DEFER
+
+Rationale: Subsumed by T-946. Hub inbox addresses the root cause (files for offline sessions) rather than the symptom (misleading ok:true response).
+
+Evidence:
+- ok:true mean...
+
+### 2026-04-12T17:15:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

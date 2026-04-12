@@ -1,0 +1,1579 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - list [ref=e3]:
+      - listitem [ref=e4]:
+        - link "Logo Watchtower" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "Logo" [ref=e6]
+          - text: Watchtower
+      - listitem [ref=e7]
+      - generic [ref=e8]:
+        - listitem [ref=e9]:
+          - group [ref=e10]:
+            - generic "Work" [ref=e11] [cursor=pointer]
+        - listitem [ref=e12]:
+          - group [ref=e13]:
+            - generic "Knowledge" [ref=e14] [cursor=pointer]
+        - listitem [ref=e15]:
+          - group [ref=e16]:
+            - generic "Architecture" [ref=e17] [cursor=pointer]
+        - listitem [ref=e18]:
+          - group [ref=e19]:
+            - generic "Govern" [ref=e20] [cursor=pointer]
+        - listitem [ref=e21]
+        - listitem [ref=e22]:
+          - link "Docs" [ref=e23] [cursor=pointer]:
+            - /url: /project
+        - listitem [ref=e24]:
+          - link "Search" [ref=e25] [cursor=pointer]:
+            - /url: /search
+            - img [ref=e26]
+        - listitem [ref=e29]:
+          - button "Toggle dark mode" [ref=e30] [cursor=pointer]: ☾
+  - generic [ref=e31]:
+    - generic [ref=e32]: T-160
+    - generic [ref=e33]: "|"
+    - generic [ref=e34]: "Session: 47m ago"
+    - generic [ref=e35]: "|"
+    - generic [ref=e36]: "Audit: unknown"
+    - generic [ref=e37]: "|"
+    - generic [ref=e38]:
+      - strong [ref=e39]: "72"
+      - text: items need attention
+    - generic "/opt/termlink" [ref=e40]:
+      - strong [ref=e41]: termlink
+  - main [ref=e42]:
+    - heading "Approvals (61 pending)" [level=1] [ref=e44]
+    - generic [ref=e45]:
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - generic [ref=e48]: "0"
+          - text: Tier 0
+        - generic [ref=e49]:
+          - generic [ref=e50]: "12"
+          - text: Ready
+        - generic [ref=e51]:
+          - generic [ref=e52]: "40"
+          - text: Human ACs
+        - generic [ref=e53]:
+          - generic [ref=e54]: "61"
+          - text: Total
+      - generic [ref=e55]:
+        - heading "Inception Decisions" [level=3] [ref=e56]
+        - generic [ref=e57]: 12 ready for decision
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - link "T-922" [ref=e61] [cursor=pointer]:
+              - /url: /inception/T-922
+              - strong [ref=e62]: T-922
+            - text: ": Codify MCP auto-exposure — every new CLI command must be MCP-reachable"
+          - generic [ref=e63]: Pending
+        - paragraph [ref=e64]: Every new CLI command should automatically be MCP-reachable. Currently MCP tools are hand-crafted. Process improvement to ensure CLI-MCP parity.
+        - generic [ref=e65]:
+          - generic [ref=e67]: "Agent recommends: DEFER"
+          - paragraph [ref=e68]: Current MCP tools already cover active CLI commands (register, dispatch, inject, send-file, kv operations). Process improvement for ensuring future commands are auto-exposed is not urgent.
+          - group [ref=e69]:
+            - generic "Go/No-Go Criteria" [ref=e70] [cursor=pointer]
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - generic [ref=e73] [cursor=pointer]:
+              - radio "GO" [ref=e74]
+              - generic [ref=e75]: GO
+            - generic [ref=e76] [cursor=pointer]:
+              - radio "NO-GO" [ref=e77]
+              - generic [ref=e78]: NO-GO
+            - generic [ref=e79] [cursor=pointer]:
+              - radio "DEFER" [ref=e80]
+              - generic [ref=e81]: DEFER
+          - textbox "Rationale (required)..." [ref=e82]: "Recommendation: DEFER Rationale: Current MCP tools already cover active CLI commands (register, dispatch, inject, send-file, kv operations). Process improvement for ensuring future commands are au..."
+          - button "Record Decision" [ref=e84] [cursor=pointer]
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - link "T-937" [ref=e88] [cursor=pointer]:
+              - /url: /inception/T-937
+              - strong [ref=e89]: T-937
+            - text: ": Pickup: TermLink cleanup kills active dispatch workers — fw termlink cleanup treats running workers as orphans because they lack exit_code file (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e90]: Pending
+        - paragraph [ref=e91]: "`fw termlink cleanup` kills active dispatch workers because they lack `exit_code` file. Framework dispatch (`cmd_dispatch` in `termlink.sh`) creates worker dirs in `/tmp/tl-dispatch/`. Cleanup iter..."
+        - generic [ref=e92]:
+          - generic [ref=e94]: "Agent recommends: NO-GO"
+          - paragraph [ref=e95]: "The original bug (cleanup killing active workers) was already mitigated by T-843/T-972 which added claude process detection before killing. The remaining edge cases (non-claude workers) are narrow and unlikely in practice. The Rust `termlink dispatch` command is the future direction and uses a co..."
+          - group [ref=e96]:
+            - generic "Go/No-Go Criteria" [ref=e97] [cursor=pointer]
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - generic [ref=e100] [cursor=pointer]:
+              - radio "GO" [ref=e101]
+              - generic [ref=e102]: GO
+            - generic [ref=e103] [cursor=pointer]:
+              - radio "NO-GO" [ref=e104]
+              - generic [ref=e105]: NO-GO
+            - generic [ref=e106] [cursor=pointer]:
+              - radio "DEFER" [ref=e107]
+              - generic [ref=e108]: DEFER
+          - textbox "Rationale (required)..." [ref=e109]: "Recommendation: NO-GO Rationale: The original bug (cleanup killing active workers) was already mitigated by T-843/T-972 which added claude process detection before killing. The remaining edge case..."
+          - button "Record Decision" [ref=e111] [cursor=pointer]
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - generic [ref=e114]:
+            - link "T-941" [ref=e115] [cursor=pointer]:
+              - /url: /inception/T-941
+              - strong [ref=e116]: T-941
+            - text: ": Pickup: Include persistent agent session service templates in framework deploy scaffold (from termlink)"
+          - generic [ref=e117]: Pending
+        - paragraph [ref=e118]: Framework deploy scaffold lacks templates for persistent TermLink agent sessions (systemd units). T-931 proved the pattern works but the service file was hand-crafted. Standardizing templates in th...
+        - generic [ref=e119]:
+          - generic [ref=e121]: "Agent recommends: DEFER"
+          - paragraph [ref=e122]: Framework-side work. T-931 systemd unit proves the pattern works. Template standardization belongs in the framework deploy scaffold, not the termlink consumer project.
+          - group [ref=e123]:
+            - generic "Go/No-Go Criteria" [ref=e124] [cursor=pointer]
+        - generic [ref=e125]:
+          - generic [ref=e126]:
+            - generic [ref=e127] [cursor=pointer]:
+              - radio "GO" [ref=e128]
+              - generic [ref=e129]: GO
+            - generic [ref=e130] [cursor=pointer]:
+              - radio "NO-GO" [ref=e131]
+              - generic [ref=e132]: NO-GO
+            - generic [ref=e133] [cursor=pointer]:
+              - radio "DEFER" [ref=e134]
+              - generic [ref=e135]: DEFER
+          - textbox "Rationale (required)..." [ref=e136]: "Recommendation: DEFER Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Template standardization belongs in the framework deploy scaffold, not the termlink consumer proj..."
+          - button "Record Decision" [ref=e138] [cursor=pointer]
+      - generic [ref=e139]:
+        - generic [ref=e140]:
+          - generic [ref=e141]:
+            - link "T-942" [ref=e142] [cursor=pointer]:
+              - /url: /inception/T-942
+              - strong [ref=e143]: T-942
+            - text: ": Pickup: Hub should scan multiple session dirs — eliminates runtime dir split-brain (from termlink)"
+          - generic [ref=e144]: Pending
+        - paragraph [ref=e145]: "`runtime_dir()` in `discovery.rs:10-26` returns a single directory from a priority list (env > XDG > TMPDIR > /tmp). Different processes may resolve to different directories based on their environm..."
+        - generic [ref=e146]:
+          - generic [ref=e148]: "Agent recommends: DEFER"
+          - paragraph [ref=e149]: "The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` env var provides a workable override. The systemd unit (T-931) already sets a consistent runtime dir. Multi-dir scanning adds complexity (conflict resolution, canonical authority) for a problem that may not exist in practice wit..."
+          - group [ref=e150]:
+            - generic "Go/No-Go Criteria" [ref=e151] [cursor=pointer]
+        - generic [ref=e152]:
+          - generic [ref=e153]:
+            - generic [ref=e154] [cursor=pointer]:
+              - radio "GO" [ref=e155]
+              - generic [ref=e156]: GO
+            - generic [ref=e157] [cursor=pointer]:
+              - radio "NO-GO" [ref=e158]
+              - generic [ref=e159]: NO-GO
+            - generic [ref=e160] [cursor=pointer]:
+              - radio "DEFER" [ref=e161]
+              - generic [ref=e162]: DEFER
+          - textbox "Rationale (required)..." [ref=e163]: "Recommendation: DEFER Rationale: The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` env var provides a workable override. The systemd unit (T-931) already sets a consistent runti..."
+          - button "Record Decision" [ref=e165] [cursor=pointer]
+      - generic [ref=e166]:
+        - generic [ref=e167]:
+          - generic [ref=e168]:
+            - link "T-945" [ref=e169] [cursor=pointer]:
+              - /url: /inception/T-945
+              - strong [ref=e170]: T-945
+            - text: ": Pickup: U-001: TLS cert regenerates on every hub restart, breaking all client TOFU trust (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e171]: Pending
+        - paragraph [ref=e172]: "TermLink hub generates a new self-signed TLS certificate on every restart (`tls.rs:29-65`), and `tls::cleanup()` deletes cert files on shutdown (`tls.rs:106-109`). Client-side TOFU (`tofu.rs:152-19..."
+        - generic [ref=e173]:
+          - generic [ref=e175]: "Agent recommends: GO"
+          - paragraph [ref=e176]: Every hub restart breaks all client TOFU trust, requiring manual fingerprint acceptance. This is a significant usability barrier for cross-host agent communication. The fix directly follows the T-933 "persist-if-present" pattern already implemented for hub secrets — a 2-file change with proven pr...
+          - group [ref=e177]:
+            - generic "Go/No-Go Criteria" [ref=e178] [cursor=pointer]
+        - generic [ref=e179]:
+          - generic [ref=e180]:
+            - generic [ref=e181] [cursor=pointer]:
+              - radio "GO" [ref=e182]
+              - generic [ref=e183]: GO
+            - generic [ref=e184] [cursor=pointer]:
+              - radio "NO-GO" [ref=e185]
+              - generic [ref=e186]: NO-GO
+            - generic [ref=e187] [cursor=pointer]:
+              - radio "DEFER" [ref=e188]
+              - generic [ref=e189]: DEFER
+          - textbox "Rationale (required)..." [ref=e190]: "Recommendation: GO Rationale: Every hub restart breaks all client TOFU trust, requiring manual fingerprint acceptance. This is a significant usability barrier for cross-host agent communication. T..."
+          - button "Record Decision" [ref=e192] [cursor=pointer]
+      - generic [ref=e193]:
+        - generic [ref=e194]:
+          - generic [ref=e195]:
+            - link "T-946" [ref=e196] [cursor=pointer]:
+              - /url: /inception/T-946
+              - strong [ref=e197]: T-946
+            - text: ": Pickup: U-002: Hub-level inbox — store files at hub for delivery when sessions register (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e198]: Pending
+        - paragraph [ref=e199]: "send-file requires target session to be online. If the target registers later, the file is lost. A hub-level inbox would queue files for delivery when sessions register. Requires protocol design: q..."
+        - generic [ref=e200]:
+          - generic [ref=e202]: "Agent recommends: DEFER"
+          - paragraph [ref=e203]: "Hub inbox requires non-trivial protocol design: queuing semantics, message expiry, delivery confirmation, storage limits. Needs a dedicated inception with spike work, not quick triage."
+          - group [ref=e204]:
+            - generic "Go/No-Go Criteria" [ref=e205] [cursor=pointer]
+        - generic [ref=e206]:
+          - generic [ref=e207]:
+            - generic [ref=e208] [cursor=pointer]:
+              - radio "GO" [ref=e209]
+              - generic [ref=e210]: GO
+            - generic [ref=e211] [cursor=pointer]:
+              - radio "NO-GO" [ref=e212]
+              - generic [ref=e213]: NO-GO
+            - generic [ref=e214] [cursor=pointer]:
+              - radio "DEFER" [ref=e215]
+              - generic [ref=e216]: DEFER
+          - textbox "Rationale (required)..." [ref=e217]: "Recommendation: DEFER Rationale: Hub inbox requires non-trivial protocol design: queuing semantics, message expiry, delivery confirmation, storage limits. Needs a dedicated inception with spike wo..."
+          - button "Record Decision" [ref=e219] [cursor=pointer]
+      - generic [ref=e220]:
+        - generic [ref=e221]:
+          - generic [ref=e222]:
+            - link "T-951" [ref=e223] [cursor=pointer]:
+              - /url: /inception/T-951
+              - strong [ref=e224]: T-951
+            - text: ": Pickup: U-003: send-file reports ok on hub acceptance, not delivery — silent file loss to event-only sessions (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e225]: Pending
+        - paragraph [ref=e226]: send-file returns ok:true when hub accepts the file, not when recipient receives it. Event-only sessions never receive files. This causes silent file loss. Fix requires delivery confirmation protocol.
+        - generic [ref=e227]:
+          - generic [ref=e229]: "Agent recommends: DEFER"
+          - paragraph [ref=e230]: Subsumed by T-946. Hub inbox addresses the root cause (files for offline sessions) rather than the symptom (misleading ok:true response).
+          - group [ref=e231]:
+            - generic "Go/No-Go Criteria" [ref=e232] [cursor=pointer]
+        - generic [ref=e233]:
+          - generic [ref=e234]:
+            - generic [ref=e235] [cursor=pointer]:
+              - radio "GO" [ref=e236]
+              - generic [ref=e237]: GO
+            - generic [ref=e238] [cursor=pointer]:
+              - radio "NO-GO" [ref=e239]
+              - generic [ref=e240]: NO-GO
+            - generic [ref=e241] [cursor=pointer]:
+              - radio "DEFER" [ref=e242]
+              - generic [ref=e243]: DEFER
+          - textbox "Rationale (required)..." [ref=e244]: "Recommendation: DEFER Rationale: Subsumed by T-946. Hub inbox addresses the root cause (files for offline sessions) rather than the symptom (misleading ok:true response). Evidence: - ok:true mean..."
+          - button "Record Decision" [ref=e246] [cursor=pointer]
+      - generic [ref=e247]:
+        - generic [ref=e248]:
+          - generic [ref=e249]:
+            - link "T-954" [ref=e250] [cursor=pointer]:
+              - /url: /inception/T-954
+              - strong [ref=e251]: T-954
+            - text: ": Pickup: Partial migrations are a recurring bug class — audit should detect incomplete migrations (from termlink)"
+          - generic [ref=e252]: Pending
+        - paragraph [ref=e253]: "`fw upgrade` can partially complete — some files get updated, others retain old versions. This leaves the framework in an inconsistent state where some components expect new APIs/patterns while oth..."
+        - generic [ref=e254]:
+          - generic [ref=e256]: "Agent recommends: DEFER"
+          - paragraph [ref=e257]: "This is subsumed by T-984 (fw upgrade local patch reversion). If T-984's `.local-patches` manifest is built, partial migrations become structurally detectable — the manifest tracks which files have local modifications, and `fw upgrade` would preserve them. A separate audit check adds complexity f..."
+          - group [ref=e258]:
+            - generic "Go/No-Go Criteria" [ref=e259] [cursor=pointer]
+        - generic [ref=e260]:
+          - generic [ref=e261]:
+            - generic [ref=e262] [cursor=pointer]:
+              - radio "GO" [ref=e263]
+              - generic [ref=e264]: GO
+            - generic [ref=e265] [cursor=pointer]:
+              - radio "NO-GO" [ref=e266]
+              - generic [ref=e267]: NO-GO
+            - generic [ref=e268] [cursor=pointer]:
+              - radio "DEFER" [ref=e269]
+              - generic [ref=e270]: DEFER
+          - textbox "Rationale (required)..." [ref=e271]: "Recommendation: DEFER Rationale: This is subsumed by T-984 (fw upgrade local patch reversion). If T-984's `.local-patches` manifest is built, partial migrations become structurally detectable — th..."
+          - button "Record Decision" [ref=e273] [cursor=pointer]
+      - generic [ref=e274]:
+        - generic [ref=e275]:
+          - generic [ref=e276]:
+            - link "T-955" [ref=e277] [cursor=pointer]:
+              - /url: /inception/T-955
+              - strong [ref=e278]: T-955
+            - text: ": Pickup: Dry-run saved us from silent data loss — destructive commands should auto-prompt on large diffs (from termlink)"
+          - generic [ref=e279]: Pending
+        - paragraph [ref=e280]: Destructive framework commands should auto-prompt on large diffs to prevent silent data loss. Dry-run mode saved data during T-978. This is a framework-side UX improvement.
+        - generic [ref=e281]:
+          - generic [ref=e283]: "Agent recommends: DEFER"
+          - paragraph [ref=e284]: Framework-side UX improvement. Dry-run mode already exists for fw upgrade (T-978). Extending auto-prompts to other destructive commands belongs in the framework repo.
+          - group [ref=e285]:
+            - generic "Go/No-Go Criteria" [ref=e286] [cursor=pointer]
+        - generic [ref=e287]:
+          - generic [ref=e288]:
+            - generic [ref=e289] [cursor=pointer]:
+              - radio "GO" [ref=e290]
+              - generic [ref=e291]: GO
+            - generic [ref=e292] [cursor=pointer]:
+              - radio "NO-GO" [ref=e293]
+              - generic [ref=e294]: NO-GO
+            - generic [ref=e295] [cursor=pointer]:
+              - radio "DEFER" [ref=e296]
+              - generic [ref=e297]: DEFER
+          - textbox "Rationale (required)..." [ref=e298]: "Recommendation: DEFER Rationale: Framework-side UX improvement. Dry-run mode already exists for fw upgrade (T-978). Extending auto-prompts to other destructive commands belongs in the framework re..."
+          - button "Record Decision" [ref=e300] [cursor=pointer]
+      - generic [ref=e301]:
+        - generic [ref=e302]:
+          - generic [ref=e303]:
+            - link "T-958" [ref=e304] [cursor=pointer]:
+              - /url: /inception/T-958
+              - strong [ref=e305]: T-958
+            - text: ": Pickup: Inception decide codepath has 4 stacking UX issues — needs a focused review pass, not individual fixes (from termlink)"
+          - generic [ref=e306]: Pending
+        - paragraph [ref=e307]: Inception decide codepath has 4 stacking UX issues identified by a previous session. T-949 fixed one (captured task auto-transition). Remaining 3 need investigation. Common case now works.
+        - generic [ref=e308]:
+          - generic [ref=e310]: "Agent recommends: DEFER"
+          - paragraph [ref=e311]: T-949 fixed the most critical inception decide UX issue (captured task auto-transition). Remaining 3 issues are UX polish that don't block normal workflow.
+          - group [ref=e312]:
+            - generic "Go/No-Go Criteria" [ref=e313] [cursor=pointer]
+        - generic [ref=e314]:
+          - generic [ref=e315]:
+            - generic [ref=e316] [cursor=pointer]:
+              - radio "GO" [ref=e317]
+              - generic [ref=e318]: GO
+            - generic [ref=e319] [cursor=pointer]:
+              - radio "NO-GO" [ref=e320]
+              - generic [ref=e321]: NO-GO
+            - generic [ref=e322] [cursor=pointer]:
+              - radio "DEFER" [ref=e323]
+              - generic [ref=e324]: DEFER
+          - textbox "Rationale (required)..." [ref=e325]: "Recommendation: DEFER Rationale: T-949 fixed the most critical inception decide UX issue (captured task auto-transition). Remaining 3 issues are UX polish that don't block normal workflow. Eviden..."
+          - button "Record Decision" [ref=e327] [cursor=pointer]
+      - generic [ref=e328]:
+        - generic [ref=e329]:
+          - generic [ref=e330]:
+            - link "T-968" [ref=e331] [cursor=pointer]:
+              - /url: /inception/T-968
+              - strong [ref=e332]: T-968
+            - text: ": Pickup: T-1135 persistent TermLink agent sessions — cross-agent coordination results from framework + termlink project (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e333]: Pending
+        - paragraph [ref=e334]: Cross-agent coordination via persistent TermLink sessions. Results from framework T-1135. Overlaps with T-967 (persistent agent sessions) which is already in active tasks.
+        - generic [ref=e335]:
+          - generic [ref=e337]: "Agent recommends: DEFER"
+          - paragraph [ref=e338]: Subsumed by T-967 (persistent agent sessions, already in active tasks). Same scope — persistent sessions for cross-agent coordination.
+          - group [ref=e339]:
+            - generic "Go/No-Go Criteria" [ref=e340] [cursor=pointer]
+        - generic [ref=e341]:
+          - generic [ref=e342]:
+            - generic [ref=e343] [cursor=pointer]:
+              - radio "GO" [ref=e344]
+              - generic [ref=e345]: GO
+            - generic [ref=e346] [cursor=pointer]:
+              - radio "NO-GO" [ref=e347]
+              - generic [ref=e348]: NO-GO
+            - generic [ref=e349] [cursor=pointer]:
+              - radio "DEFER" [ref=e350]
+              - generic [ref=e351]: DEFER
+          - textbox "Rationale (required)..." [ref=e352]: "Recommendation: DEFER Rationale: Subsumed by T-967 (persistent agent sessions, already in active tasks). Same scope — persistent sessions for cross-agent coordination. Evidence: - T-967 covers ma..."
+          - button "Record Decision" [ref=e354] [cursor=pointer]
+      - generic [ref=e355]:
+        - generic [ref=e356]:
+          - generic [ref=e357]:
+            - link "T-984" [ref=e358] [cursor=pointer]:
+              - /url: /inception/T-984
+              - strong [ref=e359]: T-984
+            - text: ": fw upgrade silently reverts local patches — do_vendor has no modification detection"
+          - generic [ref=e360]: Pending
+        - paragraph [ref=e361]: "`fw upgrade` on vendored consumer projects silently overwrites locally-patched framework files. The T-1157 upstream refactor replaced per-file sync with bulk `do_vendor`, removing T-978's checksum ..."
+        - generic [ref=e362]:
+          - text: "Research:"
+          - link "T-984-fw-upgrade-local-patch-reversion.md" [ref=e363] [cursor=pointer]:
+            - /url: /file/docs/reports/T-984-fw-upgrade-local-patch-reversion.md
+        - generic [ref=e364]:
+          - generic [ref=e366]: "Agent recommends: GO"
+          - paragraph [ref=e367]: "This session spent significant time re-diagnosing and re-applying 6 local fixes that `fw upgrade` silently reverted. The current `do_vendor` (T-1157) does unconditional rsync with no modification detection. A `.local-patches` manifest is low-effort, consumer-controlled, and immediately prevents t..."
+          - group [ref=e368]:
+            - generic "Go/No-Go Criteria" [ref=e369] [cursor=pointer]
+        - generic [ref=e370]:
+          - generic [ref=e371]:
+            - generic [ref=e372] [cursor=pointer]:
+              - radio "GO" [ref=e373]
+              - generic [ref=e374]: GO
+            - generic [ref=e375] [cursor=pointer]:
+              - radio "NO-GO" [ref=e376]
+              - generic [ref=e377]: NO-GO
+            - generic [ref=e378] [cursor=pointer]:
+              - radio "DEFER" [ref=e379]
+              - generic [ref=e380]: DEFER
+          - textbox "Rationale (required)..." [ref=e381]: "Recommendation: GO Rationale: This session spent significant time re-diagnosing and re-applying 6 local fixes that `fw upgrade` silently reverted. The current `do_vendor` (T-1157) does uncondition..."
+          - button "Record Decision" [ref=e383] [cursor=pointer]
+      - group [ref=e384]:
+        - generic "9 inception tasks not ready for decision — missing recommendation" [ref=e385] [cursor=pointer]:
+          - heading "9 inception tasks not ready for decision" [level=4] [ref=e386]
+          - text: — missing recommendation
+      - generic [ref=e387]:
+        - heading "Human Acceptance Criteria" [level=3] [ref=e388]
+        - generic [ref=e389]: 40 across 40 tasks
+      - generic [ref=e390]:
+        - button "All (40)" [ref=e391] [cursor=pointer]
+        - button "Review (37)" [ref=e392] [cursor=pointer]
+        - button "Rubber-stamp (3)" [ref=e393] [cursor=pointer]
+        - button "Stale >7d (2)" [ref=e394] [cursor=pointer]
+      - generic [ref=e395]:
+        - generic [ref=e396]:
+          - generic [ref=e397]:
+            - link "T-789" [ref=e398] [cursor=pointer]:
+              - /url: /tasks/T-789
+              - strong [ref=e399]: T-789
+            - text: ": Worktree isolation for TermLink-dispatched agents — git worktree per spawned session"
+          - generic [ref=e400]:
+            - 'generic "Stale: waiting >7 days" [ref=e401]': 13d ⚠
+            - link "📱" [ref=e402] [cursor=pointer]:
+              - /url: /review/T-789
+            - generic [ref=e403]: work-completed
+        - group [ref=e404]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e405] [cursor=pointer]:
+            - checkbox [ref=e407]
+            - generic [ref=e408]: Review
+            - generic [ref=e409]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e410]:
+            - strong [ref=e412]: "Steps:"
+            - list [ref=e413]:
+              - listitem [ref=e414]: Read the research artifact and recommendation in this task
+              - listitem [ref=e415]: Evaluate go/no-go criteria against findings
+              - listitem [ref=e416]: "Run: `cd /opt/999-Agentic-Engineering-Framework && bin/fw inception decide T-XXX go|no-go --rationale \"your rationale\"`"
+            - generic [ref=e417]:
+              - strong [ref=e418]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e419]:
+              - strong [ref=e420]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e421]:
+        - generic [ref=e422]:
+          - generic [ref=e423]:
+            - link "T-160" [ref=e424] [cursor=pointer]:
+              - /url: /tasks/T-160
+              - strong [ref=e425]: T-160
+            - text: ": Pickup prompt: fix declare -A macOS bash 3.2 bug in update-task.sh"
+          - generic [ref=e426]:
+            - 'generic "Stale: waiting >7 days" [ref=e427]': 8d ⚠
+            - link "📱" [ref=e428] [cursor=pointer]:
+              - /url: /review/T-160
+            - generic [ref=e429]: work-completed
+        - group [ref=e430]:
+          - generic "Review Paste prompt into framework Claude Code session" [ref=e431] [cursor=pointer]:
+            - checkbox [ref=e433]
+            - generic [ref=e434]: Review
+            - generic [ref=e435]: Paste prompt into framework Claude Code session
+          - generic [ref=e436]:
+            - strong [ref=e438]: "Steps:"
+            - list [ref=e439]:
+              - listitem [ref=e440]: Open a Claude Code session in the framework project
+              - listitem [ref=e441]: "Paste the prompt from `docs/specs/T-160-declare-A-macos-fix-pickup.md`"
+              - listitem [ref=e442]: Verify the framework agent investigates and fixes all 3 locations
+            - generic [ref=e443]:
+              - strong [ref=e444]: "Expected:"
+              - text: "No more `declare: -A: invalid option` errors on macOS"
+            - generic [ref=e445]:
+              - strong [ref=e446]: "If not:"
+              - text: Note which file still fails
+      - generic [ref=e447]:
+        - generic [ref=e448]:
+          - generic [ref=e449]:
+            - link "T-834" [ref=e450] [cursor=pointer]:
+              - /url: /tasks/T-834
+              - strong [ref=e451]: T-834
+            - text: ": Add termlink_register MCP tool — self-registration for AI agent sessions"
+          - generic [ref=e452]:
+            - generic [ref=e453]: 7d
+            - link "📱" [ref=e454] [cursor=pointer]:
+              - /url: /review/T-834
+            - generic [ref=e455]: work-completed
+        - group [ref=e456]:
+          - 'generic "Review Register an endpoint via MCP tool and verify it appears in `termlink list`" [ref=e457] [cursor=pointer]':
+            - checkbox [ref=e459]
+            - generic [ref=e460]: Review
+            - generic [ref=e461]: "Register an endpoint via MCP tool and verify it appears in `termlink list`"
+          - generic [ref=e462]:
+            - strong [ref=e464]: "Steps:"
+            - list [ref=e465]:
+              - listitem [ref=e466]: "Call `termlink_register` with `{\"name\": \"test-agent\", \"tags\": [\"mcp-test\"]}`"
+              - listitem [ref=e467]: "Run `cd /opt/termlink && cargo run -- list --tag mcp-test`"
+            - generic [ref=e468]:
+              - strong [ref=e469]: "Expected:"
+              - text: Session appears with name "test-agent" and tag "mcp-test"
+            - generic [ref=e470]:
+              - strong [ref=e471]: "If not:"
+              - text: Check MCP server logs for endpoint startup errors
+      - generic [ref=e472]:
+        - generic [ref=e473]:
+          - generic [ref=e474]:
+            - link "T-879" [ref=e475] [cursor=pointer]:
+              - /url: /tasks/T-879
+              - strong [ref=e476]: T-879
+            - text: ": Add termlink_dispatch MCP tool — atomic spawn+tag+collect for AI agent orchestration"
+          - generic [ref=e477]:
+            - generic [ref=e478]: 7d
+            - link "📱" [ref=e479] [cursor=pointer]:
+              - /url: /review/T-879
+            - generic [ref=e480]: work-completed
+        - group [ref=e481]:
+          - generic "Review Dispatch 3 workers via MCP tool and verify results collected" [ref=e482] [cursor=pointer]:
+            - checkbox [ref=e484]
+            - generic [ref=e485]: Review
+            - generic [ref=e486]: Dispatch 3 workers via MCP tool and verify results collected
+          - generic [ref=e487]:
+            - strong [ref=e489]: "Steps:"
+            - list [ref=e490]:
+              - listitem [ref=e491]: "Start hub: `cd /opt/termlink && cargo run -- hub start`"
+              - listitem [ref=e492]: "Use MCP tool: call `termlink_dispatch` with `{\"count\": 3, \"command\": [\"echo\", \"hello\"], \"timeout\": 30}`"
+              - listitem [ref=e493]: "Verify JSON response has `ok: true`, 3 results"
+            - generic [ref=e494]:
+              - strong [ref=e495]: "Expected:"
+              - text: All 3 workers spawn, register, emit, and results collected
+            - generic [ref=e496]:
+              - strong [ref=e497]: "If not:"
+              - text: Check hub logs and worker registration
+      - generic [ref=e498]:
+        - generic [ref=e499]:
+          - generic [ref=e500]:
+            - link "T-909" [ref=e501] [cursor=pointer]:
+              - /url: /tasks/T-909
+              - strong [ref=e502]: T-909
+            - text: ": Fix .agentic-framework symlink — replace with vendored copy"
+          - generic [ref=e503]:
+            - generic [ref=e504]: 1d
+            - link "📱" [ref=e505] [cursor=pointer]:
+              - /url: /review/T-909
+            - generic [ref=e506]: work-completed
+        - group [ref=e507]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e508] [cursor=pointer]:
+            - checkbox [ref=e510]
+            - generic [ref=e511]: Review
+            - generic [ref=e512]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e513]:
+            - strong [ref=e515]: "Steps:"
+            - list [ref=e516]:
+              - listitem [ref=e517]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e518]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e519]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e520]:
+              - strong [ref=e521]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e522]:
+              - strong [ref=e523]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e524]:
+        - generic [ref=e525]:
+          - generic [ref=e526]:
+            - link "T-916" [ref=e527] [cursor=pointer]:
+              - /url: /tasks/T-916
+              - strong [ref=e528]: T-916
+            - text: ": Fix dispatch event.collect masking hub failures via continue path"
+          - generic [ref=e529]:
+            - generic [ref=e530]: 1d
+            - link "📱" [ref=e531] [cursor=pointer]:
+              - /url: /review/T-916
+            - generic [ref=e532]: work-completed
+        - group [ref=e533]:
+          - generic "Review Confirm dispatch fails fast (within ~3s) when hub is dead" [ref=e534] [cursor=pointer]:
+            - checkbox [ref=e536]
+            - generic [ref=e537]: Review
+            - generic [ref=e538]: Confirm dispatch fails fast (within ~3s) when hub is dead
+          - generic [ref=e539]:
+            - strong [ref=e541]: "Steps:"
+            - list [ref=e542]:
+              - listitem [ref=e543]: "Stop the hub if running: `pkill -f \"termlink hub\"`"
+              - listitem [ref=e544]: "Confirm socket file persists: `ls -la /tmp/termlink-0/hub.sock` (should still show the .sock file)"
+              - listitem [ref=e545]: "Run: `time ./target/debug/termlink dispatch --count 1 --backend background --timeout 30 -- bash -c 'exit 0'`"
+            - generic [ref=e546]:
+              - strong [ref=e547]: "Expected:"
+              - text: Returns within ~1s with error message containing "Hub is not running" — does NOT enter the 30s collect loop.
+            - generic [ref=e548]:
+              - strong [ref=e549]: "If not:"
+              - text: "Pre-flight check is not detecting the dead hub properly. Verify `UnixStream::connect` is being awaited and not silently swallowed."
+      - generic [ref=e550]:
+        - generic [ref=e551]:
+          - generic [ref=e552]:
+            - link "T-283" [ref=e553] [cursor=pointer]:
+              - /url: /tasks/T-283
+              - strong [ref=e554]: T-283
+            - text: ": Cross-session failure blindness — .107 remote access as case study for framework observability gap"
+          - generic [ref=e555]:
+            - generic [ref=e556]: 0d
+            - link "📱" [ref=e557] [cursor=pointer]:
+              - /url: /review/T-283
+            - generic [ref=e558]: work-completed
+        - group [ref=e559]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e560] [cursor=pointer]:
+            - checkbox [ref=e562]
+            - generic [ref=e563]: Review
+            - generic [ref=e564]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e565]:
+            - strong [ref=e567]: "Steps:"
+            - list [ref=e568]:
+              - listitem [ref=e569]: Read the research artifact and recommendation in this task
+              - listitem [ref=e570]: Evaluate go/no-go criteria against findings
+              - listitem [ref=e571]: "Run: `fw inception decide T-XXX go|no-go --rationale \"your rationale\"`"
+            - generic [ref=e572]:
+              - strong [ref=e573]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e574]:
+              - strong [ref=e575]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e576]:
+        - generic [ref=e577]:
+          - generic [ref=e578]:
+            - link "T-292" [ref=e579] [cursor=pointer]:
+              - /url: /tasks/T-292
+              - strong [ref=e580]: T-292
+            - text: ": Audit health decay — why do warnings accumulate silently and what structural fix prevents it"
+          - generic [ref=e581]:
+            - generic [ref=e582]: 0d
+            - link "📱" [ref=e583] [cursor=pointer]:
+              - /url: /review/T-292
+            - generic [ref=e584]: work-completed
+        - group [ref=e585]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e586] [cursor=pointer]:
+            - checkbox [ref=e588]
+            - generic [ref=e589]: Review
+            - generic [ref=e590]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e591]:
+            - strong [ref=e593]: "Steps:"
+            - list [ref=e594]:
+              - listitem [ref=e595]: Read the research artifact and recommendation in this task
+              - listitem [ref=e596]: Evaluate go/no-go criteria against findings
+              - listitem [ref=e597]: "Run: `fw inception decide T-XXX go|no-go --rationale \"your rationale\"`"
+            - generic [ref=e598]:
+              - strong [ref=e599]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e600]:
+              - strong [ref=e601]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e602]:
+        - generic [ref=e603]:
+          - generic [ref=e604]:
+            - link "T-690" [ref=e605] [cursor=pointer]:
+              - /url: /tasks/T-690
+              - strong [ref=e606]: T-690
+            - text: ": Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch"
+          - generic [ref=e607]:
+            - generic [ref=e608]: 0d
+            - link "📱" [ref=e609] [cursor=pointer]:
+              - /url: /review/T-690
+            - generic [ref=e610]: work-completed
+        - group [ref=e611]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e612] [cursor=pointer]:
+            - checkbox [ref=e614]
+            - generic [ref=e615]: Review
+            - generic [ref=e616]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e617]:
+            - strong [ref=e619]: "Steps:"
+            - list [ref=e620]:
+              - listitem [ref=e621]: Read the research artifact and recommendation in this task
+              - listitem [ref=e622]: Evaluate go/no-go criteria against findings
+              - listitem [ref=e623]: "Run: `cd /opt/999-Agentic-Engineering-Framework && bin/fw inception decide T-XXX go|no-go --rationale \"your rationale\"`"
+            - generic [ref=e624]:
+              - strong [ref=e625]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e626]:
+              - strong [ref=e627]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e628]:
+        - generic [ref=e629]:
+          - generic [ref=e630]:
+            - link "T-908" [ref=e631] [cursor=pointer]:
+              - /url: /tasks/T-908
+              - strong [ref=e632]: T-908
+            - text: ": API relay governance — local proxy for deterministic tool gate enforcement via SSE stream rewriting"
+          - generic [ref=e633]:
+            - generic [ref=e634]: 0d
+            - link "📱" [ref=e635] [cursor=pointer]:
+              - /url: /review/T-908
+            - generic [ref=e636]: work-completed
+        - group [ref=e637]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e638] [cursor=pointer]:
+            - checkbox [ref=e640]
+            - generic [ref=e641]: Review
+            - generic [ref=e642]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e643]:
+            - strong [ref=e645]: "Steps:"
+            - list [ref=e646]:
+              - listitem [ref=e647]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e648]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e649]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e650]:
+              - strong [ref=e651]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e652]:
+              - strong [ref=e653]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e654]:
+        - generic [ref=e655]:
+          - generic [ref=e656]:
+            - link "T-912" [ref=e657] [cursor=pointer]:
+              - /url: /tasks/T-912
+              - strong [ref=e658]: T-912
+            - text: ": Define vendor-refresh workflow — fw upgrade from consumer re-syncs framework"
+          - generic [ref=e659]:
+            - generic [ref=e660]: 0d
+            - link "📱" [ref=e661] [cursor=pointer]:
+              - /url: /review/T-912
+            - generic [ref=e662]: work-completed
+        - group [ref=e663]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e664] [cursor=pointer]:
+            - checkbox [ref=e666]
+            - generic [ref=e667]: Review
+            - generic [ref=e668]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e669]:
+            - strong [ref=e671]: "Steps:"
+            - list [ref=e672]:
+              - listitem [ref=e673]: "Run: `cd /opt/termlink && bin/fw task review T-912` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e674]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e675]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e676]:
+              - strong [ref=e677]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e678]:
+              - strong [ref=e679]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e680]:
+        - generic [ref=e681]:
+          - generic [ref=e682]:
+            - link "T-914" [ref=e683] [cursor=pointer]:
+              - /url: /tasks/T-914
+              - strong [ref=e684]: T-914
+            - text: ": Fix termlink dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)"
+          - generic [ref=e685]:
+            - generic [ref=e686]: 0d
+            - link "📱" [ref=e687] [cursor=pointer]:
+              - /url: /review/T-914
+            - generic [ref=e688]: started-work
+        - group [ref=e689]:
+          - generic "Review Smoke-test the fix end-to-end with a fast-failing user_cmd (REQUIRES T-916 fix or healthy hub)" [ref=e690] [cursor=pointer]:
+            - checkbox [ref=e692]
+            - generic [ref=e693]: Review
+            - generic [ref=e694]: Smoke-test the fix end-to-end with a fast-failing user_cmd (REQUIRES T-916 fix or healthy hub)
+          - generic [ref=e695]:
+            - strong [ref=e697]: "Steps:"
+            - list [ref=e698]:
+              - listitem [ref=e699]: "**Confirm the hub is alive** first: `pgrep -af \"termlink hub\"` should show a process. If not: `termlink hub &` (warning: may interfere with the t11xx-rca workers from the framework session — coordinate first)."
+              - listitem [ref=e700]: "From `/opt/termlink`: `cargo build --release && sudo install -m 755 target/release/termlink /usr/local/bin/termlink` (or use `./target/debug/termlink` directly)."
+              - listitem [ref=e701]: "Run: `time termlink dispatch --count 1 --backend background --timeout 30 --json -- bash -c 'exit 42'`"
+            - generic [ref=e702]:
+              - strong [ref=e703]: "Expected:"
+              - text: "Returns within ~5s (not 30s). JSON output shows `crashed_workers` populated and `elapsed_secs` < 10."
+            - generic [ref=e704]:
+              - strong [ref=e705]: "If not:"
+              - text: "Likely T-916 (event.collect masking hub failure) is biting — check stderr for \"Connection refused\" and verify hub is actually responding. The G-002 fix itself was independently verified via `/tmp/t914-manual-test.sh` and `/tmp/t914-dispatch-watch.sh` (worker dies on schedule). See Decisions section."
+      - generic [ref=e706]:
+        - generic [ref=e707]:
+          - generic [ref=e708]:
+            - link "T-921" [ref=e709] [cursor=pointer]:
+              - /url: /tasks/T-921
+              - strong [ref=e710]: T-921
+            - text: ": Full cross-host parity — every termlink CLI command works network-wide"
+          - generic [ref=e711]:
+            - generic [ref=e712]: 0d
+            - link "📱" [ref=e713] [cursor=pointer]:
+              - /url: /review/T-921
+            - generic [ref=e714]: work-completed
+        - group [ref=e715]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e716] [cursor=pointer]:
+            - checkbox [ref=e718]
+            - generic [ref=e719]: Review
+            - generic [ref=e720]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e721]:
+            - strong [ref=e723]: "Steps:"
+            - list [ref=e724]:
+              - listitem [ref=e725]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e726]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e727]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e728]:
+              - strong [ref=e729]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e730]:
+              - strong [ref=e731]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e732]:
+        - generic [ref=e733]:
+          - generic [ref=e734]:
+            - link "T-922" [ref=e735] [cursor=pointer]:
+              - /url: /tasks/T-922
+              - strong [ref=e736]: T-922
+            - text: ": Codify MCP auto-exposure — every new CLI command must be MCP-reachable"
+          - generic [ref=e737]:
+            - generic [ref=e738]: 0d
+            - link "📱" [ref=e739] [cursor=pointer]:
+              - /url: /review/T-922
+            - generic [ref=e740]: started-work
+        - group [ref=e741]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e742] [cursor=pointer]:
+            - checkbox [ref=e744]
+            - generic [ref=e745]: Review
+            - generic [ref=e746]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e747]:
+            - strong [ref=e749]: "Steps:"
+            - list [ref=e750]:
+              - listitem [ref=e751]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e752]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e753]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e754]:
+              - strong [ref=e755]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e756]:
+              - strong [ref=e757]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e758]:
+        - generic [ref=e759]:
+          - generic [ref=e760]:
+            - link "T-937" [ref=e761] [cursor=pointer]:
+              - /url: /tasks/T-937
+              - strong [ref=e762]: T-937
+            - text: ": Pickup: TermLink cleanup kills active dispatch workers — fw termlink cleanup treats running workers as orphans because they lack exit_code file (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e763]:
+            - generic [ref=e764]: 0d
+            - link "📱" [ref=e765] [cursor=pointer]:
+              - /url: /review/T-937
+            - generic [ref=e766]: started-work
+        - group [ref=e767]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e768] [cursor=pointer]:
+            - checkbox [ref=e770]
+            - generic [ref=e771]: Review
+            - generic [ref=e772]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e773]:
+            - strong [ref=e775]: "Steps:"
+            - list [ref=e776]:
+              - listitem [ref=e777]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e778]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e779]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e780]:
+              - strong [ref=e781]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e782]:
+              - strong [ref=e783]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e784]:
+        - generic [ref=e785]:
+          - generic [ref=e786]:
+            - link "T-939" [ref=e787] [cursor=pointer]:
+              - /url: /tasks/T-939
+              - strong [ref=e788]: T-939
+            - text: ": Approvals page missing recommendation display — RCA + fix"
+          - generic [ref=e789]:
+            - generic [ref=e790]: 0d
+            - link "📱" [ref=e791] [cursor=pointer]:
+              - /url: /review/T-939
+            - generic [ref=e792]: work-completed
+        - group [ref=e793]:
+          - generic "Review Verify approvals page shows recommendations visually" [ref=e794] [cursor=pointer]:
+            - checkbox [ref=e796]
+            - generic [ref=e797]: Review
+            - generic [ref=e798]: Verify approvals page shows recommendations visually
+          - generic [ref=e799]:
+            - strong [ref=e801]: "Steps:"
+            - list [ref=e802]:
+              - listitem [ref=e803]: Open http://192.168.10.107:3002/approvals
+              - listitem [ref=e804]: Check inception decision cards — each should show recommendation or "No recommendation yet"
+              - listitem [ref=e805]: Cards with recommendations (T-908, T-930) should show GO badge + rationale preview
+            - generic [ref=e806]:
+              - strong [ref=e807]: "Expected:"
+              - text: Recommendation visible above the decision form, not buried in textarea
+            - generic [ref=e808]:
+              - strong [ref=e809]: "If not:"
+              - text: Check browser console for template errors
+      - generic [ref=e810]:
+        - generic [ref=e811]:
+          - generic [ref=e812]:
+            - link "T-941" [ref=e813] [cursor=pointer]:
+              - /url: /tasks/T-941
+              - strong [ref=e814]: T-941
+            - text: ": Pickup: Include persistent agent session service templates in framework deploy scaffold (from termlink)"
+          - generic [ref=e815]:
+            - generic [ref=e816]: 0d
+            - link "📱" [ref=e817] [cursor=pointer]:
+              - /url: /review/T-941
+            - generic [ref=e818]: started-work
+        - group [ref=e819]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e820] [cursor=pointer]:
+            - checkbox [ref=e822]
+            - generic [ref=e823]: Review
+            - generic [ref=e824]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e825]:
+            - strong [ref=e827]: "Steps:"
+            - list [ref=e828]:
+              - listitem [ref=e829]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e830]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e831]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e832]:
+              - strong [ref=e833]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e834]:
+              - strong [ref=e835]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e836]:
+        - generic [ref=e837]:
+          - generic [ref=e838]:
+            - link "T-942" [ref=e839] [cursor=pointer]:
+              - /url: /tasks/T-942
+              - strong [ref=e840]: T-942
+            - text: ": Pickup: Hub should scan multiple session dirs — eliminates runtime dir split-brain (from termlink)"
+          - generic [ref=e841]:
+            - generic [ref=e842]: 0d
+            - link "📱" [ref=e843] [cursor=pointer]:
+              - /url: /review/T-942
+            - generic [ref=e844]: started-work
+        - group [ref=e845]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e846] [cursor=pointer]:
+            - checkbox [ref=e848]
+            - generic [ref=e849]: Review
+            - generic [ref=e850]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e851]:
+            - strong [ref=e853]: "Steps:"
+            - list [ref=e854]:
+              - listitem [ref=e855]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e856]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e857]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e858]:
+              - strong [ref=e859]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e860]:
+              - strong [ref=e861]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e862]:
+        - generic [ref=e863]:
+          - generic [ref=e864]:
+            - link "T-945" [ref=e865] [cursor=pointer]:
+              - /url: /tasks/T-945
+              - strong [ref=e866]: T-945
+            - text: ": Pickup: U-001: TLS cert regenerates on every hub restart, breaking all client TOFU trust (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e867]:
+            - generic [ref=e868]: 0d
+            - link "📱" [ref=e869] [cursor=pointer]:
+              - /url: /review/T-945
+            - generic [ref=e870]: started-work
+        - group [ref=e871]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e872] [cursor=pointer]:
+            - checkbox [ref=e874]
+            - generic [ref=e875]: Review
+            - generic [ref=e876]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e877]:
+            - strong [ref=e879]: "Steps:"
+            - list [ref=e880]:
+              - listitem [ref=e881]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e882]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e883]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e884]:
+              - strong [ref=e885]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e886]:
+              - strong [ref=e887]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e888]:
+        - generic [ref=e889]:
+          - generic [ref=e890]:
+            - link "T-946" [ref=e891] [cursor=pointer]:
+              - /url: /tasks/T-946
+              - strong [ref=e892]: T-946
+            - text: ": Pickup: U-002: Hub-level inbox — store files at hub for delivery when sessions register (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e893]:
+            - generic [ref=e894]: 0d
+            - link "📱" [ref=e895] [cursor=pointer]:
+              - /url: /review/T-946
+            - generic [ref=e896]: started-work
+        - group [ref=e897]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e898] [cursor=pointer]:
+            - checkbox [ref=e900]
+            - generic [ref=e901]: Review
+            - generic [ref=e902]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e903]:
+            - strong [ref=e905]: "Steps:"
+            - list [ref=e906]:
+              - listitem [ref=e907]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e908]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e909]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e910]:
+              - strong [ref=e911]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e912]:
+              - strong [ref=e913]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e914]:
+        - generic [ref=e915]:
+          - generic [ref=e916]:
+            - link "T-947" [ref=e917] [cursor=pointer]:
+              - /url: /tasks/T-947
+              - strong [ref=e918]: T-947
+            - text: ": Pickup: Canary: 30s pickup processor smoke test — safe to discard (from termlink)"
+          - generic [ref=e919]:
+            - generic [ref=e920]: 0d
+            - link "📱" [ref=e921] [cursor=pointer]:
+              - /url: /review/T-947
+            - generic [ref=e922]: work-completed
+        - group [ref=e923]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e924] [cursor=pointer]:
+            - checkbox [ref=e926]
+            - generic [ref=e927]: Review
+            - generic [ref=e928]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e929]:
+            - strong [ref=e931]: "Steps:"
+            - list [ref=e932]:
+              - listitem [ref=e933]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e934]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e935]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e936]:
+              - strong [ref=e937]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e938]:
+              - strong [ref=e939]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e940]:
+        - generic [ref=e941]:
+          - generic [ref=e942]:
+            - link "T-950" [ref=e943] [cursor=pointer]:
+              - /url: /tasks/T-950
+              - strong [ref=e944]: T-950
+            - text: ": Pickup: 30-second pickup processor cycle is sustainable — zero errors, zero resource concerns (from termlink)"
+          - generic [ref=e945]:
+            - generic [ref=e946]: 0d
+            - link "📱" [ref=e947] [cursor=pointer]:
+              - /url: /review/T-950
+            - generic [ref=e948]: work-completed
+        - group [ref=e949]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e950] [cursor=pointer]:
+            - checkbox [ref=e952]
+            - generic [ref=e953]: Review
+            - generic [ref=e954]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e955]:
+            - strong [ref=e957]: "Steps:"
+            - list [ref=e958]:
+              - listitem [ref=e959]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e960]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e961]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e962]:
+              - strong [ref=e963]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e964]:
+              - strong [ref=e965]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e966]:
+        - generic [ref=e967]:
+          - generic [ref=e968]:
+            - link "T-951" [ref=e969] [cursor=pointer]:
+              - /url: /tasks/T-951
+              - strong [ref=e970]: T-951
+            - text: ": Pickup: U-003: send-file reports ok on hub acceptance, not delivery — silent file loss to event-only sessions (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e971]:
+            - generic [ref=e972]: 0d
+            - link "📱" [ref=e973] [cursor=pointer]:
+              - /url: /review/T-951
+            - generic [ref=e974]: started-work
+        - group [ref=e975]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e976] [cursor=pointer]:
+            - checkbox [ref=e978]
+            - generic [ref=e979]: Review
+            - generic [ref=e980]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e981]:
+            - strong [ref=e983]: "Steps:"
+            - list [ref=e984]:
+              - listitem [ref=e985]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e986]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e987]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e988]:
+              - strong [ref=e989]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e990]:
+              - strong [ref=e991]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e992]:
+        - generic [ref=e993]:
+          - generic [ref=e994]:
+            - link "T-952" [ref=e995] [cursor=pointer]:
+              - /url: /tasks/T-952
+              - strong [ref=e996]: T-952
+            - text: ": Pickup: L-004: TermLink inject vs push — inject for interactive, push for async only (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e997]:
+            - generic [ref=e998]: 0d
+            - link "📱" [ref=e999] [cursor=pointer]:
+              - /url: /review/T-952
+            - generic [ref=e1000]: work-completed
+        - group [ref=e1001]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1002] [cursor=pointer]:
+            - checkbox [ref=e1004]
+            - generic [ref=e1005]: Review
+            - generic [ref=e1006]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1007]:
+            - strong [ref=e1009]: "Steps:"
+            - list [ref=e1010]:
+              - listitem [ref=e1011]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1012]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1013]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1014]:
+              - strong [ref=e1015]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1016]:
+              - strong [ref=e1017]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1018]:
+        - generic [ref=e1019]:
+          - generic [ref=e1020]:
+            - link "T-953" [ref=e1021] [cursor=pointer]:
+              - /url: /tasks/T-953
+              - strong [ref=e1022]: T-953
+            - text: ": Pickup: L-006: termlink send-file ok:true means hub accepted, NOT delivered — verify receipt independently (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e1023]:
+            - generic [ref=e1024]: 0d
+            - link "📱" [ref=e1025] [cursor=pointer]:
+              - /url: /review/T-953
+            - generic [ref=e1026]: work-completed
+        - group [ref=e1027]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1028] [cursor=pointer]:
+            - checkbox [ref=e1030]
+            - generic [ref=e1031]: Review
+            - generic [ref=e1032]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1033]:
+            - strong [ref=e1035]: "Steps:"
+            - list [ref=e1036]:
+              - listitem [ref=e1037]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1038]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1039]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1040]:
+              - strong [ref=e1041]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1042]:
+              - strong [ref=e1043]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1044]:
+        - generic [ref=e1045]:
+          - generic [ref=e1046]:
+            - link "T-954" [ref=e1047] [cursor=pointer]:
+              - /url: /tasks/T-954
+              - strong [ref=e1048]: T-954
+            - text: ": Pickup: Partial migrations are a recurring bug class — audit should detect incomplete migrations (from termlink)"
+          - generic [ref=e1049]:
+            - generic [ref=e1050]: 0d
+            - link "📱" [ref=e1051] [cursor=pointer]:
+              - /url: /review/T-954
+            - generic [ref=e1052]: started-work
+        - group [ref=e1053]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1054] [cursor=pointer]:
+            - checkbox [ref=e1056]
+            - generic [ref=e1057]: Review
+            - generic [ref=e1058]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1059]:
+            - strong [ref=e1061]: "Steps:"
+            - list [ref=e1062]:
+              - listitem [ref=e1063]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1064]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1065]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1066]:
+              - strong [ref=e1067]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1068]:
+              - strong [ref=e1069]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1070]:
+        - generic [ref=e1071]:
+          - generic [ref=e1072]:
+            - link "T-955" [ref=e1073] [cursor=pointer]:
+              - /url: /tasks/T-955
+              - strong [ref=e1074]: T-955
+            - text: ": Pickup: Dry-run saved us from silent data loss — destructive commands should auto-prompt on large diffs (from termlink)"
+          - generic [ref=e1075]:
+            - generic [ref=e1076]: 0d
+            - link "📱" [ref=e1077] [cursor=pointer]:
+              - /url: /review/T-955
+            - generic [ref=e1078]: started-work
+        - group [ref=e1079]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1080] [cursor=pointer]:
+            - checkbox [ref=e1082]
+            - generic [ref=e1083]: Review
+            - generic [ref=e1084]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1085]:
+            - strong [ref=e1087]: "Steps:"
+            - list [ref=e1088]:
+              - listitem [ref=e1089]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1090]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1091]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1092]:
+              - strong [ref=e1093]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1094]:
+              - strong [ref=e1095]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1096]:
+        - generic [ref=e1097]:
+          - generic [ref=e1098]:
+            - link "T-956" [ref=e1099] [cursor=pointer]:
+              - /url: /tasks/T-956
+              - strong [ref=e1100]: T-956
+            - text: ": Pickup: Pickup envelopes = messaging channel, termlink sessions = execution channel — agents must know the distinction (from termlink)"
+          - generic [ref=e1101]:
+            - generic [ref=e1102]: 0d
+            - link "📱" [ref=e1103] [cursor=pointer]:
+              - /url: /review/T-956
+            - generic [ref=e1104]: work-completed
+        - group [ref=e1105]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1106] [cursor=pointer]:
+            - checkbox [ref=e1108]
+            - generic [ref=e1109]: Review
+            - generic [ref=e1110]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1111]:
+            - strong [ref=e1113]: "Steps:"
+            - list [ref=e1114]:
+              - listitem [ref=e1115]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1116]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1117]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1118]:
+              - strong [ref=e1119]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1120]:
+              - strong [ref=e1121]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1122]:
+        - generic [ref=e1123]:
+          - generic [ref=e1124]:
+            - link "T-957" [ref=e1125] [cursor=pointer]:
+              - /url: /tasks/T-957
+              - strong [ref=e1126]: T-957
+            - text: ": Pickup: Cross-host agent access requires three things aligned: hub + named sessions + shared runtime dir (from termlink)"
+          - generic [ref=e1127]:
+            - generic [ref=e1128]: 0d
+            - link "📱" [ref=e1129] [cursor=pointer]:
+              - /url: /review/T-957
+            - generic [ref=e1130]: work-completed
+        - group [ref=e1131]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1132] [cursor=pointer]:
+            - checkbox [ref=e1134]
+            - generic [ref=e1135]: Review
+            - generic [ref=e1136]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1137]:
+            - strong [ref=e1139]: "Steps:"
+            - list [ref=e1140]:
+              - listitem [ref=e1141]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1142]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1143]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1144]:
+              - strong [ref=e1145]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1146]:
+              - strong [ref=e1147]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1148]:
+        - generic [ref=e1149]:
+          - generic [ref=e1150]:
+            - link "T-958" [ref=e1151] [cursor=pointer]:
+              - /url: /tasks/T-958
+              - strong [ref=e1152]: T-958
+            - text: ": Pickup: Inception decide codepath has 4 stacking UX issues — needs a focused review pass, not individual fixes (from termlink)"
+          - generic [ref=e1153]:
+            - generic [ref=e1154]: 0d
+            - link "📱" [ref=e1155] [cursor=pointer]:
+              - /url: /review/T-958
+            - generic [ref=e1156]: started-work
+        - group [ref=e1157]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1158] [cursor=pointer]:
+            - checkbox [ref=e1160]
+            - generic [ref=e1161]: Review
+            - generic [ref=e1162]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1163]:
+            - strong [ref=e1165]: "Steps:"
+            - list [ref=e1166]:
+              - listitem [ref=e1167]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1168]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1169]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1170]:
+              - strong [ref=e1171]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1172]:
+              - strong [ref=e1173]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1174]:
+        - generic [ref=e1175]:
+          - generic [ref=e1176]:
+            - link "T-959" [ref=e1177] [cursor=pointer]:
+              - /url: /tasks/T-959
+              - strong [ref=e1178]: T-959
+            - text: ": Pickup: Two-pool architecture (persistent /var/lib + ephemeral /tmp) is a valid design — codify it, dont fix it (from termlink)"
+          - generic [ref=e1179]:
+            - generic [ref=e1180]: 0d
+            - link "📱" [ref=e1181] [cursor=pointer]:
+              - /url: /review/T-959
+            - generic [ref=e1182]: work-completed
+        - group [ref=e1183]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1184] [cursor=pointer]:
+            - checkbox [ref=e1186]
+            - generic [ref=e1187]: Review
+            - generic [ref=e1188]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1189]:
+            - strong [ref=e1191]: "Steps:"
+            - list [ref=e1192]:
+              - listitem [ref=e1193]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1194]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1195]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1196]:
+              - strong [ref=e1197]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1198]:
+              - strong [ref=e1199]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1200]:
+        - generic [ref=e1201]:
+          - generic [ref=e1202]:
+            - link "T-967" [ref=e1203] [cursor=pointer]:
+              - /url: /tasks/T-967
+              - strong [ref=e1204]: T-967
+            - text: ": Persistent agent sessions — mark, protect from cleanup, verify on resume, enable cross-agent discovery"
+          - generic [ref=e1205]:
+            - generic [ref=e1206]: 0d
+            - link "📱" [ref=e1207] [cursor=pointer]:
+              - /url: /review/T-967
+            - generic [ref=e1208]: work-completed
+        - group [ref=e1209]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1210] [cursor=pointer]:
+            - checkbox [ref=e1212]
+            - generic [ref=e1213]: Review
+            - generic [ref=e1214]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1215]:
+            - strong [ref=e1217]: "Steps:"
+            - list [ref=e1218]:
+              - listitem [ref=e1219]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1220]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1221]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1222]:
+              - strong [ref=e1223]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1224]:
+              - strong [ref=e1225]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1226]:
+        - generic [ref=e1227]:
+          - generic [ref=e1228]:
+            - link "T-968" [ref=e1229] [cursor=pointer]:
+              - /url: /tasks/T-968
+              - strong [ref=e1230]: T-968
+            - text: ": Pickup: T-1135 persistent TermLink agent sessions — cross-agent coordination results from framework + termlink project (from 999-Agentic-Engineering-Framework)"
+          - generic [ref=e1231]:
+            - generic [ref=e1232]: 0d
+            - link "📱" [ref=e1233] [cursor=pointer]:
+              - /url: /review/T-968
+            - generic [ref=e1234]: started-work
+        - group [ref=e1235]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1236] [cursor=pointer]:
+            - checkbox [ref=e1238]
+            - generic [ref=e1239]: Review
+            - generic [ref=e1240]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1241]:
+            - strong [ref=e1243]: "Steps:"
+            - list [ref=e1244]:
+              - listitem [ref=e1245]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1246]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1247]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1248]:
+              - strong [ref=e1249]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1250]:
+              - strong [ref=e1251]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1252]:
+        - generic [ref=e1253]:
+          - generic [ref=e1254]:
+            - link "T-970" [ref=e1255] [cursor=pointer]:
+              - /url: /tasks/T-970
+              - strong [ref=e1256]: T-970
+            - text: ": fw task review UX overhaul — dynamic port, browser open, push-based delivery"
+          - generic [ref=e1257]:
+            - generic [ref=e1258]: 0d
+            - link "📱" [ref=e1259] [cursor=pointer]:
+              - /url: /review/T-970
+            - generic [ref=e1260]: work-completed
+        - group [ref=e1261]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1262] [cursor=pointer]:
+            - checkbox [ref=e1264]
+            - generic [ref=e1265]: Review
+            - generic [ref=e1266]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1267]:
+            - strong [ref=e1269]: "Steps:"
+            - list [ref=e1270]:
+              - listitem [ref=e1271]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1272]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1273]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1274]:
+              - strong [ref=e1275]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1276]:
+              - strong [ref=e1277]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1278]:
+        - generic [ref=e1279]:
+          - generic [ref=e1280]:
+            - link "T-972" [ref=e1281] [cursor=pointer]:
+              - /url: /tasks/T-972
+              - strong [ref=e1282]: T-972
+            - text: ": Deep RCA: Agent command amnesia — why do agents repeatedly output bare commands despite rules, memory, and structural fixes"
+          - generic [ref=e1283]:
+            - generic [ref=e1284]: 0d
+            - link "📱" [ref=e1285] [cursor=pointer]:
+              - /url: /review/T-972
+            - generic [ref=e1286]: work-completed
+        - group [ref=e1287]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1288] [cursor=pointer]:
+            - checkbox [ref=e1290]
+            - generic [ref=e1291]: Review
+            - generic [ref=e1292]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1293]:
+            - strong [ref=e1295]: "Steps:"
+            - list [ref=e1296]:
+              - listitem [ref=e1297]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1298]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1299]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1300]:
+              - strong [ref=e1301]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1302]:
+              - strong [ref=e1303]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1304]:
+        - generic [ref=e1305]:
+          - generic [ref=e1306]:
+            - link "T-980" [ref=e1307] [cursor=pointer]:
+              - /url: /tasks/T-980
+              - strong [ref=e1308]: T-980
+            - text: ": Tier 0 self-approval bypass — agent can call fw tier0 approve to unblock its own Tier 0 blocked commands"
+          - generic [ref=e1309]:
+            - generic [ref=e1310]: 0d
+            - link "📱" [ref=e1311] [cursor=pointer]:
+              - /url: /review/T-980
+            - generic [ref=e1312]: work-completed
+        - group [ref=e1313]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1314] [cursor=pointer]:
+            - checkbox [ref=e1316]
+            - generic [ref=e1317]: Review
+            - generic [ref=e1318]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1319]:
+            - strong [ref=e1321]: "Steps:"
+            - list [ref=e1322]:
+              - listitem [ref=e1323]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1324]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1325]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1326]:
+              - strong [ref=e1327]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1328]:
+              - strong [ref=e1329]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1330]:
+        - generic [ref=e1331]:
+          - generic [ref=e1332]:
+            - link "T-984" [ref=e1333] [cursor=pointer]:
+              - /url: /tasks/T-984
+              - strong [ref=e1334]: T-984
+            - text: ": fw upgrade silently reverts local patches — do_vendor has no modification detection"
+          - generic [ref=e1335]:
+            - generic [ref=e1336]: 0d
+            - link "📱" [ref=e1337] [cursor=pointer]:
+              - /url: /review/T-984
+            - generic [ref=e1338]: started-work
+        - group [ref=e1339]:
+          - generic "Review Review exploration findings and approve go/no-go decision" [ref=e1340] [cursor=pointer]:
+            - checkbox [ref=e1342]
+            - generic [ref=e1343]: Review
+            - generic [ref=e1344]: Review exploration findings and approve go/no-go decision
+          - generic [ref=e1345]:
+            - strong [ref=e1347]: "Steps:"
+            - list [ref=e1348]:
+              - listitem [ref=e1349]: "Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)"
+              - listitem [ref=e1350]: Review the Agent Recommendation section and go/no-go criteria evaluation
+              - listitem [ref=e1351]: Record decision via the Watchtower form or the command shown alongside the QR code
+            - generic [ref=e1352]:
+              - strong [ref=e1353]: "Expected:"
+              - text: Decision recorded, task completed
+            - generic [ref=e1354]:
+              - strong [ref=e1355]: "If not:"
+              - text: Ask agent for clarification on specific findings
+      - generic [ref=e1356]:
+        - generic [ref=e1357]:
+          - generic [ref=e1358]:
+            - link "T-976" [ref=e1359] [cursor=pointer]:
+              - /url: /tasks/T-976
+              - strong [ref=e1360]: T-976
+            - text: ": PostToolUse hook to scan for bare command patterns in tool output"
+          - generic [ref=e1361]:
+            - generic [ref=e1362]: 0d
+            - link "📱" [ref=e1363] [cursor=pointer]:
+              - /url: /review/T-976
+            - generic [ref=e1364]: work-completed
+        - group [ref=e1365]:
+          - generic "Rubber-stamp Add PL-007 scanner hook to settings.json" [ref=e1366] [cursor=pointer]:
+            - checkbox [ref=e1368]
+            - generic [ref=e1369]: Rubber-stamp
+            - generic [ref=e1370]: Add PL-007 scanner hook to settings.json
+          - generic [ref=e1371]:
+            - strong [ref=e1373]: "Steps:"
+            - list [ref=e1374]:
+              - listitem [ref=e1375]: "Add to `.claude/settings.json` in the `PostToolUse` array, after the `error-watchdog` entry:"
+              - listitem [ref=e1376]: "```json"
+              - listitem [ref=e1377]: "{"
+              - listitem [ref=e1378]: "\"matcher\": \"Bash\","
+              - listitem [ref=e1379]: "\"hooks\": ["
+              - listitem [ref=e1380]: "{"
+              - listitem [ref=e1381]: "\"type\": \"command\","
+              - listitem [ref=e1382]: "\"command\": \".agentic-framework/bin/fw hook pl007-scanner\""
+              - listitem [ref=e1383]: "}"
+              - listitem [ref=e1384]: "]"
+              - listitem [ref=e1385]: "}"
+              - listitem [ref=e1386]: "```"
+              - listitem [ref=e1387]: "Verify with: `cd /opt/termlink && grep 'pl007' .claude/settings.json`"
+            - generic [ref=e1388]:
+              - strong [ref=e1389]: "Expected:"
+              - text: Hook entry present, agent receives PL-007 reminders when tool output contains bare commands
+            - generic [ref=e1390]:
+              - strong [ref=e1391]: "If not:"
+              - text: "Check `.agentic-framework/agents/context/pl007-scanner.sh` exists and is executable"
+      - generic [ref=e1392]:
+        - generic [ref=e1393]:
+          - generic [ref=e1394]:
+            - link "T-977" [ref=e1395] [cursor=pointer]:
+              - /url: /tasks/T-977
+              - strong [ref=e1396]: T-977
+            - text: ": fw hook-enable command — register hooks in settings.json from CLI"
+          - generic [ref=e1397]:
+            - generic [ref=e1398]: 0d
+            - link "📱" [ref=e1399] [cursor=pointer]:
+              - /url: /review/T-977
+            - generic [ref=e1400]: work-completed
+        - group [ref=e1401]:
+          - generic "Rubber-stamp Verify pl007-scanner hook fires on bare command output" [ref=e1402] [cursor=pointer]:
+            - checkbox [ref=e1404]
+            - generic [ref=e1405]: Rubber-stamp
+            - generic [ref=e1406]: Verify pl007-scanner hook fires on bare command output
+          - generic [ref=e1407]:
+            - strong [ref=e1409]: "Steps:"
+            - list [ref=e1410]:
+              - listitem [ref=e1411]: "Run a command whose output contains \"fw inception decide\" (e.g., `fw task review` on an inception task)"
+              - listitem [ref=e1412]: Check that the agent receives a PL-007 reminder in additionalContext
+            - generic [ref=e1413]:
+              - strong [ref=e1414]: "Expected:"
+              - text: Agent does not relay bare command to user
+            - generic [ref=e1415]:
+              - strong [ref=e1416]: "If not:"
+              - text: "Check `fw hook-enable pl007-scanner --matcher Bash --event PostToolUse` was applied"
+      - generic [ref=e1417]:
+        - generic [ref=e1418]:
+          - generic [ref=e1419]:
+            - link "T-978" [ref=e1420] [cursor=pointer]:
+              - /url: /tasks/T-978
+              - strong [ref=e1421]: T-978
+            - text: ": Add checksum manifest to fw upgrade — detect local modifications before overwriting"
+          - generic [ref=e1422]:
+            - generic [ref=e1423]: 0d
+            - link "📱" [ref=e1424] [cursor=pointer]:
+              - /url: /review/T-978
+            - generic [ref=e1425]: work-completed
+        - group [ref=e1426]:
+          - generic "Rubber-stamp Verify backup works on real upgrade" [ref=e1427] [cursor=pointer]:
+            - checkbox [ref=e1429]
+            - generic [ref=e1430]: Rubber-stamp
+            - generic [ref=e1431]: Verify backup works on real upgrade
+          - generic [ref=e1432]:
+            - strong [ref=e1434]: "Steps:"
+            - list [ref=e1435]:
+              - listitem [ref=e1436]: "Locally modify a vendored file: `echo \"# local change\" >> /opt/termlink/.agentic-framework/lib/harvest.sh`"
+              - listitem [ref=e1437]: "Run: `cd /opt/termlink && bin/fw upgrade --dry-run`"
+              - listitem [ref=e1438]: "Verify output reports `harvest.sh` as locally modified"
+            - generic [ref=e1439]:
+              - strong [ref=e1440]: "Expected:"
+              - text: All panels visible, no console errors
+            - generic [ref=e1441]:
+              - strong [ref=e1442]: "If not:"
+              - text: Screenshot the broken panel and note the console error -->
+      - group [ref=e1443]:
+        - generic "Recent" [ref=e1444] [cursor=pointer]:
+          - heading "Recent" [level=3] [ref=e1445]
+  - contentinfo [ref=e1446]:
+    - text: Watchtower v0.9.0-652-g51ebacd — termlink
+    - generic [ref=e1447]:
+      - text: Found a framework bug?
+      - code [ref=e1448]: fw upstream report --title "..." --attach-doctor

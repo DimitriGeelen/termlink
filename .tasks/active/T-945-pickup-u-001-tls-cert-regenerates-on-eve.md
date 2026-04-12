@@ -4,16 +4,16 @@ name: "Pickup: U-001: TLS cert regenerates on every hub restart, breaking all cl
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1121. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:01Z
-last_update: 2026-04-12T08:10:01Z
-date_finished: null
+last_update: 2026-04-12T17:14:58Z
+date_finished: 2026-04-12T17:14:58Z
 ---
 
 # T-945: Pickup: U-001: TLS cert regenerates on every hub restart, breaking all client TOFU trust (from 999-Agentic-Engineering-Framework)
@@ -96,20 +96,35 @@ T-933 added "persist-if-present" for hub secret (`server.rs:45-71`) but NOT for 
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: GO
+
+Rationale: Every hub restart breaks all client TOFU trust, requiring manual fingerprint acceptance. This is a significant usability barrier for cross-host agent communication. T...
+
+**Date**: 2026-04-12T17:14:58Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Every hub restart breaks all client TOFU trust, requiring manual fingerprint acceptance. This is a significant usability barrier for cross-host agent communication. T...
+
+**Date**: 2026-04-12T17:14:58Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:14:58Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Every hub restart breaks all client TOFU trust, requiring manual fingerprint acceptance. This is a significant usability barrier for cross-host agent communication. T...
+
+### 2026-04-12T17:14:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

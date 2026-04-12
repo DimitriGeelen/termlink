@@ -4,16 +4,16 @@ name: "Fix termlink dispatch wait-for-registrar hang on fast-failing user_cmd (G
 description: >
   G-002 from concerns.yaml. crates/termlink-cli/src/commands/dispatch.rs:293 builds a sh-c template: 'termlink register ... &; TL_PID=$!; sleep 1; <user_cmd>; wait $TL_PID'. When user_cmd fast-fails (e.g., claude -p --dangerously-skip-permissions refuses root, exit 1 in <100ms), sh falls through to wait $TL_PID which blocks on the still-alive registrar. Dispatch sees 'ready' but times out only after --timeout seconds. Discovered 2026-04-11 during T-909 risk-eval: 3 workers appeared ready in termlink list but pstree showed no bash/claude grandchild — silent failure. Fix: capture user_cmd exit explicitly, kill registrar on non-zero, exit with user_cmd's rc. Regression test: 'termlink dispatch ... -- bash -c "exit 42"' must exit 42 within ~3s.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: [termlink, dispatch, bug, observability]
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: []
 created: 2026-04-11T12:30:39Z
-last_update: 2026-04-12T12:53:11Z
-date_finished: null
+last_update: 2026-04-12T20:46:11Z
+date_finished: 2026-04-12T20:35:30Z
 ---
 
 # T-914: Fix termlink dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)
@@ -72,3 +72,7 @@ cargo test --package termlink --bin termlink commands::dispatch::tests::worker_s
 
 ### 2026-04-11T12:55:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T20:35:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Human reviewed

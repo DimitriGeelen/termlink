@@ -190,9 +190,38 @@ impl Drop for Session {
     }
 }
 
-/// List all sessions in the default runtime directory.
+/// List all sessions across all known runtime directories (T-987).
+///
+/// Scans every dir returned by `discovery::all_sessions_dirs()`, merges
+/// results, and deduplicates by session ID (first occurrence wins — the
+/// primary runtime dir is checked first).
 pub fn list_sessions(include_stale: bool) -> Result<Vec<Registration>, SessionError> {
-    list_sessions_in(&crate::discovery::sessions_dir(), include_stale)
+    let dirs = crate::discovery::all_sessions_dirs();
+    if dirs.is_empty() {
+        // Fall back to default (may not exist yet)
+        return list_sessions_in(&crate::discovery::sessions_dir(), include_stale);
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut all = Vec::new();
+
+    for dir in &dirs {
+        match list_sessions_in(dir, include_stale) {
+            Ok(sessions) => {
+                for reg in sessions {
+                    if seen.insert(reg.id.clone()) {
+                        all.push(reg);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::debug!(dir = %dir.display(), error = %e, "Skipping session dir");
+            }
+        }
+    }
+
+    all.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+    Ok(all)
 }
 
 /// List all sessions in a specific sessions directory.
@@ -233,9 +262,34 @@ pub fn list_sessions_in(
     Ok(sessions)
 }
 
-/// Find a session by unique ID or display name in the default directory.
+/// Find a session by unique ID or display name across all runtime dirs (T-987).
 pub fn find_session(query: &str) -> Result<Registration, SessionError> {
-    find_session_in(&crate::discovery::sessions_dir(), query)
+    // list_sessions already merges all dirs
+    let sessions = list_sessions(false)?;
+
+    // Try unique ID match first
+    if let Some(reg) = sessions.iter().find(|r| r.id.as_str() == query) {
+        return Ok(reg.clone());
+    }
+
+    // Try display name match
+    let matches: Vec<_> = sessions
+        .iter()
+        .filter(|r| r.display_name == query)
+        .collect();
+
+    match matches.len() {
+        0 => Err(SessionError::NotFound(query.to_string())),
+        1 => Ok(matches[0].clone()),
+        _ => {
+            let ids: Vec<_> = matches.iter().map(|r| r.id.to_string()).collect();
+            Err(SessionError::Registration(format!(
+                "Ambiguous display name '{}': matches {}",
+                query,
+                ids.join(", ")
+            )))
+        }
+    }
 }
 
 /// Find a session by unique ID or display name in a specific directory.
@@ -675,5 +729,56 @@ mod tests {
         assert_eq!(sessions.len(), 2);
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn list_sessions_multi_dir_deduplicates() {
+        // T-987: sessions in two dirs, same ID should appear only once
+        let dir_a = unique_test_dir("multi-a");
+        let dir_b = unique_test_dir("multi-b");
+
+        // Create a session in dir_a
+        let session_a = Session::register_in(
+            SessionConfig {
+                display_name: Some("worker-a".into()),
+                ..Default::default()
+            },
+            &dir_a,
+        )
+        .await
+        .unwrap();
+        let id_a = session_a.id().clone();
+
+        // Create a different session in dir_b
+        let session_b = Session::register_in(
+            SessionConfig {
+                display_name: Some("worker-b".into()),
+                ..Default::default()
+            },
+            &dir_b,
+        )
+        .await
+        .unwrap();
+        let id_b = session_b.id().clone();
+
+        // List from both dirs — should get both
+        let mut combined = list_sessions_in(&dir_a, false).unwrap();
+        combined.extend(list_sessions_in(&dir_b, false).unwrap());
+        assert_eq!(combined.len(), 2);
+
+        // Deduplicate by ID (same logic as list_sessions)
+        let mut seen = std::collections::HashSet::new();
+        let deduped: Vec<_> = combined
+            .into_iter()
+            .filter(|r| seen.insert(r.id.clone()))
+            .collect();
+        assert_eq!(deduped.len(), 2);
+        assert!(deduped.iter().any(|r| r.id == id_a));
+        assert!(deduped.iter().any(|r| r.id == id_b));
+
+        session_a.deregister().unwrap();
+        session_b.deregister().unwrap();
+        let _ = std::fs::remove_dir_all(&dir_a);
+        let _ = std::fs::remove_dir_all(&dir_b);
     }
 }
