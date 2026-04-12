@@ -13,8 +13,8 @@
 [[ -z "${_FW_PATHS_LOADED:-}" ]] && source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/paths.sh" 2>/dev/null || true
 # Requires: PROJECT_ROOT, BOLD, NC, CYAN (from colors.sh/paths.sh chain)
 
-# Source shared helpers (config.sh sourced transitively via watchtower.sh — T-974)
-source "${FRAMEWORK_ROOT:-.}/lib/watchtower.sh"
+# Source config for PORT setting (guard protects double-source)
+source "${FRAMEWORK_ROOT:-.}/lib/config.sh"
 
 emit_review() {
     local task_id="${1:-}"
@@ -37,9 +37,23 @@ emit_review() {
         return 1
     fi
 
-    # Determine Watchtower URL via shared helper (T-974)
-    local base_url
-    base_url=$(_watchtower_url "$task_id")
+    # Determine Watchtower URL (env > running PID port+host > default)
+    local base_url="${WATCHTOWER_URL:-}"
+    if [ -z "$base_url" ]; then
+        local wt_port="" wt_host="" wt_pid=""
+        if [ -f "$PROJECT_ROOT/.context/working/watchtower.pid" ]; then
+            wt_pid=$(cat "$PROJECT_ROOT/.context/working/watchtower.pid" 2>/dev/null)
+            if [ -n "$wt_pid" ] && kill -0 "$wt_pid" 2>/dev/null; then
+                wt_port=$(ss -tlnp 2>/dev/null | grep "pid=$wt_pid" | grep -oP ':(\d+)\s' | tr -d ': ' | head -1)
+            fi
+        fi
+        wt_host=$(hostname -I 2>/dev/null | awk '{print $1}')
+        wt_host="${wt_host:-$(hostname 2>/dev/null)}"
+        wt_host="${wt_host:-localhost}"
+        local default_port
+        default_port=$(fw_config "PORT" 3000 2>/dev/null || echo 3000)
+        base_url="http://${wt_host}:${wt_port:-$default_port}"
+    fi
     # Detect workflow type for URL routing (T-642)
     local workflow_type=""
     workflow_type=$(grep -m1 'workflow_type:' "$task_file" 2>/dev/null | sed 's/.*workflow_type:[[:space:]]*//' | tr -d '[:space:]')
@@ -119,9 +133,6 @@ except ImportError:
 
     echo -e "══════════════════════════════════════════════════"
     echo ""
-
-    # Auto-open browser via shared helper (T-974, restores T-971)
-    _watchtower_open "$review_url"
 
     # Mark task as reviewed — prerequisite gate for fw inception decide (T-973)
     mkdir -p "$PROJECT_ROOT/.context/working" 2>/dev/null
