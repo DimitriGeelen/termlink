@@ -31,12 +31,14 @@ concerns:
   trigger_event: '2026-04-11 13:32Z: 3 dispatched risk-eval workers registered but claude -p refused root and exited immediately. Dispatch hung in wait-for-registrar. Forced fallback to Agent subagents.'
   detection_lag_days: '?'
   what_works_now: 'dispatch works fine for user_cmds that succeed OR that run long enough to be observed. Only fast-failing user_cmds hit this.'
-  what_remains: 'Capture user_cmd exit code explicitly: `{user_cmd}; USER_RC=$?; kill $TL_PID 2>/dev/null; wait $TL_PID 2>/dev/null; exit $USER_RC`. Or use a named-pipe heartbeat. Add regression test: `termlink dispatch ... -- bash -c ''exit 42''` must see exit 42 within ~3s.'
-  mitigation_candidate: '1. Check user_cmd output/exit separately. 2. Shorter --timeout when expecting fast success. 3. Pre-validate user_cmd can run in the target environment (e.g., test `claude -p` can execute before dispatching 3 workers).'
-  status: watching
+  what_remains: 'Human AC smoke test on T-914 (agent ran it — passed: elapsed_secs=0.5, crashed_workers populated, timed_out=false). Human to review and close T-914.'
+  mitigation_candidate: 'Fix landed in T-914: worker shell template captures USER_RC=$?, kills registrar, exits with user_cmd rc. T-916 fixed the orthogonal event.collect masking bug. Both shipped.'
+  status: closed
+  resolution: 'T-914 fixed the worker shell template (USER_RC=$?, kill $TL_PID, exit $USER_RC). T-916 fixed the orthogonal event.collect continue-on-error masking. End-to-end verified 2026-04-12: `termlink dispatch --count 1 --timeout 30 -- bash -c "exit 42"` completes in 0.5s with crashed_workers correctly reported. 11/11 unit tests pass.'
   created: 2026-04-11
-  last_reviewed: 2026-04-11
-  related_tasks: [T-282, T-280, T-909]
+  last_reviewed: 2026-04-12
+  closed: 2026-04-12
+  related_tasks: [T-282, T-280, T-909, T-914, T-916]
 
 - id: G-001
   type: gap
