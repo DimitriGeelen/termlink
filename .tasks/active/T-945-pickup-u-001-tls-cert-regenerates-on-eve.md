@@ -4,10 +4,10 @@ name: "Pickup: U-001: TLS cert regenerates on every hub restart, breaking all cl
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1121. Type: bug-report.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -20,34 +20,38 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+TermLink hub generates a new self-signed TLS certificate on every restart (`tls.rs:29-65`), and `tls::cleanup()` deletes cert files on shutdown (`tls.rs:106-109`). Client-side TOFU (`tofu.rs:152-190`) correctly stores fingerprints in `~/.termlink/known_hubs` and rejects changed certs. Combined effect: every hub restart breaks all existing client trust, requiring manual fingerprint acceptance.
+
+T-933 added "persist-if-present" for hub secret (`server.rs:45-71`) but NOT for TLS certs.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+1. The T-933 persist-if-present pattern can be directly applied to TLS certs
+2. Cert files (`hub.cert.pem`, `hub.key.pem`) survive hub shutdown if cleanup is changed
+3. Self-signed certs don't have expiry concerns for LAN-only use (reasonable default: 1 year)
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Spike 1: Read tls.rs and server.rs — DONE, clear fix path
+2. Spike 2: Verify cert file paths match shutdown cleanup — DONE, `tls::cleanup()` removes them
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- Self-signed certs only (no CA infrastructure)
+- `rcgen` crate used for generation
+- Cert files stored alongside hub socket/secret in runtime dir
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** Persist-if-present for certs, don't delete on shutdown, load-or-generate
+**OUT:** CA-signed certs, cert rotation, cert distribution to clients
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (tls.rs regenerates unconditionally, cleanup deletes on shutdown)
+- [x] Assumptions tested (T-933 pattern confirmed applicable; cert files at known paths)
+- [x] Recommendation written with rationale (GO: 2-file fix, directly follows T-933 pattern)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +65,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Fix is a 2-file change following an existing pattern (T-933)
+- TOFU breakage on every restart is a real usability problem for cross-host agents
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- TLS is being removed or replaced with a different auth mechanism
+- Certs need to be rotated frequently (self-signed LAN certs don't)
 
 ## Verification
 
@@ -76,15 +80,21 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+
+**Rationale:** Every hub restart breaks all client TOFU trust, requiring manual fingerprint acceptance. This is a significant usability barrier for cross-host agent communication. The fix directly follows the T-933 "persist-if-present" pattern already implemented for hub secrets — a 2-file change with proven precedent.
+
+**Evidence:**
+- `tls.rs:29-65` — always calls `generate_simple_self_signed()`, no load logic
+- `tls.rs:106-109` — `cleanup()` deletes cert files on shutdown
+- `server.rs:45-71` — T-933 persist-if-present pattern exists for hub secret (proven approach)
+- `tofu.rs:152-190` — client TOFU works correctly, will accept persistent certs
+
+**Build scope (if GO):**
+1. `tls.rs`: Add `load_existing_cert_and_key()` — load from disk if exists, else generate
+2. `tls.rs`: Remove cert deletion from `cleanup()` (preserve across restarts)
+3. `server.rs`: Change cert init call to use load-or-generate
+4. Unit test: verify cert persistence across simulated restart
 
 ## Decisions
 

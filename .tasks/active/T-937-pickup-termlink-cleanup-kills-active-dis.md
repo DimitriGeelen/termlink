@@ -4,10 +4,10 @@ name: "Pickup: TermLink cleanup kills active dispatch workers — fw termlink cl
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-843. Type: bug-report.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -20,34 +20,37 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+`fw termlink cleanup` kills active dispatch workers because they lack `exit_code` file. Framework dispatch (`cmd_dispatch` in `termlink.sh`) creates worker dirs in `/tmp/tl-dispatch/`. Cleanup iterates these dirs and kills processes if no `exit_code` file exists. Active workers don't have `exit_code` (only written at completion).
+
+**Mitigation already exists:** T-843/T-972 added a claude process check (lines 159-186 of `termlink.sh`) that skips workers with active `claude` child processes. This handles the common case.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+1. T-843/T-972 mitigation covers the most common scenario (claude dispatch workers)
+2. The Rust CLI's `termlink dispatch` is the future direction — framework shell dispatch will be deprecated
+3. Remaining edge cases (non-claude workers, process tree mismatch) are narrow and unlikely
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Read `cmd_cleanup()` in `termlink.sh` — DONE, T-843/T-972 fix present
+2. Assess remaining risk after mitigation — narrow (non-claude workers only)
+3. Decide: build additional protection or defer to Rust dispatch migration
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+Framework dispatch is shell-based (`termlink.sh`). Rust dispatch (`termlink dispatch`) uses a different mechanism (hub sessions, not `/tmp/tl-dispatch/` dirs). The two systems don't interact.
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** Assess if T-843/T-972 mitigation is sufficient
+**OUT:** Rewriting framework dispatch (Rust CLI is the future path)
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (cleanup code reviewed, T-843/T-972 mitigation confirmed)
+- [x] Assumptions tested (framework dispatch → Rust dispatch migration path confirmed)
+- [x] Recommendation written with rationale (NO-GO: already mitigated)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -61,12 +64,12 @@ date_finished: null
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- T-843/T-972 mitigation has a known gap that causes production incidents
+- Framework shell dispatch will remain the primary dispatch mechanism
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- T-843/T-972 mitigation covers the common case (claude dispatch workers)
+- Rust `termlink dispatch` is the future direction for dispatch
 
 ## Verification
 
@@ -76,15 +79,15 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** NO-GO
+
+**Rationale:** The original bug (cleanup killing active workers) was already mitigated by T-843/T-972 which added claude process detection before killing. The remaining edge cases (non-claude workers) are narrow and unlikely in practice. The Rust `termlink dispatch` command is the future direction and uses a completely different session mechanism (hub-based, not `/tmp/tl-dispatch/` directories). Investing in further hardening of the shell-based dispatch cleanup is not warranted.
+
+**Evidence:**
+- `termlink.sh:159-186` — T-843/T-972 checks for active claude processes before killing
+- `termlink.sh:184-186` — Active workers with claude processes are SKIPPED explicitly
+- Rust dispatch (`dispatch.rs`) uses hub sessions (`.json` + `.sock`), not `/tmp/tl-dispatch/` dirs
+- No recent incidents of cleanup killing active workers since T-843/T-972 fix
 
 ## Decisions
 
