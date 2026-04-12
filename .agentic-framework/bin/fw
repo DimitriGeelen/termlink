@@ -3538,6 +3538,10 @@ PYSEARCH
         # T-863: Use bash explicitly — don't require -x (core.filemode=false drops execute bits)
         exec bash "$_hook_script" "$@"
         ;;
+    hook-enable)
+        # fw hook-enable <name> [--matcher PATTERN] [--event TYPE] — register a hook in settings.json (T-977)
+        exec bash "$FRAMEWORK_ROOT/bin/hook-enable.sh" "$@"
+        ;;
     doctor)
         do_doctor "$@"
         ;;

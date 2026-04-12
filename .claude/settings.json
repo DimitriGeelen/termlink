@@ -159,6 +159,15 @@
             "command": ".agentic-framework/bin/fw hook audit-task-tools"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".agentic-framework/bin/fw hook pl007-scanner"
+          }
+        ]
       }
     ]
   }
