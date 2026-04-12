@@ -309,3 +309,38 @@ learnings:
   date: 2026-04-12
   context: Added via context agent
   application: TBD
+- id: PL-010
+  learning: "TermLink inject is for interactive prompt injection, push is for async file delivery — different channels for different needs"
+  source: P-001
+  task: T-952
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
+- id: PL-011
+  learning: "termlink send-file ok:true means hub accepted, NOT delivered — verify receipt independently for critical deliveries"
+  source: P-001
+  task: T-953
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
+- id: PL-012
+  learning: "Pickup envelopes are a messaging channel, termlink sessions are an execution channel — agents must know the distinction"
+  source: P-001
+  task: T-956
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
+- id: PL-013
+  learning: "Cross-host agent access requires three things aligned: hub + named sessions + shared runtime dir"
+  source: P-001
+  task: T-957
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
+- id: PL-014
+  learning: "Two-pool architecture (persistent /var/lib + ephemeral /tmp) is a valid design for TermLink sessions — codify it, don't fix it"
+  source: P-001
+  task: T-959
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD
