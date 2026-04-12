@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-983: Triage pickup learnings — capture and close L-004, L-006, and informational pickups
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T16:00:17Z
+# ============================================================================
+
+task_id: T-983
+task_name: "Triage pickup learnings — capture and close L-004, L-006, and informational pickups"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T15:58:47Z
+completed: 2026-04-12T16:00:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T18:00:08+02:00
+last_commit: 2026-04-12T18:00:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Triage 5 pickup learnings — captured and closed (T-952 T-953 T-956 T-957 T-959)
+
+# Key outcomes
+outcomes:
+  - "Learning pickups captured to learnings.yaml and closed (T-952, T-953, T-956, T-957, T-959)"
+  - "Informational pickups closed with rationale"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-12-1800.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/locks/T-952.lock"
+  - ".context/locks/T-953.lock"
+  - ".context/locks/T-956.lock"
+  - ".context/locks/T-957.lock"
+  - ".context/locks/T-959.lock"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.gate-bypass-log.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.reviewed-T-952"
+  - ".context/working/.reviewed-T-953"
+  - ".context/working/.reviewed-T-956"
+  - ".context/working/.reviewed-T-957"
+  - ".context/working/.reviewed-T-959"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-952-pickup-l-004-termlink-inject-vs-push--in.md"
+  - ".tasks/active/T-953-pickup-l-006-termlink-send-file-oktrue-m.md"
+  - ".tasks/active/T-956-pickup-pickup-envelopes--messaging-chann.md"
+  - ".tasks/active/T-957-pickup-cross-host-agent-access-requires-.md"
+  - ".tasks/active/T-959-pickup-two-pool-architecture-persistent-.md"
+  - ".tasks/active/T-983-triage-pickup-learnings--capture-and-clo.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T18:00:08"
+    action: "T-983: Triage 5 pickup learnings — captured and closed (T-952 T-953 T-956 T-957 T-959)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 27
+  lines_added: 222
+  lines_removed: 42
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-983-triage-pickup-learnings--capture-and-clo.md
+generated_by: context-agent-hybrid
