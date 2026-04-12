@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-944: Filter approvals page — only show inception tasks with actual recommendations
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T09:07:13Z
+# ============================================================================
+
+task_id: T-944
+task_name: "Filter approvals page — only show inception tasks with actual recommendations"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T08:07:21Z
+completed: 2026-04-12T08:12:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T10:11:33+02:00
+last_commit: 2026-04-12T10:37:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Restore corrupted tasks, add recommendations properly (T-283, T-292, T-690, T-908). Split approvals into ready/not-ready, show Go/No-Go criteria, filter out unready tasks. Record 4 session learnings (PL-003..PL-006), deliver P-012 to framework
+
+# Key outcomes
+outcomes:
+  - "Approvals page splits inception tasks into \"Ready for decision\" (has recommendation) and \"Not ready\" (no recommendation)"
+  - "Go/No-Go criteria displayed on each card (not just placeholder text)"
+  - "Tasks without recommendations shown in collapsed \"Not ready\" section with link to task"
+  - "Pickup P-011 sent to framework agent"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/blueprints/approvals.py"
+  - ".agentic-framework/web/templates/_approvals_content.html"
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-283-cross-session-failure-blindness--107-rem.md"
+  - ".tasks/active/T-292-audit-health-decay--why-do-warnings-accu.md"
+  - ".tasks/active/T-534-rca-agent-keeps-suggesting-direct-github.md"
+  - ".tasks/active/T-690-event-subscription--push-based-event-del.md"
+  - ".tasks/active/T-789-worktree-isolation-for-termlink-dispatch.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T10:11:33"
+    action: "T-944: Restore corrupted tasks, add recommendations properly (T-283, T-292, T-690, T-908)"
+  - time: "2026-04-12T10:11:39"
+    action: "T-944: Split approvals into ready/not-ready, show Go/No-Go criteria, filter out unready tasks"
+  - time: "2026-04-12T10:37:59"
+    action: "T-944: Record 4 session learnings (PL-003..PL-006), deliver P-012 to framework"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 8
+  lines_added: 130
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-944-filter-approvals-page--only-show-incepti.md
+generated_by: context-agent-hybrid
