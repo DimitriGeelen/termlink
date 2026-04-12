@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-963: Session-start check for open concerns and recurring failure patterns
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T10:36:38Z
+# ============================================================================
+
+task_id: T-963
+task_name: "Session-start check for open concerns and recurring failure patterns"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T09:09:42Z
+completed: 2026-04-12T09:12:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T11:11:55+02:00
+last_commit: 2026-04-12T11:11:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session-start warns about open concerns — cross-session blindness fix (T-283 Option B)
+
+# Key outcomes
+outcomes:
+  - "`context.sh init` reads concerns.yaml and warns about open (non-closed) gaps"
+  - "Warning includes gap ID, summary, and age"
+  - "No warning when all concerns are closed (backward compatible)"
+  - "Pickup sent to framework agent"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Session-start warns about open concerns — cross-session blindness fix (T-283 Option B)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/context/lib/init.sh"
+  - ".tasks/active/T-963-session-start-check-for-open-concerns-an.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T11:11:55"
+    action: "T-963: Session-start warns about open concerns — cross-session blindness fix (T-283 Option B)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 314
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-963-session-start-check-for-open-concerns-an.md
+generated_by: context-agent-hybrid

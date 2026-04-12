@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-962: Portable date handling — replace GNU date -d with macOS-compatible alternatives
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T10:36:37Z
+# ============================================================================
+
+task_id: T-962
+task_name: "Portable date handling — replace GNU date -d with macOS-compatible alternatives"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T08:47:05Z
+completed: 2026-04-12T09:07:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T11:07:28+02:00
+last_commit: 2026-04-12T11:07:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Replace GNU date -d with portable helpers in compat.sh — fixes silent macOS failures
+
+# Key outcomes
+outcomes:
+  - "All `date -d` usage in framework shell scripts replaced with portable alternative (python3 or `date -j` with fallback)"
+  - "Episodic generation succeeds on both Linux and macOS"
+  - "No GNU-only date flags remain in .agentic-framework/ shell scripts"
+  - "Pickup sent to framework agent (this is a framework-side fix)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Replace GNU date -d with portable helpers in compat.sh — fixes silent macOS failures"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/context/checkpoint.sh"
+  - ".agentic-framework/agents/context/lib/episodic.sh"
+  - ".agentic-framework/lib/compat.sh"
+  - ".agentic-framework/metrics.sh"
+  - ".context/episodic/T-943.yaml"
+  - ".context/episodic/T-944.yaml"
+  - ".tasks/active/T-962-portable-date-handling--replace-gnu-date.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T11:07:28"
+    action: "T-962: Replace GNU date -d with portable helpers in compat.sh — fixes silent macOS failures"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 1
+  files_changed: 7
+  lines_added: 1263
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-962-portable-date-handling--replace-gnu-date.md
+generated_by: context-agent-hybrid
