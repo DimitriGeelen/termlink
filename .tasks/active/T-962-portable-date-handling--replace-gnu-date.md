@@ -25,10 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] All `date -d` usage in framework shell scripts replaced with portable alternative (python3 or `date -j` with fallback)
-- [ ] Episodic generation succeeds on both Linux and macOS
-- [ ] No GNU-only date flags remain in .agentic-framework/ shell scripts
-- [ ] Pickup sent to framework agent (this is a framework-side fix)
+- [x] All `date -d` usage in framework shell scripts replaced with portable alternative (python3 or `date -j` with fallback)
+- [x] Episodic generation succeeds on both Linux and macOS
+- [x] No GNU-only date flags remain in .agentic-framework/ shell scripts
+- [x] Pickup sent to framework agent (this is a framework-side fix)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
