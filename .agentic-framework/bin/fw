@@ -566,6 +566,19 @@ do_doctor() {
         issues=$((issues + 1))
     fi
 
+    # Check 1b: Framework vendoring — symlink detection (T-913)
+    local fw_dir="$PROJECT_ROOT/.agentic-framework"
+    if [ -L "$fw_dir" ]; then
+        echo -e "  ${YELLOW}WARN${NC}  .agentic-framework is a symlink → $(readlink -f "$fw_dir" 2>/dev/null || readlink "$fw_dir")"
+        echo -e "         Symlinks cause cross-project collisions and silent overwrites on fw upgrade."
+        echo -e "         Fix: fw vendor (replaces symlink with vendored copy)"
+        warnings=$((warnings + 1))
+    elif [ -d "$fw_dir" ]; then
+        echo -e "  ${GREEN}OK${NC}  Framework vendoring (.agentic-framework is a real directory)"
+    else
+        echo -e "  ${CYAN}SKIP${NC}  Framework vendoring (no .agentic-framework in project)"
+    fi
+
     # Check 2: .framework.yaml (only relevant if PROJECT_ROOT != FRAMEWORK_ROOT)
     if [ "$PROJECT_ROOT" != "$FRAMEWORK_ROOT" ]; then
         if [ -f "$PROJECT_ROOT/.framework.yaml" ]; then
