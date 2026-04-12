@@ -4,16 +4,16 @@ name: "Codify MCP auto-exposure — every new CLI command must be MCP-reachable"
 description: >
   Meta-structural rule: discovered via T-920 RCA that shipping CLI-only cross-host features (T-163/T-164/T-182/T-186) left MCP agents blind for months. Need a framework/tooling rule that any new CLI command automatically gets an MCP wrapper OR must explicitly document why not. Options: code-gen from CLI enum, a lint that greps cli.rs vs tools.rs, a pre-commit hook blocking new Command variants without matching MCP tool, or a runtime registration pattern. Deliverable: decision on mechanism + first enforcement step.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:14Z
-last_update: 2026-04-11T19:33:14Z
-date_finished: null
+last_update: 2026-04-12T21:29:17Z
+date_finished: 2026-04-12T21:29:17Z
 ---
 
 # T-922: Codify MCP auto-exposure — every new CLI command must be MCP-reachable
@@ -114,3 +114,7 @@ Rationale: Current MCP tools already cover active CLI commands (register, dispat
 - **Rationale:** Recommendation: DEFER
 
 Rationale: Current MCP tools already cover active CLI commands (register, dispatch, inject, send-file, kv operations). Process improvement for ensuring future commands are au...
+
+### 2026-04-12T21:29:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** DEFER decision recorded, human rubber-stamp pending via Watchtower

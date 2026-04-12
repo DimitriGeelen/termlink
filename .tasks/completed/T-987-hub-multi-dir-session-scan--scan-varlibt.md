@@ -4,7 +4,7 @@ name: "Hub multi-dir session scan — scan /var/lib/termlink + /tmp/termlink-UID
 description: >
   Hub multi-dir session scan — scan /var/lib/termlink + /tmp/termlink-UID + TERMLINK_RUNTIME_DIR
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T21:20:11Z
-last_update: 2026-04-12T21:20:11Z
-date_finished: null
+last_update: 2026-04-12T21:26:49Z
+date_finished: 2026-04-12T21:26:49Z
 ---
 
 # T-987: Hub multi-dir session scan — scan /var/lib/termlink + /tmp/termlink-UID + TERMLINK_RUNTIME_DIR
@@ -62,3 +62,7 @@ cargo clippy -p termlink-hub -p termlink-session -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-987-hub-multi-dir-session-scan--scan-varlibt.md
 - **Context:** Initial task creation
+
+### 2026-04-12T21:26:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Multi-dir scan implemented, 179/179 hub + 254/254 session tests pass

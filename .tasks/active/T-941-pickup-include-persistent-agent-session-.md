@@ -4,16 +4,16 @@ name: "Pickup: Include persistent agent session service templates in framework d
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: feature-proposal.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T07:49:06Z
-last_update: 2026-04-12T07:49:06Z
-date_finished: null
+last_update: 2026-04-12T21:29:28Z
+date_finished: 2026-04-12T21:29:28Z
 ---
 
 # T-941: Pickup: Include persistent agent session service templates in framework deploy scaffold (from termlink)
@@ -114,3 +114,7 @@ Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Tem
 - **Rationale:** Recommendation: DEFER
 
 Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Template standardization belongs in the framework deploy scaffold, not the termlink consumer proj...
+
+### 2026-04-12T21:29:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** DEFER decision recorded
