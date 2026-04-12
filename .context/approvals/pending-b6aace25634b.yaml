@@ -1,0 +1,7 @@
+command_hash: b6aace25634b49eeb4741d7439e262d57238c38f728b112d8254075d8e07cbfc
+command_preview: 'fw tier0 approve 2>&1; echo "EXIT: $?"'
+risk: 'TIER 0 SELF-APPROVAL BLOCKED: The agent cannot approve its own blocked commands.
+  Human must approve via Watchtower or by running: ! fw tier0 approve'
+status: pending
+timestamp: '2026-04-12T13:37:38Z'
+type: tier0

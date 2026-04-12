@@ -4,6 +4,11 @@ command_preview: fw inception decide T-936 go --rationale "Registry populated wi
 risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
   recommendation and rationale, then ask the human to run: fw inception decide T-XXX
   go|no-go --rationale "..."'
-status: pending
+status: approved
 timestamp: '2026-04-12T13:12:21Z'
 type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-12T13:21:52Z'
+  mechanism: watchtower
