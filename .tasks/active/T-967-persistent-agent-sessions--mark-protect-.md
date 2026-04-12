@@ -4,7 +4,7 @@ name: "Persistent agent sessions — mark, protect from cleanup, verify on resum
 description: >
   Inception: Persistent agent sessions — mark, protect from cleanup, verify on resume, enable cross-agent discovery
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:15:06Z
-last_update: 2026-04-12T09:15:13Z
+last_update: 2026-04-12T09:20:50Z
 date_finished: null
 ---
 
@@ -133,3 +133,6 @@ Currently there's no way to distinguish a "stale orphan" from a "persistent agen
 
 ### 2026-04-12T09:15:13Z — status-update [task-update-agent]
 - **Change:** horizon: now → now
+
+### 2026-04-12T09:20:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
