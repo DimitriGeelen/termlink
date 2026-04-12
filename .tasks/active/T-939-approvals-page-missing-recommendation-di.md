@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T07:27:33Z
-last_update: 2026-04-12T07:27:33Z
+last_update: 2026-04-12T07:31:39Z
 date_finished: null
 ---
 
@@ -37,7 +37,7 @@ Watchtower /approvals page shows inception tasks pending GO/NO-GO but doesn't di
 - [x] When recommendation is empty, shows "No recommendation yet — review task file" with link
 - [x] When recommendation exists, shows GO/NO-GO/DEFER badge + truncated argumentation
 - [x] Approvals page loads without error after template change
-- [ ] Pickup task created and sent to framework agent via termlink
+- [x] Pickup task created and sent to framework agent via termlink (P-009 delivered to /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/)
 
 ### Human
 - [ ] [REVIEW] Verify approvals page shows recommendations visually
