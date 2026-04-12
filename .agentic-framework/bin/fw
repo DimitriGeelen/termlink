@@ -441,6 +441,7 @@ show_help() {
     echo -e "  ${GREEN}test-onboarding${NC}     End-to-end onboarding flow test (8 checkpoints)"
     echo -e "  ${GREEN}context${NC} <cmd>        Manage Context Fabric (init, status, focus, ...)"
     echo -e "  ${GREEN}git${NC} <cmd>            Task-traced git operations (commit, status, log, ...)"
+    echo -e "  ${GREEN}push${NC}                Push to all remotes"
     echo -e "  ${GREEN}handover${NC}             Generate session handover document"
     echo -e "  ${GREEN}handover --checkpoint${NC} Mid-session checkpoint (P-009)"
     echo -e "  ${GREEN}healing${NC} <cmd>        Error recovery (diagnose, resolve, patterns, suggest)"
@@ -566,17 +567,13 @@ do_doctor() {
         issues=$((issues + 1))
     fi
 
-    # Check 1b: Framework vendoring — symlink detection (T-913)
-    local fw_dir="$PROJECT_ROOT/.agentic-framework"
-    if [ -L "$fw_dir" ]; then
-        echo -e "  ${YELLOW}WARN${NC}  .agentic-framework is a symlink → $(readlink -f "$fw_dir" 2>/dev/null || readlink "$fw_dir")"
-        echo -e "         Symlinks cause cross-project collisions and silent overwrites on fw upgrade."
-        echo -e "         Fix: fw vendor (replaces symlink with vendored copy)"
+    # Check 1b: Framework vendoring (symlink detection)
+    if [ "$PROJECT_ROOT" != "$FRAMEWORK_ROOT" ] && [ -L "$PROJECT_ROOT/.agentic-framework" ]; then
+        echo -e "  ${YELLOW}WARN${NC}  .agentic-framework is a symlink (not vendored)"
+        echo -e "         Run 'fw vendor' to create a self-contained copy"
         warnings=$((warnings + 1))
-    elif [ -d "$fw_dir" ]; then
-        echo -e "  ${GREEN}OK${NC}  Framework vendoring (.agentic-framework is a real directory)"
-    else
-        echo -e "  ${CYAN}SKIP${NC}  Framework vendoring (no .agentic-framework in project)"
+    elif [ "$PROJECT_ROOT" != "$FRAMEWORK_ROOT" ] && [ -d "$PROJECT_ROOT/.agentic-framework" ]; then
+        echo -e "  ${GREEN}OK${NC}  Framework vendoring (real directory)"
     fi
 
     # Check 2: .framework.yaml (only relevant if PROJECT_ROOT != FRAMEWORK_ROOT)
@@ -1001,9 +998,14 @@ else:
     fi
 
     # Check: Watchtower smoke test (T-486) — run if server is reachable
-    if curl -sf "http://localhost:${FW_PORT:-3000}/health" >/dev/null 2>&1; then
+    # Use _watchtower_url for port detection (T-1154: no hardcoded 3000)
+    source "$FRAMEWORK_ROOT/lib/watchtower.sh" 2>/dev/null || true
+    local _doctor_wt_url _doctor_wt_port
+    _doctor_wt_url=$(_watchtower_url 2>/dev/null || echo "http://localhost:${FW_PORT:-3000}")
+    _doctor_wt_port=$(echo "$_doctor_wt_url" | grep -oP ':\K\d+$' || echo "${FW_PORT:-3000}")
+    if curl -sf "${_doctor_wt_url}/health" >/dev/null 2>&1; then
         local smoke_result
-        smoke_result=$(python3 "$FRAMEWORK_ROOT/web/smoke_test.py" --port "${FW_PORT:-3000}" --json 2>/dev/null || echo '{"failed":0,"passed":0,"total":0,"error":"script failed"}')
+        smoke_result=$(python3 "$FRAMEWORK_ROOT/web/smoke_test.py" --port "$_doctor_wt_port" --json 2>/dev/null || echo '{"failed":0,"passed":0,"total":0,"error":"script failed"}')
         local smoke_passed smoke_failed smoke_total
         smoke_passed=$(echo "$smoke_result" | python3 -c "import sys,json;print(json.load(sys.stdin).get('passed',0))" 2>/dev/null || echo 0)
         smoke_failed=$(echo "$smoke_result" | python3 -c "import sys,json;print(json.load(sys.stdin).get('failed',0))" 2>/dev/null || echo 0)
@@ -2333,7 +2335,7 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
                 echo "  resume <id>       Resume a paused job"
                 echo ""
                 echo "Registry: .context/cron-registry.yaml"
-                echo "Web UI:   http://localhost:3000/cron"
+                echo "Web UI:   Watchtower /cron page (fw serve to start)"
                 echo ""
                 echo "Env overrides:"
                 echo "  FW_CRON_INSTALL_DIR  Target directory (default /etc/cron.d)"
@@ -2357,6 +2359,30 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
         ;;
     git)
         exec "$AGENTS_DIR/git/git.sh" "$@"
+        ;;
+    push)
+        # T-1153: Push to all remotes with per-remote status
+        echo -e "${BOLD}fw push${NC} — Push to all remotes"
+        echo ""
+        _push_ok=0
+        _push_fail=0
+        while IFS= read -r _remote; do
+            [ -z "$_remote" ] && continue
+            echo -n "  $_remote: "
+            if git -C "$PROJECT_ROOT" push "$_remote" HEAD "$@" 2>&1 | tail -1; then
+                _push_ok=$((_push_ok + 1))
+            else
+                echo -e "${RED}FAILED${NC}"
+                _push_fail=$((_push_fail + 1))
+            fi
+        done < <(git -C "$PROJECT_ROOT" remote 2>/dev/null)
+        echo ""
+        if [ "$_push_fail" -gt 0 ]; then
+            echo -e "${YELLOW}$_push_ok pushed, $_push_fail failed${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}All $_push_ok remote(s) pushed ✓${NC}"
+        fi
         ;;
     handover)
         exec "$AGENTS_DIR/handover/handover.sh" "$@"
