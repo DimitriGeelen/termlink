@@ -4,16 +4,16 @@ name: "Pickup: TermLink cleanup kills active dispatch workers — fw termlink cl
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-843. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-11T23:00:01Z
-last_update: 2026-04-11T23:00:01Z
-date_finished: null
+last_update: 2026-04-12T17:14:28Z
+date_finished: 2026-04-12T17:14:28Z
 ---
 
 # T-937: Pickup: TermLink cleanup kills active dispatch workers — fw termlink cleanup treats running workers as orphans because they lack exit_code file (from 999-Agentic-Engineering-Framework)
@@ -89,20 +89,35 @@ Framework dispatch is shell-based (`termlink.sh`). Rust dispatch (`termlink disp
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: NO-GO
 
+**Rationale**: Recommendation: NO-GO
+
+Rationale: The original bug (cleanup killing active workers) was already mitigated by T-843/T-972 which added claude process detection before killing. The remaining edge case...
+
+**Date**: 2026-04-12T17:14:28Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: NO-GO
+
+**Rationale**: Recommendation: NO-GO
+
+Rationale: The original bug (cleanup killing active workers) was already mitigated by T-843/T-972 which added claude process detection before killing. The remaining edge case...
+
+**Date**: 2026-04-12T17:14:28Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:14:28Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO
+
+Rationale: The original bug (cleanup killing active workers) was already mitigated by T-843/T-972 which added claude process detection before killing. The remaining edge case...
+
+### 2026-04-12T17:14:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO

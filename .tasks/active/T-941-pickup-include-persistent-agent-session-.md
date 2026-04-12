@@ -86,20 +86,31 @@ DEFER: Framework-side work. The systemd unit exists (T-931) and works. Template 
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: DEFER
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Template standardization belongs in the framework deploy scaffold, not the termlink consumer proj...
+
+**Date**: 2026-04-12T17:16:11Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Template standardization belongs in the framework deploy scaffold, not the termlink consumer proj...
+
+**Date**: 2026-04-12T17:16:11Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:16:11Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER
+
+Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Template standardization belongs in the framework deploy scaffold, not the termlink consumer proj...

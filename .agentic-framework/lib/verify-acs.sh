@@ -87,12 +87,6 @@ NC = '\033[0m'
 
 active_dir = os.path.join(project_root, '.tasks', 'active')
 results = {"pass": 0, "fail": 0, "skip": 0, "review": 0, "total": 0}
-
-# T-938: Resolve fw binary path for consumer vs framework repo
-_fw_bin = os.path.join(project_root, 'bin', 'fw')
-if not os.path.isfile(_fw_bin):
-    _fw_bin = os.path.join(project_root, '.agentic-framework', 'bin', 'fw')
-fw_cmd = _fw_bin if os.path.isfile(_fw_bin) else 'fw'
 task_results = []
 
 def check_url(url, expected_content=None):
@@ -164,16 +158,16 @@ def auto_verify_ac(task_id, ac_text):
 
     # Command execution checks
     if 'fw version' in text:
-        return check_command(f"{fw_cmd} version")
+        return check_command("bin/fw version")
     if 'fw update' in text and '--check' in text:
-        return check_command(f"{fw_cmd} update --check")
+        return check_command("bin/fw update --check")
     if 'fw doctor' in text:
-        return check_command(f"{fw_cmd} doctor")
+        return check_command("bin/fw doctor")
     if 'fw serve' in text:
         # Don't actually start a server, just check it can run
         return True, "Watchtower already running" if wt_running else (False, "Watchtower not running")
     if 'fw verify' in text or 'fw task verify' in text:
-        return check_command(f"{fw_cmd} task verify 2>&1 | head -3")
+        return check_command("bin/fw task verify 2>&1 | head -3")
 
     # File existence checks
     file_match = re.search(r'(\S+\.(?:md|yaml|json|sh|py|ts))', ac_text)

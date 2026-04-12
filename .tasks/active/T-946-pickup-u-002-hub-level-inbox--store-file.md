@@ -4,16 +4,16 @@ name: "Pickup: U-002: Hub-level inbox — store files at hub for delivery when s
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1122. Type: feature-proposal.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:03Z
-last_update: 2026-04-12T08:10:03Z
-date_finished: null
+last_update: 2026-04-12T17:15:05Z
+date_finished: 2026-04-12T17:15:05Z
 ---
 
 # T-946: Pickup: U-002: Hub-level inbox — store files at hub for delivery when sessions register (from 999-Agentic-Engineering-Framework)
@@ -86,20 +86,35 @@ DEFER: Feature proposal requiring non-trivial protocol design.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: Hub inbox requires non-trivial protocol design: queuing semantics, message expiry, delivery confirmation, storage limits. Needs a dedicated inception with spike wo...
+
+**Date**: 2026-04-12T17:15:05Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: Hub inbox requires non-trivial protocol design: queuing semantics, message expiry, delivery confirmation, storage limits. Needs a dedicated inception with spike wo...
+
+**Date**: 2026-04-12T17:15:05Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:15:05Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: DEFER
+
+Rationale: Hub inbox requires non-trivial protocol design: queuing semantics, message expiry, delivery confirmation, storage limits. Needs a dedicated inception with spike wo...
+
+### 2026-04-12T17:15:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

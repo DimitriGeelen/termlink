@@ -4,7 +4,7 @@ name: "bin/watchtower.sh use PROJECT_ROOT not FRAMEWORK_ROOT for PID/log"
 description: >
   Follow-up from T-909. bin/watchtower.sh:16-22 uses $FRAMEWORK_ROOT for the PID file and log paths, causing cross-project collisions when multiple projects share a framework (the symlink case in T-909 proved this: running watchtower.sh stop from one project could kill another project's instance). Fix: use $PROJECT_ROOT (or PROJECT_ROOT env override) for PID/log; fall back to FRAMEWORK_ROOT only as last resort. Add regression test.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [infrastructure, watchtower, path-resolution]
 components: []
 related_tasks: []
 created: 2026-04-11T12:28:29Z
-last_update: 2026-04-12T12:52:10Z
-date_finished: null
+last_update: 2026-04-12T20:46:11Z
+date_finished: 2026-04-12T20:35:29Z
 ---
 
 # T-910: bin/watchtower.sh use PROJECT_ROOT not FRAMEWORK_ROOT for PID/log
@@ -55,3 +55,7 @@ grep -q 'PROJECT_ROOT.*watchtower.pid' /opt/termlink/.agentic-framework/bin/watc
 
 ### 2026-04-12T11:21:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T20:35:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Human reviewed

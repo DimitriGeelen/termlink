@@ -4,16 +4,16 @@ name: "fw upgrade silently reverts local patches — do_vendor has no modificati
 description: >
   fw upgrade silently reverts local patches — do_vendor has no modification detection
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T16:46:26Z
-last_update: 2026-04-12T16:46:26Z
-date_finished: null
+last_update: 2026-04-12T17:17:21Z
+date_finished: 2026-04-12T17:17:21Z
 ---
 
 # T-984: fw upgrade silently reverts local patches — do_vendor has no modification detection
@@ -97,20 +97,35 @@ See `docs/reports/T-984-fw-upgrade-local-patch-reversion.md` for full analysis.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: GO
+
+Rationale: This session spent significant time re-diagnosing and re-applying 6 local fixes that `fw upgrade` silently reverted. The current `do_vendor` (T-1157) does uncondition...
+
+**Date**: 2026-04-12T17:17:21Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: This session spent significant time re-diagnosing and re-applying 6 local fixes that `fw upgrade` silently reverted. The current `do_vendor` (T-1157) does uncondition...
+
+**Date**: 2026-04-12T17:17:21Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:17:21Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: This session spent significant time re-diagnosing and re-applying 6 local fixes that `fw upgrade` silently reverted. The current `do_vendor` (T-1157) does uncondition...
+
+### 2026-04-12T17:17:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

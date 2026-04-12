@@ -164,10 +164,8 @@ impl EventAggregator {
 
             match tokio::time::timeout(remaining, rx.recv()).await {
                 Ok(Ok(event)) => {
-                    if let Some(filter) = topic_filter {
-                        if event.topic != filter {
-                            continue;
-                        }
+                    if topic_filter.is_some_and(|f| event.topic != f) {
+                        continue;
                     }
                     events.push(event);
                 }

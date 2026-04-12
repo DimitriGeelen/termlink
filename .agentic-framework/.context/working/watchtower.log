@@ -674,3 +674,660 @@ but found another document
 127.0.0.1 - - [12/Apr/2026 14:50:26] "GET /tasks HTTP/1.1" 200 -
 127.0.0.1 - - [12/Apr/2026 14:50:26] "GET /terminal HTTP/1.1" 200 -
 127.0.0.1 - - [12/Apr/2026 14:50:27] "GET /timeline HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /approvals HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/htmx-ext-sse.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/marked.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/purify.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/highlight.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/highlight-github-dark.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:28] "GET /static/logo.png HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:13:39] "GET /approvals/content HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /inception/T-980 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/highlight-github-dark.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/htmx-ext-sse.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/highlight.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/marked.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/purify.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:20:54] "GET /static/logo.png HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:21] "POST /inception/T-980/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /approvals HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/htmx-ext-sse.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/highlight-github-dark.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/highlight.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/marked.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/purify.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:45] "GET /static/logo.png HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:21:52] "POST /api/approvals/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:21:55] "GET /approvals/content HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /inception/T-980 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/highlight-github-dark.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/htmx-ext-sse.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/highlight.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/marked.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/purify.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 15:35:45] "GET /static/logo.png HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 18:35:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:41] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:41] "GET /approvals HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:41] "GET /approvals/content HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:41] "GET /assumptions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:42] "GET /config HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:43] "GET /costs HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:43] "GET /cron HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:43] "GET /decisions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:43] "GET /directives HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:45] "GET /discoveries HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:45] "GET /docs/generated HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:45] "GET /enforcement HTTP/1.1" 200 -
+[2026-04-12 18:35:45,758] ERROR in app: Exception on /fabric [GET]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/termlink/.agentic-framework/web/blueprints/fabric.py", line 93, in fabric_overview
+    registered_ids = {s["id"] for s in subsystems}
+                      ~^^^^^^
+KeyError: 'id'
+127.0.0.1 - - [12/Apr/2026 18:35:45] "GET /fabric HTTP/1.1" 500 -
+127.0.0.1 - - [12/Apr/2026 18:35:45] "GET /fabric/graph HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:45] "GET /gaps HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:47] "GET /graduation HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:48] "GET /inception HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:48] "GET /learnings HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:48] "GET /metrics HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:48] "GET /patterns HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:49] "GET /project HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:49] "GET /quality HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:49] "GET /risks HTTP/1.1" 200 -
+Failed to parse episodic file /opt/termlink/.context/episodic/T-928.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-900.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-836.yaml: while scanning a double-quoted scalar
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 5
+found unknown escape character '['
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 71
+Failed to parse episodic file /opt/termlink/.context/episodic/T-895.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-121.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-896.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-155.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-172.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-162.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-927.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-925.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-171.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-926.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-929.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-924.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-170.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-897.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-167.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-935.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-920.yaml: while parsing a block mapping
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 9, column 1
+expected <block end>, but found '<block sequence start>'
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 47, column 3
+Failed to parse episodic file /opt/termlink/.context/episodic/T-905.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-904.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-894.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-166.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 11, column 1
+127.0.0.1 - - [12/Apr/2026 18:35:51] "GET /search HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:51] "GET /search/conversations HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:51] "GET /search/feedback/analytics HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:51] "GET /search/load-conversation HTTP/1.1" 400 -
+127.0.0.1 - - [12/Apr/2026 18:35:51] "GET /sessions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:51] "GET /settings/ HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:51] "GET /settings/models HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:53] "GET /tasks HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:53] "GET /terminal HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:35:55] "GET /timeline HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 18:36:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:06] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:06] "GET /approvals HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:06] "GET /approvals/content HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:06] "GET /assumptions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:06] "GET /config HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:08] "GET /costs HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:08] "GET /cron HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:08] "GET /decisions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:08] "GET /directives HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:10] "GET /discoveries HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:10] "GET /docs/generated HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:10] "GET /enforcement HTTP/1.1" 200 -
+[2026-04-12 18:36:10,142] ERROR in app: Exception on /fabric [GET]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/termlink/.agentic-framework/web/blueprints/fabric.py", line 93, in fabric_overview
+    registered_ids = {s["id"] for s in subsystems}
+                      ~^^^^^^
+KeyError: 'id'
+127.0.0.1 - - [12/Apr/2026 18:36:10] "GET /fabric HTTP/1.1" 500 -
+127.0.0.1 - - [12/Apr/2026 18:36:10] "GET /fabric/graph HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:10] "GET /gaps HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:11] "GET /graduation HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:12] "GET /inception HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:12] "GET /learnings HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:13] "GET /metrics HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:13] "GET /patterns HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:13] "GET /project HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:13] "GET /quality HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:13] "GET /risks HTTP/1.1" 200 -
+Failed to parse episodic file /opt/termlink/.context/episodic/T-928.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-900.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-836.yaml: while scanning a double-quoted scalar
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 5
+found unknown escape character '['
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 71
+Failed to parse episodic file /opt/termlink/.context/episodic/T-895.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-121.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-896.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-155.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-172.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-162.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-927.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-925.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-171.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-926.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-929.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-924.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-170.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-897.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-167.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-935.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-920.yaml: while parsing a block mapping
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 9, column 1
+expected <block end>, but found '<block sequence start>'
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 47, column 3
+Failed to parse episodic file /opt/termlink/.context/episodic/T-905.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-904.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-894.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-166.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 11, column 1
+127.0.0.1 - - [12/Apr/2026 18:36:15] "GET /search HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:15] "GET /search/conversations HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:15] "GET /search/feedback/analytics HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:15] "GET /search/load-conversation HTTP/1.1" 400 -
+127.0.0.1 - - [12/Apr/2026 18:36:15] "GET /sessions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:15] "GET /settings/ HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:15] "GET /settings/models HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:18] "GET /tasks HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:18] "GET /terminal HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 18:36:19] "GET /timeline HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 19:10:44] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 19:10:51] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 19:11:00] "GET / HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:40] "GET /review/T-984 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:41] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:11:41] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:11:46] "GET /review/T-942 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:46] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:11:46] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:11:46] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:51] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:52] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:54] "GET /review/T-984 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:54] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:11:54] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:11:56] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:58] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:11:59] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:01] "GET /review/T-945 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:01] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:12:01] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:12:02] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:04] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:04] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:06] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:08] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:10] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:10] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:11] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:14] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:16] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:16] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:16] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:20] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:21] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:22] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:22] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:26] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:26] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:28] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:28] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:31] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:32] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:34] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:34] "GET /review/T-984/acs HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 19:12:35] "GET /approvals HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:36] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:38] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:40] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:40] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:41] "GET /review/T-945/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /approvals HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/pico.min.css HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/htmx.min.js HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/htmx-ext-sse.js HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/marked.min.js HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/highlight-github-dark.min.css HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/highlight.min.js HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/purify.min.js HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /static/logo.png HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:43] "GET /favicon.ico HTTP/1.1" 404 -
+192.168.10.107 - - [12/Apr/2026 19:12:44] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:45] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:50] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:50] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:53] "GET /approvals/content HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:12:55] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:00] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:02] "GET /review/T-942/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:04] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:09] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:14] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:19] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:24] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:29] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:34] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:39] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:44] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:54] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /approvals HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/htmx-ext-sse.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/highlight-github-dark.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/highlight.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/marked.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/purify.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:56] "GET /static/logo.png HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:13:59] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:05] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:07] "GET /approvals/content HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:11] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:17] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:19] "POST /inception/T-922/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:23] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:29] "POST /inception/T-937/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:29] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:35] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:41] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:45] "POST /inception/T-942/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:47] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:14:53] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:15:00] "POST /inception/T-945/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:15:07] "POST /inception/T-946/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:15:28] "POST /inception/T-951/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:15:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:16:12] "POST /inception/T-941/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:16:36] "POST /inception/T-954/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:16:45] "POST /inception/T-955/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:16:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:17:01] "POST /inception/T-958/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:17:17] "POST /inception/T-968/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:17:23] "POST /inception/T-984/decide HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:17:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:18:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:19:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:20:46] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:20:51] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:20:57] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:03] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:09] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:15] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:21] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:27] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:33] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:39] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:21:45] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:22:46] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:23:47] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:24:48] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:25:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:26:49] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:27:35] "GET /review/T-985 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 19:27:35] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:27:35] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 19:27:48] "GET /review/T-984/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 21:53:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:12] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:12] "GET /approvals HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:13] "GET /approvals/content HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:13] "GET /assumptions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:13] "GET /config HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:14] "GET /costs HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:14] "GET /cron HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:14] "GET /decisions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:15] "GET /directives HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:17] "GET /discoveries HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:17] "GET /docs/generated HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:17] "GET /enforcement HTTP/1.1" 200 -
+[2026-04-12 21:53:17,347] ERROR in app: Exception on /fabric [GET]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/termlink/.agentic-framework/web/blueprints/fabric.py", line 93, in fabric_overview
+    registered_ids = {s["id"] for s in subsystems}
+                      ~^^^^^^
+KeyError: 'id'
+127.0.0.1 - - [12/Apr/2026 21:53:17] "GET /fabric HTTP/1.1" 500 -
+127.0.0.1 - - [12/Apr/2026 21:53:17] "GET /fabric/graph HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:17] "GET /gaps HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:19] "GET /graduation HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:19] "GET /inception HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:19] "GET /learnings HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:20] "GET /metrics HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:20] "GET /patterns HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:20] "GET /project HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:20] "GET /quality HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:20] "GET /risks HTTP/1.1" 200 -
+Failed to parse episodic file /opt/termlink/.context/episodic/T-928.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-900.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-836.yaml: while scanning a double-quoted scalar
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 5
+found unknown escape character '['
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 71
+Failed to parse episodic file /opt/termlink/.context/episodic/T-895.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-121.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-896.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-155.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-172.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-162.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-927.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-925.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-171.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-926.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-929.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-924.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-170.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-897.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-167.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-935.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-920.yaml: while parsing a block mapping
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 9, column 1
+expected <block end>, but found '<block sequence start>'
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 47, column 3
+Failed to parse episodic file /opt/termlink/.context/episodic/T-905.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-904.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-894.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-166.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 11, column 1
+127.0.0.1 - - [12/Apr/2026 21:53:22] "GET /search HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:22] "GET /search/conversations HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:22] "GET /search/feedback/analytics HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:22] "GET /search/load-conversation HTTP/1.1" 400 -
+127.0.0.1 - - [12/Apr/2026 21:53:22] "GET /sessions HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:22] "GET /settings/ HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:22] "GET /settings/models HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:25] "GET /tasks HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:25] "GET /terminal HTTP/1.1" 200 -
+127.0.0.1 - - [12/Apr/2026 21:53:26] "GET /timeline HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:39] "GET /review/T-910 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:39] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 22:34:39] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 22:34:44] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:45] "GET /review/T-911 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:45] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 22:34:45] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 22:34:48] "GET /review/T-914 HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:48] "GET /static/pico.min.css HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 22:34:48] "GET /static/htmx.min.js HTTP/1.1" 304 -
+192.168.10.107 - - [12/Apr/2026 22:34:49] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:50] "GET /review/T-911/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:53] "GET /review/T-914/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:55] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:56] "GET /review/T-911/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:34:58] "GET /review/T-914/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:01] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:02] "GET /review/T-911/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:03] "GET /review/T-914/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:07] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:08] "GET /review/T-914/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:08] "GET /review/T-911/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:13] "GET /review/T-914/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:13] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:14] "GET /review/T-911/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:18] "GET /review/T-914/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:19] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:20] "GET /review/T-911/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:23] "GET /review/T-914/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:25] "GET /review/T-910/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:26] "GET /review/T-911/acs HTTP/1.1" 200 -
+192.168.10.107 - - [12/Apr/2026 22:35:28] "GET /review/T-914/acs HTTP/1.1" 200 -

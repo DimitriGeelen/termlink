@@ -4,16 +4,16 @@ name: "Pickup: Inception decide codepath has 4 stacking UX issues — needs a fo
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: learning.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:41:34Z
-last_update: 2026-04-12T08:41:34Z
-date_finished: null
+last_update: 2026-04-12T17:16:59Z
+date_finished: 2026-04-12T17:16:59Z
 ---
 
 # T-958: Pickup: Inception decide codepath has 4 stacking UX issues — needs a focused review pass, not individual fixes (from termlink)
@@ -86,20 +86,41 @@ DEFER: T-949 fixed the most critical issue. Remaining are UX polish.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: T-949 fixed the most critical inception decide UX issue (captured task auto-transition). Remaining 3 issues are UX polish that don't block normal workflow.
+
+Eviden...
+
+**Date**: 2026-04-12T17:16:59Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: T-949 fixed the most critical inception decide UX issue (captured task auto-transition). Remaining 3 issues are UX polish that don't block normal workflow.
+
+Eviden...
+
+**Date**: 2026-04-12T17:16:59Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:16:59Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: DEFER
+
+Rationale: T-949 fixed the most critical inception decide UX issue (captured task auto-transition). Remaining 3 issues are UX polish that don't block normal workflow.
+
+Eviden...
+
+### 2026-04-12T17:16:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

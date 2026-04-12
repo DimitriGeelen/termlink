@@ -86,20 +86,40 @@ DEFER: Subsumed by T-967.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: DEFER
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: Subsumed by T-967 (persistent agent sessions, already in active tasks). Same scope — persistent sessions for cross-agent coordination.
+
+Evidence:
+- T-967 covers ma...
+
+**Date**: 2026-04-12T17:17:17Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: Subsumed by T-967 (persistent agent sessions, already in active tasks). Same scope — persistent sessions for cross-agent coordination.
+
+Evidence:
+- T-967 covers ma...
+
+**Date**: 2026-04-12T17:17:17Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:17:17Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER
+
+Rationale: Subsumed by T-967 (persistent agent sessions, already in active tasks). Same scope — persistent sessions for cross-agent coordination.
+
+Evidence:
+- T-967 covers ma...

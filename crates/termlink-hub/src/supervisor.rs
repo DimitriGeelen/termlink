@@ -26,7 +26,6 @@ pub const SESSION_EXITED_TOPIC: &str = "session.exited";
 /// Emits `session.exited` events before cleanup.
 /// Stops when the shutdown signal is received.
 pub async fn run(interval: Duration, mut shutdown_rx: watch::Receiver<bool>) {
-    let sessions_dir = discovery::runtime_dir().join("sessions");
     tracing::info!(
         interval_secs = interval.as_secs(),
         "Session supervisor started"
@@ -35,7 +34,16 @@ pub async fn run(interval: Duration, mut shutdown_rx: watch::Receiver<bool>) {
     loop {
         tokio::select! {
             _ = tokio::time::sleep(interval) => {
-                sweep(&sessions_dir).await;
+                // T-987: sweep all candidate session dirs
+                let dirs = discovery::all_sessions_dirs();
+                if dirs.is_empty() {
+                    // Fall back to default dir even if it doesn't exist yet
+                    sweep(&discovery::sessions_dir()).await;
+                } else {
+                    for dir in &dirs {
+                        sweep(dir).await;
+                    }
+                }
             }
             _ = shutdown_rx.changed() => {
                 if *shutdown_rx.borrow() {

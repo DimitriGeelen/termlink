@@ -4,16 +4,16 @@ name: "Pickup: Dry-run saved us from silent data loss — destructive commands s
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: learning.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:33Z
-last_update: 2026-04-12T08:40:33Z
-date_finished: null
+last_update: 2026-04-12T17:16:43Z
+date_finished: 2026-04-12T17:16:43Z
 ---
 
 # T-955: Pickup: Dry-run saved us from silent data loss — destructive commands should auto-prompt on large diffs (from termlink)
@@ -86,20 +86,35 @@ DEFER: Framework-side work, not termlink Rust code.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: Framework-side UX improvement. Dry-run mode already exists for fw upgrade (T-978). Extending auto-prompts to other destructive commands belongs in the framework re...
+
+**Date**: 2026-04-12T17:16:43Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: Framework-side UX improvement. Dry-run mode already exists for fw upgrade (T-978). Extending auto-prompts to other destructive commands belongs in the framework re...
+
+**Date**: 2026-04-12T17:16:43Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:16:43Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: DEFER
+
+Rationale: Framework-side UX improvement. Dry-run mode already exists for fw upgrade (T-978). Extending auto-prompts to other destructive commands belongs in the framework re...
+
+### 2026-04-12T17:16:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
