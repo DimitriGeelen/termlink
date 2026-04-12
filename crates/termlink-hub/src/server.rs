@@ -148,7 +148,7 @@ pub async fn run_with_tcp(
         let local_addr = listener.local_addr()?;
         tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
 
-        let acceptor = tls::generate_and_write_cert()?;
+        let acceptor = tls::load_or_generate_cert()?;
         (Some(listener), Some(acceptor))
     } else {
         (None, None)
@@ -228,7 +228,7 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
         let local_addr = listener.local_addr()?;
         tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
 
-        let acceptor = tls::generate_and_write_cert()?;
+        let acceptor = tls::load_or_generate_cert()?;
         (Some(listener), Some(acceptor))
     } else {
         (None, None)
@@ -238,8 +238,7 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
 
     // Cleanup on exit. Secret file is intentionally preserved (T-933:
-    // persist-if-present).
-    tls::cleanup();
+    // persist-if-present). Cert files also preserved (T-985: TOFU stability).
     pidfile::remove(&pidfile_path);
     Ok(())
 }

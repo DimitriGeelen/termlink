@@ -23,10 +23,37 @@ pub fn hub_key_path() -> PathBuf {
     discovery::runtime_dir().join("hub.key.pem")
 }
 
-/// Generate a self-signed certificate and write PEM files to the runtime directory.
+/// Load existing cert+key from disk, or generate a new self-signed pair.
 ///
-/// Returns a `TlsAcceptor` configured with the generated cert+key.
-pub fn generate_and_write_cert() -> std::io::Result<TlsAcceptor> {
+/// Persist-if-present (T-985, follows T-933 hub-secret pattern): if valid
+/// PEM files already exist on disk, reuse them so that client TOFU
+/// fingerprints survive hub restarts. Otherwise generate fresh ones.
+pub fn load_or_generate_cert() -> std::io::Result<TlsAcceptor> {
+    let cert_path = hub_cert_path();
+    let key_path = hub_key_path();
+
+    // Try loading existing cert+key
+    if cert_path.exists() && key_path.exists() {
+        let cert_pem = std::fs::read_to_string(&cert_path)?;
+        let key_pem = std::fs::read_to_string(&key_path)?;
+        match build_acceptor_from_pem(&cert_pem, &key_pem) {
+            Ok(acceptor) => {
+                tracing::info!(
+                    cert = %cert_path.display(),
+                    "Hub TLS certificate loaded from disk (persist-if-present, T-985)"
+                );
+                return Ok(acceptor);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "Existing TLS cert/key invalid, regenerating"
+                );
+            }
+        }
+    }
+
+    // Generate new cert
     let subject_alt_names = vec![
         "localhost".to_string(),
         "127.0.0.1".to_string(),
@@ -40,9 +67,6 @@ pub fn generate_and_write_cert() -> std::io::Result<TlsAcceptor> {
 
     let cert_pem = cert.pem();
     let key_pem = key_pair.serialize_pem();
-
-    let cert_path = hub_cert_path();
-    let key_path = hub_key_path();
 
     // Write cert (readable by anyone on the machine — needed for clients)
     std::fs::write(&cert_path, &cert_pem)?;
@@ -103,6 +127,11 @@ pub fn build_client_connector(cert_pem_path: &Path) -> std::io::Result<tokio_rus
 }
 
 /// Clean up TLS cert and key files.
+///
+/// NOTE (T-985): Cert files are intentionally preserved across restarts
+/// (persist-if-present) so client TOFU fingerprints remain valid.
+/// This function is retained for explicit cleanup (e.g., `hub stop --clean`)
+/// but is no longer called on normal shutdown.
 pub fn cleanup() {
     let _ = std::fs::remove_file(hub_cert_path());
     let _ = std::fs::remove_file(hub_key_path());
@@ -165,6 +194,48 @@ mod tests {
     fn client_connector_missing_file_rejects() {
         let result = build_client_connector(Path::new("/nonexistent/path/cert.pem"));
         assert!(result.is_err(), "Missing cert file should be rejected");
+    }
+
+    #[test]
+    fn load_existing_cert_persists() {
+        let dir = test_dir();
+        let cert_path = dir.join("hub.cert.pem");
+        let key_path = dir.join("hub.key.pem");
+
+        // Generate a cert+key pair and write to disk
+        let subject_alt_names = vec!["localhost".to_string(), "127.0.0.1".to_string()];
+        let CertifiedKey { cert, key_pair } =
+            generate_simple_self_signed(subject_alt_names).unwrap();
+        let cert_pem = cert.pem();
+        let key_pem = key_pair.serialize_pem();
+
+        std::fs::write(&cert_path, &cert_pem).unwrap();
+        std::fs::write(&key_path, &key_pem).unwrap();
+
+        // Loading the same cert should produce a working acceptor
+        let loaded_cert_pem = std::fs::read_to_string(&cert_path).unwrap();
+        let loaded_key_pem = std::fs::read_to_string(&key_path).unwrap();
+        let acceptor = build_acceptor_from_pem(&loaded_cert_pem, &loaded_key_pem);
+        assert!(acceptor.is_ok(), "Loading persisted cert+key should succeed");
+
+        // Build a client connector against the same cert (simulates TOFU)
+        let connector = build_client_connector(&cert_path);
+        assert!(connector.is_ok(), "Client TOFU should work with persisted cert");
+    }
+
+    #[test]
+    fn invalid_existing_cert_triggers_regeneration() {
+        let dir = test_dir();
+        let cert_path = dir.join("hub.cert.pem");
+        let key_path = dir.join("hub.key.pem");
+
+        // Write garbage cert+key
+        std::fs::write(&cert_path, "invalid cert").unwrap();
+        std::fs::write(&key_path, "invalid key").unwrap();
+
+        // build_acceptor_from_pem should fail on invalid PEM
+        let result = build_acceptor_from_pem("invalid cert", "invalid key");
+        assert!(result.is_err(), "Invalid PEM should trigger regeneration path");
     }
 
     #[test]
