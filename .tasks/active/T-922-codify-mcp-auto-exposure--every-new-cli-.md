@@ -52,13 +52,11 @@ DEFER: Current MCP tools cover active commands. Process improvement, not urgent.
 - [x] Recommendation written with rationale (DEFER: process improvement)
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [RUBBER-STAMP] Record go/no-go decision
   **Steps:**
-  1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
-  2. Review the Agent Recommendation section and go/no-go criteria evaluation
-  3. Record decision via the Watchtower form or the command shown alongside the QR code
+  1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
+  2. Find T-922, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
-  **If not:** Ask agent for clarification on specific findings
 
 ## Go/No-Go Criteria
 
@@ -88,20 +86,31 @@ DEFER: Current MCP tools cover active commands. Process improvement, not urgent.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: DEFER
 
+**Rationale**: Recommendation: DEFER
+
+Rationale: Current MCP tools already cover active CLI commands (register, dispatch, inject, send-file, kv operations). Process improvement for ensuring future commands are au...
+
+**Date**: 2026-04-12T17:14:19Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER
+
+Rationale: Current MCP tools already cover active CLI commands (register, dispatch, inject, send-file, kv operations). Process improvement for ensuring future commands are au...
+
+**Date**: 2026-04-12T17:14:19Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T17:14:19Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER
+
+Rationale: Current MCP tools already cover active CLI commands (register, dispatch, inject, send-file, kv operations). Process improvement for ensuring future commands are au...

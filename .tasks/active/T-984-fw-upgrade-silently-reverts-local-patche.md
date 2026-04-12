@@ -55,13 +55,11 @@ See `docs/reports/T-984-fw-upgrade-local-patch-reversion.md` for full analysis.
 - [x] Recommendation written with rationale (GO: Option C + D)
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [RUBBER-STAMP] Record go/no-go decision
   **Steps:**
-  1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
-  2. Review the Agent Recommendation section and go/no-go criteria evaluation
-  3. Record decision via the Watchtower form or the command shown alongside the QR code
+  1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
+  2. Find T-984, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
-  **If not:** Ask agent for clarification on specific findings
 
 ## Go/No-Go Criteria
 
