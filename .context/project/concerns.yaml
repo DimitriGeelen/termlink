@@ -14,10 +14,12 @@ concerns:
   what_works_now: 'Hub local routing works fine (9 sessions registered, all responding). The T-923 integration test binds TCP in-process and proves the forwarder path works end-to-end (8/8 hub forward tests pass in CI). Cross-host mechanism is correct at the code level — just not wired into the production hub start on this box.'
   what_remains: '1. Decide whether the hub should bind TCP by default in this environment (policy, not code). 2. Run the hub under a supervisor (systemd unit preferred — matches the cron pattern used for /etc/cron.d/agentic-audit-termlink). 3. Establish a long-lived target session on .107 if the goal is push-to-host, not push-to-session. 4. Document the hub-secret distribution story — currently no secret exists because TCP is off. 5. Codify a doctor check: warn when a consumer project relies on --target but the hub has no TCP listener. Tracked as inception task T-930.'
   mitigation_candidate: '1. Short-term: manual termlink hub stop && termlink hub start --tcp 0.0.0.0:9100 on .107 when needed (non-durable — dies on reboot). 2. Medium-term: systemd unit termlink-hub.service with ExecStart referencing --tcp flag, Restart=on-failure, and a logrotate stanza. 3. Long-term: inception T-930 decides supervisor policy (systemd vs. watchdog vs. none) and the TCP-default question (always on vs. opt-in via config).'
-  status: watching
+  status: closed
+  resolution: 'Fully resolved by T-930 inception + T-931..T-935 build tasks: systemd unit with Restart=on-failure (T-931), SIGTERM handling (T-932), secret persist-if-present (T-933), doctor UFW-vs-listener check (T-934), migration doc + /tmp cleanup (T-935). Hub now runs supervised on TCP 0.0.0.0:9100 with persistent secret and crash recovery.'
   created: 2026-04-11
-  last_reviewed: 2026-04-11
-  related_tasks: [T-921, T-923, T-924, T-925, T-926, T-927, T-928, T-929, T-930]
+  last_reviewed: 2026-04-12
+  closed: 2026-04-12
+  related_tasks: [T-921, T-923, T-924, T-925, T-926, T-927, T-928, T-929, T-930, T-931, T-932, T-933, T-934, T-935]
 
 - id: G-002
   type: gap
