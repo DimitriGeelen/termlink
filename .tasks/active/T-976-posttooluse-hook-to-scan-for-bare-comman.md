@@ -4,7 +4,7 @@ name: "PostToolUse hook to scan for bare command patterns in tool output"
 description: >
   Add PostToolUse hook logic that scans Bash tool output for bare 'fw inception decide' and similar command patterns, injecting a PL-007 reminder. From T-972 RC-2 mitigation.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:27:24Z
-last_update: 2026-04-12T10:27:24Z
+last_update: 2026-04-12T10:42:47Z
 date_finished: null
 ---
 
@@ -20,35 +20,39 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-972 RC-2 mitigation: agent text output is ungoverned (no PreTextOutput hook). But we CAN scan tool output for bare command patterns and inject PL-007 reminders. When gate scripts output "run this command: ...", the PostToolUse hook can warn the agent not to relay it.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] PostToolUse hook script exists: `agents/context/pl007-scanner.sh`
+- [x] Hook injects PL-007 reminder via additionalContext when patterns detected
+- [ ] Hook registered in settings.json as PostToolUse matcher for Bash (requires human — B-005)
+- [x] Patterns: `fw inception decide`, `fw tier0 approve`, `bin/fw` (skips when agent runs `fw task review`)
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [RUBBER-STAMP] Add PL-007 scanner hook to settings.json
+  **Steps:**
+  1. Add to `.claude/settings.json` in the `PostToolUse` array, after the `error-watchdog` entry:
+     ```json
+     {
+       "matcher": "Bash",
+       "hooks": [
+         {
+           "type": "command",
+           "command": ".agentic-framework/bin/fw hook pl007-scanner"
+         }
+       ]
+     }
+     ```
+  2. Verify with: `cd /opt/termlink && grep 'pl007' .claude/settings.json`
+  **Expected:** Hook entry present, agent receives PL-007 reminders when tool output contains bare commands
+  **If not:** Check `.agentic-framework/agents/context/pl007-scanner.sh` exists and is executable
 
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+test -f /opt/termlink/.agentic-framework/agents/context/pl007-scanner.sh
 
 ## Decisions
 
@@ -67,3 +71,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-976-posttooluse-hook-to-scan-for-bare-comman.md
 - **Context:** Initial task creation
+
+### 2026-04-12T10:42:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

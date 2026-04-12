@@ -1,0 +1,4188 @@
+#!/bin/bash
+# fw - Agentic Engineering Framework CLI
+#
+# Single entry point for all framework operations.
+# Reads .framework.yaml from the project directory to resolve
+# FRAMEWORK_ROOT, then routes commands to the appropriate agent.
+#
+# When run from a project that uses the framework as shared tooling,
+# fw reads .framework.yaml to find the framework install path.
+# When run from inside the framework repo itself, it auto-detects.
+
+set -euo pipefail
+
+# Version: derived from git tags (major.minor = human tag, patch = commits since tag)
+# Falls back to VERSION file for consumer installs without git history
+_derive_version() {
+    local fw_dir="${BASH_SOURCE[0]%/*}/.."
+    local desc
+    desc=$(git -C "$fw_dir" describe --tags --match 'v[0-9]*' 2>/dev/null) || true
+    if [ -n "$desc" ]; then
+        # v1.4.0 → 1.4.0 | v1.4.0-5-gabc123 → 1.4.5
+        desc="${desc#v}"  # strip leading v
+        if [[ "$desc" == *-*-* ]]; then
+            local base commits
+            base="${desc%%-*}"          # 1.4.0
+            local rest="${desc#*-}"     # 5-gabc123
+            commits="${rest%%-*}"       # 5
+            local major_minor="${base%.*}"  # 1.4
+            echo "${major_minor}.${commits}"
+        else
+            echo "$desc"
+        fi
+    elif [ -f "${BASH_SOURCE[0]%/*}/../VERSION" ]; then
+        cat "${BASH_SOURCE[0]%/*}/../VERSION"
+    else
+        echo "dev"
+    fi
+}
+FW_VERSION="$(_derive_version)"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# --- Path Resolution ---
+
+# Resolve symlinks to find the real fw location
+FW_REAL_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+FW_BIN_DIR="$(cd "$(dirname "$FW_REAL_PATH")" && pwd)"
+
+# Find PROJECT_ROOT by walking up from cwd looking for .framework.yaml or .tasks/
+find_project_root() {
+    local dir="$PWD"
+    while [ "$dir" != "/" ]; do
+        if [ -f "$dir/.framework.yaml" ] || [ -d "$dir/.tasks" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    return 1
+}
+
+# Resolve FRAMEWORK_ROOT
+resolve_framework() {
+    # If fw is inside the framework repo (bin/fw), use that
+    local candidate
+    candidate="$(cd "$FW_BIN_DIR/.." && pwd)"
+    if [ -f "$candidate/FRAMEWORK.md" ] && [ -d "$candidate/agents" ]; then
+        # T-355/T-359: If inside Homebrew Cellar, use opt symlink (survives brew upgrade)
+        # Cellar paths are versioned (/usr/local/Cellar/agentic-fw/1.2.6/libexec) and break on upgrade.
+        # The opt symlink (/usr/local/opt/agentic-fw/libexec) always points to the active version.
+        if [[ "$candidate" == */Cellar/agentic-fw/*/libexec ]] || [[ "$candidate" == */Cellar/fw/*/libexec ]]; then
+            local formula_name="${candidate#*Cellar/}"
+            formula_name="${formula_name%%/*}"
+            local brew_prefix="${candidate%/Cellar/*/libexec}"
+            local opt_path="$brew_prefix/opt/$formula_name/libexec"
+            if [ -d "$opt_path" ] && [ -f "$opt_path/FRAMEWORK.md" ]; then
+                echo "$opt_path"
+                return 0
+            fi
+        fi
+        echo "$candidate"
+        return 0
+    fi
+
+    # T-498: Check for vendored framework in project
+    if [ -n "${PROJECT_ROOT:-}" ] && [ -f "$PROJECT_ROOT/.agentic-framework/FRAMEWORK.md" ]; then
+        echo "$PROJECT_ROOT/.agentic-framework"
+        return 0
+    fi
+
+    # Legacy: read framework_path from .framework.yaml (pre-T-498 projects)
+    if [ -n "${PROJECT_ROOT:-}" ] && [ -f "$PROJECT_ROOT/.framework.yaml" ]; then
+        local fw_path
+        fw_path=$(grep "^framework_path:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^framework_path:[[:space:]]*//')
+        if [ -n "$fw_path" ] && [ -d "$fw_path" ] && [ -f "$fw_path/FRAMEWORK.md" ]; then
+            echo "$fw_path"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Resolve PROJECT_ROOT
+if [ -z "${PROJECT_ROOT:-}" ]; then
+    PROJECT_ROOT=$(find_project_root) || true
+fi
+
+# --- Vendor (T-482/T-497, moved before auto-init for T-519) ---
+# Copy complete framework into project/.agentic-framework/ for full isolation.
+# Must be defined before auto-init dialogue because do_init calls do_vendor.
+do_vendor() {
+    local dry_run=false
+    local target="${PROJECT_ROOT:-.}"
+    local source_override=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dry-run) dry_run=true; shift ;;
+            --target) target="$2"; shift 2 ;;
+            --source) source_override="$2"; shift 2 ;;
+            -h|--help)
+                echo -e "${BOLD}fw vendor${NC} — Copy framework into project for full isolation"
+                echo ""
+                echo "Usage: fw vendor [options]"
+                echo ""
+                echo "Options:"
+                echo "  --dry-run   Show what would be copied without copying"
+                echo "  --target    Target project directory (default: current project)"
+                echo "  --source    Framework source directory (default: auto-resolved)"
+                echo "  -h, --help  Show this help"
+                echo ""
+                echo "Copies the complete framework (~7MB) into PROJECT/.agentic-framework/"
+                echo "After vendoring, the project is self-contained — no global install needed."
+                return 0
+                ;;
+            *) echo -e "${RED}Unknown option: $1${NC}" >&2; return 1 ;;
+        esac
+    done
+
+    local dest="$target/.agentic-framework"
+
+    # T-680: Resolve vendor source — explicit override, or FW_BIN_DIR origin, or FRAMEWORK_ROOT
+    local vendor_source="${source_override:-$FRAMEWORK_ROOT}"
+    if [ -n "$source_override" ]; then
+        if [ ! -f "$source_override/FRAMEWORK.md" ]; then
+            echo -e "${RED}ERROR${NC}  --source '$source_override' is not a valid framework directory" >&2
+            return 1
+        fi
+        vendor_source="$source_override"
+    fi
+
+    # T-680: Detect self-referencing — source and target are the same directory
+    local canon_source canon_dest
+    canon_source=$(cd "$vendor_source" 2>/dev/null && pwd -P) || canon_source="$vendor_source"
+    canon_dest=$(cd "$dest" 2>/dev/null && pwd -P) || canon_dest="$dest"
+    if [ "$canon_source" = "$canon_dest" ]; then
+        # Source is the vendored copy itself — try to find the real upstream
+        # The fw binary's own location reveals the original framework
+        local upstream_candidate
+        upstream_candidate="$(cd "$FW_BIN_DIR/.." && pwd -P)"
+        if [ "$upstream_candidate" != "$canon_source" ] && [ -f "$upstream_candidate/FRAMEWORK.md" ]; then
+            echo -e "  ${YELLOW}NOTE${NC}  Source and target are the same directory — using upstream: $upstream_candidate"
+            vendor_source="$upstream_candidate"
+        else
+            echo -e "${RED}ERROR${NC}  Source and target resolve to the same directory:" >&2
+            echo -e "         Source: $canon_source" >&2
+            echo -e "         Target: $canon_dest" >&2
+            echo -e "         Use ${BOLD}fw vendor --source /path/to/framework${NC} to specify a different source" >&2
+            return 1
+        fi
+    fi
+
+    # What to copy (everything needed for development)
+    local includes=(
+        bin
+        lib
+        agents
+        web
+        docs
+        .tasks/templates
+        FRAMEWORK.md
+        metrics.sh
+    )
+
+    # What to exclude within copied dirs
+    local excludes=(
+        __pycache__
+        "*.pyc"
+        ".DS_Store"
+        "lib/ts/src"
+        "lib/ts/tsconfig.json"
+        "lib/ts/package.json"
+        "lib/ts/package-lock.json"
+        "lib/ts/node_modules"
+    )
+
+    if [ "$dry_run" = true ]; then
+        echo -e "${BOLD}fw vendor --dry-run${NC}"
+        echo -e "Source:  ${GREEN}$vendor_source${NC}"
+        echo -e "Target:  ${GREEN}$dest${NC}"
+        echo ""
+        echo "Would copy:"
+        for item in "${includes[@]}"; do
+            if [ -e "$vendor_source/$item" ]; then
+                local size
+                size=$(du -sh "$vendor_source/$item" 2>/dev/null | cut -f1)
+                echo -e "  ${GREEN}+${NC} $item ($size)"
+            fi
+        done
+        echo ""
+        echo "Would exclude: .git, .context, .tasks/{active,completed}, .fabric, install.sh"
+        echo ""
+        echo -e "Version: ${BOLD}$FW_VERSION${NC}"
+        return 0
+    fi
+
+    # Create destination
+    mkdir -p "$dest"
+
+    echo -e "${BOLD}fw vendor${NC} — vendoring framework into project"
+    echo -e "Source:  $vendor_source"
+    echo -e "Target:  $dest"
+    echo ""
+
+    # Build rsync exclude args as array (SC2086)
+    local -a rsync_args=()
+    for item in "${excludes[@]}"; do
+        rsync_args+=(--exclude="$item")
+    done
+
+    # Copy each include
+    for item in "${includes[@]}"; do
+        if [ -e "$vendor_source/$item" ]; then
+            local dest_dir
+            dest_dir=$(dirname "$dest/$item")
+            mkdir -p "$dest_dir"
+
+            if [ -d "$vendor_source/$item" ]; then
+                if command -v rsync &>/dev/null; then
+                    rsync -a --delete "${rsync_args[@]}" "$vendor_source/$item/" "$dest/$item/"
+                else
+                    rm -rf "${dest:?}/${item:?}"
+                    cp -r "$vendor_source/$item" "$dest/$item"
+                    find "$dest/$item" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+                    find "$dest/$item" -name "*.pyc" -delete 2>/dev/null || true
+                    find "$dest/$item" -name ".DS_Store" -delete 2>/dev/null || true
+                fi
+            else
+                cp "$vendor_source/$item" "$dest/$item"
+            fi
+            echo -e "  ${GREEN}✓${NC} $item"
+        else
+            echo -e "  ${YELLOW}⊘${NC} $item (not found, skipping)"
+        fi
+    done
+
+    # Create VERSION file
+    echo "$FW_VERSION" > "$dest/VERSION"
+    echo -e "  ${GREEN}✓${NC} VERSION ($FW_VERSION)"
+
+    # Ensure bin/fw is executable
+    chmod +x "$dest/bin/fw" 2>/dev/null || true
+
+    echo ""
+    local final_size
+    final_size=$(du -sh "$dest" 2>/dev/null | cut -f1)
+    echo -e "${GREEN}${BOLD}Vendored successfully${NC} ($final_size)"
+    echo ""
+    echo "The project now contains its own framework at .agentic-framework/"
+    echo "Hooks should reference: .agentic-framework/bin/fw hook <name>"
+}
+
+# --- Auto-init dialogue ---
+# If no project detected and command is not init/help/version, offer guided initialization
+if [ -z "$PROJECT_ROOT" ]; then
+    _cmd="${1:-}"
+    if [ "$_cmd" != "init" ] && [ "$_cmd" != "help" ] && [ "$_cmd" != "-h" ] && \
+       [ "$_cmd" != "--help" ] && [ "$_cmd" != "version" ] && [ "$_cmd" != "-v" ] && \
+       [ "$_cmd" != "--version" ] && [ "$_cmd" != "update" ] && [ "$_cmd" != "hook" ] && \
+       [ "$_cmd" != "vendor" ] && [ -n "$_cmd" ]; then
+
+        # Non-TTY: silently use defaults (cwd + claude)
+        if [ ! -t 0 ]; then
+            FRAMEWORK_ROOT=$(resolve_framework) || true
+            if [ -n "$FRAMEWORK_ROOT" ]; then
+                export PROJECT_ROOT="$PWD"
+                export FRAMEWORK_ROOT
+                FW_LIB_DIR="$FRAMEWORK_ROOT/lib"
+                source "$FRAMEWORK_ROOT/lib/init.sh"
+                do_init "$PWD" --provider claude 2>/dev/null
+                exec "$0" "$@"
+            fi
+            # Fall through to normal "no framework" error if resolve fails
+        else
+            echo -e "${YELLOW}No framework project detected in the current directory.${NC}"
+            echo ""
+
+            # --- Q1: Where to initialize ---
+            _git_root=$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null) || true
+            _init_dir="$PWD"
+
+            if [ -n "$_git_root" ] && [ "$_git_root" != "$PWD" ]; then
+                # Git root differs from cwd — offer choices
+                echo -e "${BOLD}Where would you like to initialize?${NC}"
+                echo ""
+                echo -e "  ${CYAN}1)${NC} ${_git_root}  ${GREEN}(git root — recommended)${NC}"
+                echo -e "  ${CYAN}2)${NC} ${PWD}"
+                echo -e "  ${CYAN}3)${NC} Custom path"
+                echo -e "  ${CYAN}s)${NC} Skip"
+                echo ""
+                printf "Choose [1]: "
+                read -r _dir_choice </dev/tty
+                case "${_dir_choice:-1}" in
+                    1) _init_dir="$_git_root" ;;
+                    2) _init_dir="$PWD" ;;
+                    3)
+                        printf "Enter path: "
+                        read -r _custom_path </dev/tty
+                        if [ -z "$_custom_path" ]; then
+                            echo -e "${RED}No path entered.${NC}"
+                            exit 1
+                        fi
+                        _init_dir="${_custom_path/#\~/$HOME}"
+                        if [ ! -d "$_init_dir" ]; then
+                            echo -e "${YELLOW}Directory does not exist. Creating...${NC}"
+                            mkdir -p "$_init_dir"
+                        fi
+                        ;;
+                    s|S|n|N)
+                        echo -e "${CYAN}Skipped. Run 'fw init' when you're ready.${NC}"
+                        exit 0
+                        ;;
+                    *)
+                        echo -e "${RED}Invalid choice.${NC}"
+                        exit 1
+                        ;;
+                esac
+            else
+                # cwd IS git root (or no git) — simple Y/n
+                printf "Initialize framework in ${BOLD}%s${NC}? [Y/n] " "$PWD"
+                read -r _confirm </dev/tty
+                if [ -n "$_confirm" ] && [ "$_confirm" != "y" ] && [ "$_confirm" != "Y" ]; then
+                    echo -e "${CYAN}Skipped. Run 'fw init' when you're ready.${NC}"
+                    exit 0
+                fi
+            fi
+
+            echo ""
+
+            # --- Q2: Which provider ---
+            echo -e "${BOLD}Which AI provider are you using?${NC}"
+            echo ""
+            echo -e "  ${CYAN}1)${NC} Claude Code  ${GREEN}(recommended)${NC}"
+            echo -e "  ${CYAN}2)${NC} Cursor"
+            echo -e "  ${CYAN}3)${NC} Generic / other"
+            echo ""
+            printf "Choose [1]: "
+            read -r _prov_choice </dev/tty
+            case "${_prov_choice:-1}" in
+                1) _provider="claude" ;;
+                2) _provider="cursor" ;;
+                3) _provider="generic" ;;
+                *)
+                    echo -e "${YELLOW}Unknown choice, using claude.${NC}"
+                    _provider="claude"
+                    ;;
+            esac
+
+            echo ""
+
+            # --- Run init ---
+            FRAMEWORK_ROOT=$(resolve_framework) || true
+            if [ -z "$FRAMEWORK_ROOT" ]; then
+                echo -e "${RED}ERROR: Cannot find framework installation${NC}" >&2
+                exit 1
+            fi
+            export PROJECT_ROOT="$_init_dir"
+            export FRAMEWORK_ROOT
+            FW_LIB_DIR="$FRAMEWORK_ROOT/lib"
+            source "$FRAMEWORK_ROOT/lib/init.sh"
+            do_init "$_init_dir" --provider "$_provider"
+            echo ""
+            echo -e "${GREEN}Project initialized! Re-running: fw $*${NC}"
+            echo ""
+            exec "$0" "$@"
+        fi
+    fi
+fi
+
+# Resolve FRAMEWORK_ROOT
+FRAMEWORK_ROOT=$(resolve_framework) || true
+
+# Validate we have what we need
+if [ -z "$FRAMEWORK_ROOT" ]; then
+    echo -e "${RED}ERROR: Cannot find framework installation${NC}" >&2
+    echo "" >&2
+    echo "fw looks for the framework in two ways:" >&2
+    echo "  1. Relative to its own location (bin/fw inside framework repo)" >&2
+    echo "  2. Via .framework.yaml in your project root" >&2
+    echo "" >&2
+    echo "To fix:" >&2
+    echo "  - Run fw from inside the framework repo, OR" >&2
+    echo "  - Run 'fw init' in your project directory to create .framework.yaml, OR" >&2
+    echo "  - Run 'fw vendor /path/to/framework' to link an existing installation" >&2
+    exit 1
+fi
+
+# If no PROJECT_ROOT found, fall back to FRAMEWORK_ROOT (self-referential mode)
+if [ -z "$PROJECT_ROOT" ]; then
+    PROJECT_ROOT="$FRAMEWORK_ROOT"
+fi
+
+# Export for agents
+export PROJECT_ROOT
+export FRAMEWORK_ROOT
+
+# --- Agent Directory ---
+AGENTS_DIR="$FRAMEWORK_ROOT/agents"
+FW_LIB_DIR="$FRAMEWORK_ROOT/lib"
+
+# --- Cross-platform helpers ---
+source "$FW_LIB_DIR/compat.sh" 2>/dev/null || true
+
+# --- Help ---
+
+show_help() {
+    echo -e "${BOLD}fw${NC} - Agentic Engineering Framework CLI v$FW_VERSION"
+    echo ""
+    echo -e "${BOLD}Usage:${NC} fw <command> [subcommand] [options]"
+    echo ""
+    echo -e "${BOLD}Commands:${NC}"
+    echo -e "  ${GREEN}audit${NC}                Run framework compliance audit"
+    echo -e "  ${GREEN}self-audit${NC}           Standalone integrity check (Layers 1-4, no fw dependency)"
+    echo -e "  ${GREEN}test-onboarding${NC}     End-to-end onboarding flow test (8 checkpoints)"
+    echo -e "  ${GREEN}context${NC} <cmd>        Manage Context Fabric (init, status, focus, ...)"
+    echo -e "  ${GREEN}git${NC} <cmd>            Task-traced git operations (commit, status, log, ...)"
+    echo -e "  ${GREEN}handover${NC}             Generate session handover document"
+    echo -e "  ${GREEN}handover --checkpoint${NC} Mid-session checkpoint (P-009)"
+    echo -e "  ${GREEN}healing${NC} <cmd>        Error recovery (diagnose, resolve, patterns, suggest)"
+    echo -e "  ${GREEN}resume${NC} <cmd>         Post-compaction recovery (status, sync, quick)"
+    echo -e "  ${GREEN}task${NC} <cmd>           Task management (create, update)"
+    echo -e "  ${GREEN}inception${NC} <cmd>      Inception phase workflow (start, status, decide)"
+    echo -e "  ${GREEN}assumption${NC} <cmd>    Assumption tracking (add, validate, invalidate, list)"
+    echo -e "  ${GREEN}promote${NC} <cmd>         Graduation pipeline (suggest, status, L-XXX)"
+    echo -e "  ${GREEN}tier0${NC} <cmd>          Tier 0 enforcement (approve, status)"
+    echo -e "  ${GREEN}approvals${NC} <cmd>      Approval queue (pending, status, expire)"
+    echo -e "  ${GREEN}work-on${NC} <name|T-XXX> Create task + set focus + start (one-step gate)"
+    echo -e "  ${GREEN}bus${NC} <cmd>            Result ledger for sub-agent dispatch (post, read, manifest, clear)"
+    echo -e "  ${GREEN}dispatch${NC} <cmd>       SSH-based cross-machine communication (send, hosts)"
+    echo -e "  ${GREEN}pickup${NC} <cmd>        Cross-project pickup pipeline (process, status, list, send)"
+    echo -e "  ${GREEN}consolidate${NC} <cmd>   Memory consolidation (scan, apply, report)"
+    echo -e "  ${GREEN}mcp${NC} <cmd>            MCP server process management (reap orphans)"
+    echo -e "  ${GREEN}fix-learned${NC} T-XXX \"text\"  Capture bugfix learning (G-016 shortcut)"
+    echo -e "  ${GREEN}note${NC} [text]          Lightweight observation capture"
+    echo -e "  ${GREEN}notify${NC} <cmd>          Push notifications (setup, test, enable, disable, status)"
+    echo -e "  ${GREEN}cron${NC} <cmd>            Cron registry management (generate, status)"
+    echo -e "  ${GREEN}config${NC} <cmd>           Project config (set, get, list) — persistent settings in .framework.yaml"
+    echo -e "  ${GREEN}scan${NC}                  Run watchtower scan (detect opportunities & issues)"
+    echo -e "  ${GREEN}serve${NC} [--port N]     Start web UI (default port 3000)"
+    echo -e "  ${GREEN}upstream${NC} <cmd>        Report issues to framework upstream (report, config, status)"
+    echo -e "  ${GREEN}deploy${NC} <cmd>          Ring20 deployment (scaffold, status, routes, ports)"
+    echo ""
+    echo -e "${BOLD}Setup:${NC}"
+    echo -e "  ${GREEN}init${NC} [dir]           Bootstrap a new project (auto-detects interactive mode)"
+    echo -e "  ${GREEN}update${NC}               Update framework (vendored or global) to latest version"
+    echo -e "  ${GREEN}vendor${NC}               Copy framework into project .agentic-framework/ (full isolation)"
+    echo -e "  ${GREEN}hook${NC} <name>          Run a framework hook (used by .claude/settings.json)"
+    echo -e "  ${GREEN}upgrade${NC} [dir]        Sync framework improvements to consumer project"
+    echo -e "  ${YELLOW}setup${NC} [dir]          Deprecated — alias for init"
+    echo -e "  ${GREEN}build${NC}                Compile TypeScript sources (lib/ts/src → lib/ts/dist)"
+    echo -e "  ${GREEN}harvest${NC} [dir]        Harvest learnings from project to framework"
+    echo -e "  ${GREEN}termlink${NC} <cmd>       TermLink integration (check|spawn|exec|status|cleanup|dispatch)"
+    echo -e "  ${GREEN}onboarding${NC} <cmd>     Onboarding gate (status|skip|reset)"
+    echo ""
+    echo -e "${BOLD}Discovery:${NC}"
+    echo -e "  ${GREEN}task list${NC}          List all tasks (filterable by --status, --type, --component)"
+    echo -e "  ${GREEN}task show${NC} T-XXX    Show task detail with episodic summary"
+    echo -e "  ${GREEN}decisions${NC}          Show all decisions (architectural + operational)"
+    echo -e "  ${GREEN}timeline${NC}           Show session timeline"
+    echo -e "  ${GREEN}learnings${NC}          Show learnings with context"
+    echo -e "  ${GREEN}patterns${NC}           Show failure/success patterns"
+    echo -e "  ${GREEN}practices${NC}          Show graduated principles"
+    echo -e "  ${GREEN}search${NC} <keyword>   Search across all artifacts (keyword)"
+    echo -e "  ${GREEN}search --semantic${NC}  Semantic vector search (sqlite-vec)"
+    echo -e "  ${GREEN}search --hybrid${NC}   Hybrid BM25 + semantic (RRF fusion)"
+    echo -e "  ${GREEN}recall${NC} <query>    Query project memory (learnings, patterns, decisions)"
+    echo ""
+    echo -e "${BOLD}Utility:${NC}"
+    echo -e "  ${GREEN}plugin-audit${NC}          Audit plugins for task-system awareness"
+    echo -e "  ${GREEN}gaps${NC}                 Show spec-reality gaps being watched"
+    echo -e "  ${GREEN}traceability${NC} baseline Set traceability baseline (imported projects)"
+    echo -e "  ${GREEN}preflight${NC}            Check OS dependencies (interactive install)"
+    echo -e "  ${GREEN}validate-init${NC}        Verify fw init output is correct and complete"
+    echo -e "  ${GREEN}doctor${NC}               Check framework health and configuration"
+    echo -e "  ${GREEN}verify-acs${NC}           Automated Human AC evidence collection"
+    echo -e "  ${GREEN}metrics${NC}              Show project metrics dashboard"
+    echo -e "  ${GREEN}metrics predict${NC}      Estimate effort from episodic history"
+    echo -e "  ${GREEN}costs${NC}                Token usage tracking (session/project totals)"
+    echo -e "  ${GREEN}self-test${NC} [phase]     Run E2E self-test (onboarding|all) [--json]"
+    echo -e "  ${GREEN}test${NC} [suite]           Run tests (all|unit|integration|web|lint)"
+    echo -e "  ${GREEN}version${NC}              Show version information"
+    echo -e "  ${GREEN}version bump${NC} <part>  Bump major|minor|patch (--tag, --dry-run)"
+    echo -e "  ${GREEN}version check${NC}        Verify all version sources in sync + staleness"
+    echo -e "  ${GREEN}version sync${NC}         Sync all VERSION files to FW_VERSION"
+    echo -e "  ${GREEN}help${NC}                 Show this help"
+    echo ""
+    echo -e "${BOLD}Paths:${NC}"
+    echo "  Framework: $FRAMEWORK_ROOT"
+    echo "  Project:   $PROJECT_ROOT"
+    echo ""
+    echo -e "${BOLD}Examples:${NC}"
+    echo "  fw audit"
+    echo "  fw context init"
+    echo '  fw work-on "Fix login bug" --type build   # One-step: create + focus + start'
+    echo "  fw work-on T-042                           # Resume existing task"
+    echo '  fw git commit -m "T-033: Add fw CLI wrapper"'
+    echo "  fw handover --commit"
+    echo "  fw healing diagnose T-015"
+    echo '  fw task create --name "Fix bug" --type build --owner human'
+    echo "  fw resume status"
+    echo "  fw init /path/to/project --provider claude"
+    echo "  fw upgrade /path/to/project --dry-run"
+    echo "  fw harvest /path/to/project --dry-run"
+    echo "  fw deploy scaffold --app my-app --pattern swarm --port-prod 5040 --port-dev 5041"
+}
+
+show_version() {
+    echo "fw v$FW_VERSION"
+    echo "Framework: $FRAMEWORK_ROOT"
+    echo "Project:   $PROJECT_ROOT"
+
+    # Show .framework.yaml version if present
+    if [ -f "$PROJECT_ROOT/.framework.yaml" ]; then
+        local pinned
+        pinned=$(grep "^version:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^version:[[:space:]]*//')
+        if [ -n "$pinned" ]; then
+            echo "Pinned:    $pinned"
+            if [ "$pinned" != "$FW_VERSION" ]; then
+                echo -e "${YELLOW}WARNING: Pinned version ($pinned) differs from installed ($FW_VERSION)${NC}"
+            fi
+        fi
+    fi
+}
+
+# --- Doctor Command ---
+
+do_doctor() {
+    echo -e "${BOLD}fw doctor${NC} - Framework Health Check"
+    echo ""
+
+    local issues=0
+    local warnings=0
+
+    # Check 1: Framework directory
+    if [ -d "$FRAMEWORK_ROOT/agents" ] && [ -f "$FRAMEWORK_ROOT/FRAMEWORK.md" ]; then
+        echo -e "  ${GREEN}OK${NC}  Framework installation"
+    else
+        echo -e "  ${RED}FAIL${NC}  Framework installation - missing agents/ or FRAMEWORK.md"
+        issues=$((issues + 1))
+    fi
+
+    # Check 2: .framework.yaml (only relevant if PROJECT_ROOT != FRAMEWORK_ROOT)
+    if [ "$PROJECT_ROOT" != "$FRAMEWORK_ROOT" ]; then
+        if [ -f "$PROJECT_ROOT/.framework.yaml" ]; then
+            echo -e "  ${GREEN}OK${NC}  .framework.yaml found"
+            local pinned
+            pinned=$(grep "^version:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^version:[[:space:]]*//')
+            if [ -n "$pinned" ] && [ "$pinned" != "$FW_VERSION" ]; then
+                echo -e "  ${YELLOW}WARN${NC}  Version mismatch: pinned=$pinned installed=$FW_VERSION"
+                warnings=$((warnings + 1))
+            fi
+            # T-1097/G-028: Reconcile upstream_repo vs running FRAMEWORK_ROOT
+            local upstream_repo
+            upstream_repo=$(grep "^upstream_repo:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^upstream_repo:[[:space:]]*//' || true)
+            if [ -n "$upstream_repo" ]; then
+                local resolved_upstream resolved_fw
+                resolved_upstream=$(realpath -m "$upstream_repo" 2>/dev/null || echo "$upstream_repo")
+                resolved_fw=$(realpath -m "$FRAMEWORK_ROOT" 2>/dev/null || echo "$FRAMEWORK_ROOT")
+                if [ "$resolved_upstream" != "$resolved_fw" ]; then
+                    echo -e "  ${YELLOW}WARN${NC}  Framework path ambiguity:"
+                    echo -e "         upstream_repo: $upstream_repo"
+                    echo -e "         running fw:    $FRAMEWORK_ROOT"
+                    warnings=$((warnings + 1))
+                fi
+            fi
+        else
+            echo -e "  ${RED}FAIL${NC}  .framework.yaml missing in $PROJECT_ROOT"
+            issues=$((issues + 1))
+        fi
+    else
+        echo -e "  ${CYAN}SKIP${NC}  .framework.yaml (running from framework repo)"
+    fi
+
+    # Check 3: Task directories
+    if [ -d "$PROJECT_ROOT/.tasks/active" ] && [ -d "$PROJECT_ROOT/.tasks/completed" ]; then
+        echo -e "  ${GREEN}OK${NC}  Task directories"
+    else
+        echo -e "  ${RED}FAIL${NC}  Task directories missing (.tasks/active, .tasks/completed)"
+        issues=$((issues + 1))
+    fi
+
+    # Check 4: Context directories
+    if [ -d "$PROJECT_ROOT/.context" ]; then
+        echo -e "  ${GREEN}OK${NC}  Context directory"
+    else
+        echo -e "  ${YELLOW}WARN${NC}  Context directory missing (.context/)"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check 5: Git hooks
+    local hooks_dir="$PROJECT_ROOT/.git/hooks"
+    if [ -f "$hooks_dir/commit-msg" ] && grep -q "Task Reference" "$hooks_dir/commit-msg" 2>/dev/null; then
+        echo -e "  ${GREEN}OK${NC}  Git commit-msg hook"
+    else
+        echo -e "  ${YELLOW}WARN${NC}  Git commit-msg hook not installed (run: fw git install-hooks)"
+        warnings=$((warnings + 1))
+    fi
+
+    if [ -f "$hooks_dir/pre-push" ] && grep -q "audit" "$hooks_dir/pre-push" 2>/dev/null; then
+        echo -e "  ${GREEN}OK${NC}  Git pre-push hook"
+    else
+        echo -e "  ${YELLOW}WARN${NC}  Git pre-push hook not installed (run: fw git install-hooks)"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check 5b: Git user identity (T-685)
+    local git_email git_name
+    git_email=$(git -C "$PROJECT_ROOT" config user.email 2>/dev/null || true)
+    git_name=$(git -C "$PROJECT_ROOT" config user.name 2>/dev/null || true)
+    if [ -z "$git_email" ] || [ -z "$git_name" ]; then
+        echo -e "  ${YELLOW}WARN${NC}  Git user identity not configured (commits will fail)"
+        echo -e "         Run: git config user.email 'you@example.com' && git config user.name 'Your Name'"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check 6: Claude Code hooks — validate paths resolve (G-021 path isolation)
+    local settings_file="$PROJECT_ROOT/.claude/settings.json"
+    if [ -f "$settings_file" ]; then
+        local hook_validation
+        hook_validation=$(python3 -c "
+import json, os, shutil
+with open('$settings_file') as f:
+    data = json.load(f)
+total = 0
+broken = 0
+stale_paths = 0
+for event, entries in data.get('hooks', {}).items():
+    for entry in entries:
+        for hook in entry.get('hooks', []):
+            cmd = hook.get('command', '')
+            total += 1
+            parts = cmd.split()
+            # Check for portable 'fw hook' format
+            if len(parts) >= 2 and parts[0] == 'fw':
+                if shutil.which('fw'):
+                    continue  # fw hook — portable, OK
+                else:
+                    broken += 1
+                    continue
+            # Old-style: absolute path — check if executable exists
+            exe = None
+            for p in parts:
+                if '=' not in p:
+                    exe = p
+                    break
+            if exe and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
+                if not shutil.which(exe or ''):
+                    broken += 1
+            # Check for hardcoded absolute paths (path isolation violation)
+            if '/agents/context/' in cmd or 'PROJECT_ROOT=' in cmd:
+                stale_paths += 1
+print(f'{total},{broken},{stale_paths}')
+" 2>/dev/null || echo "0,0,0")
+        local hook_total hook_broken hook_stale
+        hook_total=$(echo "$hook_validation" | cut -d, -f1)
+        hook_broken=$(echo "$hook_validation" | cut -d, -f2)
+        hook_stale=$(echo "$hook_validation" | cut -d, -f3)
+        if [ "${hook_broken:-0}" -gt 0 ]; then
+            echo -e "  ${RED}FAIL${NC}  Hook path validation: $hook_broken/$hook_total hooks have broken paths"
+            echo -e "        Run: fw upgrade (regenerates hooks with portable paths)"
+            issues=$((issues + 1))
+        elif [ "${hook_stale:-0}" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Hook path isolation: $hook_stale/$hook_total hooks use hardcoded paths (works here, breaks on clone)"
+            echo -e "        Run: fw upgrade (migrates to portable 'fw hook' format)"
+            warnings=$((warnings + 1))
+        elif [ "${hook_total:-0}" -ge 10 ]; then
+            echo -e "  ${GREEN}OK${NC}  Hook path validation: $hook_total hooks, all portable"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  Only $hook_total hooks configured (expected 11+)"
+            warnings=$((warnings + 1))
+        fi
+    else
+        echo -e "  ${YELLOW}WARN${NC}  No .claude/settings.json found (run: fw init)"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check 7: Agent scripts executable
+    local agents_ok=true
+    for agent in audit/audit.sh context/context.sh git/git.sh handover/handover.sh healing/healing.sh resume/resume.sh task-create/create-task.sh; do
+        if [ ! -x "$AGENTS_DIR/$agent" ]; then
+            echo -e "  ${RED}FAIL${NC}  Agent not executable: $agent"
+            agents_ok=false
+            issues=$((issues + 1))
+        fi
+    done
+    if [ "$agents_ok" = true ]; then
+        echo -e "  ${GREEN}OK${NC}  All agent scripts executable"
+    fi
+
+    # Check 8: Plugin task-awareness
+    if [ -x "$AGENTS_DIR/audit/plugin-audit.sh" ]; then
+        local bypassing_count
+        bypassing_count=$("$AGENTS_DIR/audit/plugin-audit.sh" --doctor-check 2>/dev/null) || true
+        if [ "${bypassing_count:-0}" = "0" ]; then
+            echo -e "  ${GREEN}OK${NC}  Plugin task-awareness"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  $bypassing_count plugin skill(s) may bypass task-first rule (run: fw plugin-audit)"
+            warnings=$((warnings + 1))
+        fi
+    else
+        echo -e "  ${CYAN}SKIP${NC}  Plugin task-awareness (plugin-audit.sh not found)"
+    fi
+
+    # Check 9: Test infrastructure
+    # T-574: Skip framework-development checks on consumer projects
+    if [ "$FRAMEWORK_ROOT" = "$PROJECT_ROOT" ]; then
+        if command -v bats >/dev/null 2>&1; then
+            if [ -d "$FRAMEWORK_ROOT/tests/unit" ] && ls "$FRAMEWORK_ROOT/tests/unit/"*.bats >/dev/null 2>&1; then
+                local test_count
+                test_count=$(bats --count "$FRAMEWORK_ROOT/tests/unit/" 2>/dev/null || echo "0")
+                echo -e "  ${GREEN}OK${NC}  Test infrastructure (bats installed, $test_count unit tests)"
+            else
+                echo -e "  ${YELLOW}WARN${NC}  bats installed but no unit tests found in tests/unit/"
+                warnings=$((warnings + 1))
+            fi
+        else
+            echo -e "  ${YELLOW}WARN${NC}  bats not installed (run: git clone https://github.com/bats-core/bats-core && ./install.sh /usr/local)"
+            warnings=$((warnings + 1))
+        fi
+
+        if command -v shellcheck >/dev/null 2>&1; then
+            echo -e "  ${GREEN}OK${NC}  ShellCheck linter"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  shellcheck not installed"
+            warnings=$((warnings + 1))
+        fi
+    else
+        echo -e "  ${CYAN}SKIP${NC}  Test infrastructure (consumer project — tests live in framework repo)"
+        echo -e "  ${CYAN}SKIP${NC}  ShellCheck linter (consumer project)"
+    fi
+
+    # Check N: Orphaned MCP processes (T-180)
+    local orphan_count
+    orphan_count=$(ps -eo pid,ppid,args 2>/dev/null | \
+                   awk '$2 == 1' | \
+                   grep -cE "(npm exec.*(mcp|context7|playwright))|(node .*(mcp|context7))" || echo 0)
+    orphan_count=$(echo "$orphan_count" | tr -d '[:space:]')
+    if [ "$orphan_count" -gt 0 ]; then
+        echo -e "  ${YELLOW}WARN${NC}  $orphan_count orphaned MCP process(es) detected — run 'fw mcp reap'"
+        warnings=$((warnings + 1))
+    else
+        echo -e "  ${GREEN}OK${NC}  No orphaned MCP processes"
+    fi
+
+    # Check: .mcp.json configuration (T-646)
+    local mcp_json="$PROJECT_ROOT/.mcp.json"
+    if [ -f "$mcp_json" ]; then
+        local mcp_check
+        mcp_check=$(python3 -c "
+import json
+with open('$mcp_json') as f:
+    data = json.load(f)
+total = len(data)
+has_context7 = 'context7' in data
+has_playwright = 'playwright' in data
+missing = []
+if not has_context7: missing.append('context7')
+if not has_playwright: missing.append('playwright')
+print(f'{total}|{\",\".join(missing)}')
+" 2>/dev/null || echo "0|parse-error")
+        local mcp_total mcp_missing
+        mcp_total=$(echo "$mcp_check" | cut -d'|' -f1)
+        mcp_missing=$(echo "$mcp_check" | cut -d'|' -f2)
+        if [ -n "$mcp_missing" ] && [ "$mcp_missing" != "parse-error" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  .mcp.json missing recommended servers: $mcp_missing (run: fw upgrade)"
+            warnings=$((warnings + 1))
+        elif [ "$mcp_missing" = "parse-error" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  .mcp.json exists but failed to parse"
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  .mcp.json ($mcp_total MCP server(s) configured)"
+        fi
+    else
+        echo -e "  ${YELLOW}WARN${NC}  No .mcp.json found (run: fw upgrade to create)"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check: Global install deprecation (T-666/T-662)
+    local global_dir="$HOME/.agentic-framework"
+    local local_fw="$HOME/.local/bin/fw"
+    if [ -d "$global_dir" ]; then
+        if [ -L "$local_fw" ]; then
+            local link_target
+            link_target=$(readlink -f "$local_fw" 2>/dev/null || echo "")
+            if [[ "$link_target" == *".agentic-framework/bin/fw"* ]]; then
+                echo -e "  ${YELLOW}WARN${NC}  Global install: ~/.local/bin/fw symlinks to stale $global_dir"
+                echo -e "        Migrate: run install.sh or fw upgrade (installs project-detecting shim)"
+                warnings=$((warnings + 1))
+            else
+                echo -e "  ${GREEN}OK${NC}  fw shim installed (global install at $global_dir is unused)"
+            fi
+        elif [ -f "$local_fw" ] && grep -q 'find_fw' "$local_fw" 2>/dev/null; then
+            echo -e "  ${GREEN}OK${NC}  fw shim installed (global install at $global_dir can be removed)"
+        else
+            echo -e "  ${GREEN}OK${NC}  No global install dependency detected"
+        fi
+    else
+        echo -e "  ${GREEN}OK${NC}  No global install at $global_dir"
+    fi
+
+    # Check: status-transitions.yaml integrity (T-588)
+    local transitions_yaml="$FRAMEWORK_ROOT/status-transitions.yaml"
+    if [ -f "$transitions_yaml" ]; then
+        local trans_check
+        trans_check=$(python3 -c "
+import yaml, sys
+d = yaml.safe_load(open('$transitions_yaml'))
+active = set(d.get('statuses', {}).get('active', []))
+legacy = set(d.get('statuses', {}).get('legacy', []))
+all_statuses = active | legacy
+transitions = d.get('transitions', [])
+issues = []
+for t in transitions:
+    if t['from'] not in all_statuses:
+        issues.append('orphaned from: %s' % t['from'])
+    if t['to'] not in all_statuses:
+        issues.append('orphaned to: %s' % t['to'])
+# Check unreachable: statuses with no inbound AND no outbound
+froms = {t['from'] for t in transitions}
+tos = {t['to'] for t in transitions}
+for s in all_statuses:
+    if s not in froms and s not in tos:
+        issues.append('unreachable: %s' % s)
+if issues:
+    print('|'.join(issues))
+else:
+    print('OK|%d' % len(transitions))
+" 2>/dev/null || echo "parse-error")
+        if [ "$trans_check" = "parse-error" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  status-transitions.yaml failed to parse"
+            warnings=$((warnings + 1))
+        elif [[ "$trans_check" == OK* ]]; then
+            local trans_count
+            trans_count=$(echo "$trans_check" | cut -d'|' -f2)
+            echo -e "  ${GREEN}OK${NC}  status-transitions.yaml ($trans_count transitions, no orphaned/unreachable states)"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  status-transitions.yaml integrity: $trans_check"
+            warnings=$((warnings + 1))
+        fi
+    fi
+
+    # Check: Claude Code hook configuration (CTL-R023 — T-199)
+    if [ -f "$settings_file" ]; then
+        local hook_result
+        hook_result=$(python3 -c "
+import json, os, sys
+
+issues = []
+warnings = []
+
+try:
+    with open('$settings_file') as f:
+        data = json.load(f)
+except json.JSONDecodeError as e:
+    print(f'FAIL|settings.json is not valid JSON: {e}')
+    sys.exit(0)
+
+hooks = data.get('hooks', {})
+if not hooks:
+    print('WARN|No hooks configured in settings.json')
+    sys.exit(0)
+
+# Expected hooks (script basename -> event type)
+expected = {
+    'check-active-task.sh': 'PreToolUse',
+    'check-tier0.sh': 'PreToolUse',
+    'check-project-boundary.sh': 'PreToolUse',
+    'budget-gate.sh': 'PreToolUse',
+    'checkpoint.sh': 'PostToolUse',
+    'error-watchdog.sh': 'PostToolUse',
+}
+found = set()
+
+for event_type, hook_list in hooks.items():
+    if not isinstance(hook_list, list):
+        issues.append(f'{event_type} value is not a list (flat format silently fails)')
+        continue
+    for i, entry in enumerate(hook_list):
+        if not isinstance(entry, dict):
+            issues.append(f'{event_type}[{i}] is not an object')
+            continue
+        # Check nested structure
+        inner_hooks = entry.get('hooks', [])
+        if not inner_hooks:
+            issues.append(f'{event_type}[{i}] missing inner hooks array (will silently not fire)')
+            continue
+        for j, cmd in enumerate(inner_hooks):
+            command = cmd.get('command', '')
+            if not command:
+                issues.append(f'{event_type}[{i}].hooks[{j}] missing command')
+                continue
+            # Check script exists (skip env var assignments like PROJECT_ROOT=...)
+            parts = command.split()
+            script_path = parts[0]
+            for p in parts:
+                if '=' not in p:
+                    script_path = p
+                    break
+            # Portable 'fw hook' commands — resolve via PATH or vendored path
+            # T-573: Also recognize .agentic-framework/bin/fw and other paths ending in /fw
+            is_fw = (script_path == 'fw' or script_path.endswith('/fw'))
+            if is_fw and 'hook' in parts:
+                hook_idx = parts.index('hook')
+                # Resolve fw binary: bare 'fw' uses PATH, full path checked directly
+                if script_path == 'fw':
+                    import shutil
+                    if not shutil.which('fw'):
+                        issues.append(f'{event_type}: fw not found in PATH (install framework or add to PATH)')
+                        continue
+                else:
+                    # Resolve relative paths against PROJECT_ROOT
+                    resolved = script_path
+                    if not os.path.isabs(resolved):
+                        resolved = os.path.join(os.environ.get('PROJECT_ROOT', ''), resolved)
+                    if not os.path.exists(resolved):
+                        issues.append(f'{event_type}: fw binary not found: {script_path}')
+                        continue
+                # Map fw hook name to expected script for tracking
+                hook_name = parts[hook_idx + 1] if len(parts) > hook_idx + 1 else 'unknown'
+                basename = hook_name + '.sh'
+                if basename in expected:
+                    found.add(basename)
+                continue
+            if not os.path.exists(script_path):
+                if '/Cellar/' in script_path:
+                    issues.append(f'{event_type}: stale Homebrew Cellar path (run fw init --provider claude --force to fix): {os.path.basename(script_path)}')
+                else:
+                    issues.append(f'{event_type}: script not found: {os.path.basename(script_path)}')
+            elif not os.access(script_path, os.X_OK):
+                warnings.append(f'{event_type}: script not executable: {os.path.basename(script_path)}')
+            elif '/Cellar/' in script_path:
+                warnings.append(f'Hook uses Cellar path (will break on brew upgrade). Run: fw init --provider claude --force')
+            # Track expected hooks
+            basename = os.path.basename(script_path)
+            if basename in expected:
+                found.add(basename)
+
+# Check expected hooks present
+for script, event in expected.items():
+    if script not in found:
+        warnings.append(f'Expected hook {script} ({event}) not found')
+
+if issues:
+    print('FAIL|' + '; '.join(issues))
+elif warnings:
+    print('WARN|' + '; '.join(warnings))
+else:
+    print(f'OK|Hook configuration valid ({sum(len(v) for v in hooks.values())} hooks across {len(hooks)} events)')
+" 2>/dev/null || echo "WARN|Python3 not available for hook validation")
+        local hook_status hook_msg
+        hook_status=$(echo "$hook_result" | cut -d'|' -f1)
+        hook_msg=$(echo "$hook_result" | cut -d'|' -f2-)
+        case "$hook_status" in
+            OK)   echo -e "  ${GREEN}OK${NC}  $hook_msg" ;;
+            WARN) echo -e "  ${YELLOW}WARN${NC}  Hook config: $hook_msg"; warnings=$((warnings + 1)) ;;
+            FAIL) echo -e "  ${RED}FAIL${NC}  Hook config: $hook_msg"; issues=$((issues + 1)) ;;
+        esac
+    else
+        echo -e "  ${YELLOW}WARN${NC}  No .claude/settings.json — Claude Code hooks not configured"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check: Watchtower smoke test (T-486) — run if server is reachable
+    if curl -sf "http://localhost:${FW_PORT:-3000}/health" >/dev/null 2>&1; then
+        local smoke_result
+        smoke_result=$(python3 "$FRAMEWORK_ROOT/web/smoke_test.py" --port "${FW_PORT:-3000}" --json 2>/dev/null || echo '{"failed":0,"passed":0,"total":0,"error":"script failed"}')
+        local smoke_passed smoke_failed smoke_total
+        smoke_passed=$(echo "$smoke_result" | python3 -c "import sys,json;print(json.load(sys.stdin).get('passed',0))" 2>/dev/null || echo 0)
+        smoke_failed=$(echo "$smoke_result" | python3 -c "import sys,json;print(json.load(sys.stdin).get('failed',0))" 2>/dev/null || echo 0)
+        smoke_total=$(echo "$smoke_result" | python3 -c "import sys,json;print(json.load(sys.stdin).get('total',0))" 2>/dev/null || echo 0)
+        if [ "${smoke_failed:-0}" = "0" ] && [ "${smoke_passed:-0}" -gt 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  Watchtower smoke test ($smoke_passed/$smoke_total endpoints)"
+        elif [ "${smoke_failed:-0}" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Watchtower smoke: $smoke_failed/$smoke_total endpoints failed"
+            local smoke_errors
+            smoke_errors=$(echo "$smoke_result" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+for e in d.get('errors',[])[:3]:
+    print(f\"         {e['path']}: {e.get('error','?')}\")
+" 2>/dev/null || true)
+            [ -n "$smoke_errors" ] && echo "$smoke_errors"
+            warnings=$((warnings + 1))
+        fi
+    fi
+
+    # Check: TermLink (optional cross-terminal session communication)
+    if command -v termlink >/dev/null 2>&1; then
+        local tl_version
+        tl_version=$(termlink --version 2>/dev/null | head -1)
+        echo -e "  ${GREEN}OK${NC}  TermLink ($tl_version)"
+    else
+        echo -e "  ${YELLOW}WARN${NC}  TermLink not installed (cargo install termlink)"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check: TypeScript build health (optional)
+    if [ -d "$FRAMEWORK_ROOT/lib/ts/src" ]; then
+        shopt -s nullglob
+        local _ts_files=("$FRAMEWORK_ROOT/lib/ts/src/"*.ts)
+        shopt -u nullglob
+        if [ ${#_ts_files[@]} -eq 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  TypeScript build (no sources yet)"
+        elif command -v node >/dev/null 2>&1; then
+            local _ts_stale=0
+            for _ts_src in "${_ts_files[@]}"; do
+                local _ts_out
+                _ts_out="$FRAMEWORK_ROOT/lib/ts/dist/$(basename "${_ts_src%.ts}.js")"
+                if [ ! -f "$_ts_out" ] || [ "$_ts_src" -nt "$_ts_out" ]; then
+                    _ts_stale=1
+                    break
+                fi
+            done
+            if [ "$_ts_stale" -eq 1 ]; then
+                echo -e "  ${YELLOW}WARN${NC}  TypeScript build stale (run 'fw build')"
+                warnings=$((warnings + 1))
+            else
+                echo -e "  ${GREEN}OK${NC}  TypeScript build (${#_ts_files[@]} source(s))"
+            fi
+        else
+            echo -e "  ${YELLOW}WARN${NC}  Node.js not found (TS hooks will use Python fallback)"
+            warnings=$((warnings + 1))
+        fi
+    fi
+
+    # Enforcement matcher coverage: G-012 closed as accepted risk (no notebooks in project)
+
+    # Check: Enforcement baseline integrity (B-005 — T-230)
+    local baseline_file="$PROJECT_ROOT/.context/project/enforcement-baseline.sha256"
+    if [ -f "$baseline_file" ] && [ -f "$settings_file" ]; then
+        local stored_hash current_hash
+        stored_hash=$(tr -d '[:space:]' < "$baseline_file" 2>/dev/null)
+        current_hash=$(python3 -c "
+import json, hashlib
+with open('$settings_file') as f:
+    data = json.load(f)
+hooks_str = json.dumps(data.get('hooks', {}), sort_keys=True)
+print(hashlib.sha256(hooks_str.encode()).hexdigest())
+" 2>/dev/null)
+        if [ "$stored_hash" = "$current_hash" ]; then
+            echo -e "  ${GREEN}OK${NC}  Enforcement baseline intact"
+        else
+            echo -e "  ${RED}FAIL${NC}  Enforcement baseline CHANGED — settings.json hooks differ from baseline"
+            echo -e "         Run 'fw enforcement baseline' to update after review"
+            issues=$((issues + 1))
+        fi
+    elif [ ! -f "$baseline_file" ]; then
+        echo -e "  ${YELLOW}WARN${NC}  No enforcement baseline — run 'fw enforcement baseline' to create"
+        warnings=$((warnings + 1))
+    fi
+
+    # Check: Token usage (T-806)
+    if [ -f "$FW_LIB_DIR/costs.sh" ]; then
+        local token_info
+        token_info=$(FRAMEWORK_ROOT="$FRAMEWORK_ROOT" PROJECT_ROOT="$PROJECT_ROOT" \
+            bash -c 'source "$FRAMEWORK_ROOT/lib/colors.sh" 2>/dev/null; source "$FRAMEWORK_ROOT/lib/costs.sh"; costs_main current 2>/dev/null' 2>/dev/null || true)
+        if [ -n "$token_info" ]; then
+            local t_total t_turns
+            t_total=$(echo "$token_info" | grep "^Total:" | awk '{print $2}')
+            t_turns=$(echo "$token_info" | grep "^Turns:" | awk '{print $2}' | tr -d ',')
+            if [ -n "$t_total" ]; then
+                echo -e "  ${CYAN}INFO${NC}  Session tokens: $t_total ($t_turns turns)"
+            fi
+        fi
+    fi
+
+    # Check: Stale task debt (T-814)
+    local stale_count=0
+    local active_dir="$PROJECT_ROOT/.tasks/active"
+    if [ -d "$active_dir" ]; then
+        local cutoff_epoch
+        cutoff_epoch=$(date -d "7 days ago" +%s 2>/dev/null || date -v-7d +%s 2>/dev/null || echo 0)
+        if [ "$cutoff_epoch" -gt 0 ]; then
+            for tf in "$active_dir"/*.md; do
+                [ -f "$tf" ] || continue
+                local lu
+                lu=$(grep '^last_update:' "$tf" 2>/dev/null | head -1 | sed 's/last_update: *//' | tr -d '"' || true)
+                if [ -n "$lu" ]; then
+                    local lu_epoch
+                    lu_epoch=$(date -d "${lu}" +%s 2>/dev/null || date -jf "%Y-%m-%dT%H:%M:%SZ" "${lu}" +%s 2>/dev/null || echo 0)
+                    if [ "$lu_epoch" -gt 0 ] && [ "$lu_epoch" -lt "$cutoff_epoch" ]; then
+                        stale_count=$((stale_count + 1))
+                    fi
+                fi
+            done
+        fi
+        if [ "$stale_count" -gt 10 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Task debt: $stale_count stale tasks (no updates in 7+ days)"
+            echo -e "         Run: fw task stale"
+            warnings=$((warnings + 1))
+        elif [ "$stale_count" -gt 0 ]; then
+            echo -e "  ${CYAN}INFO${NC}  Task debt: $stale_count stale tasks (no updates in 7+ days)"
+        fi
+    fi
+
+    # Check: Consumer project fleet health (T-616)
+    # Only runs from framework repo — scans /opt for .framework.yaml
+    if [ "$FRAMEWORK_ROOT" = "$PROJECT_ROOT" ]; then
+        local consumer_count=0
+        local consumer_issues=0
+        local fw_settings_file="$FRAMEWORK_ROOT/.claude/settings.json"
+        echo ""
+        echo -e "  ${BOLD}Consumer Projects${NC}"
+        for fw_yaml in /opt/*/.framework.yaml; do
+            [ -f "$fw_yaml" ] || continue
+            local consumer_dir
+            consumer_dir=$(dirname "$fw_yaml")
+            # Skip the framework itself
+            [ "$consumer_dir" = "$FRAMEWORK_ROOT" ] && continue
+            consumer_count=$((consumer_count + 1))
+            local cname cversion
+            cname=$(basename "$consumer_dir")
+            cversion=$(grep "^version:" "$fw_yaml" 2>/dev/null | sed 's/^version:[[:space:]]*//' || true)
+            # Check version match
+            local version_ok=true
+            if [ -n "$cversion" ] && [ "$cversion" != "$FW_VERSION" ]; then
+                version_ok=false
+            fi
+            # Check hooks by type (reuse T-615 logic)
+            local consumer_settings="$consumer_dir/.claude/settings.json"
+            local hook_info="ok"
+            if [ -f "$consumer_settings" ] && [ -f "$fw_settings_file" ]; then
+                hook_info=$(FW_FILE="$fw_settings_file" CONSUMER_FILE="$consumer_settings" python3 -c "
+import json, os
+def extract_hooks(path):
+    hooks = set()
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        for event, entries in data.get('hooks', {}).items():
+            for entry in entries:
+                for hook in entry.get('hooks', []):
+                    cmd = hook.get('command', '')
+                    if 'fw hook' in cmd:
+                        name = cmd.split('fw hook ')[-1].strip()
+                    else:
+                        name = cmd.strip().split('/')[-1]
+                    hooks.add((event, name))
+    except (json.JSONDecodeError, FileNotFoundError):
+        pass
+    return hooks
+fw_hooks = extract_hooks(os.environ['FW_FILE'])
+consumer_hooks = extract_hooks(os.environ['CONSUMER_FILE'])
+missing = fw_hooks - consumer_hooks
+if missing:
+    names = ', '.join(n for _, n in sorted(missing))
+    print(f'missing {len(missing)}: {names}')
+else:
+    print(f'ok {len(consumer_hooks)}/{len(fw_hooks)}')
+" 2>/dev/null || echo "parse-error")
+            fi
+            # Report
+            if [ "$version_ok" = true ] && [[ "$hook_info" == ok* ]]; then
+                local hook_counts="${hook_info#ok }"
+                echo -e "  ${GREEN}OK${NC}  $cname (v$cversion, $hook_counts hooks)"
+            else
+                local reasons=""
+                if [ "$version_ok" = false ]; then
+                    reasons="v$cversion → v$FW_VERSION"
+                fi
+                if [[ "$hook_info" == missing* ]]; then
+                    [ -n "$reasons" ] && reasons="$reasons, "
+                    reasons="$reasons$hook_info"
+                fi
+                echo -e "  ${YELLOW}WARN${NC}  $cname ($reasons)"
+                echo -e "         Run: fw upgrade $consumer_dir"
+                warnings=$((warnings + 1))
+                consumer_issues=$((consumer_issues + 1))
+            fi
+        done
+        if [ "$consumer_count" -eq 0 ]; then
+            echo -e "  ${CYAN}SKIP${NC}  No consumer projects found in /opt"
+        elif [ "$consumer_issues" -eq 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  All $consumer_count consumer(s) current"
+        fi
+    fi
+
+    # Check: Hook crash log (T-821)
+    local crash_log="$PROJECT_ROOT/.context/working/.hook-crashes.log"
+    if [ -f "$crash_log" ] && [ -s "$crash_log" ]; then
+        local crash_count
+        crash_count=$(wc -l < "$crash_log" | tr -d '[:space:]')
+        local recent_crashes
+        recent_crashes=$( { grep "$(date -u +%Y-%m-%d)" "$crash_log" 2>/dev/null || true; } | wc -l | tr -d '[:space:]')
+        if [ "${recent_crashes:-0}" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Hook crashes: $recent_crashes today ($crash_count total) — check .context/working/.hook-crashes.log"
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${CYAN}INFO${NC}  Hook crash log: $crash_count historical entries (none today)"
+        fi
+    else
+        echo -e "  ${GREEN}OK${NC}  No hook crashes logged"
+    fi
+
+    # Check: Configuration overrides (T-819)
+    source "$FRAMEWORK_ROOT/lib/config.sh"
+    local config_overrides
+    config_overrides=$(fw_config_list 2>/dev/null | grep -v "^$" | wc -l || true)
+    config_overrides=$(echo "$config_overrides" | tr -d '[:space:]')
+    if [ "${config_overrides:-0}" -gt 0 ]; then
+        echo ""
+        echo -e "  ${BOLD}Configuration Overrides${NC}"
+        fw_config_list | while read -r line; do
+            echo -e "  ${CYAN}SET${NC}   $line"
+        done
+        # Validate ranges for known settings
+        local cw
+        cw=$(fw_config_int "CONTEXT_WINDOW" 300000)
+        if [ "$cw" -lt 50000 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  FW_CONTEXT_WINDOW=$cw is very low — budget gate will fire early"
+            warnings=$((warnings + 1))
+        elif [ "$cw" -gt 2000000 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  FW_CONTEXT_WINDOW=$cw exceeds known model limits"
+            warnings=$((warnings + 1))
+        fi
+        local dl
+        dl=$(fw_config_int "DISPATCH_LIMIT" 2)
+        if [ "$dl" -gt 10 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  FW_DISPATCH_LIMIT=$dl — very high, risk of context explosion"
+            warnings=$((warnings + 1))
+        fi
+    else
+        echo -e "  ${GREEN}OK${NC}  Configuration: all defaults (no FW_* overrides)"
+    fi
+
+    # Check: Cron registry drift (T-1112/T-1114)
+    # Catches the class of divergence where cron-registry.yaml and the
+    # installed /etc/cron.d/ file are out of sync — the root cause of
+    # T-1112 (pickup-process missing for 5 consumer projects).
+    local cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+    if [ -f "$cron_registry" ]; then
+        local cron_source="$PROJECT_ROOT/.context/cron/agentic-audit.crontab"
+        local cron_target_dir="${FW_CRON_INSTALL_DIR:-/etc/cron.d}"
+        local cron_slug
+        cron_slug=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g')
+        local cron_target="$cron_target_dir/agentic-audit-${cron_slug}"
+        if [ -f "$cron_source" ] && [ -f "$cron_target" ]; then
+            if diff -q "$cron_source" "$cron_target" >/dev/null 2>&1; then
+                echo -e "  ${GREEN}OK${NC}  Cron registry in sync with $cron_target"
+            else
+                echo -e "  ${YELLOW}WARN${NC}  Cron registry drift: $cron_source differs from $cron_target"
+                echo -e "        Run: fw cron install"
+                warnings=$((warnings + 1))
+            fi
+        elif [ -f "$cron_source" ] && [ ! -f "$cron_target" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Cron generated but not installed at $cron_target"
+            echo -e "        Run: fw cron install"
+            warnings=$((warnings + 1))
+        elif [ ! -f "$cron_source" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Cron registry present but not generated — run: fw cron install"
+            warnings=$((warnings + 1))
+        fi
+    fi
+
+    # Doc-drift check: fw subcommands vs CLAUDE.md Quick Reference (T-1147/T-1104)
+    if [ -f "$FRAMEWORK_ROOT/CLAUDE.md" ]; then
+        local _qr_cmds _fw_cmds _missing _miss_count
+        # Extract commands from Quick Reference table: | `fw cmd` | or | **`fw cmd`** |
+        _qr_cmds=$(grep -oE '`fw [a-z][-a-z]*( [a-z][-a-z]*)?`' "$FRAMEWORK_ROOT/CLAUDE.md" 2>/dev/null \
+            | sed 's/`//g; s/^fw //' | sort -u || true)
+        # Extract top-level routed subcommands from main routing case
+        _fw_cmds=$(sed -n '/^case "\$cmd" in/,/^esac/p' "$FRAMEWORK_ROOT/bin/fw" 2>/dev/null \
+            | grep -E '^    [a-z][-a-z]*\)' | sed 's/[[:space:]]*//; s/).*//' | sort -u || true)
+        _missing=""
+        _miss_count=0
+        while IFS= read -r cmd; do
+            [ -z "$cmd" ] && continue
+            if ! echo "$_qr_cmds" | grep -qw "$cmd"; then
+                _missing="${_missing} ${cmd}"
+                _miss_count=$((_miss_count + 1))
+            fi
+        done <<< "$_fw_cmds"
+        if [ "$_miss_count" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Doc drift: $_miss_count fw subcommand(s) missing from CLAUDE.md Quick Reference"
+            echo -e "        Missing:${_missing}"
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  Quick Reference coverage"
+        fi
+    fi
+
+    # Summary
+    echo ""
+    if [ $issues -eq 0 ] && [ $warnings -eq 0 ]; then
+        echo -e "${GREEN}All checks passed${NC}"
+    elif [ $issues -eq 0 ]; then
+        echo -e "${YELLOW}$warnings warning(s), no failures${NC}"
+    else
+        echo -e "${RED}$issues failure(s), $warnings warning(s)${NC}"
+        exit 2
+    fi
+}
+
+# --- Task Subcommand Routing ---
+
+route_task() {
+    local subcmd="${1:-}"
+    shift || true
+
+    case "$subcmd" in
+        create)
+            exec "$AGENTS_DIR/task-create/create-task.sh" "$@"
+            ;;
+        update)
+            exec "$AGENTS_DIR/task-create/update-task.sh" "$@"
+            ;;
+        list)
+            FW_TASK_ARGS="$*" python3 << 'PYTASK_LIST'
+import os, yaml, sys, shlex
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+
+# Parse args from env (bash can't pass args to heredoc python)
+args = shlex.split(os.environ.get('FW_TASK_ARGS', ''))
+status_filter = None
+type_filter = None
+component_filter = None
+tag_filter = None
+show_all = False
+
+i = 0
+while i < len(args):
+    if args[i] == '--status' and i + 1 < len(args):
+        status_filter = args[i+1]; i += 2
+    elif args[i] == '--type' and i + 1 < len(args):
+        type_filter = args[i+1]; i += 2
+    elif args[i] == '--component' and i + 1 < len(args):
+        component_filter = args[i+1]; i += 2
+    elif args[i] == '--tag' and i + 1 < len(args):
+        tag_filter = args[i+1]; i += 2
+    elif args[i] == '--all':
+        show_all = True; i += 1
+    else:
+        i += 1
+
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+BOLD = '\033[1m'
+NC = '\033[0m'
+
+def status_color(s):
+    s = s.lower() if s else ''
+    if s in ('work-completed', 'completed'):
+        return GREEN
+    if s == 'issues':
+        return YELLOW
+    if s in ('captured', 'started-work'):
+        return CYAN
+    return NC
+
+def parse_task(path):
+    try:
+        with open(path) as f:
+            text = f.read()
+        if not text.startswith('---'):
+            return None
+        end = text.index('---', 3)
+        block = text[3:end]
+        try:
+            fm = yaml.safe_load(block)
+        except:
+            # Fallback: regex parse key fields from malformed YAML
+            import re
+            fm = {}
+            for key in ['id', 'status', 'workflow_type', 'owner', 'name']:
+                m = re.search(r'^' + key + r':\s*(.+)', block, re.MULTILINE)
+                if m:
+                    val = m.group(1).strip().strip('"').strip("'")
+                    fm[key] = val
+        return fm if fm else None
+    except:
+        return None
+
+tasks = []
+dirs = [os.path.join(project_root, '.tasks', 'active')]
+if show_all or status_filter in ('work-completed', 'completed'):
+    dirs.append(os.path.join(project_root, '.tasks', 'completed'))
+
+for d in dirs:
+    if not os.path.isdir(d):
+        continue
+    for fn in sorted(os.listdir(d)):
+        if not fn.endswith('.md'):
+            continue
+        fm = parse_task(os.path.join(d, fn))
+        if fm and fm.get('id'):
+            # Derive status from directory as fallback
+            if 'completed' in d and fm.get('status') in ('captured', 'started-work', 'issues'):
+                fm['status'] = 'work-completed'
+            tasks.append(fm)
+
+if status_filter:
+    tasks = [t for t in tasks if t.get('status', '').lower() == status_filter.lower()]
+if type_filter:
+    tasks = [t for t in tasks if t.get('workflow_type', '').lower() == type_filter.lower()]
+if component_filter:
+    ep_dir = os.path.join(project_root, '.context', 'episodic')
+    matching_ids = set()
+    if os.path.isdir(ep_dir):
+        for fn in os.listdir(ep_dir):
+            if fn.endswith('.yaml') and fn != 'TEMPLATE.yaml':
+                try:
+                    with open(os.path.join(ep_dir, fn)) as f:
+                        ep = yaml.safe_load(f)
+                    tags = ep.get('tags', [])
+                    if any(component_filter.lower() in str(t).lower() for t in tags):
+                        matching_ids.add(ep.get('task_id', ''))
+                except:
+                    pass
+    tasks = [t for t in tasks if t.get('id', '') in matching_ids]
+if tag_filter:
+    tasks = [t for t in tasks if tag_filter.lower() in [str(tg).lower() for tg in t.get('tags', [])]]
+
+def sort_key(t):
+    tid = t.get('id', 'T-999')
+    try:
+        return int(tid.replace('T-', ''))
+    except:
+        return 999
+tasks.sort(key=sort_key)
+
+if not tasks:
+    # Count completed tasks to give useful context
+    completed_dir = os.path.join(project_root, '.tasks', 'completed')
+    completed_count = 0
+    if os.path.isdir(completed_dir):
+        completed_count = len([f for f in os.listdir(completed_dir) if f.endswith('.md')])
+
+    if completed_count > 0 and not show_all:
+        print(f'{BOLD}No active tasks{NC}')
+        print(f'  {completed_count} completed tasks (use --all to show)')
+    else:
+        print(f'{YELLOW}No tasks found matching filters{NC}')
+    sys.exit(0)
+
+print(f'{BOLD}Tasks{NC} ({len(tasks)} found)')
+print()
+print(f'  {"ID":<8} {"Status":<18} {"Type":<15} {"Owner":<12} {"Name"}')
+print(f'  {chr(9472)*8} {chr(9472)*18} {chr(9472)*15} {chr(9472)*12} {chr(9472)*30}')
+
+for t in tasks:
+    tid = t.get('id', '?')
+    status = t.get('status', '?')
+    wtype = t.get('workflow_type', '?')
+    owner = t.get('owner', '?')
+    name = t.get('name', '?')
+    sc = status_color(status)
+    print(f'  {tid:<8} {sc}{status:<18}{NC} {wtype:<15} {owner:<12} {name}')
+PYTASK_LIST
+            ;;
+        show)
+            local task_id="${1:-}"
+            if [ -z "$task_id" ]; then
+                echo -e "${RED}Usage: fw task show T-XXX${NC}"
+                exit 1
+            fi
+            python3 - "$task_id" << 'PYTASK_SHOW'
+import os, yaml, sys
+
+task_id = sys.argv[1]
+project_root = os.environ.get('PROJECT_ROOT', '.')
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+task_file = None
+for subdir in ['active', 'completed']:
+    d = os.path.join(project_root, '.tasks', subdir)
+    if not os.path.isdir(d):
+        continue
+    for fn in os.listdir(d):
+        if fn.startswith(task_id + '-') and fn.endswith('.md'):
+            task_file = os.path.join(d, fn)
+            break
+    if task_file:
+        break
+
+if not task_file:
+    print(f'\033[0;31mTask {task_id} not found\033[0m')
+    sys.exit(1)
+
+with open(task_file) as f:
+    text = f.read()
+
+fm = {}
+if text.startswith('---'):
+    end = text.index('---', 3)
+    fm = yaml.safe_load(text[3:end]) or {}
+
+print(f'{BOLD}{task_id}: {fm.get("name", "Unknown")}{NC}')
+print()
+print(f'  Status:    {fm.get("status", "?")}')
+print(f'  Type:      {fm.get("workflow_type", "?")}')
+print(f'  Owner:     {fm.get("owner", "?")}')
+print(f'  Created:   {fm.get("created", "?")}')
+if fm.get('date_finished'):
+    print(f'  Finished:  {fm.get("date_finished")}')
+if fm.get('tags'):
+    print(f'  Tags:      {", ".join(str(t) for t in fm["tags"])}')
+if fm.get('related_tasks'):
+    print(f'  Related:   {", ".join(str(t) for t in fm["related_tasks"])}')
+print()
+
+ep_file = os.path.join(project_root, '.context', 'episodic', f'{task_id}.yaml')
+if os.path.isfile(ep_file):
+    with open(ep_file) as f:
+        ep = yaml.safe_load(f)
+
+    if ep.get('summary'):
+        print(f'{BOLD}Summary{NC}')
+        for line in ep['summary'].strip().split('\n'):
+            print(f'  {line.strip()}')
+        print()
+
+    if ep.get('outcomes'):
+        print(f'{BOLD}Outcomes{NC}')
+        for o in ep['outcomes']:
+            print(f'  {GREEN}*{NC} {o}')
+        print()
+
+    if ep.get('challenges'):
+        print(f'{BOLD}Challenges{NC}')
+        for c in ep['challenges']:
+            desc = c if isinstance(c, str) else c.get('description', '')
+            res = '' if isinstance(c, str) else c.get('resolution', '')
+            print(f'  {YELLOW}*{NC} {desc}')
+            if res:
+                print(f'    Resolution: {res}')
+        print()
+
+    if ep.get('decisions'):
+        print(f'{BOLD}Decisions{NC}')
+        for d in ep['decisions']:
+            dec = d if isinstance(d, str) else d.get('decision', '')
+            rat = '' if isinstance(d, str) else d.get('rationale', '')
+            print(f'  {CYAN}*{NC} {dec}')
+            if rat:
+                print(f'    Rationale: {rat}')
+        print()
+
+    if ep.get('related_tasks'):
+        rt = ep['related_tasks']
+        parts = []
+        if rt.get('spawned'):
+            parts.append(f'Spawned: {", ".join(str(t) for t in rt["spawned"])}')
+        if rt.get('absorbed'):
+            parts.append(f'Absorbed: {", ".join(str(t) for t in rt["absorbed"])}')
+        if rt.get('blocked'):
+            parts.append(f'Blocked: {", ".join(str(t) for t in rt["blocked"])}')
+        if parts:
+            print(f'{BOLD}Related Tasks{NC}')
+            for p in parts:
+                print(f'  {p}')
+            print()
+
+    if ep.get('tags'):
+        print(f'{BOLD}Tags{NC}')
+        print(f'  {", ".join(str(t) for t in ep["tags"])}')
+        print()
+else:
+    desc = fm.get('description', '')
+    if desc:
+        print(f'{BOLD}Description{NC}')
+        for line in desc.strip().split('\n'):
+            print(f'  {line.strip()}')
+        print()
+
+# Research artifacts (T-633)
+reports_dir = os.path.join(project_root, 'docs', 'reports')
+if os.path.isdir(reports_dir):
+    tid_lower = task_id.lower().replace('-', '')
+    artifacts = []
+    for fn in sorted(os.listdir(reports_dir)):
+        if fn.endswith('.md') and tid_lower in fn.lower().replace('-', ''):
+            artifacts.append(fn)
+    if artifacts:
+        print(f'{BOLD}Research Artifacts{NC}')
+        for a in artifacts:
+            print(f'  {GREEN}*{NC} docs/reports/{a}')
+        print()
+PYTASK_SHOW
+            ;;
+        verify)
+            # Two modes:
+            # - No args (T-193): List tasks with unchecked human ACs
+            # - With task ID (T-070): Run verification commands from task
+            local task_id="${1:-}"
+
+            if [ -n "$task_id" ]; then
+                # T-070: Run verification commands for specific task
+                local task_file=""
+                for subdir in active completed; do
+                    for f in "$PROJECT_ROOT/.tasks/$subdir/$task_id"*.md; do
+                        if [ -f "$f" ]; then
+                            task_file="$f"
+                            break 2
+                        fi
+                    done
+                done
+
+                if [ -z "$task_file" ]; then
+                    echo -e "${RED}ERROR: Task $task_id not found${NC}" >&2
+                    exit 1
+                fi
+
+                # Extract ## Verification block
+                local verification
+                # shellcheck disable=SC2016 # backtick pattern is literal
+                verification=$(sed -n '/^## Verification/,/^##/p' "$task_file" | \
+                              grep -v "^##" | \
+                              grep -v '^\`\`\`' | \
+                              grep -v "^#" | \
+                              grep -v "^$")
+
+                if [ -z "$verification" ]; then
+                    echo -e "${YELLOW}No verification commands found in task $task_id${NC}"
+                    exit 0
+                fi
+
+                # Run each command
+                local passed=0
+                local failed=0
+                local total=0
+
+                echo -e "${CYAN}=== Verification: $task_id ===${NC}"
+                echo
+
+                while IFS= read -r cmd; do
+                    total=$((total + 1))
+                    echo -e "[$total] ${BOLD}$cmd${NC}"
+
+                    if eval "$cmd" >/dev/null 2>&1; then
+                        echo -e "  ${GREEN}✓ PASS${NC}"
+                        passed=$((passed + 1))
+                    else
+                        echo -e "  ${RED}✗ FAIL${NC}"
+                        failed=$((failed + 1))
+                    fi
+                done <<< "$verification"
+
+                echo
+                echo -e "${BOLD}Verification:${NC} $passed/$total passed"
+
+                if [ $failed -gt 0 ]; then
+                    exit 1
+                else
+                    exit 0
+                fi
+            else
+                # T-193: List tasks with unchecked human ACs (awaiting human verification)
+                python3 << 'PYTASK_VERIFY'
+import os, re
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+active_dir = os.path.join(project_root, '.tasks', 'active')
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+results = []
+
+if os.path.isdir(active_dir):
+    for fn in sorted(os.listdir(active_dir)):
+        if not fn.endswith('.md'):
+            continue
+        path = os.path.join(active_dir, fn)
+        with open(path) as f:
+            text = f.read()
+
+        # Extract frontmatter
+        fm = {}
+        if text.startswith('---'):
+            try:
+                end = text.index('---', 3)
+                import yaml
+                fm = yaml.safe_load(text[3:end]) or {}
+            except:
+                pass
+
+        # Find ## Acceptance Criteria section
+        ac_match = re.search(r'^## Acceptance Criteria\s*\n(.*?)(?=\n## |\Z)', text, re.MULTILINE | re.DOTALL)
+        if not ac_match:
+            continue
+
+        ac_section = ac_match.group(1)
+
+        # Check for ### Human header
+        if '### Human' not in ac_section:
+            continue
+
+        # Extract human ACs
+        human_match = re.search(r'### Human\s*\n(.*?)(?=\n### |\Z)', ac_section, re.DOTALL)
+        if not human_match:
+            continue
+
+        human_block = human_match.group(1)
+        human_total = len(re.findall(r'^\s*-\s*\[[ x]\]', human_block, re.MULTILINE))
+        human_checked = len(re.findall(r'^\s*-\s*\[x\]', human_block, re.MULTILINE))
+        human_unchecked = human_total - human_checked
+
+        if human_unchecked > 0:
+            unchecked_items = re.findall(r'^\s*-\s*\[ \]\s*(.*)', human_block, re.MULTILINE)
+            results.append({
+                'id': fm.get('id', fn),
+                'name': fm.get('name', ''),
+                'status': fm.get('status', '?'),
+                'total': human_total,
+                'checked': human_checked,
+                'unchecked': human_unchecked,
+                'items': unchecked_items,
+            })
+
+if results:
+    print(f'{BOLD}Awaiting Human Verification{NC} ({len(results)} task(s))')
+    print()
+    for r in results:
+        print(f'  {YELLOW}{r["id"]}{NC}: {r["name"]}')
+        print(f'    Status: {r["status"]}  Human ACs: {r["checked"]}/{r["total"]} checked')
+        for item in r['items']:
+            print(f'    {YELLOW}[ ]{NC} {item}')
+        print(f'    Finalize: fw task update {r["id"]} --status work-completed')
+        print()
+else:
+    print(f'{GREEN}No tasks awaiting human verification{NC}')
+PYTASK_VERIFY
+            fi
+            ;;
+        review)
+            # T-631/T-634: Print clickable URL + QR code for Human AC review
+            local task_id="${1:-}"
+            local poll_flag="${2:-}"
+
+            if [ -z "$task_id" ]; then
+                echo -e "${RED}Usage: fw task review T-XXX [--poll]${NC}" >&2
+                exit 1
+            fi
+
+            # Find task file
+            local task_file=""
+            for f in "$PROJECT_ROOT/.tasks/active/$task_id"*.md "$PROJECT_ROOT/.tasks/completed/$task_id"*.md; do
+                if [ -f "$f" ]; then
+                    task_file="$f"
+                    break
+                fi
+            done
+            if [ -z "$task_file" ]; then
+                echo -e "${RED}ERROR: Task $task_id not found${NC}" >&2
+                exit 1
+            fi
+
+            # Placeholder audit chokepoint (T-1111/T-1113) — block review if the
+            # task file still contains literal template stubs. Runs BEFORE
+            # emit_review so no review marker is created on failure.
+            source "$FW_LIB_DIR/task-audit.sh"
+            if ! audit_task_placeholders "$task_file"; then
+                exit 1
+            fi
+
+            # Shared review output (T-634)
+            source "$FW_LIB_DIR/review.sh"
+            emit_review "$task_id" "$task_file"
+
+            # Optional polling mode
+            if [ "$poll_flag" = "--poll" ]; then
+                echo -e "${CYAN}Polling for Human AC completion (timeout 10min)...${NC}"
+                local timeout=600
+                local elapsed=0
+                while [ $elapsed -lt $timeout ]; do
+                    sleep 5
+                    elapsed=$((elapsed + 5))
+                    # Count Human ACs from task file
+                    local human_total=0 human_checked=0 in_human=false
+                    while IFS= read -r line; do
+                        if echo "$line" | grep -q '### Human'; then
+                            in_human=true; continue
+                        fi
+                        if $in_human && echo "$line" | grep -qE '^### |^## '; then
+                            break
+                        fi
+                        if $in_human && echo "$line" | grep -qE '^\- \[[ xX]\]'; then
+                            human_total=$((human_total + 1))
+                            if echo "$line" | grep -qE '^\- \[[xX]\]'; then
+                                human_checked=$((human_checked + 1))
+                            fi
+                        fi
+                    done < "$task_file"
+
+                    if [ "$human_checked" -ge "$human_total" ] && [ "$human_total" -gt 0 ]; then
+                        echo -e "${GREEN}All Human ACs checked (${human_checked}/${human_total})${NC}"
+                        exit 0
+                    fi
+                    printf "\r  Waiting... %s/%s checked (%ss)" "$human_checked" "$human_total" "$elapsed"
+                done
+                echo ""
+                echo -e "${YELLOW}Timeout — ${human_checked}/${human_total} Human ACs checked${NC}"
+                exit 1
+            fi
+            ;;
+        ""|help|-h|--help)
+            echo -e "${BOLD}fw task${NC} - Task management"
+            echo ""
+            echo "Subcommands:"
+            echo "  create    Create a new task"
+            echo "  update    Update task status (auto-triggers healing/episodic)"
+            echo "  list      List all tasks (filterable)"
+            echo "  show      Show task detail with episodic summary"
+            echo "  stale     Show tasks with no updates in 7+ days (--days N)"
+            echo "  verify [T-XXX]    Run verification commands (T-070) or list awaiting tasks (T-193)"
+            echo "  review T-XXX      Print clickable URL + QR code for Human AC review"
+            echo ""
+            echo "Usage:"
+            echo '  fw task create --name "Fix bug" --type build --owner human'
+            echo '  fw task update T-XXX --status issues --reason "API timeout"'
+            echo '  fw task update T-XXX --add-tag "watchtower,ui"'
+            echo '  fw task update T-XXX --status work-completed'
+            echo '  fw task verify T-XXX  # Run verification commands from task'
+            echo '  fw task review T-631  # Print URL + QR for Human AC review'
+            echo '  fw task review T-631 --poll  # Poll until all Human ACs checked'
+            echo '  fw task list --status captured --type build'
+            echo '  fw task list --tag watchtower'
+            echo '  fw task show T-001'
+            echo '  fw task stale            # Show tasks older than 7 days'
+            echo '  fw task stale --days 14  # Show tasks older than 14 days'
+            echo '  fw task verify  # List tasks awaiting human verification'
+            ;;
+        stale)
+            # T-812: Show tasks that haven't had updates or commits in N days
+            FW_TASK_STALE_ARGS="$*" python3 - << 'PYTASK_STALE'
+import os, sys, shlex
+from datetime import datetime, timezone, timedelta
+
+args = shlex.split(os.environ.get('FW_TASK_STALE_ARGS', ''))
+threshold_days = 7
+i = 0
+while i < len(args):
+    if args[i] == '--days' and i + 1 < len(args):
+        threshold_days = int(args[i+1]); i += 2
+    elif args[i] in ('-h', '--help'):
+        print("Usage: fw task stale [--days N]")
+        print("  Show active tasks with no updates in the last N days (default: 7)")
+        sys.exit(0)
+    else:
+        i += 1
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+RED = '\033[0;31m'
+NC = '\033[0m'
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+active_dir = os.path.join(project_root, '.tasks', 'active')
+
+if not os.path.isdir(active_dir):
+    print(f'{RED}No active tasks directory{NC}')
+    sys.exit(1)
+
+now = datetime.now(timezone.utc)
+cutoff = now - timedelta(days=threshold_days)
+stale_tasks = []
+
+for fn in sorted(os.listdir(active_dir)):
+    if not fn.endswith('.md'):
+        continue
+
+    filepath = os.path.join(active_dir, fn)
+    try:
+        with open(filepath) as f:
+            text = f.read()
+    except:
+        continue
+
+    if not text.startswith('---'):
+        continue
+
+    try:
+        end = text.index('---', 3)
+        block = text[3:end]
+    except ValueError:
+        continue
+
+    # Parse frontmatter fields
+    fm = {}
+    for line in block.strip().split('\n'):
+        if ':' in line:
+            key = line.split(':')[0].strip()
+            val = ':'.join(line.split(':')[1:]).strip().strip('"').strip("'")
+            fm[key] = val
+
+    task_id = fm.get('id', '?')
+    status = fm.get('status', '?')
+    name = fm.get('name', '?')
+    horizon = fm.get('horizon', '?')
+    last_update = fm.get('last_update', fm.get('created', ''))
+
+    # Parse last_update as datetime
+    try:
+        if 'T' in last_update:
+            lu = datetime.fromisoformat(last_update.replace('Z', '+00:00'))
+        else:
+            lu = datetime.strptime(last_update[:10], '%Y-%m-%d').replace(tzinfo=timezone.utc)
+    except:
+        lu = None
+
+    if lu and lu < cutoff:
+        age_days = (now - lu).days
+        stale_tasks.append({
+            'id': task_id, 'name': name, 'status': status,
+            'horizon': horizon, 'age': age_days, 'last_update': last_update[:10]
+        })
+
+# Sort by age descending
+stale_tasks.sort(key=lambda t: -t['age'])
+
+if not stale_tasks:
+    print(f'{GREEN}No stale tasks (threshold: {threshold_days} days){NC}')
+    sys.exit(0)
+
+print(f'{BOLD}Stale Tasks{NC} ({len(stale_tasks)} older than {threshold_days} days)')
+print()
+print(f'  {"ID":<8} {"Age":>5} {"Last Update":<12} {"Status":<18} {"Hz":<6} {"Name"}')
+print(f'  {"─"*8} {"─"*5} {"─"*12} {"─"*18} {"─"*6} {"─"*30}')
+
+for t in stale_tasks:
+    age_str = f'{t["age"]}d'
+    color = RED if t['age'] > 30 else YELLOW if t['age'] > 14 else NC
+    print(f'  {t["id"]:<8} {color}{age_str:>5}{NC} {t["last_update"]:<12} {t["status"]:<18} {t["horizon"]:<6} {t["name"][:50]}')
+PYTASK_STALE
+            ;;
+        *)
+            echo -e "${RED}Unknown task subcommand: $subcmd${NC}"
+            echo "Run 'fw task help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+# --- Main Command Routing ---
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+    ask)
+        exec "$FW_LIB_DIR/ask.sh" "$@"
+        ;;
+    audit)
+        exec "$AGENTS_DIR/audit/audit.sh" "$@"
+        ;;
+    self-audit)
+        exec "$AGENTS_DIR/audit/self-audit.sh" "$@"
+        ;;
+    test-onboarding)
+        exec "$AGENTS_DIR/onboarding-test/test-onboarding.sh" "$@"
+        ;;
+    plugin-audit)
+        exec "$AGENTS_DIR/audit/plugin-audit.sh" "$@"
+        ;;
+    context)
+        exec "$AGENTS_DIR/context/context.sh" "$@"
+        ;;
+    cron)
+        # T-448: Cron registry management
+        cron_subcmd="${1:-}"
+        shift || true
+        case "$cron_subcmd" in
+            generate)
+                # Regenerate crontab from registry YAML
+                _cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+                if [ ! -f "$_cron_registry" ]; then
+                    echo -e "${RED}ERROR:${NC} No cron registry found at $_cron_registry"
+                    exit 1
+                fi
+                python3 -c "
+import yaml, os, re, sys
+
+project_root = '$PROJECT_ROOT'
+fw_path = '$FRAMEWORK_ROOT/bin/fw'
+registry_file = '$_cron_registry'
+
+data = yaml.safe_load(open(registry_file))
+jobs = data.get('jobs', [])
+
+slug = os.path.basename(project_root).lower()
+slug = re.sub(r'[^a-z0-9_-]', '-', slug)
+cron_source = os.path.join(project_root, '.context', 'cron', 'agentic-audit.crontab')
+cron_install = f'/etc/cron.d/agentic-audit-{slug}'
+
+lines = [
+    f'# Agentic Engineering Framework — Scheduled Jobs (managed by cron-registry.yaml)',
+    f'# Source of truth: {cron_source} (git-tracked)',
+    f'# Installed to: {cron_install}',
+    f'# Project: {project_root}',
+    'SHELL=/bin/bash',
+    'PATH=/usr/local/bin:/usr/bin:/bin',
+    '',
+]
+
+active = paused = 0
+for job in jobs:
+    schedule = job.get('schedule', '')
+    command = job.get('command', '')
+    name = job.get('name', '')
+    status = job.get('status', 'active')
+
+    if command.startswith('fw '):
+        resolved = f'PROJECT_ROOT=\"{project_root}\" \"{fw_path}\" {command[3:]}'
+    else:
+        # All non-fw commands run from project root (relative paths need it)
+        resolved = f'cd \"{project_root}\" && {command}'
+
+    if '2>/dev/null' not in resolved:
+        resolved += ' 2>/dev/null'
+
+    lines.append(f'# {name}')
+    if status == 'paused':
+        lines.append(f'# PAUSED: {schedule} root {resolved}')
+        paused += 1
+    else:
+        lines.append(f'{schedule} root {resolved}')
+        active += 1
+    lines.append('')
+
+os.makedirs(os.path.dirname(cron_source), exist_ok=True)
+with open(cron_source, 'w') as f:
+    f.write('\n'.join(lines))
+
+print(f'Generated {cron_source}')
+print(f'  {active} active, {paused} paused ({len(jobs)} total)')
+print(f'  Install with: fw audit schedule install')
+"
+                ;;
+            status)
+                # Show registry status
+                _cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+                if [ ! -f "$_cron_registry" ]; then
+                    echo "No cron registry at $_cron_registry"
+                    exit 0
+                fi
+                python3 -c "
+import yaml
+data = yaml.safe_load(open('$_cron_registry'))
+jobs = data.get('jobs', [])
+active = sum(1 for j in jobs if j.get('status') == 'active')
+paused = sum(1 for j in jobs if j.get('status') == 'paused')
+print(f'Cron registry: {len(jobs)} jobs ({active} active, {paused} paused)')
+for j in jobs:
+    s = j.get('status', 'active')
+    icon = '  ✓' if s == 'active' else '  ‖'
+    print(f'{icon} {j[\"id\"]:25s} {j[\"schedule\"]:20s} [{s}]  {j.get(\"name\",\"\")}')
+"
+                ;;
+            list)
+                # Alias for status
+                _cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+                if [ ! -f "$_cron_registry" ]; then
+                    echo "No cron registry at $_cron_registry"
+                    exit 0
+                fi
+                python3 -c "
+import yaml
+data = yaml.safe_load(open('$_cron_registry'))
+jobs = data.get('jobs', [])
+active = sum(1 for j in jobs if j.get('status') == 'active')
+paused = sum(1 for j in jobs if j.get('status') == 'paused')
+print(f'Cron registry: {len(jobs)} jobs ({active} active, {paused} paused)')
+for j in jobs:
+    s = j.get('status', 'active')
+    icon = '  ✓' if s == 'active' else '  ‖'
+    print(f'{icon} {j[\"id\"]:25s} {j[\"schedule\"]:20s} [{s}]  {j.get(\"name\",\"\")}')
+"
+                ;;
+            run)
+                # Run a job immediately (T-654)
+                _cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+                _job_id="${1:-}"
+                if [ -z "$_job_id" ] || [ ! -f "$_cron_registry" ]; then
+                    if [ ! -f "$_cron_registry" ]; then
+                        echo -e "${RED}ERROR:${NC} No cron registry at $_cron_registry"
+                        exit 1
+                    fi
+                    echo -e "${RED}Usage:${NC} fw cron run <job-id>"
+                    echo ""
+                    echo "Available jobs:"
+                    python3 -c "
+import yaml
+data = yaml.safe_load(open('$_cron_registry'))
+for j in data.get('jobs', []):
+    print(f'  {j[\"id\"]:25s} {j.get(\"name\",\"\")}')
+"
+                    exit 1
+                fi
+                python3 -c "
+import yaml, subprocess, time, sys, os
+
+data = yaml.safe_load(open('$_cron_registry'))
+job = None
+for j in data.get('jobs', []):
+    if j.get('id') == '$_job_id':
+        job = j
+        break
+
+if not job:
+    print(f'ERROR: Job \"$_job_id\" not found in registry', file=sys.stderr)
+    sys.exit(1)
+
+command = job.get('command', '')
+if not command:
+    print('ERROR: Job has no command', file=sys.stderr)
+    sys.exit(1)
+
+# Resolve fw commands
+if command.startswith('fw '):
+    command = f'$FRAMEWORK_ROOT/bin/fw {command[3:]}'
+elif command.startswith('find '):
+    command = f'cd \"$PROJECT_ROOT\" && {command}'
+
+print(f'Running: {job.get(\"name\", \"\")} ({job[\"id\"]})')
+print(f'Command: {command}')
+print()
+
+start = time.time()
+try:
+    result = subprocess.run(
+        command, shell=True, capture_output=True, text=True,
+        timeout=120, cwd='$PROJECT_ROOT',
+        env={**os.environ, 'PROJECT_ROOT': '$PROJECT_ROOT'}
+    )
+    elapsed = time.time() - start
+    if result.stdout:
+        # Show last 10 lines of output
+        lines = result.stdout.strip().split('\n')
+        for line in lines[-10:]:
+            print(f'  {line}')
+    if result.stderr and result.returncode != 0:
+        for line in result.stderr.strip().split('\n')[-5:]:
+            print(f'  STDERR: {line}')
+    print()
+    print(f'Exit: {result.returncode} ({elapsed:.1f}s)')
+    sys.exit(result.returncode)
+except subprocess.TimeoutExpired:
+    print('ERROR: Command timed out after 120s', file=sys.stderr)
+    sys.exit(124)
+"
+                ;;
+            pause|resume)
+                # Pause or resume a job (T-655)
+                _cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+                _job_id="${1:-}"
+                _action="$cron_subcmd"
+                _new_status="paused"
+                [ "$_action" = "resume" ] && _new_status="active"
+
+                if [ -z "$_job_id" ] || [ ! -f "$_cron_registry" ]; then
+                    if [ ! -f "$_cron_registry" ]; then
+                        echo -e "${RED}ERROR:${NC} No cron registry at $_cron_registry"
+                        exit 1
+                    fi
+                    echo -e "${RED}Usage:${NC} fw cron $_action <job-id>"
+                    echo ""
+                    echo "Available jobs:"
+                    python3 -c "
+import yaml
+data = yaml.safe_load(open('$_cron_registry'))
+for j in data.get('jobs', []):
+    s = j.get('status', 'active')
+    print(f'  {j[\"id\"]:25s} [{s}]  {j.get(\"name\",\"\")}')
+"
+                    exit 1
+                fi
+                python3 -c "
+import yaml, sys
+
+data = yaml.safe_load(open('$_cron_registry'))
+job = None
+for j in data.get('jobs', []):
+    if j.get('id') == '$_job_id':
+        job = j
+        break
+
+if not job:
+    print(f'ERROR: Job \"$_job_id\" not found', file=sys.stderr)
+    sys.exit(1)
+
+old_status = job.get('status', 'active')
+new_status = '$_new_status'
+if old_status == new_status:
+    print(f'Job \"{job[\"id\"]}\" is already {new_status}')
+    sys.exit(0)
+
+job['status'] = new_status
+with open('$_cron_registry', 'w') as f:
+    yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+print(f'{\"Paused\" if new_status == \"paused\" else \"Resumed\"}: {job.get(\"name\", job[\"id\"])}')
+print(f'  Status: {old_status} → {new_status}')
+print(f'  Run \"fw cron generate\" to update the crontab file')
+"
+                ;;
+            install)
+                # T-1114: Unified generate + install chokepoint. Replaces the
+                # two-step "fw cron generate" + "fw audit schedule install"
+                # dance that silently clobbered the registry-sourced crontab
+                # with a hardcoded template (see T-1112 RCA).
+                _install_dry_run=false
+                while [ $# -gt 0 ]; do
+                    case "$1" in
+                        --dry-run) _install_dry_run=true; shift ;;
+                        *) shift ;;
+                    esac
+                done
+
+                _cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+                if [ ! -f "$_cron_registry" ]; then
+                    echo -e "${RED}ERROR:${NC} No cron registry found at $_cron_registry" >&2
+                    exit 1
+                fi
+
+                _cron_source="$PROJECT_ROOT/.context/cron/agentic-audit.crontab"
+                _cron_target_dir="${FW_CRON_INSTALL_DIR:-/etc/cron.d}"
+                _cron_slug=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g')
+                _cron_target="$_cron_target_dir/agentic-audit-${_cron_slug}"
+
+                # Step 1: regenerate crontab from registry (re-using fw cron generate logic)
+                if ! "$0" cron generate >/dev/null; then
+                    echo -e "${RED}ERROR:${NC} fw cron generate failed" >&2
+                    exit 1
+                fi
+                if [ ! -f "$_cron_source" ]; then
+                    echo -e "${RED}ERROR:${NC} Expected $_cron_source after generate" >&2
+                    exit 1
+                fi
+
+                # Step 2: compute diff vs currently installed
+                if [ -f "$_cron_target" ] && diff -q "$_cron_source" "$_cron_target" >/dev/null 2>&1; then
+                    echo "Cron in sync: $_cron_target"
+                    echo "  Source: $_cron_source"
+                    exit 0
+                fi
+
+                echo "Pending cron changes:"
+                if [ -f "$_cron_target" ]; then
+                    diff -u "$_cron_target" "$_cron_source" | sed 's/^/  /' || true
+                else
+                    echo "  (new install — $_cron_target does not exist)"
+                    sed -n '1,20p' "$_cron_source" | sed 's/^/  /'
+                    echo "  ..."
+                fi
+
+                if $_install_dry_run; then
+                    echo ""
+                    echo "(dry-run — no changes made)"
+                    echo "Run without --dry-run to apply."
+                    exit 0
+                fi
+
+                # Step 3: install atomically with sudo degradation
+                mkdir -p "$_cron_target_dir" 2>/dev/null || true
+                if [ "$(id -u)" = "0" ] || [ "$_cron_target_dir" != "/etc/cron.d" ]; then
+                    install -m 0644 "$_cron_source" "$_cron_target"
+                    echo "Installed: $_cron_target"
+                elif command -v sudo >/dev/null 2>&1; then
+                    sudo install -m 0644 "$_cron_source" "$_cron_target"
+                    echo "Installed (via sudo): $_cron_target"
+                else
+                    echo ""
+                    echo "NOTE: Root permissions required to install cron."
+                    echo "Run this command manually:"
+                    echo ""
+                    echo "  sudo install -m 0644 \"$_cron_source\" \"$_cron_target\""
+                    echo ""
+                    exit 1
+                fi
+                ;;
+            ""|help|-h|--help)
+                echo -e "${BOLD}fw cron${NC} — Cron registry management (T-448)"
+                echo ""
+                echo "Subcommands:"
+                echo "  generate          Regenerate crontab from registry YAML"
+                echo "  install [--dry-run]  Generate + install to /etc/cron.d/ atomically"
+                echo "  status            Show registry status (jobs, active/paused)"
+                echo "  list              Alias for status"
+                echo "  run <id>          Run a job immediately"
+                echo "  pause <id>        Pause a job (comments out in crontab)"
+                echo "  resume <id>       Resume a paused job"
+                echo ""
+                echo "Registry: .context/cron-registry.yaml"
+                echo "Web UI:   http://localhost:3000/cron"
+                echo ""
+                echo "Env overrides:"
+                echo "  FW_CRON_INSTALL_DIR  Target directory (default /etc/cron.d)"
+                ;;
+            *)
+                echo -e "${RED}Unknown cron subcommand:${NC} $cron_subcmd"
+                echo "Run 'fw cron help' for usage."
+                exit 1
+                ;;
+        esac
+        ;;
+    docs)
+        if [ "${1:-}" = "article" ]; then
+            shift
+            exec "$AGENTS_DIR/docgen/generate-article.sh" "$@"
+        fi
+        exec "$AGENTS_DIR/docgen/generate-component.sh" "$@"
+        ;;
+    fabric)
+        exec "$AGENTS_DIR/fabric/fabric.sh" "$@"
+        ;;
+    git)
+        exec "$AGENTS_DIR/git/git.sh" "$@"
+        ;;
+    handover)
+        exec "$AGENTS_DIR/handover/handover.sh" "$@"
+        ;;
+    healing)
+        exec "$AGENTS_DIR/healing/healing.sh" "$@"
+        ;;
+    resume)
+        exec "$AGENTS_DIR/resume/resume.sh" "$@"
+        ;;
+    inception)
+        source "$FW_LIB_DIR/tasks.sh"
+        source "$FW_LIB_DIR/inception.sh"
+        do_inception "$@"
+        ;;
+    promote)
+        source "$FW_LIB_DIR/promote.sh"
+        do_promote "$@"
+        ;;
+    assumption)
+        source "$FW_LIB_DIR/assumption.sh"
+        do_assumption "$@"
+        ;;
+    bus)
+        source "$FW_LIB_DIR/bus.sh"
+        do_bus "$@"
+        ;;
+    dispatch)
+        source "$FW_LIB_DIR/dispatch.sh"
+        do_dispatch "$@"
+        ;;
+    pickup)
+        source "$FW_LIB_DIR/pickup.sh"
+        do_pickup "$@"
+        ;;
+    upstream)
+        source "$FW_LIB_DIR/upstream.sh"
+        do_upstream "$@"
+        ;;
+    consolidate)
+        exec python3 "$AGENTS_DIR/context/consolidate.py" "$@"
+        ;;
+    mcp)
+        mcp_subcmd="${1:-}"
+        shift || true
+        case "$mcp_subcmd" in
+            reap)
+                exec "$AGENTS_DIR/mcp/mcp-reaper.sh" "$@"
+                ;;
+            ""|help|-h|--help)
+                echo -e "${BOLD}fw mcp${NC} — MCP server process management"
+                echo ""
+                echo "Subcommands:"
+                echo "  reap [--dry-run] [--force] [--age N] [--quiet]   Kill orphaned MCP processes"
+                echo ""
+                echo "Examples:"
+                echo "  fw mcp reap              # Interactive: detect + confirm"
+                echo "  fw mcp reap --dry-run    # Detection only"
+                echo "  fw mcp reap --force      # Kill without confirmation"
+                ;;
+            *)
+                echo -e "${RED}Unknown mcp subcommand: $mcp_subcmd${NC}"
+                echo "Run 'fw mcp help' for usage"
+                exit 1
+                ;;
+        esac
+        ;;
+    fix-learned)
+        # Shortcut: fw fix-learned T-XXX "what was learned"
+        fl_task="${1:-}"
+        fl_text="${2:-}"
+        if [ -z "$fl_task" ] || [ -z "$fl_text" ]; then
+            echo -e "${RED}Usage: fw fix-learned T-XXX \"what was learned from this bugfix\"${NC}"
+            echo ""
+            echo "Shortcut for capturing learnings during bugfix cycles (G-016)."
+            echo "Equivalent to: fw context add-learning \"text\" --task T-XXX --source P-001"
+            exit 1
+        fi
+        exec "$AGENTS_DIR/context/context.sh" add-learning "$fl_text" --task "$fl_task" --source P-001
+        ;;
+    note)
+        exec "$AGENTS_DIR/observe/observe.sh" "$@"
+        ;;
+    recall)
+        RECALL_QUERY="${*}"
+        if [ -z "$RECALL_QUERY" ]; then
+            echo -e "${RED}Usage: fw recall <query>${NC}"
+            echo "  Query project memory for relevant learnings, patterns, and decisions."
+            echo ""
+            echo "Examples:"
+            echo "  fw recall \"audit enforcement\""
+            echo "  fw recall \"context budget management\""
+            exit 1
+        fi
+        exec python3 "$AGENTS_DIR/context/lib/memory-recall.py" --query "$RECALL_QUERY"
+        ;;
+    scan)
+        if ! python3 -c "import yaml" 2>/dev/null; then
+            echo -e "${RED}ERROR: PyYAML is not installed${NC}" >&2
+            echo "  pip install -r $FRAMEWORK_ROOT/web/requirements.txt" >&2
+            exit 1
+        fi
+        cd "$FRAMEWORK_ROOT" && exec python3 -m web.watchtower "$@"
+        ;;
+    serve)
+        # Delegate to watchtower.sh for reliable start/stop/restart
+        # If first arg looks like an option (--port, --debug), treat as 'start'
+        if [ $# -gt 0 ] && [[ "$1" == --* ]]; then
+            exec "$FRAMEWORK_ROOT/bin/watchtower.sh" start "$@"
+        fi
+        # Default to 'start' if no args
+        if [ $# -eq 0 ]; then
+            exec "$FRAMEWORK_ROOT/bin/watchtower.sh" start
+        fi
+        exec "$FRAMEWORK_ROOT/bin/watchtower.sh" "$@"
+        ;;
+    deploy)
+        DEPLOYER="/opt/claude-shared-toolkit/skills/infrastructure/ring20-deployer/scripts/ring20_deployer.py"
+        if [ ! -f "$DEPLOYER" ]; then
+            echo -e "${RED}ERROR: ring20-deployer not found at $DEPLOYER${NC}" >&2
+            echo "  Install: git clone <toolkit-repo> /opt/claude-shared-toolkit" >&2
+            exit 1
+        fi
+
+        # Passthrough subcommands that don't need gates
+        deploy_subcmd="${1:-}"
+        case "$deploy_subcmd" in
+            status|ports|routes|--help|-h|"")
+                exec python3 "$DEPLOYER" "$@"
+                ;;
+            scaffold)
+                # Scaffold generates files — run pre-deploy audit first (T-275)
+                echo -e "${CYAN}=== Pre-Deploy Audit ===${NC}"
+                AUDIT_EXIT=0
+                "$FRAMEWORK_ROOT/agents/audit/audit.sh" --section deployment || AUDIT_EXIT=$?
+
+                if [ "$AUDIT_EXIT" -eq 2 ]; then
+                    echo -e "${RED}Pre-deploy audit FAILED — deployment blocked${NC}" >&2
+                    echo "  Fix the failures above, then retry: fw deploy $*" >&2
+                    exit 1
+                elif [ "$AUDIT_EXIT" -eq 1 ]; then
+                    echo -e "${YELLOW}Pre-deploy audit has warnings — proceeding${NC}"
+                fi
+
+                # Run the deployer
+                python3 "$DEPLOYER" "$@"
+                DEPLOY_EXIT=$?
+
+                # Log deployment record
+                DEPLOY_DIR="$PROJECT_ROOT/.context/deployments"
+                mkdir -p "$DEPLOY_DIR"
+                DEPLOY_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+                DEPLOY_FILE="$DEPLOY_DIR/$(date +%Y-%m-%d-%H%M).yaml"
+                FOCUS_TASK=$(grep -E '^(task_id|current_task):' "$PROJECT_ROOT/.context/working/focus.yaml" 2>/dev/null | head -1 | awk '{print $2}' | tr -d '"')
+                HEAD_COMMIT=$(cd "$PROJECT_ROOT" && git rev-parse --short HEAD 2>/dev/null)
+
+                cat > "$DEPLOY_FILE" << DEPLOYEOF
+# Deployment Record — $(date +%Y-%m-%d %H:%M)
+timestamp: $DEPLOY_TS
+app: $(echo "$@" | sed -n 's/.*--app \([^ ]*\).*/\1/p' || echo "unknown")
+command: fw deploy $*
+task: ${FOCUS_TASK:-none}
+commit: ${HEAD_COMMIT:-unknown}
+gates:
+  audit_exit: $AUDIT_EXIT
+  deploy_exit: $DEPLOY_EXIT
+result: $([ "$DEPLOY_EXIT" -eq 0 ] && echo "success" || echo "failed")
+DEPLOYEOF
+                echo -e "${GREEN}Deployment record: $DEPLOY_FILE${NC}"
+                exit $DEPLOY_EXIT
+                ;;
+            *)
+                # Unknown subcommand — pass through
+                exec python3 "$DEPLOYER" "$@"
+                ;;
+        esac
+        ;;
+    tier0)
+        # Tier 0 enforcement — approve or inspect blocked commands
+        tier0_subcmd="${1:-}"
+        shift || true
+        case "$tier0_subcmd" in
+            approve)
+                PENDING_FILE="$PROJECT_ROOT/.context/working/.tier0-approval.pending"
+                APPROVAL_FILE="$PROJECT_ROOT/.context/working/.tier0-approval"
+                if [ ! -f "$PENDING_FILE" ]; then
+                    echo -e "${YELLOW}No pending Tier 0 block to approve${NC}"
+                    echo "A Tier 0 block must occur first before you can approve it."
+                    exit 1
+                fi
+                PENDING_HASH=$(awk '{print $1}' "$PENDING_FILE")
+                echo -e "${BOLD}Tier 0 Approval${NC}"
+                echo ""
+                echo -e "  Approving command with hash: ${CYAN}${PENDING_HASH:0:16}...${NC}"
+                echo ""
+                echo -e "  ${YELLOW}This allows a blocked destructive command to execute once.${NC}"
+                echo -e "  The approval expires in 5 minutes and is logged for audit."
+                echo ""
+                # Write the approval (hash + current timestamp)
+                echo "$PENDING_HASH $(date +%s)" > "$APPROVAL_FILE"
+                rm -f "$PENDING_FILE"
+                echo -e "${GREEN}Approved.${NC} Retry the command now."
+                ;;
+            status)
+                PENDING_FILE="$PROJECT_ROOT/.context/working/.tier0-approval.pending"
+                APPROVAL_FILE="$PROJECT_ROOT/.context/working/.tier0-approval"
+                LOG_FILE="$PROJECT_ROOT/.context/bypass-log.yaml"
+                echo -e "${BOLD}Tier 0 Enforcement Status${NC}"
+                echo ""
+                if [ -f "$PENDING_FILE" ]; then
+                    echo -e "  ${YELLOW}Pending block:${NC} A command is waiting for approval"
+                    echo "    Run 'fw tier0 approve' to allow it"
+                elif [ -f "$APPROVAL_FILE" ]; then
+                    echo -e "  ${GREEN}Active approval:${NC} One command approved (not yet used)"
+                else
+                    echo -e "  ${GREEN}Clean:${NC} No pending blocks or approvals"
+                fi
+                echo ""
+                if [ -f "$LOG_FILE" ]; then
+                    tier0_count=$(python3 -c "
+import yaml
+with open('$LOG_FILE') as f:
+    data = yaml.safe_load(f) or {}
+tier0 = [b for b in data.get('bypasses', []) if b.get('tier') == 0]
+print(len(tier0))
+" 2>/dev/null || echo 0)
+                    echo -e "  Tier 0 approvals logged: $tier0_count"
+                fi
+                ;;
+            ""|help|-h|--help)
+                echo -e "${BOLD}fw tier0${NC} — Tier 0 enforcement management"
+                echo ""
+                echo "Subcommands:"
+                echo "  approve    Approve a pending Tier 0 blocked command"
+                echo "  status     Show Tier 0 enforcement status"
+                echo ""
+                echo "Tier 0 commands are destructive operations that require"
+                echo "explicit human approval before an AI agent can execute them."
+                echo "See: 011-EnforcementConfig.md"
+                ;;
+            *)
+                echo -e "${RED}Unknown tier0 subcommand: $tier0_subcmd${NC}"
+                echo "Run 'fw tier0 help' for usage"
+                exit 1
+                ;;
+        esac
+        ;;
+    approvals)
+        # Approval queue management — pending/status/expire (T-612)
+        approvals_subcmd="${1:-}"
+        shift || true
+        APPROVAL_DIR="$PROJECT_ROOT/.context/approvals"
+        case "$approvals_subcmd" in
+            pending)
+                echo -e "${BOLD}Pending Approvals${NC}"
+                echo ""
+                if [ ! -d "$APPROVAL_DIR" ]; then
+                    echo -e "  ${GREEN}No approvals directory — nothing pending${NC}"
+                    exit 0
+                fi
+                found=0
+                now=$(date +%s)
+                ttl="${TIER0_WATCHTOWER_TTL:-3600}"
+                for f in "$APPROVAL_DIR"/pending-*.yaml; do
+                    [ -f "$f" ] || continue
+                    # Check expiry and display
+                    T0_FILE="$f" T0_NOW="$now" T0_TTL="$ttl" python3 -c "
+import yaml, re, os, sys
+from datetime import datetime, timezone
+
+f = os.environ['T0_FILE']
+now = int(os.environ['T0_NOW'])
+ttl = int(os.environ['T0_TTL'])
+
+try:
+    with open(f) as fh:
+        data = yaml.safe_load(fh) or {}
+except yaml.YAMLError:
+    # Fallback: parse key fields with regex for malformed YAML
+    with open(f) as fh:
+        raw = fh.read()
+    data = {}
+    for key in ('timestamp', 'status', 'risk', 'command_preview', 'command_hash'):
+        m = re.search(rf'^{key}:\s*[\"'']?(.+?)[\"'']?\s*$', raw, re.MULTILINE)
+        if m:
+            data[key] = m.group(1)
+
+ts = data.get('timestamp', '')
+status = data.get('status', 'pending')
+risk = str(data.get('risk', 'unknown'))[:80]
+preview = str(data.get('command_preview', ''))[:60]
+chash = str(data.get('command_hash', ''))[:12]
+
+age_str = '?'
+expired = False
+if ts:
+    try:
+        dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+        age = now - dt.timestamp()
+        if age > ttl:
+            expired = True
+            status = 'expired'
+        mins = int(age / 60)
+        if mins < 60:
+            age_str = f'{mins}m ago'
+        else:
+            age_str = f'{mins // 60}h {mins % 60}m ago'
+    except:
+        pass
+
+color = '\033[1;33m' if not expired else '\033[0;31m'
+nc = '\033[0m'
+print(f'  {color}{status.upper()}{nc}  {chash}  ({age_str})')
+print(f'    Risk: {risk}')
+print(f'    Cmd:  {preview}')
+print()
+" 2>/dev/null
+                    found=$((found + 1))
+                done
+                if [ "$found" -eq 0 ]; then
+                    echo -e "  ${GREEN}No pending approvals${NC}"
+                fi
+                ;;
+            status)
+                echo -e "${BOLD}Approval History${NC}"
+                echo ""
+                if [ ! -d "$APPROVAL_DIR" ]; then
+                    echo -e "  ${GREEN}No approvals directory${NC}"
+                    exit 0
+                fi
+                # Show pending count
+                pending_count=0
+                for f in "$APPROVAL_DIR"/pending-*.yaml; do
+                    [ -f "$f" ] && pending_count=$((pending_count + 1))
+                done
+                echo -e "  Pending: ${YELLOW}${pending_count}${NC}"
+                echo ""
+                # Show recent resolved
+                echo -e "  ${BOLD}Recent resolved:${NC}"
+                found=0
+                while IFS= read -r f; do
+                    [ -n "$f" ] || continue
+                    [ -f "$f" ] || continue
+                    T0_FILE="$f" python3 -c "
+import yaml, os
+
+f = os.environ['T0_FILE']
+with open(f) as fh:
+    data = yaml.safe_load(fh) or {}
+
+status = data.get('status', '?')
+chash = data.get('command_hash', '')[:12]
+risk = data.get('risk', '')[:60]
+resp = data.get('response', {})
+mechanism = resp.get('mechanism', '?')
+responded = resp.get('responded_at', '?')
+
+colors = {'approved': '\033[0;32m', 'rejected': '\033[0;31m', 'consumed': '\033[0;36m', 'expired': '\033[1;33m'}
+c = colors.get(status, '\033[0m')
+nc = '\033[0m'
+print(f'    {c}{status.upper():10}{nc}  {chash}  via {mechanism}  at {responded}')
+print(f'              {risk}')
+" 2>/dev/null
+                    found=$((found + 1))
+                done < <(find "$APPROVAL_DIR" -maxdepth 1 -name 'resolved-*.yaml' -type f -print0 2>/dev/null | xargs -r -0 ls -t 2>/dev/null | head -10 || true)
+                if [ "$found" -eq 0 ]; then
+                    echo "    (none)"
+                fi
+                echo ""
+                ;;
+            expire)
+                # Manually expire stale pending approvals
+                if [ ! -d "$APPROVAL_DIR" ]; then
+                    echo "No approvals directory"
+                    exit 0
+                fi
+                now=$(date +%s)
+                ttl="${TIER0_WATCHTOWER_TTL:-3600}"
+                expired_count=0
+                for f in "$APPROVAL_DIR"/pending-*.yaml; do
+                    [ -f "$f" ] || continue
+                    is_expired=$(T0_FILE="$f" T0_NOW="$now" T0_TTL="$ttl" python3 -c "
+import yaml, re, os, sys
+from datetime import datetime, timezone
+f = os.environ['T0_FILE']
+now = int(os.environ['T0_NOW'])
+ttl = int(os.environ['T0_TTL'])
+try:
+    with open(f) as fh:
+        data = yaml.safe_load(fh) or {}
+except yaml.YAMLError:
+    with open(f) as fh:
+        raw = fh.read()
+    data = {}
+    for key in ('timestamp', 'status', 'command_hash', 'risk', 'command_preview', 'type'):
+        m = re.search(rf'^{key}:\s*[\"'']?(.+?)[\"'']?\s*$', raw, re.MULTILINE)
+        if m:
+            data[key] = m.group(1)
+ts = data.get('timestamp', '')
+if ts:
+    try:
+        dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+        age = now - dt.timestamp()
+        if age > ttl:
+            data['status'] = 'expired'
+            chash = str(data.get('command_hash', ''))[:12]
+            resolved = f.replace('pending-', 'resolved-')
+            with open(resolved, 'w') as fh2:
+                yaml.dump(data, fh2, default_flow_style=False, sort_keys=False)
+            os.unlink(f)
+            print('1')
+            sys.exit(0)
+    except:
+        pass
+print('0')
+" 2>/dev/null)
+                    if [ "$is_expired" = "1" ]; then
+                        expired_count=$((expired_count + 1))
+                    fi
+                done
+                echo -e "Expired ${YELLOW}${expired_count}${NC} pending approval(s)"
+                ;;
+            ""|help|-h|--help)
+                echo -e "${BOLD}fw approvals${NC} — Approval queue management (T-612)"
+                echo ""
+                echo "Subcommands:"
+                echo "  pending    Show outstanding approval requests"
+                echo "  status     Show recent approval history (approved/rejected/expired)"
+                echo "  expire     Manually expire stale pending approvals (TTL: 1hr)"
+                echo ""
+                echo "Approvals are created when check-tier0.sh blocks a destructive command."
+                echo "They can be approved via 'fw tier0 approve' (CLI) or via Watchtower web UI."
+                echo ""
+                echo "Environment:"
+                echo "  TIER0_WATCHTOWER_TTL  Approval TTL in seconds (default: 3600)"
+                ;;
+            *)
+                echo -e "${RED}Unknown approvals subcommand: $approvals_subcmd${NC}"
+                echo "Run 'fw approvals help' for usage"
+                exit 1
+                ;;
+        esac
+        ;;
+    work-on)
+        # Single-step gate: create/resume task + set focus + start work
+        wo_target="${1:-}"
+        if [ -z "$wo_target" ]; then
+            echo -e "${RED}Usage:${NC}"
+            echo '  fw work-on "Fix login bug" --type build                  # Create new task + start'
+            echo '  fw work-on "Fix login bug" --description "Details here"  # With description'
+            echo '  fw work-on T-042                                         # Resume existing task'
+            exit 1
+        fi
+
+        if [[ "$wo_target" =~ ^T-[0-9]+$ ]]; then
+            # Resume existing task
+            echo -e "${CYAN}=== Resuming $wo_target ===${NC}"
+            "$AGENTS_DIR/task-create/update-task.sh" "$wo_target" --status started-work 2>/dev/null || true
+            "$AGENTS_DIR/context/context.sh" focus "$wo_target"
+            echo ""
+            echo -e "${GREEN}Ready to work on $wo_target${NC}"
+        else
+            # Create new task — pass remaining args (--type, --owner, --description, etc.)
+            shift
+            # Build default args, then let explicit args override
+            wo_has_desc=false
+            wo_has_owner=false
+            for wo_arg in "$@"; do
+                [ "$wo_arg" = "--description" ] && wo_has_desc=true
+                [ "$wo_arg" = "--owner" ] && wo_has_owner=true
+            done
+            wo_defaults=()
+            [ "$wo_has_desc" = false ] && wo_defaults+=(--description "$wo_target")
+            [ "$wo_has_owner" = false ] && wo_defaults+=(--owner agent)
+            wo_output=$("$AGENTS_DIR/task-create/create-task.sh" --name "$wo_target" --start "${wo_defaults[@]}" "$@" 2>&1)
+            echo "$wo_output"
+
+            # Extract task ID from output
+            wo_task_id=$(echo "$wo_output" | grep "^ID:" | sed 's/ID:[[:space:]]*//')
+            if [ -n "$wo_task_id" ]; then
+                "$AGENTS_DIR/context/context.sh" focus "$wo_task_id"
+                echo ""
+                echo -e "${GREEN}Ready to work on $wo_task_id: $wo_target${NC}"
+            else
+                echo -e "${YELLOW}Task created but could not extract ID for focus${NC}"
+            fi
+        fi
+        ;;
+    task)
+        route_task "$@"
+        ;;
+    preflight)
+        source "$FW_LIB_DIR/preflight.sh"
+        do_preflight "$@"
+        ;;
+    init)
+        source "$FW_LIB_DIR/init.sh"
+        do_init "$@"
+        ;;
+    validate-init)
+        source "$FW_LIB_DIR/validate-init.sh"
+        do_validate_init "$@"
+        ;;
+    update)
+        source "$FW_LIB_DIR/update.sh"
+        do_update "$@"
+        ;;
+    upgrade)
+        source "$FW_LIB_DIR/init.sh"
+        source "$FW_LIB_DIR/upgrade.sh"
+        do_upgrade "$@"
+        ;;
+    setup)
+        echo -e "${YELLOW}NOTE: 'fw setup' is deprecated — use 'fw init' instead.${NC}"
+        echo "  fw init auto-detects interactive mode and runs first-run walkthrough."
+        echo ""
+        source "$FW_LIB_DIR/init.sh"
+        do_init "$@"
+        ;;
+    build)
+        exec "$FRAMEWORK_ROOT/lib/build.sh" "$@"
+        ;;
+    harvest)
+        source "$FW_LIB_DIR/harvest.sh"
+        do_harvest "$@"
+        ;;
+    termlink)
+        exec "$AGENTS_DIR/termlink/termlink.sh" "$@"
+        ;;
+    onboarding)
+        ONBOARDING_MARKER="$PROJECT_ROOT/.context/working/.onboarding-complete"
+        subcmd="${1:-status}"
+        shift 2>/dev/null || true
+        case "$subcmd" in
+            status)
+                if [ -f "$ONBOARDING_MARKER" ]; then
+                    echo -e "${GREEN}Onboarding complete${NC}"
+                    cat "$ONBOARDING_MARKER"
+                    exit 0
+                fi
+                echo -e "${BOLD}Onboarding Tasks${NC}"
+                echo ""
+                found=0
+                for tf in "$PROJECT_ROOT"/.tasks/active/T-*.md; do
+                    [ -f "$tf" ] || continue
+                    if head -20 "$tf" | grep -q '^tags:.*onboarding' 2>/dev/null; then
+                        tf_id=$(grep "^id:" "$tf" | head -1 | sed 's/id:[[:space:]]*//')
+                        tf_name=$(grep "^name:" "$tf" | head -1 | sed 's/name:[[:space:]]*//' | tr -d '"')
+                        tf_status=$(grep "^status:" "$tf" | head -1 | sed 's/status:[[:space:]]*//')
+                        if [ "$tf_status" = "work-completed" ]; then
+                            echo -e "  ${GREEN}✓${NC}  ${tf_id}: ${tf_name}"
+                        else
+                            echo -e "  ${YELLOW}○${NC}  ${tf_id}: ${tf_name} (${tf_status})"
+                        fi
+                        found=$((found + 1))
+                    fi
+                done
+                if [ "$found" -eq 0 ]; then
+                    echo "  No onboarding tasks found."
+                fi
+                ;;
+            skip)
+                if [ -f "$ONBOARDING_MARKER" ]; then
+                    echo "Onboarding already complete."
+                    exit 0
+                fi
+                echo -e "${YELLOW}Skipping onboarding tasks.${NC}"
+                echo "You can still complete them later: fw task list --tag onboarding"
+                mkdir -p "$(dirname "$ONBOARDING_MARKER")"
+                echo "skipped: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$ONBOARDING_MARKER"
+                echo "reason: manual skip via fw onboarding skip" >> "$ONBOARDING_MARKER"
+                # Log to bypass-log
+                BYPASS_LOG="$PROJECT_ROOT/.context/bypass-log.yaml"
+                if [ -f "$BYPASS_LOG" ]; then
+                    python3 -c "
+import yaml, datetime
+with open('$BYPASS_LOG') as f:
+    data = yaml.safe_load(f) or {}
+entries = data.get('entries', [])
+entries.append({
+    'timestamp': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+    'type': 'onboarding-skip',
+    'reason': 'Manual skip via fw onboarding skip',
+    'authorized_by': 'human'
+})
+data['entries'] = entries
+with open('$BYPASS_LOG', 'w') as f:
+    yaml.dump(data, f, default_flow_style=False)
+" 2>/dev/null
+                fi
+                echo -e "${GREEN}Onboarding gate disabled.${NC}"
+                ;;
+            reset)
+                rm -f "$ONBOARDING_MARKER"
+                echo "Onboarding gate re-enabled."
+                ;;
+            *)
+                echo "Usage: fw onboarding {status|skip|reset}"
+                exit 1
+                ;;
+        esac
+        ;;
+    gaps)
+        # T-397: Register renamed gaps.yaml → concerns.yaml; fall back to old name.
+        GAPS_FILE="$PROJECT_ROOT/.context/project/concerns.yaml"
+        [ -f "$GAPS_FILE" ] || GAPS_FILE="$PROJECT_ROOT/.context/project/gaps.yaml"
+        if [ ! -f "$GAPS_FILE" ]; then
+            echo -e "${YELLOW}No gaps register found${NC}"
+            echo "Create one at: .context/project/concerns.yaml"
+            exit 0
+        fi
+        python3 << PYEOF
+import yaml
+
+with open("$GAPS_FILE") as f:
+    data = yaml.safe_load(f)
+
+# T-397: 'concerns' is the canonical key; 'gaps' is legacy fallback.
+gaps = data.get('concerns', data.get('gaps', []))
+watching = [g for g in gaps if g.get('status') == 'watching']
+closed = [g for g in gaps if g.get('status') in ('closed', 'decided-build', 'decided-simplify')]
+
+print(f"\033[1mGaps Register\033[0m — {len(watching)} watching, {len(closed)} resolved")
+print()
+
+for gap in watching:
+    sev_colors = {'high': '\033[0;31m', 'medium': '\033[1;33m', 'low': '\033[0;36m'}
+    sev = gap.get('severity', 'unknown')
+    color = sev_colors.get(sev, '\033[0m')
+    print(f"  {color}{gap['id']}\033[0m [{sev}]  {gap['title']}")
+    trigger = gap.get('decision_trigger', '').strip().split('\n')[0]
+    print(f"    Trigger: {trigger}")
+    print()
+
+if not watching:
+    print("  \033[0;32mNo gaps being watched\033[0m")
+PYEOF
+        ;;
+    traceability)
+        # T-590: Traceability baseline for imported projects
+        BASELINE_FILE="$PROJECT_ROOT/.context/project/traceability-baseline"
+        subcmd="${1:-status}"
+        shift 2>/dev/null || true
+        case "$subcmd" in
+            baseline)
+                head_sha=$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)
+                if [ -z "$head_sha" ]; then
+                    echo -e "${RED}ERROR:${NC} Not a git repository"
+                    exit 1
+                fi
+                mkdir -p "$(dirname "$BASELINE_FILE")"
+                echo "$head_sha" > "$BASELINE_FILE"
+                commit_count=$(git -C "$PROJECT_ROOT" log --oneline 2>/dev/null | wc -l | tr -d ' ')
+                echo -e "${GREEN}Traceability baseline set${NC}"
+                echo "  Commit: $head_sha"
+                echo "  Commits excluded: $commit_count (everything up to and including HEAD)"
+                echo "  File: $BASELINE_FILE"
+                echo ""
+                echo "Audit will now only check commits AFTER this point for task references."
+                ;;
+            status)
+                if [ -f "$BASELINE_FILE" ]; then
+                    baseline_sha=$(tr -d '[:space:]' < "$BASELINE_FILE")
+                    echo -e "${GREEN}Traceability baseline active${NC}"
+                    echo "  Baseline: $baseline_sha"
+                    after_count=$(git -C "$PROJECT_ROOT" log --oneline "${baseline_sha}..HEAD" 2>/dev/null | wc -l | tr -d ' ')
+                    echo "  Commits after baseline: $after_count"
+                else
+                    echo -e "${YELLOW}No traceability baseline set${NC}"
+                    echo "  Audit checks ALL commits for task references."
+                    echo "  For imported projects: fw traceability baseline"
+                fi
+                ;;
+            reset)
+                rm -f "$BASELINE_FILE"
+                echo "Traceability baseline removed. Audit will check all commits."
+                ;;
+            *)
+                echo "Usage: fw traceability {baseline|status|reset}"
+                exit 1
+                ;;
+        esac
+        ;;
+    decisions)
+        python3 << 'PYDECISIONS'
+import os, yaml, re
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+
+op_decisions = []
+dec_file = os.path.join(project_root, '.context', 'project', 'decisions.yaml')
+if os.path.isfile(dec_file):
+    with open(dec_file) as f:
+        data = yaml.safe_load(f) or {}
+    for d in data.get('decisions', []):
+        op_decisions.append({
+            'id': d.get('id', '?'),
+            'decision': d.get('decision', ''),
+            'directives': ', '.join(str(x) for x in d.get('directives_served', [])),
+            'date': str(d.get('date', '?')),
+        })
+
+arch_decisions = []
+dd_file = os.path.join(project_root, '005-DesignDirectives.md')
+if os.path.isfile(dd_file):
+    with open(dd_file) as f:
+        lines = f.readlines()
+    for line in lines:
+        m = re.match(r'\|\s*(AD-\d+)\s*\|\s*(\S+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|', line)
+        if m:
+            arch_decisions.append({
+                'id': m.group(1),
+                'decision': m.group(3).strip(),
+                'directives': m.group(4).strip(),
+                'date': m.group(2).strip(),
+            })
+
+total = len(arch_decisions) + len(op_decisions)
+print(f'{BOLD}Decisions{NC} ({total} total: {len(arch_decisions)} architectural, {len(op_decisions)} operational)')
+print()
+
+if arch_decisions:
+    print(f'{BOLD}Architectural Decisions{NC}')
+    print(f'  {"ID":<8} {"Date":<12} {"Directives":<14} {"Decision"}')
+    print(f'  {chr(9472)*8} {chr(9472)*12} {chr(9472)*14} {chr(9472)*60}')
+    for d in arch_decisions:
+        dec = d['decision'][:60] + ('...' if len(d['decision']) > 60 else '')
+        print(f'  {CYAN}{d["id"]:<8}{NC} {d["date"]:<12} {d["directives"]:<14} {dec}')
+    print()
+
+if op_decisions:
+    print(f'{BOLD}Operational Decisions{NC}')
+    print(f'  {"ID":<8} {"Date":<12} {"Directives":<14} {"Decision"}')
+    print(f'  {chr(9472)*8} {chr(9472)*12} {chr(9472)*14} {chr(9472)*60}')
+    for d in op_decisions:
+        dec = d['decision'][:60] + ('...' if len(d['decision']) > 60 else '')
+        print(f'  {GREEN}{d["id"]:<8}{NC} {d["date"]:<12} {d["directives"]:<14} {dec}')
+    print()
+PYDECISIONS
+        ;;
+    timeline)
+        python3 << 'PYTIMELINE'
+import os, yaml
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+handover_dir = os.path.join(project_root, '.context', 'handovers')
+
+if not os.path.isdir(handover_dir):
+    print(f'{YELLOW}No handovers directory found{NC}')
+    exit(0)
+
+sessions = []
+for fn in sorted(os.listdir(handover_dir)):
+    if not fn.startswith('S-') or not fn.endswith('.md'):
+        continue
+    path = os.path.join(handover_dir, fn)
+    try:
+        with open(path) as f:
+            text = f.read()
+        if not text.startswith('---'):
+            continue
+        end = text.index('---', 3)
+        fm = yaml.safe_load(text[3:end]) or {}
+        sessions.append({
+            'session_id': fm.get('session_id', fn.replace('.md', '')),
+            'timestamp': str(fm.get('timestamp', '?')),
+            'touched': fm.get('tasks_touched', []),
+            'completed': fm.get('tasks_completed', []),
+            'owner': fm.get('owner', '?'),
+        })
+    except:
+        continue
+
+sessions.sort(key=lambda s: s['timestamp'], reverse=True)
+
+print(f'{BOLD}Session Timeline{NC} ({len(sessions)} sessions)')
+print()
+print(f'  {"Session ID":<22} {"Date":<22} {"Touched":<10} {"Completed":<10} {"Owner"}')
+print(f'  {chr(9472)*22} {chr(9472)*22} {chr(9472)*10} {chr(9472)*10} {chr(9472)*12}')
+
+for s in sessions:
+    touched_n = len(s['touched']) if isinstance(s['touched'], list) else 0
+    completed_n = len(s['completed']) if isinstance(s['completed'], list) else 0
+    comp_color = GREEN if completed_n > 0 else NC
+    print(f'  {CYAN}{s["session_id"]:<22}{NC} {s["timestamp"]:<22} {touched_n:<10} {comp_color}{completed_n:<10}{NC} {s["owner"]}')
+print()
+PYTIMELINE
+        ;;
+    learnings)
+        LEARNINGS_FILE="$PROJECT_ROOT/.context/project/learnings.yaml"
+        if [ ! -f "$LEARNINGS_FILE" ]; then
+            echo -e "${YELLOW}No learnings file found${NC}"
+            echo "Expected at: .context/project/learnings.yaml"
+            exit 0
+        fi
+        python3 << 'PYLEARNINGS'
+import os, yaml
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+path = os.path.join(project_root, '.context', 'project', 'learnings.yaml')
+
+with open(path) as f:
+    data = yaml.safe_load(f) or {}
+
+learnings = data.get('learnings', [])
+candidates = data.get('candidates', [])
+
+print(f'{BOLD}Learnings{NC} ({len(learnings)} confirmed, {len(candidates)} candidates)')
+print()
+print(f'  {"ID":<8} {"Task":<8} {"Date":<12} {"Learning"}')
+print(f'  {chr(9472)*8} {chr(9472)*8} {chr(9472)*12} {chr(9472)*50}')
+
+for l in learnings:
+    lid = l.get('id', '?')
+    task = l.get('task', '?')
+    date = str(l.get('date', '?'))
+    learning = l.get('learning', '?')
+    print(f'  {GREEN}{lid:<8}{NC} {task:<8} {date:<12} {learning}')
+
+if candidates:
+    print()
+    print(f'{BOLD}Candidates{NC}')
+    for c in candidates:
+        print(f'  {YELLOW}*{NC} {c.get("learning", c) if isinstance(c, dict) else c}')
+print()
+PYLEARNINGS
+        ;;
+    patterns)
+        PATTERNS_FILE="$PROJECT_ROOT/.context/project/patterns.yaml"
+        if [ ! -f "$PATTERNS_FILE" ]; then
+            echo -e "${YELLOW}No patterns file found${NC}"
+            echo "Expected at: .context/project/patterns.yaml"
+            exit 0
+        fi
+        python3 << 'PYPATTERNS'
+import os, yaml
+
+BOLD = '\033[1m'
+RED = '\033[0;31m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+path = os.path.join(project_root, '.context', 'project', 'patterns.yaml')
+
+with open(path) as f:
+    data = yaml.safe_load(f) or {}
+
+failure = data.get('failure_patterns', [])
+success = data.get('success_patterns', [])
+workflow = data.get('workflow_patterns', [])
+
+total = len(failure) + len(success) + len(workflow)
+print(f'{BOLD}Patterns{NC} ({total} total: {len(failure)} failure, {len(success)} success, {len(workflow)} workflow)')
+print()
+
+if failure:
+    print(f'{BOLD}Failure Patterns{NC}')
+    for p in failure:
+        pid = p.get('id', '?')
+        desc = p.get('description', p.get('pattern', '?'))
+        mitigation = p.get('mitigation', '?')
+        task = p.get('learned_from', '?')
+        print(f'  {RED}{pid}{NC} [{task}] {p.get("pattern", "?")}')
+        print(f'    {desc}')
+        print(f'    {GREEN}Mitigation:{NC} {mitigation}')
+        print()
+
+if success:
+    print(f'{BOLD}Success Patterns{NC}')
+    for p in success:
+        pid = p.get('id', '?')
+        desc = p.get('description', '?')
+        ctx = p.get('context', '')
+        task = p.get('learned_from', '?')
+        print(f'  {GREEN}{pid}{NC} [{task}] {p.get("pattern", "?")}')
+        print(f'    {desc}')
+        if ctx:
+            print(f'    Context: {ctx}')
+        print()
+
+if workflow:
+    print(f'{BOLD}Workflow Patterns{NC}')
+    for p in workflow:
+        pid = p.get('id', '?')
+        desc = p.get('description', '?')
+        example = p.get('example', '')
+        task = p.get('learned_from', '?')
+        print(f'  {CYAN}{pid}{NC} [{task}] {p.get("pattern", "?")}')
+        print(f'    {desc}')
+        if example:
+            print(f'    Example: {example}')
+        print()
+PYPATTERNS
+        ;;
+    practices)
+        PRACTICES_FILE="$PROJECT_ROOT/.context/project/practices.yaml"
+        if [ ! -f "$PRACTICES_FILE" ]; then
+            echo -e "${YELLOW}No practices file found${NC}"
+            echo "Expected at: .context/project/practices.yaml"
+            exit 0
+        fi
+        python3 << 'PYPRACTICES'
+import os, yaml
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+path = os.path.join(project_root, '.context', 'project', 'practices.yaml')
+
+with open(path) as f:
+    data = yaml.safe_load(f) or {}
+
+practices = data.get('practices', [])
+active = [p for p in practices if p.get('status') == 'active']
+
+print(f'{BOLD}Practices{NC} ({len(active)} active of {len(practices)} total)')
+print()
+print(f'  {"ID":<8} {"Derived":<12} {"Apps":<6} {"Name"}')
+print(f'  {chr(9472)*8} {chr(9472)*12} {chr(9472)*6} {chr(9472)*40}')
+
+for p in practices:
+    pid = p.get('id', '?')
+    derived = p.get('derived_from', '?')
+    if isinstance(derived, list):
+        derived = ', '.join(str(d) for d in derived)
+    apps = p.get('applications', 0)
+    name = p.get('name', '?')
+    status = p.get('status', '?')
+    color = GREEN if status == 'active' else YELLOW
+    print(f'  {color}{pid:<8}{NC} {str(derived):<12} {apps:<6} {name}')
+
+print()
+for p in practices:
+    pid = p.get('id', '?')
+    desc = p.get('description', '')
+    anti = p.get('anti_pattern', '')
+    if desc:
+        short_desc = desc[:80] + ('...' if len(desc) > 80 else '')
+        print(f'  {BOLD}{pid}{NC}: {short_desc}')
+        if anti:
+            short_anti = anti[:70] + ('...' if len(anti) > 70 else '')
+            print(f'    {YELLOW}Anti-pattern:{NC} {short_anti}')
+print()
+PYPRACTICES
+        ;;
+    search)
+        # Check for --semantic or --hybrid flags
+        SEARCH_MODE="keyword"
+        SEARCH_ARGS=()
+        for arg in "$@"; do
+            case "$arg" in
+                --semantic) SEARCH_MODE="semantic" ;;
+                --hybrid)   SEARCH_MODE="hybrid" ;;
+                *)          SEARCH_ARGS+=("$arg") ;;
+            esac
+        done
+        SEARCH_TERM="${SEARCH_ARGS[*]:-}"
+        if [ -z "$SEARCH_TERM" ]; then
+            echo -e "${RED}Usage: fw search [--semantic|--hybrid] <query>${NC}"
+            exit 1
+        fi
+        if [ "$SEARCH_MODE" != "keyword" ]; then
+            python3 - "$SEARCH_MODE" "$SEARCH_TERM" << 'PYVECSEARCH'
+import sys, os
+os.chdir(os.environ.get('FRAMEWORK_ROOT', '.'))
+mode = sys.argv[1]
+query = sys.argv[2]
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+if mode == 'semantic':
+    from web.embeddings import search
+    results = search(query)
+elif mode == 'hybrid':
+    from web.embeddings import hybrid_search
+    results = hybrid_search(query)
+
+print(f'{BOLD}Search ({mode}):{NC} "{query}"')
+print()
+
+if not results['results']:
+    print(f'{YELLOW}No results found{NC}')
+    sys.exit(0)
+
+for item in results['results']:
+    score = item['score']
+    cat = item.get('category', '')
+    tid = item.get('task_id', '')
+    title = item['title'][:60]
+    path = item['path']
+    prefix = f'{GREEN}{tid}{NC} ' if tid else ''
+    print(f'  {score:6.3f}  {prefix}{title}')
+    print(f'         {CYAN}{path}{NC}')
+    if item.get('snippet'):
+        # Strip HTML tags for terminal
+        import re
+        snippet = re.sub(r'</?b>', '', item['snippet'])[:120]
+        print(f'         {snippet}')
+    print()
+
+print(f'{len(results["results"])} result(s) found')
+PYVECSEARCH
+            exit $?
+        fi
+        python3 - "$SEARCH_TERM" << 'PYSEARCH'
+import os, subprocess, sys, re
+
+term = sys.argv[1]
+project_root = os.environ.get('PROJECT_ROOT', '.')
+
+BOLD = '\033[1m'
+RED = '\033[0;31m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+search_areas = [
+    (os.path.join(project_root, '.tasks'), 'Tasks'),
+    (os.path.join(project_root, '.context'), 'Context'),
+]
+
+spec_docs = []
+for fn in os.listdir(project_root):
+    if fn.startswith('0') and fn.endswith('.md'):
+        spec_docs.append(os.path.join(project_root, fn))
+
+print(f'{BOLD}Search:{NC} "{term}"')
+print()
+
+total_results = 0
+max_total = 50
+max_per_file = 5
+
+for area_path, area_label in search_areas:
+    if not os.path.isdir(area_path):
+        continue
+    try:
+        result = subprocess.run(
+            ['grep', '-rn', '--include=*.yaml', '--include=*.md', '-i', term, area_path],
+            capture_output=True, text=True, timeout=10
+        )
+        lines = result.stdout.strip().split('\n') if result.stdout.strip() else []
+    except:
+        continue
+
+    if not lines:
+        continue
+
+    by_file = {}
+    for line in lines:
+        parts = line.split(':', 2)
+        if len(parts) >= 3:
+            fname = parts[0]
+            if fname not in by_file:
+                by_file[fname] = []
+            by_file[fname].append(line)
+
+    printed = False
+    for fname, flines in sorted(by_file.items()):
+        if total_results >= max_total:
+            break
+        rel_path = os.path.relpath(fname, project_root)
+        shown = 0
+        for line in flines:
+            if total_results >= max_total or shown >= max_per_file:
+                break
+            if not printed:
+                print(f'{BOLD}{area_label}{NC}')
+                printed = True
+            parts = line.split(':', 2)
+            if len(parts) >= 3:
+                lineno = parts[1]
+                content = parts[2].strip()
+                highlighted = re.sub(
+                    f'({re.escape(term)})',
+                    f'{YELLOW}\\1{NC}',
+                    content,
+                    flags=re.IGNORECASE
+                )
+                print(f'  {CYAN}{rel_path}{NC}:{lineno}: {highlighted}')
+                total_results += 1
+                shown += 1
+        if shown < len(flines) and total_results < max_total:
+            remaining = len(flines) - shown
+            print(f'  {CYAN}{rel_path}{NC}: ... {remaining} more match(es)')
+    if printed:
+        print()
+
+if spec_docs and total_results < max_total:
+    printed = False
+    for doc_path in sorted(spec_docs):
+        if total_results >= max_total:
+            break
+        try:
+            result = subprocess.run(
+                ['grep', '-n', '-i', term, doc_path],
+                capture_output=True, text=True, timeout=10
+            )
+            lines = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        except:
+            continue
+
+        if not lines:
+            continue
+
+        if not printed:
+            print(f'{BOLD}Spec Documents{NC}')
+            printed = True
+
+        rel_path = os.path.relpath(doc_path, project_root)
+        shown = 0
+        for line in lines:
+            if total_results >= max_total or shown >= max_per_file:
+                break
+            parts = line.split(':', 1)
+            if len(parts) >= 2:
+                lineno = parts[0]
+                content = parts[1].strip()
+                highlighted = re.sub(
+                    f'({re.escape(term)})',
+                    f'{YELLOW}\\1{NC}',
+                    content,
+                    flags=re.IGNORECASE
+                )
+                print(f'  {CYAN}{rel_path}{NC}:{lineno}: {highlighted}')
+                total_results += 1
+                shown += 1
+        if shown < len(lines) and total_results < max_total:
+            remaining = len(lines) - shown
+            print(f'  {CYAN}{rel_path}{NC}: ... {remaining} more match(es)')
+    if printed:
+        print()
+
+if total_results == 0:
+    print(f'{YELLOW}No results found{NC}')
+else:
+    print(f'{total_results} result(s) found')
+PYSEARCH
+        ;;
+    vendor)
+        do_vendor "$@"
+        ;;
+    hook)
+        # fw hook <name> [args...] — runtime path resolution for Claude Code hooks
+        # Resolves FRAMEWORK_ROOT from symlink, PROJECT_ROOT from cwd.
+        # Replaces hardcoded absolute paths in .claude/settings.json (G-021/T-496).
+        _hook_name="${1:-}"
+        shift 2>/dev/null || true
+        if [ -z "$_hook_name" ]; then
+            echo "Usage: fw hook <name> [args...]" >&2
+            echo "Available hooks: check-active-task, check-tier0, check-project-boundary, budget-gate," >&2
+            echo "  block-plan-mode, block-task-tools, audit-task-tools, checkpoint, error-watchdog, pl007-scanner, check-dispatch, check-dispatch-pre," >&2
+            echo "  check-fabric-new-file, check-agent-dispatch, commit-cadence, loop-detect, pre-compact, post-compact-resume" >&2
+            exit 1
+        fi
+        _hook_script="$AGENTS_DIR/context/${_hook_name}.sh"
+        if [ ! -f "$_hook_script" ]; then
+            echo "ERROR: Hook script not found: $_hook_script" >&2
+            exit 2
+        fi
+        export FRAMEWORK_ROOT PROJECT_ROOT
+        # T-863: Use bash explicitly — don't require -x (core.filemode=false drops execute bits)
+        exec bash "$_hook_script" "$@"
+        ;;
+    doctor)
+        do_doctor "$@"
+        ;;
+    verify-acs)
+        source "$FW_LIB_DIR/verify-acs.sh"
+        do_verify_acs "$@"
+        ;;
+    self-test)
+        # Detect subcommand vs flags — flags start with --
+        st_subcmd="all"
+        if [ $# -gt 0 ] && [[ ! "$1" == --* ]]; then
+            st_subcmd="$1"
+            shift
+        fi
+        case "$st_subcmd" in
+            onboarding)
+                "$FRAMEWORK_ROOT/tests/e2e/onboarding-test.sh" "$@"
+                ;;
+            gates)
+                "$FRAMEWORK_ROOT/tests/e2e/gates-test.sh" "$@"
+                ;;
+            lifecycle)
+                "$FRAMEWORK_ROOT/tests/e2e/lifecycle-test.sh" "$@"
+                ;;
+            upgrade)
+                "$FRAMEWORK_ROOT/tests/e2e/upgrade-test.sh" "$@"
+                ;;
+            all)
+                st_exit=0
+                for st_phase in gates lifecycle upgrade onboarding; do
+                    st_script="$FRAMEWORK_ROOT/tests/e2e/${st_phase}-test.sh"
+                    if [ -x "$st_script" ]; then
+                        "$st_script" "$@" || st_exit=1
+                        echo ""
+                    fi
+                done
+                exit $st_exit
+                ;;
+            help|--help|-h)
+                echo "Usage: fw self-test [onboarding|gates|lifecycle|upgrade|all] [--json] [--port N] [--verbose]"
+                ;;
+            *)
+                echo "Unknown self-test phase: $st_subcmd"
+                echo "Usage: fw self-test [onboarding|gates|lifecycle|upgrade|all] [--json] [--port N] [--verbose]"
+                exit 1
+                ;;
+        esac
+        ;;
+    enforcement)
+        enforcement_subcmd="${1:-status}"
+        shift 2>/dev/null || true
+        EF_SETTINGS="$PROJECT_ROOT/.claude/settings.json"
+        EF_BASELINE="$PROJECT_ROOT/.context/project/enforcement-baseline.sha256"
+        case "$enforcement_subcmd" in
+            baseline)
+                # Save current settings.json hooks hash as enforcement baseline
+                if [ ! -f "$EF_SETTINGS" ]; then
+                    echo -e "${RED}No .claude/settings.json found${NC}"
+                    exit 1
+                fi
+                mkdir -p "$(dirname "$EF_BASELINE")"
+                EF_HASH=$(python3 -c "
+import json, hashlib
+with open('$EF_SETTINGS') as f:
+    data = json.load(f)
+hooks_str = json.dumps(data.get('hooks', {}), sort_keys=True)
+print(hashlib.sha256(hooks_str.encode()).hexdigest())
+" 2>/dev/null)
+                if [ -z "$EF_HASH" ]; then
+                    echo -e "${RED}Failed to compute hash${NC}"
+                    exit 1
+                fi
+                echo "$EF_HASH" > "$EF_BASELINE"
+                echo -e "${GREEN}Enforcement baseline saved${NC}"
+                echo "  Hash: ${EF_HASH:0:16}..."
+                echo "  File: $EF_BASELINE"
+                ;;
+            status)
+                echo -e "${BOLD}fw enforcement status${NC}"
+                echo ""
+                echo "Layer 1: Claude Code Hooks"
+                if [ -f "$EF_SETTINGS" ]; then
+                    python3 -c "
+import json
+with open('$EF_SETTINGS') as f:
+    data = json.load(f)
+hooks = data.get('hooks', {})
+for event, entries in hooks.items():
+    for e in entries:
+        matcher = e.get('matcher', '*')
+        for h in e.get('hooks', []):
+            cmd = h.get('command', '').split('/')[-1].split()[0]
+            print(f'  {event:15s} [{matcher or \"*\":20s}] → {cmd}')
+" 2>/dev/null
+                else
+                    echo "  Not configured"
+                fi
+                echo ""
+                echo "Layer 2: Git Hooks"
+                HOOKS_DIR="$PROJECT_ROOT/.git/hooks"
+                for hook in commit-msg post-commit pre-push; do
+                    if [ -f "$HOOKS_DIR/$hook" ] && grep -q "Agentic" "$HOOKS_DIR/$hook" 2>/dev/null; then
+                        echo -e "  ${GREEN}✓${NC} $hook"
+                    else
+                        echo -e "  ${RED}✗${NC} $hook (not installed)"
+                    fi
+                done
+                echo ""
+                echo "Layer 3: Enforcement Baseline"
+                if [ -f "$EF_BASELINE" ]; then
+                    echo -e "  ${GREEN}✓${NC} Baseline set ($(cut -c1-16 < "$EF_BASELINE")...)"
+                else
+                    echo -e "  ${YELLOW}!${NC} No baseline — run 'fw enforcement baseline'"
+                fi
+                ;;
+            *)
+                echo "Usage: fw enforcement {baseline|status}"
+                echo ""
+                echo "  baseline  Save current settings.json hooks hash"
+                echo "  status    Show all enforcement layers"
+                ;;
+        esac
+        ;;
+    metrics)
+        metrics_subcmd="${1:-dashboard}"
+        case "$metrics_subcmd" in
+            predict|estimate)
+                shift
+                python3 - "$@" << 'PYPREDICT'
+import os, yaml, sys
+
+BOLD = '\033[1m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+CYAN = '\033[0;36m'
+NC = '\033[0m'
+
+project_root = os.environ.get('PROJECT_ROOT', '.')
+ep_dir = os.path.join(project_root, '.context', 'episodic')
+
+# Parse args
+type_filter = None
+tag_filter = None
+args = sys.argv[1:]
+i = 0
+while i < len(args):
+    if args[i] == '--type' and i + 1 < len(args):
+        type_filter = args[i+1]; i += 2
+    elif args[i] == '--tag' and i + 1 < len(args):
+        tag_filter = args[i+1]; i += 2
+    elif args[i] in ('-h', '--help'):
+        print(f'{BOLD}fw metrics predict{NC} — Estimate task effort from historical data')
+        print()
+        print('Options:')
+        print('  --type <type>   Filter by workflow type (build, test, refactor, ...)')
+        print('  --tag <tag>     Filter by tag')
+        print()
+        print('Examples:')
+        print('  fw metrics predict --type build')
+        print('  fw metrics predict --tag watchtower')
+        sys.exit(0)
+    else:
+        i += 1
+
+if not os.path.isdir(ep_dir):
+    print(f'{YELLOW}No episodic memory found{NC}')
+    sys.exit(0)
+
+# Load all episodics with metrics
+episodes = []
+for fn in os.listdir(ep_dir):
+    if not fn.endswith('.yaml') or fn == 'TEMPLATE.yaml':
+        continue
+    try:
+        with open(os.path.join(ep_dir, fn)) as f:
+            ep = yaml.safe_load(f)
+        if not isinstance(ep, dict) or not ep.get('metrics'):
+            continue
+        episodes.append(ep)
+    except:
+        continue
+
+# Apply filters
+if type_filter:
+    episodes = [e for e in episodes if e.get('workflow_type', '').lower() == type_filter.lower()]
+if tag_filter:
+    episodes = [e for e in episodes if tag_filter.lower() in [str(t).lower() for t in e.get('tags', [])]]
+
+if not episodes:
+    label = ''
+    if type_filter:
+        label += f' type={type_filter}'
+    if tag_filter:
+        label += f' tag={tag_filter}'
+    print(f'{YELLOW}No episodic data with metrics found{label}{NC}')
+    print(f'Complete more tasks to build prediction data.')
+    sys.exit(0)
+
+# Compute statistics
+def stats(values):
+    values = [v for v in values if v is not None and v > 0]
+    if not values:
+        return {'min': 0, 'max': 0, 'avg': 0, 'median': 0, 'count': 0}
+    values.sort()
+    n = len(values)
+    median = values[n // 2] if n % 2 == 1 else (values[n // 2 - 1] + values[n // 2]) / 2
+    return {
+        'min': min(values),
+        'max': max(values),
+        'avg': sum(values) / n,
+        'median': median,
+        'count': n,
+    }
+
+minutes = stats([e.get('metrics', {}).get('wall_clock_minutes', 0) for e in episodes])
+commits = stats([e.get('metrics', {}).get('commits', 0) for e in episodes])
+lines_a = stats([e.get('metrics', {}).get('lines_added', 0) for e in episodes])
+lines_r = stats([e.get('metrics', {}).get('lines_removed', 0) for e in episodes])
+files_c = stats([e.get('metrics', {}).get('files_changed', 0) for e in episodes])
+
+label = ''
+if type_filter:
+    label += f' type={type_filter}'
+if tag_filter:
+    label += f' tag={tag_filter}'
+if not label:
+    label = ' (all types)'
+
+print(f'{BOLD}Effort Prediction{NC}{label} — {len(episodes)} completed task(s)')
+print()
+print(f'  {"Metric":<20} {"Min":>8} {"Median":>8} {"Avg":>8} {"Max":>8}  {"(n)":>4}')
+print(f'  {chr(9472)*20} {chr(9472)*8} {chr(9472)*8} {chr(9472)*8} {chr(9472)*8}  {chr(9472)*4}')
+
+def row(label, s, unit=''):
+    if s['count'] == 0:
+        print(f'  {label:<20} {"—":>8} {"—":>8} {"—":>8} {"—":>8}  {0:>4}')
+    else:
+        print(f'  {label:<20} {s["min"]:>7.0f}{unit} {s["median"]:>7.0f}{unit} {s["avg"]:>7.0f}{unit} {s["max"]:>7.0f}{unit}  {s["count"]:>4}')
+
+row('Wall clock (min)', minutes)
+row('Commits', commits)
+row('Files changed', files_c)
+row('Lines added', lines_a)
+row('Lines removed', lines_r)
+
+print()
+print(f'{BOLD}Prediction:{NC} A similar task will likely take:')
+if minutes['count'] > 0:
+    print(f'  {GREEN}~{minutes["median"]:.0f} min{NC} (median), {minutes["avg"]:.0f} min (avg)')
+    print(f'  ~{commits["median"]:.0f} commits, ~{lines_a["median"]:.0f} lines added')
+else:
+    print(f'  {YELLOW}Insufficient data{NC}')
+
+print()
+print(f'{CYAN}Source tasks:{NC}')
+for e in episodes:
+    m = e.get('metrics', {})
+    tid = e.get('task_id', '?')
+    name = e.get('task_name', '?')
+    wmin = m.get('wall_clock_minutes', 0)
+    cmt = m.get('commits', 0)
+    la = m.get('lines_added', 0)
+    print(f'  {tid}: {name} ({wmin}min, {cmt} commits, +{la} lines)')
+PYPREDICT
+                ;;
+            dashboard|"")
+                shift 2>/dev/null || true
+                if [ -f "$PROJECT_ROOT/metrics.sh" ]; then
+                    exec "$PROJECT_ROOT/metrics.sh" "$@"
+                elif [ -f "$FRAMEWORK_ROOT/metrics.sh" ]; then
+                    exec "$FRAMEWORK_ROOT/metrics.sh" "$@"
+                else
+                    echo -e "${RED}ERROR: metrics.sh not found${NC}" >&2
+                    exit 1
+                fi
+                ;;
+            *)
+                echo -e "${RED}Unknown metrics subcommand: $metrics_subcmd${NC}" >&2
+                echo "Subcommands: dashboard, predict" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    costs)
+        # T-801: Token usage tracking from JSONL transcripts
+        source "$FW_LIB_DIR/costs.sh"
+        costs_main "$@"
+        ;;
+    test)
+        _test_exit=0
+
+        case "${1:-all}" in
+            --lint|lint)
+                # ShellCheck linting
+                if ! command -v shellcheck >/dev/null 2>&1; then
+                    echo -e "${RED}ERROR: shellcheck is not installed${NC}" >&2
+                    exit 1
+                fi
+                echo -e "${BOLD}=== ShellCheck Lint ===${NC}"
+                _lint_files=()
+                while IFS= read -r -d '' f; do
+                    _lint_files+=("$f")
+                done < <(find "$FRAMEWORK_ROOT" -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/test_helper*" -print0)
+                _lint_fail=0
+                _lint_pass=0
+                _lint_warn=0
+                for f in "${_lint_files[@]}"; do
+                    _rel="${f#"$FRAMEWORK_ROOT"/}"
+                    if _sc_output=$(shellcheck -S warning "$f" 2>&1); then
+                        _lint_pass=$((_lint_pass + 1))
+                    else
+                        _severity="warning"
+                        echo "$_sc_output" | grep -q "error" && _severity="error"
+                        if [ "$_severity" = "error" ]; then
+                            echo -e "  ${RED}FAIL${NC} $_rel"
+                            _lint_fail=$((_lint_fail + 1))
+                        else
+                            echo -e "  ${YELLOW}WARN${NC} $_rel"
+                            _lint_warn=$((_lint_warn + 1))
+                        fi
+                        echo "$_sc_output" | head -5 | sed 's/^/       /'
+                    fi
+                done
+                echo ""
+                echo -e "${BOLD}Lint:${NC} ${_lint_pass} pass, ${_lint_warn} warn, ${_lint_fail} fail (${#_lint_files[@]} files)"
+                [ "$_lint_fail" -gt 0 ] && _test_exit=1
+                ;;
+            --unit|unit)
+                # Bats unit tests only
+                if ! command -v bats >/dev/null 2>&1; then
+                    echo -e "${RED}ERROR: bats is not installed${NC}" >&2
+                    exit 1
+                fi
+                echo -e "${BOLD}=== Bats Unit Tests ===${NC}"
+                bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+                ;;
+            --integration|integration)
+                # Bats integration tests only
+                if ! command -v bats >/dev/null 2>&1; then
+                    echo -e "${RED}ERROR: bats is not installed${NC}" >&2
+                    exit 1
+                fi
+                echo -e "${BOLD}=== Bats Integration Tests ===${NC}"
+                if [ -d "$FRAMEWORK_ROOT/tests/integration/" ] && ls "$FRAMEWORK_ROOT/tests/integration/"*.bats >/dev/null 2>&1; then
+                    bats "$FRAMEWORK_ROOT/tests/integration/" || _test_exit=1
+                else
+                    echo "  No integration tests found."
+                fi
+                ;;
+            --web|web)
+                # Pytest web tests
+                if ! python3 -c "import pytest" 2>/dev/null; then
+                    echo -e "${RED}ERROR: pytest is not installed${NC}" >&2
+                    exit 1
+                fi
+                echo -e "${BOLD}=== Web Tests (pytest) ===${NC}"
+                cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py -v || _test_exit=1
+                ;;
+            --playwright|playwright|ui)
+                # Playwright UI tests (T-969)
+                if ! python3 -c "import playwright" 2>/dev/null; then
+                    echo -e "${RED}ERROR: playwright is not installed${NC}" >&2
+                    echo "  Install: pip install playwright && playwright install chromium"
+                    exit 1
+                fi
+                if ! python3 -c "import pytest" 2>/dev/null; then
+                    echo -e "${RED}ERROR: pytest is not installed${NC}" >&2
+                    exit 1
+                fi
+                if [ ! -d "$FRAMEWORK_ROOT/tests/playwright" ]; then
+                    echo -e "${YELLOW}No Playwright tests found (tests/playwright/ missing)${NC}"
+                    exit 0
+                fi
+                echo -e "${BOLD}=== Playwright UI Tests ===${NC}"
+                cd "$FRAMEWORK_ROOT" && python3 -m pytest tests/playwright/ -v || _test_exit=1
+                ;;
+            all)
+                # Run everything
+                echo -e "${BOLD}=== Framework Test Suite ===${NC}"
+                echo ""
+
+                # 1. Bats unit tests
+                if command -v bats >/dev/null 2>&1; then
+                    echo -e "${BOLD}--- Bats Unit Tests ---${NC}"
+                    bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+                    echo ""
+                else
+                    echo -e "${YELLOW}SKIP: bats not installed${NC}"
+                fi
+
+                # 2. Bats integration tests
+                if command -v bats >/dev/null 2>&1; then
+                    if [ -d "$FRAMEWORK_ROOT/tests/integration/" ] && ls "$FRAMEWORK_ROOT/tests/integration/"*.bats >/dev/null 2>&1; then
+                        echo -e "${BOLD}--- Bats Integration Tests ---${NC}"
+                        bats "$FRAMEWORK_ROOT/tests/integration/" || _test_exit=1
+                        echo ""
+                    fi
+                fi
+
+                # 3. Pytest web tests
+                if python3 -c "import pytest" 2>/dev/null; then
+                    echo -e "${BOLD}--- Web Tests (pytest) ---${NC}"
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py -v || _test_exit=1
+                    echo ""
+                else
+                    echo -e "${YELLOW}SKIP: pytest not installed${NC}"
+                fi
+
+                # 4. Playwright UI tests (T-969)
+                if python3 -c "import playwright" 2>/dev/null && [ -d "$FRAMEWORK_ROOT/tests/playwright" ]; then
+                    echo -e "${BOLD}--- Playwright UI Tests ---${NC}"
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest tests/playwright/ -v || _test_exit=1
+                    echo ""
+                else
+                    echo -e "${YELLOW}SKIP: playwright not installed or tests/playwright/ missing${NC}"
+                fi
+                ;;
+            *)
+                echo -e "${BOLD}Usage:${NC} fw test [all|unit|integration|web|playwright|lint]"
+                echo ""
+                echo "  all           Run all tests (default)"
+                echo "  unit          Bats unit tests only"
+                echo "  integration   Bats integration tests only"
+                echo "  web           Pytest web tests only"
+                echo "  playwright    Playwright UI tests (alias: ui)"
+                echo "  lint          ShellCheck linting on all .sh files"
+                exit 0
+                ;;
+        esac
+        exit $_test_exit
+        ;;
+    notify)
+        # T-710: Push notification management
+        _notify_sub="${1:-}"
+        shift || true
+        _notify_config="$PROJECT_ROOT/.context/notify-config.yaml"
+
+        _notify_status() {
+            local enabled="false"
+            if [ -f "$_notify_config" ]; then
+                enabled=$(python3 -c "import yaml; d=yaml.safe_load(open('$_notify_config')); print(str(d.get('enabled','false')).lower())" 2>/dev/null || echo "false")
+            fi
+            local dispatcher="${SKILLS_DISPATCHER:-/opt/150-skills-manager/skills/alerts/alert_dispatcher.py}"
+            local dispatcher_ok="missing"
+            [ -f "$dispatcher" ] && dispatcher_ok="found"
+
+            echo -e "${BOLD}Notification Status${NC}"
+            echo ""
+            if [ "$enabled" = "true" ]; then
+                echo -e "  Enabled:    ${GREEN}true${NC}"
+            else
+                echo -e "  Enabled:    ${YELLOW}false${NC}"
+            fi
+            echo -e "  Config:     $_notify_config"
+            echo -e "  Dispatcher: $dispatcher ($dispatcher_ok)"
+            echo ""
+            if [ "$enabled" != "true" ]; then
+                echo -e "  Run ${CYAN}fw notify enable${NC} to activate notifications"
+            fi
+        }
+
+        _notify_enable() {
+            mkdir -p "$(dirname "$_notify_config")"
+            if [ -f "$_notify_config" ]; then
+                python3 -c "
+import yaml
+with open('$_notify_config') as f:
+    d = yaml.safe_load(f) or {}
+d['enabled'] = True
+with open('$_notify_config', 'w') as f:
+    yaml.dump(d, f, default_flow_style=False)
+"
+            else
+                cat > "$_notify_config" << 'YAMLEOF'
+# Notification configuration (T-710)
+# Managed by: fw notify enable/disable
+enabled: true
+YAMLEOF
+            fi
+            echo -e "${GREEN}Notifications enabled${NC}"
+            echo "  Config: $_notify_config"
+        }
+
+        _notify_disable() {
+            if [ -f "$_notify_config" ]; then
+                python3 -c "
+import yaml
+with open('$_notify_config') as f:
+    d = yaml.safe_load(f) or {}
+d['enabled'] = False
+with open('$_notify_config', 'w') as f:
+    yaml.dump(d, f, default_flow_style=False)
+"
+            else
+                mkdir -p "$(dirname "$_notify_config")"
+                cat > "$_notify_config" << 'YAMLEOF'
+# Notification configuration (T-710)
+# Managed by: fw notify enable/disable
+enabled: false
+YAMLEOF
+            fi
+            echo -e "${YELLOW}Notifications disabled${NC}"
+        }
+
+        _notify_test() {
+            # Check if enabled
+            local enabled="false"
+            if [ -f "$_notify_config" ]; then
+                enabled=$(python3 -c "import yaml; d=yaml.safe_load(open('$_notify_config')); print(str(d.get('enabled','false')).lower())" 2>/dev/null || echo "false")
+            fi
+            if [ "$enabled" != "true" ]; then
+                echo -e "${YELLOW}Notifications are disabled.${NC} Enable first:"
+                echo -e "  ${CYAN}fw notify enable${NC}"
+                exit 1
+            fi
+
+            source "$FRAMEWORK_ROOT/lib/notify.sh"
+            echo -e "Sending test notification..."
+            NTFY_ENABLED=true fw_notify \
+                "Framework Test" \
+                "Test notification from $(basename "$PROJECT_ROOT") at $(date '+%H:%M:%S')" \
+                "manual" \
+                "framework"
+            # Wait briefly for background process
+            sleep 1
+            echo -e "${GREEN}Test notification sent${NC}"
+            echo "  Check your ntfy app for the notification"
+        }
+
+        _notify_setup() {
+            echo -e "${BOLD}Notification Setup${NC}"
+            echo ""
+            echo "The framework uses ntfy push notifications via the skills-manager"
+            echo "alert dispatcher. Notifications are opt-in and fire-and-forget."
+            echo ""
+            echo -e "${BOLD}Prerequisites:${NC}"
+            local dispatcher="${SKILLS_DISPATCHER:-/opt/150-skills-manager/skills/alerts/alert_dispatcher.py}"
+            if [ -f "$dispatcher" ]; then
+                echo -e "  ${GREEN}OK${NC}  Skills-manager alert dispatcher found"
+            else
+                echo -e "  ${RED}MISSING${NC}  Alert dispatcher not found at:"
+                echo "         $dispatcher"
+                echo ""
+                echo "  The alert dispatcher routes notifications to ntfy topics."
+                echo "  Set SKILLS_DISPATCHER env var to override the default path."
+                exit 1
+            fi
+            echo ""
+            echo -e "${BOLD}Steps:${NC}"
+            echo "  1. fw notify enable     — activate notifications for this project"
+            echo "  2. fw notify test       — send a test push to verify delivery"
+            echo "  3. fw notify status     — check current configuration"
+            echo ""
+            if [ -f "$_notify_config" ]; then
+                local enabled
+                enabled=$(python3 -c "import yaml; d=yaml.safe_load(open('$_notify_config')); print(str(d.get('enabled','false')).lower())" 2>/dev/null || echo "false")
+                if [ "$enabled" = "true" ]; then
+                    echo -e "  ${GREEN}Already configured and enabled.${NC}"
+                else
+                    echo -e "  Config exists but notifications are ${YELLOW}disabled${NC}."
+                    echo -e "  Run ${CYAN}fw notify enable${NC} to activate."
+                fi
+            else
+                echo -e "  No config file yet. Run ${CYAN}fw notify enable${NC} to create one."
+            fi
+        }
+
+        case "$_notify_sub" in
+            status)
+                _notify_status
+                ;;
+            enable)
+                _notify_enable
+                ;;
+            disable)
+                _notify_disable
+                ;;
+            test)
+                _notify_test
+                ;;
+            setup)
+                _notify_setup
+                ;;
+            ""|--help|-h)
+                echo -e "${BOLD}Usage:${NC} fw notify <command>"
+                echo ""
+                echo -e "${BOLD}Commands:${NC}"
+                echo "  status    Show notification configuration"
+                echo "  enable    Enable push notifications"
+                echo "  disable   Disable push notifications"
+                echo "  test      Send a test notification"
+                echo "  setup     Setup guide and prerequisite check"
+                echo ""
+                echo "Notifications use ntfy via the skills-manager alert dispatcher."
+                echo "Disabled by default — run 'fw notify enable' to activate."
+                ;;
+            *)
+                echo -e "${RED}Unknown notify subcommand: $_notify_sub${NC}" >&2
+                echo "Usage: fw notify {status|enable|disable|test|setup}" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    config)
+        source "$FW_LIB_DIR/config-file.sh"
+        do_config "$@"
+        ;;
+    version|-v|--version)
+        _ver_sub="${1:-}"
+        case "$_ver_sub" in
+            bump)
+                shift
+                source "$FW_LIB_DIR/version.sh"
+                do_version_bump "$@"
+                ;;
+            check)
+                shift
+                source "$FW_LIB_DIR/version.sh"
+                do_version_check "$@"
+                ;;
+            sync)
+                shift
+                source "$FW_LIB_DIR/version.sh"
+                do_version_sync "$@"
+                ;;
+            ""|--help|-h|-v|--version)
+                show_version
+                ;;
+            *)
+                echo -e "${RED}Unknown version subcommand: $_ver_sub${NC}" >&2
+                echo "Usage: fw version [bump|check|sync]" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    help|-h|--help)
+        show_help
+        ;;
+    "")
+        show_help
+        exit 1
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $cmd${NC}" >&2
+        echo "Run 'fw help' for usage" >&2
+        exit 1
+        ;;
+esac
