@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-911: lib/harvest.sh use PROJECT_ROOT not FRAMEWORK_ROOT for learnings
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T21:19:02Z
+# ============================================================================
+
+task_id: T-911
+task_name: "lib/harvest.sh use PROJECT_ROOT not FRAMEWORK_ROOT for learnings"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T12:28:37Z
+completed: 2026-04-12T20:46:11Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-12T13:23:42+02:00
+last_commit: 2026-04-12T13:48:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix harvest.sh — write learnings to PROJECT_ROOT not FRAMEWORK_ROOT. Re-apply harvest.sh fix (fw upgrade reverted) + T-912 inception GO committed
+
+# Key outcomes
+outcomes:
+  - "`framework_context` (line ~74) uses `$PROJECT_ROOT` not `$FRAMEWORK_ROOT`"
+  - "`harvest_log` (line ~75) uses `$PROJECT_ROOT` not `$FRAMEWORK_ROOT`"
+  - "`framework_episodics` (line ~363) uses `$PROJECT_ROOT` not `$FRAMEWORK_ROOT`"
+  - "No remaining `FRAMEWORK_ROOT/.context` paths in harvest output destinations"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Re-apply harvest.sh fix (fw upgrade reverted) + T-912 inception GO committed"
+    source: git-mined
+  - description: "Fix harvest.sh — write learnings to PROJECT_ROOT not FRAMEWORK_ROOT"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/lib/harvest.sh"
+  - "docs/reports/T-912-vendor-refresh-workflow.md"
+  - ".tasks/active/T-911-libharvestsh-use-projectroot-not-framewo.md"
+  - ".tasks/active/T-912-define-vendor-refresh-workflow--fw-upgra.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T13:23:42"
+    action: "T-911: Fix harvest.sh — write learnings to PROJECT_ROOT not FRAMEWORK_ROOT"
+  - time: "2026-04-12T13:48:09"
+    action: "T-911: Re-apply harvest.sh fix (fw upgrade reverted) + T-912 inception GO committed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1937 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [infrastructure, harvest, path-resolution]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1937
+  commits: 4
+  files_changed: 15
+  lines_added: 2056
+  lines_removed: 81
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-911-libharvestsh-use-projectroot-not-framewo.md
+generated_by: context-agent-hybrid

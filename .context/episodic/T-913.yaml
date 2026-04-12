@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-913: fw doctor check — warn if .agentic-framework is a symlink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T21:19:02Z
+# ============================================================================
+
+task_id: T-913
+task_name: "fw doctor check — warn if .agentic-framework is a symlink"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T12:28:45Z
+completed: 2026-04-12T20:46:11Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-12T13:20:46+02:00
+last_commit: 2026-04-12T13:20:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add symlink detection to fw doctor + T-975 episodic
+
+# Key outcomes
+outcomes:
+  - "`fw doctor` emits WARN when `.agentic-framework` is a symlink (not a real directory)"
+  - "WARN message includes pointer to `fw vendor` as the fix"
+  - "`fw doctor` shows OK when `.agentic-framework` is a real directory (not symlink)"
+  - "Check appears early in doctor output (after framework installation check)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/bin/fw"
+  - ".context/episodic/T-975.yaml"
+  - ".tasks/active/T-913-fw-doctor-check--warn-if-agentic-framewo.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T13:20:46"
+    action: "T-913: Add symlink detection to fw doctor + T-975 episodic"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 1937 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [infrastructure, doctor, symlink]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1937
+  commits: 5
+  files_changed: 35
+  lines_added: 1623
+  lines_removed: 95
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-913-fw-doctor-check--warn-if-agentic-framewo.md
+generated_by: context-agent-hybrid

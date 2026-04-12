@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-910: bin/watchtower.sh use PROJECT_ROOT not FRAMEWORK_ROOT for PID/log
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T21:19:01Z
+# ============================================================================
+
+task_id: T-910
+task_name: "bin/watchtower.sh use PROJECT_ROOT not FRAMEWORK_ROOT for PID/log"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T12:28:29Z
+completed: 2026-04-12T20:46:11Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-12T13:22:11+02:00
+last_commit: 2026-04-12T13:22:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix watchtower PID/log paths — use PROJECT_ROOT not FRAMEWORK_ROOT
+
+# Key outcomes
+outcomes:
+  - "PID_FILE uses `$PROJECT_ROOT/.context/working/watchtower.pid` (not FRAMEWORK_ROOT)"
+  - "LOG_FILE uses `$PROJECT_ROOT/.context/working/watchtower.log` (not FRAMEWORK_ROOT)"
+  - "PROJECT_ROOT is resolved before PID/LOG paths are set (via paths.sh on line 18)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix watchtower PID/log paths — use PROJECT_ROOT not FRAMEWORK_ROOT"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/bin/watchtower.sh"
+  - ".tasks/active/T-910-binwatchtowersh-use-projectroot-not-fram.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T13:22:11"
+    action: "T-910: Fix watchtower PID/log paths — use PROJECT_ROOT not FRAMEWORK_ROOT"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1937 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [infrastructure, watchtower, path-resolution]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1937
+  commits: 3
+  files_changed: 14
+  lines_added: 1620
+  lines_removed: 43
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-910-binwatchtowersh-use-projectroot-not-fram.md
+generated_by: context-agent-hybrid
