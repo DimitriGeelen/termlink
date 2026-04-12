@@ -4,7 +4,7 @@ name: "Persistent agent sessions — mark, protect from cleanup, verify on resum
 description: >
   Inception: Persistent agent sessions — mark, protect from cleanup, verify on resume, enable cross-agent discovery
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:15:06Z
-last_update: 2026-04-12T09:22:09Z
-date_finished: null
+last_update: 2026-04-12T10:26:25Z
+date_finished: 2026-04-12T09:54:28Z
 ---
 
 # T-967: Persistent agent sessions — mark, protect from cleanup, verify on resume, enable cross-agent discovery
@@ -122,18 +122,18 @@ Currently there's no way to distinguish a "stale orphan" from a "persistent agen
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: User approved: persistent agent sessions with KV persistent=true, tag role:receptionist, .framework.yaml config. Joint design with framework agent completed via PTY coordination.
+
+**Date**: 2026-04-12T10:26:25Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: User approved: persistent agent sessions with KV persistent=true, tag role:receptionist, .framework.yaml config. Joint design with framework agent completed via PTY coordination.
+
+**Date**: 2026-04-12T10:26:25Z
 
 ## Updates
 
@@ -145,3 +145,34 @@ Currently there's no way to distinguish a "stale orphan" from a "persistent agen
 
 ### 2026-04-12T09:20:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T09:54:28Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Cross-agent coordination with framework agent (T-1135) confirms joint design. Both persistent sessions (`framework-agent`, `termlink-agent`) found dead with orphaned registrations — proving the problem. Implementation is trivial on termlink side (~15 lines for cleanup exemption, ~5 for `--persistent` flag). Framework handles protocol (config, init check), termlink handles mechanism (session management, cleanup).
+
+Evidence:
+- Both `framework-agent` and `termlink-agent` sessions dead, zero detection — proves cross-session blindness extends to persistent sessions
+- `clean_stale_sessions()` in `manager.rs:313` has no tag/KV check — purely PID+socket based
+- Framework agent agrees on: KV `persistent=true` for exemption, tag `role:receptionist` for discovery, `.framework.yaml` config for protocol
+- Cost is minimal (~500KB per idle session, zero CPU/network when idle)
+- Implementation split: termlink owns cleanup exemption + health command, framework owns init check + doctor report
+
+Joint Design (agreed with fw-agent T-1135):
+- KV: `persistent=true` (machine-readable, cleanup exemption)
+- Tag: `role:receptionist` + `project:<name>` (discovery)
+- `fw context init`: non-blocking health check, WARN if dead
+- `fw doctor`: reports persistent session status
+- Respawn: manual via `fw termlink respawn` (auto-respawn needs explicit opt-in)
+- Config in `.framework.yaml` → `fw upgrade` propagates to consumers
+
+### 2026-04-12T09:54:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+### 2026-04-12T10:26:25Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** User approved: persistent agent sessions with KV persistent=true, tag role:receptionist, .framework.yaml config. Joint design with framework agent completed via PTY coordination.
