@@ -1,0 +1,786 @@
+#!/bin/bash
+# Handover Agent - Mechanical Operations
+# Creates handover documents for session continuity
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+FRAMEWORK_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$FRAMEWORK_ROOT/lib/paths.sh"
+HANDOVER_DIR="$CONTEXT_DIR/handovers"
+
+# Colors provided by lib/colors.sh (via paths.sh chain)
+
+_resolve_commit_task() {
+    # If task already set by --task flag, keep it
+    if [ -n "$COMMIT_TASK" ]; then return; fi
+    # Check if T-012 exists (framework's own handover task)
+    if [ -n "$(ls "$TASKS_DIR/active/T-012-"*.md "$TASKS_DIR/completed/T-012-"*.md 2>/dev/null)" ]; then
+        COMMIT_TASK="T-012"
+        return
+    fi
+    # Look for any task with "handover" in its slug
+    local handover_task
+    handover_task=$(find "$TASKS_DIR/active" "$TASKS_DIR/completed" -maxdepth 1 -name '*handover*.md' -type f 2>/dev/null | head -1)
+    if [ -n "$handover_task" ]; then
+        COMMIT_TASK=$(basename "$handover_task" | grep -oE "T-[0-9]+" | head -1)
+        if [ -n "$COMMIT_TASK" ]; then return; fi
+    fi
+    # Auto-create a handover maintenance task for this project
+    if [ -x "$FRAMEWORK_ROOT/agents/task-create/create-task.sh" ]; then
+        local create_output
+        create_output=$(PROJECT_ROOT="$PROJECT_ROOT" "$FRAMEWORK_ROOT/agents/task-create/create-task.sh" \
+            --name "Session handover maintenance" --type build --owner agent \
+            --description "Ongoing task for session handover commits" 2>&1)
+        COMMIT_TASK=$(echo "$create_output" | grep "^ID:" | awk '{print $2}')
+        if [ -n "$COMMIT_TASK" ]; then
+            echo -e "${CYAN}Auto-created handover task: $COMMIT_TASK${NC}"
+            return
+        fi
+    fi
+    # Absolute fallback — use T-000 placeholder (will pass hook regex)
+    # Note: focused task fallback was removed (T-556) — handover commits
+    # are session-level and must never borrow a work task's ID.
+    COMMIT_TASK="T-000"
+}
+
+# Parse arguments
+SESSION_ID=""
+AUTO_COMMIT=true
+COMMIT_TASK=""
+CHECKPOINT_MODE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --session) SESSION_ID="$2"; shift 2 ;;
+        --commit) AUTO_COMMIT=true; shift ;;
+        --no-commit) AUTO_COMMIT=false; shift ;;
+        --task|-t) COMMIT_TASK="$2"; shift 2 ;;
+        --owner) AGENT_OWNER="$2"; shift 2 ;;
+        --emergency) AUTO_COMMIT=true; shift ;;  # Deprecated (D-028): treated as normal handover
+        --checkpoint) CHECKPOINT_MODE=true; AUTO_COMMIT=true; shift ;;
+        -h|--help)
+            echo "Usage: handover.sh [options]"
+            echo ""
+            echo "Options:"
+            echo "  --session ID   Use specific session ID (default: auto-generated)"
+            echo "  --commit       Auto-commit handover via git agent (default)"
+            echo "  --no-commit    Skip auto-commit"
+            echo "  --task, -t ID  Task ID for commit (default: T-012)"
+            echo "  --owner NAME   Agent/provider name (default: \$AGENT_OWNER or claude-code)"
+            echo "  --checkpoint   Mid-session checkpoint (does not replace LATEST.md)"
+            echo "  -h, --help     Show this help"
+            exit 0
+            ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+# Generate session ID if not provided
+if [ -z "$SESSION_ID" ]; then
+    SESSION_ID="S-$(date +%Y-%m%d-%H%M)"
+fi
+
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# Ensure directories exist
+mkdir -p "$HANDOVER_DIR"
+
+# ─── Checkpoint Mode: lightweight mid-session snapshot ───
+if [ "$CHECKPOINT_MODE" = true ]; then
+    HANDOVER_FILE="$HANDOVER_DIR/CHECKPOINT-$SESSION_ID.md"
+    echo -e "${CYAN}=== Checkpoint Handover ===${NC}"
+    echo "Session: $SESSION_ID"
+
+    ACTIVE_TASKS=""
+    ACTIVE_DETAILS=""
+    shopt -s nullglob
+    for f in "$TASKS_DIR/active"/*.md; do
+        [ -f "$f" ] || continue
+        task_id=$(grep "^id:" "$f" | head -1 | cut -d: -f2 | tr -d ' ')
+        task_name=$(grep "^name:" "$f" | head -1 | cut -d: -f2- | sed 's/^ *//')
+        task_status=$(grep "^status:" "$f" | head -1 | cut -d: -f2 | tr -d ' ')
+        [ -n "$task_id" ] && ACTIVE_TASKS="$ACTIVE_TASKS$task_id, "
+        ACTIVE_DETAILS="$ACTIVE_DETAILS- **$task_id**: $task_name ($task_status)\n"
+    done
+    shopt -u nullglob
+    ACTIVE_TASKS="${ACTIVE_TASKS%, }"
+
+    UNCOMMITTED=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    RECENT_COMMITS=$(git -C "$PROJECT_ROOT" log -5 --pretty=format:"- %h %s" 2>/dev/null)
+
+    cat > "$HANDOVER_FILE" << CHECKPOINT_EOF
+---
+session_id: $SESSION_ID
+timestamp: $TIMESTAMP
+type: checkpoint
+tasks_active: [$ACTIVE_TASKS]
+uncommitted_changes: $UNCOMMITTED
+owner: ${AGENT_OWNER:-claude-code}
+---
+
+# Checkpoint: $SESSION_ID
+
+## Active Tasks
+
+$(echo -e "$ACTIVE_DETAILS")
+
+## Recent Commits
+
+$RECENT_COMMITS
+CHECKPOINT_EOF
+
+    echo -e "${GREEN}Checkpoint created: $HANDOVER_FILE${NC}"
+    # Note: checkpoints do NOT replace LATEST.md
+
+    # Reset tool counter
+    if [ -f "$FRAMEWORK_ROOT/agents/context/checkpoint.sh" ]; then
+        "$FRAMEWORK_ROOT/agents/context/checkpoint.sh" reset 2>/dev/null || true
+    fi
+
+    # Auto-commit
+    if [ "$AUTO_COMMIT" = true ]; then
+        _resolve_commit_task
+        GIT_AGENT=""
+        if [ -f "$FRAMEWORK_ROOT/agents/git/git.sh" ]; then
+            GIT_AGENT="$FRAMEWORK_ROOT/agents/git/git.sh"
+        fi
+        if [ -n "$GIT_AGENT" ]; then
+            git -C "$PROJECT_ROOT" add "$HANDOVER_FILE"
+            PROJECT_ROOT="$PROJECT_ROOT" "$GIT_AGENT" commit -m "$COMMIT_TASK: Checkpoint handover $SESSION_ID"
+        fi
+    fi
+    exit 0
+fi
+
+# ─── Normal Mode ───
+HANDOVER_FILE="$HANDOVER_DIR/$SESSION_ID.md"
+
+echo -e "${CYAN}=== Handover Agent ===${NC}"
+echo "Session: $SESSION_ID"
+echo "Timestamp: $TIMESTAMP"
+echo ""
+
+# Step 1: Gather automatic data
+echo -e "${YELLOW}Gathering state...${NC}"
+
+# Get predecessor (previous handover)
+PREDECESSOR=""
+if [ -f "$HANDOVER_DIR/LATEST.md" ]; then
+    PREDECESSOR=$(grep "^session_id:" "$HANDOVER_DIR/LATEST.md" 2>/dev/null | cut -d: -f2 | tr -d ' ')
+fi
+
+# Get active tasks
+ACTIVE_TASKS=""
+shopt -s nullglob
+for f in "$TASKS_DIR/active"/*.md; do
+    [ -f "$f" ] || continue
+    task_id=$(grep "^id:" "$f" | head -1 | cut -d: -f2 | tr -d ' ')
+    if [ -n "$task_id" ]; then
+        ACTIVE_TASKS="$ACTIVE_TASKS$task_id, "
+    fi
+done
+shopt -u nullglob
+ACTIVE_TASKS="${ACTIVE_TASKS%, }"  # Remove trailing comma
+
+# Get git info
+UNCOMMITTED=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+RECENT_COMMITS=$(git -C "$PROJECT_ROOT" log -5 --pretty=format:"- %h %s" 2>/dev/null)
+
+# Get tasks touched recently (modified in last day)
+TASKS_TOUCHED=""
+while IFS= read -r f; do
+    task_id=$(grep "^id:" "$f" | head -1 | cut -d: -f2 | tr -d ' ')
+    if [ -n "$task_id" ]; then
+        TASKS_TOUCHED="$TASKS_TOUCHED$task_id, "
+    fi
+done < <(find "$TASKS_DIR" -name "*.md" -mmin -1440 -type f 2>/dev/null)
+TASKS_TOUCHED="${TASKS_TOUCHED%, }"
+
+# Step 1.5: EPISODIC COMPLETENESS GATE
+# Check that recently completed tasks have enriched episodic summaries
+echo ""
+echo -e "${YELLOW}Checking episodic completeness...${NC}"
+
+EPISODIC_DIR="$CONTEXT_DIR/episodic"
+EPISODIC_WARNINGS=()
+
+# Find completed tasks modified in last 24 hours (likely completed this session)
+shopt -s nullglob
+for f in "$TASKS_DIR/completed"/*.md; do
+    # Only check files modified in last day
+    if [ -z "$(find "$f" -mmin -1440 2>/dev/null)" ]; then
+        continue
+    fi
+
+    task_id=$(grep "^id:" "$f" | head -1 | cut -d: -f2 | tr -d ' ')
+    [ -z "$task_id" ] && continue
+
+    episodic_file="$EPISODIC_DIR/${task_id}.yaml"
+
+    # Check 1: Does episodic file exist?
+    if [ ! -f "$episodic_file" ]; then
+        EPISODIC_WARNINGS+=("$task_id: Missing episodic summary")
+        continue
+    fi
+
+    # Check 2: Is it enriched (not pending)?
+    enrichment_status=$(grep "^enrichment_status:" "$episodic_file" 2>/dev/null | cut -d: -f2 | tr -d ' ')
+
+    if [ "$enrichment_status" = "pending" ]; then
+        EPISODIC_WARNINGS+=("$task_id: Episodic not enriched (status: pending)")
+    elif [ -z "$enrichment_status" ]; then
+        # Old format without enrichment_status - check if summary is empty
+        summary_line=$(grep -A 1 "^summary:" "$episodic_file" | tail -1)
+        if echo "$summary_line" | grep -qE '^\s*>\s*$|\[TODO'; then
+            EPISODIC_WARNINGS+=("$task_id: Episodic has empty/TODO summary")
+        fi
+    fi
+done
+shopt -u nullglob
+
+# Report episodic warnings
+if [ ${#EPISODIC_WARNINGS[@]} -gt 0 ]; then
+    echo -e "${YELLOW}⚠ EPISODIC CONTEXT GAPS DETECTED${NC}"
+    echo ""
+    for warning in "${EPISODIC_WARNINGS[@]}"; do
+        echo "  - $warning"
+    done
+    echo ""
+    echo "These gaps will cause context loss. Consider:"
+    echo "  - Run: ./agents/context/context.sh generate-episodic T-XXX"
+    echo "  - Then enrich the [TODO] sections before this handover"
+    echo ""
+else
+    echo -e "${GREEN}✓ All recent completed tasks have enriched episodics${NC}"
+fi
+
+# Step 1.6: Observation inbox status
+INBOX_FILE="$CONTEXT_DIR/inbox.yaml"
+PENDING_OBS=0
+URGENT_OBS=0
+if [ -f "$INBOX_FILE" ]; then
+    PENDING_OBS=$(grep -c 'status: pending' "$INBOX_FILE" 2>/dev/null) || PENDING_OBS=0
+    URGENT_OBS=$(VALIDATE_FILE="$INBOX_FILE" python3 -c "
+import re, os
+with open(os.environ['VALIDATE_FILE']) as f:
+    content = f.read()
+blocks = re.split(r'\n  - ', content)
+urgent = sum(1 for b in blocks[1:] if 'status: pending' in b and 'urgent: true' in b)
+print(urgent)
+" 2>/dev/null || echo 0)
+fi
+
+if [ "$PENDING_OBS" -gt 0 ]; then
+    if [ "$URGENT_OBS" -gt 0 ]; then
+        echo -e "${YELLOW}⚠ Observation inbox: $PENDING_OBS pending ($URGENT_OBS urgent)${NC}"
+    else
+        echo -e "${CYAN}Observation inbox: $PENDING_OBS pending${NC}"
+    fi
+    echo "  Run: fw note triage"
+else
+    echo -e "${GREEN}✓ Observation inbox clean${NC}"
+fi
+
+# Step 1.7: Gaps register status
+# T-397: Unified concerns register (was gaps.yaml)
+GAPS_FILE="$CONTEXT_DIR/project/concerns.yaml"
+# Fallback to gaps.yaml for backward compat
+[ -f "$GAPS_FILE" ] || GAPS_FILE="$CONTEXT_DIR/project/gaps.yaml"
+WATCHING_GAPS=0
+if [ -f "$GAPS_FILE" ]; then
+    WATCHING_GAPS=$(grep -c 'status: watching' "$GAPS_FILE" 2>/dev/null) || WATCHING_GAPS=0
+    if [ "$WATCHING_GAPS" -gt 0 ]; then
+        echo -e "${CYAN}Concerns register: $WATCHING_GAPS watching${NC}"
+    fi
+fi
+
+# Step 1.8: Token usage (T-805, T-829)
+TOKEN_USAGE=""
+TOKEN_TOTAL=""
+TOKEN_TURNS=""
+TOKEN_CACHE_HIT=""
+TOKEN_INPUT=""
+TOKEN_CACHE_READ=""
+TOKEN_CACHE_CREATE=""
+TOKEN_OUTPUT=""
+if [ -f "$FRAMEWORK_ROOT/lib/costs.sh" ]; then
+    TOKEN_DATA=$(FRAMEWORK_ROOT="$FRAMEWORK_ROOT" PROJECT_ROOT="$PROJECT_ROOT" \
+        bash -c 'source "$FRAMEWORK_ROOT/lib/colors.sh" 2>/dev/null; source "$FRAMEWORK_ROOT/lib/costs.sh"; costs_main current 2>/dev/null' || true)
+    if [ -n "$TOKEN_DATA" ]; then
+        TOKEN_TOTAL=$(echo "$TOKEN_DATA" | grep "^Total:" | awk '{print $2}')
+        TOKEN_TURNS=$(echo "$TOKEN_DATA" | grep "^Turns:" | awk '{print $2}' | tr -d ',')
+        TOKEN_CACHE_HIT=$(echo "$TOKEN_DATA" | grep "^  Cache Rd:" | awk '{print $3}')
+        TOKEN_INPUT=$(echo "$TOKEN_DATA" | grep "^  Input:" | awk '{print $2}')
+        TOKEN_CACHE_READ=$(echo "$TOKEN_DATA" | grep "^  Cache Rd:" | awk '{print $3}')
+        TOKEN_CACHE_CREATE=$(echo "$TOKEN_DATA" | grep "^  Cache Cr:" | awk '{print $3}')
+        TOKEN_OUTPUT=$(echo "$TOKEN_DATA" | grep "^  Output:" | awk '{print $2}')
+        TOKEN_USAGE="${TOKEN_TOTAL:-0} tokens, ${TOKEN_TURNS:-0} turns"
+    fi
+fi
+
+# Step 1.9: Session quality metrics (T-831)
+METRICS_CPT=""
+METRICS_FCT=""
+METRICS_FTC=""
+METRICS_FTC_RATE=""
+METRICS_EDIT_BURSTS=""
+METRICS_PTR=""
+# Per-session deltas (T-850)
+S_METRICS_CPT=""
+S_METRICS_TURNS=""
+S_METRICS_COMMITS=""
+S_METRICS_FTC=""
+S_METRICS_FTC_RATE=""
+S_METRICS_EDIT_BURSTS=""
+S_METRICS_PTR=""
+if [ -f "$FRAMEWORK_ROOT/agents/context/session-metrics.sh" ]; then
+    bash "$FRAMEWORK_ROOT/agents/context/session-metrics.sh" 2>/dev/null || true
+    METRICS_FILE="$CONTEXT_DIR/working/.session-metrics.yaml"
+    if [ -f "$METRICS_FILE" ]; then
+        METRICS_CPT=$(grep '^commits_per_turn:' "$METRICS_FILE" | awk '{print $2}')
+        METRICS_FCT=$(grep '^first_commit_turn:' "$METRICS_FILE" | awk '{print $2}')
+        METRICS_FTC=$(grep '^failed_tool_calls:' "$METRICS_FILE" | awk '{print $2}')
+        METRICS_FTC_RATE=$(grep '^failed_tool_call_rate:' "$METRICS_FILE" | awk '{print $2}')
+        METRICS_EDIT_BURSTS=$(grep '^edit_bursts:' "$METRICS_FILE" | awk '{print $2}')
+        METRICS_PTR=$(grep '^productive_turns_ratio:' "$METRICS_FILE" | awk '{print $2}')
+        # Per-session deltas (T-850)
+        S_METRICS_TURNS=$(grep '^session_turns:' "$METRICS_FILE" | awk '{print $2}')
+        S_METRICS_COMMITS=$(grep '^session_commits:' "$METRICS_FILE" | awk '{print $2}')
+        S_METRICS_CPT=$(grep '^session_commits_per_turn:' "$METRICS_FILE" | awk '{print $2}')
+        S_METRICS_FTC=$(grep '^session_failed_tool_calls:' "$METRICS_FILE" | awk '{print $2}')
+        S_METRICS_FTC_RATE=$(grep '^session_failed_tool_call_rate:' "$METRICS_FILE" | awk '{print $2}')
+        S_METRICS_EDIT_BURSTS=$(grep '^session_edit_bursts:' "$METRICS_FILE" | awk '{print $2}')
+        S_METRICS_PTR=$(grep '^session_productive_turns_ratio:' "$METRICS_FILE" | awk '{print $2}')
+    fi
+fi
+
+# Step 2: Create handover template
+echo -e "${YELLOW}Creating handover document...${NC}"
+
+cat > "$HANDOVER_FILE" << EOF
+---
+session_id: $SESSION_ID
+timestamp: $TIMESTAMP
+predecessor: $PREDECESSOR
+tasks_active: [$ACTIVE_TASKS]
+tasks_touched: [$TASKS_TOUCHED]
+tasks_completed: []
+uncommitted_changes: $UNCOMMITTED
+token_usage: "${TOKEN_USAGE}"
+token_input: "${TOKEN_INPUT}"
+token_cache_read: "${TOKEN_CACHE_READ}"
+token_cache_create: "${TOKEN_CACHE_CREATE}"
+token_output: "${TOKEN_OUTPUT}"
+commits_per_turn: "${METRICS_CPT}"
+first_commit_turn: "${METRICS_FCT}"
+failed_tool_calls: "${METRICS_FTC}"
+failed_tool_call_rate: "${METRICS_FTC_RATE}"
+edit_bursts: "${METRICS_EDIT_BURSTS}"
+productive_turns_ratio: "${METRICS_PTR}"
+session_turns: "${S_METRICS_TURNS}"
+session_commits: "${S_METRICS_COMMITS}"
+session_commits_per_turn: "${S_METRICS_CPT}"
+session_failed_tool_calls: "${S_METRICS_FTC}"
+session_failed_tool_call_rate: "${S_METRICS_FTC_RATE}"
+session_edit_bursts: "${S_METRICS_EDIT_BURSTS}"
+session_productive_turns_ratio: "${S_METRICS_PTR}"
+owner: ${AGENT_OWNER:-claude-code}
+session_narrative: ""
+---
+
+# Session Handover: $SESSION_ID
+
+## Where We Are
+
+$(python3 -c "
+import subprocess, re, collections
+# Build 'Where We Are' from recent commits
+out = subprocess.check_output(
+    ['git', '-C', '$PROJECT_ROOT', 'log', '--oneline', '-20', '--format=%s'],
+    text=True, stderr=subprocess.DEVNULL).strip().splitlines()
+# Extract unique task references and their descriptions
+tasks_seen = collections.OrderedDict()
+for line in out:
+    m = re.match(r'(T-\d+):?\s*(.*)', line)
+    if m and m.group(1) != 'T-012':
+        tid = m.group(1)
+        if tid not in tasks_seen:
+            desc = m.group(2).strip().rstrip('.')
+            if desc:
+                tasks_seen[tid] = desc
+items = list(tasks_seen.items())[:5]
+if items:
+    parts = [f'{t} ({d})' for t, d in items]
+    count = len(items)
+    more = len(tasks_seen) - count
+    summary = 'Session worked on: ' + '; '.join(parts)
+    if more > 0:
+        summary += f'. Plus {more} more commit(s).'
+    else:
+        summary += '.'
+    print(summary)
+else:
+    print('Session started. See Recent Commits below for activity.')
+" 2>/dev/null || echo "See Recent Commits below for session activity.")
+
+## Work in Progress
+
+EOF
+
+# Add active tasks sorted by horizon (now > next > later)
+python3 << PYEOF >> "$HANDOVER_FILE"
+import os, re, glob
+
+tasks_dir = "$TASKS_DIR/active"
+horizon_order = {'now': 0, 'next': 1, 'later': 2}
+tasks = []
+
+for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
+    with open(f) as fh:
+        content = fh.read()
+    tid = re.search(r'^id:\s*(.+)', content, re.M)
+    tname = re.search(r'^name:\s*(.+)', content, re.M)
+    tstatus = re.search(r'^status:\s*(.+)', content, re.M)
+    thoriz = re.search(r'^horizon:\s*(.+)', content, re.M)
+    if not tid:
+        continue
+    h = thoriz.group(1).strip() if thoriz else 'now'
+    tasks.append((horizon_order.get(h, 0), tid.group(1).strip(),
+                  tname.group(1).strip() if tname else '',
+                  tstatus.group(1).strip() if tstatus else '',
+                  h))
+
+tasks.sort(key=lambda t: (t[0], t[1]))
+current_horizon = None
+# Collect work-completed tasks to summarize at end of each horizon group
+pending_completed = []
+for _, tid, tname, tstatus, h in tasks:
+    if h != current_horizon:
+        # Flush any accumulated work-completed tasks from previous horizon
+        if pending_completed:
+            print(f'### Awaiting Human Review ({len(pending_completed)} tasks)')
+            print()
+            print('Agent ACs done. Human ACs pending — see "Awaiting Your Action" below.')
+            print()
+            for pc_tid, pc_name in pending_completed:
+                print(f'- **{pc_tid}**: {pc_name}')
+            print()
+            pending_completed = []
+        current_horizon = h
+        print(f'<!-- horizon: {h} -->')
+        print()
+    # Work-completed tasks: just list them (no [TODO] blocks)
+    if tstatus == 'work-completed':
+        pending_completed.append((tid, tname))
+        continue
+    # Auto-fill from git log for this task
+    import subprocess
+    last_action = 'See git log'
+    try:
+        gl = subprocess.check_output(
+            ['git', '-C', '$PROJECT_ROOT', 'log', '--oneline', '-1',
+             '--grep=' + tid, '--format=%s'],
+            text=True, stderr=subprocess.DEVNULL).strip()
+        if gl:
+            last_action = gl
+    except Exception:
+        pass
+    print(f'### {tid}: {tname}')
+    print(f'- **Status:** {tstatus} (horizon: {h})')
+    print(f'- **Last action:** {last_action}')
+    print(f'- **Next step:** See task file')
+    print(f'- **Blockers:** None')
+    print()
+    print()
+# Flush remaining work-completed tasks
+if pending_completed:
+    print(f'### Awaiting Human Review ({len(pending_completed)} tasks)')
+    print()
+    print('Agent ACs done. Human ACs pending — see "Awaiting Your Action" below.')
+    print()
+    for pc_tid, pc_name in pending_completed:
+        print(f'- **{pc_tid}**: {pc_name}')
+    print()
+PYEOF
+
+# Add inception section if any inception tasks exist
+inception_count=0
+shopt -s nullglob
+for f in "$TASKS_DIR/active"/*.md; do
+    [ -f "$f" ] || continue
+    if grep -q "workflow_type: inception" "$f" 2>/dev/null; then
+        inception_count=$((inception_count + 1))
+    fi
+done
+shopt -u nullglob
+if [ "$inception_count" -gt 0 ]; then
+    {
+        echo "## Inception Phases"
+        echo ""
+        echo "**$inception_count inception task(s) pending decision** — run \`fw inception status\` for details."
+        echo ""
+    } >> "$HANDOVER_FILE"
+fi
+
+# Step 2.1: Surface partial-complete tasks (T-372 — blind completion anti-pattern)
+# Tasks that are work-completed but have unchecked Human ACs
+PARTIAL_COMPLETE_SECTION=$(python3 << 'PCEOF'
+import glob, re, os
+
+tasks_dir = os.environ.get("TASKS_DIR", ".tasks")
+partial = []
+for f in sorted(glob.glob(os.path.join(tasks_dir, "active", "*.md"))):
+    with open(f) as fh:
+        content = fh.read()
+    if "status: work-completed" not in content:
+        continue
+    # Find ### Human section
+    human_match = re.search(r'### Human\n(.*?)(?=\n### |\n## |\Z)', content, re.DOTALL)
+    if not human_match:
+        continue
+    human_section = human_match.group(1)
+    unchecked = len(re.findall(r'^\s*-\s*\[ \]', human_section, re.M))
+    if unchecked == 0:
+        continue
+    tid = re.search(r'^id:\s*(\S+)', content, re.M)
+    tname = re.search(r'^name:\s*"?(.+?)"?\s*$', content, re.M)
+    if tid:
+        # Extract first unchecked AC text (truncated)
+        first_ac = re.search(r'^\s*-\s*\[ \]\s*(.+)', human_section, re.M)
+        ac_preview = first_ac.group(1)[:60] if first_ac else "?"
+        partial.append((tid.group(1), tname.group(1) if tname else "?", unchecked, ac_preview))
+
+if partial:
+    print("## Awaiting Your Action (Human)")
+    print()
+    print(f"**{len(partial)} task(s) with unchecked Human ACs.** These are waiting for you — not for agent cleanup.")
+    print("Review each when ready. No urgency implied.")
+    print()
+    for tid, tname, count, preview in partial:
+        print(f"- **{tid}**: {tname} ({count} unchecked)")
+        print(f"  - e.g.: {preview}")
+    print()
+PCEOF
+)
+
+if [ -n "$PARTIAL_COMPLETE_SECTION" ]; then
+    echo "$PARTIAL_COMPLETE_SECTION" >> "$HANDOVER_FILE"
+fi
+
+# Add observation inbox status if any pending
+if [ "$PENDING_OBS" -gt 0 ]; then
+    {
+        echo "## Observation Inbox"
+        echo ""
+        if [ "$URGENT_OBS" -gt 0 ]; then
+            echo "**$PENDING_OBS pending observations ($URGENT_OBS urgent)** — run \`fw note triage\` before starting new work."
+        else
+            echo "**$PENDING_OBS pending observations** — review with \`fw note list\` or \`fw note triage\`."
+        fi
+        echo ""
+        # List pending observation summaries
+        python3 << PYEOF
+import re
+with open("$INBOX_FILE") as f:
+    content = f.read()
+blocks = re.split(r'\n  - ', content)
+for b in blocks[1:]:
+    if 'status: pending' not in b:
+        continue
+    obs_id = re.search(r'id: (OBS-\d+)', b)
+    text = re.search(r'text: "(.*?)"', b)
+    urgent = 'urgent: true' in b
+    if obs_id and text:
+        prefix = "[URGENT] " if urgent else ""
+        print(f"- {prefix}{obs_id.group(1)}: {text.group(1)}")
+PYEOF
+        echo ""
+    } >> "$HANDOVER_FILE"
+fi
+
+# Add gaps register summary if any watching
+if [ "$WATCHING_GAPS" -gt 0 ]; then
+    {
+        echo "## Gaps Register"
+        echo ""
+        echo "**$WATCHING_GAPS concern(s) being watched** — see \`.context/project/concerns.yaml\`"
+        echo ""
+        python3 << PYEOF
+import yaml
+with open("$GAPS_FILE") as f:
+    data = yaml.safe_load(f)
+# T-397: concerns.yaml uses 'concerns' key, fallback to 'gaps'
+items = data.get('concerns', data.get('gaps', []))
+for item in items:
+    if item.get('status') != 'watching':
+        continue
+    sev = item.get('severity', 'unknown')
+    print(f"- **{item['id']}** [{sev}]: {item['title']}")
+PYEOF
+        echo ""
+        echo "Run \`fw audit\` to check if any trigger conditions are met."
+        echo ""
+    } >> "$HANDOVER_FILE"
+fi
+
+cat >> "$HANDOVER_FILE" << EOF
+## Decisions Made This Session
+
+None
+
+## Things Tried That Failed
+
+None
+
+## Open Questions / Blockers
+
+None
+
+## Token Usage
+
+$(if [ -n "$TOKEN_TOTAL" ]; then
+    echo "- **Total:** $TOKEN_TOTAL tokens"
+    echo "- **Turns:** ${TOKEN_TURNS:-?}"
+    [ -n "$TOKEN_CACHE_HIT" ] && echo "- **Cache read:** $TOKEN_CACHE_HIT"
+    echo ""
+    echo "Run \`fw costs current\` for detailed breakdown."
+else
+    echo "No token data available (requires JSONL transcript)."
+fi)
+
+## Gotchas / Warnings for Next Session
+
+See gaps register above.
+
+## Suggested First Action
+
+$(python3 -c "
+import glob, re, os
+tasks_dir = '$TASKS_DIR/active'
+# Find first started-work task in horizon:now/next, prefer agent-owned
+candidates = []
+for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
+    with open(f) as fh:
+        content = fh.read()
+    if 'status: started-work' not in content:
+        continue
+    h = re.search(r'^horizon:\s*(.+)', content, re.M)
+    if not h or h.group(1).strip() not in ('now', 'next'):
+        continue
+    tid = re.search(r'^id:\s*(.+)', content, re.M)
+    tname = re.search(r'^name:\s*(.+)', content, re.M)
+    owner = re.search(r'^owner:\s*(.+)', content, re.M)
+    is_human = owner and owner.group(1).strip() == 'human'
+    hval = 0 if h.group(1).strip() == 'now' else 1
+    candidates.append((is_human, hval, tid.group(1).strip() if tid else '', tname.group(1).strip() if tname else ''))
+candidates.sort()
+if candidates:
+    _, _, tid, tname = candidates[0]
+    print(f'Continue {tid}: {tname}')
+else:
+    print('See active tasks')
+" 2>/dev/null || echo "See active tasks")
+
+## Files Changed This Session
+
+$(git -C "$PROJECT_ROOT" diff --stat HEAD~5 HEAD 2>/dev/null | tail -5 || echo "See Recent Commits")
+
+## Recent Commits
+
+$RECENT_COMMITS
+
+---
+
+## Handover Quality Feedback (for next session to complete)
+
+- Did this handover help? [ ]
+- What was missing?
+- What was unnecessary?
+EOF
+
+# Step 2b: Check for orphaned TermLink worker outputs (T-818/T-820)
+ORPHAN_COUNT=$(find /tmp -maxdepth 1 -name "fw-agent-*.md" -newer "$HANDOVER_DIR/LATEST.md" 2>/dev/null | wc -l)
+ORPHAN_COUNT=$(echo "$ORPHAN_COUNT" | tr -d '[:space:]')
+if [ "${ORPHAN_COUNT:-0}" -gt 0 ]; then
+    echo "" >> "$HANDOVER_FILE"
+    echo "## Orphaned Worker Outputs" >> "$HANDOVER_FILE"
+    echo "" >> "$HANDOVER_FILE"
+    echo "**$ORPHAN_COUNT file(s) in /tmp/fw-agent-\*.md** newer than last handover." >> "$HANDOVER_FILE"
+    echo "These may be TermLink worker results that weren't integrated." >> "$HANDOVER_FILE"
+    echo "" >> "$HANDOVER_FILE"
+    find /tmp -maxdepth 1 -name "fw-agent-*.md" -newer "$HANDOVER_DIR/LATEST.md" 2>/dev/null | while read -r f; do
+        echo "- \`$(basename "$f")\` ($(wc -l < "$f") lines)" >> "$HANDOVER_FILE"
+    done
+    echo "" >> "$HANDOVER_FILE"
+    echo -e "${YELLOW}WARNING: $ORPHAN_COUNT orphaned worker output(s) in /tmp${NC}"
+fi
+
+# Step 3: Update LATEST.md (symlink so edits to session file auto-reflect)
+ln -sf "$(basename "$HANDOVER_FILE")" "$HANDOVER_DIR/LATEST.md"
+
+echo ""
+echo -e "${GREEN}=== Handover Created ===${NC}"
+echo "File: $HANDOVER_FILE"
+echo "Latest: $HANDOVER_DIR/LATEST.md"
+
+# T-709: Push notification — session ended
+if [ -f "$FRAMEWORK_ROOT/lib/notify.sh" ]; then
+    source "$FRAMEWORK_ROOT/lib/notify.sh"
+    ACTIVE_COUNT=$(find "$PROJECT_ROOT/.tasks/active" -maxdepth 1 -name 'T-*.md' -type f 2>/dev/null | wc -l)
+    fw_notify "Session Ended: $SESSION_ID" "Handover created. Active tasks: $ACTIVE_COUNT" "manual" "framework"
+fi
+
+# Handle auto-commit
+if [ "$AUTO_COMMIT" = true ]; then
+    _resolve_commit_task
+
+    echo ""
+    echo -e "${YELLOW}Auto-committing handover...${NC}"
+
+    # Resolve git agent: FRAMEWORK_ROOT (set by this script), then PROJECT_ROOT fallback
+    GIT_AGENT=""
+    if [ -n "${FRAMEWORK_ROOT:-}" ] && [ -f "$FRAMEWORK_ROOT/agents/git/git.sh" ]; then
+        GIT_AGENT="$FRAMEWORK_ROOT/agents/git/git.sh"
+    elif [ -f "$PROJECT_ROOT/agents/git/git.sh" ]; then
+        GIT_AGENT="$PROJECT_ROOT/agents/git/git.sh"
+    fi
+
+    if [ -n "$GIT_AGENT" ]; then
+        # Stage handover files
+        git -C "$PROJECT_ROOT" add "$HANDOVER_FILE" "$HANDOVER_DIR/LATEST.md"
+
+        # Commit via git agent
+        PROJECT_ROOT="$PROJECT_ROOT" "$GIT_AGENT" commit -m "$COMMIT_TASK: Session handover $SESSION_ID"
+
+        # Push to all remotes (T-1144: prevent unpushed commit accumulation)
+        echo ""
+        echo -e "${CYAN}Pushing to remotes...${NC}"
+        local _push_failed=false
+        while IFS= read -r remote_name; do
+            [ -z "$remote_name" ] && continue
+            if git -C "$PROJECT_ROOT" push "$remote_name" HEAD 2>&1; then
+                echo -e "  ${GREEN}Pushed to $remote_name ✓${NC}"
+            else
+                echo -e "  ${YELLOW}WARNING: Push to $remote_name failed (non-blocking)${NC}" >&2
+                _push_failed=true
+            fi
+        done < <(git -C "$PROJECT_ROOT" remote 2>/dev/null)
+        if [ "$_push_failed" = true ]; then
+            echo -e "${YELLOW}Some pushes failed. Run 'git push' manually after resolving.${NC}"
+        fi
+    else
+        error "Git agent not found. Manual commit required."
+        echo "Run: git commit -m \"$COMMIT_TASK: Session handover $SESSION_ID\""
+    fi
+else
+    echo ""
+    echo -e "${YELLOW}Next steps:${NC}"
+    echo "1. Review $HANDOVER_FILE (auto-filled from git data)"
+    echo "2. Edit if needed — enrich Decisions, Gotchas, Open Questions"
+    _resolve_commit_task
+    echo "3. Commit with: fw git commit -m \"$COMMIT_TASK: Session handover $SESSION_ID\""
+    echo ""
+    echo -e "${CYAN}Key sections to complete:${NC}"
+    echo "- Where We Are (summary)"
+    echo "- Work in Progress (last action, next step for each task)"
+    echo "- Decisions Made (with rationale)"
+    echo "- Suggested First Action (most important)"
+fi

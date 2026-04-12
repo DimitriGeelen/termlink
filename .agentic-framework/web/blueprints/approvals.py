@@ -100,6 +100,11 @@ def _load_pending_go_decisions():
         if _extract_decision(body) != "pending":
             continue
 
+        # T-1123: Only show inception tasks with a recommendation (skip captured/unexplored)
+        rec_section = _extract_section(body, "Recommendation")
+        if not rec_section or len(rec_section.strip()) < 20:
+            continue
+
         task_id = fm.get("id", "")
         linked = [a for a in assumptions if a.get("linked_task") == task_id]
 
@@ -119,68 +124,41 @@ def _load_pending_go_decisions():
         if len(problem_excerpt) > 200:
             problem_excerpt = problem_excerpt[:197] + "..."
 
-        # Extract recommendation for display + rationale prepopulation (T-939)
+        # Extract recommendation for display (T-1119: show full recommendation)
         rec_raw = _extract_section(body, "Recommendation")
-        rec = rec_raw or ""
+        rec_display = ""  # Full recommendation for visible display
+        rec_decision = ""  # GO/NO-GO/DEFER extracted
+        if rec_raw and len(rec_raw) > 10:
+            rec_display = rec_raw.strip()
+            # Extract the recommendation decision
+            for line in rec_raw.split("\n"):
+                stripped = line.strip().replace("**", "").replace("*", "")
+                if stripped.lower().startswith("recommendation:"):
+                    rec_decision = stripped.split(":", 1)[1].strip().split()[0].upper()
+                    break
 
-        # Parse recommendation label (GO/NO-GO/DEFER) and body text
-        recommendation_label = ""
-        recommendation_text = ""
-        if rec and len(rec) >= 10:
-            import re as _re
-            label_match = _re.search(
-                r'\*{0,2}Recommendation:?\*{0,2}\s*(GO|NO-GO|DEFER)',
-                rec, _re.IGNORECASE
-            )
-            if label_match:
-                recommendation_label = label_match.group(1).upper()
-
-            rationale_match = _re.search(
-                r'\*{0,2}Rationale:?\*{0,2}\s*(.*?)(?:\n\n|\n\*{0,2}Evidence|\Z)',
-                rec, _re.DOTALL | _re.IGNORECASE
-            )
-            if rationale_match:
-                recommendation_text = rationale_match.group(1).strip()
-            elif recommendation_label:
-                after_label = rec[label_match.end():].strip()
-                recommendation_text = after_label.split("\n\n")[0].strip() if after_label else ""
-
-            recommendation_text = recommendation_text.replace("**", "").replace("*", "").strip()
-            if len(recommendation_text) > 300:
-                recommendation_text = recommendation_text[:297] + "..."
-
-        # T-944: Extract Go/No-Go criteria for display
-        gonogo_criteria = {"go": [], "nogo": []}
-        gonogo_raw = _extract_section(body, "Go/No-Go Criteria")
-        if gonogo_raw:
-            in_section = None
-            for line in gonogo_raw.split("\n"):
-                stripped = line.strip()
-                if stripped.startswith("**GO if:**"):
-                    in_section = "go"
-                    continue
-                if stripped.startswith("**NO-GO if:**"):
-                    in_section = "nogo"
-                    continue
-                if in_section and stripped.startswith("- "):
-                    criterion = stripped[2:].strip()
-                    if criterion and not criterion.startswith("[Criterion"):
-                        gonogo_criteria[in_section].append(criterion)
-
-        # Rationale hint for textarea prepopulation
+        # Fallback to GO criteria for rationale hint
+        # T-1150: NO truncation — the textarea pre-fill becomes the permanent decision
+        # rationale when the human clicks approve. Truncating here = truncating the decision.
+        # (Previous 200-char cap caused data loss in recorded decisions.)
         rationale_hint = ""
-        if rec and len(rec) >= 10:
-            hint = rec.replace("**", "").replace("*", "").strip()
-            if len(hint) > 200:
-                hint = hint[:197] + "..."
-            rationale_hint = hint
-        elif gonogo_criteria["go"]:
-            rationale_hint = "; ".join(gonogo_criteria["go"])
-            if len(rationale_hint) > 200:
-                rationale_hint = rationale_hint[:197] + "..."
-
-        # T-944: ready = has a real recommendation label
-        has_recommendation = bool(recommendation_label)
+        if rec_raw and len(rec_raw) > 10:
+            rationale_hint = rec_raw.replace("**", "").replace("*", "").strip()
+        else:
+            gonogo = _extract_section(body, "Go/No-Go Criteria")
+            if gonogo:
+                go_lines = []
+                in_go = False
+                for line in gonogo.split("\n"):
+                    stripped = line.strip()
+                    if stripped.startswith("**GO if:**"):
+                        in_go = True
+                        continue
+                    if stripped.startswith("**NO-GO if:**"):
+                        break
+                    if in_go and stripped.startswith("- "):
+                        go_lines.append(stripped[2:].strip())
+                rationale_hint = "; ".join(go_lines) if go_lines else ""
 
         results.append({
             "task_id": task_id,
@@ -193,10 +171,8 @@ def _load_pending_go_decisions():
             },
             "artifacts": artifacts,
             "rationale_hint": rationale_hint,
-            "recommendation_label": recommendation_label,
-            "recommendation_text": recommendation_text,
-            "gonogo_criteria": gonogo_criteria,
-            "ready": has_recommendation,
+            "recommendation": rec_display,
+            "rec_decision": rec_decision,
         })
 
     return results

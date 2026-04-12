@@ -1,0 +1,70 @@
+# checkpoint
+
+> Post-tool budget monitoring. Warns at thresholds, auto-triggers handover at critical, detects compaction, manages inception checkpoints.
+
+**Type:** hook | **Subsystem:** budget-management | **Location:** `agents/context/checkpoint.sh`
+
+**Tags:** `budget`, `checkpoint`, `context`, `hook`, `PostToolUse`, `auto-handover`
+
+## What It Does
+
+Context Checkpoint Agent — Token-aware context budget monitor
+Reads actual token usage from Claude Code JSONL transcript to warn
+before automatic compaction causes context loss.
+Primary: Token-based warnings from JSONL transcript (checked every 5 calls)
+Fallback: Tool call counter (when transcript unavailable)
+Note: Token reading lags by ~1 API call (~10-30K behind actual).
+Thresholds are set conservatively to account for this.
+Usage:
+checkpoint.sh post-tool   — Called by Claude Code PostToolUse hook
+checkpoint.sh reset       — Reset tool call counter (on commit)
+
+### Framework Reference
+
+When fixing a bug discovered through real-world usage (user testing, production incident, cross-platform failure):
+1. **Classify the bug** — Is this a new failure class, or a repeat of a known pattern?
+2. **Check learnings.yaml** — Does a learning already exist for this class?
+3. If new class: `fw context add-learning "description" --task T-XXX --source P-001`
+4. If systemic (same class hit 2+ times): register in `concerns.yaml`, consider tooling fix (Level C/D)
+
+*(truncated — see CLAUDE.md for full section)*
+
+## Dependencies (5)
+
+| Target | Relationship |
+|--------|-------------|
+| `F-003` | reads |
+| `F-003` | writes |
+| `agents/handover/handover.sh` | calls |
+| `lib/paths.sh` | calls |
+| `lib/config.sh` | calls |
+
+## Used By (8)
+
+| Component | Relationship |
+|-----------|-------------|
+| `C-009` | triggers |
+| `agents/handover/handover.sh` | called_by |
+| `C-004` | called_by |
+| `agents/audit/self-audit.sh` | read_by |
+| `bin/claude-fw` | read_by |
+| `C-009` | triggers_by |
+| `agents/context/session-metrics.sh` | called-by |
+| `tests/unit/checkpoint.bats` | called-by |
+
+## Documentation
+
+- [Deep Dive: Context Budget Management](docs/articles/deep-dives/03-context-budget.md) (deep-dive)
+
+## Related
+
+### Tasks
+- T-791: Fix checkpoint.sh cross-project transcript leak — scope find_transcript to current project
+- T-796: Fix remaining single-warning shellcheck issues in agent scripts
+- T-797: Shellcheck cleanup: audit.sh and remaining framework scripts
+- T-821: Hook crash distinguishability — trap handlers + stderr headers for crash vs block
+- T-834: Fix budget gate false critical — update CONTEXT_WINDOW default 200K to 1M for Opus 4.6
+
+---
+*Auto-generated from Component Fabric. Card: `checkpoint.yaml`*
+*Last verified: 2026-02-20*

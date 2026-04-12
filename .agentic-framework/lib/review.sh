@@ -13,7 +13,7 @@
 [[ -z "${_FW_PATHS_LOADED:-}" ]] && source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/paths.sh" 2>/dev/null || true
 # Requires: PROJECT_ROOT, BOLD, NC, CYAN (from colors.sh/paths.sh chain)
 
-# Source watchtower helper for URL detection (T-974, re-applied after fw upgrade)
+# Source watchtower helper for URL detection (T-1154: single source of truth)
 source "${FRAMEWORK_ROOT:-.}/lib/watchtower.sh"
 
 emit_review() {
@@ -37,7 +37,7 @@ emit_review() {
         return 1
     fi
 
-    # Determine Watchtower URL via shared helper (T-974, re-applied)
+    # Determine Watchtower URL via shared helper (T-1154: single chokepoint)
     local base_url
     base_url=$(_watchtower_url "$task_id")
     # Detect workflow type for URL routing (T-642)

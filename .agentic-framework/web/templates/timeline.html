@@ -1,0 +1,74 @@
+<div class="page-header">
+    <h1>Timeline</h1>
+    <p>Chronological project narrative across {{ sessions|length }} sessions</p>
+</div>
+
+{% for session in sessions %}
+<article{% if session.is_emergency %} style="opacity: 0.6; border-left: 3px solid var(--pico-del-color); padding-left: 0.75rem;"{% endif %}>
+    <details>
+        <summary>
+            {% if session.is_emergency %}<mark style="font-size: 0.75em; padding: 0.1em 0.4em; background: var(--pico-del-color); color: white; border-radius: 3px;">emergency</mark> {% endif %}
+            <strong>{{ session.id }}</strong>
+            <small>{{ session.timestamp[:10] if session.timestamp else 'Unknown' }}</small>
+            {% if session.session_tokens %}<mark style="font-size: 0.75em; padding: 0.1em 0.4em; border-radius: 3px;" {% if session.token_input %}title="Input: {{ session.token_input }} | Cache Rd: {{ session.token_cache_read }} | Cache Cr: {{ session.token_cache_create }} | Output: {{ session.token_output }}"{% endif %}>{{ session.session_tokens }} tokens, {{ session.session_turns }} turns</mark> {% endif %}{% if session.token_usage %}<small style="opacity: 0.6;" title="Cumulative project total">({{ session.token_usage }})</small> {% endif %}
+            — {% if session.narrative_short %}{{ session.narrative_short|linkify_tasks }}{% if session.touched_count %} ({{ session.touched_count }} tasks){% endif %}{% else %}{{ session.touched_count }} tasks touched, {{ session.completed_count }} completed{% endif %}
+        </summary>
+
+        <!-- Level 2: Session narrative + task list -->
+        <div style="padding: 1rem 0;">
+            {% if session.token_input or session.commits_per_turn %}
+            <div style="font-size: 0.85em; margin-bottom: 0.75rem; padding: 0.5rem; border-radius: 4px; background: var(--pico-card-background-color, #f8f9fa);">
+                {% if session.token_input %}
+                <div><strong>Token Breakdown:</strong>
+                Input: {{ session.token_input }} |
+                Cache Read: {{ session.token_cache_read }} |
+                Cache Create: {{ session.token_cache_create }} |
+                Output: {{ session.token_output }}</div>
+                {% endif %}
+                {% if session.commits_per_turn %}
+                <div style="margin-top: 0.25rem;"><strong>Quality Metrics{% if session.session_commits_per_turn %} (session){% endif %}:</strong>
+                CPT: {{ session.session_commits_per_turn or session.commits_per_turn }} |
+                Error rate: {{ session.session_failed_tool_call_rate or session.failed_tool_call_rate }} |
+                Edit bursts: {{ session.session_edit_bursts or session.edit_bursts }} |
+                {% if not session.session_commits_per_turn %}1st commit: turn {{ session.first_commit_turn }} | {% endif %}
+                Productive: {{ session.session_productive_turns_ratio or session.productive_turns_ratio }}
+                {% if session.session_commits_per_turn %}<span style="opacity:0.5; font-size:0.8em;" title="Cumulative: CPT {{ session.commits_per_turn }}, Error {{ session.failed_tool_call_rate }}, Productive {{ session.productive_turns_ratio }}">(cumulative in tooltip)</span>{% endif %}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if session.narrative %}
+            <blockquote>{{ session.narrative|linkify_tasks }}</blockquote>
+            {% endif %}
+
+            {% if session.tasks_touched %}
+            <h4>Tasks Touched</h4>
+            <ul>
+                {% for t in session.tasks_touched %}
+                <li>
+                    <a href="/tasks/{{ t.id }}">{{ t.id }}{% if t.name %}: {{ t.name }}{% endif %}</a>
+                    <span hx-get="/api/timeline/task/{{ t.id }}" hx-trigger="click" hx-swap="afterend" style="cursor:pointer; color: var(--pico-primary);">[expand]</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if session.tasks_completed %}
+            <h4>Tasks Completed</h4>
+            <ul>
+                {% for t in session.tasks_completed %}
+                <li><a href="/tasks/{{ t.id }}">{{ t.id }}{% if t.name %}: {{ t.name }}{% endif %}</a></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </details>
+</article>
+{% endfor %}
+
+{% if not sessions %}
+<div class="coming-soon">
+    <h3>No sessions found</h3>
+    <p>Session handovers will appear here after running <code>fw handover</code></p>
+</div>
+{% endif %}

@@ -318,132 +318,20 @@ CRONREGEOF
     fi
 
     # ── 4b. Vendored framework scripts (.agentic-framework/) ──
+    # T-1157: Collapsed from 120-line handcrafted per-file sync into single do_vendor call.
+    # do_vendor (bin/fw:118) maintains the canonical includes list (bin lib agents web docs
+    # .tasks/templates FRAMEWORK.md metrics.sh). This eliminates the enumeration-divergence
+    # bug that caused fw upgrade to silently skip web/ (T-1109 RCA).
     echo -e "${YELLOW}[4b/9] Vendored framework scripts${NC}"
 
     local vendored_dir="$target_dir/.agentic-framework"
     if [ -d "$vendored_dir" ]; then
-        local script_updated=0
-        local _backed_up=0
-
-        # T-978: Checksum manifest for local modification detection
-        local _checksums_file="$vendored_dir/.upstream-checksums"
-        local _backup_dir="$vendored_dir/.upgrade-backup"
-        local _new_checksums=""
-
-        # _vendored_sync SRC DST — sync one file with checksum check + backup (T-978)
-        _vendored_sync() {
-            local _src="$1" _dst="$2"
-            [ -f "$_src" ] || return 1
-
-            local _rel_path="${_dst#$vendored_dir/}"
-
-            # Always record upstream checksum (even for identical files)
-            local _new_hash
-            _new_hash=$(sha256sum "$_src" 2>/dev/null | awk '{print $1}')
-            _new_checksums="${_new_checksums}${_rel_path}  ${_new_hash}\n"
-
-            # Skip copy if identical
-            if [ -f "$_dst" ] && diff -q "$_src" "$_dst" > /dev/null 2>&1; then
-                return 1
-            fi
-
-            # Check for local modifications (T-978)
-            if [ -f "$_dst" ] && [ -f "$_checksums_file" ]; then
-                local _upstream_hash _current_hash
-                _upstream_hash=$(grep "^${_rel_path}  " "$_checksums_file" 2>/dev/null | awk '{print $NF}')
-                if [ -n "$_upstream_hash" ]; then
-                    _current_hash=$(sha256sum "$_dst" 2>/dev/null | awk '{print $1}')
-                    if [ "$_current_hash" != "$_upstream_hash" ]; then
-                        # File was locally modified — back up before overwriting
-                        if [ "$dry_run" = true ]; then
-                            echo -e "    ${YELLOW}LOCAL MOD${NC}  $_rel_path (would back up)"
-                        else
-                            mkdir -p "$_backup_dir/$(dirname "$_rel_path")"
-                            cp "$_dst" "$_backup_dir/$_rel_path"
-                            echo -e "    ${YELLOW}BACKUP${NC}  $_rel_path → .upgrade-backup/$_rel_path"
-                        fi
-                        _backed_up=$((_backed_up + 1))
-                    fi
-                fi
-            fi
-
-            script_updated=$((script_updated + 1))
-            if [ "$dry_run" != true ]; then
-                mkdir -p "$(dirname "$_dst")"
-                cp "$_src" "$_dst"
-                [ -x "$_src" ] && chmod +x "$_dst"
-            fi
-            return 0
-        }
-
-        # Sync agents/context/*.sh (hook scripts)
-        for src_script in "$FRAMEWORK_ROOT/agents/context/"*.sh; do
-            [ -f "$src_script" ] || continue
-            _vendored_sync "$src_script" "$vendored_dir/agents/context/$(basename "$src_script")" || true
-        done
-        # Sync agents/context/lib/ (shared libraries)
-        if [ -d "$FRAMEWORK_ROOT/agents/context/lib" ]; then
-            for src_lib in "$FRAMEWORK_ROOT/agents/context/lib/"*; do
-                [ -f "$src_lib" ] || continue
-                _vendored_sync "$src_lib" "$vendored_dir/agents/context/lib/$(basename "$src_lib")" || true
-            done
-        fi
-        # Sync bin/fw (consumer's vendored fw binary)
-        if [ -f "$FRAMEWORK_ROOT/bin/fw" ]; then
-            _vendored_sync "$FRAMEWORK_ROOT/bin/fw" "$vendored_dir/bin/fw" || true
-        fi
-        # T-857: Sync lib/*.sh (subcommand implementations — inception.sh, upgrade.sh, etc.)
-        if [ -d "$FRAMEWORK_ROOT/lib" ]; then
-            for src_lib in "$FRAMEWORK_ROOT/lib/"*.sh; do
-                [ -f "$src_lib" ] || continue
-                _vendored_sync "$src_lib" "$vendored_dir/lib/$(basename "$src_lib")" || true
-            done
-        fi
-        # T-857: Sync agent scripts (task-create, handover, git, healing, fabric, dispatch, resume)
-        local agent_dirs="task-create handover git healing fabric dispatch resume audit session-capture"
-        for agent_name in $agent_dirs; do
-            local src_agent_dir="$FRAMEWORK_ROOT/agents/$agent_name"
-            [ -d "$src_agent_dir" ] || continue
-            for src_file in "$src_agent_dir"/*.sh "$src_agent_dir"/*.md; do
-                [ -f "$src_file" ] || continue
-                _vendored_sync "$src_file" "$vendored_dir/agents/$agent_name/$(basename "$src_file")" || true
-            done
-            # Sync agent lib/ subdirectories if they exist
-            if [ -d "$src_agent_dir/lib" ]; then
-                for src_sub in "$src_agent_dir/lib/"*; do
-                    [ -f "$src_sub" ] || continue
-                    _vendored_sync "$src_sub" "$vendored_dir/agents/$agent_name/lib/$(basename "$src_sub")" || true
-                done
-            fi
-        done
-
-        # T-859: Sync VERSION file so fw doctor doesn't report stale after upgrade
-        local dst_version="$vendored_dir/VERSION"
-        if [ ! -f "$dst_version" ] || [ "$(cat "$dst_version" 2>/dev/null)" != "$fw_version" ]; then
-            script_updated=$((script_updated + 1))
-            if [ "$dry_run" != true ]; then
-                echo "$fw_version" > "$dst_version"
-            fi
-        fi
-
-        # T-978: Write checksum manifest
-        if [ "$dry_run" != true ] && [ -n "$_new_checksums" ]; then
-            echo -e "$_new_checksums" | sort > "$_checksums_file"
-        fi
-
-        if [ "$script_updated" -gt 0 ]; then
-            changes=$((changes + 1))
-            if [ "$dry_run" = true ]; then
-                echo -e "  ${CYAN}WOULD UPDATE${NC}  $script_updated vendored script(s)"
-            else
-                echo -e "  ${GREEN}UPDATED${NC}  $script_updated vendored script(s) synced"
-            fi
-            if [ "$_backed_up" -gt 0 ]; then
-                echo -e "  ${YELLOW}BACKED UP${NC}  $_backed_up file(s) with local modifications → .upgrade-backup/"
-            fi
+        if [ "$dry_run" = true ]; then
+            do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" --dry-run 2>&1 | sed 's/^/  /'
         else
-            echo -e "  ${GREEN}OK${NC}  All vendored scripts current"
+            do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" 2>&1 | sed 's/^/  /'
         fi
+        changes=$((changes + 1))
     else
         echo -e "  ${CYAN}SKIP${NC}  No .agentic-framework/ directory"
     fi
