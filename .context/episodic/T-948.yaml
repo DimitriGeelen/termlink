@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-948: Pickup: install.sh pgrep guard kills systemd-managed hub on every idempotent run (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T13:03:04Z
+# ============================================================================
+
+task_id: T-948
+task_name: "Pickup: install.sh pgrep guard kills systemd-managed hub on every idempotent run (from termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-12T08:11:31Z
+completed: 2026-04-12T13:03:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T15:02:59+02:00
+last_commit: 2026-04-12T15:02:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix install.sh pgrep guard — skip kill when hub is systemd-managed
+
+# Key outcomes
+outcomes:
+  - "pgrep guard skips kill when `termlink-hub.service` is active (systemd-managed)"
+  - "pgrep guard still kills manually-launched hub when systemd is not managing it"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix install.sh pgrep guard — skip kill when hub is systemd-managed"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/systemd/install.sh"
+  - ".tasks/active/T-948-pickup-installsh-pgrep-guard-kills-syste.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T15:02:59"
+    action: "T-948: Fix install.sh pgrep guard — skip kill when hub is systemd-managed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 291 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report, systemd]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 291
+  commits: 1
+  files_changed: 2
+  lines_added: 17
+  lines_removed: 77
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-948-pickup-installsh-pgrep-guard-kills-syste.md
+generated_by: context-agent-hybrid

@@ -4,7 +4,7 @@ name: "Pickup: install.sh pgrep guard kills systemd-managed hub on every idempot
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [pickup, bug-report, systemd]
 components: []
 related_tasks: []
 created: 2026-04-12T08:11:31Z
-last_update: 2026-04-12T13:02:12Z
-date_finished: null
+last_update: 2026-04-12T13:03:03Z
+date_finished: 2026-04-12T13:03:03Z
 ---
 
 # T-948: Pickup: install.sh pgrep guard kills systemd-managed hub on every idempotent run (from termlink)
@@ -43,3 +43,6 @@ grep -q 'systemctl is-active.*termlink-hub' /opt/termlink/.context/systemd/insta
 ### 2026-04-12T13:02:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now
+
+### 2026-04-12T13:03:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
