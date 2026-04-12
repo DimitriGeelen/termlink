@@ -4,16 +4,16 @@ name: "send-file hub fallback — route through hub when target not found locall
 description: >
   send-file hub fallback — route through hub when target not found locally (enables inbox)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/file.rs]
 related_tasks: []
 created: 2026-04-12T21:59:27Z
-last_update: 2026-04-12T21:59:27Z
-date_finished: null
+last_update: 2026-04-12T22:04:23Z
+date_finished: 2026-04-12T22:04:23Z
 ---
 
 # T-989: send-file hub fallback — route through hub when target not found locally (enables inbox)
@@ -37,8 +37,8 @@ which triggers inbox spooling for offline targets.
 
 ## Verification
 
-cargo test -p termlink-cli
-cargo clippy -p termlink-cli -- -D warnings
+cargo test -p termlink
+cargo clippy -p termlink -- -D warnings
 
 ## Decisions
 
@@ -57,3 +57,7 @@ cargo clippy -p termlink-cli -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-989-send-file-hub-fallback--route-through-hu.md
 - **Context:** Initial task creation
+
+### 2026-04-12T22:04:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Hub fallback implemented, 165+83 tests pass
