@@ -49,11 +49,11 @@ concerns:
   trigger_fired: true
   trigger_event: '2026-04-11: Watchtower started with PROJECT_ROOT defaulting via $(cd .. && pwd) which resolved through symlink to /opt/999-..., showing framework tasks instead of TermLink tasks. User caught the symlink during path inspection. Second live incident 2026-04-11 13:30Z during T-909 risk-eval session: running `watchtower.sh stop` from /opt/termlink stopped the /opt/999-... framework watchtower instance because both share the same PID file at .context/working/watchtower.pid (resolved via symlink). Confirms cross-project PID/log/state collision risk.'
   detection_lag_days: '>7'
-  resolution_in_progress: 'T-909 inception — risk evaluation via 3 termlink dispatch workers (technical, state, blast radius angles) before applying the fix'
-  what_works_now: 'Explicit PROJECT_ROOT=/opt/termlink override works. L-027 learning already documented the pattern. T-288 (termlink vendor) exists as the intended long-term solution.'
-  what_remains: 'Apply the fix (replace symlink with vendored copy), retrospectively verify whether /opt/999-... has been contaminated by TermLink state writes through the symlink, codify a doctor check to detect consumer projects using symlinks.'
-  mitigation_candidate: '1. Replace symlink with vendored copy. 2. Add fw doctor check: warn if .agentic-framework is a symlink in a consumer project. 3. Add fw upgrade pre-flight: refuse to upgrade consumer projects using symlinks (suggest vendoring first).'
-  status: watching
+  what_works_now: '.agentic-framework is now a real directory (vendored copy). PROJECT_ROOT resolves correctly.'
+  what_remains: 'Follow-up tasks T-910..T-913 filed for remaining hardening (doctor symlink check, watchtower.sh/harvest.sh PROJECT_ROOT fixes, vendor-refresh workflow). T-915 tracks polling framework for upstream fixes.'
+  status: closed
+  resolution: 'T-909 replaced the symlink with a vendored copy. Verified 2026-04-12: `test -L .agentic-framework` returns false (real directory). Follow-up tasks T-910..T-913 track remaining hardening.'
   created: 2026-04-11
-  last_reviewed: 2026-04-11
-  related_tasks: [T-288, T-290, T-909, T-908]
+  last_reviewed: 2026-04-12
+  closed: 2026-04-12
+  related_tasks: [T-288, T-290, T-909, T-908, T-910, T-911, T-912, T-913]
