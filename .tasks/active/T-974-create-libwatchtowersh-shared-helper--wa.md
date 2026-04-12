@@ -25,10 +25,10 @@ T-972 RCA identified RC-3: no shared Watchtower URL helper. Each script independ
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `lib/watchtower.sh` exists with `_watchtower_url()` function (port detection + host detection)
-- [ ] `lib/watchtower.sh` has `_watchtower_open()` function (URL + browser open, desktop-user aware)
-- [ ] `review.sh` refactored to source and use `lib/watchtower.sh` instead of inline port/browser logic
-- [ ] `fw task review` still works end-to-end (correct port, QR code, browser open)
+- [x] `lib/watchtower.sh` exists with `_watchtower_url()` function (port detection + host detection)
+- [x] `lib/watchtower.sh` has `_watchtower_open()` function (URL + browser open, desktop-user aware)
+- [x] `review.sh` refactored to source and use `lib/watchtower.sh` instead of inline port/browser logic
+- [x] `fw task review` still works end-to-end (correct port 3002, QR code, browser open)
 - [ ] Related tasks updated: T-975, T-976
 
 ### Human
