@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-981: Fix Tier 0 self-approval bypass — block fw tier0 approve in check-tier0.sh patterns
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T16:38:09Z
+# ============================================================================
+
+task_id: T-981
+task_name: "Fix Tier 0 self-approval bypass — block fw tier0 approve in check-tier0.sh patterns"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T13:36:13Z
+completed: 2026-04-12T13:37:55Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T15:37:50+02:00
+last_commit: 2026-04-12T15:38:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Block fw tier0 approve in check-tier0.sh — close self-approval bypass (G-004). Complete — Tier 0 self-approval bypass closed, G-004 mitigated
+
+# Key outcomes
+outcomes:
+  - "`fw tier0 approve` added to PATTERNS in check-tier0.sh (keyword pre-filter AND Python patterns)"
+  - "Block message updated: remove bare CLI hint, show `! fw tier0 approve` (shell prefix) and Watchtower"
+  - "Agent running `fw tier0 approve` gets BLOCKED (exit 2)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/context/check-tier0.sh"
+  - ".context/approvals/pending-b6aace25634b.yaml"
+  - ".context/approvals/resolved-2ccd27a8e3e2.yaml"
+  - ".context/audits/cron/2026-04-12-1515.yaml"
+  - ".context/audits/cron/2026-04-12-1530.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/locks/T-980.lock"
+  - ".context/locks/T-981.lock"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.approval-notified"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.gate-bypass-log.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.reviewed-T-980"
+  - ".context/working/session.yaml"
+  - ".context/working/.tier0-approval.pending"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-936-migrate-termlink-cron-from-hand-written-.md"
+  - ".tasks/active/T-980-tier-0-self-approval-bypass--agent-can-c.md"
+  - ".tasks/active/T-981-fix-tier-0-self-approval-bypass--block-f.md"
+  - ".tasks/completed/T-981-fix-tier-0-self-approval-bypass--block-f.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T15:37:50"
+    action: "T-981: Block fw tier0 approve in check-tier0.sh — close self-approval bypass (G-004)"
+  - time: "2026-04-12T15:38:00"
+    action: "T-981: Complete — Tier 0 self-approval bypass closed, G-004 mitigated"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 24
+  lines_added: 257
+  lines_removed: 63
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-981-fix-tier-0-self-approval-bypass--block-f.md
+generated_by: context-agent-hybrid

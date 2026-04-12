@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-938: Pickup: Hardcoded bin/fw path in inception/review error hints breaks vendored consumers (127 exit) (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T16:38:08Z
+# ============================================================================
+
+task_id: T-938
+task_name: "Pickup: Hardcoded bin/fw path in inception/review error hints breaks vendored consumers (127 exit) (from termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-11T23:00:03Z
+completed: 2026-04-12T13:06:33Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-12T15:06:28+02:00
+last_commit: 2026-04-12T15:06:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix hardcoded bin/fw paths in verify-acs.sh and block-task-tools.sh. Complete — hardcoded bin/fw path fix for vendored consumers
+
+# Key outcomes
+outcomes:
+  - "`verify-acs.sh` uses dynamic `fw_cmd` variable (resolves `bin/fw` → `.agentic-framework/bin/fw` → `fw`)"
+  - "`block-task-tools.sh` uses bare `fw` (resolved by shim or PATH)"
+  - "No remaining hardcoded `bin/fw` in execution paths (pattern-matching in scanner/metrics is fine)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Complete — hardcoded bin/fw path fix for vendored consumers"
+    source: git-mined
+  - description: "Fix hardcoded bin/fw paths in verify-acs.sh and block-task-tools.sh"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/context/block-task-tools.sh"
+  - ".agentic-framework/lib/verify-acs.sh"
+  - ".context/locks/T-938.lock"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-938-pickup-hardcoded-binfw-path-in-inception.md"
+  - ".tasks/active/T-947-pickup-canary-30s-pickup-processor-smoke.md"
+  - ".tasks/completed/T-938-pickup-hardcoded-binfw-path-in-inception.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T15:06:28"
+    action: "T-938: Fix hardcoded bin/fw paths in verify-acs.sh and block-task-tools.sh"
+  - time: "2026-04-12T15:06:38"
+    action: "T-938: Complete — hardcoded bin/fw path fix for vendored consumers"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 846 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report, framework]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 846
+  commits: 2
+  files_changed: 10
+  lines_added: 39
+  lines_removed: 90
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-938-pickup-hardcoded-binfw-path-in-inception.md
+generated_by: context-agent-hybrid
