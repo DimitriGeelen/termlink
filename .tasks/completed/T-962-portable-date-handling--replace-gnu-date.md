@@ -1,22 +1,22 @@
 ---
-id: T-964
-name: "EventBus broadcast channel — add subscribe() alongside poll()"
+id: T-962
+name: "Portable date handling — replace GNU date -d with macOS-compatible alternatives"
 description: >
-  T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
+  Fix D from T-292: Replace GNU date -d usage in framework scripts with portable alternatives (macOS bash 3.2 has no GNU date). Prevents silent episodic generation failures on macOS.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-12T09:12:37Z
-last_update: 2026-04-12T09:12:37Z
-date_finished: null
+created: 2026-04-12T08:47:05Z
+last_update: 2026-04-12T09:07:33Z
+date_finished: 2026-04-12T09:07:33Z
 ---
 
-# T-964: EventBus broadcast channel — add subscribe() alongside poll()
+# T-962: Portable date handling — replace GNU date -d with macOS-compatible alternatives
 
 ## Context
 
@@ -25,12 +25,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)
-- [x] emit() writes to both ring buffer and broadcast channel
-- [x] subscribe() returns broadcast::Receiver<Event> for push delivery
-- [x] event.subscribe RPC handler with long-poll, topic filter, and since replay (handler.rs)
-- [x] All 39 event tests pass (34 unit + 5 integration)
+- [x] All `date -d` usage in framework shell scripts replaced with portable alternative (python3 or `date -j` with fallback)
+- [x] Episodic generation succeeds on both Linux and macOS
+- [x] No GNU-only date flags remain in .agentic-framework/ shell scripts
+- [x] Pickup sent to framework agent (this is a framework-side fix)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -66,7 +64,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-12T09:12:37Z — task-created [task-create-agent]
+### 2026-04-12T08:47:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
+- **Output:** /opt/termlink/.tasks/active/T-962-portable-date-handling--replace-gnu-date.md
 - **Context:** Initial task creation
+
+### 2026-04-12T09:07:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

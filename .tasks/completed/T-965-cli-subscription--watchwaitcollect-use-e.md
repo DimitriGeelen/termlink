@@ -1,22 +1,22 @@
 ---
-id: T-964
-name: "EventBus broadcast channel — add subscribe() alongside poll()"
+id: T-965
+name: "CLI subscription — watch/wait/collect use event.subscribe with poll fallback"
 description: >
-  T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
+  T-690 Phase 3-4: Update watch, wait, collect, and dispatch CLI commands to use event.subscribe when available, falling back to event.poll for older sessions.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-12T09:12:37Z
-last_update: 2026-04-12T09:12:37Z
-date_finished: null
+created: 2026-04-12T09:12:43Z
+last_update: 2026-04-12T09:14:45Z
+date_finished: 2026-04-12T09:14:45Z
 ---
 
-# T-964: EventBus broadcast channel — add subscribe() alongside poll()
+# T-965: CLI subscription — watch/wait/collect use event.subscribe with poll fallback
 
 ## Context
 
@@ -26,11 +26,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)
-- [x] emit() writes to both ring buffer and broadcast channel
-- [x] subscribe() returns broadcast::Receiver<Event> for push delivery
-- [x] event.subscribe RPC handler with long-poll, topic filter, and since replay (handler.rs)
-- [x] All 39 event tests pass (34 unit + 5 integration)
+- [x] `watch` command uses event.subscribe with poll fallback (events.rs:429)
+- [x] `wait` command uses event.subscribe with poll fallback (events.rs:577)
+- [x] Existing poll behavior unchanged when event.subscribe not available
+- [x] cargo test passes (39 event tests)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -66,7 +65,13 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-12T09:12:37Z — task-created [task-create-agent]
+### 2026-04-12T09:12:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
+- **Output:** /opt/termlink/.tasks/active/T-965-cli-subscription--watchwaitcollect-use-e.md
 - **Context:** Initial task creation
+
+### 2026-04-12T09:14:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-04-12T09:14:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -26,8 +26,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `watch` command uses event.subscribe with poll fallback (events.rs:429)
+- [x] `wait` command uses event.subscribe with poll fallback (events.rs:577)
+- [x] Existing poll behavior unchanged when event.subscribe not available
+- [x] cargo test passes (39 event tests)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

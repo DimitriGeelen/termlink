@@ -1,22 +1,22 @@
 ---
-id: T-964
-name: "EventBus broadcast channel — add subscribe() alongside poll()"
+id: T-943
+name: "Fix review marker friction — Watchtower decide creates marker automatically"
 description: >
-  T-690 Phase 1-2: Wire broadcast::Sender<Event> into EventBus emit(), add event.subscribe long-poll RPC handler. Spike code exists in T-690 — promote to production.
+  Fix review marker friction — Watchtower decide creates marker automatically
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-12T09:12:37Z
-last_update: 2026-04-12T09:12:37Z
-date_finished: null
+created: 2026-04-12T07:56:03Z
+last_update: 2026-04-12T07:57:37Z
+date_finished: 2026-04-12T07:57:37Z
 ---
 
-# T-964: EventBus broadcast channel — add subscribe() alongside poll()
+# T-943: Fix review marker friction — Watchtower decide creates marker automatically
 
 ## Context
 
@@ -25,12 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)
-- [x] emit() writes to both ring buffer and broadcast channel
-- [x] subscribe() returns broadcast::Receiver<Event> for push delivery
-- [x] event.subscribe RPC handler with long-poll, topic filter, and since replay (handler.rs)
-- [x] All 39 event tests pass (34 unit + 5 integration)
+- [x] `inception.py` `record_decision()` creates review marker before calling `fw inception decide`
+- [x] Watchtower GO/NO-GO submission works without prior `fw task review`
+- [x] Pickup created for framework agent (P-010 delivered to framework inbox)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -66,7 +63,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-12T09:12:37Z — task-created [task-create-agent]
+### 2026-04-12T07:56:03Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-964-eventbus-broadcast-channel--add-subscrib.md
+- **Output:** /opt/termlink/.tasks/active/T-943-fix-review-marker-friction--watchtower-d.md
 - **Context:** Initial task creation
+
+### 2026-04-12T07:57:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
