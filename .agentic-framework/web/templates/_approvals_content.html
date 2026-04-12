@@ -7,8 +7,8 @@
         <span class="stat-label">Tier 0</span>
     </div>
     <div class="approval-stat {{ 'go-active' if go_count else '' }}">
-        <span class="stat-value">{{ go_count }}</span>
-        <span class="stat-label">GO Decisions</span>
+        <span class="stat-value">{{ (pending_go | selectattr('ready') | list | length) if pending_go else 0 }}</span>
+        <span class="stat-label">Ready</span>
     </div>
     <div class="approval-stat {{ 'ac-active' if ac_count else '' }}">
         <span class="stat-value">{{ ac_count }}</span>
@@ -55,12 +55,14 @@
 {% endif %}
 
 <!-- Section B: GO/NO-GO Decisions -->
-{% if pending_go %}
+{% set ready_go = pending_go | selectattr('ready') | list %}
+{% set notready_go = pending_go | rejectattr('ready') | list %}
+{% if ready_go %}
 <div class="section-header">
     <h3>Inception Decisions</h3>
-    <small>{{ go_count }} pending GO/NO-GO</small>
+    <small>{{ ready_go | length }} ready for decision</small>
 </div>
-{% for t in pending_go %}
+{% for t in ready_go %}
 <div class="approval-card go-decision">
     <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
@@ -84,9 +86,9 @@
         Assumptions: {{ t.assumption_counts.validated }}/{{ t.assumption_counts.total }} validated
     </div>
     {% endif %}
-    <!-- T-939: Recommendation display — show agent recommendation + argumentation -->
+    <!-- T-939/T-944: Recommendation + criteria display -->
     <div class="recommendation-display" style="margin:0.5rem 0; padding:0.6rem 0.8rem; border-radius:6px;
-         border-left:4px solid {% if t.recommendation_label %}{% if 'GO' in t.recommendation_label %}#10b981{% elif 'NO-GO' in t.recommendation_label %}#ef4444{% else %}#f59e0b{% endif %}{% else %}var(--pico-muted-border-color){% endif %};
+         border-left:4px solid {% if t.recommendation_label %}{% if 'GO' in t.recommendation_label and 'NO-GO' not in t.recommendation_label %}#10b981{% elif 'NO-GO' in t.recommendation_label %}#ef4444{% else %}#f59e0b{% endif %}{% else %}var(--pico-muted-border-color){% endif %};
          background:var(--pico-code-background-color);">
         {% if t.recommendation_label %}
         <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
@@ -97,12 +99,31 @@
             </span>
         </div>
         {% if t.recommendation_text %}
-        <p style="font-size:0.8rem; margin:0; color:var(--pico-color); line-height:1.4;">{{ t.recommendation_text }}</p>
+        <p style="font-size:0.8rem; margin:0.3rem 0 0; color:var(--pico-color); line-height:1.4;">{{ t.recommendation_text }}</p>
         {% endif %}
         {% else %}
         <p style="font-size:0.8rem; margin:0; color:var(--pico-muted-color);">
             No recommendation yet — <a href="/inception/{{ t.task_id }}">review task file</a>
         </p>
+        {% endif %}
+        {% if t.gonogo_criteria and (t.gonogo_criteria.go or t.gonogo_criteria.nogo) %}
+        <details style="margin-top:0.4rem; font-size:0.78rem;">
+            <summary style="cursor:pointer; color:var(--pico-muted-color);">Go/No-Go Criteria</summary>
+            <div style="padding:0.3rem 0 0 0.5rem;">
+            {% if t.gonogo_criteria.go %}
+            <div style="color:#10b981; margin-bottom:0.2rem;"><strong>GO if:</strong></div>
+            <ul style="margin:0 0 0.3rem 1rem; padding:0; font-size:0.75rem;">
+                {% for c in t.gonogo_criteria.go %}<li>{{ c }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+            {% if t.gonogo_criteria.nogo %}
+            <div style="color:#ef4444;"><strong>NO-GO if:</strong></div>
+            <ul style="margin:0 0 0 1rem; padding:0; font-size:0.75rem;">
+                {% for c in t.gonogo_criteria.nogo %}<li>{{ c }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+            </div>
+        </details>
         {% endif %}
     </div>
     <form hx-post="/inception/{{ t.task_id }}/decide" hx-target="closest .go-decision" hx-swap="outerHTML"
@@ -125,6 +146,24 @@
     </form>
 </div>
 {% endfor %}
+{% endif %}
+
+<!-- T-944: Not-ready inception tasks (no recommendation yet) -->
+{% if notready_go %}
+<details style="margin:1rem 0;">
+    <summary style="cursor:pointer;">
+        <h4 style="display:inline; font-size:0.9rem; color:var(--pico-muted-color);">
+            {{ notready_go | length }} inception task{{ 's' if notready_go | length != 1 }} not ready for decision
+        </h4>
+        <small style="color:var(--pico-muted-color);"> — missing recommendation</small>
+    </summary>
+    {% for t in notready_go %}
+    <div style="padding:0.4rem 0.6rem; margin:0.3rem 0; border-left:2px solid var(--pico-muted-border-color); font-size:0.8rem;">
+        <a href="/inception/{{ t.task_id }}"><strong>{{ t.task_id }}</strong></a>: {{ t.name }}
+        <span style="color:var(--pico-muted-color);"> — {{ t.status }}</span>
+    </div>
+    {% endfor %}
+</details>
 {% endif %}
 
 <!-- Section C: Human Acceptance Criteria -->
