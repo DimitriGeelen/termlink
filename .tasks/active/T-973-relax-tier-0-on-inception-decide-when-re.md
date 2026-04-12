@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:13:52Z
-last_update: 2026-04-12T10:13:52Z
+last_update: 2026-04-12T10:14:54Z
 date_finished: null
 ---
 
@@ -29,7 +29,7 @@ date_finished: null
 - [x] check-tier0.sh recognizes review marker as human authorization for inception decide
 - [x] Agent can run fw inception decide after human approves via Watchtower
 - [x] Watchtower GO button already creates review marker (T-943)
-- [ ] Pickup sent to framework agent
+- [x] Pickup P-021 sent to framework agent + confirmed via PTY
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
