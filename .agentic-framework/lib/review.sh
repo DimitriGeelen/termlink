@@ -153,11 +153,30 @@ except ImportError:
     echo -e "══════════════════════════════════════════════════"
     echo ""
 
-    # Auto-open browser if available (T-970, non-blocking, fail-silent)
-    if command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "$review_url" >/dev/null 2>&1 &
-    elif command -v open >/dev/null 2>&1; then
-        open "$review_url" >/dev/null 2>&1 &
+    # Auto-open browser (T-970/T-971, non-blocking, fail-silent)
+    # When running as root (agent context), open as the desktop user to avoid
+    # Chromium's --no-sandbox error.
+    local _browser_opened=false
+    if [ "$(id -u)" = "0" ]; then
+        local _desktop_user _desktop_uid
+        _desktop_user=$(who 2>/dev/null | grep 'tty[0-9].*(:' | head -1 | awk '{print $1}')
+        if [ -n "$_desktop_user" ]; then
+            _desktop_uid=$(id -u "$_desktop_user" 2>/dev/null)
+            if [ -n "$_desktop_uid" ]; then
+                sudo -u "$_desktop_user" \
+                    DISPLAY=:0 \
+                    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${_desktop_uid}/bus" \
+                    xdg-open "$review_url" >/dev/null 2>&1 &
+                _browser_opened=true
+            fi
+        fi
+    fi
+    if ! $_browser_opened; then
+        if command -v xdg-open >/dev/null 2>&1; then
+            xdg-open "$review_url" >/dev/null 2>&1 &
+        elif command -v open >/dev/null 2>&1; then
+            open "$review_url" >/dev/null 2>&1 &
+        fi
     fi
 
     # Mark task as reviewed — prerequisite gate for fw inception decide (T-973)
