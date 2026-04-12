@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-979: Session housekeeping — fabric registration, episodics, handover
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T12:42:50Z
+# ============================================================================
+
+task_id: T-979
+task_name: "Session housekeeping — fabric registration, episodics, handover"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T12:37:00Z
+completed: 2026-04-12T12:42:49Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T14:37:44+02:00
+last_commit: 2026-04-12T14:37:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Housekeeping — fabric card, episodics for T-966 T-978
+
+# Key outcomes
+outcomes:
+  - "Fabric card for aggregator.rs enriched with purpose/deps"
+  - "Episodic summaries generated for completed tasks (T-966, T-978)"
+  - "Handover generated (S-2026-0412-1437)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-966.yaml"
+  - ".context/episodic/T-978.yaml"
+  - ".fabric/components/crates-termlink-hub-src-aggregator.yaml"
+  - ".tasks/active/T-979-session-housekeeping--fabric-registratio.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T14:37:44"
+    action: "T-979: Housekeeping — fabric card, episodics for T-966 T-978"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 256
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-979-session-housekeeping--fabric-registratio.md
+generated_by: context-agent-hybrid

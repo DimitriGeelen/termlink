@@ -4,16 +4,16 @@ name: "Add checksum manifest to fw upgrade — detect local modifications before
 description: >
   Add checksum manifest to fw upgrade — detect local modifications before overwriting
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T11:48:17Z
-last_update: 2026-04-12T11:48:17Z
-date_finished: null
+last_update: 2026-04-12T11:51:35Z
+date_finished: 2026-04-12T11:51:35Z
 ---
 
 # T-978: Add checksum manifest to fw upgrade — detect local modifications before overwriting
@@ -70,3 +70,6 @@ grep -q '_vendored_sync' /opt/termlink/.agentic-framework/lib/upgrade.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-978-add-checksum-manifest-to-fw-upgrade--det.md
 - **Context:** Initial task creation
+
+### 2026-04-12T11:51:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

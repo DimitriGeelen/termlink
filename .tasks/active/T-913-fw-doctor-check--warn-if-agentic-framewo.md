@@ -12,7 +12,7 @@ tags: [infrastructure, doctor, symlink]
 components: []
 related_tasks: []
 created: 2026-04-11T12:28:45Z
-last_update: 2026-04-12T11:19:14Z
+last_update: 2026-04-12T11:20:47Z
 date_finished: null
 ---
 
