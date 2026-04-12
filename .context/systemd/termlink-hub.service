@@ -40,10 +40,8 @@ RestartSec=5
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=read-only
-# ReadWritePaths lets hub write to its state dir + /tmp (belt-and-braces
-# while TERMLINK_RUNTIME_DIR code path is bedded in; remove /tmp after
-# T-935 migration lands).
-ReadWritePaths=/var/lib/termlink /tmp
+# ReadWritePaths lets hub write to its state dir only.
+ReadWritePaths=/var/lib/termlink
 
 [Install]
 WantedBy=multi-user.target
