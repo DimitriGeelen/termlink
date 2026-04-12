@@ -302,3 +302,10 @@ learnings:
   date: 2026-04-12
   context: Added via context agent
   application: TBD
+- id: PL-009
+  learning: "30-second pickup processor cycle is sustainable — zero errors, zero resource concerns in production"
+  source: P-009
+  task: T-950
+  date: 2026-04-12
+  context: Added via context agent
+  application: TBD

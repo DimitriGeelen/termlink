@@ -4,16 +4,16 @@ name: "Pickup: 30-second pickup processor cycle is sustainable — zero errors, 
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: learning.
 
-status: captured
+status: work-completed
 workflow_type: inception
-owner: agent
-horizon: next
+owner: human
+horizon: now
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:12:03Z
-last_update: 2026-04-12T08:12:03Z
-date_finished: null
+last_update: 2026-04-12T13:03:34Z
+date_finished: 2026-04-12T13:03:34Z
 ---
 
 # T-950: Pickup: 30-second pickup processor cycle is sustainable — zero errors, zero resource concerns (from termlink)
@@ -105,3 +105,11 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-12T13:03:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-12T13:03:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Learning captured, no further action needed
