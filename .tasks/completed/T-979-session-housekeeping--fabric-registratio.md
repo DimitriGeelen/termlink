@@ -4,7 +4,7 @@ name: "Session housekeeping — fabric registration, episodics, handover"
 description: >
   Session housekeeping — fabric registration, episodics, handover
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T12:37:00Z
-last_update: 2026-04-12T12:37:00Z
-date_finished: null
+last_update: 2026-04-12T12:42:49Z
+date_finished: 2026-04-12T12:42:49Z
 ---
 
 # T-979: Session housekeeping — fabric registration, episodics, handover
@@ -25,9 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Fabric card for aggregator.rs enriched with purpose/deps
-- [ ] Episodic summaries generated for completed tasks
-- [ ] Handover generated
+- [x] Fabric card for aggregator.rs enriched with purpose/deps
+- [x] Episodic summaries generated for completed tasks (T-966, T-978)
+- [x] Handover generated (S-2026-0412-1437)
 
 ### Human
 <!-- No human ACs needed for housekeeping.
@@ -67,3 +67,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-979-session-housekeeping--fabric-registratio.md
 - **Context:** Initial task creation
+
+### 2026-04-12T12:42:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

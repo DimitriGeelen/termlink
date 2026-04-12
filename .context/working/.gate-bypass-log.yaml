@@ -1,0 +1,5 @@
+- timestamp: '2026-04-12T11:41:27Z'
+  task: 'T-912'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
