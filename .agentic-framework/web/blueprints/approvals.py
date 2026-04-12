@@ -128,7 +128,6 @@ def _load_pending_go_decisions():
         recommendation_text = ""
         if rec and len(rec) >= 10:
             import re as _re
-            # Look for **Recommendation:** GO/NO-GO/DEFER
             label_match = _re.search(
                 r'\*{0,2}Recommendation:?\*{0,2}\s*(GO|NO-GO|DEFER)',
                 rec, _re.IGNORECASE
@@ -136,7 +135,6 @@ def _load_pending_go_decisions():
             if label_match:
                 recommendation_label = label_match.group(1).upper()
 
-            # Extract rationale text (after **Rationale:** or after the label line)
             rationale_match = _re.search(
                 r'\*{0,2}Rationale:?\*{0,2}\s*(.*?)(?:\n\n|\n\*{0,2}Evidence|\Z)',
                 rec, _re.DOTALL | _re.IGNORECASE
@@ -144,39 +142,45 @@ def _load_pending_go_decisions():
             if rationale_match:
                 recommendation_text = rationale_match.group(1).strip()
             elif recommendation_label:
-                # Fall back to everything after the label line
                 after_label = rec[label_match.end():].strip()
                 recommendation_text = after_label.split("\n\n")[0].strip() if after_label else ""
 
-            # Clean markdown and truncate
             recommendation_text = recommendation_text.replace("**", "").replace("*", "").strip()
             if len(recommendation_text) > 300:
                 recommendation_text = recommendation_text[:297] + "..."
 
-        # Fallback to GO criteria if no recommendation section
-        if not rec or len(rec) < 10:
-            gonogo = _extract_section(body, "Go/No-Go Criteria")
-            if gonogo:
-                go_lines = []
-                in_go = False
-                for line in gonogo.split("\n"):
-                    stripped = line.strip()
-                    if stripped.startswith("**GO if:**"):
-                        in_go = True
-                        continue
-                    if stripped.startswith("**NO-GO if:**"):
-                        break
-                    if in_go and stripped.startswith("- "):
-                        go_lines.append(stripped[2:].strip())
-                rec = "; ".join(go_lines) if go_lines else ""
+        # T-944: Extract Go/No-Go criteria for display
+        gonogo_criteria = {"go": [], "nogo": []}
+        gonogo_raw = _extract_section(body, "Go/No-Go Criteria")
+        if gonogo_raw:
+            in_section = None
+            for line in gonogo_raw.split("\n"):
+                stripped = line.strip()
+                if stripped.startswith("**GO if:**"):
+                    in_section = "go"
+                    continue
+                if stripped.startswith("**NO-GO if:**"):
+                    in_section = "nogo"
+                    continue
+                if in_section and stripped.startswith("- "):
+                    criterion = stripped[2:].strip()
+                    if criterion and not criterion.startswith("[Criterion"):
+                        gonogo_criteria[in_section].append(criterion)
 
-        # Truncate rationale hint for textarea prepopulation
+        # Rationale hint for textarea prepopulation
         rationale_hint = ""
-        if rec:
+        if rec and len(rec) >= 10:
             hint = rec.replace("**", "").replace("*", "").strip()
             if len(hint) > 200:
                 hint = hint[:197] + "..."
             rationale_hint = hint
+        elif gonogo_criteria["go"]:
+            rationale_hint = "; ".join(gonogo_criteria["go"])
+            if len(rationale_hint) > 200:
+                rationale_hint = rationale_hint[:197] + "..."
+
+        # T-944: ready = has a real recommendation label
+        has_recommendation = bool(recommendation_label)
 
         results.append({
             "task_id": task_id,
@@ -191,6 +195,8 @@ def _load_pending_go_decisions():
             "rationale_hint": rationale_hint,
             "recommendation_label": recommendation_label,
             "recommendation_text": recommendation_text,
+            "gonogo_criteria": gonogo_criteria,
+            "ready": has_recommendation,
         })
 
     return results
