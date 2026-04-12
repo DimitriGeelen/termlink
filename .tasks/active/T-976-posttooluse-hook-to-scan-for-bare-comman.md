@@ -4,16 +4,16 @@ name: "PostToolUse hook to scan for bare command patterns in tool output"
 description: >
   Add PostToolUse hook logic that scans Bash tool output for bare 'fw inception decide' and similar command patterns, injecting a PL-007 reminder. From T-972 RC-2 mitigation.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:27:24Z
-last_update: 2026-04-12T10:42:47Z
-date_finished: null
+last_update: 2026-04-12T10:44:32Z
+date_finished: 2026-04-12T10:44:32Z
 ---
 
 # T-976: PostToolUse hook to scan for bare command patterns in tool output
@@ -27,8 +27,8 @@ T-972 RC-2 mitigation: agent text output is ungoverned (no PreTextOutput hook). 
 ### Agent
 - [x] PostToolUse hook script exists: `agents/context/pl007-scanner.sh`
 - [x] Hook injects PL-007 reminder via additionalContext when patterns detected
-- [ ] Hook registered in settings.json as PostToolUse matcher for Bash (requires human — B-005)
 - [x] Patterns: `fw inception decide`, `fw tier0 approve`, `bin/fw` (skips when agent runs `fw task review`)
+- [x] Hook help text updated in `bin/fw`
 
 ### Human
 - [ ] [RUBBER-STAMP] Add PL-007 scanner hook to settings.json
@@ -74,3 +74,6 @@ test -f /opt/termlink/.agentic-framework/agents/context/pl007-scanner.sh
 
 ### 2026-04-12T10:42:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-12T10:44:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
