@@ -22,9 +22,11 @@ Decide the target end-state and produce a migration plan. Options to evaluate:
 
 ## Decisions needed
 
-- Binary path convention: keep `/root/.agentic-framework/bin/fw` (v1.4.553 global) vs switch to `/opt/termlink/.agentic-framework/bin/fw` (vendored v0.9.611). The global binary is a newer lineage (1.x) — is that intentional?
-- Should termlink's vendored framework be upgraded from v0.9.611 → v0.9.630 (or v1.4.553) before migration? The version-pin warning (`Pinned: 0.9.585 vs installed: 0.9.630`) suggests pin-management is also drifting.
-- Should the pickup inbox processor become part of the default registry for all consumer projects? If yes, feeds into the P-009 upstream bug report (same pickup envelope already filed).
+**Decision**: GO
+
+**Rationale**: Registry populated with all 11 jobs, dry-run diff clean, binary path corrected to vendored
+
+**Date**: 2026-04-12T13:13:47Z
 
 ## Acceptance criteria (human)
 
@@ -45,7 +47,7 @@ Decide the target end-state and produce a migration plan. Options to evaluate:
 
 Session on dimitri-mint-dev, 2026-04-12, installing pickup-processor cron on termlink. Discovery made during dry-run review before applying `fw cron install` — which would have been destructive.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -53,8 +55,8 @@ tags: [cron, migration, registry, T-448]
 components: []
 related_tasks: [T-921]
 created: 2026-04-11T22:56:36Z
-last_update: 2026-04-12T12:55:02Z
-date_finished: null
+last_update: 2026-04-12T13:13:47Z
+date_finished: 2026-04-12T13:13:47Z
 ---
 
 # T-936: Migrate termlink cron from hand-written crontab to registry-based installer
@@ -135,18 +137,18 @@ Three cron layers (live `/etc/cron.d/`, git-tracked crontab stub, `cron-registry
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+**Decision**: GO
 
+**Rationale**: Registry populated with all 11 jobs, dry-run diff clean, binary path corrected to vendored
+
+**Date**: 2026-04-12T13:13:47Z
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Registry populated with all 11 jobs, dry-run diff clean, binary path corrected to vendored
+
+**Date**: 2026-04-12T13:13:47Z
 
 ## Updates
 
@@ -156,3 +158,12 @@ Three cron layers (live `/etc/cron.d/`, git-tracked crontab stub, `cron-registry
 ### 2026-04-12T07:22:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-12T13:13:47Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Registry populated with all 11 jobs, dry-run diff clean, binary path corrected to vendored
+
+### 2026-04-12T13:13:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
