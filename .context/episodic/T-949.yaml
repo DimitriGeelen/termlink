@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-949: Pickup: fw inception decide fails on captured tasks — should auto-transition through started-work (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-12T16:38:08Z
+# ============================================================================
+
+task_id: T-949
+task_name: "Pickup: fw inception decide fails on captured tasks — should auto-transition through started-work (from termlink)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T08:12:01Z
+completed: 2026-04-12T13:01:27Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-12T15:01:22+02:00
+last_commit: 2026-04-12T15:01:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix fw inception decide on captured tasks — auto-transition through started-work. Complete — inception decide captured-task fix verified
+
+# Key outcomes
+outcomes:
+  - "Root cause identified: `enums.sh` defines `captured → started-work` only, no direct `captured → work-completed`"
+  - "Fix applied: `inception.sh` auto-transitions `captured → started-work` before `work-completed`"
+  - "`cargo build --workspace` not affected (framework-only change)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Complete — inception decide captured-task fix verified"
+    source: git-mined
+  - description: "Fix fw inception decide on captured tasks — auto-transition through started-work"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Auto-transition in inception.sh (check current status, call update-task twice if captured)"
+    rationale: "Minimal change, preserves state machine integrity in enums.sh"
+    alternatives_rejected: ["Adding captured→work-completed to enums.sh (would bypass started-work tracking)"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/lib/inception.sh"
+  - ".context/audits/cron/2026-04-12-1500.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/locks/T-949.lock"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-949-pickup-fw-inception-decide-fails-on-capt.md"
+  - ".tasks/completed/T-949-pickup-fw-inception-decide-fails-on-capt.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T15:01:22"
+    action: "T-949: Fix fw inception decide on captured tasks — auto-transition through started-work"
+  - time: "2026-04-12T15:01:34"
+    action: "T-949: Complete — inception decide captured-task fix verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 289 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report, framework]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 289
+  commits: 2
+  files_changed: 13
+  lines_added: 114
+  lines_removed: 118
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-949-pickup-fw-inception-decide-fails-on-capt.md
+generated_by: context-agent-hybrid
