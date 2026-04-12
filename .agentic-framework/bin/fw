@@ -235,6 +235,23 @@ do_vendor() {
         rsync_args+=(--exclude="$item")
     done
 
+    # T-986: Read .local-patches manifest — skip patched files during vendor/upgrade
+    local -a patch_files=()
+    local patches_manifest="$dest/.local-patches"
+    if [ -f "$patches_manifest" ]; then
+        while IFS= read -r line; do
+            line="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
+            [[ "$line" =~ ^-\ file:\ (.+)$ ]] && patch_files+=("${BASH_REMATCH[1]}")
+        done < "$patches_manifest"
+        if [ ${#patch_files[@]} -gt 0 ]; then
+            echo -e "  ${YELLOW}LOCAL PATCHES${NC}: ${#patch_files[@]} file(s) will be preserved"
+            for pf in "${patch_files[@]}"; do
+                echo -e "    ${CYAN}↳${NC} $pf"
+            done
+            echo ""
+        fi
+    fi
+
     # Copy each include
     for item in "${includes[@]}"; do
         if [ -e "$vendor_source/$item" ]; then
@@ -244,7 +261,17 @@ do_vendor() {
 
             if [ -d "$vendor_source/$item" ]; then
                 if command -v rsync &>/dev/null; then
-                    rsync -a --delete "${rsync_args[@]}" "$vendor_source/$item/" "$dest/$item/"
+                    # T-986: Add per-item excludes for locally patched files
+                    local -a item_args=("${rsync_args[@]}")
+                    for pf in "${patch_files[@]}"; do
+                        case "$pf" in
+                            "$item"/*)
+                                local rel="${pf#"$item"/}"
+                                item_args+=(--exclude="$rel")
+                                ;;
+                        esac
+                    done
+                    rsync -a --delete "${item_args[@]}" "$vendor_source/$item/" "$dest/$item/"
                 else
                     rm -rf "${dest:?}/${item:?}"
                     cp -r "$vendor_source/$item" "$dest/$item"
@@ -253,13 +280,28 @@ do_vendor() {
                     find "$dest/$item" -name ".DS_Store" -delete 2>/dev/null || true
                 fi
             else
-                cp "$vendor_source/$item" "$dest/$item"
+                # T-986: Skip single files that are locally patched
+                local _skip=false
+                for pf in "${patch_files[@]}"; do
+                    [ "$pf" = "$item" ] && { _skip=true; break; }
+                done
+                if [ "$_skip" = true ]; then
+                    echo -e "  ${YELLOW}⊛${NC} $item (PRESERVED — local patch)"
+                else
+                    cp "$vendor_source/$item" "$dest/$item"
+                fi
             fi
             echo -e "  ${GREEN}✓${NC} $item"
         else
             echo -e "  ${YELLOW}⊘${NC} $item (not found, skipping)"
         fi
     done
+
+    # T-986: Summary of preserved patches
+    if [ ${#patch_files[@]} -gt 0 ]; then
+        echo ""
+        echo -e "  ${YELLOW}${#patch_files[@]} locally-patched file(s) preserved${NC} (see .agentic-framework/.local-patches)"
+    fi
 
     # Create VERSION file
     echo "$FW_VERSION" > "$dest/VERSION"
