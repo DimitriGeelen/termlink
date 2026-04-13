@@ -264,6 +264,7 @@ pub(crate) async fn cmd_file_receive(
     output_dir: &str,
     timeout: u64,
     interval: u64,
+    replay: bool,
     json: bool,
 ) -> Result<()> {
     use base64::Engine;
@@ -290,7 +291,11 @@ pub(crate) async fn cmd_file_receive(
     }
 
     if !json {
-        eprintln!("Waiting for file transfer on '{}' (timeout: {}s)...", target, timeout);
+        if replay {
+            eprintln!("Waiting for file transfer on '{}' (replay mode, timeout: {}s)...", target, timeout);
+        } else {
+            eprintln!("Waiting for file transfer on '{}' (timeout: {}s)...", target, timeout);
+        }
     }
 
     let start = std::time::Instant::now();
@@ -298,7 +303,26 @@ pub(crate) async fn cmd_file_receive(
     let subscribe_timeout = interval.max(500); // at least 500ms per subscribe call
 
     let mut poll_cursor: Option<u64> = None;
-    let mut is_first_poll = true;
+    let mut is_first_poll = replay; // Only do first-poll (historical scan) in replay mode
+
+    // T-1018: In fresh-only mode (default), get current cursor to skip stale events
+    if !replay {
+        let params = serde_json::json!({});
+        let rpc_timeout = std::time::Duration::from_secs(10);
+        if let Ok(Ok(resp)) = tokio::time::timeout(
+            rpc_timeout,
+            client::rpc_call(reg.socket_path(), "event.poll", params),
+        ).await
+            && let Ok(result) = client::unwrap_result(resp)
+            && let Some(next) = result["next_seq"].as_u64()
+        {
+            poll_cursor = Some(next);
+            if !json {
+                eprintln!("  Skipping {} historical event(s), waiting for fresh transfers...",
+                    result["events"].as_array().map(|a| a.len()).unwrap_or(0));
+            }
+        }
+    }
 
     let mut transfer_id: Option<String> = None;
     let mut filename: Option<String> = None;

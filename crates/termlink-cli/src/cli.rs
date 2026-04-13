@@ -1698,7 +1698,8 @@ pub(crate) enum FileAction {
         timeout: u64,
     },
 
-    /// Receive a file from a session (waits for file.init event)
+    /// Receive a file from a session (waits for file.init event). By default, only processes
+    /// fresh events arriving after the receiver starts. Use --replay to process historical events.
     Receive {
         /// Source session ID or display name to watch for file events
         target: String,
@@ -1714,6 +1715,12 @@ pub(crate) enum FileAction {
         /// Poll interval in milliseconds (default: 100)
         #[arg(long, default_value = "100")]
         interval: u64,
+
+        /// Process historical events from the event store (inbox pickup). Without this flag,
+        /// only events arriving after the receiver starts are processed — preventing stale
+        /// transfers from being assembled.
+        #[arg(long)]
+        replay: bool,
 
         /// Output transfer result as JSON
         #[arg(long)]
