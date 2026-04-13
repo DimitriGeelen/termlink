@@ -326,13 +326,7 @@ CRONREGEOF
 
     local vendored_dir="$target_dir/.agentic-framework"
     if [ -d "$vendored_dir" ]; then
-        # T-991: Detect self-hosted framework (source = target) and skip gracefully
-        local canon_fw canon_vd
-        canon_fw=$(cd "$FRAMEWORK_ROOT" 2>/dev/null && pwd -P) || canon_fw="$FRAMEWORK_ROOT"
-        canon_vd=$(cd "$vendored_dir" 2>/dev/null && pwd -P) || canon_vd="$vendored_dir"
-        if [ "$canon_fw" = "$canon_vd" ]; then
-            echo -e "  ${GREEN}OK${NC}  Framework is self-hosted (source = target) — nothing to vendor"
-        elif [ "$dry_run" = true ]; then
+        if [ "$dry_run" = true ]; then
             do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" --dry-run 2>&1 | sed 's/^/  /'
         else
             do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" 2>&1 | sed 's/^/  /'
