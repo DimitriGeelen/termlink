@@ -438,6 +438,46 @@ pub struct RemoteInboxClearParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct RemoteListParams {
+    /// Remote hub address in "host:port" format or profile name
+    pub hub: String,
+    /// Filter by session name (substring match)
+    pub name: Option<String>,
+    /// Filter by tags (comma-separated, all must match)
+    pub tags: Option<String>,
+    /// Filter by roles (comma-separated, all must match)
+    pub roles: Option<String>,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Permission scope. Default: "observe".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 10.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RemoteExecParams {
+    /// Remote hub address in "host:port" format or profile name
+    pub hub: String,
+    /// Target session name on the remote hub
+    pub session: String,
+    /// Shell command to execute
+    pub command: String,
+    /// Working directory for the command
+    pub cwd: Option<String>,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Permission scope. Default: "execute".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 30.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct RemoteInjectParams {
     /// Remote hub address in "host:port" format
     pub hub: String,
@@ -4254,6 +4294,105 @@ impl TermLinkTools {
                 Err(e) => json_err(format!("inbox.list error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    // === Remote List/Exec Tools (T-1011) ===
+
+    #[tool(
+        name = "termlink_remote_list",
+        description = "List sessions on a remote hub. Discovers all registered sessions, optionally filtered by name, tags, or roles. Returns session IDs, names, states, and metadata. Useful for cross-host agent discovery."
+    )]
+    async fn termlink_remote_list(&self, Parameters(p): Parameters<RemoteListParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("observe");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(10));
+
+        let fut = async move {
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub, p.secret_file.as_deref(), p.secret.as_deref(), scope,
+            ).await {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+
+            let mut params = serde_json::json!({});
+            if let Some(ref name) = p.name {
+                params["name"] = serde_json::json!(name);
+            }
+            if let Some(ref tags) = p.tags {
+                let tag_list: Vec<&str> = tags.split(',').map(|s| s.trim()).collect();
+                params["tags"] = serde_json::json!(tag_list);
+            }
+            if let Some(ref roles) = p.roles {
+                let role_list: Vec<&str> = roles.split(',').map(|s| s.trim()).collect();
+                params["roles"] = serde_json::json!(role_list);
+            }
+
+            match rpc_client.call("session.discover", serde_json::json!("mcp-list"), params).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "hub": p.hub,
+                        "sessions": r.result["sessions"],
+                        "count": r.result["sessions"].as_array().map(|a| a.len()).unwrap_or(0),
+                    })).unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    json_err(format!("session.discover error on {}: {}", p.hub, e.error.message))
+                }
+                Err(e) => json_err(format!("RPC failed: {e}")),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(10))),
+        }
+    }
+
+    #[tool(
+        name = "termlink_remote_exec",
+        description = "Execute a shell command on a remote session via hub routing. The command runs on the target session's host and returns stdout/stderr. Requires 'execute' scope. Useful for cross-host infrastructure management and agent coordination."
+    )]
+    async fn termlink_remote_exec(&self, Parameters(p): Parameters<RemoteExecParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("execute");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(30));
+
+        let fut = async move {
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub, p.secret_file.as_deref(), p.secret.as_deref(), scope,
+            ).await {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+
+            let mut params = serde_json::json!({
+                "target": p.session,
+                "command": p.command,
+            });
+            if let Some(ref cwd) = p.cwd {
+                params["cwd"] = serde_json::json!(cwd);
+            }
+
+            match rpc_client.call("command.exec", serde_json::json!("mcp-exec"), params).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "hub": p.hub,
+                        "session": p.session,
+                        "result": r.result,
+                    })).unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    json_err(format!("command.exec error on {}/{}: {}", p.hub, p.session, e.error.message))
+                }
+                Err(e) => json_err(format!("RPC failed: {e}")),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(30))),
         }
     }
 
