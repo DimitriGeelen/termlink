@@ -2390,3 +2390,60 @@ fn cli_topics_no_sessions_json() {
     assert_eq!(parsed["ok"], true);
     assert_eq!(parsed["total_topics"], 0);
 }
+
+// ─── Info Error Path Tests ────────────────────────────────────────
+
+#[test]
+fn cli_info_nonexistent_session() {
+    let dir = TestDir::new("info-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["info", "nonexistent-session-xyz"])
+        .output()
+        .expect("Failed to run info");
+
+    assert!(!output.status.success(), "info on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+// ─── Exec Error Path Tests ────────────────────────────────────────
+
+#[test]
+fn cli_exec_nonexistent_session() {
+    let dir = TestDir::new("exec-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["exec", "nonexistent-xyz", "echo", "hello"])
+        .output()
+        .expect("Failed to run exec");
+
+    assert!(!output.status.success(), "exec on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+// ─── Signal Error Path Tests ──────────────────────────────────────
+
+#[test]
+fn cli_signal_nonexistent_session() {
+    let dir = TestDir::new("signal-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["signal", "nonexistent-xyz", "TERM"])
+        .output()
+        .expect("Failed to run signal");
+
+    assert!(!output.status.success(), "signal on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
