@@ -194,11 +194,11 @@ impl KnownHubStore {
                 return Err(format!(
                     "TOFU VIOLATION: Hub {} fingerprint changed!\n  Expected: {}\n  Got:      {}\n  \
                      This could indicate a man-in-the-middle attack or hub cert regeneration.\n  \
-                     To accept: remove the old entry from {}",
+                     To accept the new cert: termlink tofu clear {}",
                     host_port,
                     existing.fingerprint,
                     fingerprint,
-                    self.path.display()
+                    host_port,
                 ));
             }
         }
