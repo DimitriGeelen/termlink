@@ -17,6 +17,13 @@ Called by:
 Usage:
 source "$FW_LIB_DIR/task-audit.sh"
 
+## Used By (2)
+
+| Component | Relationship |
+|-----------|-------------|
+| `bin/fw` | called_by |
+| `lib/inception.sh` | called_by |
+
 ---
 *Auto-generated from Component Fabric. Card: `lib-task-audit.yaml`*
 *Last verified: 2026-04-11*
