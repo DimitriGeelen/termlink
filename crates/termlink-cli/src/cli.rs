@@ -1095,6 +1095,19 @@ pub(crate) enum InboxAction {
         #[arg(long)]
         json: bool,
     },
+    /// Clear pending transfers from the inbox
+    Clear {
+        /// Target session name (clear only this target's transfers)
+        target: Option<String>,
+
+        /// Clear all pending transfers for all targets
+        #[arg(long)]
+        all: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// MCP server actions
