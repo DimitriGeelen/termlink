@@ -34,9 +34,19 @@ impl Client {
                 let cert_path = crate::discovery::runtime_dir().join("hub.cert.pem");
                 let is_local = host == "127.0.0.1" || host == "localhost" || host == "::1";
 
-                if is_local && cert_path.exists() {
+                // T-1029/T-1031: Check alternate cert location for split-brain runtime dirs
+                let effective_cert = if is_local && cert_path.exists() {
+                    Some(cert_path)
+                } else if is_local {
+                    let alt = std::path::PathBuf::from("/var/lib/termlink/hub.cert.pem");
+                    if alt.exists() { Some(alt) } else { None }
+                } else {
+                    None
+                };
+
+                if let Some(cert) = effective_cert {
                     // Local hub — use pinned cert (fastest, no TOFU lookup)
-                    let connector = build_tls_connector(&cert_path)?;
+                    let connector = build_tls_connector(&cert)?;
                     let host_owned = host.clone();
                     let server_name = rustls::pki_types::ServerName::try_from(host_owned)
                         .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
@@ -47,7 +57,7 @@ impl Client {
                         reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
                     })
                 } else {
-                    // Remote hub or local without pinned cert — use TOFU
+                    // Remote hub — use TOFU verification
                     // T-1029: Never fall back to plaintext; hub TCP always uses TLS.
                     let host_port = format!("{host}:{port}");
                     let connector = crate::tofu::build_tofu_connector(&host_port);
