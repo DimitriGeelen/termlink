@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:29:47Z
-last_update: 2026-04-13T12:44:56Z
+last_update: 2026-04-13T12:45:01Z
 date_finished: null
 ---
 
@@ -25,12 +25,12 @@ Deploy latest termlink with remote doctor, fleet doctor, file transfer fixes to 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Musl static binary built (v0.9.807, 62 MCP tools)
-- [x] Binary deployed to .109 via termlink send-file + remote exec (installed at /usr/local/bin)
-- [ ] Hub restarted on .109 — BLOCKED: killing hub via remote exec severs connectivity. Needs external restart.
-- [x] Binary deployed to .121 via termlink send-file + remote exec (installed at /usr/local/bin)
-- [ ] Hub restarted on .121 — same chicken-and-egg: can't restart hub via termlink without losing connectivity
-- [ ] termlink remote ping both hubs returns PONG after hub restart
+- [x] Musl static binary built (v0.9.809, 62 MCP tools, includes hub restart + fleet doctor)
+- [x] Binary v0.9.807 deployed+running on .109 (hub restarted by .109 agent)
+- [x] termlink remote ping ring20-management returns PONG
+- [x] Binary v0.9.809 installed on .121 (hub restart attempted, TCP flag missing)
+- [ ] .121 hub needs restart with `--tcp 0.0.0.0:9100` — hub restart spawned without TCP because hub.tcp file didn't exist yet
+- [ ] termlink remote ping ring20-dashboard returns PONG after TCP restart
 
 ## Verification
 
