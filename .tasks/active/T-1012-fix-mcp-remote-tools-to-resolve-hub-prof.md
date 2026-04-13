@@ -4,16 +4,16 @@ name: "Fix MCP remote tools to resolve hub profile names"
 description: >
   Fix MCP remote tools to resolve hub profile names
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T10:04:14Z
-last_update: 2026-04-13T10:04:14Z
-date_finished: null
+last_update: 2026-04-13T10:07:22Z
+date_finished: 2026-04-13T10:07:22Z
 ---
 
 # T-1012: Fix MCP remote tools to resolve hub profile names
@@ -60,3 +60,6 @@ cargo test --workspace 2>&1 | grep "^test result" | grep -v "0 passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1012-fix-mcp-remote-tools-to-resolve-hub-prof.md
 - **Context:** Initial task creation
+
+### 2026-04-13T10:07:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
