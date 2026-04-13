@@ -26,8 +26,8 @@ date_finished: 2026-04-11T22:41:44Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] termlink-hub.service systemd unit file created with correct ExecStart, User, and TERMLINK_RUNTIME_DIR
+- [x] Installer script in .context/systemd/ follows agentic-audit-termlink cron pattern
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

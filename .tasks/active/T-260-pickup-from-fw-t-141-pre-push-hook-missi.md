@@ -33,6 +33,11 @@ Pre-push hook doesn't pass PROJECT_ROOT to audit script. One-line fix in `agents
 ### Agent
 - [x] Pickup dispatched to framework agent on .107 (already sent as part of T-258)
 
+## Verification
+
+# Framework-side fix — verify after fw upgrade pulls the fix
+.agentic-framework/bin/fw upgrade --dry-run 2>&1 | grep -q "ERROR" && exit 1 || exit 0
+
 ## Updates
 
 ### 2026-03-24T08:42:18Z — task-created [pickup from fw-agent on .107]

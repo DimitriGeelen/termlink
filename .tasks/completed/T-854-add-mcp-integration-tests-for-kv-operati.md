@@ -26,8 +26,8 @@ date_finished: 2026-04-04T15:44:27Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] MCP integration tests for kv get/set/delete with data roundtrip exist and pass
+- [x] Tests use actual MCP client-server transport (not unit mocks)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
