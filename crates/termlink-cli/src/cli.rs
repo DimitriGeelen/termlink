@@ -937,6 +937,12 @@ pub(crate) enum Command {
         action: RemoteAction,
     },
 
+    /// Query the hub's offline file inbox (pending transfers for offline sessions)
+    Inbox {
+        #[command(subcommand)]
+        action: InboxAction,
+    },
+
     /// Check TermLink runtime health — validates dirs, sessions, hub, sockets
     Doctor {
         /// Output as JSON
@@ -1068,6 +1074,26 @@ pub(crate) enum HubAction {
         /// Exit non-zero if hub is not running (for scripting/health checks)
         #[arg(long)]
         check: bool,
+    },
+}
+
+/// Hub inbox actions (T-997)
+#[derive(Subcommand)]
+pub(crate) enum InboxAction {
+    /// Show inbox status — total pending transfers per target
+    Status {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// List pending transfers for a specific target session
+    List {
+        /// Target session name
+        target: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 }
 
