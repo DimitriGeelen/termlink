@@ -2566,3 +2566,58 @@ fn cli_clean_empty_dry_run() {
         stderr
     );
 }
+
+// ─── Tag Error Path Tests ─────────────────────────────────────────
+
+#[test]
+fn cli_tag_add_nonexistent_session() {
+    let dir = TestDir::new("tag-add-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["tag", "nonexistent-xyz", "--add", "foo"])
+        .output()
+        .expect("Failed to run tag");
+
+    assert!(!output.status.success(), "tag on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_tag_remove_nonexistent_session() {
+    let dir = TestDir::new("tag-rm-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["tag", "nonexistent-xyz", "--remove", "foo"])
+        .output()
+        .expect("Failed to run tag");
+
+    assert!(!output.status.success(), "tag remove on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+// ─── Resize Error Path Tests ──────────────────────────────────────
+
+#[test]
+fn cli_resize_nonexistent_session() {
+    let dir = TestDir::new("resize-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["resize", "nonexistent-xyz", "80", "24"])
+        .output()
+        .expect("Failed to run resize");
+
+    assert!(!output.status.success(), "resize on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
