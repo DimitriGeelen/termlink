@@ -393,7 +393,26 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
-    // 7. Version + MCP tools
+    // 7. Inbox status (T-1001)
+    if hub_socket.exists() {
+        match termlink_session::client::rpc_call(&hub_socket, "inbox.status", json!({})).await {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => {
+                    let total = result["total_transfers"].as_u64().unwrap_or(0);
+                    if total == 0 {
+                        check!("inbox", pass, "no pending transfers");
+                    } else {
+                        let targets = result["targets"].as_array().map(|t| t.len()).unwrap_or(0);
+                        check!("inbox", warn, format!("{total} pending transfer(s) for {targets} target(s)"));
+                    }
+                }
+                Err(e) => check!("inbox", warn, format!("inbox query failed: {e}")),
+            },
+            Err(e) => check!("inbox", warn, format!("inbox RPC failed: {e}")),
+        }
+    }
+
+    // 8. Version + MCP tools
     let version = env!("CARGO_PKG_VERSION");
     let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
     let mcp_tools = termlink_mcp::tool_count();
