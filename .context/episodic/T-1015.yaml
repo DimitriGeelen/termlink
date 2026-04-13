@@ -1,0 +1,111 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1015: Deploy termlink to .109 and .121 — ring20-management and ring20-dashboard
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-13T12:00:39Z
+# ============================================================================
+
+task_id: T-1015
+task_name: "Deploy termlink to .109 and .121 — ring20-management and ring20-dashboard"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T10:29:29Z
+completed: 2026-04-13T12:00:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-13T12:30:36+02:00
+last_commit: 2026-04-13T13:24:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Create deployment task for .109 and .121 — blocked on SSH key auth. Deploy termlink v0.9.795 to .109 (ring20-management) and .121 (ring20-dashboard) via termlink. Session learnings — 2 learnings captured, T-1016 inception created, memory updated
+
+# Key outcomes
+outcomes:
+  - "termlink v0.9.795 (musl static) built and deployed to .109 via termlink send-file + remote exec"
+  - "ring20-management hub profile configured in ~/.termlink/hubs.toml"
+  - "termlink remote ping ring20-management returns PONG"
+  - "termlink v0.9.795 (musl static) built and deployed to .121 via termlink send-file + remote exec"
+  - "ring20-dashboard hub profile configured in ~/.termlink/hubs.toml"
+  - "termlink remote ping ring20-dashboard returns PONG"
+  - "[RUBBER-STAMP] Verify connectivity to both hubs"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/approvals/pending-30002bf3679d.yaml"
+  - ".context/audits/2026-04-13.yaml"
+  - ".context/audits/cron/2026-04-05-1245.yaml"
+  - ".context/audits/cron/2026-04-05-1300.yaml"
+  - ".context/audits/cron/2026-04-05-1315.yaml"
+  - ".context/audits/cron/2026-04-13-1230.yaml"
+  - ".context/audits/cron/2026-04-13-1245.yaml"
+  - ".context/audits/cron/2026-04-13-1300.yaml"
+  - ".context/audits/cron/2026-04-13-1315.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/audits/upgrades.yaml"
+  - ".context/episodic/T-1014.yaml"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.new-file-counter"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.tier0-approval.pending"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1015-deploy-termlink-to-109-and-121--ring20-m.md"
+  - ".tasks/active/T-1016-termlink-deploy--atomic-binary-deploymen.md"
+  - ".tasks/completed/T-1014-add-termlink-remote-status-for-hub-level.md"
+  - ".tasks/templates/inception.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T12:30:36"
+    action: "T-1015: Create deployment task for .109 and .121 — blocked on SSH key auth"
+  - time: "2026-04-13T13:20:57"
+    action: "T-1015: Deploy termlink v0.9.795 to .109 (ring20-management) and .121 (ring20-dashboard) via termlink"
+  - time: "2026-04-13T13:24:09"
+    action: "T-1015: Session learnings — 2 learnings captured, T-1016 inception created, memory updated"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 91 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 91
+  commits: 3
+  files_changed: 29
+  lines_added: 557
+  lines_removed: 269
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1015-deploy-termlink-to-109-and-121--ring20-m.md
+generated_by: context-agent-hybrid
