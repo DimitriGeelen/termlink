@@ -4,16 +4,16 @@ name: "Add termlink_remote_list and termlink_remote_exec MCP tools"
 description: >
   Add termlink_remote_list and termlink_remote_exec MCP tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T09:54:29Z
-last_update: 2026-04-13T09:54:29Z
-date_finished: null
+last_update: 2026-04-13T09:57:26Z
+date_finished: 2026-04-13T09:57:26Z
 ---
 
 # T-1011: Add termlink_remote_list and termlink_remote_exec MCP tools
@@ -60,3 +60,6 @@ cargo test --workspace 2>&1 | grep "^test result" | grep -v "0 passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1011-add-termlinkremotelist-and-termlinkremot.md
 - **Context:** Initial task creation
+
+### 2026-04-13T09:57:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
