@@ -35,11 +35,18 @@ impl DeliveryRoute {
                     "payload": payload,
                 });
                 let fut = client::rpc_call(socket, "event.emit", params);
-                tokio::time::timeout(timeout, fut)
+                let resp = tokio::time::timeout(timeout, fut)
                     .await
                     .map_err(|_| anyhow::anyhow!("timeout"))?
                     .context("RPC call failed")?;
-                Ok(serde_json::json!({"delivered": true}))
+                let result = client::unwrap_result(resp)
+                    .map_err(|e| anyhow::anyhow!("Session rejected: {e}"))?;
+                // Merge delivered flag into response
+                let mut out = result;
+                if let Some(obj) = out.as_object_mut() {
+                    obj.entry("delivered").or_insert(serde_json::json!(true));
+                }
+                Ok(out)
             }
             DeliveryRoute::Hub { hub_socket, target } => {
                 let mut params = serde_json::json!({
@@ -151,15 +158,15 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         }
     };
     let from_label = format!("cli-{}", std::process::id());
-    match route.emit(file_topic::INIT, init_payload, Some(&from_label), timeout_dur).await {
-        Ok(_) => {}
+    let spooled = match route.emit(file_topic::INIT, init_payload, Some(&from_label), timeout_dur).await {
+        Ok(resp) => resp.get("spooled").and_then(|s| s.as_bool()).unwrap_or(false),
         Err(e) => {
             if json {
                 super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to emit file.init: {}", e)}));
             }
             return Err(e).context("Failed to emit file.init");
         }
-    }
+    };
 
     if !json {
         eprintln!(
@@ -237,17 +244,17 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
             "filename": filename,
             "size": size,
             "via": via,
+            "spooled": spooled,
             "chunks": total_chunks,
             "transfer_id": transfer_id,
             "sha256": sha256,
             "target": target,
         }));
+    } else if spooled {
+        eprintln!("File spooled to hub inbox for '{}'. SHA-256: {}", target, sha256);
+        eprintln!("  Target must run 'termlink file receive {}' to assemble the file.", target);
     } else {
-        let route_info = match via {
-            "hub" => " (via hub — may be spooled for later delivery)",
-            _ => "",
-        };
-        eprintln!("Transfer complete{route_info}. SHA-256: {sha256}");
+        eprintln!("Transfer complete (via {via}). SHA-256: {sha256}");
     }
     Ok(())
 }
