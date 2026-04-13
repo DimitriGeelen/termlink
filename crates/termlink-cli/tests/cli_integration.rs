@@ -2447,3 +2447,60 @@ fn cli_signal_nonexistent_session() {
         stderr
     );
 }
+
+// ─── Inject Error Path Tests ──────────────────────────────────────
+
+#[test]
+fn cli_inject_nonexistent_session() {
+    let dir = TestDir::new("inject-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["inject", "nonexistent-xyz", "hello"])
+        .output()
+        .expect("Failed to run inject");
+
+    assert!(!output.status.success(), "inject on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+// ─── Output Error Path Tests ──────────────────────────────────────
+
+#[test]
+fn cli_output_nonexistent_session() {
+    let dir = TestDir::new("output-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["output", "nonexistent-xyz"])
+        .output()
+        .expect("Failed to run output");
+
+    assert!(!output.status.success(), "output on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+// ─── Send Error Path Tests ────────────────────────────────────────
+
+#[test]
+fn cli_send_nonexistent_session() {
+    let dir = TestDir::new("send-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["send", "nonexistent-xyz", "hello"])
+        .output()
+        .expect("Failed to run send");
+
+    assert!(!output.status.success(), "send on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
