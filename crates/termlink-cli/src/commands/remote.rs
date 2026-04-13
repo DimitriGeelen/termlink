@@ -1347,6 +1347,98 @@ async fn cmd_remote_inbox_inner(
     Ok(())
 }
 
+pub(crate) async fn cmd_fleet_doctor(
+    json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        if json {
+            println!("{}", serde_json::json!({"ok": true, "hubs": [], "message": "No hubs configured in ~/.termlink/hubs.toml"}));
+        } else {
+            eprintln!("No hubs configured in ~/.termlink/hubs.toml");
+        }
+        return Ok(());
+    }
+
+    if !json {
+        eprintln!("Fleet doctor: {} hub(s) configured\n", config.hubs.len());
+    }
+
+    let mut hub_results: Vec<serde_json::Value> = Vec::new();
+    let mut total_pass: u32 = 0;
+    let total_warn: u32 = 0;
+    let mut total_fail: u32 = 0;
+
+    // Sort hub names for deterministic output
+    let mut hub_names: Vec<&String> = config.hubs.keys().collect();
+    hub_names.sort();
+
+    for name in hub_names {
+        let entry = &config.hubs[name];
+
+        if !json {
+            eprintln!("--- {} ({}) ---", name, entry.address);
+        }
+
+        // Quick connectivity check via connect_remote_hub
+        let connect_start = std::time::Instant::now();
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let result = tokio::time::timeout(
+            timeout_dur,
+            connect_remote_hub(
+                &entry.address,
+                entry.secret_file.as_deref(),
+                entry.secret.as_deref(),
+                entry.scope.as_deref().unwrap_or("execute"),
+            ),
+        ).await;
+
+        match result {
+            Ok(Ok(_client)) => {
+                let latency = connect_start.elapsed().as_millis();
+                total_pass += 1;
+                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "ok", "latency_ms": latency}));
+                if !json {
+                    eprintln!("  [PASS] connected in {}ms", latency);
+                }
+            }
+            Ok(Err(e)) => {
+                total_fail += 1;
+                let msg = format!("{}", e);
+                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg}));
+                if !json {
+                    eprintln!("  [FAIL] {}", msg);
+                }
+            }
+            Err(_) => {
+                total_fail += 1;
+                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "timeout"}));
+                if !json {
+                    eprintln!("  [FAIL] Timeout after {}s", timeout_secs);
+                }
+            }
+        }
+
+        if !json {
+            eprintln!();
+        }
+    }
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+            "ok": total_fail == 0,
+            "hubs": hub_results,
+            "summary": {"total": hub_results.len(), "pass": total_pass, "warn": total_warn, "fail": total_fail}
+        }))?);
+    } else {
+        eprintln!("Fleet summary: {} hub(s), {} ok, {} warn, {} fail",
+            hub_results.len(), total_pass, total_warn, total_fail);
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn cmd_remote_doctor(
     conn: &RemoteConn<'_>,
     json: bool,
