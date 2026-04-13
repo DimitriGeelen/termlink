@@ -148,9 +148,16 @@ pub async fn run_with_tcp(
         let local_addr = listener.local_addr()?;
         tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
 
+        // T-1026: Record TCP address for hub restart (server-side, covers all start paths)
+        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
+        let _ = std::fs::write(&tcp_flag, local_addr.to_string());
+
         let acceptor = tls::load_or_generate_cert()?;
         (Some(listener), Some(acceptor))
     } else {
+        // T-1026: Remove stale hub.tcp if starting without TCP
+        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
+        let _ = std::fs::remove_file(&tcp_flag);
         (None, None)
     };
 
@@ -183,6 +190,9 @@ pub async fn run_with_tcp(
         // persist-if-present) so cross-host agents don't need to
         // re-distribute credentials on every hub restart.
         let _ = std::fs::remove_file(&socket_path_owned);
+        // T-1026: Remove hub.tcp so non-TCP restart doesn't inherit stale config
+        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
+        let _ = std::fs::remove_file(&tcp_flag);
         tls::cleanup();
         pidfile::remove(&pidfile_path);
         tracing::info!("Hub shut down cleanly");
@@ -228,9 +238,15 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
         let local_addr = listener.local_addr()?;
         tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
 
+        // T-1026: Record TCP address for hub restart
+        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
+        let _ = std::fs::write(&tcp_flag, local_addr.to_string());
+
         let acceptor = tls::load_or_generate_cert()?;
         (Some(listener), Some(acceptor))
     } else {
+        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
+        let _ = std::fs::remove_file(&tcp_flag);
         (None, None)
     };
 

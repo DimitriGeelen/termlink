@@ -40,14 +40,7 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool) -> 
         .await
         .context("Hub server error")?;
 
-    // T-1024: Record TCP address for hub restart
-    let runtime_dir = termlink_session::discovery::runtime_dir();
-    let tcp_flag_path = runtime_dir.join("hub.tcp");
-    if let Some(addr) = tcp_addr {
-        let _ = std::fs::write(&tcp_flag_path, addr);
-    } else {
-        let _ = std::fs::remove_file(&tcp_flag_path);
-    }
+    // T-1026: hub.tcp is now written by the server after bind (server.rs)
 
     if tcp_addr.is_some() {
         let secret_path = termlink_hub::server::hub_secret_path();
