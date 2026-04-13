@@ -875,7 +875,7 @@ async fn handle_orchestrator_route(
                     let addr = reg.addr.to_transport_addr();
                     let session_id = reg.id.as_str().to_string();
                     let result = tokio::time::timeout(timeout_inner, async {
-                        let mut c = client::Client::connect_addr(&addr).await?;
+                        let mut c = client::Client::connect_addr_raw(&addr).await?;
                         c.call(&method, id.clone(), forward_params_inner.clone()).await
                     })
                     .await;
@@ -1024,7 +1024,7 @@ async fn handle_orchestrator_route(
                 port: entry.port,
             };
             let result = tokio::time::timeout(timeout, async {
-                let mut c = client::Client::connect_addr(&addr).await?;
+                let mut c = client::Client::connect_addr_raw(&addr).await?;
                 c.call(&method, id.clone(), forward_params.clone()).await
             })
             .await;
@@ -1076,7 +1076,7 @@ async fn handle_orchestrator_route(
         tried_count += 1;
         let addr = reg.addr.to_transport_addr();
         let result = tokio::time::timeout(timeout, async {
-            let mut c = client::Client::connect_addr(&addr).await?;
+            let mut c = client::Client::connect_addr_raw(&addr).await?;
             c.call(&method, id.clone(), forward_params.clone()).await
         })
         .await;
@@ -1317,7 +1317,7 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
 
     // Forward the request, preserving the original request id
     let forward_result = async {
-        let mut c = client::Client::connect_addr(&addr).await?;
+        let mut c = client::Client::connect_addr_raw(&addr).await?;
         c.call(&req.method, id.clone(), req.params.clone()).await
     };
     match forward_result.await {

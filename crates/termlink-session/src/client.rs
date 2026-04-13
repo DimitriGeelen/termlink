@@ -74,6 +74,32 @@ impl Client {
         }
     }
 
+    /// Connect to a transport address without TLS (plain TCP for internal forwarding).
+    ///
+    /// Used by the hub router for internal session-to-session forwarding where the
+    /// target is a local proxy, not an external TLS-speaking hub.
+    pub async fn connect_addr_raw(addr: &TransportAddr) -> std::io::Result<Self> {
+        match addr {
+            TransportAddr::Unix { path } => {
+                let stream = UnixStream::connect(path).await?;
+                let (reader, writer) = tokio::io::split(stream);
+                Ok(Self {
+                    writer: Box::new(writer),
+                    reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                })
+            }
+            TransportAddr::Tcp { host, port } => {
+                let stream = tokio::net::TcpStream::connect((host.as_str(), *port)).await?;
+                stream.set_nodelay(true)?;
+                let (reader, writer) = tokio::io::split(stream);
+                Ok(Self {
+                    writer: Box::new(writer),
+                    reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                })
+            }
+        }
+    }
+
     /// Connect to a session's control plane socket (convenience for Unix paths).
     pub async fn connect(socket_path: &Path) -> std::io::Result<Self> {
         Self::connect_addr(&TransportAddr::unix(socket_path)).await
