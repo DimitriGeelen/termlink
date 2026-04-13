@@ -1458,8 +1458,8 @@ fn classify_fleet_error(msg: &str) -> &'static str {
         "Secret mismatch — hub was likely restarted with a new secret. \
          Fetch the current secret from the remote hub's hub.secret file"
     } else if msg.contains("TOFU VIOLATION") || msg.contains("fingerprint changed") {
-        "Hub certificate changed. If expected (hub restart), clear the entry: \
-         edit ~/.termlink/known_hubs and remove the line for this host"
+        "Hub certificate changed. If expected (hub restart), clear with: \
+         termlink tofu clear <host:port>"
     } else if msg.contains("Connection refused") {
         "Hub is not listening on this port. Check if the hub process is running \
          on the remote host (systemctl status termlink-hub)"
