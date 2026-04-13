@@ -3083,6 +3083,99 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    // === remote session lifecycle error-path tests (T-1007) ===
+
+    #[test]
+    fn heartbeat_missing_id_returns_error() {
+        let _ = super::init_remote_store();
+        let resp = super::handle_heartbeat(json!(1), &json!({}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, -32602);
+                assert!(e.error.message.contains("Missing"));
+            }
+            RpcResponse::Success(_) => panic!("Expected error for missing id"),
+        }
+    }
+
+    #[test]
+    fn heartbeat_nonexistent_session_returns_error() {
+        let _ = super::init_remote_store();
+        let resp = super::handle_heartbeat(json!(1), &json!({"id": "tl-tcp-nonexistent"}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, control::error_code::SESSION_NOT_FOUND);
+            }
+            RpcResponse::Success(_) => panic!("Expected error for nonexistent session"),
+        }
+    }
+
+    #[test]
+    fn deregister_remote_missing_id_returns_error() {
+        let _ = super::init_remote_store();
+        let resp = super::handle_deregister_remote(json!(1), &json!({}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, -32602);
+                assert!(e.error.message.contains("Missing"));
+            }
+            RpcResponse::Success(_) => panic!("Expected error for missing id"),
+        }
+    }
+
+    #[test]
+    fn deregister_remote_nonexistent_returns_error() {
+        let _ = super::init_remote_store();
+        let resp = super::handle_deregister_remote(json!(1), &json!({"id": "tl-tcp-ghost"}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, control::error_code::SESSION_NOT_FOUND);
+            }
+            RpcResponse::Success(_) => panic!("Expected error for nonexistent session"),
+        }
+    }
+
+    #[test]
+    fn register_remote_missing_host_returns_error() {
+        let _ = super::init_remote_store();
+        let resp = super::handle_register_remote(json!(1), &json!({"port": 9001}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, -32602);
+                assert!(e.error.message.contains("host"));
+            }
+            RpcResponse::Success(_) => panic!("Expected error for missing host"),
+        }
+    }
+
+    #[test]
+    fn register_remote_missing_port_returns_error() {
+        let _ = super::init_remote_store();
+        let resp = super::handle_register_remote(json!(1), &json!({"host": "192.168.1.1"}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, -32602);
+                assert!(e.error.message.contains("port"));
+            }
+            RpcResponse::Success(_) => panic!("Expected error for missing port"),
+        }
+    }
+
+    #[tokio::test]
+    async fn hub_subscribe_returns_events_structure() {
+        super::init_aggregator();
+        let params = json!({"timeout_ms": 100});
+        let resp = super::handle_hub_subscribe(json!(1), &params).await;
+        match resp {
+            RpcResponse::Success(r) => {
+                assert!(r.result["events"].is_array());
+                assert_eq!(r.result["count"], 0);
+                assert!(r.result["sessions"].is_number());
+            }
+            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+        }
+    }
+
     // === inbox.clear RPC tests (T-1005) ===
 
     #[test]
