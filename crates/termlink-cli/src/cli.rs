@@ -956,6 +956,10 @@ pub(crate) enum Command {
         /// Exit non-zero on warnings (not just failures)
         #[arg(long)]
         strict: bool,
+
+        /// Override the runtime directory to check (default: auto-detected from env/config)
+        #[arg(long)]
+        runtime_dir: Option<String>,
     },
 
     /// Vendor TermLink binary into project for path isolation
@@ -1095,12 +1099,12 @@ pub(crate) enum InboxAction {
         #[arg(long)]
         json: bool,
     },
-    /// Clear pending transfers from the inbox
+    /// Clear pending transfers from the inbox (specify a target name, or use --all for everything)
     Clear {
-        /// Target session name (clear only this target's transfers)
+        /// Target session name — clear only this target's transfers (omit and use --all to clear everything)
         target: Option<String>,
 
-        /// Clear all pending transfers for all targets
+        /// Clear all pending transfers for all targets (mutually exclusive with specifying a target)
         #[arg(long)]
         all: bool,
 
