@@ -65,6 +65,8 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             artifact: termlink-linux-x86_64
+          - target: x86_64-unknown-linux-musl
+            artifact: termlink-linux-x86_64-static
           - target: aarch64-unknown-linux-gnu
             artifact: termlink-linux-aarch64
 
@@ -84,9 +86,13 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Install build dependencies (x86_64)
+      - name: Install build dependencies (x86_64 gnu)
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: sudo apt-get update && sudo apt-get install -y cmake clang
+
+      - name: Install build dependencies (x86_64 musl)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y cmake clang musl-tools
 
       - name: Install build dependencies (aarch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -137,6 +143,7 @@ jobs:
             dist/termlink-darwin-aarch64
             dist/termlink-darwin-x86_64
             dist/termlink-linux-x86_64
+            dist/termlink-linux-x86_64-static
             dist/termlink-linux-aarch64
             dist/checksums.txt
           generate_release_notes: true
