@@ -1,8 +1,8 @@
-# Audit Results - 2026-04-05-1230
-timestamp: 2026-04-05T10:30:01Z
+# Audit Results - 2026-04-13-1230
+timestamp: 2026-04-13T10:30:01Z
 sections: "structure,compliance,quality,discovery"
 summary:
-  pass: 16
+  pass: 15
   warn: 2
   fail: 0
 findings:
@@ -19,23 +19,21 @@ findings:
   - level: PASS
     check: "All 8 project YAML files parse correctly"
   - level: PASS
-    check: "Fabric: 80 registered, 0 unregistered"
+    check: "Fabric: 85 registered, 0 unregistered"
   - level: PASS
-    check: "Fabric edges: 78/80 cards enriched (2 without edges)"
+    check: "Fabric edges: 82/85 cards enriched (3 without edges)"
   - level: PASS
-    check: "Fabric drift: All watched source files registered (80 cards)"
+    check: "Fabric drift: All watched source files registered (85 cards)"
   - level: PASS
-    check: "All 32 active tasks are valid"
+    check: "All 79 active tasks are valid"
   - level: WARN
-    check: "Task T-243 is 13 days old with only 0 updates"
-    mitigation: "Add progress updates to T-243-script-error-yielding--checkpoint-based-.md"
+    check: "Task T-243 has 21 days old with only 0 updates"
+    mitigation: "Fix in T-243-script-error-yielding--checkpoint-based-.md"
+  - level: PASS
+    check: "D1: Episodic quality — 0% [TODO] (6/718)"
   - level: WARN
-    check: "Task T-260 has no ## Verification section"
-    mitigation: "Add '## Verification' with shell commands to T-260-pickup-from-fw-t-141-pre-push-hook-missi.md"
-  - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (4/633)"
-  - level: PASS
-    check: "D2: Human review queue — 9 task(s) awaiting human action (normal)"
+    check: "D2: Human review queue — 5 task(s) waiting >14d: T-282(18d) T-285(18d) T-288(18d) T-531(16d) T-534(16d)"
+    mitigation: "Review with: fw task verify"
   - level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
   - level: PASS
