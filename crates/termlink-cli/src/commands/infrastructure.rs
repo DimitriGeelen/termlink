@@ -209,7 +209,24 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
             }
         }
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
-            check!("hub", pass, "not running (optional — needed for multi-session routing)");
+            // T-1030: Check alternate runtime dir when default has no pidfile.
+            // Covers systemd-managed hubs using /var/lib/termlink/ while the
+            // CLI process resolves runtime_dir() to /tmp/termlink-0/.
+            let alt_dir = std::path::PathBuf::from("/var/lib/termlink");
+            let alt_pidfile = alt_dir.join("hub.pid");
+            let alt_socket = alt_dir.join("hub.sock");
+            match termlink_hub::pidfile::check(&alt_pidfile) {
+                termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+                    let hub_rpc = client::rpc_call(&alt_socket, "termlink.ping", json!({}));
+                    match tokio::time::timeout(ping_timeout, hub_rpc).await {
+                        Ok(Ok(_)) => check!("hub", pass, format!("running (PID {pid}), responding (via /var/lib/termlink)")),
+                        Ok(Err(_)) | Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding on socket (via /var/lib/termlink)")),
+                    }
+                }
+                _ => {
+                    check!("hub", pass, "not running (optional — needed for multi-session routing)");
+                }
+            }
         }
     }
 
