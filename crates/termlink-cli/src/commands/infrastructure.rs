@@ -18,12 +18,16 @@ pub(crate) fn resolve_hub_paths() -> (PathBuf, PathBuf) {
         return (default_pidfile, default_socket);
     }
 
-    // Fallback: check /var/lib/termlink/ (systemd-managed hubs)
-    let alt_dir = PathBuf::from("/var/lib/termlink");
-    let alt_pidfile = alt_dir.join("hub.pid");
-    if alt_pidfile.exists() {
-        let alt_socket = alt_dir.join("hub.sock");
-        return (alt_pidfile, alt_socket);
+    // Fallback: check /var/lib/termlink/ (systemd-managed hubs).
+    // Only do this if TERMLINK_RUNTIME_DIR is not explicitly set (tests set
+    // it to isolated temp dirs and should never discover the real hub).
+    if std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
+        let alt_dir = PathBuf::from("/var/lib/termlink");
+        let alt_pidfile = alt_dir.join("hub.pid");
+        if alt_pidfile.exists() {
+            let alt_socket = alt_dir.join("hub.sock");
+            return (alt_pidfile, alt_socket);
+        }
     }
 
     // Nothing found — return defaults
