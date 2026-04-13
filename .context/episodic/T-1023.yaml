@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1023: Deploy termlink v0.9+ to .109 and .121 — includes remote doctor and file transfer fixes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-13T12:56:34Z
+# ============================================================================
+
+task_id: T-1023
+task_name: "Deploy termlink v0.9+ to .109 and .121 — includes remote doctor and file transfer fixes"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T12:29:47Z
+completed: 2026-04-13T12:56:33Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-13T14:45:01+02:00
+last_commit: 2026-04-13T14:55:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Deploy v0.9.807 to .109/.121 — binary installed, hub restart blocked (chicken-and-egg). Deploy v0.9.809 — .109 running, .121 binary installed (hub TCP restart pending)
+
+# Key outcomes
+outcomes:
+  - "Musl static binary built (v0.9.809, 62 MCP tools, includes hub restart + fleet doctor)"
+  - "Binary v0.9.807 deployed+running on .109 (hub restarted by .109 agent)"
+  - "termlink remote ping ring20-management returns PONG"
+  - "Binary v0.9.809 deployed+running on .121 (hub restarted by .121 agent with TCP)"
+  - "termlink remote ping ring20-dashboard returns PONG"
+  - "TOFU entries updated for both hubs"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.edit-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1023-deploy-termlink-v09-to-109-and-121--incl.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T14:45:01"
+    action: "T-1023: Deploy v0.9.807 to .109/.121 — binary installed, hub restart blocked (chicken-and-egg)"
+  - time: "2026-04-13T14:55:50"
+    action: "T-1023: Deploy v0.9.809 — .109 running, .121 binary installed (hub TCP restart pending)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 26 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 26
+  commits: 2
+  files_changed: 8
+  lines_added: 79
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1023-deploy-termlink-v09-to-109-and-121--incl.md
+generated_by: context-agent-hybrid
