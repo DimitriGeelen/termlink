@@ -937,6 +937,12 @@ pub(crate) enum Command {
         action: RemoteAction,
     },
 
+    /// Fleet-wide operations across all configured hubs
+    Fleet {
+        #[command(subcommand)]
+        action: FleetAction,
+    },
+
     /// Query the hub's offline file inbox (pending transfers for offline sessions)
     Inbox {
         #[command(subcommand)]
@@ -1497,6 +1503,21 @@ pub(crate) enum RemoteAction {
         /// Output result as JSON (exit_code, stdout, stderr)
         #[arg(long)]
         json: bool,
+    },
+}
+
+/// Fleet-wide operations across all configured hubs
+#[derive(Subcommand)]
+pub(crate) enum FleetAction {
+    /// Health check all hubs in ~/.termlink/hubs.toml
+    Doctor {
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// RPC timeout per hub in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        timeout: u64,
     },
 }
 

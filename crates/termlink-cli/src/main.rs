@@ -315,6 +315,11 @@ async fn main() -> Result<()> {
             InboxAction::List { target, json } => commands::infrastructure::cmd_inbox_list(&target, json).await,
             InboxAction::Clear { target, all, json } => commands::infrastructure::cmd_inbox_clear(target.as_deref(), all, json).await,
         },
+        Command::Fleet { action } => match action {
+            FleetAction::Doctor { json, timeout } => {
+                commands::remote::cmd_fleet_doctor(json, timeout).await
+            }
+        },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {
                 unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", dir) };
