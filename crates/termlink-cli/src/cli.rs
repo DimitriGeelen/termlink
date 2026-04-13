@@ -1431,6 +1431,32 @@ pub(crate) enum RemoteAction {
         timeout: u64,
     },
 
+    /// Health check a remote hub — connectivity, sessions, inbox, version
+    Doctor {
+        /// Remote hub address or profile name
+        hub: String,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "execute")]
+        scope: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// RPC timeout in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        timeout: u64,
+    },
+
     /// Manage saved hub profiles (~/.termlink/hubs.toml)
     Profile {
         #[command(subcommand)]

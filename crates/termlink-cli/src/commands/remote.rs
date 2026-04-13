@@ -1347,6 +1347,132 @@ async fn cmd_remote_inbox_inner(
     Ok(())
 }
 
+pub(crate) async fn cmd_remote_doctor(
+    conn: &RemoteConn<'_>,
+    json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    match tokio::time::timeout(timeout_dur, cmd_remote_doctor_inner(conn, json)).await {
+        Ok(result) => result,
+        Err(_) => anyhow::bail!("Timeout after {}s waiting for remote doctor RPC", timeout_secs),
+    }
+}
+
+async fn cmd_remote_doctor_inner(
+    conn: &RemoteConn<'_>,
+    json: bool,
+) -> Result<()> {
+    use serde_json::json;
+
+    let mut checks: Vec<serde_json::Value> = Vec::new();
+    let mut pass_count: u32 = 0;
+    let mut warn_count: u32 = 0;
+    let mut fail_count: u32 = 0;
+
+    macro_rules! check {
+        ($name:expr, pass, $msg:expr) => {{
+            pass_count += 1;
+            checks.push(json!({"check": $name, "status": "pass", "message": $msg}));
+            if !json { eprintln!("  [PASS] {}: {}", $name, $msg); }
+        }};
+        ($name:expr, warn, $msg:expr) => {{
+            warn_count += 1;
+            checks.push(json!({"check": $name, "status": "warn", "message": $msg}));
+            if !json { eprintln!("  [WARN] {}: {}", $name, $msg); }
+        }};
+        ($name:expr, fail, $msg:expr) => {{
+            fail_count += 1;
+            checks.push(json!({"check": $name, "status": "fail", "message": $msg}));
+            if !json { eprintln!("  [FAIL] {}: {}", $name, $msg); }
+        }};
+    }
+
+    if !json {
+        eprintln!("Remote doctor: {}", conn.hub);
+    }
+
+    // 1. Connectivity — connect + auth
+    let connect_start = std::time::Instant::now();
+    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+        Ok(c) => {
+            let latency = connect_start.elapsed().as_millis();
+            check!("connectivity", pass, format!("connected in {}ms", latency));
+            c
+        }
+        Err(e) => {
+            check!("connectivity", fail, format!("cannot connect: {}", e));
+            if json {
+                println!("{}", json!({
+                    "ok": false,
+                    "hub": conn.hub,
+                    "checks": checks,
+                    "summary": {"pass": pass_count, "warn": warn_count, "fail": fail_count}
+                }));
+            }
+            return Ok(());
+        }
+    };
+
+    // 2. Session list
+    match rpc_client.call("session.list", json!("doc-sl"), json!({})).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+            if let Some(sessions) = r.result["sessions"].as_array() {
+                let count = sessions.len();
+                let names: Vec<&str> = sessions.iter()
+                    .filter_map(|s| s["display_name"].as_str())
+                    .collect();
+                if count == 0 {
+                    check!("sessions", warn, "no sessions registered");
+                } else {
+                    check!("sessions", pass, format!("{} session(s): {}", count, names.join(", ")));
+                }
+            } else {
+                check!("sessions", warn, "unexpected response format");
+            }
+        }
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            check!("sessions", warn, format!("session.list error: {}", e.error.message));
+        }
+        Err(e) => {
+            check!("sessions", warn, format!("session.list RPC failed: {}", e));
+        }
+    }
+
+    // 3. Inbox status
+    match rpc_client.call("inbox.status", json!("doc-is"), json!({})).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+            let total = r.result["total_transfers"].as_u64().unwrap_or(0);
+            if total == 0 {
+                check!("inbox", pass, "no pending transfers");
+            } else {
+                let targets = r.result["targets"].as_array().map(|t| t.len()).unwrap_or(0);
+                check!("inbox", warn, format!("{} pending transfer(s) for {} target(s)", total, targets));
+            }
+        }
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+            check!("inbox", warn, format!("inbox.status error: {}", e.error.message));
+        }
+        Err(e) => {
+            check!("inbox", warn, format!("inbox RPC failed: {}", e));
+        }
+    }
+
+    // Output
+    if json {
+        println!("{}", serde_json::to_string_pretty(&json!({
+            "ok": fail_count == 0,
+            "hub": conn.hub,
+            "checks": checks,
+            "summary": {"pass": pass_count, "warn": warn_count, "fail": fail_count}
+        }))?);
+    } else {
+        eprintln!("\n  Summary: {} pass, {} warn, {} fail", pass_count, warn_count, fail_count);
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
