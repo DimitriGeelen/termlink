@@ -376,6 +376,12 @@ pub struct RemotePingParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct InboxListParams {
+    /// Target session name to query inbox for
+    pub target: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct RemoteInjectParams {
     /// Remote hub address in "host:port" format
     pub hub: String,
@@ -4125,6 +4131,46 @@ impl TermLinkTools {
         match tokio::time::timeout(timeout, fut).await {
             Ok(response) => response,
             Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(30))),
+        }
+    }
+
+    // === Inbox Tools (T-998) ===
+
+    #[tool(
+        name = "termlink_inbox_status",
+        description = "Show hub inbox status — total pending file transfers queued for offline sessions. Returns target names and pending counts. Requires a running hub."
+    )]
+    async fn termlink_inbox_status(&self) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        match termlink_session::client::rpc_call(&hub_socket, "inbox.status", serde_json::json!({})).await {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("inbox.status error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_inbox_list",
+        description = "List pending file transfers in the hub inbox for a specific target session. Returns transfer IDs, filenames, sizes, and completion status. Requires a running hub."
+    )]
+    async fn termlink_inbox_list(&self, Parameters(p): Parameters<InboxListParams>) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        match termlink_session::client::rpc_call(&hub_socket, "inbox.list", serde_json::json!({"target": p.target})).await {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("inbox.list error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
         }
     }
 }
