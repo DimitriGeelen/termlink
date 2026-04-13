@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-994: Fix fabric drift globstar bug + register 3 missing component cards
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-13T07:31:14Z
+# ============================================================================
+
+task_id: T-994
+task_name: "Fix fabric drift globstar bug + register 3 missing component cards"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T07:10:10Z
+completed: 2026-04-13T07:12:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-13T09:12:00+02:00
+last_commit: 2026-04-13T09:12:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix fabric drift globstar bug + register 3 missing component cards
+
+# Key outcomes
+outcomes:
+  - "`fw fabric drift` detects the same unregistered files as `fw audit` (globstar enabled)"
+  - "All 3 unregistered files (target.rs, governance.rs, governance_subscriber.rs) have fabric cards"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix fabric drift globstar bug + register 3 missing component cards"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/fabric/lib/drift.sh"
+  - ".fabric/components/crates-termlink-cli-src-target.yaml"
+  - ".fabric/components/crates-termlink-protocol-src-governance.yaml"
+  - ".fabric/components/crates-termlink-session-src-governance_subscriber.yaml"
+  - ".tasks/active/T-994-fix-fabric-drift-globstar-bug--register-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T09:12:00"
+    action: "T-994: Fix fabric drift globstar bug + register 3 missing component cards"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 5
+  lines_added: 131
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-994-fix-fabric-drift-globstar-bug--register-.md
+generated_by: context-agent-hybrid
