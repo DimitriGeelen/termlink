@@ -2959,4 +2959,104 @@ mod tests {
         let result = extract_string_array(&params, "anything");
         assert!(result.is_empty());
     }
+
+    // === Inbox RPC Tests (T-1000) ===
+
+    #[tokio::test]
+    async fn inbox_status_returns_empty_when_no_transfers() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let resp = handle_inbox_status(json!(1));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.result["total_transfers"], 0);
+                let targets = r.result["targets"].as_array().unwrap();
+                assert!(targets.is_empty());
+            }
+            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn inbox_list_requires_target_param() {
+        let resp = handle_inbox_list(json!(1), &json!({}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, -32602);
+                assert!(e.error.message.contains("target"));
+            }
+            RpcResponse::Success(_) => panic!("Expected error for missing target"),
+        }
+    }
+
+    #[tokio::test]
+    async fn inbox_list_returns_empty_for_unknown_target() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let resp = handle_inbox_list(json!(1), &json!({"target": "nonexistent"}));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.result["target"], "nonexistent");
+                let transfers = r.result["transfers"].as_array().unwrap();
+                assert!(transfers.is_empty());
+            }
+            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn inbox_status_reflects_deposited_files() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Deposit a file event into the inbox
+        let deposited = crate::inbox::deposit(
+            "test-target",
+            "file.init",
+            &json!({"transfer_id": "xfer-test-1", "filename": "test.txt", "size": 100}),
+            Some("sender"),
+        );
+        assert!(deposited.unwrap_or(false), "Deposit should succeed");
+
+        // Now check status
+        let resp = handle_inbox_status(json!(1));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert!(r.result["total_transfers"].as_u64().unwrap() > 0);
+                let targets = r.result["targets"].as_array().unwrap();
+                assert!(!targets.is_empty());
+                assert_eq!(targets[0]["target"], "test-target");
+            }
+            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
+        }
+
+        // And list for that target
+        let resp = handle_inbox_list(json!(2), &json!({"target": "test-target"}));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.result["target"], "test-target");
+                let transfers = r.result["transfers"].as_array().unwrap();
+                assert!(!transfers.is_empty());
+            }
+            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
