@@ -4,16 +4,16 @@ name: "Add termlink remote inbox — query inbox on remote hubs via RPC"
 description: >
   Add termlink remote inbox — query inbox on remote hubs via RPC
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-13T09:34:58Z
-last_update: 2026-04-13T09:34:58Z
-date_finished: null
+last_update: 2026-04-13T09:43:18Z
+date_finished: 2026-04-13T09:43:18Z
 ---
 
 # T-1009: Add termlink remote inbox — query inbox on remote hubs via RPC
@@ -62,3 +62,6 @@ cargo test --workspace 2>&1 | grep "^test result" | grep -v "0 passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1009-add-termlink-remote-inbox--query-inbox-o.md
 - **Context:** Initial task creation
+
+### 2026-04-13T09:43:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
