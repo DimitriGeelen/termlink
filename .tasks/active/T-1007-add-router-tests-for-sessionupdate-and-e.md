@@ -4,16 +4,16 @@ name: "Add router tests for session.update and event.poll RPC methods"
 description: >
   Add router tests for session.update and event.poll RPC methods
 
-status: started-work
+status: work-completed
 workflow_type: test
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-04-13T09:19:15Z
-last_update: 2026-04-13T09:19:15Z
-date_finished: null
+last_update: 2026-04-13T09:22:37Z
+date_finished: 2026-04-13T09:22:37Z
 ---
 
 # T-1007: Add router tests for session.update and event.poll RPC methods
@@ -62,3 +62,6 @@ cargo test -p termlink-hub 2>&1 | grep "test result"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1007-add-router-tests-for-sessionupdate-and-e.md
 - **Context:** Initial task creation
+
+### 2026-04-13T09:22:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

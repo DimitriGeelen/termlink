@@ -4,16 +4,16 @@ name: "Improve inbox CLI help text and add doctor --runtime-dir flag"
 description: >
   Improve inbox CLI help text and add doctor --runtime-dir flag
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-13T09:23:03Z
-last_update: 2026-04-13T09:23:03Z
-date_finished: null
+last_update: 2026-04-13T09:26:42Z
+date_finished: 2026-04-13T09:26:42Z
 ---
 
 # T-1008: Improve inbox CLI help text and add doctor --runtime-dir flag
@@ -60,3 +60,6 @@ cargo test --workspace 2>&1 | grep "^test result" | grep -v "0 passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1008-improve-inbox-cli-help-text-and-add-doct.md
 - **Context:** Initial task creation
+
+### 2026-04-13T09:26:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
