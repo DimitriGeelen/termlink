@@ -301,6 +301,11 @@ async fn main() -> Result<()> {
                 let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
                 commands::remote::cmd_remote_inbox(&conn, action, timeout).await
             }
+            RemoteAction::Doctor { hub, secret_file, secret, scope, json, timeout } => {
+                let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
+                commands::remote::cmd_remote_doctor(&conn, json, timeout).await
+            }
             RemoteAction::Profile { action } => {
                 commands::remote::cmd_remote_profile(action)
             }
