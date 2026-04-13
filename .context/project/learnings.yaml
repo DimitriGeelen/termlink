@@ -344,3 +344,17 @@ learnings:
   date: 2026-04-12
   context: Added via context agent
   application: TBD
+- id: PL-015
+  learning: "Always use termlink for cross-machine operations, never default to SSH. The agent asked for SSH keys twice before the user corrected: termlink handles its own deployment via send-file + remote exec."
+  source: P-001
+  task: T-1015
+  date: 2026-04-13
+  context: Added via context agent
+  application: TBD
+- id: PL-016
+  learning: "Cross-host binary deployment requires musl static build. .107 (Ubuntu) has glibc 2.39, .109/.121 (Debian 12) have 2.36. cargo build --target x86_64-unknown-linux-musl produces a static binary that works everywhere."
+  source: P-001
+  task: T-1015
+  date: 2026-04-13
+  context: Added via context agent
+  application: TBD

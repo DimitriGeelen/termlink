@@ -1,21 +1,22 @@
 ---
-id: T-XXX
-name:
+id: T-1016
+name: "termlink deploy — atomic binary deployment to remote hosts via termlink (no SSH)"
 description: >
+  Inception: termlink deploy — atomic binary deployment to remote hosts via termlink (no SSH)
 
 status: captured
 workflow_type: inception
-owner:
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created:
-last_update:
+created: 2026-04-13T11:23:11Z
+last_update: 2026-04-13T11:23:11Z
 date_finished: null
 ---
 
-# T-XXX: [Inception Name]
+# T-1016: termlink deploy — atomic binary deployment to remote hosts via termlink (no SSH)
 
 ## Problem Statement
 
