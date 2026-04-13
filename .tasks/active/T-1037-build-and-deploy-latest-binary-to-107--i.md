@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T18:52:30Z
-last_update: 2026-04-13T18:52:30Z
+last_update: 2026-04-13T18:55:52Z
 date_finished: null
 ---
 
@@ -25,12 +25,12 @@ Build musl static binary with all improvements from T-1033 through T-1036 and up
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Musl static binary built successfully
-- [ ] Binary deployed to /usr/local/bin/termlink via atomic swap
-- [ ] Hub restarted with new binary
-- [ ] `termlink remote ping local-test` succeeds
-- [ ] `termlink tofu list` works on installed binary
-- [ ] `termlink fleet doctor` shows new diagnostic output
+- [x] Musl static binary built successfully (14.7MB static-pie, v0.9.835)
+- [x] Binary deployed to /usr/local/bin/termlink via atomic swap
+- [x] Hub restarted with new binary (PID 453871)
+- [x] `termlink remote ping local-test` succeeds (115ms)
+- [x] `termlink tofu list` works on installed binary (shows 3 entries)
+- [x] `termlink fleet doctor` shows new diagnostic output (secret source + hints)
 
 ### Human
 - [ ] [RUBBER-STAMP] Verify installed version
