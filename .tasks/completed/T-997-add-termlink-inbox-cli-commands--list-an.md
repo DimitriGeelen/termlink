@@ -4,7 +4,7 @@ name: "Add termlink inbox CLI commands — list and status wrappers for hub inbo
 description: >
   Add termlink inbox CLI commands — list and status wrappers for hub inbox RPC
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T07:22:55Z
-last_update: 2026-04-13T07:22:55Z
-date_finished: null
+last_update: 2026-04-13T07:27:52Z
+date_finished: 2026-04-13T07:27:52Z
 ---
 
 # T-997: Add termlink inbox CLI commands — list and status wrappers for hub inbox RPC
@@ -67,3 +67,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-997-add-termlink-inbox-cli-commands--list-an.md
 - **Context:** Initial task creation
+
+### 2026-04-13T07:27:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
