@@ -4,16 +4,16 @@ name: "Add termlink_remote_inbox_status MCP tool — query inbox on remote hubs"
 description: >
   Add termlink_remote_inbox_status MCP tool — query inbox on remote hubs
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T09:46:45Z
-last_update: 2026-04-13T09:46:45Z
-date_finished: null
+last_update: 2026-04-13T09:50:15Z
+date_finished: 2026-04-13T09:50:15Z
 ---
 
 # T-1010: Add termlink_remote_inbox_status MCP tool — query inbox on remote hubs
@@ -61,3 +61,6 @@ cargo test --workspace 2>&1 | grep "^test result" | grep -v "0 passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1010-add-termlinkremoteinboxstatus-mcp-tool--.md
 - **Context:** Initial task creation
+
+### 2026-04-13T09:50:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
