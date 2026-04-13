@@ -147,6 +147,35 @@ impl KnownHubStore {
             .map(|e| e.fingerprint.clone())
     }
 
+    /// List all known hub entries.
+    pub fn list_all(&self) -> Vec<KnownHub> {
+        let entries = self.entries.lock().expect("TOFU store lock poisoned");
+        let mut hubs: Vec<KnownHub> = entries.values().cloned().collect();
+        hubs.sort_by(|a, b| a.host_port.cmp(&b.host_port));
+        hubs
+    }
+
+    /// Remove a specific host:port entry. Returns true if it existed.
+    pub fn remove(&self, host_port: &str) -> bool {
+        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
+        let existed = entries.remove(host_port).is_some();
+        if existed {
+            drop(entries);
+            self.save();
+        }
+        existed
+    }
+
+    /// Remove all entries. Returns the count removed.
+    pub fn clear_all(&self) -> usize {
+        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
+        let count = entries.len();
+        entries.clear();
+        drop(entries);
+        self.save();
+        count
+    }
+
     /// Store or update a fingerprint. Returns `Ok(true)` if new, `Ok(false)` if updated,
     /// `Err` if fingerprint changed (MITM).
     pub fn accept(&self, host_port: &str, fingerprint: &str) -> Result<bool, String> {
@@ -394,5 +423,65 @@ mod tests {
             UnixTime::now(),
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn list_all_returns_sorted() {
+        let (store, _path) = test_store();
+        store.accept("z-host:9100", "sha256:zzz").unwrap();
+        store.accept("a-host:9100", "sha256:aaa").unwrap();
+        store.accept("m-host:9100", "sha256:mmm").unwrap();
+
+        let entries = store.list_all();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].host_port, "a-host:9100");
+        assert_eq!(entries[1].host_port, "m-host:9100");
+        assert_eq!(entries[2].host_port, "z-host:9100");
+    }
+
+    #[test]
+    fn remove_existing_entry() {
+        let (store, _path) = test_store();
+        store.accept("host1:9100", "sha256:fp1").unwrap();
+        store.accept("host2:9200", "sha256:fp2").unwrap();
+
+        assert!(store.remove("host1:9100"));
+        assert_eq!(store.list_all().len(), 1);
+        assert!(store.get("host1:9100").is_none());
+        assert!(store.get("host2:9200").is_some());
+    }
+
+    #[test]
+    fn remove_nonexistent_returns_false() {
+        let (store, _path) = test_store();
+        assert!(!store.remove("nonexistent:9100"));
+    }
+
+    #[test]
+    fn clear_all_empties_store() {
+        let (store, path) = test_store();
+        store.accept("h1:9100", "sha256:f1").unwrap();
+        store.accept("h2:9200", "sha256:f2").unwrap();
+        store.accept("h3:9300", "sha256:f3").unwrap();
+
+        assert_eq!(store.clear_all(), 3);
+        assert_eq!(store.list_all().len(), 0);
+
+        // Verify persisted to disk
+        let store2 = KnownHubStore::new(path);
+        assert_eq!(store2.list_all().len(), 0);
+    }
+
+    #[test]
+    fn remove_persists_to_disk() {
+        let (store, path) = test_store();
+        store.accept("h1:9100", "sha256:f1").unwrap();
+        store.accept("h2:9200", "sha256:f2").unwrap();
+
+        store.remove("h1:9100");
+
+        let store2 = KnownHubStore::new(path);
+        assert_eq!(store2.list_all().len(), 1);
+        assert_eq!(store2.get("h2:9200"), Some("sha256:f2".to_string()));
     }
 }

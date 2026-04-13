@@ -949,6 +949,12 @@ pub(crate) enum Command {
         action: InboxAction,
     },
 
+    /// Manage TOFU (Trust On First Use) certificate trust for remote hubs
+    Tofu {
+        #[command(subcommand)]
+        action: TofuAction,
+    },
+
     /// Check TermLink runtime health — validates dirs, sessions, hub, sockets
     Doctor {
         /// Output as JSON
@@ -1507,6 +1513,30 @@ pub(crate) enum RemoteAction {
         cwd: Option<String>,
 
         /// Output result as JSON (exit_code, stdout, stderr)
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+/// TOFU (Trust On First Use) certificate trust management
+#[derive(Subcommand)]
+pub(crate) enum TofuAction {
+    /// List all trusted hub certificates
+    List {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Clear a trusted hub certificate entry (allows re-trust on next connection)
+    Clear {
+        /// Host:port to clear (e.g., "192.168.10.109:9100"), or omit with --all
+        host: Option<String>,
+
+        /// Clear all TOFU entries
+        #[arg(long)]
+        all: bool,
+
+        /// Output as JSON
         #[arg(long)]
         json: bool,
     },

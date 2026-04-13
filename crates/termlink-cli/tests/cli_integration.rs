@@ -2070,3 +2070,111 @@ fn cli_list_wait_timeout() {
     assert!(elapsed >= Duration::from_millis(800), "Should wait near timeout: {:?}", elapsed);
     assert!(elapsed < Duration::from_secs(10), "Should not wait too long: {:?}", elapsed);
 }
+
+// ─── TOFU Commands ─────────────────────────────────────────────────
+
+#[test]
+fn cli_tofu_list_empty() {
+    let dir = TestDir::new("tofu-empty");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["tofu", "list"])
+        .output()
+        .expect("Failed to run tofu list");
+
+    assert!(output.status.success(), "tofu list should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("empty") || stdout.contains("0 entries") || stdout.contains("No trusted"),
+        "Empty store should say so: {}", stdout);
+}
+
+#[test]
+fn cli_tofu_list_json_empty() {
+    let dir = TestDir::new("tofu-json");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["tofu", "list", "--json"])
+        .output()
+        .expect("Failed to run tofu list --json");
+
+    assert!(output.status.success(), "tofu list --json should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["count"], 0);
+    assert!(parsed["entries"].is_array());
+}
+
+#[test]
+fn cli_tofu_clear_all_empty() {
+    let dir = TestDir::new("tofu-clr");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["tofu", "clear", "--all"])
+        .output()
+        .expect("Failed to run tofu clear --all");
+
+    assert!(output.status.success(), "tofu clear --all should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Cleared 0"), "Should report 0 cleared: {}", stdout);
+}
+
+#[test]
+fn cli_tofu_clear_specific_nonexistent() {
+    let dir = TestDir::new("tofu-clr-ne");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["tofu", "clear", "nonexistent:9100"])
+        .output()
+        .expect("Failed to run tofu clear");
+
+    assert!(output.status.success(), "tofu clear should succeed even if not found");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("No TOFU entry found"), "Should say not found: {}", stdout);
+}
+
+#[test]
+fn cli_tofu_roundtrip() {
+    // Create a known_hubs file, list it, clear one entry, verify
+    let dir = TestDir::new("tofu-rt");
+    let termlink_dir = dir.path.join(".termlink");
+    std::fs::create_dir_all(&termlink_dir).unwrap();
+    std::fs::write(
+        termlink_dir.join("known_hubs"),
+        "# TermLink known hubs (TOFU)\n# host:port fingerprint first_seen last_seen\n\
+         test1:9100 sha256:aaa 2026-01-01T00:00:00Z 2026-01-02T00:00:00Z\n\
+         test2:9200 sha256:bbb 2026-01-01T00:00:00Z 2026-01-02T00:00:00Z\n",
+    ).unwrap();
+
+    // List should show 2 entries
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["tofu", "list", "--json"])
+        .output()
+        .expect("Failed to run tofu list");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(parsed["count"], 2);
+
+    // Clear one
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["tofu", "clear", "test1:9100"])
+        .output()
+        .expect("Failed to run tofu clear");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Removed"), "Should confirm removal: {}", stdout);
+
+    // List again — should be 1
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["tofu", "list", "--json"])
+        .output()
+        .expect("Failed to run tofu list after clear");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(parsed["count"], 1);
+    assert_eq!(parsed["entries"][0]["host"], "test2:9200");
+}

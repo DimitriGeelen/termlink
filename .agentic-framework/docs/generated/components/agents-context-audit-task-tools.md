@@ -19,7 +19,7 @@ Output: JSON with additionalContext when banned tool detected, empty otherwise
 |--------|-------------|
 | `.claude/settings.json` | reads |
 
-## Used By (1)
+## Used By (2)
 
 | Component | Relationship |
 |-----------|-------------|

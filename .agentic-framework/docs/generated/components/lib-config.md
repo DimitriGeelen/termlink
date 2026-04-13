@@ -1,6 +1,6 @@
 # config
 
-> TODO: describe what this component does
+> Resolves framework configuration values using 3-tier precedence — explicit argument, FW_* environment variable, then hardcoded default
 
 **Type:** script | **Subsystem:** framework-core | **Location:** `lib/config.sh`
 
