@@ -94,6 +94,32 @@ fn resolve_hub_profile(hub: &str) -> Option<(String, Option<String>, Option<Stri
     address.map(|addr| (addr, secret_file, secret))
 }
 
+/// T-1039: List all hub profiles from ~/.termlink/hubs.toml.
+/// Returns vec of (name, address, secret_file, secret).
+fn list_all_hub_profiles() -> Vec<(String, String, Option<String>, Option<String>)> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let path = std::path::PathBuf::from(home).join(".termlink/hubs.toml");
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut profiles = Vec::new();
+    let prefix = "[hubs.";
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with(prefix) && line.ends_with(']') {
+            let name = line[prefix.len()..line.len() - 1].to_string();
+            if let Some((addr, sf, sec)) = resolve_hub_profile(&name) {
+                profiles.push((name, addr, sf, sec));
+            }
+        }
+    }
+    profiles.sort_by(|a, b| a.0.cmp(&b.0));
+    profiles
+}
+
 async fn connect_remote_hub_mcp(
     hub: &str,
     secret_file: Option<&str>,
@@ -900,6 +926,13 @@ pub struct DeregisterParams {
 // T-1038: TOFU management params
 #[derive(Deserialize, JsonSchema)]
 pub struct TofuListParams {}
+
+// T-1039: Fleet doctor params
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetDoctorParams {
+    /// Timeout per hub in seconds (default: 10)
+    pub timeout: Option<u64>,
+}
 
 #[derive(Deserialize, JsonSchema)]
 pub struct TofuClearParams {
@@ -4723,6 +4756,63 @@ impl TermLinkTools {
             },
         })).unwrap_or_else(json_err)
     }
+    // === Fleet doctor (T-1039) ===
+
+    #[tool(
+        name = "termlink_fleet_doctor",
+        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures."
+    )]
+    async fn termlink_fleet_doctor(&self, Parameters(p): Parameters<FleetDoctorParams>) -> String {
+        let profiles = list_all_hub_profiles();
+        if profiles.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "hubs": [],
+                "message": "No hubs configured in ~/.termlink/hubs.toml",
+            })).unwrap_or_else(json_err);
+        }
+
+        let timeout_secs = p.timeout.unwrap_or(10);
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let mut hub_results: Vec<serde_json::Value> = Vec::new();
+        let mut pass_count: u32 = 0;
+        let mut fail_count: u32 = 0;
+
+        for (name, address, secret_file, secret_hex) in &profiles {
+            let connect_start = std::time::Instant::now();
+            let result = tokio::time::timeout(
+                timeout_dur,
+                connect_remote_hub_mcp(
+                    address,
+                    secret_file.as_deref(),
+                    secret_hex.as_deref(),
+                    "execute",
+                ),
+            ).await;
+
+            match result {
+                Ok(Ok(_client)) => {
+                    let latency = connect_start.elapsed().as_millis();
+                    pass_count += 1;
+                    hub_results.push(serde_json::json!({"hub": name, "address": address, "status": "ok", "latency_ms": latency}));
+                }
+                Ok(Err(err_json)) => {
+                    fail_count += 1;
+                    hub_results.push(serde_json::json!({"hub": name, "address": address, "status": "error", "error": err_json}));
+                }
+                Err(_) => {
+                    fail_count += 1;
+                    hub_results.push(serde_json::json!({"hub": name, "address": address, "status": "timeout", "error": format!("Timeout after {}s", timeout_secs)}));
+                }
+            }
+        }
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": fail_count == 0,
+            "hubs": hub_results,
+            "summary": {"total": hub_results.len(), "pass": pass_count, "fail": fail_count},
+        })).unwrap_or_else(json_err)
+    }
 }
 
 #[cfg(test)]
@@ -5747,5 +5837,19 @@ mod tests {
     fn tofu_clear_params_missing_host() {
         let json = serde_json::json!({});
         assert!(serde_json::from_value::<TofuClearParams>(json).is_err());
+    }
+
+    #[test]
+    fn fleet_doctor_params_defaults() {
+        let json = serde_json::json!({});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert!(p.timeout.is_none());
+    }
+
+    #[test]
+    fn fleet_doctor_params_with_timeout() {
+        let json = serde_json::json!({"timeout": 30});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.timeout, Some(30));
     }
 }
