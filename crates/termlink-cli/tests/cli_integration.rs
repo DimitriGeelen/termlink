@@ -2178,3 +2178,111 @@ fn cli_tofu_roundtrip() {
     assert_eq!(parsed["count"], 1);
     assert_eq!(parsed["entries"][0]["host"], "test2:9200");
 }
+
+// ─── Hub Restart Tests ────────────────────────────────────────────
+
+#[test]
+fn cli_hub_restart_not_running() {
+    let dir = TestDir::new("hub-restart-nr");
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "restart"])
+        .output()
+        .expect("Failed to run hub restart");
+
+    assert!(output.status.success(), "hub restart should exit 0 even when not running");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("not running"),
+        "Should report hub not running: {}",
+        stdout
+    );
+}
+
+#[test]
+fn cli_hub_restart_not_running_json() {
+    let dir = TestDir::new("hub-restart-nrj");
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "restart", "--json"])
+        .output()
+        .expect("Failed to run hub restart --json");
+
+    assert!(output.status.success(), "hub restart --json should exit 0");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], false, "ok should be false when hub not running");
+    assert!(
+        parsed["error"].as_str().unwrap_or("").contains("not running"),
+        "Error should mention 'not running': {:?}",
+        parsed["error"]
+    );
+}
+
+#[test]
+fn cli_hub_restart_stale_pidfile() {
+    let dir = TestDir::new("hub-restart-stale");
+    // Write a pidfile with a PID that definitely doesn't exist
+    std::fs::write(dir.path.join("hub.pid"), "4000000").unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "restart"])
+        .output()
+        .expect("Failed to run hub restart with stale pid");
+
+    assert!(output.status.success(), "hub restart should exit 0 with stale pid");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("stale") || stdout.contains("dead"),
+        "Should report stale/dead pid: {}",
+        stdout
+    );
+}
+
+#[test]
+fn cli_hub_restart_stale_pidfile_json() {
+    let dir = TestDir::new("hub-restart-stalej");
+    std::fs::write(dir.path.join("hub.pid"), "4000000").unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "restart", "--json"])
+        .output()
+        .expect("Failed to run hub restart --json with stale pid");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], false, "ok should be false for stale pid");
+    assert!(
+        parsed["error"].as_str().unwrap_or("").contains("stale"),
+        "Error should mention 'stale': {:?}",
+        parsed["error"]
+    );
+}
+
+// ─── Fleet Doctor Tests ────────────────────────────────────────────
+
+#[test]
+fn cli_fleet_doctor_no_config() {
+    let dir = TestDir::new("fleet-dr-noconf");
+    // Set HOME to isolated dir so no hubs.toml exists
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "doctor", "--json"])
+        .output()
+        .expect("Failed to run fleet doctor --json");
+
+    assert!(output.status.success(), "fleet doctor should succeed with no config");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true, "ok should be true with empty config");
+    assert!(
+        parsed["hubs"].as_array().map(|a| a.is_empty()).unwrap_or(true),
+        "hubs should be empty: {:?}",
+        parsed["hubs"]
+    );
+}
