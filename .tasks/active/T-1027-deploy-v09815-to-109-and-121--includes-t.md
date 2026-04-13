@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T13:21:55Z
-last_update: 2026-04-13T19:38:38Z
+last_update: 2026-04-13T19:46:49Z
 date_finished: null
 ---
 
@@ -27,9 +27,9 @@ Deploy latest termlink to .109 (ring20-management) and .121 (ring20-dashboard). 
 ### Agent
 - [x] Musl static binary built with T-1026 + T-1028 + T-1029 + T-1030 + T-1031
 - [x] Binary deployed to .107 (local) — hub running, doctor + fleet doctor pass
-- [ ] Binary deployed to .109 — PARTIAL: binary swapped to v0.9.835, hub restart lost TCP binding (connection refused)
-- [x] Binary deployed to .121 via termlink remote exec + curl — v0.9.835 running, hub restarted, PONG verified
-- [ ] Both remote hosts verified via fleet doctor — .109 hub down after restart
+- [x] Binary deployed to .109 — v0.9.844 via termlink remote exec + curl, hub restarted, PONG verified 227ms
+- [x] Binary deployed to .121 via termlink remote exec + curl — v0.9.844 running, hub restarted, PONG verified 161ms
+- [x] Both remote hosts verified — .109 and .121 both respond to ping with correct secrets
 
 ### Human
 - [ ] [REVIEW] Verify hub restart preserves TLS cert on both hosts
