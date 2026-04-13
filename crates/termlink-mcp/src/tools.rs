@@ -56,6 +56,44 @@ fn json_err(msg: impl std::fmt::Display) -> String {
 ///
 /// Mirrors the validation order of `commands/remote.rs::connect_remote_hub`,
 /// but returns String errors (not anyhow) so MCP tools stay crash-safe.
+/// Resolve a hub profile name to (address, secret_file, secret).
+/// If hub contains ':', treat as direct address. Otherwise look up in ~/.termlink/hubs.toml.
+fn resolve_hub_profile(hub: &str) -> Option<(String, Option<String>, Option<String>)> {
+    if hub.contains(':') {
+        return None; // Direct address, no profile resolution needed
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let path = std::path::PathBuf::from(home).join(".termlink/hubs.toml");
+    let content = std::fs::read_to_string(&path).ok()?;
+
+    // Simple TOML parser for [hubs.NAME] sections
+    let section_key = format!("[hubs.{}]", hub);
+    let section_start = content.find(&section_key)?;
+    let section_body = &content[section_start + section_key.len()..];
+    let section_end = section_body.find("\n[").unwrap_or(section_body.len());
+    let section = &section_body[..section_end];
+
+    let mut address = None;
+    let mut secret_file = None;
+    let mut secret = None;
+
+    for line in section.lines() {
+        let line = line.trim();
+        if let Some((key, val)) = line.split_once('=') {
+            let key = key.trim();
+            let val = val.trim().trim_matches('"');
+            match key {
+                "address" => address = Some(val.to_string()),
+                "secret_file" => secret_file = Some(val.to_string()),
+                "secret" => secret = Some(val.to_string()),
+                _ => {}
+            }
+        }
+    }
+
+    address.map(|addr| (addr, secret_file, secret))
+}
+
 async fn connect_remote_hub_mcp(
     hub: &str,
     secret_file: Option<&str>,
@@ -64,21 +102,28 @@ async fn connect_remote_hub_mcp(
 ) -> Result<client::Client, String> {
     use termlink_session::auth::{self, PermissionScope};
 
+    // Resolve profile if hub doesn't contain ':'
+    let (resolved_hub, profile_secret_file, profile_secret) = if let Some(profile) = resolve_hub_profile(hub) {
+        profile
+    } else {
+        (hub.to_string(), None, None)
+    };
+
     // Parse hub address
-    let parts: Vec<&str> = hub.split(':').collect();
+    let parts: Vec<&str> = resolved_hub.split(':').collect();
     if parts.len() != 2 {
         return Err(json_err(format!(
-            "Invalid hub address '{}'. Expected format: host:port",
+            "Invalid hub address '{}'. Expected format: host:port or profile name",
             hub
         )));
     }
     let host = parts[0].to_string();
     let port: u16 = match parts[1].parse() {
         Ok(p) => p,
-        Err(_) => return Err(json_err(format!("Invalid port in '{}'", hub))),
+        Err(_) => return Err(json_err(format!("Invalid port in '{}'", resolved_hub))),
     };
 
-    // Read secret
+    // Read secret — CLI params override profile defaults
     let hex = if let Some(path) = secret_file {
         match std::fs::read_to_string(path) {
             Ok(s) => s.trim().to_string(),
@@ -88,8 +133,17 @@ async fn connect_remote_hub_mcp(
         }
     } else if let Some(h) = secret_hex {
         h.to_string()
+    } else if let Some(ref path) = profile_secret_file {
+        match std::fs::read_to_string(path) {
+            Ok(s) => s.trim().to_string(),
+            Err(_) => {
+                return Err(json_err(format!("Profile secret file not found: {}", path)));
+            }
+        }
+    } else if let Some(ref s) = profile_secret {
+        s.clone()
     } else {
-        return Err(json_err("Either secret_file or secret is required"));
+        return Err(json_err("Either secret_file or secret is required (or configure a profile with: termlink remote profile add)"));
     };
 
     // Parse hex
