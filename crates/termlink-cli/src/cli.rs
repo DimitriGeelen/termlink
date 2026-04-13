@@ -1406,6 +1406,31 @@ pub(crate) enum RemoteAction {
         timeout: u64,
     },
 
+    /// Query inbox on a remote hub (pending transfers for offline sessions)
+    Inbox {
+        /// Remote hub address or profile name
+        hub: String,
+
+        #[command(subcommand)]
+        action: RemoteInboxAction,
+
+        /// Path to file containing 32-byte hex secret
+        #[arg(long)]
+        secret_file: Option<String>,
+
+        /// Hex secret directly (less secure, for scripting)
+        #[arg(long)]
+        secret: Option<String>,
+
+        /// Permission scope: observe, interact, control, execute
+        #[arg(long, default_value = "execute")]
+        scope: String,
+
+        /// RPC timeout in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        timeout: u64,
+    },
+
     /// Manage saved hub profiles (~/.termlink/hubs.toml)
     Profile {
         #[command(subcommand)]
@@ -1492,6 +1517,39 @@ pub(crate) enum ProfileAction {
     Remove {
         /// Profile name to remove
         name: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+/// Remote inbox actions (T-1009)
+#[derive(Subcommand)]
+pub(crate) enum RemoteInboxAction {
+    /// Show inbox status on the remote hub — total pending transfers per target
+    Status {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// List pending transfers for a specific target on the remote hub
+    List {
+        /// Target session name
+        target: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Clear pending transfers on the remote hub (specify a target name, or use --all)
+    Clear {
+        /// Target session name
+        target: Option<String>,
+
+        /// Clear all targets
+        #[arg(long)]
+        all: bool,
 
         /// Output as JSON
         #[arg(long)]

@@ -6,7 +6,7 @@ use termlink_protocol::events::{
     file_topic, FileInit, FileChunk, FileComplete, SCHEMA_VERSION,
 };
 
-use crate::cli::ProfileAction;
+use crate::cli::{ProfileAction, RemoteInboxAction};
 use crate::config::{hubs_config_path, load_hubs_config, save_hubs_config, HubEntry};
 use crate::util::{generate_request_id, truncate, DEFAULT_CHUNK_SIZE};
 
@@ -1226,6 +1226,125 @@ pub(crate) async fn cmd_remote_exec(
             anyhow::bail!("Execution error: {}", e);
         }
     }
+}
+
+/// Remote inbox operations — query/clear inbox on a remote hub via RPC (T-1009).
+pub(crate) async fn cmd_remote_inbox(
+    conn: &RemoteConn<'_>,
+    action: RemoteInboxAction,
+    timeout_secs: u64,
+) -> Result<()> {
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    match tokio::time::timeout(timeout_dur, cmd_remote_inbox_inner(conn, action)).await {
+        Ok(result) => result,
+        Err(_) => anyhow::bail!("Timeout after {}s waiting for remote inbox RPC", timeout_secs),
+    }
+}
+
+async fn cmd_remote_inbox_inner(
+    conn: &RemoteConn<'_>,
+    action: RemoteInboxAction,
+) -> Result<()> {
+    let mut rpc_client = connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope)
+        .await
+        .context("Failed to connect to remote hub")?;
+
+    match action {
+        RemoteInboxAction::Status { json } => {
+            let resp = rpc_client
+                .call("inbox.status", serde_json::json!("inbox-s"), serde_json::json!({}))
+                .await
+                .context("inbox.status RPC failed")?;
+            match resp {
+                termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&r.result)?);
+                    } else {
+                        let total = r.result["total_transfers"].as_u64().unwrap_or(0);
+                        if total == 0 {
+                            println!("Inbox on {}: empty (no pending transfers)", conn.hub);
+                        } else {
+                            let targets = r.result["targets"].as_array();
+                            println!("Inbox on {}: {} pending transfer(s)", conn.hub, total);
+                            if let Some(targets) = targets {
+                                for t in targets {
+                                    println!(
+                                        "  {} — {} transfer(s)",
+                                        t["target"].as_str().unwrap_or("?"),
+                                        t["transfer_count"].as_u64().unwrap_or(0),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+                    anyhow::bail!("inbox.status error: {}", e.error.message);
+                }
+            }
+        }
+        RemoteInboxAction::List { target, json } => {
+            let resp = rpc_client
+                .call("inbox.list", serde_json::json!("inbox-l"), serde_json::json!({"target": target}))
+                .await
+                .context("inbox.list RPC failed")?;
+            match resp {
+                termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&r.result)?);
+                    } else {
+                        let transfers = r.result["transfers"].as_array();
+                        if let Some(transfers) = transfers {
+                            if transfers.is_empty() {
+                                println!("No pending transfers for '{}' on {}", target, conn.hub);
+                            } else {
+                                println!("Pending transfers for '{}' on {}:", target, conn.hub);
+                                for t in transfers {
+                                    let id = t["transfer_id"].as_str().unwrap_or("?");
+                                    let filename = t["filename"].as_str().unwrap_or("?");
+                                    let size = t["total_size"].as_u64().unwrap_or(0);
+                                    println!("  {} — {} ({} bytes)", id, filename, size);
+                                }
+                            }
+                        } else {
+                            println!("No transfers for '{}' on {}", target, conn.hub);
+                        }
+                    }
+                }
+                termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+                    anyhow::bail!("inbox.list error: {}", e.error.message);
+                }
+            }
+        }
+        RemoteInboxAction::Clear { target, all, json } => {
+            let params = if all {
+                serde_json::json!({"all": true})
+            } else if let Some(ref t) = target {
+                serde_json::json!({"target": t})
+            } else {
+                anyhow::bail!("Specify a target name or use --all");
+            };
+            let resp = rpc_client
+                .call("inbox.clear", serde_json::json!("inbox-c"), params)
+                .await
+                .context("inbox.clear RPC failed")?;
+            match resp {
+                termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&r.result)?);
+                    } else {
+                        let cleared = r.result["cleared"].as_u64().unwrap_or(0);
+                        let tgt = r.result["target"].as_str().unwrap_or("*");
+                        println!("Cleared {} transfer(s) for '{}' on {}", cleared, tgt, conn.hub);
+                    }
+                }
+                termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+                    anyhow::bail!("inbox.clear error: {}", e.error.message);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
