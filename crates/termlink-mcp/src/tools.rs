@@ -532,6 +532,20 @@ pub struct RemoteExecParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct RemoteDoctorParams {
+    /// Remote hub address in "host:port" format or profile name
+    pub hub: String,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Permission scope. Default: "execute".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 10.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct RemoteInjectParams {
     /// Remote hub address in "host:port" format
     pub hub: String,
@@ -4557,6 +4571,98 @@ impl TermLinkTools {
                 }
                 Err(e) => json_err(format!("RPC failed: {e}")),
             }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(10))),
+        }
+    }
+
+    #[tool(
+        name = "termlink_remote_doctor",
+        description = "Health check a remote hub — connectivity, sessions, inbox status. Returns pass/warn/fail checks. The hub address can be host:port or a profile name from ~/.termlink/hubs.toml."
+    )]
+    async fn termlink_remote_doctor(&self, Parameters(p): Parameters<RemoteDoctorParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("execute");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(10));
+
+        let fut = async move {
+            let mut checks: Vec<serde_json::Value> = Vec::new();
+            let mut pass_count: u32 = 0;
+            let mut warn_count: u32 = 0;
+            let fail_count: u32 = 0;
+
+            // 1. Connectivity
+            let connect_start = std::time::Instant::now();
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub, p.secret_file.as_deref(), p.secret.as_deref(), scope,
+            ).await {
+                Ok(c) => {
+                    let latency = connect_start.elapsed().as_millis();
+                    pass_count += 1;
+                    checks.push(serde_json::json!({"check": "connectivity", "status": "pass", "message": format!("connected in {}ms", latency)}));
+                    c
+                }
+                Err(e) => {
+                    return e;
+                }
+            };
+
+            // 2. Sessions
+            match rpc_client.call("session.list", serde_json::json!("mcp-doc-sl"), serde_json::json!({})).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    if let Some(sessions) = r.result["sessions"].as_array() {
+                        let count = sessions.len();
+                        let names: Vec<&str> = sessions.iter()
+                            .filter_map(|s| s["display_name"].as_str())
+                            .collect();
+                        pass_count += 1;
+                        checks.push(serde_json::json!({"check": "sessions", "status": "pass", "message": format!("{} session(s): {}", count, names.join(", "))}));
+                    } else {
+                        warn_count += 1;
+                        checks.push(serde_json::json!({"check": "sessions", "status": "warn", "message": "unexpected response format"}));
+                    }
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    warn_count += 1;
+                    checks.push(serde_json::json!({"check": "sessions", "status": "warn", "message": format!("session.list error: {}", e.error.message)}));
+                }
+                Err(e) => {
+                    warn_count += 1;
+                    checks.push(serde_json::json!({"check": "sessions", "status": "warn", "message": format!("RPC failed: {}", e)}));
+                }
+            }
+
+            // 3. Inbox
+            match rpc_client.call("inbox.status", serde_json::json!("mcp-doc-is"), serde_json::json!({})).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    let total = r.result["total_transfers"].as_u64().unwrap_or(0);
+                    if total == 0 {
+                        pass_count += 1;
+                        checks.push(serde_json::json!({"check": "inbox", "status": "pass", "message": "no pending transfers"}));
+                    } else {
+                        let targets = r.result["targets"].as_array().map(|t| t.len()).unwrap_or(0);
+                        warn_count += 1;
+                        checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("{} pending transfer(s) for {} target(s)", total, targets)}));
+                    }
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    warn_count += 1;
+                    checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("inbox.status error: {}", e.error.message)}));
+                }
+                Err(e) => {
+                    warn_count += 1;
+                    checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("RPC failed: {}", e)}));
+                }
+            }
+
+            serde_json::to_string_pretty(&serde_json::json!({
+                "ok": fail_count == 0,
+                "hub": p.hub,
+                "checks": checks,
+                "summary": {"pass": pass_count, "warn": warn_count, "fail": fail_count}
+            })).unwrap_or_else(json_err)
         };
 
         match tokio::time::timeout(timeout, fut).await {
