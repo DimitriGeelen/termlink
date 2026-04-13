@@ -1,20 +1,18 @@
 id: crates/termlink-protocol/src/governance.rs
 name: governance
-type: script
-subsystem: unknown
+type: module
+subsystem: protocol
 location: crates/termlink-protocol/src/governance.rs
-tags: []
+tags: [governance, data-plane, audit-trail]
 
-purpose: "TODO: describe what this component does"
+purpose: "Governance event payload (GovernanceEvent) for data plane frame type 0x8 — informational audit trail for pattern-matched output, not enforcement"
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
   []
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-session/src/governance_subscriber.rs
+    type: calls
 
 last_verified: 2026-04-13
-created_by: unknown
+created_by: T-994

@@ -1,20 +1,23 @@
 id: crates/termlink-cli/src/target.rs
 name: target
-type: script
-subsystem: unknown
+type: module
+subsystem: cli
 location: crates/termlink-cli/src/target.rs
-tags: []
+tags: [cross-host, routing, T-924]
 
-purpose: "TODO: describe what this component does"
+purpose: "Shared cross-host routing helpers — TargetOpts struct and call_session() for CLI commands that work both locally and via remote hub forwarding"
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+  - target: crates/termlink-session/src/client.rs
+    type: calls
+  - target: crates/termlink-session/src/manager.rs
+    type: calls
+  - target: crates/termlink-cli/src/commands/remote.rs
+    type: calls
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
+  # Cross-host CLI commands (T-925..T-935) will wire in as consumers
   []
 
 last_verified: 2026-04-13
-created_by: unknown
+created_by: T-994
