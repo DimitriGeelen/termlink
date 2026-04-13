@@ -4,51 +4,46 @@ name: "Add musl static build target to CI/release pipeline"
 description: >
   Deploying termlink to Debian 12 hosts (.109, .121) required a manual musl static build because the glibc-linked binary needs glibc 2.38+ (Ubuntu) while Debian 12 has 2.36. The CI/release pipeline should produce a musl static binary alongside the dynamic one so cross-distro deployment works out of the box.
 
-status: captured
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:01:23Z
-last_update: 2026-04-13T12:01:23Z
-date_finished: null
+last_update: 2026-04-13T12:12:22Z
+date_finished: 2026-04-13T12:12:22Z
 ---
 
 # T-1019: Add musl static build target to CI/release pipeline
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Add x86_64-unknown-linux-musl to the GitHub Actions release workflow so that cross-distro deployment works without glibc version issues. The musl binary is statically linked and works on any Linux distro.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] release.yml includes x86_64-unknown-linux-musl in the Linux build matrix
+- [x] musl build installs musl-tools and uses the musl target
+- [x] Release job includes termlink-linux-x86_64-static in the artifacts list
+- [x] YAML is valid
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [RUBBER-STAMP] Verify musl binary appears in next release after tagging
+  **Steps:**
+  1. Tag a release: `cd /opt/termlink && git tag v0.X.Y && git push origin --tags`
+  2. Check GitHub Actions for successful build
+  3. Verify release page has `termlink-linux-x86_64-static`
+  **Expected:** Static binary available alongside dynamic binaries
+  **If not:** Check Actions logs for musl build failures
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
+grep -q "x86_64-unknown-linux-musl" .github/workflows/release.yml
+grep -q "termlink-linux-x86_64-static" .github/workflows/release.yml
 
 ## Decisions
 
@@ -67,3 +62,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1019-add-musl-static-build-target-to-cireleas.md
 - **Context:** Initial task creation
+
+### 2026-04-13T12:12:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
