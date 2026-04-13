@@ -3082,4 +3082,78 @@ mod tests {
         unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    // === inbox.clear RPC tests (T-1005) ===
+
+    #[test]
+    fn inbox_clear_requires_target_or_all() {
+        let resp = handle_inbox_clear(json!(1), &json!({}));
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, -32602);
+            }
+            RpcResponse::Success(_) => panic!("Expected error for missing params"),
+        }
+    }
+
+    #[tokio::test]
+    async fn inbox_clear_target_removes_transfers() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Deposit
+        crate::inbox::deposit("clear-me", "file.init", &json!({"transfer_id": "x1"}), Some("s"));
+
+        // Clear
+        let resp = handle_inbox_clear(json!(1), &json!({"target": "clear-me"}));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.result["ok"], true);
+                assert_eq!(r.result["target"], "clear-me");
+            }
+            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+        }
+
+        // Verify empty
+        let resp = handle_inbox_status(json!(2));
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["total_transfers"], 0);
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn inbox_clear_all_removes_everything() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Deposit to two targets
+        crate::inbox::deposit("t1", "file.init", &json!({"transfer_id": "a"}), Some("s"));
+        crate::inbox::deposit("t2", "file.init", &json!({"transfer_id": "b"}), Some("s"));
+
+        // Clear all
+        let resp = handle_inbox_clear(json!(1), &json!({"all": true}));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.result["ok"], true);
+                assert_eq!(r.result["target"], "*");
+            }
+            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+        }
+
+        // Verify empty
+        let resp = handle_inbox_status(json!(2));
+        if let RpcResponse::Success(r) = resp {
+            assert_eq!(r.result["total_transfers"], 0);
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
