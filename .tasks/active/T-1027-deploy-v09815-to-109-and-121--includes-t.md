@@ -25,10 +25,11 @@ Deploy latest termlink to .109 (ring20-management) and .121 (ring20-dashboard). 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Musl static binary built with T-1026 + T-1028 + T-1029
-- [ ] Binary deployed to .109 via termlink send-file
-- [ ] Binary deployed to .121 via termlink send-file
-- [ ] Both hosts verified via fleet doctor
+- [x] Musl static binary built with T-1026 + T-1028 + T-1029 + T-1030 + T-1031
+- [x] Binary deployed to .107 (local) — hub running, doctor + fleet doctor pass
+- [ ] Binary deployed to .109 via termlink send-file — BLOCKED: hub down
+- [ ] Binary deployed to .121 via termlink send-file — BLOCKED: auth mismatch
+- [ ] Both remote hosts verified via fleet doctor
 
 ### Human
 - [ ] [REVIEW] Verify hub restart preserves TLS cert on both hosts
