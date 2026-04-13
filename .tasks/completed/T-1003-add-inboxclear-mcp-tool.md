@@ -1,22 +1,22 @@
 ---
-id: T-1000
-name: "Add hub integration tests for inbox.status and inbox.list RPC"
+id: T-1003
+name: "Add inbox_clear MCP tool"
 description: >
-  Add hub integration tests for inbox.status and inbox.list RPC
+  Add inbox_clear MCP tool
 
-status: started-work
-workflow_type: test
+status: work-completed
+workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-13T08:26:24Z
-last_update: 2026-04-13T08:26:24Z
-date_finished: null
+created: 2026-04-13T08:37:25Z
+last_update: 2026-04-13T08:38:22Z
+date_finished: 2026-04-13T08:38:22Z
 ---
 
-# T-1000: Add hub integration tests for inbox.status and inbox.list RPC
+# T-1003: Add inbox_clear MCP tool
 
 ## Context
 
@@ -26,8 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Integration test for inbox.status returns empty when no transfers pending
-- [x] Integration test for inbox.list returns transfers after deposit
+- [x] `termlink_inbox_clear` MCP tool clears inbox for a target or all
+- [x] MCP tool count increases to 56
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +63,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-13T08:26:24Z — task-created [task-create-agent]
+### 2026-04-13T08:37:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1000-add-hub-integration-tests-for-inboxstatu.md
+- **Output:** /opt/termlink/.tasks/active/T-1003-add-inboxclear-mcp-tool.md
 - **Context:** Initial task creation
+
+### 2026-04-13T08:38:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

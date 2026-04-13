@@ -1,22 +1,22 @@
 ---
-id: T-1002
-name: "Add termlink inbox clear command — purge pending transfers"
+id: T-1000
+name: "Add hub integration tests for inbox.status and inbox.list RPC"
 description: >
-  Add termlink inbox clear command — purge pending transfers
+  Add hub integration tests for inbox.status and inbox.list RPC
 
-status: started-work
-workflow_type: build
+status: work-completed
+workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/router.rs]
 related_tasks: []
-created: 2026-04-13T08:33:50Z
-last_update: 2026-04-13T08:33:50Z
-date_finished: null
+created: 2026-04-13T08:26:24Z
+last_update: 2026-04-13T08:29:19Z
+date_finished: 2026-04-13T08:29:19Z
 ---
 
-# T-1002: Add termlink inbox clear command — purge pending transfers
+# T-1000: Add hub integration tests for inbox.status and inbox.list RPC
 
 ## Context
 
@@ -26,8 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `termlink inbox clear <target>` removes pending transfers for a target
-- [x] `termlink inbox clear --all` removes all pending transfers
+- [x] Integration test for inbox.status returns empty when no transfers pending
+- [x] Integration test for inbox.list returns transfers after deposit
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +63,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-13T08:33:50Z — task-created [task-create-agent]
+### 2026-04-13T08:26:24Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1002-add-termlink-inbox-clear-command--purge-.md
+- **Output:** /opt/termlink/.tasks/active/T-1000-add-hub-integration-tests-for-inboxstatu.md
 - **Context:** Initial task creation
+
+### 2026-04-13T08:29:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

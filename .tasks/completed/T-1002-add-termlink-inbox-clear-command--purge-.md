@@ -1,22 +1,22 @@
 ---
-id: T-1003
-name: "Add inbox_clear MCP tool"
+id: T-1002
+name: "Add termlink inbox clear command — purge pending transfers"
 description: >
-  Add inbox_clear MCP tool
+  Add termlink inbox clear command — purge pending transfers
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/router.rs]
 related_tasks: []
-created: 2026-04-13T08:37:25Z
-last_update: 2026-04-13T08:37:25Z
-date_finished: null
+created: 2026-04-13T08:33:50Z
+last_update: 2026-04-13T08:37:00Z
+date_finished: 2026-04-13T08:37:00Z
 ---
 
-# T-1003: Add inbox_clear MCP tool
+# T-1002: Add termlink inbox clear command — purge pending transfers
 
 ## Context
 
@@ -26,8 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `termlink_inbox_clear` MCP tool clears inbox for a target or all
-- [x] MCP tool count increases to 56
+- [x] `termlink inbox clear <target>` removes pending transfers for a target
+- [x] `termlink inbox clear --all` removes all pending transfers
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +63,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-13T08:37:25Z — task-created [task-create-agent]
+### 2026-04-13T08:33:50Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1003-add-inboxclear-mcp-tool.md
+- **Output:** /opt/termlink/.tasks/active/T-1002-add-termlink-inbox-clear-command--purge-.md
 - **Context:** Initial task creation
+
+### 2026-04-13T08:37:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

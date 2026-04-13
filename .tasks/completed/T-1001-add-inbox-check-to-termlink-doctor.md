@@ -4,16 +4,16 @@ name: "Add inbox check to termlink doctor"
 description: >
   Add inbox check to termlink doctor
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: []
 created: 2026-04-13T08:30:59Z
-last_update: 2026-04-13T08:30:59Z
-date_finished: null
+last_update: 2026-04-13T08:32:10Z
+date_finished: 2026-04-13T08:32:10Z
 ---
 
 # T-1001: Add inbox check to termlink doctor
@@ -67,3 +67,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1001-add-inbox-check-to-termlink-doctor.md
 - **Context:** Initial task creation
+
+### 2026-04-13T08:32:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
