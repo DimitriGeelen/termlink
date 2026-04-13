@@ -1,20 +1,20 @@
 id: crates/termlink-session/src/governance_subscriber.rs
 name: governance_subscriber
-type: script
-subsystem: unknown
+type: module
+subsystem: session
 location: crates/termlink-session/src/governance_subscriber.rs
-tags: []
+tags: [governance, pattern-matching, audit-trail]
 
-purpose: "TODO: describe what this component does"
+purpose: "Governance subscriber — watches Output frames for regex pattern matches, strips ANSI escapes, and emits Governance frames (0x8) as non-blocking audit trail events"
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
+  - target: crates/termlink-protocol/src/governance.rs
+    type: calls
+  - target: crates/termlink-protocol/src/data.rs
+    type: calls
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
   []
 
 last_verified: 2026-04-13
-created_by: unknown
+created_by: T-994
