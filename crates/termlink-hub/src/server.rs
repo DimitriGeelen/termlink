@@ -193,7 +193,9 @@ pub async fn run_with_tcp(
         // T-1026: Remove hub.tcp so non-TCP restart doesn't inherit stale config
         let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
         let _ = std::fs::remove_file(&tcp_flag);
-        tls::cleanup();
+        // T-1028: Cert files intentionally preserved (persist-if-present, T-985)
+        // so client TOFU fingerprints survive hub restarts.
+        // Use tls::cleanup() only for explicit --clean shutdown.
         pidfile::remove(&pidfile_path);
         tracing::info!("Hub shut down cleanly");
     });
