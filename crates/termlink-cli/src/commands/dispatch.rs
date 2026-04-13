@@ -93,7 +93,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
     // File-existence is necessary but not sufficient — a stale socket file
     // can persist after the hub process dies. Verify by actually attempting
     // to connect; if no one is accept()ing, fail fast (T-916).
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     let hub_alive = hub_socket.exists()
         && tokio::net::UnixStream::connect(&hub_socket).await.is_ok();
     if !hub_alive {

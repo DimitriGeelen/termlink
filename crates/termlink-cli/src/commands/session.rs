@@ -991,7 +991,7 @@ pub(crate) async fn cmd_signal(
 pub(crate) fn cmd_info(json: bool, short: bool, check: bool) -> Result<()> {
     let runtime_dir = termlink_session::discovery::runtime_dir();
     let sessions_dir = termlink_session::discovery::sessions_dir();
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     let hub_running = hub_socket.exists();
     let live = manager::list_sessions(false)
         .map(|s| s.len())

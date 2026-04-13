@@ -94,7 +94,7 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
         Ok(r) => DeliveryRoute::Direct(r.socket_path().to_path_buf()),
         Err(_) => {
             // Session not found locally — try hub fallback
-            let hub_socket = termlink_hub::server::hub_socket_path();
+            let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
             if hub_socket.exists() {
                 if !json {
                     eprintln!("  Session '{}' not found locally, routing via hub", target);
