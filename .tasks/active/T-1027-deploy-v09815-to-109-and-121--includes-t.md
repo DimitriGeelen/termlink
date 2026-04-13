@@ -4,7 +4,7 @@ name: "Deploy v0.9.815+ to .109 and .121 — includes T-1026 hub.tcp server-side
 description: >
   Build musl static binary, deploy to .109 (ring20-management) and .121 (ring20-dashboard) via termlink send-file. Includes T-1026 hub.tcp server-side write fix for reliable hub restart.
 
-status: issues
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T13:21:55Z
-last_update: 2026-04-13T13:26:17Z
+last_update: 2026-04-13T19:38:38Z
 date_finished: null
 ---
 
@@ -27,9 +27,9 @@ Deploy latest termlink to .109 (ring20-management) and .121 (ring20-dashboard). 
 ### Agent
 - [x] Musl static binary built with T-1026 + T-1028 + T-1029 + T-1030 + T-1031
 - [x] Binary deployed to .107 (local) — hub running, doctor + fleet doctor pass
-- [ ] Binary deployed to .109 via termlink send-file — BLOCKED: hub down
-- [ ] Binary deployed to .121 via termlink send-file — BLOCKED: auth mismatch
-- [ ] Both remote hosts verified via fleet doctor
+- [ ] Binary deployed to .109 — PARTIAL: binary swapped to v0.9.835, hub restart lost TCP binding (connection refused)
+- [x] Binary deployed to .121 via termlink remote exec + curl — v0.9.835 running, hub restarted, PONG verified
+- [ ] Both remote hosts verified via fleet doctor — .109 hub down after restart
 
 ### Human
 - [ ] [REVIEW] Verify hub restart preserves TLS cert on both hosts
@@ -66,3 +66,6 @@ termlink fleet doctor 2>&1 | grep -q "0 fail"
 ### 2026-04-13T13:26:17Z — status-update [task-update-agent]
 - **Change:** status: started-work → issues
 - **Reason:** Both remote hubs unreachable: .109 hub down (port closed), .121 auth mismatch after cert regen. No SSH access. Musl binary built and ready at target/x86_64-unknown-linux-musl/release/termlink (v0.9.809). Will deploy when hubs are back.
+
+### 2026-04-13T19:38:38Z — status-update [task-update-agent]
+- **Change:** status: issues → started-work
