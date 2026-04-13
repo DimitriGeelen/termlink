@@ -1,0 +1,164 @@
+# ============================================================================
+# EPISODIC MEMORY - T-993: Fix remote hub profile — rename proxmox4 to ring20-management on .109
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-13T07:31:13Z
+# ============================================================================
+
+task_id: T-993
+task_name: "Fix remote hub profile — rename proxmox4 to ring20-management on .109"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T06:39:57Z
+completed: 2026-04-13T06:57:45Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-13T08:57:39+02:00
+last_commit: 2026-04-13T08:57:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix remote hub profile — rename proxmox4 to ring20-management on .109, deliver T-991 pickup
+
+# Key outcomes
+outcomes:
+  - "Hub profile renamed from proxmox4 to ring20-management pointing to 192.168.10.109:9100"
+  - "`termlink remote ping ring20-management` succeeds (86ms)"
+  - "T-991 pickup delivered to ring20-manager session via inject + file send"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix remote hub profile — rename proxmox4 to ring20-management on .109, deliver T-991 pickup"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/audit/audit.sh"
+  - ".agentic-framework/agents/context/check-project-boundary.sh"
+  - ".agentic-framework/agents/task-create/update-task.sh"
+  - ".agentic-framework/bin/fw"
+  - ".agentic-framework/docs/generated/components/tests-unit-lib_compat.md"
+  - ".agentic-framework/docs/generated/components/tests-unit-lib_runtime.md"
+  - ".agentic-framework/lib/config.sh"
+  - ".agentic-framework/lib/upgrade.sh"
+  - ".agentic-framework/VERSION"
+  - "Cargo.lock"
+  - ".context/audits/2026-04-13.yaml"
+  - ".context/audits/cron/2026-04-05-0015.yaml"
+  - ".context/audits/cron/2026-04-05-0100.yaml"
+  - ".context/audits/cron/2026-04-05-0115.yaml"
+  - ".context/audits/cron/2026-04-05-0200.yaml"
+  - ".context/audits/cron/2026-04-05-0430.yaml"
+  - ".context/audits/cron/2026-04-05-0500.yaml"
+  - ".context/audits/cron/2026-04-05-0530.yaml"
+  - ".context/audits/cron/2026-04-05-0545.yaml"
+  - ".context/audits/cron/2026-04-05-0600.yaml"
+  - ".context/audits/cron/2026-04-05-0615.yaml"
+  - ".context/audits/cron/2026-04-05-0630.yaml"
+  - ".context/audits/cron/2026-04-05-0645.yaml"
+  - ".context/audits/cron/2026-04-05-0700.yaml"
+  - ".context/audits/cron/2026-04-05-0715.yaml"
+  - ".context/audits/cron/2026-04-05-0730.yaml"
+  - ".context/audits/cron/2026-04-05-0815.yaml"
+  - ".context/audits/cron/2026-04-05-0830.yaml"
+  - ".context/audits/cron/2026-04-05-0845.yaml"
+  - ".context/audits/cron/2026-04-13-0030.yaml"
+  - ".context/audits/cron/2026-04-13-0045.yaml"
+  - ".context/audits/cron/2026-04-13-0100.yaml"
+  - ".context/audits/cron/2026-04-13-0115.yaml"
+  - ".context/audits/cron/2026-04-13-0130.yaml"
+  - ".context/audits/cron/2026-04-13-0145.yaml"
+  - ".context/audits/cron/2026-04-13-0200.yaml"
+  - ".context/audits/cron/2026-04-13-0215.yaml"
+  - ".context/audits/cron/2026-04-13-0230.yaml"
+  - ".context/audits/cron/2026-04-13-0245.yaml"
+  - ".context/audits/cron/2026-04-13-0300.yaml"
+  - ".context/audits/cron/2026-04-13-0315.yaml"
+  - ".context/audits/cron/2026-04-13-0330.yaml"
+  - ".context/audits/cron/2026-04-13-0345.yaml"
+  - ".context/audits/cron/2026-04-13-0400.yaml"
+  - ".context/audits/cron/2026-04-13-0415.yaml"
+  - ".context/audits/cron/2026-04-13-0430.yaml"
+  - ".context/audits/cron/2026-04-13-0445.yaml"
+  - ".context/audits/cron/2026-04-13-0500.yaml"
+  - ".context/audits/cron/2026-04-13-0515.yaml"
+  - ".context/audits/cron/2026-04-13-0530.yaml"
+  - ".context/audits/cron/2026-04-13-0545.yaml"
+  - ".context/audits/cron/2026-04-13-0600.yaml"
+  - ".context/audits/cron/2026-04-13-0615.yaml"
+  - ".context/audits/cron/2026-04-13-0630.yaml"
+  - ".context/audits/cron/2026-04-13-0645.yaml"
+  - ".context/audits/cron/2026-04-13-0700.yaml"
+  - ".context/audits/cron/2026-04-13-0715.yaml"
+  - ".context/audits/cron/2026-04-13-0730.yaml"
+  - ".context/audits/cron/2026-04-13-0745.yaml"
+  - ".context/audits/cron/2026-04-13-0800.yaml"
+  - ".context/audits/cron/2026-04-13-0815.yaml"
+  - ".context/audits/cron/2026-04-13-0830.yaml"
+  - ".context/audits/cron/2026-04-13-0845.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/audits/upgrades.yaml"
+  - ".context/episodic/T-992.yaml"
+  - ".context/locks/T-991.lock"
+  - ".context/locks/T-992.lock"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.agent-dispatch-counter"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/.edit-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.new-file-counter"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-start-ts"
+  - ".context/working/session.yaml"
+  - ".context/working/setup-ring20-management.sh"
+  - ".context/working/.tool-counter"
+  - ".framework.yaml"
+  - ".tasks/active/T-993-fix-proxmox4-hub-profile--correct-ip-to-.md"
+  - ".tasks/completed/T-991-fw-upgrade-vendor-step-errors-instead-of.md"
+  - ".tasks/completed/T-992-session-housekeeping--episodics-fabric-d.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T08:57:39"
+    action: "T-993: Fix remote hub profile — rename proxmox4 to ring20-management on .109, deliver T-991 pickup"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 1
+  files_changed: 88
+  lines_added: 3806
+  lines_removed: 3996
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-993-fix-proxmox4-hub-profile--correct-ip-to-.md
+generated_by: context-agent-hybrid
