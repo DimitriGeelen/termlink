@@ -1,5 +1,34 @@
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
 use serde_json::json;
+
+/// T-1031: Resolve the hub pidfile path, checking the default runtime dir first
+/// and falling back to /var/lib/termlink/ (systemd-managed hubs).
+/// Returns (pidfile_path, socket_path) from whichever dir has a running hub.
+fn resolve_hub_paths() -> (PathBuf, PathBuf) {
+    let default_pidfile = termlink_hub::pidfile::hub_pidfile_path();
+    let default_socket = termlink_hub::server::hub_socket_path();
+
+    // Check default runtime dir first
+    if matches!(
+        termlink_hub::pidfile::check(&default_pidfile),
+        termlink_hub::pidfile::PidfileStatus::Running(_) | termlink_hub::pidfile::PidfileStatus::Stale(_)
+    ) {
+        return (default_pidfile, default_socket);
+    }
+
+    // Fallback: check /var/lib/termlink/ (systemd-managed hubs)
+    let alt_dir = PathBuf::from("/var/lib/termlink");
+    let alt_pidfile = alt_dir.join("hub.pid");
+    if alt_pidfile.exists() {
+        let alt_socket = alt_dir.join("hub.sock");
+        return (alt_pidfile, alt_socket);
+    }
+
+    // Nothing found — return defaults
+    (default_pidfile, default_socket)
+}
 
 async fn wait_for_shutdown_signal() {
     #[cfg(unix)]
@@ -187,46 +216,30 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
-    // 4. Hub status
-    let hub_socket = termlink_hub::server::hub_socket_path();
-    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+    // 4. Hub status — T-1030/T-1031: use resolve_hub_paths() to find the hub
+    //    regardless of whether it's in default runtime_dir or /var/lib/termlink.
+    let (pidfile_path, hub_socket) = resolve_hub_paths();
+    let alt_dir = pidfile_path.parent() != Some(termlink_session::discovery::runtime_dir().as_path());
+    let suffix = if alt_dir { format!(" (via {})", pidfile_path.parent().unwrap().display()) } else { String::new() };
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::Running(pid) => {
-            // Verify the socket is actually responsive (with timeout to avoid hanging)
             let hub_rpc = client::rpc_call(&hub_socket, "termlink.ping", json!({}));
             match tokio::time::timeout(ping_timeout, hub_rpc).await {
-                Ok(Ok(_)) => check!("hub", pass, format!("running (PID {pid}), responding")),
-                Ok(Err(_)) | Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding on socket")),
+                Ok(Ok(_)) => check!("hub", pass, format!("running (PID {pid}), responding{suffix}")),
+                Ok(Err(_)) | Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding on socket{suffix}")),
             }
         }
         termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
             if fix {
                 termlink_hub::pidfile::remove(&pidfile_path);
                 let _ = std::fs::remove_file(&hub_socket);
-                check!("hub", warn, format!("stale pidfile (PID {pid}) — fixed: removed pidfile and socket"));
+                check!("hub", warn, format!("stale pidfile (PID {pid}) — fixed: removed pidfile and socket{suffix}"));
             } else {
                 check!("hub", warn, format!("stale pidfile (PID {pid} is dead). Run 'termlink doctor --fix' to clean up"));
             }
         }
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
-            // T-1030: Check alternate runtime dir when default has no pidfile.
-            // Covers systemd-managed hubs using /var/lib/termlink/ while the
-            // CLI process resolves runtime_dir() to /tmp/termlink-0/.
-            let alt_dir = std::path::PathBuf::from("/var/lib/termlink");
-            let alt_pidfile = alt_dir.join("hub.pid");
-            let alt_socket = alt_dir.join("hub.sock");
-            match termlink_hub::pidfile::check(&alt_pidfile) {
-                termlink_hub::pidfile::PidfileStatus::Running(pid) => {
-                    let hub_rpc = client::rpc_call(&alt_socket, "termlink.ping", json!({}));
-                    match tokio::time::timeout(ping_timeout, hub_rpc).await {
-                        Ok(Ok(_)) => check!("hub", pass, format!("running (PID {pid}), responding (via /var/lib/termlink)")),
-                        Ok(Err(_)) | Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding on socket (via /var/lib/termlink)")),
-                    }
-                }
-                _ => {
-                    check!("hub", pass, "not running (optional — needed for multi-session routing)");
-                }
-            }
+            check!("hub", pass, "not running (optional — needed for multi-session routing)");
         }
     }
 
@@ -469,7 +482,7 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
 }
 
 pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
-    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+    let (pidfile_path, _socket_path) = resolve_hub_paths();
 
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
@@ -516,7 +529,7 @@ pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
 }
 
 pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
-    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+    let (pidfile_path, _) = resolve_hub_paths();
 
     // Find current hub PID
     let old_pid = match termlink_hub::pidfile::check(&pidfile_path) {
@@ -539,8 +552,8 @@ pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
         }
     };
 
-    // Determine TCP address from existing hub config
-    let runtime_dir = termlink_session::discovery::runtime_dir();
+    // Determine TCP address from existing hub config (use resolved dir, not default)
+    let runtime_dir = pidfile_path.parent().unwrap_or(std::path::Path::new("/tmp"));
     let tcp_flag_path = runtime_dir.join("hub.tcp");
     let tcp_addr = std::fs::read_to_string(&tcp_flag_path)
         .ok()
@@ -558,6 +571,15 @@ pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
     cmd.arg("hub").arg("start");
     if let Some(ref addr) = tcp_addr {
         cmd.arg("--tcp").arg(addr);
+    }
+
+    // T-1031: If the old hub used a non-default runtime dir (e.g., systemd's
+    // /var/lib/termlink), pass it to the new process so it writes to the same
+    // location. Without this, the new hub defaults to /tmp/termlink-0/ and
+    // generates a different secret, breaking auth for all remote clients.
+    let default_runtime = termlink_session::discovery::runtime_dir();
+    if pidfile_path.parent().is_some_and(|d| d != default_runtime.as_path()) {
+        cmd.env("TERMLINK_RUNTIME_DIR", pidfile_path.parent().unwrap());
     }
 
     // Detach the child process so it outlives us
