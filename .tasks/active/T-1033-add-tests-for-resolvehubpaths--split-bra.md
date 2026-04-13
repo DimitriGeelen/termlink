@@ -4,16 +4,16 @@ name: "Add tests for resolve_hub_paths — split-brain runtime dir logic"
 description: >
   Add tests for resolve_hub_paths — split-brain runtime dir logic
 
-status: started-work
+status: work-completed
 workflow_type: test
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs, crates/termlink-session/src/client.rs]
 related_tasks: []
 created: 2026-04-13T18:22:06Z
-last_update: 2026-04-13T18:22:06Z
-date_finished: null
+last_update: 2026-04-13T18:30:23Z
+date_finished: 2026-04-13T18:30:23Z
 ---
 
 # T-1033: Add tests for resolve_hub_paths — split-brain runtime dir logic
@@ -43,7 +43,7 @@ resolve_hub_paths() in infrastructure.rs (T-1031/T-1032) has zero test coverage.
 cargo test -p termlink --test cli_integration cli_hub_status_short 2>&1 | grep -q "test result: ok"
 cargo test -p termlink --test cli_integration cli_hub_status_isolated 2>&1 | grep -q "test result: ok"
 cargo test -p termlink --test cli_integration cli_hub_status_stale 2>&1 | grep -q "test result: ok"
-cargo test -p termlink-session client::tests::connect_addr_raw 2>&1 | grep -q "test result: ok"
+cargo test -p termlink-session connect_addr_raw 2>&1 | grep "1 passed"
 
 ## Decisions
 
@@ -62,3 +62,6 @@ cargo test -p termlink-session client::tests::connect_addr_raw 2>&1 | grep -q "t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1033-add-tests-for-resolvehubpaths--split-bra.md
 - **Context:** Initial task creation
+
+### 2026-04-13T18:30:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
