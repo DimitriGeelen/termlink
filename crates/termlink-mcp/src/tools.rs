@@ -390,6 +390,54 @@ pub struct InboxClearParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct RemoteInboxStatusParams {
+    /// Remote hub address in "host:port" format or profile name
+    pub hub: String,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Permission scope. Default: "execute".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 10.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RemoteInboxListParams {
+    /// Remote hub address in "host:port" format or profile name
+    pub hub: String,
+    /// Target session name to query inbox for
+    pub target: String,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Permission scope. Default: "execute".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 10.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RemoteInboxClearParams {
+    /// Remote hub address in "host:port" format or profile name
+    pub hub: String,
+    /// Target session name to clear inbox for (omit if using all)
+    pub target: Option<String>,
+    /// Clear all pending transfers for all targets
+    pub all: Option<bool>,
+    /// Path to file containing the 32-byte hex hub secret
+    pub secret_file: Option<String>,
+    /// Hex-encoded 32-byte hub secret
+    pub secret: Option<String>,
+    /// Permission scope. Default: "execute".
+    pub scope: Option<String>,
+    /// Timeout in seconds. Default: 10.
+    pub timeout: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct RemoteInjectParams {
     /// Remote hub address in "host:port" format
     pub hub: String,
@@ -4206,6 +4254,121 @@ impl TermLinkTools {
                 Err(e) => json_err(format!("inbox.list error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    // === Remote Inbox Tools (T-1010) ===
+
+    #[tool(
+        name = "termlink_remote_inbox_status",
+        description = "Show inbox status on a remote hub — total pending file transfers queued for offline sessions. Connects to the remote hub via TCP+TOFU TLS. The hub address can be host:port or a profile name from ~/.termlink/hubs.toml."
+    )]
+    async fn termlink_remote_inbox_status(&self, Parameters(p): Parameters<RemoteInboxStatusParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("execute");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(10));
+
+        let fut = async move {
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub, p.secret_file.as_deref(), p.secret.as_deref(), scope,
+            ).await {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+
+            match rpc_client.call("inbox.status", serde_json::json!("mcp-inbox-s"), serde_json::json!({})).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true, "hub": p.hub, "result": r.result,
+                    })).unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    json_err(format!("inbox.status error on {}: {}", p.hub, e.error.message))
+                }
+                Err(e) => json_err(format!("RPC failed: {e}")),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(10))),
+        }
+    }
+
+    #[tool(
+        name = "termlink_remote_inbox_list",
+        description = "List pending file transfers on a remote hub's inbox for a specific target session. Connects via TCP+TOFU TLS."
+    )]
+    async fn termlink_remote_inbox_list(&self, Parameters(p): Parameters<RemoteInboxListParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("execute");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(10));
+
+        let fut = async move {
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub, p.secret_file.as_deref(), p.secret.as_deref(), scope,
+            ).await {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+
+            match rpc_client.call("inbox.list", serde_json::json!("mcp-inbox-l"), serde_json::json!({"target": p.target})).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true, "hub": p.hub, "result": r.result,
+                    })).unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    json_err(format!("inbox.list error on {}: {}", p.hub, e.error.message))
+                }
+                Err(e) => json_err(format!("RPC failed: {e}")),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(10))),
+        }
+    }
+
+    #[tool(
+        name = "termlink_remote_inbox_clear",
+        description = "Clear pending file transfers on a remote hub's inbox. Specify a target session name or set all=true. Connects via TCP+TOFU TLS."
+    )]
+    async fn termlink_remote_inbox_clear(&self, Parameters(p): Parameters<RemoteInboxClearParams>) -> String {
+        let scope = p.scope.as_deref().unwrap_or("execute");
+        let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(10));
+
+        let fut = async move {
+            let mut rpc_client = match connect_remote_hub_mcp(
+                &p.hub, p.secret_file.as_deref(), p.secret.as_deref(), scope,
+            ).await {
+                Ok(c) => c,
+                Err(e) => return e,
+            };
+
+            let params = if p.all.unwrap_or(false) {
+                serde_json::json!({"all": true})
+            } else if let Some(ref target) = p.target {
+                serde_json::json!({"target": target})
+            } else {
+                return json_err("Specify 'target' or set 'all' to true");
+            };
+
+            match rpc_client.call("inbox.clear", serde_json::json!("mcp-inbox-c"), params).await {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true, "hub": p.hub, "result": r.result,
+                    })).unwrap_or_else(json_err)
+                }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    json_err(format!("inbox.clear error on {}: {}", p.hub, e.error.message))
+                }
+                Err(e) => json_err(format!("RPC failed: {e}")),
+            }
+        };
+
+        match tokio::time::timeout(timeout, fut).await {
+            Ok(response) => response,
+            Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(10))),
         }
     }
 }
