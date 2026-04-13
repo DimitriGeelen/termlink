@@ -1972,6 +1972,85 @@ fn cli_status_short_with_session() {
     assert!(stdout.contains("short-sess"), "Should contain session name: {}", stdout);
 }
 
+// ─── Hub Status Short Mode ──────────────────────────────────────────
+
+#[test]
+fn cli_hub_status_short_not_running() {
+    let dir = TestDir::new("hub-short");
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "status", "--short"])
+        .output()
+        .expect("Failed to run hub status --short");
+
+    assert!(output.status.success(), "hub status --short should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), "not_running", "short output should be 'not_running'");
+}
+
+// ─── Hub Status Runtime Dir Isolation ───────────────────────────────
+
+#[test]
+fn cli_hub_status_isolated_does_not_discover_system_hub() {
+    // When TERMLINK_RUNTIME_DIR is explicitly set (via TestDir), resolve_hub_paths()
+    // must NOT fall back to /var/lib/termlink. This prevents tests from discovering
+    // the real systemd-managed hub.
+    let dir = TestDir::new("hub-iso");
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "status", "--json"])
+        .output()
+        .expect("Failed to run hub status --json");
+
+    assert!(output.status.success(), "hub status --json should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    // With isolated dir and no hub started, status must be not_running
+    assert_eq!(parsed["status"], "not_running",
+        "Isolated runtime dir should not discover system hub");
+    // Must not contain /var/lib/termlink paths
+    assert!(!stdout.contains("/var/lib/termlink"),
+        "Should not reference system runtime dir when TERMLINK_RUNTIME_DIR is set");
+}
+
+// ─── Hub Status Stale Pidfile ───────────────────────────────────────
+
+#[test]
+fn cli_hub_status_stale_pidfile() {
+    let dir = TestDir::new("hub-stale");
+    // Write a pidfile with a PID that definitely doesn't exist
+    std::fs::write(dir.path.join("hub.pid"), "4000000").unwrap();
+
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "status", "--json"])
+        .output()
+        .expect("Failed to run hub status --json");
+
+    assert!(output.status.success(), "hub status --json should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["status"], "stale", "Should detect stale pidfile");
+    assert_eq!(parsed["pid"], 4000000, "Should report the stale PID");
+}
+
+// ─── Hub Status Check + Short Combined ──────────────────────────────
+
+#[test]
+fn cli_hub_status_check_short_not_running() {
+    let dir = TestDir::new("hub-chk-short");
+    let output = termlink_cmd(&dir.path)
+        .args(["hub", "status", "--check", "--short"])
+        .output()
+        .expect("Failed to run hub status --check --short");
+
+    // --check should exit 1 when hub is not running
+    assert!(!output.status.success(), "should fail with --check when hub not running");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), "not_running", "short output should still be 'not_running'");
+}
+
 // ─── List --wait Timeout ────────────────────────────────────────────
 
 #[test]
