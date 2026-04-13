@@ -659,8 +659,8 @@ pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
 }
 
 pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Result<()> {
-    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
-    let socket_path = termlink_hub::server::hub_socket_path();
+    // T-1032: Use resolve_hub_paths() for split-brain runtime dir detection
+    let (pidfile_path, socket_path) = resolve_hub_paths();
 
     let is_running = matches!(
         termlink_hub::pidfile::check(&pidfile_path),
@@ -688,6 +688,7 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
             }
         }
         termlink_hub::pidfile::PidfileStatus::Running(pid) => {
+            let runtime_dir = pidfile_path.parent().map(|p| p.display().to_string()).unwrap_or_default();
             if json_output {
                 println!("{}", json!({
                     "ok": true,
@@ -695,11 +696,13 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
                     "pid": pid,
                     "socket": socket_path.display().to_string(),
                     "pidfile": pidfile_path.display().to_string(),
+                    "runtime_dir": runtime_dir,
                 }));
             } else if short {
                 println!("running {pid}");
             } else {
                 println!("Hub: running (PID {pid})");
+                println!("  Runtime dir: {}", runtime_dir);
                 println!("  Socket: {}", socket_path.display());
                 println!("  Pidfile: {}", pidfile_path.display());
             }
