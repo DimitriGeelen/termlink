@@ -300,6 +300,10 @@ async fn main() -> Result<()> {
                 commands::remote::cmd_remote_profile(action)
             }
         },
+        Command::Inbox { action } => match action {
+            InboxAction::Status { json } => commands::infrastructure::cmd_inbox_status(json).await,
+            InboxAction::List { target, json } => commands::infrastructure::cmd_inbox_list(&target, json).await,
+        },
         Command::Doctor { json, fix, strict } => commands::infrastructure::cmd_doctor(json, fix, strict).await,
         Command::Vendor { action, source, target, dry_run, json } => {
             if let Some(action) = action {

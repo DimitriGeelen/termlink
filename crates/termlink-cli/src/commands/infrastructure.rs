@@ -532,3 +532,86 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
     }
     Ok(())
 }
+
+// === Inbox Commands (T-997) ===
+
+pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
+    let hub_socket = termlink_hub::server::hub_socket_path();
+    if !hub_socket.exists() {
+        anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
+    }
+
+    let resp = termlink_session::client::rpc_call(&hub_socket, "inbox.status", json!({}))
+        .await
+        .context("Failed to query inbox status from hub")?;
+
+    let result = termlink_session::client::unwrap_result(resp)
+        .map_err(|e| anyhow::anyhow!("Hub returned error for inbox.status: {e}"))?;
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        let total = result["total_transfers"].as_u64().unwrap_or(0);
+        let targets = result["targets"].as_array();
+
+        if total == 0 {
+            println!("Inbox: empty (no pending transfers)");
+        } else {
+            println!("Inbox: {} pending transfer(s)", total);
+            if let Some(targets) = targets {
+                println!();
+                for t in targets {
+                    let name = t["target"].as_str().unwrap_or("?");
+                    let pending = t["pending"].as_u64().unwrap_or(0);
+                    println!("  {name}: {pending} transfer(s)");
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) async fn cmd_inbox_list(target: &str, json_output: bool) -> Result<()> {
+    let hub_socket = termlink_hub::server::hub_socket_path();
+    if !hub_socket.exists() {
+        anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
+    }
+
+    let resp = termlink_session::client::rpc_call(
+        &hub_socket,
+        "inbox.list",
+        json!({"target": target}),
+    )
+    .await
+    .context("Failed to query inbox from hub")?;
+
+    let result = termlink_session::client::unwrap_result(resp)
+        .map_err(|e| anyhow::anyhow!("Hub returned error for inbox.list: {e}"))?;
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        let transfers = result["transfers"].as_array();
+        match transfers {
+            Some(t) if t.is_empty() => {
+                println!("No pending transfers for '{target}'");
+            }
+            Some(transfers) => {
+                println!("{} pending transfer(s) for '{target}':", transfers.len());
+                println!();
+                for tr in transfers {
+                    let id = tr["transfer_id"].as_str().unwrap_or("?");
+                    let file = tr["filename"].as_str().unwrap_or("?");
+                    let size = tr["size"].as_u64().unwrap_or(0);
+                    let complete = tr["complete"].as_bool().unwrap_or(false);
+                    let status = if complete { "complete" } else { "partial" };
+                    println!("  {id}  {file} ({size} bytes, {status})");
+                }
+            }
+            None => {
+                println!("No pending transfers for '{target}'");
+            }
+        }
+    }
+    Ok(())
+}

@@ -3,8 +3,6 @@
 # Implements: fw fabric drift, fw fabric validate
 
 do_drift() {
-    # T-994: Enable globstar so ** patterns expand recursively
-    shopt -s globstar 2>/dev/null
     ensure_fabric_dirs
 
     local watch_file="$FABRIC_DIR/watch-patterns.yaml"
