@@ -443,6 +443,58 @@ pub fn cleanup_expired(expiry: Duration) -> usize {
     cleaned
 }
 
+/// Clear all pending transfers for a specific target.
+///
+/// Returns the number of transfers removed.
+pub fn clear_target(target: &str) -> usize {
+    let target_dir = target_dir(target);
+    if !target_dir.exists() {
+        return 0;
+    }
+
+    let count = std::fs::read_dir(&target_dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .count();
+
+    let _ = std::fs::remove_dir_all(&target_dir);
+    count
+}
+
+/// Clear all pending transfers for all targets.
+///
+/// Returns the number of transfers removed.
+pub fn clear_all() -> usize {
+    let idir = inbox_dir();
+    if !idir.exists() {
+        return 0;
+    }
+
+    let mut total = 0;
+
+    let target_dirs: Vec<_> = std::fs::read_dir(&idir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .collect();
+
+    for target_entry in target_dirs {
+        let count = std::fs::read_dir(target_entry.path())
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+            .count();
+        total += count;
+        let _ = std::fs::remove_dir_all(target_entry.path());
+    }
+
+    total
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

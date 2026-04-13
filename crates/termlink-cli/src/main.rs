@@ -303,6 +303,7 @@ async fn main() -> Result<()> {
         Command::Inbox { action } => match action {
             InboxAction::Status { json } => commands::infrastructure::cmd_inbox_status(json).await,
             InboxAction::List { target, json } => commands::infrastructure::cmd_inbox_list(&target, json).await,
+            InboxAction::Clear { target, all, json } => commands::infrastructure::cmd_inbox_clear(target.as_deref(), all, json).await,
         },
         Command::Doctor { json, fix, strict } => commands::infrastructure::cmd_doctor(json, fix, strict).await,
         Command::Vendor { action, source, target, dry_run, json } => {

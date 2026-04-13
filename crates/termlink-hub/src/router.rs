@@ -72,6 +72,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
         "inbox.list" => handle_inbox_list(id, &req.params),
         "inbox.status" => handle_inbox_status(id),
+        "inbox.clear" => handle_inbox_clear(id, &req.params),
         _ => forward_to_target(req, id).await,
     };
 
@@ -1411,6 +1412,28 @@ fn handle_inbox_status(id: serde_json::Value) -> RpcResponse {
             ErrorResponse::internal_error(id, &format!("Inbox status error: {e}")).into()
         }
     }
+}
+
+fn handle_inbox_clear(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let all = params.get("all").and_then(|v| v.as_bool()).unwrap_or(false);
+    let target = params.get("target").and_then(|t| t.as_str());
+
+    if !all && target.is_none() {
+        return ErrorResponse::new(id, -32602, "Missing 'target' or 'all' in params").into();
+    }
+
+    let cleared = if all {
+        crate::inbox::clear_all()
+    } else {
+        crate::inbox::clear_target(target.unwrap())
+    };
+
+    Response::success(id, json!({
+        "ok": true,
+        "cleared": cleared,
+        "target": target.unwrap_or("*"),
+    }))
+    .into()
 }
 
 #[cfg(test)]
