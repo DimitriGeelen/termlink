@@ -40,6 +40,15 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool) -> 
         .await
         .context("Hub server error")?;
 
+    // T-1024: Record TCP address for hub restart
+    let runtime_dir = termlink_session::discovery::runtime_dir();
+    let tcp_flag_path = runtime_dir.join("hub.tcp");
+    if let Some(addr) = tcp_addr {
+        let _ = std::fs::write(&tcp_flag_path, addr);
+    } else {
+        let _ = std::fs::remove_file(&tcp_flag_path);
+    }
+
     if tcp_addr.is_some() {
         let secret_path = termlink_hub::server::hub_secret_path();
         let cert_path = termlink_hub::tls::hub_cert_path();
@@ -493,6 +502,127 @@ pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
+    let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+
+    // Find current hub PID
+    let old_pid = match termlink_hub::pidfile::check(&pidfile_path) {
+        termlink_hub::pidfile::PidfileStatus::Running(pid) => pid,
+        termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
+            if json {
+                println!("{}", json!({"ok": false, "error": format!("Hub PID {} is stale (dead)", pid)}));
+            } else {
+                println!("Hub PID {} is stale (dead). Use 'termlink hub start' instead.", pid);
+            }
+            return Ok(());
+        }
+        termlink_hub::pidfile::PidfileStatus::NotRunning => {
+            if json {
+                println!("{}", json!({"ok": false, "error": "Hub is not running"}));
+            } else {
+                println!("Hub is not running. Use 'termlink hub start' to start it.");
+            }
+            return Ok(());
+        }
+    };
+
+    // Determine TCP address from existing hub config
+    let runtime_dir = termlink_session::discovery::runtime_dir();
+    let tcp_flag_path = runtime_dir.join("hub.tcp");
+    let tcp_addr = std::fs::read_to_string(&tcp_flag_path)
+        .ok()
+        .map(|s| s.trim().to_string());
+
+    if !json {
+        println!("Restarting hub (PID {})...", old_pid);
+    }
+
+    // Find our own binary path
+    let self_exe = std::env::current_exe().context("Cannot determine own binary path")?;
+
+    // Build the hub start command
+    let mut cmd = std::process::Command::new(&self_exe);
+    cmd.arg("hub").arg("start");
+    if let Some(ref addr) = tcp_addr {
+        cmd.arg("--tcp").arg(addr);
+    }
+
+    // Detach the child process so it outlives us
+    cmd.stdin(std::process::Stdio::null());
+    cmd.stdout(std::process::Stdio::null());
+    cmd.stderr(std::process::Stdio::null());
+
+    // Stop the old hub first
+    if !json {
+        println!("  Stopping old hub (PID {})...", old_pid);
+    }
+    unsafe { libc::kill(old_pid as i32, libc::SIGTERM) };
+
+    // Wait for old hub to die (up to 3s)
+    for _ in 0..30 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        if !termlink_session::liveness::process_exists(old_pid) {
+            break;
+        }
+    }
+
+    if termlink_session::liveness::process_exists(old_pid) {
+        if json {
+            println!("{}", json!({"ok": false, "error": format!("Old hub (PID {}) did not stop within 3s", old_pid)}));
+        } else {
+            println!("  Old hub (PID {}) did not stop. Aborting restart.", old_pid);
+        }
+        return Ok(());
+    }
+
+    // Start new hub
+    if !json {
+        if let Some(ref addr) = tcp_addr {
+            println!("  Starting new hub with TCP on {}...", addr);
+        } else {
+            println!("  Starting new hub (Unix socket only)...");
+        }
+    }
+
+    match cmd.spawn() {
+        Ok(child) => {
+            let new_pid = child.id();
+
+            // Wait briefly for new hub to bind
+            std::thread::sleep(std::time::Duration::from_millis(500));
+
+            // Verify new hub is running
+            let hub_pidfile = termlink_hub::pidfile::hub_pidfile_path();
+            let running = matches!(
+                termlink_hub::pidfile::check(&hub_pidfile),
+                termlink_hub::pidfile::PidfileStatus::Running(_)
+            );
+
+            if json {
+                println!("{}", json!({
+                    "ok": running,
+                    "old_pid": old_pid,
+                    "new_pid": new_pid,
+                    "tcp": tcp_addr,
+                }));
+            } else if running {
+                println!("  Hub restarted successfully (PID {} → {})", old_pid, new_pid);
+            } else {
+                println!("  Hub spawned (PID {}) but not yet responding. Check 'termlink hub status'.", new_pid);
+            }
+        }
+        Err(e) => {
+            if json {
+                super::json_error_exit(json!({"ok": false, "error": format!("Failed to spawn new hub: {}", e)}));
+            } else {
+                println!("  Failed to start new hub: {}", e);
+            }
+        }
+    }
+
     Ok(())
 }
 

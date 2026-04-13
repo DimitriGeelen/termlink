@@ -1071,6 +1071,12 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
+    /// Restart the hub — spawn new process, then stop current (zero-downtime)
+    Restart {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Show hub server status
     Status {
         /// Output as JSON
