@@ -334,4 +334,47 @@ mod tests {
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
     }
+
+    #[tokio::test]
+    async fn connect_addr_raw_unix_ping() {
+        // T-1033: Test connect_addr_raw — plain connection without TLS
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let id = SessionId::generate();
+        let mut reg = Registration::new(
+            id,
+            SessionConfig {
+                display_name: Some("raw-test".into()),
+                ..Default::default()
+            },
+            socket_path.clone(),
+        );
+        reg.state = SessionState::Ready;
+        let ctx = SessionContext::new(reg);
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            server::run_accept_loop(listener, shared_clone).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // Use connect_addr_raw instead of connect — should work identically for Unix sockets
+        let addr = TransportAddr::unix(&socket_path);
+        let mut client = Client::connect_addr_raw(&addr).await.unwrap();
+
+        let resp = client
+            .call("termlink.ping", serde_json::json!("raw-1"), serde_json::json!({}))
+            .await
+            .unwrap();
+        let result = unwrap_result(resp).unwrap();
+        assert_eq!(result["display_name"], "raw-test");
+        assert_eq!(result["state"], "ready");
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
 }
