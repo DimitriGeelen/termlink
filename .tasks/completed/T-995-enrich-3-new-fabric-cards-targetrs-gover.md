@@ -1,23 +1,22 @@
 ---
-id: T-993
-name: "Fix remote hub profile — rename proxmox4 to ring20-management on .109"
+id: T-995
+name: "Enrich 3 new fabric cards (target.rs, governance.rs, governance_subscriber.rs)"
 description: >
-  Proxmox4 profile had wrong IP (.122) and wrong name. Renamed to ring20-management,
-  corrected to 192.168.10.109:9100, updated secret and TOFU fingerprint.
+  Enrich 3 new fabric cards (target.rs, governance.rs, governance_subscriber.rs)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-13T06:39:57Z
-last_update: 2026-04-13T06:39:57Z
-date_finished: null
+created: 2026-04-13T07:13:30Z
+last_update: 2026-04-13T07:15:29Z
+date_finished: 2026-04-13T07:15:29Z
 ---
 
-# T-993: Fix proxmox4 hub profile — correct IP to .109
+# T-995: Enrich 3 new fabric cards (target.rs, governance.rs, governance_subscriber.rs)
 
 ## Context
 
@@ -27,9 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Hub profile renamed from proxmox4 to ring20-management pointing to 192.168.10.109:9100
-- [x] `termlink remote ping ring20-management` succeeds (86ms)
-- [x] T-991 pickup delivered to ring20-manager session via inject + file send
+- [x] All 3 fabric cards have accurate purpose, type, subsystem, and dependency edges
+- [x] fw fabric drift shows 0 unregistered after enrichment
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -49,7 +47,8 @@ date_finished: null
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
-termlink remote ping ring20-management 2>&1 | grep -q "PONG"
+# Lines starting with # are comments (skipped). Empty lines ignored.
+# The completion gate runs each command — if any exits non-zero, completion is blocked.
 
 ## Decisions
 
@@ -64,7 +63,10 @@ termlink remote ping ring20-management 2>&1 | grep -q "PONG"
 
 ## Updates
 
-### 2026-04-13T06:39:57Z — task-created [task-create-agent]
+### 2026-04-13T07:13:30Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-993-fix-proxmox4-hub-profile--correct-ip-to-.md
+- **Output:** /opt/termlink/.tasks/active/T-995-enrich-3-new-fabric-cards-targetrs-gover.md
 - **Context:** Initial task creation
+
+### 2026-04-13T07:15:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
