@@ -305,7 +305,12 @@ async fn main() -> Result<()> {
             InboxAction::List { target, json } => commands::infrastructure::cmd_inbox_list(&target, json).await,
             InboxAction::Clear { target, all, json } => commands::infrastructure::cmd_inbox_clear(target.as_deref(), all, json).await,
         },
-        Command::Doctor { json, fix, strict } => commands::infrastructure::cmd_doctor(json, fix, strict).await,
+        Command::Doctor { json, fix, strict, runtime_dir } => {
+            if let Some(ref dir) = runtime_dir {
+                unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", dir) };
+            }
+            commands::infrastructure::cmd_doctor(json, fix, strict).await
+        },
         Command::Vendor { action, source, target, dry_run, json } => {
             if let Some(action) = action {
                 match action {
