@@ -4896,10 +4896,12 @@ mod tests {
     }
 
     // === Task governance tests ===
+    // T-1004: Mutex to prevent env var race conditions in parallel test execution
+    static GOV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn governance_disabled_allows_without_task_id() {
-        // Ensure governance env var is not set (default)
+        let _lock = GOV_LOCK.lock().unwrap();
         unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
         let result = check_task_governance(&None, "termlink_exec");
         assert!(result.is_ok());
@@ -4907,6 +4909,7 @@ mod tests {
 
     #[test]
     fn governance_disabled_allows_with_task_id() {
+        let _lock = GOV_LOCK.lock().unwrap();
         unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
         let result = check_task_governance(&Some("T-123".into()), "termlink_exec");
         assert!(result.is_ok());
@@ -4914,6 +4917,7 @@ mod tests {
 
     #[test]
     fn governance_enabled_blocks_without_task_id() {
+        let _lock = GOV_LOCK.lock().unwrap();
         unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
         let result = check_task_governance(&None, "termlink_spawn");
         unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
@@ -4926,6 +4930,7 @@ mod tests {
 
     #[test]
     fn governance_enabled_allows_with_task_id() {
+        let _lock = GOV_LOCK.lock().unwrap();
         unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
         let result = check_task_governance(&Some("T-456".into()), "termlink_dispatch");
         unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
@@ -4935,6 +4940,7 @@ mod tests {
 
     #[test]
     fn governance_enabled_blocks_empty_task_id() {
+        let _lock = GOV_LOCK.lock().unwrap();
         unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
         let result = check_task_governance(&Some("".into()), "termlink_exec");
         unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
@@ -4944,6 +4950,7 @@ mod tests {
 
     #[test]
     fn governance_enabled_blocks_whitespace_task_id() {
+        let _lock = GOV_LOCK.lock().unwrap();
         unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
         let result = check_task_governance(&Some("   ".into()), "termlink_interact");
         unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
@@ -4953,6 +4960,7 @@ mod tests {
 
     #[test]
     fn governance_other_values_treated_as_disabled() {
+        let _lock = GOV_LOCK.lock().unwrap();
         // "0", "true", "yes" should NOT enable governance — only "1"
         for val in &["0", "true", "yes", "enabled"] {
             unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", val) };
@@ -4964,6 +4972,7 @@ mod tests {
 
     #[test]
     fn governance_error_is_valid_json() {
+        let _lock = GOV_LOCK.lock().unwrap();
         unsafe { std::env::set_var("TERMLINK_TASK_GOVERNANCE", "1") };
         let result = check_task_governance(&None, "termlink_exec");
         unsafe { std::env::remove_var("TERMLINK_TASK_GOVERNANCE") };
