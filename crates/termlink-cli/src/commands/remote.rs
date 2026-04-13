@@ -1414,7 +1414,7 @@ pub(crate) async fn cmd_fleet_doctor(
             Ok(Err(e)) => {
                 total_fail += 1;
                 let msg = format!("{}", e);
-                let diagnostic = classify_fleet_error(&msg);
+                let diagnostic = classify_fleet_error(&msg, &entry.address);
                 hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg, "secret_source": &secret_source, "diagnostic": &diagnostic}));
                 if !json {
                     eprintln!("  [FAIL] {}", msg);
@@ -1453,24 +1453,24 @@ pub(crate) async fn cmd_fleet_doctor(
 }
 
 /// T-1034: Classify fleet doctor errors into actionable diagnostic hints.
-fn classify_fleet_error(msg: &str) -> &'static str {
+fn classify_fleet_error(msg: &str, address: &str) -> String {
     if msg.contains("invalid signature") || msg.contains("Token validation failed") {
         "Secret mismatch — hub was likely restarted with a new secret. \
-         Fetch the current secret from the remote hub's hub.secret file"
+         Fetch the current secret from the remote hub's hub.secret file".to_string()
     } else if msg.contains("TOFU VIOLATION") || msg.contains("fingerprint changed") {
-        "Hub certificate changed. If expected (hub restart), clear with: \
-         termlink tofu clear <host:port>"
+        format!("Hub certificate changed. If expected (hub restart), clear with: \
+         termlink tofu clear {address}")
     } else if msg.contains("Connection refused") {
         "Hub is not listening on this port. Check if the hub process is running \
-         on the remote host (systemctl status termlink-hub)"
+         on the remote host (systemctl status termlink-hub)".to_string()
     } else if msg.contains("Secret file not found") {
         "The configured secret_file path does not exist. \
-         Check hubs.toml and verify the file is present"
+         Check hubs.toml and verify the file is present".to_string()
     } else if msg.contains("InvalidContentType") || msg.contains("tls") || msg.contains("TLS") {
         "TLS handshake failed — the hub may not be running TLS on this port, \
-         or there is a protocol version mismatch"
+         or there is a protocol version mismatch".to_string()
     } else {
-        "Unexpected error — check hub logs on the remote host for details"
+        "Unexpected error — check hub logs on the remote host for details".to_string()
     }
 }
 
