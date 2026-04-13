@@ -1394,11 +1394,19 @@ pub(crate) async fn cmd_fleet_doctor(
             ),
         ).await;
 
+        // T-1034: Resolve secret source for diagnostics
+        let secret_source = entry.secret_file.as_deref()
+            .map(|p| p.to_string())
+            .unwrap_or_else(|| {
+                if entry.secret.is_some() { "inline secret".to_string() }
+                else { "none".to_string() }
+            });
+
         match result {
             Ok(Ok(_client)) => {
                 let latency = connect_start.elapsed().as_millis();
                 total_pass += 1;
-                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "ok", "latency_ms": latency}));
+                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "ok", "latency_ms": latency, "secret_source": &secret_source}));
                 if !json {
                     eprintln!("  [PASS] connected in {}ms", latency);
                 }
@@ -1406,16 +1414,21 @@ pub(crate) async fn cmd_fleet_doctor(
             Ok(Err(e)) => {
                 total_fail += 1;
                 let msg = format!("{}", e);
-                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg}));
+                let diagnostic = classify_fleet_error(&msg);
+                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg, "secret_source": &secret_source, "diagnostic": &diagnostic}));
                 if !json {
                     eprintln!("  [FAIL] {}", msg);
+                    eprintln!("  secret: {}", secret_source);
+                    eprintln!("  hint: {}", diagnostic);
                 }
             }
             Err(_) => {
                 total_fail += 1;
-                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "timeout"}));
+                let diagnostic = "Check network connectivity and that hub is listening on the configured port";
+                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "timeout", "secret_source": &secret_source, "diagnostic": diagnostic}));
                 if !json {
                     eprintln!("  [FAIL] Timeout after {}s", timeout_secs);
+                    eprintln!("  hint: {}", diagnostic);
                 }
             }
         }
@@ -1437,6 +1450,28 @@ pub(crate) async fn cmd_fleet_doctor(
     }
 
     Ok(())
+}
+
+/// T-1034: Classify fleet doctor errors into actionable diagnostic hints.
+fn classify_fleet_error(msg: &str) -> &'static str {
+    if msg.contains("invalid signature") || msg.contains("Token validation failed") {
+        "Secret mismatch — hub was likely restarted with a new secret. \
+         Fetch the current secret from the remote hub's hub.secret file"
+    } else if msg.contains("TOFU VIOLATION") || msg.contains("fingerprint changed") {
+        "Hub certificate changed. If expected (hub restart), clear the entry: \
+         edit ~/.termlink/known_hubs and remove the line for this host"
+    } else if msg.contains("Connection refused") {
+        "Hub is not listening on this port. Check if the hub process is running \
+         on the remote host (systemctl status termlink-hub)"
+    } else if msg.contains("Secret file not found") {
+        "The configured secret_file path does not exist. \
+         Check hubs.toml and verify the file is present"
+    } else if msg.contains("InvalidContentType") || msg.contains("tls") || msg.contains("TLS") {
+        "TLS handshake failed — the hub may not be running TLS on this port, \
+         or there is a protocol version mismatch"
+    } else {
+        "Unexpected error — check hub logs on the remote host for details"
+    }
 }
 
 pub(crate) async fn cmd_remote_doctor(
