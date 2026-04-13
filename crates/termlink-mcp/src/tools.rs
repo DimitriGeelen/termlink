@@ -382,6 +382,14 @@ pub struct InboxListParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct InboxClearParams {
+    /// Target session name to clear inbox for (omit if using all)
+    pub target: Option<String>,
+    /// Clear all pending transfers for all targets
+    pub all: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct RemoteInjectParams {
     /// Remote hub address in "host:port" format
     pub hub: String,
@@ -4150,6 +4158,33 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("inbox.status error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_inbox_clear",
+        description = "Clear pending file transfers from the hub inbox. Specify a target session name to clear its transfers, or set all=true to clear everything. Requires a running hub."
+    )]
+    async fn termlink_inbox_clear(&self, Parameters(p): Parameters<InboxClearParams>) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        let params = if p.all.unwrap_or(false) {
+            serde_json::json!({"all": true})
+        } else if let Some(ref target) = p.target {
+            serde_json::json!({"target": target})
+        } else {
+            return json_err("Specify 'target' or set 'all' to true");
+        };
+
+        match termlink_session::client::rpc_call(&hub_socket, "inbox.clear", params).await {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("inbox.clear error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
