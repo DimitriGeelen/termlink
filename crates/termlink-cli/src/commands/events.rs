@@ -181,7 +181,7 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
         }
     };
 
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     if !hub_socket.exists() {
         if json {
             super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
@@ -272,7 +272,7 @@ pub(crate) async fn cmd_emit_to(
         }
     };
 
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     if !hub_socket.exists() {
         if json {
             super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
@@ -793,7 +793,7 @@ pub(crate) async fn cmd_collect(
     opts: CollectOpts<'_>,
 ) -> Result<()> {
     let CollectOpts { topic_filter, interval_ms, max_count, json, timeout_secs, payload_only, since } = opts;
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     if !hub_socket.exists() {
         if json {
             super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));

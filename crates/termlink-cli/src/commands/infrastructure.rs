@@ -6,7 +6,7 @@ use serde_json::json;
 /// T-1031: Resolve the hub pidfile path, checking the default runtime dir first
 /// and falling back to /var/lib/termlink/ (systemd-managed hubs).
 /// Returns (pidfile_path, socket_path) from whichever dir has a running hub.
-fn resolve_hub_paths() -> (PathBuf, PathBuf) {
+pub(crate) fn resolve_hub_paths() -> (PathBuf, PathBuf) {
     let default_pidfile = termlink_hub::pidfile::hub_pidfile_path();
     let default_socket = termlink_hub::server::hub_socket_path();
 
@@ -482,7 +482,7 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
 }
 
 pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
-    let (pidfile_path, _socket_path) = resolve_hub_paths();
+    let (pidfile_path, socket_path) = resolve_hub_paths();
 
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
@@ -494,7 +494,6 @@ pub(crate) fn cmd_hub_stop(json: bool) -> Result<()> {
         }
         termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
             termlink_hub::pidfile::remove(&pidfile_path);
-            let socket_path = termlink_hub::server::hub_socket_path();
             let _ = std::fs::remove_file(&socket_path);
             if json {
                 println!("{}", serde_json::json!({"ok": true, "action": "cleaned", "pid": pid, "reason": "Stale pidfile removed"}));
@@ -626,10 +625,9 @@ pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
             // Wait briefly for new hub to bind
             std::thread::sleep(std::time::Duration::from_millis(500));
 
-            // Verify new hub is running
-            let hub_pidfile = termlink_hub::pidfile::hub_pidfile_path();
+            // Verify new hub is running (check same dir as old hub)
             let running = matches!(
-                termlink_hub::pidfile::check(&hub_pidfile),
+                termlink_hub::pidfile::check(&pidfile_path),
                 termlink_hub::pidfile::PidfileStatus::Running(_)
             );
 
