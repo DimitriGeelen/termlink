@@ -720,7 +720,7 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
 // === Inbox Commands (T-997) ===
 
 pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
@@ -760,7 +760,7 @@ pub(crate) async fn cmd_inbox_clear(target: Option<&str>, all: bool, json_output
         anyhow::bail!("Specify a target session name, or use --all to clear everything");
     }
 
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
@@ -793,7 +793,7 @@ pub(crate) async fn cmd_inbox_clear(target: Option<&str>, all: bool, json_output
 }
 
 pub(crate) async fn cmd_inbox_list(target: &str, json_output: bool) -> Result<()> {
-    let hub_socket = termlink_hub::server::hub_socket_path();
+    let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
