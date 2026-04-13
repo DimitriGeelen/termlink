@@ -178,3 +178,10 @@ decisions:
     date: 2026-04-11
     task: T-923
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-005
+    decision: "Option B — server-side write in `server.rs` after `TcpListener::bind()`"
+    scope: project
+    date: 2026-04-13
+    task: T-1025
+    rationale: "Auto-captured from task file on completion"
