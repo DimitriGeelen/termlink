@@ -897,6 +897,16 @@ pub struct DeregisterParams {
     pub session_id: String,
 }
 
+// T-1038: TOFU management params
+#[derive(Deserialize, JsonSchema)]
+pub struct TofuListParams {}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct TofuClearParams {
+    /// Host:port to clear (e.g., "192.168.10.109:9100")
+    pub host: String,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -4670,6 +4680,49 @@ impl TermLinkTools {
             Err(_) => json_err(format!("Timeout after {}s", p.timeout.unwrap_or(10))),
         }
     }
+
+    // === TOFU management (T-1038) ===
+
+    #[tool(
+        name = "termlink_tofu_list",
+        description = "List all trusted hub certificates (TOFU store). Shows host:port, fingerprint, first_seen, and last_seen for each trusted hub."
+    )]
+    async fn termlink_tofu_list(&self, Parameters(_p): Parameters<TofuListParams>) -> String {
+        let store = termlink_session::tofu::KnownHubStore::default_store();
+        let entries = store.list_all();
+        let items: Vec<serde_json::Value> = entries.iter().map(|e| {
+            serde_json::json!({
+                "host": e.host_port,
+                "fingerprint": e.fingerprint,
+                "first_seen": e.first_seen,
+                "last_seen": e.last_seen,
+            })
+        }).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "count": items.len(),
+            "entries": items,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_tofu_clear",
+        description = "Clear a trusted hub certificate from the TOFU store. After clearing, the next connection to this hub will re-trust its certificate (TOFU). Use this when a hub has been restarted and generated a new TLS certificate."
+    )]
+    async fn termlink_tofu_clear(&self, Parameters(p): Parameters<TofuClearParams>) -> String {
+        let store = termlink_session::tofu::KnownHubStore::default_store();
+        let existed = store.remove(&p.host);
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": existed,
+            "host": p.host,
+            "removed": existed,
+            "message": if existed {
+                format!("Removed TOFU entry for {}. Next connection will re-trust.", p.host)
+            } else {
+                format!("No TOFU entry found for '{}'", p.host)
+            },
+        })).unwrap_or_else(json_err)
+    }
 }
 
 #[cfg(test)]
@@ -5673,5 +5726,26 @@ mod tests {
         // Missing session
         let json = serde_json::json!({"hub": "h:1", "text": "x"});
         assert!(serde_json::from_value::<RemoteInjectParams>(json).is_err());
+    }
+
+    // === TOFU params tests (T-1038) ===
+
+    #[test]
+    fn tofu_list_params_parses_empty() {
+        let json = serde_json::json!({});
+        let _p: TofuListParams = serde_json::from_value(json).unwrap();
+    }
+
+    #[test]
+    fn tofu_clear_params_parses() {
+        let json = serde_json::json!({"host": "192.168.10.109:9100"});
+        let p: TofuClearParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.host, "192.168.10.109:9100");
+    }
+
+    #[test]
+    fn tofu_clear_params_missing_host() {
+        let json = serde_json::json!({});
+        assert!(serde_json::from_value::<TofuClearParams>(json).is_err());
     }
 }
