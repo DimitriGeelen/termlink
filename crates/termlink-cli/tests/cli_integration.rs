@@ -2504,3 +2504,65 @@ fn cli_send_nonexistent_session() {
         stderr
     );
 }
+
+// ─── Ping Error Path Tests ────────────────────────────────────────
+
+#[test]
+fn cli_ping_nonexistent_session() {
+    let dir = TestDir::new("ping-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["ping", "nonexistent-xyz"])
+        .output()
+        .expect("Failed to run ping");
+
+    assert!(!output.status.success(), "ping on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+// ─── Status Error Path Tests ──────────────────────────────────────
+
+#[test]
+fn cli_status_nonexistent_session() {
+    let dir = TestDir::new("status-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["status", "nonexistent-xyz"])
+        .output()
+        .expect("Failed to run status");
+
+    assert!(!output.status.success(), "status on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+// ─── Clean Tests ──────────────────────────────────────────────────
+
+#[test]
+fn cli_clean_empty_dry_run() {
+    let dir = TestDir::new("clean-empty");
+    let output = termlink_cmd(&dir.path)
+        .args(["clean", "--dry-run"])
+        .output()
+        .expect("Failed to run clean --dry-run");
+
+    assert!(output.status.success(), "clean --dry-run should succeed with no sessions");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    // Should report nothing to clean or no stale sessions
+    let lower = combined.to_lowercase();
+    assert!(
+        lower.contains("0") || lower.contains("clean") || lower.contains("no"),
+        "Should report nothing to clean: stdout={}, stderr={}",
+        stdout,
+        stderr
+    );
+}
