@@ -940,6 +940,48 @@ pub struct TofuClearParams {
     pub host: String,
 }
 
+// T-1040: Resolve hub pidfile and socket, checking default runtime dir first,
+// then /var/lib/termlink (systemd-managed hubs). Mirrors CLI's resolve_hub_paths().
+fn resolve_hub_paths() -> (std::path::PathBuf, std::path::PathBuf) {
+    let default_pidfile = termlink_hub::pidfile::hub_pidfile_path();
+    let default_socket = termlink_hub::server::hub_socket_path();
+
+    if matches!(
+        termlink_hub::pidfile::check(&default_pidfile),
+        termlink_hub::pidfile::PidfileStatus::Running(_) | termlink_hub::pidfile::PidfileStatus::Stale(_)
+    ) {
+        return (default_pidfile, default_socket);
+    }
+
+    if std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
+        let alt_dir = std::path::PathBuf::from("/var/lib/termlink");
+        let alt_pidfile = alt_dir.join("hub.pid");
+        if alt_pidfile.exists() {
+            let alt_socket = alt_dir.join("hub.sock");
+            return (alt_pidfile, alt_socket);
+        }
+    }
+
+    (default_pidfile, default_socket)
+}
+
+// T-1040: Hub restart params
+#[derive(Deserialize, JsonSchema)]
+pub struct HubRestartParams {}
+
+// T-1040: Events params
+#[derive(Deserialize, JsonSchema)]
+pub struct EventsParams {
+    /// Session name or ID to query events from
+    pub target: String,
+    /// Only return events with sequence number > since
+    pub since: Option<u64>,
+    /// Filter events by topic name
+    pub topic: Option<String>,
+    /// Timeout in seconds (default: 5)
+    pub timeout: Option<u64>,
+}
+
 // === Result types ===
 
 #[derive(Serialize, JsonSchema)]
@@ -4813,6 +4855,158 @@ impl TermLinkTools {
             "summary": {"total": hub_results.len(), "pass": pass_count, "fail": fail_count},
         })).unwrap_or_else(json_err)
     }
+
+    // === Hub restart (T-1040) ===
+
+    #[tool(
+        name = "termlink_hub_restart",
+        description = "Restart the local termlink hub. Stops the running hub process and starts a new one, preserving TCP binding and runtime directory. Returns the new hub PID on success."
+    )]
+    async fn termlink_hub_restart(&self, Parameters(_p): Parameters<HubRestartParams>) -> String {
+        use termlink_hub::pidfile;
+
+        let (pidfile_path, _) = resolve_hub_paths();
+
+        let old_pid = match pidfile::check(&pidfile_path) {
+            pidfile::PidfileStatus::Running(pid) => pid,
+            pidfile::PidfileStatus::Stale(pid) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "error": format!("Hub PID {} is stale (dead). Use hub start instead.", pid),
+                })).unwrap_or_else(json_err);
+            }
+            pidfile::PidfileStatus::NotRunning => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "error": "Hub is not running. Use hub start to start it.",
+                })).unwrap_or_else(json_err);
+            }
+        };
+
+        // Determine TCP address from existing hub config
+        let runtime_dir = pidfile_path.parent().unwrap_or(std::path::Path::new("/tmp"));
+        let tcp_flag_path = runtime_dir.join("hub.tcp");
+        let tcp_addr = std::fs::read_to_string(&tcp_flag_path)
+            .ok()
+            .map(|s| s.trim().to_string());
+
+        // Find our own binary path
+        let self_exe = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => return json_err(format!("Cannot determine own binary path: {e}")),
+        };
+
+        // Build the hub start command
+        let mut cmd = std::process::Command::new(&self_exe);
+        cmd.arg("hub").arg("start");
+        if let Some(ref addr) = tcp_addr {
+            cmd.arg("--tcp").arg(addr);
+        }
+
+        // Preserve non-default runtime dir (e.g., /var/lib/termlink)
+        let default_runtime = termlink_session::discovery::runtime_dir();
+        if pidfile_path.parent().is_some_and(|d| d != default_runtime.as_path()) {
+            cmd.env("TERMLINK_RUNTIME_DIR", pidfile_path.parent().unwrap());
+        }
+
+        cmd.stdin(std::process::Stdio::null());
+        cmd.stdout(std::process::Stdio::null());
+        cmd.stderr(std::process::Stdio::null());
+
+        // Stop the old hub
+        unsafe { libc::kill(old_pid as i32, libc::SIGTERM) };
+
+        // Wait for old hub to die (up to 3s)
+        for _ in 0..30 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            if !termlink_session::liveness::process_exists(old_pid) {
+                break;
+            }
+        }
+
+        if termlink_session::liveness::process_exists(old_pid) {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "error": format!("Old hub (PID {}) did not stop within 3s", old_pid),
+            })).unwrap_or_else(json_err);
+        }
+
+        // Spawn new hub
+        match cmd.spawn() {
+            Ok(_child) => {
+                // Wait briefly for new hub to start
+                std::thread::sleep(std::time::Duration::from_millis(500));
+
+                // Check if new hub is running
+                let new_status = pidfile::check(&pidfile_path);
+                match new_status {
+                    pidfile::PidfileStatus::Running(new_pid) => {
+                        serde_json::to_string_pretty(&serde_json::json!({
+                            "ok": true,
+                            "old_pid": old_pid,
+                            "new_pid": new_pid,
+                            "tcp": tcp_addr,
+                            "message": format!("Hub restarted: {} -> {}", old_pid, new_pid),
+                        })).unwrap_or_else(json_err)
+                    }
+                    _ => {
+                        serde_json::to_string_pretty(&serde_json::json!({
+                            "ok": false,
+                            "old_pid": old_pid,
+                            "error": "New hub process started but pidfile not yet written. Check hub logs.",
+                        })).unwrap_or_else(json_err)
+                    }
+                }
+            }
+            Err(e) => json_err(format!("Failed to spawn new hub: {e}")),
+        }
+    }
+
+    // === Events (T-1040) ===
+
+    #[tool(
+        name = "termlink_events",
+        description = "Query event history from a local session. Returns events with sequence numbers, topics, timestamps, and payloads. Use 'since' to get events after a specific sequence number."
+    )]
+    async fn termlink_events(&self, Parameters(p): Parameters<EventsParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("Session '{}' not found: {e}", p.target)),
+        };
+
+        let mut params = serde_json::json!({});
+        if let Some(s) = p.since {
+            params["since"] = serde_json::json!(s);
+        }
+        if let Some(ref t) = p.topic {
+            params["topic"] = serde_json::json!(t);
+        }
+
+        let timeout_secs = p.timeout.unwrap_or(5);
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let rpc = client::rpc_call(reg.socket_path(), "event.poll", params);
+
+        let resp = match tokio::time::timeout(timeout_dur, rpc).await {
+            Ok(Ok(v)) => v,
+            Ok(Err(e)) => return json_err(format!("Failed to connect to session: {e}")),
+            Err(_) => return json_err(format!("Event poll timed out after {timeout_secs}s")),
+        };
+
+        match client::unwrap_result(resp) {
+            Ok(result) => {
+                let events = result["events"].as_array();
+                let count = events.map(|e| e.len()).unwrap_or(0);
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "target": p.target,
+                    "count": count,
+                    "next_seq": result["next_seq"],
+                    "events": result["events"],
+                })).unwrap_or_else(json_err)
+            }
+            Err(e) => json_err(format!("Event poll failed: {e}")),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -5851,5 +6045,46 @@ mod tests {
         let json = serde_json::json!({"timeout": 30});
         let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.timeout, Some(30));
+    }
+
+    // === Hub restart params tests (T-1040) ===
+
+    #[test]
+    fn hub_restart_params_parses_empty() {
+        let json = serde_json::json!({});
+        let _p: HubRestartParams = serde_json::from_value(json).unwrap();
+    }
+
+    // === Events params tests (T-1040) ===
+
+    #[test]
+    fn events_params_parses_full() {
+        let json = serde_json::json!({
+            "target": "my-session",
+            "since": 42,
+            "topic": "file.transfer",
+            "timeout": 10,
+        });
+        let p: EventsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "my-session");
+        assert_eq!(p.since, Some(42));
+        assert_eq!(p.topic.as_deref(), Some("file.transfer"));
+        assert_eq!(p.timeout, Some(10));
+    }
+
+    #[test]
+    fn events_params_defaults() {
+        let json = serde_json::json!({"target": "sess1"});
+        let p: EventsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "sess1");
+        assert!(p.since.is_none());
+        assert!(p.topic.is_none());
+        assert!(p.timeout.is_none());
+    }
+
+    #[test]
+    fn events_params_missing_target() {
+        let json = serde_json::json!({});
+        assert!(serde_json::from_value::<EventsParams>(json).is_err());
     }
 }
