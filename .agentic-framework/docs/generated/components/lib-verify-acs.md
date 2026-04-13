@@ -1,6 +1,6 @@
 # verify-acs
 
-> TODO: describe what this component does
+> Scans work-completed tasks with unchecked Human ACs and runs automated evidence collection where programmatic verification is possible
 
 **Type:** script | **Subsystem:** framework-core | **Location:** `lib/verify-acs.sh`
 

@@ -28,7 +28,7 @@ When the active task has `workflow_type: inception`:
 | `lib/review.sh` | calls |
 | `lib/task-audit.sh` | calls |
 
-## Used By (3)
+## Used By (4)
 
 | Component | Relationship |
 |-----------|-------------|

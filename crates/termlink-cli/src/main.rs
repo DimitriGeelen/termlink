@@ -321,6 +321,10 @@ async fn main() -> Result<()> {
                 commands::remote::cmd_fleet_doctor(json, timeout).await
             }
         },
+        Command::Tofu { action } => match action {
+            TofuAction::List { json } => commands::infrastructure::cmd_tofu_list(json),
+            TofuAction::Clear { host, all, json } => commands::infrastructure::cmd_tofu_clear(host.as_deref(), all, json),
+        },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {
                 unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", dir) };

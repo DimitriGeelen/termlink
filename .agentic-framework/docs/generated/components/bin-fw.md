@@ -80,7 +80,7 @@ fw upgrade /opt/my-project  # Sync framework to consumer project
 | `lib/task-audit.sh` | calls |
 | `lib/watchtower.sh` | calls |
 
-## Used By (87)
+## Used By (88)
 
 | Component | Relationship |
 |-----------|-------------|

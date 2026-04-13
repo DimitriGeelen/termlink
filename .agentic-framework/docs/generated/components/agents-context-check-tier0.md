@@ -26,7 +26,7 @@ Flow:
 | `lib/notify.sh` | calls |
 | `lib/watchtower.sh` | calls |
 
-## Used By (6)
+## Used By (7)
 
 | Component | Relationship |
 |-----------|-------------|

@@ -838,3 +838,74 @@ pub(crate) async fn cmd_inbox_list(target: &str, json_output: bool) -> Result<()
     }
     Ok(())
 }
+
+// === TOFU Commands (T-1035) ===
+
+pub(crate) fn cmd_tofu_list(json_output: bool) -> Result<()> {
+    let store = termlink_session::tofu::KnownHubStore::default_store();
+    let entries = store.list_all();
+
+    if json_output {
+        let items: Vec<serde_json::Value> = entries.iter().map(|e| {
+            json!({
+                "host": e.host_port,
+                "fingerprint": e.fingerprint,
+                "first_seen": e.first_seen,
+                "last_seen": e.last_seen,
+            })
+        }).collect();
+        println!("{}", serde_json::to_string_pretty(&json!({
+            "ok": true,
+            "count": items.len(),
+            "entries": items,
+        }))?);
+    } else if entries.is_empty() {
+        println!("No trusted hubs (TOFU store is empty)");
+        println!("  File: {}", termlink_session::tofu::known_hubs_path().display());
+    } else {
+        println!("Trusted hubs ({} entries):", entries.len());
+        println!("  File: {}", termlink_session::tofu::known_hubs_path().display());
+        println!();
+        println!("{:<30} {:<20} {:<22} LAST SEEN", "HOST", "FINGERPRINT", "FIRST SEEN");
+        println!("{}", "-".repeat(95));
+        for e in &entries {
+            let fp_short = if e.fingerprint.len() > 18 {
+                format!("{}...", &e.fingerprint[..18])
+            } else {
+                e.fingerprint.clone()
+            };
+            println!("{:<30} {:<20} {:<22} {}", e.host_port, fp_short, e.first_seen, e.last_seen);
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn cmd_tofu_clear(host: Option<&str>, all: bool, json_output: bool) -> Result<()> {
+    let store = termlink_session::tofu::KnownHubStore::default_store();
+
+    if all {
+        let count = store.clear_all();
+        if json_output {
+            println!("{}", json!({"ok": true, "cleared": count}));
+        } else {
+            println!("Cleared {} TOFU entries", count);
+        }
+    } else if let Some(host_port) = host {
+        let existed = store.remove(host_port);
+        if json_output {
+            println!("{}", json!({"ok": existed, "host": host_port, "removed": existed}));
+        } else if existed {
+            println!("Removed TOFU entry for {}", host_port);
+            println!("  Next connection will re-trust (TOFU)");
+        } else {
+            println!("No TOFU entry found for '{}'", host_port);
+            println!("  Known entries:");
+            for e in store.list_all() {
+                println!("    {}", e.host_port);
+            }
+        }
+    } else {
+        anyhow::bail!("Specify a host:port to clear, or use --all to clear everything");
+    }
+    Ok(())
+}

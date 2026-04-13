@@ -1,6 +1,6 @@
 # watchtower
 
-> TODO: describe what this component does
+> Detects the running Watchtower instance URL and provides browser-open helpers for scripts that need to link to the web UI
 
 **Type:** script | **Subsystem:** framework-core | **Location:** `lib/watchtower.sh`
 

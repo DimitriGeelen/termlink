@@ -16,6 +16,11 @@ task list. Use fw work-on to create real framework tasks instead.
 |--------|-------------|
 | `lib/paths.sh` | calls |
 
+## Used By (2)
+
+| Component | Relationship |
+|-----------|-------------|
+
 ---
 *Auto-generated from Component Fabric. Card: `agents-context-block-task-tools.yaml`*
 *Last verified: 2026-04-12*
