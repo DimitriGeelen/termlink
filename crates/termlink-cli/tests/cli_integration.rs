@@ -2286,3 +2286,107 @@ fn cli_fleet_doctor_no_config() {
         parsed["hubs"]
     );
 }
+
+// ─── Version Tests ────────────────────────────────────────────────
+
+#[test]
+fn cli_version_text() {
+    let dir = TestDir::new("version-text");
+    let output = termlink_cmd(&dir.path)
+        .args(["version"])
+        .output()
+        .expect("Failed to run version");
+
+    assert!(output.status.success(), "version should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("termlink"),
+        "Should contain 'termlink': {}",
+        stdout
+    );
+    // Version string should match pattern: 0.9.XXX
+    assert!(
+        stdout.contains("0.9.") || stdout.contains("0.10."),
+        "Should contain version number: {}",
+        stdout
+    );
+}
+
+#[test]
+fn cli_version_json() {
+    let dir = TestDir::new("version-json");
+    let output = termlink_cmd(&dir.path)
+        .args(["version", "--json"])
+        .output()
+        .expect("Failed to run version --json");
+
+    assert!(output.status.success(), "version --json should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert!(parsed["version"].is_string(), "Should have version string");
+    assert!(
+        parsed["version"].as_str().unwrap().starts_with("0."),
+        "Version should start with 0.: {:?}",
+        parsed["version"]
+    );
+}
+
+// ─── Events Error Path Tests ──────────────────────────────────────
+
+#[test]
+fn cli_events_nonexistent_session() {
+    let dir = TestDir::new("events-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["events", "nonexistent-session-xyz"])
+        .output()
+        .expect("Failed to run events");
+
+    assert!(!output.status.success(), "events on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_events_nonexistent_json() {
+    let dir = TestDir::new("events-noexistj");
+    let output = termlink_cmd(&dir.path)
+        .args(["events", "nonexistent-xyz", "--json"])
+        .output()
+        .expect("Failed to run events --json");
+
+    // events exits with error on nonexistent session
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("not found") || combined.contains("error"),
+        "Should report session not found in output: stdout={}, stderr={}",
+        stdout,
+        stderr
+    );
+}
+
+// ─── Topics Tests ─────────────────────────────────────────────────
+
+#[test]
+fn cli_topics_no_sessions_json() {
+    let dir = TestDir::new("topics-empty");
+    let output = termlink_cmd(&dir.path)
+        .args(["topics", "--json"])
+        .output()
+        .expect("Failed to run topics --json");
+
+    assert!(output.status.success(), "topics --json should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["total_topics"], 0);
+}
