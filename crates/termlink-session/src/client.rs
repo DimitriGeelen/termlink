@@ -37,7 +37,7 @@ impl Client {
                 // T-1029/T-1031: Check alternate cert location for split-brain runtime dirs
                 let effective_cert = if is_local && cert_path.exists() {
                     Some(cert_path)
-                } else if is_local {
+                } else if is_local && std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
                     let alt = std::path::PathBuf::from("/var/lib/termlink/hub.cert.pem");
                     if alt.exists() { Some(alt) } else { None }
                 } else {
