@@ -1,22 +1,23 @@
 ---
-id: T-994
-name: "Fix fabric drift globstar bug + register 3 missing component cards"
+id: T-993
+name: "Fix remote hub profile — rename proxmox4 to ring20-management on .109"
 description: >
-  Fix fabric drift globstar bug + register 3 missing component cards
+  Proxmox4 profile had wrong IP (.122) and wrong name. Renamed to ring20-management,
+  corrected to 192.168.10.109:9100, updated secret and TOFU fingerprint.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-13T07:10:10Z
-last_update: 2026-04-13T07:10:10Z
-date_finished: null
+created: 2026-04-13T06:39:57Z
+last_update: 2026-04-13T06:57:45Z
+date_finished: 2026-04-13T06:57:45Z
 ---
 
-# T-994: Fix fabric drift globstar bug + register 3 missing component cards
+# T-993: Fix proxmox4 hub profile — correct IP to .109
 
 ## Context
 
@@ -26,8 +27,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `fw fabric drift` detects the same unregistered files as `fw audit` (globstar enabled)
-- [x] All 3 unregistered files (target.rs, governance.rs, governance_subscriber.rs) have fabric cards
+- [x] Hub profile renamed from proxmox4 to ring20-management pointing to 192.168.10.109:9100
+- [x] `termlink remote ping ring20-management` succeeds (86ms)
+- [x] T-991 pickup delivered to ring20-manager session via inject + file send
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -47,8 +49,7 @@ date_finished: null
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+termlink remote ping ring20-management 2>&1 | grep -q "PONG"
 
 ## Decisions
 
@@ -63,7 +64,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-13T07:10:10Z — task-created [task-create-agent]
+### 2026-04-13T06:39:57Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-994-fix-fabric-drift-globstar-bug--register-.md
+- **Output:** /opt/termlink/.tasks/active/T-993-fix-proxmox4-hub-profile--correct-ip-to-.md
 - **Context:** Initial task creation
+
+### 2026-04-13T06:57:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

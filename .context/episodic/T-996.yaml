@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-996: Infrastructure reconnaissance — ring20-management + save reference memory
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-13T07:18:14Z
+# ============================================================================
+
+task_id: T-996
+task_name: "Infrastructure reconnaissance — ring20-management + save reference memory"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T07:16:53Z
+completed: 2026-04-13T07:18:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-13T09:18:06+02:00
+last_commit: 2026-04-13T09:18:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Infrastructure recon — ring20-management on .109 documented
+
+# Key outcomes
+outcomes:
+  - "Infrastructure details from ring20-management saved to memory"
+  - "Ring20 network topology documented"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-996-infrastructure-reconnaissance--ring20-ma.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T09:18:06"
+    action: "T-996: Infrastructure recon — ring20-management on .109 documented"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 1
+  lines_added: 69
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-996-infrastructure-reconnaissance--ring20-ma.md
+generated_by: context-agent-hybrid

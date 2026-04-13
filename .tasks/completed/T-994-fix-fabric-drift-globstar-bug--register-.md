@@ -1,22 +1,22 @@
 ---
-id: T-995
-name: "Enrich 3 new fabric cards (target.rs, governance.rs, governance_subscriber.rs)"
+id: T-994
+name: "Fix fabric drift globstar bug + register 3 missing component cards"
 description: >
-  Enrich 3 new fabric cards (target.rs, governance.rs, governance_subscriber.rs)
+  Fix fabric drift globstar bug + register 3 missing component cards
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-13T07:13:30Z
-last_update: 2026-04-13T07:13:30Z
-date_finished: null
+created: 2026-04-13T07:10:10Z
+last_update: 2026-04-13T07:12:03Z
+date_finished: 2026-04-13T07:12:03Z
 ---
 
-# T-995: Enrich 3 new fabric cards (target.rs, governance.rs, governance_subscriber.rs)
+# T-994: Fix fabric drift globstar bug + register 3 missing component cards
 
 ## Context
 
@@ -26,8 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] All 3 fabric cards have accurate purpose, type, subsystem, and dependency edges
-- [x] fw fabric drift shows 0 unregistered after enrichment
+- [x] `fw fabric drift` detects the same unregistered files as `fw audit` (globstar enabled)
+- [x] All 3 unregistered files (target.rs, governance.rs, governance_subscriber.rs) have fabric cards
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +63,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-13T07:13:30Z — task-created [task-create-agent]
+### 2026-04-13T07:10:10Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-995-enrich-3-new-fabric-cards-targetrs-gover.md
+- **Output:** /opt/termlink/.tasks/active/T-994-fix-fabric-drift-globstar-bug--register-.md
 - **Context:** Initial task creation
+
+### 2026-04-13T07:12:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
