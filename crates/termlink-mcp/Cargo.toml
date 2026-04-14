@@ -7,7 +7,7 @@ repository.workspace = true
 description = "MCP server for TermLink — expose terminal orchestration as structured tools"
 
 [dependencies]
-rmcp = { version = "1.3", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "~1.3", features = ["server", "transport-io", "macros"] }
 schemars = "1"
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -25,6 +25,6 @@ termlink-session = { workspace = true }
 termlink-hub = { workspace = true }
 
 [dev-dependencies]
-rmcp = { version = "1.3", features = ["client", "server", "transport-io", "macros", "transport-async-rw"] }
+rmcp = { version = "~1.3", features = ["client", "server", "transport-io", "macros", "transport-async-rw"] }
 termlink-test-utils = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
