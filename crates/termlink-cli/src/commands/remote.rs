@@ -1410,6 +1410,8 @@ pub(crate) async fn cmd_fleet_doctor(
                 if !json {
                     eprintln!("  [PASS] connected in {}ms", latency);
                 }
+                // T-1053: pass resets the auth-failure streak + re-arms concern gating.
+                let _ = maybe_track_fleet_failure(name, &entry.address, None);
             }
             Ok(Err(e)) => {
                 total_fail += 1;
@@ -1424,6 +1426,8 @@ pub(crate) async fn cmd_fleet_doctor(
                 // T-1052: auto-register a learning for auth/TOFU failure classes so drift
                 // is detectable by future agents (R1). Silent best-effort — never blocks.
                 let _ = maybe_record_auth_mismatch_learning(name, &entry.address, &msg);
+                // T-1053: track per-hub streak; register a concern after N failures >24h apart.
+                let _ = maybe_track_fleet_failure(name, &entry.address, auth_mismatch_class(&msg));
             }
             Err(_) => {
                 total_fail += 1;
@@ -1433,6 +1437,8 @@ pub(crate) async fn cmd_fleet_doctor(
                     eprintln!("  [FAIL] Timeout after {}s", timeout_secs);
                     eprintln!("  hint: {}", diagnostic);
                 }
+                // T-1053: timeouts aren't auth-class failures → reset streak.
+                let _ = maybe_track_fleet_failure(name, &entry.address, None);
             }
         }
 
@@ -1620,6 +1626,245 @@ pub(crate) fn maybe_record_auth_mismatch_learning(
     // Refresh the dedupe marker.
     let _ = std::fs::write(&marker, &fingerprint);
 
+    Ok(())
+}
+
+// =========================================================================
+// T-1053: fleet-doctor concern auto-registration (G-019 compliance)
+//
+// One-off observations are recorded as learnings by T-1052. A sustained
+// pattern — ≥3 consecutive fleet-doctor failures for the same hub, spanning
+// >24h — is promoted to a concern in .context/project/concerns.yaml so it
+// surfaces in Watchtower and audit passes.
+//
+// Per-hub state is persisted in .context/working/.fleet-failure-state.json
+// as { "hubs": { "<hub>": { "consecutive_failures": N, "first_failure_at":
+// "...", "last_failure_at": "...", "last_class": "...", "concern_registered":
+// bool } } }. Passing runs reset the counter and re-arm concern_registered.
+// =========================================================================
+
+const FLEET_CONCERN_THRESHOLD: u32 = 3;
+const FLEET_CONCERN_AGE_SECS: u64 = 86_400;
+
+/// State file path. Returns None when outside a framework project.
+fn fleet_state_path() -> Option<std::path::PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    let working = cwd.join(".context/working");
+    if !working.exists() {
+        return None;
+    }
+    Some(working.join(".fleet-failure-state.json"))
+}
+
+fn fleet_concerns_path() -> Option<std::path::PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    let concerns = cwd.join(".context/project/concerns.yaml");
+    if !concerns.exists() {
+        return None;
+    }
+    Some(concerns)
+}
+
+/// Parse the `YYYY-MM-DDTHH:MM:SSZ` format produced by `utc_iso8601_now`
+/// into seconds since the epoch. Returns `None` on parse failure.
+///
+/// Deliberately permissive — the input comes from our own writer, so we
+/// accept whatever we emit and silently fail on anything else rather than
+/// panicking inside a best-effort pathway.
+fn parse_iso8601_utc(s: &str) -> Option<u64> {
+    // Format: YYYY-MM-DDTHH:MM:SSZ  (20 chars)
+    if s.len() < 19 || !s.ends_with('Z') {
+        return None;
+    }
+    let y: i64 = s.get(0..4)?.parse().ok()?;
+    let mo: u32 = s.get(5..7)?.parse().ok()?;
+    let d: u32 = s.get(8..10)?.parse().ok()?;
+    let h: u32 = s.get(11..13)?.parse().ok()?;
+    let mi: u32 = s.get(14..16)?.parse().ok()?;
+    let se: u32 = s.get(17..19)?.parse().ok()?;
+    if !(1..=12).contains(&mo) || !(1..=31).contains(&d) || h > 23 || mi > 59 || se > 60 {
+        return None;
+    }
+
+    // Days from epoch (1970-01-01) to Y-M-D.
+    let mut days: i64 = 0;
+    for yr in 1970..y {
+        days += if yr % 4 == 0 && (yr % 100 != 0 || yr % 400 == 0) { 366 } else { 365 };
+    }
+    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+    let mdays = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    for (i, &md) in mdays.iter().enumerate() {
+        if (i as u32) + 1 == mo {
+            break;
+        }
+        days += md as i64;
+    }
+    days += (d as i64) - 1;
+
+    let secs = (days * 86_400) + (h as i64) * 3600 + (mi as i64) * 60 + (se as i64);
+    if secs < 0 { None } else { Some(secs as u64) }
+}
+
+fn now_unix_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// Load state file, returning an empty map if the file is absent or malformed.
+/// Best-effort: we never fail the caller just because state is unreadable.
+fn load_fleet_state(path: &std::path::Path) -> serde_json::Value {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({"hubs": {}}))
+}
+
+fn save_fleet_state(path: &std::path::Path, state: &serde_json::Value) {
+    if let Ok(s) = serde_json::to_string_pretty(state) {
+        let _ = std::fs::write(path, s);
+    }
+}
+
+/// Update per-hub failure tracking and, on threshold breach, append a concern.
+///
+/// Classification rules:
+/// - `class = None` (no auth-class error) → treated as a reset signal for the
+///   hub's auth-failure streak. The hub may still be failing for other reasons
+///   (connection refused, TLS handshake, etc.), but those aren't the
+///   auth-rotation pattern T-1051 targets.
+/// - `class = Some("auth-mismatch" | "tofu-violation")` → increment the streak.
+///
+/// Best-effort: silently no-ops outside framework projects (no `.context/`).
+/// Never fails the caller.
+pub(crate) fn maybe_track_fleet_failure(
+    hub_name: &str,
+    address: &str,
+    class: Option<&str>,
+) -> Result<()> {
+    let state_path = match fleet_state_path() {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    let mut state = load_fleet_state(&state_path);
+    let now_iso = utc_iso8601_now();
+    let now_secs = now_unix_secs();
+
+    // Ensure hubs object exists.
+    if !state.get("hubs").map(|v| v.is_object()).unwrap_or(false) {
+        state["hubs"] = serde_json::json!({});
+    }
+
+    // Take (or init) the per-hub entry. We mutate via take-replace to avoid
+    // borrow-checker fights with serde_json's indexing API.
+    let mut hub_state = state["hubs"]
+        .get(hub_name)
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({
+            "consecutive_failures": 0,
+            "first_failure_at": serde_json::Value::Null,
+            "last_failure_at": serde_json::Value::Null,
+            "last_class": serde_json::Value::Null,
+            "concern_registered": false,
+        }));
+
+    match class {
+        None => {
+            // Reset — pass or non-auth failure.
+            hub_state["consecutive_failures"] = serde_json::json!(0);
+            hub_state["first_failure_at"] = serde_json::Value::Null;
+            hub_state["last_failure_at"] = serde_json::Value::Null;
+            hub_state["last_class"] = serde_json::Value::Null;
+            hub_state["concern_registered"] = serde_json::json!(false);
+        }
+        Some(c) => {
+            let prior = hub_state["consecutive_failures"].as_u64().unwrap_or(0);
+            let new_count = prior + 1;
+            hub_state["consecutive_failures"] = serde_json::json!(new_count);
+            if prior == 0 {
+                hub_state["first_failure_at"] = serde_json::json!(now_iso.clone());
+            }
+            hub_state["last_failure_at"] = serde_json::json!(now_iso.clone());
+            hub_state["last_class"] = serde_json::json!(c);
+
+            // Threshold check.
+            let already_registered = hub_state["concern_registered"].as_bool().unwrap_or(false);
+            let first_at = hub_state["first_failure_at"].as_str().unwrap_or("");
+            let first_secs = parse_iso8601_utc(first_at).unwrap_or(now_secs);
+            let age = now_secs.saturating_sub(first_secs);
+
+            if !already_registered
+                && (new_count as u32) >= FLEET_CONCERN_THRESHOLD
+                && age > FLEET_CONCERN_AGE_SECS
+                && append_fleet_concern(hub_name, address, c, new_count as u32, first_at, &now_iso).is_ok()
+            {
+                hub_state["concern_registered"] = serde_json::json!(true);
+            }
+        }
+    }
+
+    state["hubs"][hub_name] = hub_state;
+    save_fleet_state(&state_path, &state);
+    Ok(())
+}
+
+/// Append a gap-type concern to `.context/project/concerns.yaml`.
+fn append_fleet_concern(
+    hub_name: &str,
+    address: &str,
+    class: &str,
+    consecutive: u32,
+    first_at: &str,
+    now_iso: &str,
+) -> Result<()> {
+    let path = match fleet_concerns_path() {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let max_id = existing
+        .lines()
+        .filter_map(|l| {
+            let t = l.trim();
+            t.strip_prefix("- id: G-").or_else(|| t.strip_prefix("id: G-"))
+        })
+        .filter_map(|s| s.trim().parse::<u32>().ok())
+        .max()
+        .unwrap_or(0);
+    let id = format!("G-{:03}", max_id + 1);
+    let date_only = now_iso.split('T').next().unwrap_or("");
+
+    let title = format!(
+        "TermLink hub '{hub_name}' ({address}) has been failing fleet-doctor with {class} for {consecutive}+ consecutive runs over >24h"
+    );
+    let description = format!(
+        "Auto-registered by T-1053 under G-019 (framework-blind-to-persistent-failure guard). Hub has failed fleet-doctor with error class '{class}' for {consecutive} consecutive runs since {first_at} (first observed). This indicates either a genuinely broken hub auth state OR stale client credentials that were not refreshed after a hub rotation. Per T-1051 Option D, the heal path is: 1) confirm the hub is intended to be up (termlink remote ping {address} from a trusted anchor), 2) if yes, refresh the client secret (termlink fleet reauth {hub_name} when T-1054 lands, or manually copy /var/lib/termlink/hub.secret via an out-of-band channel for now)."
+    );
+
+    let entry = format!(
+        "\n- id: {id}\n  type: gap\n  title: \"{title}\"\n  description: \"{description}\"\n  spec_reference: \"T-1051 inception, T-1053 implementation, .context/working/.fleet-failure-state.json\"\n  severity: high\n  trigger_fired: true\n  trigger_event: \"{now_iso}: {consecutive} consecutive fleet-doctor failures on {hub_name} ({address}) with class {class}, first observed {first_at}\"\n  detection_lag_days: \"1\"\n  what_works_now: \"Fleet doctor correctly classifies the error and emits a hint. T-1052 has already recorded an isolated learning. This concern escalates the sustained pattern to Watchtower visibility.\"\n  what_remains: \"Operator must refresh the client's cached secret for this hub. Long-term fix: T-1054 (termlink fleet reauth) lands a one-command heal.\"\n  mitigation_candidate: \"Ship T-1054 (fleet reauth Tier-1) and T-1055 (fleet reauth --bootstrap-from, Tier-2).\"\n  status: watching\n  created: {date_only}\n  last_reviewed: {date_only}\n  related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055]\n",
+        id = id,
+        title = title,
+        description = description,
+        now_iso = now_iso,
+        consecutive = consecutive,
+        hub_name = hub_name,
+        address = address,
+        class = class,
+        first_at = first_at,
+        date_only = date_only,
+    );
+
+    let mut new_content = existing;
+    if !new_content.ends_with('\n') {
+        new_content.push('\n');
+    }
+    new_content.push_str(&entry);
+    std::fs::write(&path, new_content)
+        .with_context(|| format!("failed to write {}", path.display()))?;
     Ok(())
 }
 
@@ -1895,13 +2140,14 @@ mod tests {
         assert_eq!(auth_mismatch_class("TLS handshake failed"), None);
     }
 
+    /// Module-level CWD lock — every test that mutates `std::env::current_dir`
+    /// or `HOME` must acquire this to avoid racing with sibling tests in the
+    /// same binary (cargo runs tests in parallel across threads by default).
+    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     /// Create an isolated tempdir that looks like a framework project, cd into it,
     /// run the closure, then restore CWD. Returns whatever the closure returned.
-    ///
-    /// NOTE: cwd is process-global, so these tests are serialized via a Mutex.
     fn with_framework_cwd<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
-        use std::sync::Mutex;
-        static CWD_LOCK: Mutex<()> = Mutex::new(());
         let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
         let tmp = std::env::temp_dir().join(format!(
@@ -1916,6 +2162,11 @@ mod tests {
             "# Project Learnings\nlearnings:\n",
         )
         .expect("seed learnings.yaml");
+        std::fs::write(
+            tmp.join(".context/project/concerns.yaml"),
+            "# Concerns Register\nconcerns:\n",
+        )
+        .expect("seed concerns.yaml");
 
         let prev = std::env::current_dir().expect("save cwd");
         std::env::set_current_dir(&tmp).expect("cd into tmp");
@@ -2008,11 +2259,163 @@ mod tests {
         });
     }
 
+    // -------------------------------------------------------------------
+    // T-1053: fleet-doctor concern auto-registration
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn parse_iso8601_utc_roundtrips_now() {
+        let s = utc_iso8601_now();
+        let secs = parse_iso8601_utc(&s).expect("parse our own output");
+        // now_unix_secs() vs parsed should be within a few seconds.
+        let now = now_unix_secs();
+        let delta = secs.abs_diff(now);
+        assert!(delta < 3, "parse roundtrip off by {delta}s: got {secs} vs now {now} (input {s})");
+    }
+
+    #[test]
+    fn parse_iso8601_utc_rejects_malformed() {
+        assert!(parse_iso8601_utc("").is_none());
+        assert!(parse_iso8601_utc("2026-04-14").is_none(), "date-only must fail");
+        assert!(parse_iso8601_utc("2026-13-01T00:00:00Z").is_none(), "month > 12 must fail");
+        assert!(parse_iso8601_utc("2026-04-14T25:00:00Z").is_none(), "hour > 23 must fail");
+        assert!(parse_iso8601_utc("not-a-date").is_none());
+    }
+
+    #[test]
+    fn fleet_concern_failure_increments_counter() {
+        with_framework_cwd(|tmp| {
+            maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", Some("auth-mismatch"))
+                .expect("first failure");
+            maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", Some("auth-mismatch"))
+                .expect("second failure");
+
+            let state: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(tmp.join(".context/working/.fleet-failure-state.json"))
+                    .expect("state exists"),
+            ).expect("state parses");
+
+            let hub = &state["hubs"]["ring20-management"];
+            assert_eq!(hub["consecutive_failures"].as_u64(), Some(2));
+            assert!(hub["first_failure_at"].is_string(), "first_failure_at should be set");
+            assert_eq!(hub["last_class"].as_str(), Some("auth-mismatch"));
+            assert_eq!(hub["concern_registered"].as_bool(), Some(false),
+                "2 failures, no age → no concern yet");
+        });
+    }
+
+    #[test]
+    fn fleet_concern_success_resets_counter() {
+        with_framework_cwd(|tmp| {
+            maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", Some("auth-mismatch"))
+                .expect("failure");
+            maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", Some("auth-mismatch"))
+                .expect("failure");
+            // Pass → reset
+            maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", None).expect("pass");
+
+            let state: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(tmp.join(".context/working/.fleet-failure-state.json"))
+                    .expect("state exists"),
+            ).expect("state parses");
+            let hub = &state["hubs"]["ring20-management"];
+            assert_eq!(hub["consecutive_failures"].as_u64(), Some(0));
+            assert!(hub["first_failure_at"].is_null(), "first_failure_at cleared on success");
+            assert_eq!(hub["concern_registered"].as_bool(), Some(false));
+        });
+    }
+
+    #[test]
+    fn fleet_concern_fresh_failures_do_not_register() {
+        with_framework_cwd(|tmp| {
+            // 3 failures in quick succession — threshold count met but age <24h.
+            for _ in 0..5 {
+                maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", Some("auth-mismatch"))
+                    .expect("failure");
+            }
+            let concerns = std::fs::read_to_string(tmp.join(".context/project/concerns.yaml"))
+                .expect("read concerns");
+            assert!(
+                !concerns.contains("ring20-management"),
+                "must not register concern for hub failing <24h",
+            );
+
+            let state: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(tmp.join(".context/working/.fleet-failure-state.json"))
+                    .expect("state exists"),
+            ).expect("state parses");
+            let hub = &state["hubs"]["ring20-management"];
+            assert_eq!(hub["consecutive_failures"].as_u64(), Some(5));
+            assert_eq!(hub["concern_registered"].as_bool(), Some(false));
+        });
+    }
+
+    #[test]
+    fn fleet_concern_registers_when_aged_past_threshold() {
+        with_framework_cwd(|tmp| {
+            // Manually seed state with first_failure_at > 24h ago.
+            let long_ago = now_unix_secs().saturating_sub(86_400 * 2); // 2 days ago
+            // Build an ISO-8601 by round-tripping via our formatter indirectly —
+            // since we control the format, we can manually construct a valid one.
+            // Easiest: fabricate a known date-string that we know parses.
+            let long_ago_iso = {
+                // Simple: reuse now() then rewrite the year back — but that's fragile.
+                // Use a fixed known-old string instead.
+                "2026-01-01T00:00:00Z"
+            };
+            let seed = serde_json::json!({
+                "hubs": {
+                    "ring20-management": {
+                        "consecutive_failures": 2,
+                        "first_failure_at": long_ago_iso,
+                        "last_failure_at": long_ago_iso,
+                        "last_class": "auth-mismatch",
+                        "concern_registered": false,
+                    }
+                }
+            });
+            let state_path = tmp.join(".context/working/.fleet-failure-state.json");
+            std::fs::write(&state_path, serde_json::to_string_pretty(&seed).unwrap())
+                .expect("seed state");
+            let _ = long_ago; // suppress unused warning when asserts below don't need it
+
+            // One more failure should push count to 3 and age past 24h → concern.
+            maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", Some("auth-mismatch"))
+                .expect("threshold-breaking failure");
+
+            let concerns = std::fs::read_to_string(tmp.join(".context/project/concerns.yaml"))
+                .expect("read concerns");
+            assert!(
+                concerns.contains("ring20-management"),
+                "concern must be registered: {concerns}",
+            );
+            assert!(concerns.contains("type: gap"), "concern must be gap-typed");
+            assert!(concerns.contains("severity: high"), "concern must be high severity");
+            assert!(concerns.contains("status: watching"), "concern must start in watching");
+            assert!(concerns.contains("T-1053"), "spec_reference must mention T-1053");
+
+            let state: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&state_path).expect("state exists"),
+            ).expect("state parses");
+            assert_eq!(
+                state["hubs"]["ring20-management"]["concern_registered"].as_bool(),
+                Some(true),
+                "state must flag concern_registered after write",
+            );
+
+            // Subsequent failure must NOT write a second concern.
+            let before_second = concerns.matches("ring20-management").count();
+            maybe_track_fleet_failure("ring20-management", "10.0.0.1:9100", Some("auth-mismatch"))
+                .expect("subsequent failure");
+            let after_second = std::fs::read_to_string(tmp.join(".context/project/concerns.yaml"))
+                .expect("read concerns").matches("ring20-management").count();
+            assert_eq!(before_second, after_second, "dedupe: must not add a second concern");
+        });
+    }
+
     #[test]
     fn fleet_learning_no_op_outside_framework_project() {
         // Run in a fresh tempdir with NO .context/ present — must silently succeed.
-        use std::sync::Mutex;
-        static CWD_LOCK: Mutex<()> = Mutex::new(());
         let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
         let tmp = std::env::temp_dir().join(format!(
