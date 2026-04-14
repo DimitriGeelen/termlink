@@ -39,7 +39,82 @@ Homebrew formula                     # brew install works (downloads from GitHub
 
 ## Project-Specific Rules
 
-<!-- Add any project-specific rules that agents must follow -->
+### Hub Auth Rotation Protocol
+
+TermLink hubs use a persistent 32-byte HMAC secret (`hub.secret`) and a
+persistent TLS cert (`hub.cert.pem` / `hub.key.pem`) under their `runtime_dir`
+(T-933 / T-945 / T-1028 / T-1031). Under normal operation the hub preserves
+these across restarts and clients never need to re-pin. Rotation still
+happens in three scenarios: first-time deploy of persist-if-present onto a
+hub that previously regenerated on restart, a systemd restart landing in a
+different runtime_dir, or an intentional operator regeneration. In all three
+cases the client's cached secret becomes stale and **`termlink fleet doctor`
+reports `Token validation failed: invalid signature`**. See
+`docs/reports/T-1051-termlink-auth-reliability-inception.md` for the full
+root-cause analysis and Option D decision.
+
+**Symptom recognition.** Any of the following means rotation happened and
+the client needs healing:
+
+- `fleet doctor` hint: `Secret mismatch — hub was likely restarted with a new secret`
+- `fleet doctor` hint: `TOFU VIOLATION` / `fingerprint changed`
+- Auto-registered `PL-XXX` learning in `.context/project/learnings.yaml` with
+  `date_observed=` and `hub_fingerprint=` fields (T-1052).
+- After ≥3 consecutive auth-mismatches spanning >24h, an auto-registered
+  `G-XXX` concern in `.context/project/concerns.yaml` with
+  `type: gap, severity: high, status: watching` (T-1053).
+
+**Heal path — Tier-1 (print the incantation).** For visibility and ad-hoc
+triage:
+
+```
+termlink fleet reauth <profile>
+```
+
+Reads `~/.termlink/hubs.toml`, does NOT contact the hub, does NOT write. Prints
+the exact copy-pasteable SSH-read → local-file-write → chmod 600 → verify
+sequence. Safe to run anywhere. Implementation: T-1054,
+`crates/termlink-cli/src/commands/remote.rs::render_fleet_reauth_plan`.
+
+**Heal path — Tier-2 (autoheal via explicit trust anchor).** When you're
+confident in the source:
+
+```
+termlink fleet reauth <profile> --bootstrap-from file:/path/to/new-secret.hex
+termlink fleet reauth <profile> --bootstrap-from ssh:<host>
+```
+
+Fetches the new secret via the named out-of-band channel, validates 64-char
+hex, backs up the existing `secret_file` to `.hex.bak`, atomically writes the
+new file at chmod 600, and prints a 12-char fingerprint preview. Refuses
+profiles that use inline `secret = ...` (migration hint provided).
+Implementation: T-1055, same file, `cmd_fleet_reauth_bootstrap`.
+
+**R2 — out-of-band trust anchor rule.** The `--bootstrap-from` source MUST
+NOT itself depend on the termlink auth being healed (chicken-and-egg).
+`file:` and `ssh:` are safe by construction. `command:<shell>` was
+deliberately excluded from T-1055 and requires a later task with explicit
+security review before adoption. The operator picks the anchor per incident;
+there is no default.
+
+**R1 — memory-drift detection via `hub_fingerprint`.** Every auto-registered
+learning from T-1052 carries `hub_fingerprint=sha256:<hex>` captured from the
+client's `KnownHubStore` at observation time. A future agent that finds a
+matching-hub learning should compare that fingerprint against the current
+pinned fingerprint (`termlink_session::tofu::KnownHubStore::default_store().get(address)`).
+If they differ, the learning predates a rotation and must be treated as
+potentially stale — do not act on its conclusions without re-verifying
+against current state. This addresses the failure mode observed in the
+T-1051 peer review where a prior learning on ring20-dashboard claimed a hub
+lived at `.122` after it had already moved back to `.109`.
+
+**Related tasks.** T-1051 (inception, GO on Option D) → T-1052 (learning
+auto-register, R1) → T-1053 (concern auto-register, G-019) → T-1054 (Tier-1
+heal printer) → T-1055 (Tier-2 `--bootstrap-from`, R2) → T-1056 (rmcp pin,
+unblocks consumer installs of the heal CLI) → T-1057 (build.rs version
+freshness, so operators can confirm they're running the version that has
+these commands). T-1058 added this documentation.
+
 ## Core Principle
 
 **Nothing gets done without a task.** This is enforced structurally by the framework, not by agent discipline.
