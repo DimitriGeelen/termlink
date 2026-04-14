@@ -2754,3 +2754,73 @@ fn cli_request_nonexistent_target() {
         stderr
     );
 }
+
+// ─── KV Error Path Tests ──────────────────────────────────────────
+
+#[test]
+fn cli_kv_set_nonexistent_session() {
+    let dir = TestDir::new("kv-set-noex");
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "nonexistent-xyz", "set", "mykey", "myvalue"])
+        .output()
+        .expect("Failed to run kv set");
+
+    assert!(!output.status.success(), "kv set on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_kv_get_nonexistent_session() {
+    let dir = TestDir::new("kv-get-noex");
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "nonexistent-xyz", "get", "mykey"])
+        .output()
+        .expect("Failed to run kv get");
+
+    assert!(!output.status.success(), "kv get on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_kv_list_nonexistent_session() {
+    let dir = TestDir::new("kv-list-noex");
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "nonexistent-xyz", "list"])
+        .output()
+        .expect("Failed to run kv list");
+
+    assert!(!output.status.success(), "kv list on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_kv_del_nonexistent_session() {
+    let dir = TestDir::new("kv-del-noex");
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "nonexistent-xyz", "del", "mykey"])
+        .output()
+        .expect("Failed to run kv del");
+
+    assert!(!output.status.success(), "kv del on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
