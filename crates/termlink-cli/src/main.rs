@@ -4,6 +4,8 @@ mod config;
 mod manifest;
 mod target;
 mod util;
+#[cfg(test)]
+mod test_env_lock;
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
@@ -320,8 +322,8 @@ async fn main() -> Result<()> {
             FleetAction::Doctor { json, timeout } => {
                 commands::remote::cmd_fleet_doctor(json, timeout).await
             }
-            FleetAction::Reauth { profile } => {
-                commands::remote::cmd_fleet_reauth(&profile)
+            FleetAction::Reauth { profile, bootstrap_from } => {
+                commands::remote::cmd_fleet_reauth(&profile, bootstrap_from.as_deref())
             }
         },
         Command::Tofu { action } => match action {

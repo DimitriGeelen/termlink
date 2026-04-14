@@ -1931,8 +1931,15 @@ fn render_fleet_reauth_plan(profile: &str, entry: &crate::config::HubEntry) -> S
     out
 }
 
-/// `termlink fleet reauth <profile>` — Tier-1 heal incantation printer.
-pub(crate) fn cmd_fleet_reauth(profile: &str) -> Result<()> {
+/// `termlink fleet reauth <profile> [--bootstrap-from SOURCE]`.
+///
+/// When `bootstrap_from` is `None`: prints the Tier-1 heal incantation
+/// (T-1054 behavior preserved).
+///
+/// When `bootstrap_from` is `Some("file:PATH" | "ssh:HOST")`: fetches the
+/// new secret via the named out-of-band channel, validates it, backs up the
+/// existing secret file, and writes the new one at chmod 600 (T-1055, R2).
+pub(crate) fn cmd_fleet_reauth(profile: &str, bootstrap_from: Option<&str>) -> Result<()> {
     let config = crate::config::load_hubs_config();
     if config.hubs.is_empty() {
         anyhow::bail!(
@@ -1955,7 +1962,144 @@ pub(crate) fn cmd_fleet_reauth(profile: &str) -> Result<()> {
         }
     };
 
-    print!("{}", render_fleet_reauth_plan(profile, entry));
+    match bootstrap_from {
+        None => {
+            // Tier-1 behavior — print the heal incantation.
+            print!("{}", render_fleet_reauth_plan(profile, entry));
+            Ok(())
+        }
+        Some(source) => cmd_fleet_reauth_bootstrap(profile, entry, source),
+    }
+}
+
+/// T-1055 Tier-2 heal: fetch the new secret via the named out-of-band source,
+/// validate it, back up the existing file, and write the new one.
+fn cmd_fleet_reauth_bootstrap(
+    profile: &str,
+    entry: &crate::config::HubEntry,
+    source: &str,
+) -> Result<()> {
+    let secret_file = match &entry.secret_file {
+        Some(p) => p.clone(),
+        None => anyhow::bail!(
+            "Profile '{profile}' uses an inline secret (no secret_file). \
+             The --bootstrap-from heal path writes to secret_file only. \
+             Migrate first: in ~/.termlink/hubs.toml change [hubs.{profile}] to use \
+             secret_file = \"/root/.termlink/secrets/<host>.hex\" instead of secret = ..., then retry."
+        ),
+    };
+
+    // Resolve the bootstrap source to the hex value of the new secret.
+    let raw = fetch_bootstrap_secret(source)
+        .with_context(|| format!("failed to fetch new secret via {source}"))?;
+    let hex = normalize_and_validate_secret_hex(&raw)
+        .with_context(|| format!("new secret from {source} is not valid 64-char hex"))?;
+
+    // Persist: back up existing, then atomically write the new file.
+    let target = std::path::PathBuf::from(&secret_file);
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!("failed to create parent dir for secret file: {}", parent.display())
+        })?;
+    }
+    if target.exists() {
+        let backup = target.with_extension("hex.bak");
+        std::fs::copy(&target, &backup).with_context(|| {
+            format!("failed to back up existing secret to {}", backup.display())
+        })?;
+    }
+    write_secret_file(&target, &hex)?;
+
+    // Success — echo the short fingerprint (first 12 chars) so the operator can
+    // confirm without leaking the full secret to terminal history.
+    let preview: String = hex.chars().take(12).collect();
+    eprintln!("[OK] heal complete");
+    eprintln!("     profile:      {profile}");
+    eprintln!("     address:      {}", entry.address);
+    eprintln!("     secret file:  {secret_file}");
+    eprintln!("     bootstrap:    {source}");
+    eprintln!("     new secret:   {preview}… (first 12 of 64 hex chars)");
+    eprintln!();
+    eprintln!("Verify with: termlink fleet doctor");
+    Ok(())
+}
+
+/// Read the hex secret from the named bootstrap source.
+/// Scheme → behavior:
+///   file:<path>    → read file contents (UTF-8)
+///   ssh:<host>     → spawn `ssh <host> -- sudo cat /var/lib/termlink/hub.secret`
+/// Any other prefix → error listing the accepted forms.
+fn fetch_bootstrap_secret(source: &str) -> Result<String> {
+    if let Some(path) = source.strip_prefix("file:") {
+        if path.is_empty() {
+            anyhow::bail!("file: source requires a path (e.g. file:/tmp/new-secret.hex)");
+        }
+        let content = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read bootstrap file: {path}"))?;
+        return Ok(content);
+    }
+    if let Some(host) = source.strip_prefix("ssh:") {
+        if host.is_empty() {
+            anyhow::bail!("ssh: source requires a host (e.g. ssh:hub.example.com)");
+        }
+        // Deliberately fixed remote path — matches the hub's default
+        // runtime_dir for systemd-run deployments. Bespoke paths are an
+        // explicit non-goal (see task scope).
+        let output = std::process::Command::new("ssh")
+            .args([host, "--", "sudo", "cat", "/var/lib/termlink/hub.secret"])
+            .output()
+            .with_context(|| format!("failed to invoke ssh for host '{host}'"))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!(
+                "ssh {host} -- sudo cat /var/lib/termlink/hub.secret exited with status {:?}: {}",
+                output.status.code(),
+                stderr.trim(),
+            );
+        }
+        return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+    }
+    anyhow::bail!(
+        "Unknown bootstrap source '{source}'. Accepted forms:\n  file:<path>\n  ssh:<host>\n\
+         Unsupported by design: command:<cmd> (arbitrary shell — reserved for a later task)."
+    )
+}
+
+/// Trim and validate that `raw` is 64 hex chars (a 32-byte HMAC secret).
+fn normalize_and_validate_secret_hex(raw: &str) -> Result<String> {
+    let trimmed = raw.trim();
+    if trimmed.len() != 64 {
+        anyhow::bail!(
+            "expected 64 hex characters, got {} characters (trimmed)",
+            trimmed.len()
+        );
+    }
+    if !trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+        anyhow::bail!("bootstrap value contains non-hex characters");
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Write a secret file at chmod 600. Creates the file if missing; overwrites
+/// existing content atomically via a `<path>.tmp` → rename dance.
+fn write_secret_file(path: &std::path::Path, hex: &str) -> Result<()> {
+    let tmp = path.with_extension("hex.tmp");
+    // Write content.
+    std::fs::write(&tmp, hex)
+        .with_context(|| format!("failed to write temp secret file: {}", tmp.display()))?;
+    // Tighten perms on the temp file BEFORE the rename so there is no
+    // window in which the final path exists with loose perms.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perm = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&tmp, perm).with_context(|| {
+            format!("failed to chmod 600 on temp secret file: {}", tmp.display())
+        })?;
+    }
+    std::fs::rename(&tmp, path).with_context(|| {
+        format!("failed to promote {} → {}", tmp.display(), path.display())
+    })?;
     Ok(())
 }
 
@@ -2231,15 +2375,26 @@ mod tests {
         assert_eq!(auth_mismatch_class("TLS handshake failed"), None);
     }
 
-    /// Module-level CWD lock — every test that mutates `std::env::current_dir`
-    /// or `HOME` must acquire this to avoid racing with sibling tests in the
-    /// same binary (cargo runs tests in parallel across threads by default).
-    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    /// Reuse the crate-wide test env lock. Any test in this binary that
+    /// mutates CWD or HOME must lock through this to avoid racing with
+    /// sibling tests (e.g. `config::tests::save_and_load_hubs_config`).
+    use crate::test_env_lock::ENV_LOCK as CWD_LOCK;
 
     /// Create an isolated tempdir that looks like a framework project, cd into it,
     /// run the closure, then restore CWD. Returns whatever the closure returned.
+    ///
+    /// Robust against a pre-set broken CWD: some unrelated tests in this crate
+    /// (e.g. dispatch::isolate_rejects_non_git_dir) `set_current_dir` into a
+    /// `tempfile::tempdir` that auto-deletes at function exit, leaving CWD
+    /// pointing at a removed directory. If we called `current_dir()` after
+    /// that, it would ENOENT. So we always anchor back to "/" after each run,
+    /// and never try to preserve the caller's prior CWD.
     fn with_framework_cwd<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
         let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        // Anchor CWD to a known-good path before doing anything that would
+        // observe the current dir.
+        std::env::set_current_dir("/").expect("cd to /");
 
         let tmp = std::env::temp_dir().join(format!(
             "termlink-t1052-{}-{}",
@@ -2259,7 +2414,6 @@ mod tests {
         )
         .expect("seed concerns.yaml");
 
-        let prev = std::env::current_dir().expect("save cwd");
         std::env::set_current_dir(&tmp).expect("cd into tmp");
 
         // Also isolate HOME so KnownHubStore doesn't touch the real ~/.termlink.
@@ -2269,7 +2423,9 @@ mod tests {
 
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(&tmp)));
 
-        std::env::set_current_dir(&prev).expect("restore cwd");
+        // Restore CWD to a known-good anchor BEFORE removing tmp — otherwise
+        // the remove would leave CWD dangling.
+        std::env::set_current_dir("/").expect("restore cwd to /");
         // SAFETY: single-threaded test region (guarded by CWD_LOCK).
         unsafe {
             match prev_home {
@@ -2589,7 +2745,7 @@ secret_file = "/tmp/other.hex"
         // SAFETY: single-threaded test region (guarded by CWD_LOCK).
         unsafe { std::env::set_var("HOME", &tmp) };
 
-        let result = cmd_fleet_reauth("does-not-exist");
+        let result = cmd_fleet_reauth("does-not-exist", None);
 
         // SAFETY: single-threaded test region (guarded by CWD_LOCK).
         unsafe {
@@ -2607,6 +2763,198 @@ secret_file = "/tmp/other.hex"
         assert!(msg.contains("other"), "error must list known profiles: {msg}");
     }
 
+    // -------------------------------------------------------------------
+    // T-1055: fleet reauth --bootstrap-from <SOURCE>
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn fleet_reauth_hex_validator_accepts_valid_secret() {
+        let hex = "0".repeat(64);
+        assert_eq!(normalize_and_validate_secret_hex(&hex).unwrap(), hex);
+
+        // Trimming whitespace is part of the contract (files often end with \n).
+        let with_ws = format!("  {hex}\n");
+        assert_eq!(normalize_and_validate_secret_hex(&with_ws).unwrap(), hex);
+
+        // Uppercase is fine.
+        let upper = "ABCDEF0123456789".repeat(4);
+        assert_eq!(normalize_and_validate_secret_hex(&upper).unwrap(), upper);
+    }
+
+    #[test]
+    fn fleet_reauth_hex_validator_rejects_wrong_length() {
+        let short = "abcd";
+        let err = normalize_and_validate_secret_hex(short).expect_err("short must error");
+        assert!(format!("{err}").contains("expected 64 hex characters"), "{err}");
+
+        let long = "a".repeat(100);
+        let err = normalize_and_validate_secret_hex(&long).expect_err("long must error");
+        assert!(format!("{err}").contains("expected 64 hex characters"), "{err}");
+    }
+
+    #[test]
+    fn fleet_reauth_hex_validator_rejects_non_hex() {
+        let bad = "z".repeat(64);
+        let err = normalize_and_validate_secret_hex(&bad).expect_err("non-hex must error");
+        assert!(format!("{err}").contains("non-hex characters"), "{err}");
+    }
+
+    #[test]
+    fn fleet_reauth_bootstrap_unknown_prefix_errors() {
+        let err = fetch_bootstrap_secret("random-junk").expect_err("unknown prefix must error");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("Unknown bootstrap source"), "{msg}");
+        assert!(msg.contains("file:"), "help text must mention file: form");
+        assert!(msg.contains("ssh:"), "help text must mention ssh: form");
+    }
+
+    #[test]
+    fn fleet_reauth_bootstrap_empty_prefixes_error() {
+        let err = fetch_bootstrap_secret("file:").expect_err("file: alone must error");
+        assert!(format!("{err:#}").contains("file: source requires a path"));
+        let err = fetch_bootstrap_secret("ssh:").expect_err("ssh: alone must error");
+        assert!(format!("{err:#}").contains("ssh: source requires a host"));
+    }
+
+    #[test]
+    fn fleet_reauth_bootstrap_file_source_happy_path() {
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1055-file-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&tmp).expect("create tmp");
+        std::fs::create_dir_all(tmp.join(".termlink/secrets")).expect("secrets dir");
+
+        // Seed a bootstrap file + an existing stale secret_file.
+        let new_secret = "ab".repeat(32);
+        let bootstrap_path = tmp.join("new-secret.hex");
+        std::fs::write(&bootstrap_path, format!("{new_secret}\n")).expect("seed bootstrap file");
+
+        let secret_path = tmp.join(".termlink/secrets/192.168.10.109.hex");
+        std::fs::write(&secret_path, "cd".repeat(32)).expect("seed stale secret");
+
+        // Seed hubs.toml referencing the stale secret.
+        std::fs::write(
+            tmp.join(".termlink/hubs.toml"),
+            format!(
+                "[hubs.ring20]\naddress = \"192.168.10.109:9100\"\nsecret_file = \"{}\"\n",
+                secret_path.display(),
+            ),
+        ).expect("seed hubs.toml");
+
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: guarded by CWD_LOCK.
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let source = format!("file:{}", bootstrap_path.display());
+        let result = cmd_fleet_reauth("ring20", Some(&source));
+
+        // Capture state before restoring env.
+        let written = std::fs::read_to_string(&secret_path).ok();
+        let backup = std::fs::read_to_string(secret_path.with_extension("hex.bak")).ok();
+
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        result.expect("heal must succeed");
+        assert_eq!(written.as_deref(), Some(new_secret.as_str()),
+            "secret_file must contain the new secret");
+        assert_eq!(backup.as_deref(), Some("cd".repeat(32).as_str()),
+            ".bak must contain the prior secret");
+    }
+
+    #[test]
+    fn fleet_reauth_bootstrap_rejects_invalid_hex_from_file() {
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1055-badhex-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&tmp).expect("create tmp");
+
+        let bootstrap_path = tmp.join("bad.hex");
+        std::fs::write(&bootstrap_path, "not a hex secret").expect("seed");
+
+        let secret_path = tmp.join("target.hex");
+        std::fs::write(&secret_path, "00".repeat(32)).expect("seed target");
+
+        std::fs::create_dir_all(tmp.join(".termlink")).expect(".termlink");
+        std::fs::write(
+            tmp.join(".termlink/hubs.toml"),
+            format!(
+                "[hubs.bad]\naddress = \"h:1\"\nsecret_file = \"{}\"\n",
+                secret_path.display(),
+            ),
+        ).expect("seed hubs.toml");
+
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: guarded by CWD_LOCK.
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let source = format!("file:{}", bootstrap_path.display());
+        let result = cmd_fleet_reauth("bad", Some(&source));
+
+        // Capture pre-restore state.
+        let target_content_after = std::fs::read_to_string(&secret_path).ok();
+
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let err = result.expect_err("invalid hex must error");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("not valid 64-char hex"), "err shape: {msg}");
+        // The existing file must NOT have been overwritten.
+        assert_eq!(target_content_after.as_deref(), Some("00".repeat(32).as_str()),
+            "target file must be untouched when bootstrap source is invalid");
+    }
+
+    #[test]
+    fn fleet_reauth_bootstrap_refuses_inline_secret_profile() {
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1055-inline-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(tmp.join(".termlink")).expect("create .termlink");
+        std::fs::write(
+            tmp.join(".termlink/hubs.toml"),
+            "[hubs.inline]\naddress = \"h:1\"\nsecret = \"aa\"\n",
+        ).expect("seed");
+
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: guarded by CWD_LOCK.
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let result = cmd_fleet_reauth("inline", Some("file:/dev/null"));
+
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let err = result.expect_err("inline-secret profile must refuse --bootstrap-from");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("inline secret"), "{msg}");
+        assert!(msg.contains("Migrate first"), "must give actionable migration hint: {msg}");
+    }
+
     #[test]
     fn fleet_reauth_errors_on_empty_hubs_config() {
         let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -2621,7 +2969,7 @@ secret_file = "/tmp/other.hex"
         // SAFETY: single-threaded test region (guarded by CWD_LOCK).
         unsafe { std::env::set_var("HOME", &tmp) };
 
-        let result = cmd_fleet_reauth("anything");
+        let result = cmd_fleet_reauth("anything", None);
 
         unsafe {
             match prev_home {
@@ -2642,13 +2990,15 @@ secret_file = "/tmp/other.hex"
         // Run in a fresh tempdir with NO .context/ present — must silently succeed.
         let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
+        // Anchor CWD against a leaked `tempfile::tempdir` from an unrelated test.
+        std::env::set_current_dir("/").expect("cd to /");
+
         let tmp = std::env::temp_dir().join(format!(
             "termlink-t1052-noframework-{}-{}",
             std::process::id(),
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&tmp).expect("create tmp");
-        let prev = std::env::current_dir().expect("save cwd");
         std::env::set_current_dir(&tmp).expect("cd into tmp");
 
         let result = maybe_record_auth_mismatch_learning(
@@ -2657,7 +3007,7 @@ secret_file = "/tmp/other.hex"
             "Token validation failed: invalid signature",
         );
 
-        std::env::set_current_dir(&prev).expect("restore cwd");
+        std::env::set_current_dir("/").expect("restore cwd to /");
         let _ = std::fs::remove_dir_all(&tmp);
 
         assert!(result.is_ok(), "must be best-effort outside framework projects: {result:?}");

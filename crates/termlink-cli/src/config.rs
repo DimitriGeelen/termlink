@@ -213,13 +213,23 @@ mod tests {
 
     #[test]
     fn save_and_load_hubs_config() {
-        let tmp = std::env::temp_dir().join(format!("tl-config-test-{}", std::process::id()));
+        // Serialize with the crate-wide env lock — cargo runs tests in
+        // parallel threads, and other modules also mutate HOME in tests.
+        let _guard = crate::test_env_lock::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        let tmp = std::env::temp_dir().join(format!(
+            "tl-config-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+        ));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
 
         // Temporarily override HOME
         let orig_home = std::env::var("HOME").ok();
-        // SAFETY: test runs single-threaded (cargo test default), no concurrent HOME reads
+        // SAFETY: guarded by ENV_LOCK.
         unsafe { std::env::set_var("HOME", &tmp); }
 
         let mut config = HubsConfig::default();
@@ -234,7 +244,7 @@ mod tests {
         let loaded = load_hubs_config();
 
         // Restore HOME
-        // SAFETY: restoring original value, test is single-threaded
+        // SAFETY: guarded by ENV_LOCK.
         if let Some(h) = orig_home {
             unsafe { std::env::set_var("HOME", h); }
         }

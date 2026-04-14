@@ -1090,12 +1090,15 @@ mod tests {
     #[tokio::test]
     async fn isolate_rejects_non_git_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        // Run from a non-git temp dir
-        let _guard = std::env::set_current_dir(tmp.path());
+        // Run from a non-git temp dir. Must restore CWD before `tmp` is
+        // dropped, otherwise CWD points into a deleted directory and any
+        // sibling test that reads `std::env::current_dir()` will ENOENT.
+        std::env::set_current_dir(tmp.path()).expect("cd into tmp");
         let result = cmd_dispatch(DispatchOpts {
             isolate: true,
             ..test_opts()
         }).await;
+        std::env::set_current_dir("/").expect("restore cwd to /");
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(

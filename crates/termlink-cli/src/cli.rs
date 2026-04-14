@@ -1556,12 +1556,25 @@ pub(crate) enum FleetAction {
         timeout: u64,
     },
 
-    /// Print the copy-pasteable incantation to refresh a cached secret for a hub
-    /// profile (T-1054, Tier-1). Reads local config only — never contacts the hub,
-    /// never writes. The `--bootstrap-from` automated variant lands in T-1055.
+    /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
+    /// copy-pasteable incantation (Tier-1, T-1054). With `--bootstrap-from
+    /// <SOURCE>` it actually performs the heal (Tier-2, T-1055, R2 compliance).
+    ///
+    /// SOURCE forms:
+    ///   file:<path>     — read the hex secret from a local file
+    ///   ssh:<host>      — run `ssh <host> -- sudo cat /var/lib/termlink/hub.secret`
+    ///
+    /// The source MUST be out-of-band (its trust anchor must not itself depend
+    /// on termlink auth).
     Reauth {
         /// Hub profile name as configured in ~/.termlink/hubs.toml
         profile: String,
+
+        /// Out-of-band trust anchor that delivers the new secret.
+        /// When omitted, this command prints the heal incantation instead of
+        /// performing the heal.
+        #[arg(long = "bootstrap-from")]
+        bootstrap_from: Option<String>,
     },
 }
 
