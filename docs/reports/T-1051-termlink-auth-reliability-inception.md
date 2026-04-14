@@ -208,3 +208,45 @@ Asking the operator:
 2. Can I invoke any other agents (e.g., via `termlink remote` to reachable hubs) for a second opinion, or should I stay with my own analysis?
 3. Should I close this inception with a GO decision on Option D and decompose, or park for your review first?
 
+### 2026-04-14 — peer review from ring20-dashboard session
+
+Reached via `termlink remote inject` using cached --secret (same stale-file workaround as operator). Agent confirmed GO on Option D. Second-instance evidence within 24h is already below the G-019 7-day threshold, which itself is evidence that D's "learning on first hit" step would have pre-empted this rediscovery.
+
+Two structural additions accepted into the design:
+
+**R1 — Memory drift is part of the symptom.** Rotation poisons agent *memory*, not just cached secrets. A prior rotation had left a stale memory entry on the ring20-dashboard side claiming the hub was at `.122` — never invalidated when things moved back to `.109`. Each learning record produced by D must carry:
+- `date_observed` (UTC)
+- `hub_fingerprint_at_time_of_writing` (sha256 of the TLS cert at the moment the learning was recorded)
+
+so a future agent can detect "this learning was recorded before the current fingerprint and may be stale."
+
+**R2 — Bootstrap chicken-and-egg on step 4.** If the "trusted separate channel" for `fleet reauth`'s autonomous variant itself uses the rotation-blind termlink layer, it rots the same way. Two acceptable resolutions:
+- Require the trusted channel to be out-of-band (ssh-key, git-pull, physical USB — anything whose trust anchor isn't rotated by termlink).
+- Make the heal command take an explicit `--bootstrap-from <source>` argument so the operator chooses the anchor per incident. Default `none` → prompt the operator.
+
+This is not a blocker for D; it's a build task constraint.
+
+**Peer note on sequencing:** ring20-dashboard does not need its secret refreshed to continue. Ship the heal mechanism first — after that, the refresh becomes a one-liner. This inverts the apparent urgency: the broken auth is the test case, not the blocker.
+
+## Decision
+
+**GO on Option D**, incorporating R1 and R2.
+
+Rationale:
+- Second-instance evidence in <24h satisfies G-019's systemic-flaw threshold.
+- All four options analysed; D is the minimum viable antifragile path.
+- Peer reviewed by an agent that independently hit the same failure class today.
+- Avoids premature crypto surface (Option A), leverages existing mechanisms (inherits from B/C), and is decomposable into small, independently valuable build tasks.
+
+Decomposition (one-deliverable-per-task, per framework sizing rules):
+
+| Task | Type | Deliverable |
+|---|---|---|
+| T-1052 | build | `fleet doctor` auto-registers a learning on auth-mismatch, with `date_observed` + `hub_fingerprint` (R1 compliance) |
+| T-1053 | build | After N consecutive fleet-doctor failures over >1 day, self-register a concern in `concerns.yaml` (G-019 compliance) |
+| T-1054 | build | `termlink fleet reauth <profile>` — one-command operator heal, prints the exact distribution incantation; Tier-1 only, no `--bootstrap-from` yet |
+| T-1055 | build | `termlink fleet reauth --bootstrap-from <source>` — autonomous heal variant with explicit trust anchor (R2 compliance) |
+| T-1056 | refactor | CLAUDE.md: document the rotation protocol + recovery recipes + the meaning of `hub_fingerprint` in learnings |
+
+Each task stands alone. Ship order T-1052 → T-1053 → T-1054 → T-1055 → T-1056, but they're independent; a later task can land before an earlier one without breaking the earlier's value.
+
