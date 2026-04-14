@@ -2621,3 +2621,74 @@ fn cli_resize_nonexistent_session() {
         stderr
     );
 }
+
+// ─── Inbox Error Path Tests ───────────────────────────────────────
+
+#[test]
+fn cli_inbox_status_no_hub() {
+    let dir = TestDir::new("inbox-st-nh");
+    let output = termlink_cmd(&dir.path)
+        .args(["inbox", "status"])
+        .output()
+        .expect("Failed to run inbox status");
+
+    assert!(!output.status.success(), "inbox status should fail without hub");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Hub is not running") || stderr.contains("no socket"),
+        "Should report hub not running: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_inbox_list_no_hub() {
+    let dir = TestDir::new("inbox-ls-nh");
+    let output = termlink_cmd(&dir.path)
+        .args(["inbox", "list", "some-target"])
+        .output()
+        .expect("Failed to run inbox list");
+
+    assert!(!output.status.success(), "inbox list should fail without hub");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Hub is not running") || stderr.contains("no socket"),
+        "Should report hub not running: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_inbox_clear_all_no_hub() {
+    let dir = TestDir::new("inbox-cl-nh");
+    let output = termlink_cmd(&dir.path)
+        .args(["inbox", "clear", "--all"])
+        .output()
+        .expect("Failed to run inbox clear --all");
+
+    assert!(!output.status.success(), "inbox clear --all should fail without hub");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Hub is not running") || stderr.contains("no socket"),
+        "Should report hub not running: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_inbox_clear_missing_args() {
+    // `inbox clear` without a target and without --all should error on arg validation
+    let dir = TestDir::new("inbox-cl-ma");
+    let output = termlink_cmd(&dir.path)
+        .args(["inbox", "clear"])
+        .output()
+        .expect("Failed to run inbox clear");
+
+    assert!(!output.status.success(), "inbox clear without args should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("target") || stderr.contains("--all"),
+        "Should indicate target or --all required: {}",
+        stderr
+    );
+}
