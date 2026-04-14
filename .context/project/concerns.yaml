@@ -75,3 +75,19 @@ concerns:
   last_reviewed: 2026-04-12
   closed: 2026-04-12
   related_tasks: [T-980, T-981]
+- id: G-005
+  type: gap
+  title: "cargo install --git (no --locked) has no CI coverage — transitive-dep resolver drift is invisible"
+  description: "Our documented external-install path is `cargo install --git https://github.com/DimitriGeelen/termlink.git termlink`. Cargo install without `--locked` ignores the checked-in Cargo.lock and does a fresh dep resolve. Direct pins in our Cargo.toml (e.g. rmcp = \"~1.3\" from T-1056) constrain the top-level dep, but NOT its transitive deps. rmcp 1.3.0's own Cargo.toml declares `rmcp-macros = \"1.3.0\"` — a caret requirement (^1.3.0 = >=1.3.0, <2.0.0) — so the resolver picks rmcp-macros 1.4.0, a mismatched pair. Our CI builds always use the lockfile, so this resolution never happens in CI and the drift is invisible. Two user-reported incidents (T-1056 original, T-1060 re-report same day) confirm external consumers hit this class of failure reliably, while internal builds pass. Detection lag: >7 days from T-1056 commit (2026-04-14 18:30Z) to T-1060 root-cause (2026-04-14 21:43Z) — wait that's <1 day. But the STRUCTURAL blindness (CI never exercises the no-lockfile path) has existed since the project started publishing to GitHub — ≈2 months undetected as a class."
+  spec_reference: "CLAUDE.md ## CI / Release Flow section — external install via cargo install --git is the documented path"
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-04-14 21:40Z: User re-ran `cargo install --git https://github.com/DimitriGeelen/termlink.git termlink --force` after T-1056 was supposed to fix it. Still failed with E0624: associated function tool_router is private. Diagnosis showed rmcp-macros 1.4.0 slipping in via caret on transitive dep despite our ~1.3 direct pin."
+  detection_lag_days: ">60 (class-level blindness since repo went public); 0 (for this specific incident — caught same-day)"
+  what_works_now: "T-1060 eliminated the macro-visibility dependency entirely (`vis = \"pub(crate)\"` makes the generated method reachable regardless of which rmcp-macros version resolves). This fix is resilient to future transitive drift in rmcp-macros."
+  what_remains: "1. Add CI job that runs `cargo install --git .` (no --locked) on a clean worktree — catches this class of drift before users hit it. 2. Consider same CI for `cargo install` via crates.io when/if we publish there. 3. Audit other external-install paths (Homebrew formula, GitHub Releases binaries) for equivalent resolution surprises."
+  mitigation_candidate: "Add .github/workflows/install-check.yml that on every push runs: rm -rf target && cargo install --git file://$PWD termlink --force (no --locked). Green means the external install path works against today's crates.io registry. Red means regression."
+  status: watching
+  created: 2026-04-14
+  last_reviewed: 2026-04-14
+  related_tasks: [T-1056, T-1060]

@@ -358,3 +358,10 @@ learnings:
   date: 2026-04-13
   context: Added via context agent
   application: TBD
+- id: PL-017
+  learning: "Pinning a direct dep does not constrain its transitive deps. rmcp = "~1.3" blocked rmcp 1.4+ but rmcp 1.3.0's own Cargo.toml has rmcp-macros = "1.3.0" (caret ^1.3.0) — so a fresh resolver picks rmcp-macros 1.4.0, creating a mismatched pair. The robust fix for macro-visibility drift is to make call sites forward-compatible (e.g. #[tool_router(vis = "pub(crate)")]) rather than chasing pins. CI that runs the actual external-install path (cargo install --git without --locked) would catch this class earlier."
+  source: P-001
+  task: T-1060
+  date: 2026-04-14
+  context: Added via context agent
+  application: TBD
