@@ -2692,3 +2692,65 @@ fn cli_inbox_clear_missing_args() {
         stderr
     );
 }
+
+// ─── Interact / Mirror / Request Error Path Tests ─────────────────
+
+#[test]
+fn cli_interact_nonexistent_session() {
+    let dir = TestDir::new("interact-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["interact", "nonexistent-xyz", "echo hi"])
+        .output()
+        .expect("Failed to run interact");
+
+    assert!(!output.status.success(), "interact on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_mirror_nonexistent_session() {
+    let dir = TestDir::new("mirror-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args(["mirror", "nonexistent-xyz"])
+        .output()
+        .expect("Failed to run mirror");
+
+    assert!(!output.status.success(), "mirror on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_request_nonexistent_target() {
+    let dir = TestDir::new("request-noexist");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "request",
+            "--topic",
+            "test.req",
+            "--reply-topic",
+            "test.reply",
+            "--timeout",
+            "2",
+            "nonexistent-xyz",
+        ])
+        .output()
+        .expect("Failed to run request");
+
+    assert!(!output.status.success(), "request on nonexistent target should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
