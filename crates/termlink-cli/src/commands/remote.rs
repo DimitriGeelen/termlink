@@ -1868,6 +1868,97 @@ fn append_fleet_concern(
     Ok(())
 }
 
+// =========================================================================
+// T-1054: fleet reauth — print the copy-pasteable heal incantation for a hub
+// profile. Tier-1 only (no automation / no SSH). `--bootstrap-from` lands in
+// T-1055. The trust anchor MUST be out-of-band — we explicitly label it.
+// =========================================================================
+
+/// Render the heal plan for a single hub profile. Pure — no IO, no stdout —
+/// so it can be unit-tested without a filesystem or a shell.
+fn render_fleet_reauth_plan(profile: &str, entry: &crate::config::HubEntry) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("# TermLink fleet reauth — {profile}\n"));
+    out.push_str(&format!("Hub profile:      {profile}\n"));
+    out.push_str(&format!("Hub address:      {}\n", entry.address));
+    match (&entry.secret_file, &entry.secret) {
+        (Some(path), _) => {
+            out.push_str(&format!("Secret source:    file → {path}\n"));
+        }
+        (None, Some(_)) => {
+            out.push_str("Secret source:    inline in hubs.toml (WARNING — hard to rotate; consider switching to secret_file)\n");
+        }
+        (None, None) => {
+            out.push_str("Secret source:    NONE configured (hubs.toml entry is missing both secret_file and secret)\n");
+        }
+    }
+
+    out.push('\n');
+    out.push_str("Trust anchor:     OUT-OF-BAND required (T-1054 is Tier-1 — no automation).\n");
+    out.push_str("                  The channel that delivers the new secret MUST NOT itself depend\n");
+    out.push_str("                  on termlink auth (chicken-and-egg). Use SSH, git-pull with signed\n");
+    out.push_str("                  commits, physical USB, or another channel whose trust survives a\n");
+    out.push_str("                  termlink cert/secret rotation. T-1055 will add `--bootstrap-from`\n");
+    out.push_str("                  so the anchor becomes an explicit command argument.\n\n");
+
+    out.push_str("# Heal steps (copy-paste, adjust host as needed):\n\n");
+    let host = entry.address.split(':').next().unwrap_or(&entry.address);
+    out.push_str(&format!("  # 1. Read the current secret on the hub host ({host}) via an out-of-band channel.\n"));
+    out.push_str("  #    Example (requires working SSH to the hub host):\n");
+    out.push_str(&format!("  ssh {host} -- sudo cat /var/lib/termlink/hub.secret\n\n"));
+
+    match &entry.secret_file {
+        Some(path) => {
+            out.push_str("  # 2. Write the hex value from step 1 to the local secret file.\n");
+            out.push_str(&format!("  echo \"<paste-the-hex-from-step-1>\" > {path}\n"));
+            out.push_str(&format!("  chmod 600 {path}\n\n"));
+        }
+        None => {
+            out.push_str("  # 2. Update the inline secret in ~/.termlink/hubs.toml:\n");
+            out.push_str(&format!("  #    [hubs.{profile}]\n"));
+            out.push_str("  #    secret = \"<paste-the-hex-from-step-1>\"\n");
+            out.push_str("  #    (Consider switching to secret_file = \"/root/.termlink/secrets/<host>.hex\" for cleaner rotation.)\n\n");
+        }
+    }
+
+    out.push_str("# 3. Verify the heal:\n");
+    out.push_str("  termlink fleet doctor\n\n");
+    out.push_str(&format!("# Expected: the [PASS] line for {profile} ({}) appears and fleet-doctor reports 0 fail.\n",
+        entry.address));
+    out.push_str("# If still failing: confirm the hub's hub.secret file is actually the one the hub is\n");
+    out.push_str("# serving (hub may be using a different runtime_dir — T-1031 handoff, see `termlink doctor`).\n");
+
+    out
+}
+
+/// `termlink fleet reauth <profile>` — Tier-1 heal incantation printer.
+pub(crate) fn cmd_fleet_reauth(profile: &str) -> Result<()> {
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        anyhow::bail!(
+            "No hubs configured in {}. Add one with: termlink profile add {} <host:port> --secret-file <path>",
+            crate::config::hubs_config_path().display(),
+            profile,
+        );
+    }
+    let entry = match config.hubs.get(profile) {
+        Some(e) => e,
+        None => {
+            let mut known: Vec<&String> = config.hubs.keys().collect();
+            known.sort();
+            let known_list: Vec<String> = known.iter().map(|s| (*s).clone()).collect();
+            anyhow::bail!(
+                "Unknown hub profile '{profile}'. Configured profiles: {}. \
+                 Add one with: termlink profile add {profile} <host:port> --secret-file <path>",
+                if known_list.is_empty() { "<none>".to_string() } else { known_list.join(", ") },
+            );
+        }
+    };
+
+    print!("{}", render_fleet_reauth_plan(profile, entry));
+    Ok(())
+}
+
 pub(crate) async fn cmd_remote_doctor(
     conn: &RemoteConn<'_>,
     json: bool,
@@ -2411,6 +2502,139 @@ mod tests {
                 .expect("read concerns").matches("ring20-management").count();
             assert_eq!(before_second, after_second, "dedupe: must not add a second concern");
         });
+    }
+
+    // -------------------------------------------------------------------
+    // T-1054: fleet reauth — heal incantation renderer
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn fleet_reauth_render_with_secret_file_includes_expected_sections() {
+        let entry = crate::config::HubEntry {
+            address: "192.168.10.109:9100".to_string(),
+            secret_file: Some("/root/.termlink/secrets/192.168.10.109.hex".to_string()),
+            secret: None,
+            scope: Some("execute".to_string()),
+        };
+        let out = render_fleet_reauth_plan("ring20-management", &entry);
+
+        // Header carries profile name
+        assert!(out.contains("ring20-management"), "profile name missing: {out}");
+        // Address visible
+        assert!(out.contains("192.168.10.109:9100"), "address missing: {out}");
+        // Secret source line
+        assert!(out.contains("file → /root/.termlink/secrets/192.168.10.109.hex"),
+            "secret file path missing: {out}");
+        // R2 compliance: trust anchor must be explicitly out-of-band
+        assert!(out.contains("OUT-OF-BAND"), "trust anchor warning missing: {out}");
+        assert!(out.contains("T-1055"), "forward pointer to bootstrap variant missing: {out}");
+        // SSH read uses just the hostname, not the full host:port
+        assert!(out.contains("ssh 192.168.10.109 -- sudo cat /var/lib/termlink/hub.secret"),
+            "ssh read command missing or malformed: {out}");
+        // Local write uses the full secret_file path
+        assert!(out.contains("echo \"<paste-the-hex-from-step-1>\" > /root/.termlink/secrets/192.168.10.109.hex"),
+            "local write step missing: {out}");
+        // chmod 600 appears
+        assert!(out.contains("chmod 600"), "chmod 600 missing: {out}");
+        // Verify step points to fleet doctor
+        assert!(out.contains("termlink fleet doctor"), "verify command missing: {out}");
+    }
+
+    #[test]
+    fn fleet_reauth_render_with_inline_secret_warns() {
+        let entry = crate::config::HubEntry {
+            address: "10.0.0.5:9100".to_string(),
+            secret_file: None,
+            secret: Some("aa".repeat(32)),
+            scope: None,
+        };
+        let out = render_fleet_reauth_plan("inline-hub", &entry);
+        assert!(out.contains("inline in hubs.toml"), "inline-source label missing: {out}");
+        assert!(out.contains("WARNING"), "inline-secret warning missing: {out}");
+        assert!(out.contains("[hubs.inline-hub]"), "toml edit example missing: {out}");
+    }
+
+    #[test]
+    fn fleet_reauth_render_with_no_secret_flags_missing() {
+        let entry = crate::config::HubEntry {
+            address: "10.0.0.9:9100".to_string(),
+            secret_file: None,
+            secret: None,
+            scope: None,
+        };
+        let out = render_fleet_reauth_plan("broken-hub", &entry);
+        assert!(out.contains("NONE configured"), "missing-secret warning missing: {out}");
+    }
+
+    #[test]
+    fn fleet_reauth_errors_on_unknown_profile() {
+        // Isolate HOME to a tempdir with a hubs.toml containing one unrelated profile.
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1054-unknown-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(tmp.join(".termlink")).expect("create .termlink");
+        std::fs::write(
+            tmp.join(".termlink/hubs.toml"),
+            r#"
+[hubs.other]
+address = "10.0.0.1:9100"
+secret_file = "/tmp/other.hex"
+"#,
+        ).expect("seed hubs.toml");
+
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: single-threaded test region (guarded by CWD_LOCK).
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let result = cmd_fleet_reauth("does-not-exist");
+
+        // SAFETY: single-threaded test region (guarded by CWD_LOCK).
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let err = result.expect_err("must error on unknown profile");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("Unknown hub profile"), "error message shape: {msg}");
+        assert!(msg.contains("does-not-exist"), "error must name the bad profile: {msg}");
+        assert!(msg.contains("other"), "error must list known profiles: {msg}");
+    }
+
+    #[test]
+    fn fleet_reauth_errors_on_empty_hubs_config() {
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1054-empty-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&tmp).expect("create tmp");
+
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: single-threaded test region (guarded by CWD_LOCK).
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let result = cmd_fleet_reauth("anything");
+
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let err = result.expect_err("must error on empty hubs config");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("No hubs configured"), "error shape: {msg}");
+        assert!(msg.contains("termlink profile add"), "error must suggest profile add: {msg}");
     }
 
     #[test]

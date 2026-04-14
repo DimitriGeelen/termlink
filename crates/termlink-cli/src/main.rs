@@ -320,6 +320,9 @@ async fn main() -> Result<()> {
             FleetAction::Doctor { json, timeout } => {
                 commands::remote::cmd_fleet_doctor(json, timeout).await
             }
+            FleetAction::Reauth { profile } => {
+                commands::remote::cmd_fleet_reauth(&profile)
+            }
         },
         Command::Tofu { action } => match action {
             TofuAction::List { json } => commands::infrastructure::cmd_tofu_list(json),
