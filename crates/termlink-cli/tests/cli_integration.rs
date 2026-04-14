@@ -2824,3 +2824,64 @@ fn cli_kv_del_nonexistent_session() {
         stderr
     );
 }
+
+// ─── Agent / File Error Path Tests ────────────────────────────────
+
+#[test]
+fn cli_agent_ask_nonexistent_target() {
+    let dir = TestDir::new("agent-ask-noex");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "agent",
+            "ask",
+            "--action",
+            "query.status",
+            "--timeout",
+            "2",
+            "nonexistent-xyz",
+        ])
+        .output()
+        .expect("Failed to run agent ask");
+
+    assert!(!output.status.success(), "agent ask on nonexistent target should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_agent_listen_nonexistent_session() {
+    let dir = TestDir::new("agent-ls-noex");
+    let output = termlink_cmd(&dir.path)
+        .args(["agent", "listen", "--timeout", "2", "nonexistent-xyz"])
+        .output()
+        .expect("Failed to run agent listen");
+
+    assert!(!output.status.success(), "agent listen on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_file_receive_nonexistent_session() {
+    let dir = TestDir::new("file-rcv-noex");
+    let output = termlink_cmd(&dir.path)
+        .args(["file", "receive", "--timeout", "2", "nonexistent-xyz"])
+        .output()
+        .expect("Failed to run file receive");
+
+    assert!(!output.status.success(), "file receive on nonexistent session should fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("error"),
+        "Should report session not found: {}",
+        stderr
+    );
+}
