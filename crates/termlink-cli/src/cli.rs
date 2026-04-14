@@ -1555,6 +1555,14 @@ pub(crate) enum FleetAction {
         #[arg(long, default_value = "10")]
         timeout: u64,
     },
+
+    /// Print the copy-pasteable incantation to refresh a cached secret for a hub
+    /// profile (T-1054, Tier-1). Reads local config only — never contacts the hub,
+    /// never writes. The `--bootstrap-from` automated variant lands in T-1055.
+    Reauth {
+        /// Hub profile name as configured in ~/.termlink/hubs.toml
+        profile: String,
+    },
 }
 
 /// Profile management actions
