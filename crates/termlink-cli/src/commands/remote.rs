@@ -1421,6 +1421,9 @@ pub(crate) async fn cmd_fleet_doctor(
                     eprintln!("  secret: {}", secret_source);
                     eprintln!("  hint: {}", diagnostic);
                 }
+                // T-1052: auto-register a learning for auth/TOFU failure classes so drift
+                // is detectable by future agents (R1). Silent best-effort — never blocks.
+                let _ = maybe_record_auth_mismatch_learning(name, &entry.address, &msg);
             }
             Err(_) => {
                 total_fail += 1;
@@ -1472,6 +1475,152 @@ fn classify_fleet_error(msg: &str, address: &str) -> String {
     } else {
         "Unexpected error — check hub logs on the remote host for details".to_string()
     }
+}
+
+/// T-1052: classify an error message into the auth/cert drift classes we care about.
+/// Returns `None` for unrelated errors (connection refused, etc.) so we stay quiet.
+fn auth_mismatch_class(msg: &str) -> Option<&'static str> {
+    if msg.contains("invalid signature") || msg.contains("Token validation failed") {
+        Some("auth-mismatch")
+    } else if msg.contains("TOFU VIOLATION") || msg.contains("fingerprint changed") {
+        Some("tofu-violation")
+    } else {
+        None
+    }
+}
+
+/// T-1052: compute UTC ISO-8601 timestamp. Same algorithm as `termlink_session::tofu::now_utc`
+/// but inlined here to avoid exporting a new public symbol purely for this helper.
+fn utc_iso8601_now() -> String {
+    let dur = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = dur.as_secs();
+    let days = secs / 86400;
+    let time_secs = secs % 86400;
+    let h = time_secs / 3600;
+    let m = (time_secs % 3600) / 60;
+    let s = time_secs % 60;
+    let mut y = 1970i64;
+    let mut remaining = days as i64;
+    loop {
+        let ydays = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 366 } else { 365 };
+        if remaining < ydays { break; }
+        remaining -= ydays;
+        y += 1;
+    }
+    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+    let mdays = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let mut mo = 0usize;
+    for (i, &md) in mdays.iter().enumerate() {
+        if remaining < md as i64 { mo = i; break; }
+        remaining -= md as i64;
+    }
+    format!("{y:04}-{:02}-{:02}T{h:02}:{m:02}:{s:02}Z", mo + 1, remaining + 1)
+}
+
+/// T-1052: return `true` if a dedupe marker exists, is younger than 24h, and its
+/// recorded fingerprint matches the current one (→ skip recording a duplicate).
+fn marker_deduped(marker: &std::path::Path, fingerprint: &str) -> bool {
+    let Ok(meta) = std::fs::metadata(marker) else { return false; };
+    let Ok(modified) = meta.modified() else { return false; };
+    let Ok(age) = modified.elapsed() else { return false; };
+    if age.as_secs() >= 86400 { return false; }
+    let Ok(content) = std::fs::read_to_string(marker) else { return false; };
+    content.trim() == fingerprint
+}
+
+/// T-1052 / R1 compliance: when fleet-doctor sees an auth-mismatch or TOFU violation,
+/// append a learning to `.context/project/learnings.yaml` carrying the hub address,
+/// the current pinned fingerprint (or "unknown"), and an ISO-8601 UTC timestamp.
+///
+/// Future agents can compare the recorded `hub_fingerprint=` against the currently
+/// pinned fingerprint to detect memory drift (the learning was written under a
+/// previous rotation of the cert).
+///
+/// Deduped via `.context/working/.fleet-learning-<hub>`: skip if a marker younger
+/// than 24h exists AND the fingerprint hasn't changed since.
+///
+/// Best-effort only: silently no-ops when run outside a framework-managed project
+/// (no `.context/project/` dir present). Never fails the caller.
+pub(crate) fn maybe_record_auth_mismatch_learning(
+    hub_name: &str,
+    address: &str,
+    error_msg: &str,
+) -> Result<()> {
+    let class = match auth_mismatch_class(error_msg) {
+        Some(c) => c,
+        None => return Ok(()),
+    };
+
+    // Locate framework project root from CWD. No-op outside framework projects.
+    let cwd = std::env::current_dir()?;
+    let learnings_path = cwd.join(".context/project/learnings.yaml");
+    if !learnings_path.exists() {
+        return Ok(());
+    }
+    let working_dir = cwd.join(".context/working");
+    if let Err(e) = std::fs::create_dir_all(&working_dir) {
+        return Err(anyhow::anyhow!("failed to create .context/working: {e}"));
+    }
+
+    // Look up the currently pinned fingerprint (may be absent if TOFU entry not yet recorded).
+    let fingerprint = termlink_session::tofu::KnownHubStore::default_store()
+        .get(address)
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Dedupe: marker file content = fingerprint at last recording. Same fingerprint
+    // within 24h → skip. Changed fingerprint or older marker → record again.
+    let safe_name: String = hub_name
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    let marker = working_dir.join(format!(".fleet-learning-{safe_name}"));
+    if marker_deduped(&marker, &fingerprint) {
+        return Ok(());
+    }
+
+    // Build the learning entry. Fingerprint + timestamp are embedded in the learning
+    // text as `key=value` pairs so future drift-detection can parse them without
+    // extending the framework's `add-learning` schema.
+    let now_iso = utc_iso8601_now();
+    let date_only = now_iso.split('T').next().unwrap_or("");
+    let learning_text = format!(
+        "Fleet doctor observed {class} on hub '{hub_name}' ({address}). \
+         date_observed={now_iso} hub_fingerprint={fingerprint}. \
+         T-1051 Option D auto-registration — if a later agent sees a different pinned \
+         fingerprint for this hub, this learning is stale and should not be acted on.",
+    );
+
+    // Determine next PL-XXX id by scanning existing entries.
+    let existing = std::fs::read_to_string(&learnings_path).unwrap_or_default();
+    let max_id = existing
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("- id: PL-"))
+        .filter_map(|s| s.trim().parse::<u32>().ok())
+        .max()
+        .unwrap_or(0);
+    let next_id = max_id + 1;
+    let id = format!("PL-{:03}", next_id);
+
+    let entry = format!(
+        "- id: {id}\n  learning: \"{text}\"\n  source: T-1052\n  task: T-1051\n  date: {date}\n  context: fleet-doctor auto-registered\n  application: \"Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)\"\n",
+        text = learning_text,
+        date = date_only,
+    );
+
+    let mut new_content = existing;
+    if !new_content.ends_with('\n') {
+        new_content.push('\n');
+    }
+    new_content.push_str(&entry);
+    std::fs::write(&learnings_path, new_content)
+        .with_context(|| format!("failed to write {}", learnings_path.display()))?;
+
+    // Refresh the dedupe marker.
+    let _ = std::fs::write(&marker, &fingerprint);
+
+    Ok(())
 }
 
 pub(crate) async fn cmd_remote_doctor(
@@ -1726,6 +1875,165 @@ mod tests {
                 "scope {scope} failed at secret length: {msg}"
             );
         }
+    }
+
+    // -------------------------------------------------------------------
+    // T-1052: fleet-doctor auto-register learning on auth-mismatch
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn fleet_learning_classifies_auth_errors() {
+        // Known auth-mismatch patterns
+        assert_eq!(auth_mismatch_class("Token validation failed: invalid signature"), Some("auth-mismatch"));
+        assert_eq!(auth_mismatch_class("rpc error: invalid signature"), Some("auth-mismatch"));
+        // Known TOFU patterns
+        assert_eq!(auth_mismatch_class("TOFU VIOLATION: fingerprint changed"), Some("tofu-violation"));
+        assert_eq!(auth_mismatch_class("fingerprint changed unexpectedly"), Some("tofu-violation"));
+        // Unrelated errors must be None (don't spam learnings)
+        assert_eq!(auth_mismatch_class("Connection refused"), None);
+        assert_eq!(auth_mismatch_class("Secret file not found"), None);
+        assert_eq!(auth_mismatch_class("TLS handshake failed"), None);
+    }
+
+    /// Create an isolated tempdir that looks like a framework project, cd into it,
+    /// run the closure, then restore CWD. Returns whatever the closure returned.
+    ///
+    /// NOTE: cwd is process-global, so these tests are serialized via a Mutex.
+    fn with_framework_cwd<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
+        use std::sync::Mutex;
+        static CWD_LOCK: Mutex<()> = Mutex::new(());
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1052-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(tmp.join(".context/project")).expect("create .context/project");
+        std::fs::create_dir_all(tmp.join(".context/working")).expect("create .context/working");
+        std::fs::write(
+            tmp.join(".context/project/learnings.yaml"),
+            "# Project Learnings\nlearnings:\n",
+        )
+        .expect("seed learnings.yaml");
+
+        let prev = std::env::current_dir().expect("save cwd");
+        std::env::set_current_dir(&tmp).expect("cd into tmp");
+
+        // Also isolate HOME so KnownHubStore doesn't touch the real ~/.termlink.
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: single-threaded test region (guarded by CWD_LOCK).
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(&tmp)));
+
+        std::env::set_current_dir(&prev).expect("restore cwd");
+        // SAFETY: single-threaded test region (guarded by CWD_LOCK).
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        match result {
+            Ok(v) => v,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
+    #[test]
+    fn fleet_learning_writes_entry_on_auth_mismatch() {
+        with_framework_cwd(|tmp| {
+            let err_msg = "rpc error: Token validation failed: invalid signature";
+            maybe_record_auth_mismatch_learning("ring20-management", "10.0.0.1:9100", err_msg)
+                .expect("record learning");
+
+            let learnings = std::fs::read_to_string(tmp.join(".context/project/learnings.yaml"))
+                .expect("read learnings");
+            assert!(learnings.contains("PL-001"), "new PL-XXX id not allocated: {learnings}");
+            assert!(learnings.contains("ring20-management"), "hub name missing from learning");
+            assert!(learnings.contains("10.0.0.1:9100"), "hub address missing from learning");
+            assert!(learnings.contains("auth-mismatch"), "class missing from learning");
+            assert!(learnings.contains("hub_fingerprint="), "fingerprint key missing from learning");
+            assert!(learnings.contains("date_observed="), "date_observed key missing from learning");
+            assert!(learnings.contains("source: T-1052"), "source T-1052 missing from entry");
+            assert!(learnings.contains("task: T-1051"), "task T-1051 missing from entry");
+
+            // Dedupe marker written.
+            assert!(
+                tmp.join(".context/working/.fleet-learning-ring20-management").exists(),
+                "dedupe marker not created",
+            );
+        });
+    }
+
+    #[test]
+    fn fleet_learning_skips_unrelated_errors() {
+        with_framework_cwd(|tmp| {
+            maybe_record_auth_mismatch_learning("somehub", "127.0.0.1:9100", "Connection refused")
+                .expect("call succeeds");
+            let learnings = std::fs::read_to_string(tmp.join(".context/project/learnings.yaml"))
+                .expect("read learnings");
+            // No PL-XXX entry should have been written.
+            assert!(!learnings.contains("PL-001"), "connection-refused must not create a learning: {learnings}");
+            assert!(!tmp.join(".context/working/.fleet-learning-somehub").exists(),
+                "no marker should exist for unrelated errors");
+        });
+    }
+
+    #[test]
+    fn fleet_learning_dedupes_within_24h_same_fingerprint() {
+        with_framework_cwd(|tmp| {
+            let err_msg = "Token validation failed: invalid signature";
+            // First record
+            maybe_record_auth_mismatch_learning("ring20-management", "10.0.0.1:9100", err_msg)
+                .expect("first record");
+            let after_first = std::fs::read_to_string(tmp.join(".context/project/learnings.yaml"))
+                .expect("read learnings");
+            let count_first = after_first.matches("- id: PL-").count();
+
+            // Second call with same inputs — fingerprint unchanged (both "unknown"),
+            // marker <24h old → should dedupe.
+            maybe_record_auth_mismatch_learning("ring20-management", "10.0.0.1:9100", err_msg)
+                .expect("second record");
+            let after_second = std::fs::read_to_string(tmp.join(".context/project/learnings.yaml"))
+                .expect("read learnings");
+            let count_second = after_second.matches("- id: PL-").count();
+            assert_eq!(
+                count_first, count_second,
+                "duplicate call within 24h must not add a second entry: first={count_first} second={count_second}",
+            );
+        });
+    }
+
+    #[test]
+    fn fleet_learning_no_op_outside_framework_project() {
+        // Run in a fresh tempdir with NO .context/ present — must silently succeed.
+        use std::sync::Mutex;
+        static CWD_LOCK: Mutex<()> = Mutex::new(());
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1052-noframework-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&tmp).expect("create tmp");
+        let prev = std::env::current_dir().expect("save cwd");
+        std::env::set_current_dir(&tmp).expect("cd into tmp");
+
+        let result = maybe_record_auth_mismatch_learning(
+            "somehub",
+            "127.0.0.1:9100",
+            "Token validation failed: invalid signature",
+        );
+
+        std::env::set_current_dir(&prev).expect("restore cwd");
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        assert!(result.is_ok(), "must be best-effort outside framework projects: {result:?}");
     }
 }
 
