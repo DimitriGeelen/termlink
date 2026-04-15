@@ -4,16 +4,16 @@ name: "Update fleet-doctor TOFU hint to use termlink tofu clear command"
 description: >
   Update fleet-doctor TOFU hint to use termlink tofu clear command
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-session/src/tofu.rs]
 related_tasks: []
 created: 2026-04-13T18:50:02Z
-last_update: 2026-04-13T18:50:02Z
-date_finished: null
+last_update: 2026-04-13T18:51:35Z
+date_finished: 2026-04-13T18:51:35Z
 ---
 
 # T-1036: Update fleet-doctor TOFU hint to use termlink tofu clear command
@@ -51,3 +51,6 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1036-update-fleet-doctor-tofu-hint-to-use-ter.md
 - **Context:** Initial task creation
+
+### 2026-04-13T18:51:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,22 +1,22 @@
 ---
-id: T-1049
-name: "Add CLI tests for kv set, get, list, del error paths on nonexistent session"
+id: T-1059
+name: "send AcadApi plugin files to hub .105 and instruct ingest+incept"
 description: >
-  Add CLI tests for kv set, get, list, del error paths on nonexistent session
+  send AcadApi plugin files to hub .105 and instruct ingest+incept
 
-status: started-work
-workflow_type: test
+status: work-completed
+workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-14T06:53:31Z
-last_update: 2026-04-14T06:53:31Z
-date_finished: null
+created: 2026-04-14T21:03:31Z
+last_update: 2026-04-14T22:53:25Z
+date_finished: 2026-04-14T22:53:25Z
 ---
 
-# T-1049: Add CLI tests for kv set, get, list, del error paths on nonexistent session
+# T-1059: send AcadApi plugin files to hub .105 and instruct ingest+incept
 
 ## Context
 
@@ -26,11 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Test: `termlink kv set` on nonexistent session returns error
-- [x] Test: `termlink kv get` on nonexistent session returns error
-- [x] Test: `termlink kv list` on nonexistent session returns error
-- [x] Test: `termlink kv del` on nonexistent session returns error
-- [x] All 4 tests pass, zero clippy warnings
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -50,10 +47,8 @@ date_finished: null
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
-cargo test -p termlink --test cli_integration cli_kv_set_nonexistent_session 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_kv_get_nonexistent_session 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_kv_list_nonexistent_session 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_kv_del_nonexistent_session 2>&1 | grep -q "1 passed"
+# Lines starting with # are comments (skipped). Empty lines ignored.
+# The completion gate runs each command — if any exits non-zero, completion is blocked.
 
 ## Decisions
 
@@ -68,7 +63,11 @@ cargo test -p termlink --test cli_integration cli_kv_del_nonexistent_session 2>&
 
 ## Updates
 
-### 2026-04-14T06:53:31Z — task-created [task-create-agent]
+### 2026-04-14T21:03:31Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1049-add-cli-tests-for-kv-set-get-list-del-er.md
+- **Output:** /opt/termlink/.tasks/active/T-1059-send-acadapi-plugin-files-to-hub-105-and.md
 - **Context:** Initial task creation
+
+### 2026-04-14T22:53:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** User withdrew request

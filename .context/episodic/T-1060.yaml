@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1060: Fix cargo install --git failure on clean hosts — forward-compat rmcp-macros tool_router vis
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-14T22:02:19Z
+# ============================================================================
+
+task_id: T-1060
+task_name: "Fix cargo install --git failure on clean hosts — forward-compat rmcp-macros tool_router vis"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-14T21:42:54Z
+completed: 2026-04-14T22:02:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-14T23:45:10+02:00
+last_commit: 2026-04-14T23:45:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Forward-compat rmcp-macros tool_router vis — fix cargo install --git without --locked
+
+# Key outcomes
+outcomes:
+  - "`crates/termlink-mcp/src/tools.rs` changes `#[tool_router]` to `#[tool_router(vis = \"pub(crate)\")]` with a comment block explaining WHY for future maintainers"
+  - "`cargo clean && cargo build -p termlink-mcp` passes (rmcp-macros 1.3.0 path)"
+  - "Fresh `cargo build -p termlink-mcp` with rmcp-macros **1.4.0** forced via `cargo update --precise 1.4.0` succeeds — this is the precise reproduction of `cargo install --git` without `--locked` (evidence: \"Finished `dev` profile\" with rmcp-macros v1.4.0 compiling in the build log)"
+  - "`cargo test -p termlink --bin termlink` passes (189 tests, confirmed under BOTH rmcp-macros 1.3.0 and 1.4.0)"
+  - "No clippy warnings (`cargo clippy -p termlink-mcp` clean)"
+  - "G-019 post-fix root cause: register gap concern — `cargo install --git` (no `--locked`) is the documented external install path yet has no CI coverage. Root cause: CI builds use the lockfile (so rmcp-macros stays at 1.3.0) and never exercise the fresh-resolve path where the caret on rmcp's internal rmcp-macros dep allows 1.4+ to slip in."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Forward-compat rmcp-macros tool_router vis — fix cargo install --git without --locked"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1060-fix-cargo-install---git-failure-on-clean.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-14T23:45:10"
+    action: "T-1060: Forward-compat rmcp-macros tool_router vis — fix cargo install --git without --locked"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19
+  commits: 1
+  files_changed: 2
+  lines_added: 115
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1060-fix-cargo-install---git-failure-on-clean.md
+generated_by: context-agent-hybrid

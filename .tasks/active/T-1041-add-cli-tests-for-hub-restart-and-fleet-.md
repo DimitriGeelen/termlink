@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T20:53:38Z
-last_update: 2026-04-13T20:53:38Z
+last_update: 2026-04-13T20:57:50Z
 date_finished: null
 ---
 

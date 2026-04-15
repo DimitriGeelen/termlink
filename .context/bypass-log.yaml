@@ -50,3 +50,33 @@ bypasses:
   command_hash: 2ccd27a8e3e21992987855772a4cbd26d8e4b7afcaa76c7d7e4167e5101baea5
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-04-14T07:28:33Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: './.agentic-framework/bin/fw inception decide T-1051 go --rationale
+    "Option D (hybrid minimum viable antifragile): persis'
+  command_hash: 54b388727db33b05b362844b37956ab0cbbdfcb6297bcf4dae97b736eafb9a6c
+  authorized_by: human
+  mechanism: fw tier0 approve
+- timestamp: '2026-04-14T07:54:59Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: './.agentic-framework/bin/fw inception decide T-1051 go --rationale
+    "Option D (hybrid minimum viable antifragile): persis'
+  command_hash: e9bfbe54de6cb063dac1d0e065ab06348032750d6bf7ab69858eb2da543c2453
+  authorized_by: human
+  mechanism: fw tier0 approve
+- timestamp: '2026-04-14T07:58:16Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: './.agentic-framework/bin/fw inception decide T-1051 go --rationale
+    "Option D: persist-by-default + auto-registered learn'
+  command_hash: d424eb07cab846fdb9978e26c6de761c6bc981e31e2684b79fab5b9554180c61
+  authorized_by: human
+  mechanism: fw tier0 approve

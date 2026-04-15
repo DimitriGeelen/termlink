@@ -4,16 +4,16 @@ name: "Build and deploy latest binary to .107 — includes T-1033 through T-1036
 description: >
   Build and deploy latest binary to .107 — includes T-1033 through T-1036 improvements
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T18:52:30Z
-last_update: 2026-04-13T18:55:52Z
-date_finished: null
+last_update: 2026-04-13T19:02:33Z
+date_finished: 2026-04-13T19:02:33Z
 ---
 
 # T-1037: Build and deploy latest binary to .107 — includes T-1033 through T-1036 improvements
@@ -40,9 +40,9 @@ Build musl static binary with all improvements from T-1033 through T-1036 and up
 
 ## Verification
 
-termlink --version
-termlink remote ping local-test
-termlink tofu list
+/usr/local/bin/termlink --version
+/usr/local/bin/termlink remote ping local-test
+/usr/local/bin/termlink tofu list
 
 ## Decisions
 
@@ -61,3 +61,6 @@ termlink tofu list
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1037-build-and-deploy-latest-binary-to-107--i.md
 - **Context:** Initial task creation
+
+### 2026-04-13T19:02:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

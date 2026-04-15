@@ -1,22 +1,22 @@
 ---
-id: T-1050
-name: "Add CLI tests for agent ask, agent listen, and file receive error paths"
+id: T-1048
+name: "Add CLI tests for interact, mirror, and request nonexistent-session error paths"
 description: >
-  Add CLI tests for agent ask, agent listen, and file receive error paths
+  Add CLI tests for interact, mirror, and request nonexistent-session error paths
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
-created: 2026-04-14T06:55:42Z
-last_update: 2026-04-14T06:55:42Z
-date_finished: null
+created: 2026-04-14T06:49:50Z
+last_update: 2026-04-14T06:52:59Z
+date_finished: 2026-04-14T06:52:59Z
 ---
 
-# T-1050: Add CLI tests for agent ask, agent listen, and file receive error paths
+# T-1048: Add CLI tests for interact, mirror, and request nonexistent-session error paths
 
 ## Context
 
@@ -26,9 +26,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Test: `termlink agent ask` on nonexistent target returns error
-- [x] Test: `termlink agent listen` on nonexistent session returns error
-- [x] Test: `termlink file receive` on nonexistent session returns error
+- [x] Test: `termlink interact` on nonexistent session returns error
+- [x] Test: `termlink mirror` on nonexistent session returns error
+- [x] Test: `termlink request` on nonexistent target returns error
 - [x] All 3 tests pass, zero clippy warnings
 
 ### Human
@@ -49,9 +49,9 @@ date_finished: null
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
-cargo test -p termlink --test cli_integration cli_agent_ask_nonexistent_target 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_agent_listen_nonexistent_session 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_file_receive_nonexistent_session 2>&1 | grep -q "1 passed"
+cargo test -p termlink --test cli_integration cli_interact_nonexistent_session 2>&1 | grep -q "1 passed"
+cargo test -p termlink --test cli_integration cli_mirror_nonexistent_session 2>&1 | grep -q "1 passed"
+cargo test -p termlink --test cli_integration cli_request_nonexistent_target 2>&1 | grep -q "1 passed"
 
 ## Decisions
 
@@ -66,7 +66,10 @@ cargo test -p termlink --test cli_integration cli_file_receive_nonexistent_sessi
 
 ## Updates
 
-### 2026-04-14T06:55:42Z — task-created [task-create-agent]
+### 2026-04-14T06:49:50Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1050-add-cli-tests-for-agent-ask-agent-listen.md
+- **Output:** /opt/termlink/.tasks/active/T-1048-add-cli-tests-for-interact-mirror-and-re.md
 - **Context:** Initial task creation
+
+### 2026-04-14T06:52:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

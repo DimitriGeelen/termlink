@@ -4,16 +4,16 @@ name: "Add termlink_fleet_doctor MCP tool — T-922 codification"
 description: >
   Add termlink_fleet_doctor MCP tool — T-922 codification
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T19:10:23Z
-last_update: 2026-04-13T19:10:23Z
-date_finished: null
+last_update: 2026-04-13T19:13:45Z
+date_finished: 2026-04-13T19:13:45Z
 ---
 
 # T-1039: Add termlink_fleet_doctor MCP tool — T-922 codification
@@ -53,3 +53,6 @@ cargo test -p termlink-mcp fleet 2>&1 | grep "passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1039-add-termlinkfleetdoctor-mcp-tool--t-922-.md
 - **Context:** Initial task creation
+
+### 2026-04-13T19:13:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "hub restart TCP detection — server-side hub.tcp recording for reliable 
 description: >
   Inception: hub restart TCP detection — server-side hub.tcp recording for reliable restart
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T13:01:16Z
-last_update: 2026-04-13T13:01:59Z
-date_finished: null
+last_update: 2026-04-13T13:07:18Z
+date_finished: 2026-04-13T13:07:18Z
 ---
 
 # T-1025: hub restart TCP detection — server-side hub.tcp recording for reliable restart
@@ -106,7 +106,11 @@ See `docs/reports/T-1025-hub-restart-tcp-detection.md` for full research.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Server-side hub.tcp write covers all start paths, fixes bootstrapping gap
+
+**Date**: 2026-04-13T13:07:18Z
 
 ## Updates
 
@@ -115,3 +119,12 @@ See `docs/reports/T-1025-hub-restart-tcp-detection.md` for full research.
 
 ### 2026-04-13T13:01:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-13T13:07:18Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Server-side hub.tcp write covers all start paths, fixes bootstrapping gap
+
+### 2026-04-13T13:07:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

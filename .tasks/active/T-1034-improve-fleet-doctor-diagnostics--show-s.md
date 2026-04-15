@@ -4,16 +4,16 @@ name: "Improve fleet-doctor diagnostics — show secret file path and suggest fi
 description: >
   Improve fleet-doctor diagnostics — show secret file path and suggest fix for auth failures
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-04-13T18:31:29Z
-last_update: 2026-04-13T18:31:29Z
-date_finished: null
+last_update: 2026-04-13T18:36:51Z
+date_finished: 2026-04-13T18:36:51Z
 ---
 
 # T-1034: Improve fleet-doctor diagnostics — show secret file path and suggest fix for auth failures
@@ -61,3 +61,6 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1034-improve-fleet-doctor-diagnostics--show-s.md
 - **Context:** Initial task creation
+
+### 2026-04-13T18:36:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

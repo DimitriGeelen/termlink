@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1047: Add CLI tests for inbox status, list, and clear error paths
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-14T06:45:00Z
+# ============================================================================
+
+task_id: T-1047
+task_name: "Add CLI tests for inbox status, list, and clear error paths"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-14T06:37:16Z
+completed: 2026-04-14T06:44:58Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-14T08:43:37+02:00
+last_commit: 2026-04-14T08:43:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add CLI tests for inbox status, list, and clear error paths
+
+# Key outcomes
+outcomes:
+  - "Test: `termlink inbox status` fails cleanly when hub is not running"
+  - "Test: `termlink inbox list <target>` fails cleanly when hub is not running"
+  - "Test: `termlink inbox clear --all` fails cleanly when hub is not running"
+  - "Test: `termlink inbox clear` (no args) fails with arg validation error"
+  - "All 4 tests pass, zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Add CLI tests for inbox status, list, and clear error paths"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-1047-add-cli-tests-for-inbox-status-list-and-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-14T08:43:37"
+    action: "T-1047: Add CLI tests for inbox status, list, and clear error paths"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 145
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1047-add-cli-tests-for-inbox-status-list-and-.md
+generated_by: context-agent-hybrid
