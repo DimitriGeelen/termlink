@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1057: build.rs: make binary version update on every commit (robust rerun-if-changed)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-15T17:29:24Z
+# ============================================================================
+
+task_id: T-1057
+task_name: "build.rs: make binary version update on every commit (robust rerun-if-changed)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-14T20:34:57Z
+completed: 2026-04-15T13:37:00Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-14T22:37:02+02:00
+last_commit: 2026-04-14T22:37:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix stale binary version — build.rs rerun-if-changed didn't catch commits
+
+# Key outcomes
+outcomes:
+  - "`crates/termlink-cli/build.rs` adds `rerun-if-changed` for `.git/logs/HEAD`, `.git/refs/heads/`, and `.git/packed-refs`"
+  - "Retains existing watches on `.git/HEAD` and `.git/refs/tags` (still meaningful for `git switch` and `git tag` triggers)"
+  - "Comment block documents WHY each watch path matters (so the next agent to edit this file doesn't re-introduce the bug)"
+  - "Mid-fix verification: clean rebuild → version jumped 0.9.860 → 0.9.865 (current state as of HEAD)"
+  - "`cargo build -p termlink` clean, no clippy warnings"
+  - "`cargo test -p termlink --bin termlink`: 189 tests pass"
+  - "Graceful fallback preserved: `rerun-if-changed` on missing paths is tolerated by cargo; `git describe` failure path still falls back to Cargo.toml workspace version via the existing `if let Some(...)` guard"
+  - "Round-trip verified post-commit: see VERIFICATION below"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix stale binary version — build.rs rerun-if-changed didn't catch commits"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/build.rs"
+  - ".tasks/active/T-1057-buildrs-make-binary-version-update-on-ev.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-14T22:37:02"
+    action: "T-1057: Fix stale binary version — build.rs rerun-if-changed didn't catch commits"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1022 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1022
+  commits: 2
+  files_changed: 4
+  lines_added: 308
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1057-buildrs-make-binary-version-update-on-ev.md
+generated_by: context-agent-hybrid

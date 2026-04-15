@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1052: fleet doctor auto-register learning on auth-mismatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-15T17:29:01Z
+# ============================================================================
+
+task_id: T-1052
+task_name: "fleet doctor auto-register learning on auth-mismatch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-14T10:15:08Z
+completed: 2026-04-15T13:35:44Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-14T20:33:08+02:00
+last_commit: 2026-04-14T20:33:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Auto-register learning on fleet-doctor auth-mismatch (R1 compliance)
+
+# Key outcomes
+outcomes:
+  - "`cmd_fleet_doctor` auto-registers a learning in `.context/project/learnings.yaml` when `classify_fleet_error` matches \"Secret mismatch\" or \"certificate changed\""
+  - "Learning text contains: hub name, address, current TOFU fingerprint (or \"unknown\" if not yet pinned), and ISO-8601 UTC timestamp"
+  - "Auto-registration is deduped via `.context/working/.fleet-learning-<hub>` marker: skip if the marker is <24h old AND the fingerprint matches"
+  - "At least one unit/integration test exercises the dedupe path and the first-write path"
+  - "`cargo build -p termlink` succeeds with zero new clippy warnings"
+  - "`cargo test -p termlink --bin termlink -- fleet_learning` passes (5 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1052-fleet-doctor-auto-register-learning-on-a.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-14T20:33:08"
+    action: "T-1052: Auto-register learning on fleet-doctor auth-mismatch (R1 compliance)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1640 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1640
+  commits: 3
+  files_changed: 5
+  lines_added: 1013
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1052-fleet-doctor-auto-register-learning-on-a.md
+generated_by: context-agent-hybrid
