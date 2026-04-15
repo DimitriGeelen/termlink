@@ -372,3 +372,17 @@ learnings:
   date: 2026-04-15
   context: Added via context agent
   application: TBD
+- id: PL-019
+  learning: "Fleet doctor observed auth-mismatch on hub 'probe-105' (192.168.10.105:9100). date_observed=2026-04-15T17:30:52Z hub_fingerprint=sha256:d4f764eff58787d822c5c554bd2921daa7a20ca6f683716051094dc56010efc1. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-15
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-020
+  learning: "ring20 container IPs change without DNS updating — plain-hostname ping gives stale or hypervisor-level results, not the container's current IP. Two renumbers observed 2026-04-15 (.109 → .126 → .122) within 90min. Practical: for termlink hub profiles, hubs.toml must store direct container IPs, and renumbering requires a manual T-XXX migration task. Future work: PVE API integration to auto-discover current container IP, OR hub service rebind to 0.0.0.0 (if it binds hardcoded) so it survives container-level IP changes without config touch on the client."
+  source: unknown
+  task: T-1067
+  date: 2026-04-15
+  context: Added via context agent
+  application: TBD
