@@ -4,7 +4,7 @@ name: "pin rmcp to ~1.3 — fresh cargo install fails on 1.4+ private tool_route
 description: >
   pin rmcp to ~1.3 — fresh cargo install fails on 1.4+ private tool_router
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-14T20:30:02Z
-last_update: 2026-04-14T20:30:02Z
-date_finished: null
+last_update: 2026-04-15T13:36:15Z
+date_finished: 2026-04-15T13:36:15Z
 ---
 
 # T-1056: pin rmcp to ~1.3 — fresh cargo install fails on 1.4+ private tool_router
@@ -85,3 +85,6 @@ grep -E '^rmcp\s*=' crates/termlink-mcp/Cargo.toml | grep -qE '"\~1\.3"'
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1056-pin-rmcp-to-13--fresh-cargo-install-fail.md
 - **Context:** Initial task creation
+
+### 2026-04-15T13:36:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

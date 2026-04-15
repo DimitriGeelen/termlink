@@ -4,7 +4,7 @@ name: "build.rs: make binary version update on every commit (robust rerun-if-cha
 description: >
   build.rs: make binary version update on every commit (robust rerun-if-changed)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-14T20:34:57Z
-last_update: 2026-04-14T20:34:57Z
-date_finished: null
+last_update: 2026-04-15T13:37:00Z
+date_finished: 2026-04-15T13:37:00Z
 ---
 
 # T-1057: build.rs: make binary version update on every commit (robust rerun-if-changed)
@@ -85,7 +85,7 @@ any local branch commit lands), in addition to the existing paths.
 
 cargo build -p termlink 2>&1 | tail -3
 cargo test -p termlink --bin termlink 2>&1 | grep -E "189 passed"
-grep -q "cargo:rerun-if-changed=../../.git/logs/HEAD" crates/termlink-cli/build.rs
+grep -qF '"../../.git/logs/HEAD"' crates/termlink-cli/build.rs
 
 ## Decisions
 
@@ -104,3 +104,6 @@ grep -q "cargo:rerun-if-changed=../../.git/logs/HEAD" crates/termlink-cli/build.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1057-buildrs-make-binary-version-update-on-ev.md
 - **Context:** Initial task creation
+
+### 2026-04-15T13:37:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

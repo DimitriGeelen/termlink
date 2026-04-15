@@ -4,7 +4,7 @@ name: "fleet doctor auto-register concern after N sustained auth failures"
 description: >
   fleet doctor auto-register concern after N sustained auth failures
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-14T18:33:50Z
-last_update: 2026-04-14T18:33:50Z
-date_finished: null
+last_update: 2026-04-15T13:36:13Z
+date_finished: 2026-04-15T13:36:13Z
 ---
 
 # T-1053: fleet doctor auto-register concern after N sustained auth failures
@@ -77,3 +77,6 @@ cargo test -p termlink --bin termlink -- fleet_concern 2>&1 | grep -E "[0-9]+ pa
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1053-fleet-doctor-auto-register-concern-after.md
 - **Context:** Initial task creation
+
+### 2026-04-15T13:36:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
