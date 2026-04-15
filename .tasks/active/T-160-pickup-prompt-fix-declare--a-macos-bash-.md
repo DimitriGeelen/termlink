@@ -13,7 +13,7 @@ tags: [framework, macos-compat]
 components: []
 related_tasks: [T-141]
 created: 2026-03-17T20:46:25Z
-last_update: 2026-04-03T22:47:33Z
+last_update: 2026-04-15T15:27:20Z
 date_finished: 2026-04-03T22:47:33Z
 ---
 

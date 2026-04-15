@@ -4,7 +4,7 @@ name: "Re-apply local fw patches after 1.5.636 upgrade"
 description: >
   Re-apply local fw patches after 1.5.636 upgrade
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T21:02:11Z
-last_update: 2026-04-15T21:02:11Z
-date_finished: null
+last_update: 2026-04-15T21:09:20Z
+date_finished: 2026-04-15T21:09:20Z
 ---
 
 # T-1069: Re-apply local fw patches after 1.5.636 upgrade
@@ -30,11 +30,11 @@ upstream.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `fw task review-queue` subcommand runs and lists partial-complete tasks
-- [ ] `fw task review-queue --count` prints an integer
-- [ ] `fw task help` output references `review-queue`
-- [ ] Handover's `PARTIAL_COMPLETE_SECTION` uses date_finished-ASC sort + tag prefixes
-- [ ] Both patch files (`docs/patches/T-1066-*.md`, `docs/patches/T-1068-*.md`) kept as upstream-propagation recipes
+- [x] `fw task review-queue` subcommand runs and lists partial-complete tasks
+- [x] `fw task review-queue --count` prints an integer
+- [x] `fw task help` output references `review-queue`
+- [x] Handover's `PARTIAL_COMPLETE_SECTION` uses date_finished-ASC sort + tag prefixes
+- [x] Both patch files (`docs/patches/T-1066-*.md`, `docs/patches/T-1068-*.md`) kept as upstream-propagation recipes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -74,3 +74,6 @@ grep -q 'date_finished ASC' .agentic-framework/agents/handover/handover.sh 2>/de
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1069-re-apply-local-fw-patches-after-15636-up.md
 - **Context:** Initial task creation
+
+### 2026-04-15T21:09:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
