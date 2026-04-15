@@ -4,7 +4,7 @@ name: "Framework improvements from termlink protocol-skew + event.broadcast work
 description: >
   Inception: Framework improvements from termlink protocol-skew + event.broadcast workaround pattern
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T21:18:07Z
-last_update: 2026-04-15T21:18:07Z
+last_update: 2026-04-15T21:28:32Z
 date_finished: null
 ---
 
@@ -132,3 +132,6 @@ Total time-box: **70 minutes**. No code until GO.
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-15T21:28:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
