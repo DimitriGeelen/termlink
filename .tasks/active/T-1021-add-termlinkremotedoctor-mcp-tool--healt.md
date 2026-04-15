@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:20:13Z
-last_update: 2026-04-13T12:23:15Z
+last_update: 2026-04-15T13:47:08Z
 date_finished: 2026-04-13T12:23:09Z
 ---
 
@@ -37,6 +37,8 @@ MCP auto-exposure pattern: wrap `termlink remote doctor` as MCP tool. Follows T-
   1. `cd /opt/termlink && cargo run -- doctor --json | python3 -c "import sys,json; print(json.load(sys.stdin)['checks'][-1]['message'])"`
   **Expected:** Shows "62 MCP tools"
   **If not:** Check tool registration in tools.rs
+
+  **Agent evidence (2026-04-15T17:40Z):** Ran the command. Doctor reports `"termlink 0.9.10 (5d0eb9b9), 67 MCP tools"`. Count is 67 (≥62; higher because subsequent tasks T-1038/T-1040 added more remote tools). Registration plumbing works — spirit of AC satisfied. Human may tick the box and close.
 
 ## Verification
 
