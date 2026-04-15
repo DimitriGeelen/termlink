@@ -94,6 +94,13 @@ We attempted 5 fixes in this session (memory, CLAUDE.md, auto-invoke, port detec
   2. Find T-972, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
+  **Agent evidence (2026-04-15T19:52Z):** `fw inception status` reports decision
+  **GO** recorded on 2026-04-12T10:14:30Z. Rationale: Three structural root causes confirmed: framework scripts output bare commands, no agent text governance, no shared URL helper. All three must be fixed together....
+  The inception decision is captured in the task's `## Decisions` section
+  and in the Updates log. The Human AC "Record go/no-go decision" is
+  literally satisfied — all that remains is ticking the box. Human may
+  tick and close.
+
 ## Go/No-Go Criteria
 
 **GO if:**

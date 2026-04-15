@@ -56,6 +56,14 @@ date_finished: 2026-04-11T12:21:19Z
   2. Find T-909, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
+  **Agent evidence (2026-04-15T19:52Z):** `fw inception status` reports decision
+  **GO** recorded on 2026-04-11T12:21:19Z. Rationale: 3-angle risk eval converged on GO-WITH-CAVEATS. Use fw vendor (56MB, exclusions) not cp -r (349MB     
+  pollution). Pre-flight kills live contaminating watchtower PID 1471772 directly, stages atomic ...
+  The inception decision is captured in the task's `## Decisions` section
+  and in the Updates log. The Human AC "Record go/no-go decision" is
+  literally satisfied — all that remains is ticking the box. Human may
+  tick and close.
+
 ## Go/No-Go Criteria
 
 **GO if:**
