@@ -4,7 +4,7 @@ name: "fleet doctor auto-register learning on auth-mismatch"
 description: >
   fleet doctor auto-register learning on auth-mismatch
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-14T10:15:08Z
-last_update: 2026-04-14T10:15:08Z
-date_finished: null
+last_update: 2026-04-15T13:35:44Z
+date_finished: 2026-04-15T13:35:44Z
 ---
 
 # T-1052: fleet doctor auto-register learning on auth-mismatch
@@ -57,3 +57,6 @@ cargo test -p termlink --bin termlink -- fleet_learning 2>&1 | grep -E "5 passed
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1052-fleet-doctor-auto-register-learning-on-a.md
 - **Context:** Initial task creation
+
+### 2026-04-15T13:35:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
