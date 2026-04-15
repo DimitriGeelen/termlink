@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1054: termlink fleet reauth command — print heal incantation for a profile (Tier-1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-15T17:29:23Z
+# ============================================================================
+
+task_id: T-1054
+task_name: "termlink fleet reauth command — print heal incantation for a profile (Tier-1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-14T19:54:41Z
+completed: 2026-04-15T13:36:14Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-14T22:00:53+02:00
+last_commit: 2026-04-14T22:00:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink fleet reauth <profile> — Tier-1 heal incantation
+
+# Key outcomes
+outcomes:
+  - "New `Fleet Reauth { profile: String }` CLI subcommand registered in `cli.rs` and dispatched in `main.rs`"
+  - "`cmd_fleet_reauth(profile)` in `remote.rs`:"
+  - "Looks up the profile from `~/.termlink/hubs.toml`"
+  - "Prints: profile name, hub address, where the local secret is cached (secret_file path or \"inline secret\" warning)"
+  - "Prints the refresh incantation: SSH read from hub + write to local secret file + chmod 600"
+  - "Explicitly tags the trust anchor as OUT-OF-BAND (R2 compliance: `--bootstrap-from` not yet available)"
+  - "Prints the verify command (`termlink fleet doctor`)"
+  - "Errors cleanly when the profile doesn't exist (actionable message, exit 1)"
+  - "5 unit tests: render-with-secret-file, render-with-inline-secret, render-with-no-secret, unknown-profile error, empty-hubs-config error"
+  - "`cargo build -p termlink` clean, zero new clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1054-termlink-fleet-reauth-command--print-hea.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-14T22:00:53"
+    action: "T-1054: Add `termlink fleet reauth <profile>` — Tier-1 heal incantation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1061 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1061
+  commits: 2
+  files_changed: 6
+  lines_added: 477
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1054-termlink-fleet-reauth-command--print-hea.md
+generated_by: context-agent-hybrid

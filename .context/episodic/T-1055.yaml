@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1055: termlink fleet reauth --bootstrap-from autonomous heal (R2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-15T17:29:23Z
+# ============================================================================
+
+task_id: T-1055
+task_name: "termlink fleet reauth --bootstrap-from autonomous heal (R2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-14T20:01:20Z
+completed: 2026-04-15T13:36:14Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-14T22:28:29+02:00
+last_commit: 2026-04-14T22:28:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add --bootstrap-from to fleet reauth (Tier-2, R2 compliance)
+
+# Key outcomes
+outcomes:
+  - "`--bootstrap-from <SOURCE>` flag added to `FleetAction::Reauth`"
+  - "Source parser accepts `file:<path>` and `ssh:<host>`; rejects unknown prefixes with actionable error"
+  - "Fetched value is trimmed + validated as 64-char ASCII hex; rejected otherwise"
+  - "Profile must use `secret_file` — inline-secret profiles error out with migration hint"
+  - "Existing secret_file is backed up to `<path>.bak` before being overwritten"
+  - "New secret written at chmod 600 (atomic via `.hex.tmp` → rename)"
+  - "Success message includes the new fingerprint preview (first 12 hex chars) so the operator can confirm without dumping the secret"
+  - "When no `--bootstrap-from` provided, command falls back to Tier-1 printer (T-1054 behavior preserved)"
+  - "8 unit tests: hex validator accept/reject-length/reject-non-hex, unknown-prefix, empty-prefix, file-source happy path (incl. .bak), invalid-hex-rejection-preserves-file, inline-secret profile refusal"
+  - "`cargo build -p termlink` clean, zero new clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/config.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/src/test_env_lock.rs"
+  - ".tasks/active/T-1055-termlink-fleet-reauth---bootstrap-from-a.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-14T22:28:29"
+    action: "T-1055: Add --bootstrap-from to fleet reauth (Tier-2, R2 compliance)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1054 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1054
+  commits: 2
+  files_changed: 9
+  lines_added: 673
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1055-termlink-fleet-reauth---bootstrap-from-a.md
+generated_by: context-agent-hybrid

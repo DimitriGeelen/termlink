@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1053: fleet doctor auto-register concern after N sustained auth failures
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-15T17:29:23Z
+# ============================================================================
+
+task_id: T-1053
+task_name: "fleet doctor auto-register concern after N sustained auth failures"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-14T18:33:50Z
+completed: 2026-04-15T13:36:13Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-14T21:54:27+02:00
+last_commit: 2026-04-14T21:54:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Auto-register concern after sustained fleet-doctor auth failures (G-019)
+
+# Key outcomes
+outcomes:
+  - "Per-hub failure state is persisted in `.context/working/.fleet-failure-state.json` (consecutive_failures, first_failure_at, last_failure_at, last_class, concern_registered). Format chosen: JSON (serde_json already a dep), not YAML, to avoid adding a new dep."
+  - "Passing fleet-doctor run resets a hub's counter to 0 and clears first_failure_at"
+  - "Failing run increments counter, sets first_failure_at on 0→1 transition, updates last_failure_at"
+  - "When `consecutive_failures >= 3` AND `(now - first_failure_at) > 24h` AND `concern_registered == false`: a gap is appended to `.context/project/concerns.yaml` with type=gap, severity=high, status=watching, trigger_fired=true"
+  - "After registering a concern, `concern_registered` is flipped to true to prevent duplicates"
+  - "6 unit tests cover: first-failure recording, reset on success, threshold-not-met, threshold-met-write-concern, dedupe, parse_iso8601 round-trip + rejection"
+  - "`cargo build -p termlink` clean, zero new clippy warnings"
+  - "`cargo test -p termlink --bin termlink -- fleet_concern` passes (6 tests)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1053-fleet-doctor-auto-register-concern-after.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-14T21:54:27"
+    action: "T-1053: Auto-register concern after sustained fleet-doctor auth failures (G-019)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1142 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1142
+  commits: 2
+  files_changed: 4
+  lines_added: 646
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1053-fleet-doctor-auto-register-concern-after.md
+generated_by: context-agent-hybrid
