@@ -1935,3 +1935,450 @@ but found another document
 127.0.0.1 - - [15/Apr/2026 00:03:19] "GET /tasks HTTP/1.1" 200 -
 127.0.0.1 - - [15/Apr/2026 00:03:19] "GET /terminal HTTP/1.1" 200 -
 127.0.0.1 - - [15/Apr/2026 00:03:21] "GET /timeline HTTP/1.1" 200 -
+192.168.10.107 - - [15/Apr/2026 21:46:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:15] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:15] "GET /approvals HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:16] "GET /approvals/content HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:16] "GET /assumptions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:16] "GET /config HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:17] "GET /costs HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:17] "GET /cron HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:18] "GET /decisions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:18] "GET /directives HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:20] "GET /discoveries HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:20] "GET /docs/generated HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:20] "GET /enforcement HTTP/1.1" 200 -
+[2026-04-15 21:46:20,366] ERROR in app: Exception on /fabric [GET]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/termlink/.agentic-framework/web/blueprints/fabric.py", line 93, in fabric_overview
+    registered_ids = {s["id"] for s in subsystems}
+                      ~^^^^^^
+KeyError: 'id'
+127.0.0.1 - - [15/Apr/2026 21:46:20] "GET /fabric HTTP/1.1" 500 -
+127.0.0.1 - - [15/Apr/2026 21:46:20] "GET /fabric/graph HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:20] "GET /gaps HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:22] "GET /graduation HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:23] "GET /inception HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:23] "GET /learnings HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:24] "GET /metrics HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:24] "GET /patterns HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:24] "GET /project HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:24] "GET /quality HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:24] "GET /risks HTTP/1.1" 200 -
+Failed to parse episodic file /opt/termlink/.context/episodic/T-928.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-900.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-836.yaml: while scanning a double-quoted scalar
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 5
+found unknown escape character '['
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 71
+Failed to parse episodic file /opt/termlink/.context/episodic/T-895.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-121.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-896.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-155.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-172.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-162.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-927.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-925.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-171.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-926.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-929.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-924.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-170.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-897.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-167.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-935.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-920.yaml: while parsing a block mapping
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 9, column 1
+expected <block end>, but found '<block sequence start>'
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 47, column 3
+Failed to parse episodic file /opt/termlink/.context/episodic/T-905.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-904.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-894.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-166.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 11, column 1
+127.0.0.1 - - [15/Apr/2026 21:46:26] "GET /search HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:26] "GET /search/conversations HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:26] "GET /search/feedback/analytics HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:26] "GET /search/load-conversation HTTP/1.1" 400 -
+127.0.0.1 - - [15/Apr/2026 21:46:26] "GET /sessions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:26] "GET /settings/ HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:26] "GET /settings/models HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:29] "GET /tasks HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:29] "GET /terminal HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:46:31] "GET /timeline HTTP/1.1" 200 -
+192.168.10.107 - - [15/Apr/2026 21:55:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:02] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:02] "GET /approvals HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:02] "GET /approvals/content HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:02] "GET /assumptions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:02] "GET /config HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:04] "GET /costs HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:04] "GET /cron HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:04] "GET /decisions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:04] "GET /directives HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:06] "GET /discoveries HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:06] "GET /docs/generated HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:06] "GET /enforcement HTTP/1.1" 200 -
+[2026-04-15 21:55:06,674] ERROR in app: Exception on /fabric [GET]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/termlink/.agentic-framework/web/blueprints/fabric.py", line 93, in fabric_overview
+    registered_ids = {s["id"] for s in subsystems}
+                      ~^^^^^^
+KeyError: 'id'
+127.0.0.1 - - [15/Apr/2026 21:55:06] "GET /fabric HTTP/1.1" 500 -
+127.0.0.1 - - [15/Apr/2026 21:55:06] "GET /fabric/graph HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:06] "GET /gaps HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:08] "GET /graduation HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:09] "GET /inception HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:09] "GET /learnings HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:10] "GET /metrics HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:10] "GET /patterns HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:10] "GET /project HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:10] "GET /quality HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:10] "GET /risks HTTP/1.1" 200 -
+Failed to parse episodic file /opt/termlink/.context/episodic/T-928.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-900.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-836.yaml: while scanning a double-quoted scalar
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 5
+found unknown escape character '['
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 71
+Failed to parse episodic file /opt/termlink/.context/episodic/T-895.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-121.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-896.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-155.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-172.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-162.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-927.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-925.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-171.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-926.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-929.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-924.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-170.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-897.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-167.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-935.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-920.yaml: while parsing a block mapping
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 9, column 1
+expected <block end>, but found '<block sequence start>'
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 47, column 3
+Failed to parse episodic file /opt/termlink/.context/episodic/T-905.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-904.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-894.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-166.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 11, column 1
+127.0.0.1 - - [15/Apr/2026 21:55:12] "GET /search HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:12] "GET /search/conversations HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:12] "GET /search/feedback/analytics HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:12] "GET /search/load-conversation HTTP/1.1" 400 -
+127.0.0.1 - - [15/Apr/2026 21:55:12] "GET /sessions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:12] "GET /settings/ HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:12] "GET /settings/models HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:15] "GET /tasks HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:15] "GET /terminal HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 21:55:17] "GET /timeline HTTP/1.1" 200 -
+192.168.10.107 - - [15/Apr/2026 22:57:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:53] "GET /approvals HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:53] "GET /approvals/content HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:53] "GET /assumptions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:53] "GET /config HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:55] "GET /costs HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:55] "GET /cron HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:55] "GET /decisions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:55] "GET /directives HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:57] "GET /discoveries HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:57] "GET /docs/generated HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:57] "GET /enforcement HTTP/1.1" 200 -
+[2026-04-15 22:57:57,860] ERROR in app: Exception on /fabric [GET]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/termlink/.agentic-framework/web/blueprints/fabric.py", line 93, in fabric_overview
+    registered_ids = {s["id"] for s in subsystems}
+                      ~^^^^^^
+KeyError: 'id'
+127.0.0.1 - - [15/Apr/2026 22:57:57] "GET /fabric HTTP/1.1" 500 -
+127.0.0.1 - - [15/Apr/2026 22:57:57] "GET /fabric/graph HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:57] "GET /gaps HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:59] "GET /graduation HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:57:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:00] "GET /inception HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:00] "GET /learnings HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:01] "GET /metrics HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:01] "GET /patterns HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:01] "GET /project HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:01] "GET /quality HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:01] "GET /risks HTTP/1.1" 200 -
+Failed to parse episodic file /opt/termlink/.context/episodic/T-928.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-928.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-900.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-900.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-836.yaml: while scanning a double-quoted scalar
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 5
+found unknown escape character '['
+  in "/opt/termlink/.context/episodic/T-836.yaml", line 31, column 71
+Failed to parse episodic file /opt/termlink/.context/episodic/T-895.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-895.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-121.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-121.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-896.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-896.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-155.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-155.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-172.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-172.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-162.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-162.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-927.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-927.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-925.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-925.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-171.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-171.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-926.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-926.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-929.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-929.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-924.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-924.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-170.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-170.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-897.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-897.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-167.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-167.yaml", line 11, column 1
+Failed to parse episodic file /opt/termlink/.context/episodic/T-935.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-935.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-920.yaml: while parsing a block mapping
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 9, column 1
+expected <block end>, but found '<block sequence start>'
+  in "/opt/termlink/.context/episodic/T-920.yaml", line 47, column 3
+Failed to parse episodic file /opt/termlink/.context/episodic/T-905.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-905.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-904.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-904.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-894.yaml: while scanning an alias
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 1
+expected alphabetic or numeric character, but found '*'
+  in "/opt/termlink/.context/episodic/T-894.yaml", line 3, column 2
+Failed to parse episodic file /opt/termlink/.context/episodic/T-166.yaml: expected a single document in the stream
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 2, column 1
+but found another document
+  in "/opt/termlink/.context/episodic/T-166.yaml", line 11, column 1
+127.0.0.1 - - [15/Apr/2026 22:58:03] "GET /search HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:03] "GET /search/conversations HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:03] "GET /search/feedback/analytics HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:03] "GET /search/load-conversation HTTP/1.1" 400 -
+127.0.0.1 - - [15/Apr/2026 22:58:03] "GET /sessions HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:04] "GET /settings/ HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:04] "GET /settings/models HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:06] "GET /tasks HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:06] "GET /terminal HTTP/1.1" 200 -
+127.0.0.1 - - [15/Apr/2026 22:58:08] "GET /timeline HTTP/1.1" 200 -

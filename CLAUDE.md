@@ -114,7 +114,6 @@ heal printer) → T-1055 (Tier-2 `--bootstrap-from`, R2) → T-1056 (rmcp pin,
 unblocks consumer installs of the heal CLI) → T-1057 (build.rs version
 freshness, so operators can confirm they're running the version that has
 these commands). T-1058 added this documentation.
-
 ## Core Principle
 
 **Nothing gets done without a task.** This is enforced structurally by the framework, not by agent discipline.
@@ -862,7 +861,6 @@ This gate is non-negotiable. The PreToolUse hook will block Write/Edit without a
 | Commit changes | `fw git commit -m "T-XXX: ..."` | `./agents/git/git.sh commit -m "T-XXX: ..."` |
 | Task-aware status | `fw git status` | `./agents/git/git.sh status` |
 | Install git hooks | `fw git install-hooks` | `./agents/git/git.sh install-hooks` |
-| **Release a new version** | **`fw release`** (auto-bumps) or `fw release vX.Y.Z` | **Tier 0 — creates + pushes a release tag to GitHub directly. Triggers GitHub Actions Release workflow (publishes binaries). Requires explicit operator intent.** |
 | Run audit | `fw audit` | `./agents/audit/audit.sh` |
 | Show gaps | `fw gaps` | _(fw only)_ |
 | Health check | `fw doctor` | _(fw only)_ |
