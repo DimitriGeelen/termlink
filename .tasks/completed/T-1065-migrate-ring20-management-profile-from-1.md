@@ -4,7 +4,7 @@ name: "Migrate ring20-management profile from .109 to .126 (host renumbered)"
 description: >
   Migrate ring20-management profile from .109 to .126 (host renumbered)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T17:22:40Z
-last_update: 2026-04-15T17:22:40Z
-date_finished: null
+last_update: 2026-04-15T17:24:19Z
+date_finished: 2026-04-15T17:24:19Z
 ---
 
 # T-1065: Migrate ring20-management profile from .109 to .126 (host renumbered)
@@ -52,3 +52,6 @@ grep -q '192.168.10.126:9100' /root/.termlink/hubs.toml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1065-migrate-ring20-management-profile-from-1.md
 - **Context:** Initial task creation
+
+### 2026-04-15T17:24:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
