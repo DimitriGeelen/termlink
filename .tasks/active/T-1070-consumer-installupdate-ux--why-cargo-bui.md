@@ -4,7 +4,7 @@ name: "Consumer install/update UX — why cargo build when we already ship binar
 description: >
   Inception: Consumer install/update UX — why cargo build when we already ship binaries
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T21:15:31Z
-last_update: 2026-04-15T21:15:31Z
+last_update: 2026-04-15T21:26:49Z
 date_finished: null
 ---
 
@@ -87,9 +87,9 @@ Total time-box: **90 minutes**. No code until GO.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated — `docs/reports/T-1070-consumer-install-ux.md`
+- [ ] Assumptions tested (A1/A2 deferred — require GitHub API reach)
+- [x] Recommendation written with rationale — preliminary GO, see report
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -119,15 +119,24 @@ Total time-box: **90 minutes**. No code until GO.
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+
+**Rationale:** The release pipeline already ships 5-target binaries to GitHub Releases. The gap is between "binary exists" and "consumer runs it" — a missing `install.sh` curl-pipe bootstrap. Fix is bounded (~80 lines of shell + a Homebrew formula tweak). Every fresh-host scenario hit this session (ring20 LXCs, parallel session's no-cargo host) is unblocked by the same small intervention.
+
+**Evidence:**
+- `.github/workflows/release.yml` — 5-target matrix confirmed.
+- `scripts/update-homebrew-sha.sh` — Homebrew updater only hashes 4 targets (darwin ×2 + linux-gnu ×2); no musl.
+- `scripts/deploy-remote.sh` — the only "fresh host" install path is SSH-based.
+- `termlink --help` — no `self-update` / `update` subcommand.
+- README — points consumers to `brew install` (macOS-centric) or `cargo install --git` (the failure mode).
+- **The 3 ring20 containers (.109/.121/.122) have no working install path without SSH** — structural blocker.
+
+**Proposed scope for build task (if GO):**
+1. Ship `install.sh` at repo root (auto-detect target triple, curl + checksum-verify from GitHub Releases, install to `/usr/local/bin`).
+2. Add the musl variant to the Homebrew formula (or swap linux-gnu for linux-musl to improve LXC compatibility).
+3. Update README with the one-liner install.
+
+Research artifact: `docs/reports/T-1070-consumer-install-ux.md`.
 
 ## Decisions
 
@@ -148,3 +157,6 @@ Total time-box: **90 minutes**. No code until GO.
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-15T21:26:49Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
