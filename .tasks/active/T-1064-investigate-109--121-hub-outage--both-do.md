@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T17:09:39Z
-last_update: 2026-04-15T17:09:39Z
+last_update: 2026-04-15T17:31:22Z
 date_finished: null
 ---
 
@@ -29,6 +29,8 @@ date_finished: null
 - No plausible "new home" candidate for ring20-dashboard found via scan.
 
 **Conclusion:** ring20-dashboard at .121 most likely has a down hub process, not a renumber. Operator action: check systemd `termlink-hub.service` on the .121 container.
+
+**UPDATE 2026-04-15T18:55Z (broader ring20 outage detected):** OneDev (`onedev.docker.ring20.geelenandcompany.com`) returning HTTP 502 — server outage, not routing issue (DNS resolves, TLS handshakes, HTTP response is 502 from reverse proxy). GitHub remote is reachable. Combined picture: .109→.126 renumber + .121 hub down + OneDev 502 + (from G-007) mirror lag = ring20 infrastructure is having a bad afternoon. Probable common cause: Proxmox/PVE maintenance, container rescheduling, or network equipment issue. Operator action: check PVE host health and docker-compose stack on ring20 hypervisor.
 
 ## Acceptance Criteria
 
