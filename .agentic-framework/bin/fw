@@ -1985,6 +1985,7 @@ PYTASK_REVIEW_QUEUE
             echo "  stale     Show tasks with no updates in 7+ days (--days N)"
             echo "  verify [T-XXX]    Run verification commands (T-070) or list awaiting tasks (T-193)"
             echo "  review T-XXX      Print clickable URL + QR code for Human AC review"
+            echo "  review-queue [--count] [--rubber-stamp-only]  List partial-complete tasks awaiting human signature (T-1066/G-008)"
             echo ""
             echo "Usage:"
             echo '  fw task create --name "Fix bug" --type build --owner human'
@@ -2000,6 +2001,9 @@ PYTASK_REVIEW_QUEUE
             echo '  fw task stale            # Show tasks older than 7 days'
             echo '  fw task stale --days 14  # Show tasks older than 14 days'
             echo '  fw task verify  # List tasks awaiting human verification'
+            echo '  fw task review-queue              # Full sorted list of partial-complete tasks'
+            echo '  fw task review-queue --count      # Just the count (for handover digest)'
+            echo '  fw task review-queue --rubber-stamp-only  # Trivial ticks only'
             ;;
         stale)
             # T-812: Show tasks that haven't had updates or commits in N days
