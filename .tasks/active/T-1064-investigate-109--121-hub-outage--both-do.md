@@ -22,6 +22,14 @@ date_finished: null
 
 **UPDATE 2026-04-15T17:25Z (user report):** ".109 has become .126" — ring20-management container renumbered. Verified: ping .126 OK (0.15ms), .109 no longer responds, port 9100 still refused on .126 (hub process down). .121 still timing out. **Scope revision:** .109 is not "down" — it's gone. The container migrated. Client profile updated by T-1065. Remaining work here: (1) start the hub process on .126, (2) investigate .121 (may also be renumbered — operator to confirm).
 
+**UPDATE 2026-04-15T17:32Z (agent network probe):** Scanned 192.168.10.120-135 for port 9100 + pings. Findings:
+- .121 responds to ping, :9100 refused (host alive, hub process down — matches original diagnosis)
+- .131 has :9100 open but RPC times out. Almost certainly a JetDirect printer (port 9100 is IANA for HP printers), NOT a termlink hub.
+- .105:9100 still accepting connections (old hub from pre-T-1061 cleanup — still running, stale secret).
+- No plausible "new home" candidate for ring20-dashboard found via scan.
+
+**Conclusion:** ring20-dashboard at .121 most likely has a down hub process, not a renumber. Operator action: check systemd `termlink-hub.service` on the .121 container.
+
 ## Acceptance Criteria
 
 ### Agent
