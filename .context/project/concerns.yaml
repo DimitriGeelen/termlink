@@ -87,10 +87,12 @@ concerns:
   what_works_now: "T-1060 eliminated the macro-visibility dependency entirely (`vis = \"pub(crate)\"` makes the generated method reachable regardless of which rmcp-macros version resolves). This fix is resilient to future transitive drift in rmcp-macros."
   what_remains: "1. Add CI job that runs `cargo install --git .` (no --locked) on a clean worktree — catches this class of drift before users hit it. 2. Consider same CI for `cargo install` via crates.io when/if we publish there. 3. Audit other external-install paths (Homebrew formula, GitHub Releases binaries) for equivalent resolution surprises."
   mitigation_candidate: "Add .github/workflows/install-check.yml that on every push runs: rm -rf target && cargo install --git file://$PWD termlink --force (no --locked). Green means the external install path works against today's crates.io registry. Red means regression."
-  status: watching
+  status: decided-build
+  decision_date: 2026-04-15
+  decision: "T-1062 implemented .github/workflows/install-check.yml. Triggers on push + PR to main, runs `cargo install --git file://$GITHUB_WORKSPACE termlink --force` (no --locked), then smoke-tests `termlink --version`. Cargo registry cached but install dir is not (forces fresh build/resolve every run). Will close when the workflow has run green at least once on main."
   created: 2026-04-14
-  last_reviewed: 2026-04-14
-  related_tasks: [T-1056, T-1060]
+  last_reviewed: 2026-04-15
+  related_tasks: [T-1056, T-1060, T-1062]
 
 - id: G-006
   type: gap
