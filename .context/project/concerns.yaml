@@ -110,3 +110,20 @@ concerns:
   created: 2026-04-15
   last_reviewed: 2026-04-15
   related_tasks: [T-1061, T-606, T-909]
+
+- id: G-007
+  type: gap
+  title: "OneDev → GitHub mirror is stuck — main branch pointer on GitHub is 25+ min stale despite successful pushes to OneDev"
+  description: "CLAUDE.md's CI/Release Flow documents the chain: `git push origin` → OneDev → OneDev's PushRepository buildspec auto-mirrors to GitHub. Observed 2026-04-15: 7 commits (72bb5078..018a9801) pushed to OneDev successfully between 13:35Z and 15:30Z. At 15:45Z+, GitHub's `refs/heads/main` was still at 856306c7 (the commit immediately BEFORE the 7 new ones). The commits themselves exist on GitHub (reachable via the v0.9.1 tag which was pushed directly by `fw release`), but the branch pointer hasn't advanced. This means: (a) normal `git push origin main` flow is broken for new consumers who `git pull` from GitHub and expect fresh main, (b) the documented governance path (never push to GitHub) is circumvented only because `fw release` silently pushes to `github` remote directly, (c) GitHub Actions triggers that rely on `push: branches: main` (like the install-check workflow T-1062 just added) will NOT fire for recent commits until mirror catches up."
+  spec_reference: "CLAUDE.md ## CI / Release Flow; OneDev PushRepository buildspec (.onedev-buildspec.yml); .agentic-framework/agents/git/lib/hooks.sh (fw release direct-github path)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-04-15: 7 commits pushed to origin (OneDev) between 13:35Z and 15:30Z; `gh api repos/.../commits/main` at 15:45Z still showed GH main HEAD=856306c7 (pre-session). The v0.9.1 tag at 4c8c9bb6 reached GH within seconds of `fw release` (direct push, not via mirror), confirming the auth/path to GH works — only the OneDev-side auto-mirror is stuck."
+  detection_lag_days: 0
+  what_works_now: "Tags and release artifacts arrive on GitHub via `fw release`'s direct push path. Commits reachable from tags are accessible on GH as dangling refs. OneDev-to-OneDev push is unaffected. The install-check workflow was added successfully (file is on GH via tag), it just won't fire from main-branch pushes until mirror catches up."
+  what_remains: "1. Inspect OneDev's PushRepository buildspec job status (likely requires OneDev UI access — operator action). 2. Verify github-push-token is valid. 3. Check if OneDev mirror is rate-limited or queued. 4. Consider fallback: if mirror is chronically slow, document that `fw release` is the authoritative GitHub path and formalize its direct push, or run a reconciliation cron."
+  mitigation_candidate: "Short-term: operator checks OneDev buildspec output for the failing mirror job. Medium-term: add a doctor check — if HEAD on origin != HEAD on github for >15min, WARN. Long-term: decide whether the buildspec mirror is worth keeping vs. just pushing to both remotes from `git push` (simpler, no lag, no silent-stuck-mirror failure mode)."
+  status: watching
+  created: 2026-04-15
+  last_reviewed: 2026-04-15
+  related_tasks: [T-1062]
