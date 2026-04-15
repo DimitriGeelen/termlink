@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-288: termlink vendor — per-project binary isolation (same pattern as framework .agentic-framework/)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-15T15:27:20Z
+# ============================================================================
+
+task_id: T-288
+task_name: "termlink vendor — per-project binary isolation (same pattern as framework .agentic-framework/)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-25T22:13:57Z
+completed: 2026-03-30T14:38:35Z
+duration_days: 4
+updates_count: 2
+first_commit: 2026-03-25T23:26:58+01:00
+last_commit: 2026-03-25T23:26:58+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink vendor — per-project binary isolation
+
+# Key outcomes
+outcomes:
+  - "`termlink vendor --help` shows usage"
+  - "`termlink vendor` copies current binary to `.termlink/bin/termlink` in project dir"
+  - "`termlink vendor --dry-run` shows what would happen without copying"
+  - "`termlink vendor --source /path/to/binary` copies a specific binary"
+  - "`termlink vendor --target /path/to/project` vendors into a specific project"
+  - "`termlink vendor status` shows vendor state (version, path, drift from global)"
+  - "Vendored binary is executable"
+  - "`.termlink/VERSION` records the vendored version"
+  - "Warns if `.gitignore` doesn't exclude `.termlink/bin/`"
+  - "All existing tests pass (`cargo test --workspace`)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/mod.rs"
+  - "crates/termlink-cli/src/commands/vendor.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-288-termlink-vendor--per-project-binary-isol.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T23:26:58"
+    action: "T-288: termlink vendor — per-project binary isolation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6744 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6744
+  commits: 2
+  files_changed: 7
+  lines_added: 400
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-288-termlink-vendor--per-project-binary-isol.md
+generated_by: context-agent-hybrid
