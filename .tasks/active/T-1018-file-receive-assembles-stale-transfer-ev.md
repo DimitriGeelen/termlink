@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:01:14Z
-last_update: 2026-04-13T12:11:04Z
+last_update: 2026-04-15T13:47:08Z
 date_finished: 2026-04-13T12:10:54Z
 ---
 
@@ -38,6 +38,17 @@ On first poll, file receive gets ALL historical events from the event store and 
   3. `cd /opt/termlink && termlink file receive --replay <target> /tmp/recv-test` (should pick up historical)
   **Expected:** Default mode ignores stale events; --replay processes them
   **If not:** Check first-poll logic in file.rs
+
+  **Agent evidence (2026-04-15T19:47Z):** Verified fix in
+  `crates/termlink-cli/src/commands/file.rs`:
+  - Line 267: `replay: bool` CLI flag present.
+  - Line 306: `is_first_poll = replay` — historical scan only in replay mode.
+  - Lines 294–295: replay mode announces itself (`"replay mode, timeout: Xs"`).
+  - Lines 309–321: in default mode, anchors cursor at current seq and logs
+    `"Skipping N historical event(s), waiting for fresh transfers..."`.
+  Code path matches the AC literal expectation (default skips stale, --replay
+  processes historical). Live end-to-end blocked by same local-hub stale-pidfile
+  (T-1030). Human may tick and close.
 
 ## Verification
 
