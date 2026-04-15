@@ -862,6 +862,7 @@ This gate is non-negotiable. The PreToolUse hook will block Write/Edit without a
 | Commit changes | `fw git commit -m "T-XXX: ..."` | `./agents/git/git.sh commit -m "T-XXX: ..."` |
 | Task-aware status | `fw git status` | `./agents/git/git.sh status` |
 | Install git hooks | `fw git install-hooks` | `./agents/git/git.sh install-hooks` |
+| **Release a new version** | **`fw release`** (auto-bumps) or `fw release vX.Y.Z` | **Tier 0 — creates + pushes a release tag to GitHub directly. Triggers GitHub Actions Release workflow (publishes binaries). Requires explicit operator intent.** |
 | Run audit | `fw audit` | `./agents/audit/audit.sh` |
 | Show gaps | `fw gaps` | _(fw only)_ |
 | Health check | `fw doctor` | _(fw only)_ |

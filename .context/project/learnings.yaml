@@ -365,3 +365,10 @@ learnings:
   date: 2026-04-14
   context: Added via context agent
   application: TBD
+- id: PL-018
+  learning: "fw doctor Doc-drift check reads the FRAMEWORK-level CLAUDE.md at /root/.agentic-framework/CLAUDE.md (the global install), not the project's CLAUDE.md. Project-level doc edits do not clear the warning — the fix must land upstream in the framework template."
+  source: P-001
+  task: T-1063
+  date: 2026-04-15
+  context: Added via context agent
+  application: TBD
