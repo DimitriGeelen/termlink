@@ -4,7 +4,7 @@ name: "Enhance handover partial-complete section with tag breakdown + age sort (
 description: >
   Enhance handover partial-complete section with tag breakdown + age sort (follow-up to T-1066)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T19:03:16Z
-last_update: 2026-04-15T19:03:16Z
-date_finished: null
+last_update: 2026-04-15T19:17:23Z
+date_finished: 2026-04-15T19:17:23Z
 ---
 
 # T-1068: Enhance handover partial-complete section with tag breakdown + age sort (follow-up to T-1066)
@@ -51,3 +51,6 @@ test -f docs/patches/T-1068-handover-partial-complete-tags.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1068-enhance-handover-partial-complete-sectio.md
 - **Context:** Initial task creation
+
+### 2026-04-15T19:17:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
