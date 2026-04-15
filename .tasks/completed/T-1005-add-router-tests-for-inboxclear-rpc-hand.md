@@ -1,22 +1,22 @@
 ---
-id: T-1004
-name: "Fix flaky governance MCP test — env var race condition"
+id: T-1005
+name: "Add router tests for inbox.clear RPC handler"
 description: >
-  Fix flaky governance MCP test — env var race condition
+  Add router tests for inbox.clear RPC handler
 
 status: work-completed
-workflow_type: build
+workflow_type: test
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-13T08:53:14Z
-last_update: 2026-04-13T08:54:19Z
-date_finished: 2026-04-13T08:54:19Z
+created: 2026-04-13T08:57:27Z
+last_update: 2026-04-15T13:47:07Z
+date_finished: 2026-04-13T08:58:22Z
 ---
 
-# T-1004: Fix flaky governance MCP test — env var race condition
+# T-1005: Add router tests for inbox.clear RPC handler
 
 ## Context
 
@@ -26,8 +26,8 @@ date_finished: 2026-04-13T08:54:19Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Governance tests use a mutex to prevent env var races
-- [x] `cargo test -p termlink-mcp` passes reliably on repeated runs
+- [x] inbox.clear requires target or all param (error on missing)
+- [x] inbox.clear removes deposited transfers and returns count
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,10 +63,10 @@ date_finished: 2026-04-13T08:54:19Z
 
 ## Updates
 
-### 2026-04-13T08:53:14Z — task-created [task-create-agent]
+### 2026-04-13T08:57:27Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1004-fix-flaky-governance-mcp-test--env-var-r.md
+- **Output:** /opt/termlink/.tasks/active/T-1005-add-router-tests-for-inboxclear-rpc-hand.md
 - **Context:** Initial task creation
 
-### 2026-04-13T08:54:19Z — status-update [task-update-agent]
+### 2026-04-13T08:58:22Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
