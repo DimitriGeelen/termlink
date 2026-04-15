@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T09:46:45Z
-last_update: 2026-04-13T09:50:15Z
+last_update: 2026-04-15T13:47:07Z
 date_finished: 2026-04-13T09:50:15Z
 ---
 
@@ -38,6 +38,8 @@ Expose T-1009's `termlink remote inbox` as MCP tools so AI agents can query inbo
   1. `cd /opt/termlink && cargo run -- doctor`
   **Expected:** Shows 59 MCP tools
   **If not:** Check tool registration macro
+
+  **Agent evidence (2026-04-15T17:40Z, commit 5d0eb9b9):** doctor reports `"67 MCP tools"` (≥59; grew as T-1011/T-1021/T-1038/T-1040 added more). Registration works. Human may tick + close.
 
 ## Verification
 

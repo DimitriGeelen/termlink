@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T09:54:29Z
-last_update: 2026-04-13T09:57:26Z
+last_update: 2026-04-15T13:47:07Z
 date_finished: 2026-04-13T09:57:26Z
 ---
 
@@ -37,6 +37,8 @@ Add termlink_remote_list (discover sessions on remote hub) and termlink_remote_e
   1. `cd /opt/termlink && cargo run -- doctor`
   **Expected:** Shows 61 MCP tools
   **If not:** Check tool registration
+
+  **Agent evidence (2026-04-15T17:40Z, commit 5d0eb9b9):** doctor reports `"67 MCP tools"` (≥61; subsequent tasks added more). Registration works. Human may tick + close.
 
 ## Verification
 
