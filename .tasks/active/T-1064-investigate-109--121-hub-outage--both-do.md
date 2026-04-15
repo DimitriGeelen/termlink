@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T17:09:39Z
-last_update: 2026-04-15T17:31:22Z
+last_update: 2026-04-15T18:55:30Z
 date_finished: null
 ---
 
@@ -31,6 +31,8 @@ date_finished: null
 **Conclusion:** ring20-dashboard at .121 most likely has a down hub process, not a renumber. Operator action: check systemd `termlink-hub.service` on the .121 container.
 
 **UPDATE 2026-04-15T18:55Z (broader ring20 outage detected):** OneDev (`onedev.docker.ring20.geelenandcompany.com`) returning HTTP 502 — server outage, not routing issue (DNS resolves, TLS handshakes, HTTP response is 502 from reverse proxy). GitHub remote is reachable. Combined picture: .109→.126 renumber + .121 hub down + OneDev 502 + (from G-007) mirror lag = ring20 infrastructure is having a bad afternoon. Probable common cause: Proxmox/PVE maintenance, container rescheduling, or network equipment issue. Operator action: check PVE host health and docker-compose stack on ring20 hypervisor.
+
+**UPDATE 2026-04-15T19:00Z (second renumber — T-1067):** User reports ".109 now is 122" — ring20-management container migrated AGAIN (.109 → .126 → .122 in one afternoon). Verified: .126 gone, .122 alive (elevated 113ms latency = different routing path). Port 9100 still refused on .122 — hub process has not followed the container. Strong signal that container is being actively rescheduled on the hypervisor and the hub service inside is not auto-starting on the new network. Hypothesis: hub systemd unit expects a fixed IP binding (T-945 fix may not be enough; bindaddr might need 0.0.0.0). Operator action still required; add to check list: inspect hub service config for IP-hardcoded ExecStart.
 
 ## Acceptance Criteria
 
