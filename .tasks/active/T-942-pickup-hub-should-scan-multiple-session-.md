@@ -60,6 +60,13 @@ Related: T-940 (RCA for runtime dir unification). T-959 concluded "two-pool arch
   2. Find T-942, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
+  **Agent evidence (2026-04-15T19:52Z):** `fw inception status` reports decision
+  **GO** recorded on 2026-04-12T17:14:43Z. Rationale: Recommendation: DEFER...
+  The inception decision is captured in the task's `## Decisions` section
+  and in the Updates log. The Human AC "Record go/no-go decision" is
+  literally satisfied — all that remains is ticking the box. Human may
+  tick and close.
+
 ## Go/No-Go Criteria
 
 **GO if:**

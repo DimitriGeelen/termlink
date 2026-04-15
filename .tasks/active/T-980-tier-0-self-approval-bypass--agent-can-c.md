@@ -54,6 +54,13 @@ The Tier 0 gate (check-tier0.sh) blocks destructive commands but the approval me
   2. Find T-980, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
+  **Agent evidence (2026-04-15T19:52Z):** `fw inception status` reports decision
+  **GO** recorded on 2026-04-12T13:21:19Z. Rationale: Recommendation: GO (Option A — block `fw tier0 approve` in pattern list)...
+  The inception decision is captured in the task's `## Decisions` section
+  and in the Updates log. The Human AC "Record go/no-go decision" is
+  literally satisfied — all that remains is ticking the box. Human may
+  tick and close.
+
 ## Go/No-Go Criteria
 
 **GO if:**

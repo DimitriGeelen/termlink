@@ -79,6 +79,13 @@ Currently there's no way to distinguish a "stale orphan" from a "persistent agen
   2. Find T-967, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
+  **Agent evidence (2026-04-15T19:52Z):** `fw inception status` reports decision
+  **GO** recorded on 2026-04-12T10:26:25Z. Rationale: User approved: persistent agent sessions with KV persistent=true, tag role:receptionist, .framework.yaml config. Joint design with framework agent completed via PTY coordination....
+  The inception decision is captured in the task's `## Decisions` section
+  and in the Updates log. The Human AC "Record go/no-go decision" is
+  literally satisfied — all that remains is ticking the box. Human may
+  tick and close.
+
 ## Go/No-Go Criteria
 
 **GO if:**

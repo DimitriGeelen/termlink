@@ -59,6 +59,13 @@ Framework dispatch is shell-based (`termlink.sh`). Rust dispatch (`termlink disp
   2. Find T-937, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
+  **Agent evidence (2026-04-15T19:52Z):** `fw inception status` reports decision
+  **NO-GO** recorded on 2026-04-12T17:14:28Z. Rationale: Recommendation: NO-GO...
+  The inception decision is captured in the task's `## Decisions` section
+  and in the Updates log. The Human AC "Record go/no-go decision" is
+  literally satisfied — all that remains is ticking the box. Human may
+  tick and close.
+
 ## Go/No-Go Criteria
 
 **GO if:**
