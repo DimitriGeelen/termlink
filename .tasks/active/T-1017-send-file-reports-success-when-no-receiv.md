@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:01:07Z
-last_update: 2026-04-13T12:06:04Z
+last_update: 2026-04-15T13:47:08Z
 date_finished: 2026-04-13T12:05:49Z
 ---
 
@@ -38,6 +38,16 @@ send-file has two delivery paths: Direct (session online locally) and Hub (via h
   2. Check stderr output
   **Expected:** Warning about needing `file receive` or clear spool message
   **If not:** Check file.rs line ~250 for the output logic
+
+  **Agent evidence (2026-04-15T19:45Z):** Verified fix present in
+  `crates/termlink-cli/src/commands/file.rs`:
+  - Line 247: JSON output includes `"spooled": spooled` field.
+  - Lines 253–255: when `spooled=true`, emits two stderr lines —
+    `File spooled to hub inbox for '<target>'. SHA-256: <hash>` followed by
+    `Target must run 'termlink file receive <target>' to assemble the file.`
+  Code path matches the AC literal expectation. A live end-to-end repro is
+  blocked locally by a separate stale-pidfile issue (T-1030); the code audit
+  confirms the fix shipped. Human may tick and close.
 
 ## Verification
 
