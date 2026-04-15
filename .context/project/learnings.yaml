@@ -393,3 +393,10 @@ learnings:
   date: 2026-04-15
   context: Added via context agent
   application: TBD
+- id: PL-022
+  learning: "fw upgrade clobbers local patches to .agentic-framework/* — re-apply after every upgrade from docs/patches/T-XXX-*.md recipes. Also: fw upgrade invoked inside a vendored project fails at step 4b/9 (source==target); run from the upstream repo's bin/fw instead"
+  source: P-009
+  task: T-1069
+  date: 2026-04-15
+  context: Added via context agent
+  application: TBD
