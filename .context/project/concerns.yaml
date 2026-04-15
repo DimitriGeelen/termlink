@@ -127,3 +127,20 @@ concerns:
   created: 2026-04-15
   last_reviewed: 2026-04-15
   related_tasks: [T-1062]
+
+- id: G-008
+  type: gap
+  title: "64 tasks stuck in partial-complete state — Human ACs accumulate unchecked because no review workflow surfaces them"
+  description: "As of 2026-04-15: 64 tasks in .tasks/active/ have status=work-completed but remain in active/ because at least one Human AC box is unchecked. The agent-side work is done; all that's missing is human rubber-stamping of ACs that are often trivially verifiable (e.g., `termlink doctor` reports N MCP tools). The framework has no surfacing mechanism: no CLI command to list 'tasks awaiting your signature', no digest in handovers, no dashboard page ranking by age. Backlog grows linearly with session velocity. The stuck tasks pollute fw handover's 'Work in Progress' (they appear as active) and obscure genuinely in-progress work. T-372/T-373 established the Human-AC-is-real-work principle; T-1065 session observed the growing pile and recognized it as systemic."
+  spec_reference: "CLAUDE.md Agent/Human AC Split rule (T-193), Human Task Completion Rule (T-372, T-373), .agentic-framework/agents/task-create/update-task.sh partial-complete logic"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-04-15: Survey of .tasks/active/ found 64 tasks in work-completed status with at least one unchecked Human AC. 4 of them (T-1010/1011/1021/1038) all have the same RUBBER-STAMP AC pattern satisfied by a single `termlink doctor` run — trivially rubber-stamp-able, not rubber-stamped because nothing prompts the human."
+  detection_lag_days: 0
+  what_works_now: "Evidence capture in the task file works — agent leaves 'Agent evidence:' notes when it can verify the spirit of the AC. When human does sit down to review, they have pre-computed facts. Partial-complete move on idempotent `fw task update` works (re-runs the move once box is ticked)."
+  what_remains: "1. Add `fw task review-queue` command — lists agent-owned and human-owned tasks with unchecked human ACs, sorted by date_finished ascending. 2. Surface count in fw handover (e.g. 'Awaiting your signature: 64 tasks, oldest 90 days'). 3. Consider: for RUBBER-STAMP Human ACs where agent has left objective evidence, add a `fw task rubber-stamp T-XXX` command that ticks the box on the human's behalf with a log entry — human only reviews batch log, not each task. 4. Audit check: WARN when partial-complete count exceeds threshold (e.g., >20)."
+  mitigation_candidate: "Short-term: dedicated human review session using `fw task verify T-XXX` on each stuck task. Medium-term: `fw task review-queue` CLI + handover digest. Long-term: rubber-stamp batching command for AC categories that are objectively verifiable."
+  status: watching
+  created: 2026-04-15
+  last_reviewed: 2026-04-15
+  related_tasks: [T-193, T-372, T-373]
