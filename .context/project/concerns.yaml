@@ -91,3 +91,20 @@ concerns:
   created: 2026-04-14
   last_reviewed: 2026-04-14
   related_tasks: [T-1056, T-1060]
+
+- id: G-006
+  type: gap
+  title: "Pre-push hook stamps project VERSION into vendored .agentic-framework/VERSION (overwrites framework's own version)"
+  description: "The pre-push hook in .agentic-framework/agents/git/lib/hooks.sh:398-401 writes the project's git-derived version into BOTH /opt/termlink/VERSION (correct) AND /opt/termlink/.agentic-framework/VERSION (wrong). The vendored framework copy has its own VERSION file that should track which framework release was vendored — instead it gets overwritten on every push with the project's version. Observed 2026-04-15 during T-1061 housekeeping: .agentic-framework/VERSION was 1.5.587 at last vendor, became 0.9.872 (project version) after recent pushes. Upstream framework is at 1.5.624. The bug pre-dates G-001 fix (when .agentic-framework was a symlink, this code wrote into the framework source repo itself — equally wrong). After T-909 vendored the framework, the wrong-target write became visible in the project's git diff but the underlying logic was unchanged."
+  spec_reference: ".agentic-framework/agents/git/lib/hooks.sh:385-403, T-606 (version-bumping-design.md), T-909 (vendor symlink fix)"
+  severity: low
+  trigger_fired: true
+  trigger_event: "2026-04-15: T-1061 housekeeping inspected framework drift, found .agentic-framework/VERSION stamped to project version 0.9.872 instead of vendored framework version 1.5.x"
+  detection_lag_days: ">7"
+  what_works_now: "Project VERSION (root) stamps correctly. Framework operates regardless of its VERSION file value (it's metadata only — not loaded by any runtime code path; used by `fw upgrade` to compare vendored vs upstream). T-1061 reverted vendored VERSION to 1.5.587 manually."
+  what_remains: "1. Fix hooks.sh to skip the .agentic-framework/VERSION write (or write the actual framework version, not the project's). 2. Verify `fw upgrade` works with restored value. 3. This is upstream framework work — file in /opt/999-Agentic-Engineering-Framework, not termlink."
+  mitigation_candidate: "In hooks.sh, replace the write to .agentic-framework/VERSION with: do nothing (let `fw vendor` manage that file). Or: read the framework's actual version from the upstream source if available, otherwise leave the file unchanged."
+  status: watching
+  created: 2026-04-15
+  last_reviewed: 2026-04-15
+  related_tasks: [T-1061, T-606, T-909]

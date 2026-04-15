@@ -128,8 +128,20 @@ def _next_run_approx(schedule: str) -> Optional[str]:
     return None
 
 
+import time as _time_mod
+
+_run_info_cache = {"data": None, "count": 0, "ts": 0}
+_RUN_INFO_CACHE_TTL = 60  # seconds
+
+
 def _last_run_info() -> dict:
-    """Get last run info from cron audit output files."""
+    """Get last run info from cron audit output files.
+
+    Scans files newest-first, collecting the most recent result for each unique
+    section key.  Stops once all known section keys have been found or after
+    200 files (~3 days of data at current cadence).
+    Cached with file-count invalidation (T-1247).
+    """
     if not AUDIT_CRON_DIR.exists():
         return {}
 
@@ -137,13 +149,22 @@ def _last_run_info() -> dict:
     if not files:
         return {}
 
+    now = _time_mod.monotonic()
+    current_count = len(files)
+    if (_run_info_cache["data"] is not None
+            and current_count == _run_info_cache["count"]
+            and (now - _run_info_cache["ts"]) < _RUN_INFO_CACHE_TTL):
+        return _run_info_cache["data"]
+
     info = {}
-    for f in files[:5]:
+    for f in files[:200]:
         try:
             data = yaml.safe_load(f.read_text())
             if not data:
                 continue
             sections = data.get("sections", "")
+            if not sections or sections in info:
+                continue
             ts = data.get("timestamp", "")
             summary = data.get("summary", {})
             info[sections] = {
@@ -157,13 +178,18 @@ def _last_run_info() -> dict:
             logger.warning("Failed to parse cron audit file %s: %s", f, e)
             continue
 
+    _run_info_cache["data"] = info
+    _run_info_cache["count"] = current_count
+    _run_info_cache["ts"] = now
     return info
 
 
 def _match_job_to_output(job: dict, run_info: dict) -> Optional[dict]:
     """Try to match a job to its last run output."""
     cmd = job.get("command", "")
+    job_id = job.get("id", "")
 
+    # 1) Audit jobs with --section: match section key to cron output files
     m = re.search(r"--section\s+(\S+)", cmd)
     if m:
         section_key = m.group(1)
@@ -173,9 +199,10 @@ def _match_job_to_output(job: dict, run_info: dict) -> Optional[dict]:
             if section_key in key or key in section_key:
                 return val
 
+    # 2) Full audit (no --section): check main audit directory
     if "audit" in cmd and "--section" not in cmd and "--cron" in cmd:
         audit_dir = PROJECT_ROOT / ".context" / "audits"
-        for af in sorted(audit_dir.glob("20*.yaml"), reverse=True):
+        for af in sorted(audit_dir.glob("20*.yaml"), reverse=True)[:1]:
             try:
                 data = yaml.safe_load(af.read_text())
                 summary = data.get("summary", {})
@@ -185,9 +212,41 @@ def _match_job_to_output(job: dict, run_info: dict) -> Optional[dict]:
                     "warn": summary.get("warn", 0),
                     "fail": summary.get("fail", 0),
                 }
-            except Exception as e:
-                logger.warning("Failed to parse audit file %s: %s", af, e)
+            except Exception:
                 continue
+
+    # 3) Non-audit jobs: detect last run from filesystem artifacts
+    if job_id == "docs-daily":
+        docs_dir = PROJECT_ROOT / "docs" / "generated" / "components"
+        if docs_dir.exists():
+            latest = max(docs_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, default=None)
+            if latest:
+                mtime = datetime.fromtimestamp(latest.stat().st_mtime, tz=timezone.utc)
+                return {"timestamp": mtime.isoformat(), "pass": 1, "warn": 0, "fail": 0}
+
+    if job_id == "pickup-process":
+        processed_dir = PROJECT_ROOT / ".context" / "pickup" / "processed"
+        inbox_dir = PROJECT_ROOT / ".context" / "pickup" / "inbox"
+        # Check if either directory has recent activity
+        for d in (processed_dir, inbox_dir):
+            if d.exists():
+                try:
+                    mtime = datetime.fromtimestamp(d.stat().st_mtime, tz=timezone.utc)
+                    return {"timestamp": mtime.isoformat(), "pass": 1, "warn": 0, "fail": 0}
+                except Exception:
+                    continue
+
+    if job_id == "retention-daily":
+        # Retention ran if no cron files older than 7 days exist
+        if AUDIT_CRON_DIR.exists():
+            files = sorted(AUDIT_CRON_DIR.glob("20*.yaml"))
+            if files:
+                oldest = files[0].name[:10]  # date portion
+                from datetime import date, timedelta
+                cutoff = str(date.today() - timedelta(days=8))
+                if oldest >= cutoff:
+                    # Retention is working — use oldest file date as proxy
+                    return {"timestamp": f"{oldest}T09:00:00+00:00", "pass": 1, "warn": 0, "fail": 0}
 
     return None
 
