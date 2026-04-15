@@ -386,3 +386,10 @@ learnings:
   date: 2026-04-15
   context: Added via context agent
   application: TBD
+- id: PL-021
+  learning: "When a remote hub rotates BOTH secret and TLS cert (container nuke / clean runtime_dir), reauth requires TWO steps: (1) fleet reauth --bootstrap-from file:... for the secret, (2) termlink tofu clear <addr>:<port> to drop the stale cert pin so TOFU re-trusts. fleet reauth alone is not enough — TLS layer still rejects. Observed 2026-04-15 for ring20-management after .122 container came back bare."
+  source: unknown
+  task: T-1067
+  date: 2026-04-15
+  context: Added via context agent
+  application: TBD
