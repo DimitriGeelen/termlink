@@ -4,7 +4,7 @@ name: "Migrate ring20-management profile .126 → .122 (second renumber)"
 description: >
   Migrate ring20-management profile .126 → .122 (second renumber)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T18:59:49Z
-last_update: 2026-04-15T18:59:49Z
-date_finished: null
+last_update: 2026-04-15T19:01:17Z
+date_finished: 2026-04-15T19:01:17Z
 ---
 
 # T-1067: Migrate ring20-management profile .126 → .122 (second renumber)
@@ -54,3 +54,6 @@ grep -q '192.168.10.122:9100' /root/.termlink/hubs.toml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1067-migrate-ring20-management-profile-126--1.md
 - **Context:** Initial task creation
+
+### 2026-04-15T19:01:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
