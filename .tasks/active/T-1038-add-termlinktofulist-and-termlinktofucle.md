@@ -4,16 +4,16 @@ name: "Add termlink_tofu_list and termlink_tofu_clear MCP tools — T-922 codifi
 description: >
   Add termlink_tofu_list and termlink_tofu_clear MCP tools — T-922 codification
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T19:05:17Z
-last_update: 2026-04-13T19:05:17Z
-date_finished: null
+last_update: 2026-04-13T19:09:37Z
+date_finished: 2026-04-13T19:09:37Z
 ---
 
 # T-1038: Add termlink_tofu_list and termlink_tofu_clear MCP tools — T-922 codification
@@ -59,3 +59,6 @@ cargo test -p termlink-mcp tofu 2>&1 | grep "passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1038-add-termlinktofulist-and-termlinktofucle.md
 - **Context:** Initial task creation
+
+### 2026-04-13T19:09:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

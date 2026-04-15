@@ -1,0 +1,15 @@
+command_hash: 52769126c88dc7492e06bf3ba932480ac1d2472a8b92d53c6ef14d43a4fec8d0
+command_preview: './.agentic-framework/bin/fw inception decide T-1051 go --rationale
+  "Option D (hybrid minimum viable antifragile): persist-by-default + auto-self-registered
+  learning/concern on auth-mismatch + termlink'
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: approved
+timestamp: '2026-04-14T07:24:02Z'
+type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-14T07:26:19Z'
+  mechanism: watchtower

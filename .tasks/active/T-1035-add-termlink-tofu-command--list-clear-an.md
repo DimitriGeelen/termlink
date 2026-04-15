@@ -4,16 +4,16 @@ name: "Add termlink tofu command — list, clear, and manage TOFU trust entries"
 description: >
   Add termlink tofu command — list, clear, and manage TOFU trust entries
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T18:37:43Z
-last_update: 2026-04-13T18:37:43Z
-date_finished: null
+last_update: 2026-04-13T18:48:57Z
+date_finished: 2026-04-13T18:48:57Z
 ---
 
 # T-1035: Add termlink tofu command — list, clear, and manage TOFU trust entries
@@ -62,3 +62,6 @@ cargo test -p termlink --test cli_integration tofu 2>&1 | grep "passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1035-add-termlink-tofu-command--list-clear-an.md
 - **Context:** Initial task creation
+
+### 2026-04-13T18:48:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

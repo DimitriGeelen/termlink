@@ -1,22 +1,22 @@
 ---
-id: T-1047
-name: "Add CLI tests for inbox status, list, and clear error paths"
+id: T-1049
+name: "Add CLI tests for kv set, get, list, del error paths on nonexistent session"
 description: >
-  Add CLI tests for inbox status, list, and clear error paths
+  Add CLI tests for kv set, get, list, del error paths on nonexistent session
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
-created: 2026-04-14T06:37:16Z
-last_update: 2026-04-14T06:37:16Z
-date_finished: null
+created: 2026-04-14T06:53:31Z
+last_update: 2026-04-14T06:54:46Z
+date_finished: 2026-04-14T06:54:46Z
 ---
 
-# T-1047: Add CLI tests for inbox status, list, and clear error paths
+# T-1049: Add CLI tests for kv set, get, list, del error paths on nonexistent session
 
 ## Context
 
@@ -26,10 +26,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Test: `termlink inbox status` fails cleanly when hub is not running
-- [x] Test: `termlink inbox list <target>` fails cleanly when hub is not running
-- [x] Test: `termlink inbox clear --all` fails cleanly when hub is not running
-- [x] Test: `termlink inbox clear` (no args) fails with arg validation error
+- [x] Test: `termlink kv set` on nonexistent session returns error
+- [x] Test: `termlink kv get` on nonexistent session returns error
+- [x] Test: `termlink kv list` on nonexistent session returns error
+- [x] Test: `termlink kv del` on nonexistent session returns error
 - [x] All 4 tests pass, zero clippy warnings
 
 ### Human
@@ -50,10 +50,10 @@ date_finished: null
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
-cargo test -p termlink --test cli_integration cli_inbox_status_no_hub 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_inbox_list_no_hub 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_inbox_clear_all_no_hub 2>&1 | grep -q "1 passed"
-cargo test -p termlink --test cli_integration cli_inbox_clear_missing_args 2>&1 | grep -q "1 passed"
+cargo test -p termlink --test cli_integration cli_kv_set_nonexistent_session 2>&1 | grep -q "1 passed"
+cargo test -p termlink --test cli_integration cli_kv_get_nonexistent_session 2>&1 | grep -q "1 passed"
+cargo test -p termlink --test cli_integration cli_kv_list_nonexistent_session 2>&1 | grep -q "1 passed"
+cargo test -p termlink --test cli_integration cli_kv_del_nonexistent_session 2>&1 | grep -q "1 passed"
 
 ## Decisions
 
@@ -68,7 +68,10 @@ cargo test -p termlink --test cli_integration cli_inbox_clear_missing_args 2>&1 
 
 ## Updates
 
-### 2026-04-14T06:37:16Z — task-created [task-create-agent]
+### 2026-04-14T06:53:31Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1047-add-cli-tests-for-inbox-status-list-and-.md
+- **Output:** /opt/termlink/.tasks/active/T-1049-add-cli-tests-for-kv-set-get-list-del-er.md
 - **Context:** Initial task creation
+
+### 2026-04-14T06:54:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

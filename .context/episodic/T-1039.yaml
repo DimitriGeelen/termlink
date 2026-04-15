@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1039: Add termlink_fleet_doctor MCP tool — T-922 codification
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-13T19:13:56Z
+# ============================================================================
+
+task_id: T-1039
+task_name: "Add termlink_fleet_doctor MCP tool — T-922 codification"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T19:10:23Z
+completed: 2026-04-13T19:13:45Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-13T21:13:37+02:00
+last_commit: 2026-04-13T21:13:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_fleet_doctor MCP tool — health check all configured hubs
+
+# Key outcomes
+outcomes:
+  - "`termlink_fleet_doctor` MCP tool health-checks all configured hubs"
+  - "Returns JSON with per-hub status, latency, diagnostics"
+  - "Unit test for params parsing (2 tests)"
+  - "Builds with zero clippy warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1039-add-termlinkfleetdoctor-mcp-tool--t-922-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T21:13:37"
+    action: "T-1039: Add termlink_fleet_doctor MCP tool — health check all configured hubs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 159
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1039-add-termlinkfleetdoctor-mcp-tool--t-922-.md
+generated_by: context-agent-hybrid

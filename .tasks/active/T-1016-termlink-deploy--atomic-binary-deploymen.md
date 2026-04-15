@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T11:23:11Z
-last_update: 2026-04-13T13:42:37Z
+last_update: 2026-04-13T13:45:28Z
 date_finished: null
 ---
 
@@ -111,7 +111,13 @@ test -f docs/reports/T-1016-termlink-deploy.md
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: All prerequisites are met. T-1028 (cert persistence) and T-933 (secret persistence) solve the auth/TOFU breakage. The remaining work is ~100 lines orchestrating: conn...
+
+**Date**: 2026-04-13T19:20:35Z
 
 ## Updates
 
@@ -120,3 +126,17 @@ test -f docs/reports/T-1016-termlink-deploy.md
 
 ### 2026-04-13T13:42:37Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-13T19:20:33Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: All prerequisites are met. T-1028 (cert persistence) and T-933 (secret persistence) solve the auth/TOFU breakage. The remaining work is ~100 lines orchestrating: conn...
+
+### 2026-04-13T19:20:35Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: All prerequisites are met. T-1028 (cert persistence) and T-933 (secret persistence) solve the auth/TOFU breakage. The remaining work is ~100 lines orchestrating: conn...

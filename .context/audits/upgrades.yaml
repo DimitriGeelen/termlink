@@ -260,3 +260,15 @@ upgrades:
     from_version: "1.5.551"
     to_version: "1.5.555"
     framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-13T18:42:23Z
+    from_version: "1.5.555"
+    to_version: "1.5.580"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-13T18:58:53Z
+    from_version: "1.5.580"
+    to_version: "1.5.587"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-04-13T20:59:38Z
+    from_version: "1.5.587"
+    to_version: "1.5.600"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
