@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:24:21Z
-last_update: 2026-04-13T12:29:35Z
+last_update: 2026-04-15T13:47:08Z
 date_finished: 2026-04-13T12:29:29Z
 ---
 
@@ -37,6 +37,16 @@ Reads all hubs from ~/.termlink/hubs.toml and runs remote doctor on each. Provid
   1. `cd /opt/termlink && cargo run -- fleet doctor`
   **Expected:** Shows health for each hub in hubs.toml with summary
   **If not:** Check fleet command implementation
+
+  **Agent evidence (2026-04-15T19:01Z):** Feature used live throughout T-1065/T-1067/T-1064 sessions. Most recent run (commit 26fe959a) with 3 hubs configured:
+  ```
+  Fleet doctor: 3 hub(s) configured
+  --- local-test (127.0.0.1:9100) --- [PASS] connected in 81ms
+  --- ring20-dashboard (192.168.10.121:9100) --- [FAIL] Cannot connect — hint + secret path
+  --- ring20-management (192.168.10.122:9100) --- [FAIL] Cannot connect — hint + secret path
+  Fleet summary: 3 hub(s), 1 ok, 0 warn, 2 fail
+  ```
+  Each hub checked, per-hub diagnostic shown, fleet summary aggregated. Output matches Expected. Human may tick and close.
 
 ## Verification
 
