@@ -4,7 +4,7 @@ name: "Add fw task review-queue — list partial-complete tasks awaiting human s
 description: >
   Add fw task review-queue — list partial-complete tasks awaiting human signature (G-008 mitigation)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T18:48:40Z
-last_update: 2026-04-15T18:48:40Z
-date_finished: null
+last_update: 2026-04-15T18:54:32Z
+date_finished: 2026-04-15T18:54:32Z
 ---
 
 # T-1066: Add fw task review-queue — list partial-complete tasks awaiting human signature (G-008 mitigation)
@@ -56,3 +56,6 @@ G-008 mitigation: 64 tasks stuck in partial-complete with no surface to prompt r
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1066-add-fw-task-review-queue--list-partial-c.md
 - **Context:** Initial task creation
+
+### 2026-04-15T18:54:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
