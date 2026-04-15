@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-cli/src/commands/vendor.rs]
 related_tasks: []
 created: 2026-03-27T13:30:39Z
-last_update: 2026-03-30T14:38:35Z
+last_update: 2026-04-15T15:27:20Z
 date_finished: 2026-03-27T14:02:27Z
 ---
 
