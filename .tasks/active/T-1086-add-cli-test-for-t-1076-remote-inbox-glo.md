@@ -1,33 +1,35 @@
 ---
-id: T-1085
-name: "Improve learnings-exchange — use fleet doctor --json instead of ANSI stripping"
+id: T-1086
+name: "Add CLI test for T-1076 remote inbox global args fix"
 description: >
-  Improve learnings-exchange — use fleet doctor --json instead of ANSI stripping
+  Add CLI test for T-1076 remote inbox global args fix
 
 status: started-work
-workflow_type: build
+workflow_type: test
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-16T18:38:50Z
-last_update: 2026-04-16T18:38:50Z
+created: 2026-04-16T18:48:40Z
+last_update: 2026-04-16T18:48:40Z
 date_finished: null
 ---
 
-# T-1085: Improve learnings-exchange — use fleet doctor --json instead of ANSI stripping
+# T-1086: Add CLI test for T-1076 remote inbox global args fix
 
 ## Context
 
-Replace ANSI-stripping + awk block extraction in learnings-exchange.sh with `fleet doctor --json` + python3 JSON parsing. Cleaner, more reliable, no ANSI fragility.
+T-1076 fixed remote inbox CLI (global args + optional subcommand). T-1077 fixed kv. Add regression tests to prevent re-break.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Uses `fleet doctor --json` instead of ANSI-stripping hack
-- [x] Correctly identifies ok/fail peers from JSON output
-- [x] Script runs without errors (tested: 3 peers, 1 ok, 2 skipped)
+- [x] Test: `remote inbox <hub>` defaults to status (no subcommand required)
+- [x] Test: `remote inbox <hub> status --timeout 5` parses options after subcommand
+- [x] Test: `kv <session>` defaults to list (no subcommand required)
+- [x] Test: `kv <session> list --json` parses options after subcommand
+- [x] `cargo test` passes (4 new tests)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +65,7 @@ Replace ANSI-stripping + awk block extraction in learnings-exchange.sh with `fle
 
 ## Updates
 
-### 2026-04-16T18:38:50Z — task-created [task-create-agent]
+### 2026-04-16T18:48:40Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1085-improve-learnings-exchange--use-fleet-do.md
+- **Output:** /opt/termlink/.tasks/active/T-1086-add-cli-test-for-t-1076-remote-inbox-glo.md
 - **Context:** Initial task creation
