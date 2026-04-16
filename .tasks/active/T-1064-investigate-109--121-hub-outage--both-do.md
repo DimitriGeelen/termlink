@@ -4,7 +4,7 @@ name: "Investigate .109 + .121 hub outage — both down 2026-04-15 ~15:50Z"
 description: >
   ring20-management (.109) and ring20-dashboard (.121) both fail termlink fleet doctor as of 2026-04-15 ~15:50Z. Diagnostics: ping OK on both, but port 9100 connection refused on .121 and timing-out on .109. T-1027 reported both running at session-start two days ago. Operator action: SSH in, check systemd hub service status on both hosts. If restart policy not deployed there, see T-931..T-935. Registered from T-1061 housekeeping session. No code fix needed — this is operational.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T17:09:39Z
-last_update: 2026-04-15T18:55:30Z
+last_update: 2026-04-16T21:15:18Z
 date_finished: null
 ---
 
@@ -37,24 +37,28 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Cleared stale TOFU pin for .121 (cert had changed after hub restart)
+- [x] Diagnosed .121: hub is running (port 9100 open), auth mismatch (secret rotated)
+- [x] Diagnosed .122: hub process not running (port 9100 refused)
+- [x] Ran `termlink fleet reauth ring20-dashboard` — printed heal steps
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Heal .121 (ring20-dashboard) auth — fetch new secret via SSH
+  **Steps:**
+  1. `ssh 192.168.10.121 -- sudo cat /var/lib/termlink/hub.secret`
+  2. `echo "<hex>" > /root/.termlink/secrets/ring20-dashboard.hex && chmod 600 /root/.termlink/secrets/ring20-dashboard.hex`
+  3. `cd /opt/termlink && termlink fleet doctor`
+  **Expected:** ring20-dashboard shows [PASS]
+  **If not:** Check if hub uses different runtime_dir (`termlink doctor` on .121)
+
+- [ ] [REVIEW] Start hub on .122 (ring20-management)
+  **Steps:**
+  1. SSH to .122: `ssh 192.168.10.122`
+  2. Check hub service: `systemctl status termlink-hub.service`
+  3. Start if not running: `systemctl start termlink-hub.service`
+  4. From local: `cd /opt/termlink && termlink fleet doctor`
+  **Expected:** ring20-management shows [PASS]
+  **If not:** Check if systemd unit exists, install via deploy script if missing
 
 ## Verification
 
@@ -79,3 +83,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1064-investigate-109--121-hub-outage--both-do.md
 - **Context:** Initial task creation
+
+### 2026-04-16T21:15:18Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
