@@ -43,21 +43,30 @@ if [ "${#PROFILES[@]}" -eq 0 ]; then
     exit 0
 fi
 
-# Run fleet doctor once — cache the ANSI-stripped output for per-peer extraction.
-# T-1082: was running per-peer (N calls for N peers); now runs once.
-DOCTOR_CACHE=$(termlink fleet doctor 2>&1 | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g')
+# Run fleet doctor once with --json — reliable machine-readable output.
+# T-1085: replaced ANSI-stripping + awk block extraction with JSON parsing.
+DOCTOR_JSON=$(termlink fleet doctor --json 2>/dev/null | sed -n '/^{/,/^}/p')
+
+# Build a lookup of profile→status from the JSON.
+# Outputs lines like: local-test ok
+#                     ring20-dashboard error
+PEER_STATUS=$(python3 -c "
+import json, sys
+try:
+    data = json.loads(sys.stdin.read())
+    for h in data.get('hubs', []):
+        print(h.get('hub', '?'), h.get('status', 'error'))
+except Exception:
+    pass
+" <<<"$DOCTOR_JSON" 2>/dev/null)
 
 TOTAL=0; OK=0; SKIPPED=0
 for profile in "${PROFILES[@]}"; do
     TOTAL=$((TOTAL + 1))
 
-    # Extract this profile's block from the cached fleet doctor output.
-    block=$(awk -v p="$profile" '
-        $0 ~ "^--- " p " \\(" { capture=1; print; next }
-        capture && /^---/ { capture=0 }
-        capture { print }
-    ' <<<"$DOCTOR_CACHE")
-    if ! grep -q '\[PASS\]' <<<"$block"; then
+    # Check this profile's status from the cached JSON parse.
+    peer_ok=$(awk -v p="$profile" '$1 == p && $2 == "ok" { print "yes" }' <<<"$PEER_STATUS")
+    if [ -z "$peer_ok" ]; then
         log "peer $profile unreachable — skipping"
         SKIPPED=$((SKIPPED + 1))
         continue
