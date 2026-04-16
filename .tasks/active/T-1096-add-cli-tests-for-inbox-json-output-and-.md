@@ -4,16 +4,16 @@ name: "Add CLI tests for inbox JSON output and token command"
 description: >
   Add CLI tests for inbox JSON output and token command
 
-status: started-work
+status: work-completed
 workflow_type: test
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T21:55:34Z
-last_update: 2026-04-16T21:55:34Z
-date_finished: null
+last_update: 2026-04-16T21:58:34Z
+date_finished: 2026-04-16T21:58:34Z
 ---
 
 # T-1096: Add CLI tests for inbox JSON output and token command
@@ -57,3 +57,10 @@ bash -c 'cargo test -p termlink -- inbox_status_json inbox_clear_json token_crea
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1096-add-cli-tests-for-inbox-json-output-and-.md
 - **Context:** Initial task creation
+
+### 2026-04-16T21:58:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-04-16T22:07:03Z — programmatic-evidence [T-1097]
+- **Evidence:** 3 inbox JSON + token tests passing: cargo test -p termlink -- inbox_status_json inbox_clear_json token_create_no (3 passed)
+- **Verified by:** automated command execution

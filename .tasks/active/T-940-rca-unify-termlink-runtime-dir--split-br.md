@@ -185,3 +185,7 @@ date_finished: 2026-04-12T07:49:57Z
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T22:08:30Z — programmatic-evidence [T-1097]
+- **Evidence:** T-1029..T-1032 fix split-brain: resolve_hub_paths searches both /var/lib/termlink and runtime dir; 98 hub tests passing; hub status correctly shows /tmp/termlink-0
+- **Verified by:** automated command execution

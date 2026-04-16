@@ -4,16 +4,16 @@ name: "Add CLI tests for remote profile and fleet reauth commands"
 description: >
   Add CLI tests for remote profile and fleet reauth commands
 
-status: started-work
+status: work-completed
 workflow_type: test
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T21:26:47Z
-last_update: 2026-04-16T21:26:47Z
-date_finished: null
+last_update: 2026-04-16T21:29:48Z
+date_finished: 2026-04-16T21:29:48Z
 ---
 
 # T-1093: Add CLI tests for remote profile and fleet reauth commands
@@ -59,3 +59,10 @@ bash -c 'cargo test -p termlink -- remote_profile fleet_reauth 2>&1 | grep -q "6
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1093-add-cli-tests-for-remote-profile-and-fle.md
 - **Context:** Initial task creation
+
+### 2026-04-16T21:29:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-04-16T22:07:03Z — programmatic-evidence [T-1097]
+- **Evidence:** 6 profile + reauth tests passing: cargo test -p termlink -- remote_profile fleet_reauth (6 passed)
+- **Verified by:** automated command execution

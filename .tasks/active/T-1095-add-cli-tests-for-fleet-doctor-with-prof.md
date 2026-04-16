@@ -4,16 +4,16 @@ name: "Add CLI tests for fleet doctor with profiles and fleet reauth bootstrap"
 description: >
   Add CLI tests for fleet doctor with profiles and fleet reauth bootstrap
 
-status: started-work
+status: work-completed
 workflow_type: test
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T21:45:25Z
-last_update: 2026-04-16T21:45:25Z
-date_finished: null
+last_update: 2026-04-16T21:48:47Z
+date_finished: 2026-04-16T21:48:47Z
 ---
 
 # T-1095: Add CLI tests for fleet doctor with profiles and fleet reauth bootstrap
@@ -57,3 +57,10 @@ bash -c 'cargo test -p termlink -- fleet_doctor_unreachable fleet_reauth_bootstr
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1095-add-cli-tests-for-fleet-doctor-with-prof.md
 - **Context:** Initial task creation
+
+### 2026-04-16T21:48:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-04-16T22:07:03Z — programmatic-evidence [T-1097]
+- **Evidence:** 3 fleet doctor + reauth bootstrap tests passing: cargo test -p termlink -- fleet_doctor_unreachable fleet_reauth_bootstrap (3 passed)
+- **Verified by:** automated command execution
