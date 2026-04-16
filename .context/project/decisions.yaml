@@ -185,3 +185,10 @@ decisions:
     date: 2026-04-13
     task: T-1025
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-006
+    decision: "`#[arg(global = true)]` on parent options + `Option<RemoteInboxAction>` defaulting to Status"
+    scope: project
+    date: 2026-04-16
+    task: T-1076
+    rationale: "Auto-captured from task file on completion"

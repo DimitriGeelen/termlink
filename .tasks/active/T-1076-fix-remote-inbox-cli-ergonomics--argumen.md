@@ -4,16 +4,16 @@ name: "Fix remote inbox CLI ergonomics — argument ordering, missing default su
 description: >
   Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand, option propagation
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-16T04:37:59Z
-last_update: 2026-04-16T04:37:59Z
-date_finished: null
+last_update: 2026-04-16T04:45:32Z
+date_finished: 2026-04-16T04:45:32Z
 ---
 
 # T-1076: Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand, option propagation
@@ -42,7 +42,7 @@ Consumer on .107 hit 3 failures in 4 attempts trying `termlink remote inbox stat
 ## Verification
 
 cargo test --workspace 2>&1 | tail -5
-cargo clippy --workspace 2>&1 | grep -c "^error" | grep -q "^0$"
+bash -c '[ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]'
 
 ## Decisions
 
@@ -57,3 +57,6 @@ cargo clippy --workspace 2>&1 | grep -c "^error" | grep -q "^0$"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1076-fix-remote-inbox-cli-ergonomics--argumen.md
 - **Context:** Initial task creation
+
+### 2026-04-16T04:45:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

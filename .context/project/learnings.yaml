@@ -400,3 +400,10 @@ learnings:
   date: 2026-04-15
   context: Added via context agent
   application: TBD
+- id: PL-023
+  learning: "Clap nested subcommands with parent-scoped options: use #[arg(global = true)] so options work at any position. Make subcommands Optional with sensible defaults to avoid bare 'requires subcommand' errors."
+  source: P-001
+  task: T-1076
+  date: 2026-04-16
+  context: Added via context agent
+  application: TBD
