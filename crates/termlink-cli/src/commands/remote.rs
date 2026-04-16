@@ -2170,8 +2170,8 @@ async fn cmd_remote_doctor_inner(
         }
     };
 
-    // 2. Session list
-    match rpc_client.call("session.list", json!("doc-sl"), json!({})).await {
+    // 2. Session count via discover (session.list is a per-session method, not hub-level)
+    match rpc_client.call("session.discover", json!("doc-sd"), json!({})).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
             if let Some(sessions) = r.result["sessions"].as_array() {
                 let count = sessions.len();
@@ -2188,10 +2188,10 @@ async fn cmd_remote_doctor_inner(
             }
         }
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            check!("sessions", warn, format!("session.list error: {}", e.error.message));
+            check!("sessions", warn, format!("session.discover error: {}", e.error.message));
         }
         Err(e) => {
-            check!("sessions", warn, format!("session.list RPC failed: {}", e));
+            check!("sessions", warn, format!("session.discover RPC failed: {}", e));
         }
     }
 

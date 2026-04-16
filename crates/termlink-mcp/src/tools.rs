@@ -4712,8 +4712,8 @@ impl TermLinkTools {
                 }
             };
 
-            // 2. Sessions
-            match rpc_client.call("session.list", serde_json::json!("mcp-doc-sl"), serde_json::json!({})).await {
+            // 2. Sessions (use session.discover — hub-level method, not session.list which requires target)
+            match rpc_client.call("session.discover", serde_json::json!("mcp-doc-sd"), serde_json::json!({})).await {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
                     if let Some(sessions) = r.result["sessions"].as_array() {
                         let count = sessions.len();
@@ -4729,7 +4729,7 @@ impl TermLinkTools {
                 }
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                     warn_count += 1;
-                    checks.push(serde_json::json!({"check": "sessions", "status": "warn", "message": format!("session.list error: {}", e.error.message)}));
+                    checks.push(serde_json::json!({"check": "sessions", "status": "warn", "message": format!("session.discover error: {}", e.error.message)}));
                 }
                 Err(e) => {
                     warn_count += 1;
