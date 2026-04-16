@@ -43,20 +43,20 @@ if [ "${#PROFILES[@]}" -eq 0 ]; then
     exit 0
 fi
 
+# Run fleet doctor once — cache the ANSI-stripped output for per-peer extraction.
+# T-1082: was running per-peer (N calls for N peers); now runs once.
+DOCTOR_CACHE=$(termlink fleet doctor 2>&1 | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g')
+
 TOTAL=0; OK=0; SKIPPED=0
 for profile in "${PROFILES[@]}"; do
     TOTAL=$((TOTAL + 1))
 
-    # Soft health check — no point asking a down peer.
-    # termlink fleet doctor puts its report on stderr; tracing on stdout.
-    # Merge both, strip ANSI, slice out the per-profile block, look for [PASS].
-    block=$(termlink fleet doctor 2>&1 \
-        | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g' \
-        | awk -v p="$profile" '
-            $0 ~ "^--- " p " \\(" { capture=1; print; next }
-            capture && /^---/ { capture=0 }
-            capture { print }
-        ')
+    # Extract this profile's block from the cached fleet doctor output.
+    block=$(awk -v p="$profile" '
+        $0 ~ "^--- " p " \\(" { capture=1; print; next }
+        capture && /^---/ { capture=0 }
+        capture { print }
+    ' <<<"$DOCTOR_CACHE")
     if ! grep -q '\[PASS\]' <<<"$block"; then
         log "peer $profile unreachable — skipping"
         SKIPPED=$((SKIPPED + 1))
