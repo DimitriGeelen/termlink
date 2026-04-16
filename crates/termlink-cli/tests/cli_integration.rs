@@ -3173,3 +3173,100 @@ fn cli_remote_push_nonexistent_file() {
         stderr
     );
 }
+
+// --- T-1092: dispatch-status and mcp tests ---
+
+#[test]
+fn cli_dispatch_status_no_manifest() {
+    // T-1092: dispatch-status with no manifest should report empty state.
+    let dir = TestDir::new("dispatch-status-empty");
+    let output = termlink_cmd(&dir.path)
+        .args(["dispatch-status"])
+        .output()
+        .expect("Failed to run dispatch-status");
+
+    assert!(
+        output.status.success(),
+        "dispatch-status with no manifest should succeed"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("No dispatch manifest") || combined.contains("no dispatch"),
+        "should report no manifest: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_dispatch_status_json_empty() {
+    // T-1092: dispatch-status --json with no manifest should produce valid JSON.
+    let dir = TestDir::new("dispatch-status-json");
+    let output = termlink_cmd(&dir.path)
+        .args(["dispatch-status", "--json"])
+        .output()
+        .expect("Failed to run dispatch-status --json");
+
+    assert!(
+        output.status.success(),
+        "dispatch-status --json should succeed"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("\"ok\"") && stdout.contains("\"pending\""),
+        "should contain JSON with ok and pending fields: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains("\"total\": 0"),
+        "should have total: 0 with no dispatches: {}",
+        stdout
+    );
+}
+
+#[test]
+fn cli_dispatch_status_check_empty() {
+    // T-1092: dispatch-status --check with no pending branches should exit 0.
+    let dir = TestDir::new("dispatch-status-check");
+    let output = termlink_cmd(&dir.path)
+        .args(["dispatch-status", "--check"])
+        .output()
+        .expect("Failed to run dispatch-status --check");
+
+    assert!(
+        output.status.success(),
+        "dispatch-status --check with no pending should exit 0"
+    );
+}
+
+#[test]
+fn cli_mcp_serve_stdin_closed() {
+    // T-1092: mcp serve with stdin immediately closed should report connection error.
+    let dir = TestDir::new("mcp-serve-closed");
+    let mut child = termlink_cmd(&dir.path)
+        .args(["mcp", "serve"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn mcp serve");
+
+    // Close stdin immediately to trigger connection-closed error
+    drop(child.stdin.take());
+
+    let output = child
+        .wait_with_output()
+        .expect("Failed to wait for mcp serve");
+
+    // mcp serve should exit (not hang) when stdin closes
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("connection closed")
+            || stderr.contains("initialize")
+            || stderr.contains("EOF")
+            || !output.status.success(),
+        "mcp serve should report connection closed or exit on stdin EOF: {}",
+        stderr
+    );
+}
