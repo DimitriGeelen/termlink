@@ -67,3 +67,7 @@ date_finished: 2026-04-12T10:51:24Z
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
+- **Evidence:** fw hook command exists (fw help shows 'hook <name>'); hook registration handled by .claude/settings.json config; fw upgrade syncs hook config
+- **Verified by:** automated command execution

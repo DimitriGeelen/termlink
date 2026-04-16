@@ -121,3 +121,7 @@ Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Tem
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
+- **Evidence:** systemd units termlink-framework-agent.service and termlink-termlink-agent.service both active (watchdog.sh confirms); persistent session pattern codified
+- **Verified by:** automated command execution

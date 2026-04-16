@@ -184,3 +184,7 @@ Joint Design (agreed with fw-agent T-1135):
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:04:50Z — programmatic-evidence [T-1090]
+- **Evidence:** termlink discover shows 8 persistent sessions with tags and state=ready; cross-agent discovery working
+- **Verified by:** automated command execution

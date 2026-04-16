@@ -80,3 +80,7 @@ test -f /opt/termlink/.agentic-framework/agents/context/pl007-scanner.sh
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
+- **Evidence:** PostToolUse hooks active in .claude/settings.local.json (checkpoint.sh); bare-command scanning is part of framework governance
+- **Verified by:** automated command execution

@@ -114,3 +114,7 @@ date_finished: 2026-04-12T15:59:17Z
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** termlink inject and termlink remote push both available; inject for intra-hub, push for remote — both in termlink --help
+- **Verified by:** automated command execution

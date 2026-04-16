@@ -126,3 +126,7 @@ date_finished: 2026-04-11T12:21:19Z
 
 ### 2026-04-16T05:40:15Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:04:50Z — programmatic-evidence [T-1090]
+- **Evidence:** .agentic-framework is a real directory (drwxr-xr-x), not a symlink — vendored copy confirmed
+- **Verified by:** automated command execution

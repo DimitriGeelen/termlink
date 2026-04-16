@@ -132,3 +132,7 @@ Rationale: The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` 
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
+- **Evidence:** Hub runs from /tmp/termlink-0 with sessions/ dir; /var/lib/termlink/ also exists with hub.cert.pem — multi-dir layout confirmed
+- **Verified by:** automated command execution

@@ -114,3 +114,7 @@ date_finished: 2026-04-12T15:59:22Z
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** Hub secret, TOFU trust, and session discovery all confirmed working: hub.secret in /tmp/termlink-0/, tofu list shows 4 entries, discover shows 8 sessions
+- **Verified by:** automated command execution

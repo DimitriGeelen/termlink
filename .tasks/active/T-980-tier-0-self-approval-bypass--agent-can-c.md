@@ -147,3 +147,7 @@ Evidence:
 
 ### 2026-04-16T05:40:16Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:04:50Z — programmatic-evidence [T-1090]
+- **Evidence:** fw tier0 approve and fw tier0 status commands exist and respond correctly
+- **Verified by:** automated command execution

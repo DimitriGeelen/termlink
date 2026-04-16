@@ -131,3 +131,7 @@ Rationale: The original bug (cleanup killing active workers) was already mitigat
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
+- **Evidence:** Learning captured from upstream framework; termlink discover shows workers with state=ready — cleanup no longer kills active workers
+- **Verified by:** automated command execution

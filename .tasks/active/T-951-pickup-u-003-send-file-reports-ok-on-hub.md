@@ -130,3 +130,7 @@ Evidence:
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** Same as T-953 — send-file reports hub acceptance, not session receipt; documented in learnings and tracked in T-1017
+- **Verified by:** automated command execution

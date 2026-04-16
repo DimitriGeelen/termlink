@@ -127,3 +127,7 @@ Rationale: This is subsumed by T-984 (fw upgrade local patch reversion). If T-98
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** Learning registered; fw upgrade --dry-run flag available to preview changes; checksum manifest tracks modifications (T-978)
+- **Verified by:** automated command execution

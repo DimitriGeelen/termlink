@@ -114,3 +114,7 @@ date_finished: 2026-04-12T15:59:57Z
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** /var/lib/termlink/ (persistent pool) and /tmp/termlink-0/ (ephemeral pool) both exist; hub.cert.pem in persistent, sessions in ephemeral
+- **Verified by:** automated command execution

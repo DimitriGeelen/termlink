@@ -114,3 +114,7 @@ date_finished: 2026-04-12T15:59:20Z
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** Pickup cron active at 1-min interval; termlink file send used for cross-agent envelope delivery (T-1079 propagation confirmed)
+- **Verified by:** automated command execution

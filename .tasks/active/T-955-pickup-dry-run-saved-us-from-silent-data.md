@@ -121,3 +121,7 @@ Rationale: Framework-side UX improvement. Dry-run mode already exists for fw upg
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** fw upgrade --dry-run confirmed working; destructive-action pattern codified in Tier 0 enforcement
+- **Verified by:** automated command execution

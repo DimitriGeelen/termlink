@@ -114,3 +114,7 @@ date_finished: 2026-04-12T13:03:33Z
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
+- **Evidence:** Pickup cron running at 1-min interval (/etc/cron.d/agentic-pickup-termlink confirms * * * * *)
+- **Verified by:** automated command execution

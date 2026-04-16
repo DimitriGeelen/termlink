@@ -121,3 +121,7 @@ Rationale: Current MCP tools already cover active CLI commands (register, dispat
 
 ### 2026-04-16T05:40:16Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:04:50Z — programmatic-evidence [T-1090]
+- **Evidence:** 67 MCP tools registered (termlink doctor confirms); all recent CLI commands have MCP counterparts
+- **Verified by:** automated command execution
