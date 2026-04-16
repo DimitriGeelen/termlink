@@ -3507,6 +3507,71 @@ fn cli_fleet_reauth_valid_profile() {
     );
 }
 
+// --- T-1096: inbox JSON and token tests ---
+
+#[test]
+fn cli_inbox_status_json_no_hub() {
+    // T-1096: inbox status --json without a hub should fail with clear error.
+    let dir = TestDir::new("inbox-status-json");
+    let output = termlink_cmd(&dir.path)
+        .args(["inbox", "status", "--json"])
+        .output()
+        .expect("Failed to run inbox status --json");
+
+    assert!(
+        !output.status.success(),
+        "inbox status should fail without hub"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Hub is not running") || stderr.contains("not running"),
+        "should report hub not running: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_inbox_clear_json_no_hub() {
+    // T-1096: inbox clear --all --json without a hub should fail with clear error.
+    let dir = TestDir::new("inbox-clear-json");
+    let output = termlink_cmd(&dir.path)
+        .args(["inbox", "clear", "--all", "--json"])
+        .output()
+        .expect("Failed to run inbox clear --all --json");
+
+    assert!(
+        !output.status.success(),
+        "inbox clear should fail without hub"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Hub is not running") || stderr.contains("not running"),
+        "should report hub not running: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_token_create_no_session() {
+    // T-1096: token create with nonexistent session should fail gracefully.
+    let dir = TestDir::new("token-no-session");
+    let output = termlink_cmd(&dir.path)
+        .args(["token", "create", "ghost-session", "--scope", "observe", "--ttl", "60"])
+        .output()
+        .expect("Failed to run token create");
+
+    assert!(
+        !output.status.success(),
+        "token create should fail without session"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("Session"),
+        "should report session not found: {}",
+        stderr
+    );
+}
+
 // --- T-1095: fleet doctor with profiles and fleet reauth bootstrap tests ---
 
 #[test]
