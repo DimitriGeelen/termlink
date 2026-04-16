@@ -2885,3 +2885,76 @@ fn cli_file_receive_nonexistent_session() {
         stderr
     );
 }
+
+// ─── T-1076 / T-1077 Regression: Global Args + Optional Subcommand ──
+
+#[test]
+fn cli_remote_inbox_default_subcommand() {
+    // T-1076: `remote inbox <hub>` without subcommand should default to status,
+    // not error with "requires a subcommand".
+    let dir = TestDir::new("remote-inbox-default");
+    let output = termlink_cmd(&dir.path)
+        .args(["remote", "inbox", "127.0.0.1:19876"])
+        .output()
+        .expect("Failed to run remote inbox");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("requires a subcommand"),
+        "remote inbox should default to status, not require subcommand: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_remote_inbox_options_after_subcommand() {
+    // T-1076: `remote inbox <hub> status --timeout 5` should parse --timeout
+    // as a global arg, not error with "unexpected argument".
+    let dir = TestDir::new("remote-inbox-opts-after");
+    let output = termlink_cmd(&dir.path)
+        .args(["remote", "inbox", "127.0.0.1:19876", "status", "--timeout", "5"])
+        .output()
+        .expect("Failed to run remote inbox status --timeout");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unexpected argument"),
+        "remote inbox status --timeout should parse cleanly: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_kv_default_subcommand() {
+    // T-1077: `kv <session>` without subcommand should default to list,
+    // not error with "requires a subcommand".
+    let dir = TestDir::new("kv-default");
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "nonexistent-session"])
+        .output()
+        .expect("Failed to run kv");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("requires a subcommand"),
+        "kv should default to list, not require subcommand: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_kv_options_after_subcommand() {
+    // T-1077: `kv <session> list --json` should parse --json as a global arg.
+    let dir = TestDir::new("kv-opts-after");
+    let output = termlink_cmd(&dir.path)
+        .args(["kv", "nonexistent-session", "list", "--json"])
+        .output()
+        .expect("Failed to run kv list --json");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unexpected argument"),
+        "kv list --json should parse cleanly: {}",
+        stderr
+    );
+}
