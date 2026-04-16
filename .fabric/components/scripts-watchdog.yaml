@@ -1,0 +1,17 @@
+id: scripts/watchdog.sh
+name: watchdog
+type: script
+subsystem: operations
+location: scripts/watchdog.sh
+tags: [cron, systemd, hub]
+
+purpose: "1-minute cron watchdog: checks termlink systemd units (hub + 2 agents), restarts any that stopped. Also checks hub liveness — restarts if running but not responding."
+
+depends_on:
+  []
+
+depended_by:
+  []
+
+last_verified: 2026-04-16
+created_by: T-1072
