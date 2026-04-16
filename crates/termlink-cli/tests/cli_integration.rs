@@ -3749,3 +3749,125 @@ fn cli_fleet_reauth_bootstrap_file_nonexistent() {
         stderr
     );
 }
+
+// --- T-1098: mirror, interact, agent listen error path tests ---
+
+#[test]
+fn cli_mirror_no_hub() {
+    // T-1098: mirror without hub running should report session not found.
+    let dir = TestDir::new("mirror-no-hub");
+    let output = termlink_cmd(&dir.path)
+        .args(["mirror", "ghost-session"])
+        .output()
+        .expect("Failed to run mirror");
+
+    assert!(!output.status.success(), "mirror should fail without hub");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("Session"),
+        "should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_mirror_scrollback_option() {
+    // T-1098: mirror with --scrollback should parse cleanly.
+    let dir = TestDir::new("mirror-scrollback");
+    let output = termlink_cmd(&dir.path)
+        .args(["mirror", "ghost-session", "--scrollback", "50"])
+        .output()
+        .expect("Failed to run mirror with scrollback");
+
+    // Should fail because session doesn't exist, not because of bad args
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unexpected argument"),
+        "mirror --scrollback should parse: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_interact_missing_command() {
+    // T-1098: interact without command should report required arg.
+    let dir = TestDir::new("interact-no-cmd");
+    let output = termlink_cmd(&dir.path)
+        .args(["interact", "ghost-session"])
+        .output()
+        .expect("Failed to run interact");
+
+    assert!(
+        !output.status.success(),
+        "interact without command should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("COMMAND") || stderr.contains("required"),
+        "should report missing command: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_interact_nonexistent_session_with_cmd() {
+    // T-1098: interact with command but nonexistent session should report not found.
+    let dir = TestDir::new("interact-noexist-cmd");
+    let output = termlink_cmd(&dir.path)
+        .args(["interact", "ghost-session", "echo hello"])
+        .output()
+        .expect("Failed to run interact");
+
+    assert!(
+        !output.status.success(),
+        "interact to nonexistent session should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("Session"),
+        "should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_agent_listen_no_hub() {
+    // T-1098: agent listen without hub should report session not found.
+    let dir = TestDir::new("agent-listen-no-hub");
+    let output = termlink_cmd(&dir.path)
+        .args(["agent", "listen", "ghost-session"])
+        .output()
+        .expect("Failed to run agent listen");
+
+    assert!(
+        !output.status.success(),
+        "agent listen should fail without hub"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("Session"),
+        "should report session not found: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_agent_ask_no_hub() {
+    // T-1098: agent ask without hub should report target session not found.
+    let dir = TestDir::new("agent-ask-no-hub");
+    let output = termlink_cmd(&dir.path)
+        .args(["agent", "ask", "ghost-session", "what is 2+2?"])
+        .output()
+        .expect("Failed to run agent ask");
+
+    assert!(
+        !output.status.success(),
+        "agent ask should fail without hub"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("Session") || stderr.contains("error"),
+        "should report error: {}",
+        stderr
+    );
+}
