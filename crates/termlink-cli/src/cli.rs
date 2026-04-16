@@ -1430,22 +1430,22 @@ pub(crate) enum RemoteAction {
         hub: String,
 
         #[command(subcommand)]
-        action: RemoteInboxAction,
+        action: Option<RemoteInboxAction>,
 
         /// Path to file containing 32-byte hex secret
-        #[arg(long)]
+        #[arg(global = true, long)]
         secret_file: Option<String>,
 
         /// Hex secret directly (less secure, for scripting)
-        #[arg(long)]
+        #[arg(global = true, long)]
         secret: Option<String>,
 
         /// Permission scope: observe, interact, control, execute
-        #[arg(long, default_value = "execute")]
+        #[arg(global = true, long, default_value = "execute")]
         scope: String,
 
         /// RPC timeout in seconds (default: 10)
-        #[arg(long, default_value = "10")]
+        #[arg(global = true, long, default_value = "10")]
         timeout: u64,
     },
 
