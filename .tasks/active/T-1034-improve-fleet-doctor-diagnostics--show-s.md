@@ -64,3 +64,8 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 
 ### 2026-04-13T18:36:51Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** termlink fleet doctor shows secret file path and diagnostic hints for failed hubs
+- **Verified by:** automated command execution
+

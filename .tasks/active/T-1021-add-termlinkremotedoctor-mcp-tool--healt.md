@@ -65,3 +65,8 @@ cargo clippy -p termlink-mcp -- -D warnings 2>&1 | grep -v "^warning:" | grep -q
 
 ### 2026-04-13T12:23:09Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** termlink doctor reports 67 MCP tools (includes termlink_remote_doctor)
+- **Verified by:** automated command execution
+

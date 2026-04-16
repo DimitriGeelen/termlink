@@ -65,3 +65,8 @@ cargo test --workspace 2>&1 | grep "^test result" | grep -v "0 passed"
 
 ### 2026-04-13T09:43:18Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** termlink remote inbox --help shows status, list, clear subcommands
+- **Verified by:** automated command execution
+

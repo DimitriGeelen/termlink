@@ -60,3 +60,8 @@ bash -c '[ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]'
 
 ### 2026-04-16T04:45:32Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** termlink remote inbox local-test succeeds without subcommand (defaults to status)
+- **Verified by:** automated command execution
+
