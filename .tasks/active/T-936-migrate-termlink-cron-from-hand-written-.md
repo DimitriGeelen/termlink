@@ -168,3 +168,7 @@ Three cron layers (live `/etc/cron.d/`, git-tracked crontab stub, `cron-registry
 
 ### 2026-04-16T05:40:16Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T22:08:30Z — programmatic-evidence [T-1097]
+- **Evidence:** 4 crons installed via /etc/cron.d/ (agentic-audit, agentic-learnings-exchange, agentic-pickup, termlink-watchdog); registry-based pattern confirmed
+- **Verified by:** automated command execution

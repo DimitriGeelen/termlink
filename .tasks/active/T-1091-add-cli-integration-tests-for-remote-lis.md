@@ -4,16 +4,16 @@ name: "Add CLI integration tests for remote list, exec, doctor, and push error p
 description: >
   Add CLI integration tests for remote list, exec, doctor, and push error paths
 
-status: started-work
+status: work-completed
 workflow_type: test
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-16T21:18:00Z
-last_update: 2026-04-16T21:18:00Z
-date_finished: null
+last_update: 2026-04-16T21:22:23Z
+date_finished: 2026-04-16T21:22:23Z
 ---
 
 # T-1091: Add CLI integration tests for remote list, exec, doctor, and push error paths
@@ -45,9 +45,8 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+bash -c 'cargo test -p termlink -- remote_list remote_exec remote_doctor remote_push 2>&1 | grep -q "8 passed"'
+bash -c '[ "$(cargo clippy -p termlink --tests 2>&1 | grep -c "^error")" = "0" ]'
 
 ## Decisions
 
@@ -66,3 +65,10 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1091-add-cli-integration-tests-for-remote-lis.md
 - **Context:** Initial task creation
+
+### 2026-04-16T21:22:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-04-16T22:07:03Z — programmatic-evidence [T-1097]
+- **Evidence:** 8 remote error-path tests passing: cargo test -p termlink -- remote_list remote_exec remote_doctor remote_push (8 passed)
+- **Verified by:** automated command execution

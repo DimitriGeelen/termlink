@@ -4,16 +4,16 @@ name: "Add CLI tests for dispatch-status and mcp commands"
 description: >
   Add CLI tests for dispatch-status and mcp commands
 
-status: started-work
+status: work-completed
 workflow_type: test
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T21:23:16Z
-last_update: 2026-04-16T21:23:16Z
-date_finished: null
+last_update: 2026-04-16T21:25:52Z
+date_finished: 2026-04-16T21:25:52Z
 ---
 
 # T-1092: Add CLI tests for dispatch-status and mcp commands
@@ -56,3 +56,10 @@ bash -c 'cargo test -p termlink -- dispatch_status mcp_serve 2>&1 | grep -q "4 p
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1092-add-cli-tests-for-dispatch-status-and-mc.md
 - **Context:** Initial task creation
+
+### 2026-04-16T21:25:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-04-16T22:07:03Z — programmatic-evidence [T-1097]
+- **Evidence:** 4 dispatch-status + mcp tests passing: cargo test -p termlink -- dispatch_status mcp_serve (4 passed)
+- **Verified by:** automated command execution
