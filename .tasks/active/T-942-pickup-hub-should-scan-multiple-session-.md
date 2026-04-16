@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T07:49:08Z
-last_update: 2026-04-12T17:14:43Z
+last_update: 2026-04-16T05:39:43Z
 date_finished: 2026-04-12T17:14:43Z
 ---
 
@@ -129,3 +129,6 @@ Rationale: The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` 
 ### 2026-04-12T17:14:43Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:39:43Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

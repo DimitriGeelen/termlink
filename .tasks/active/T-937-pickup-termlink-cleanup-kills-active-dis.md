@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-11T23:00:01Z
-last_update: 2026-04-12T17:14:28Z
+last_update: 2026-04-16T05:39:43Z
 date_finished: 2026-04-12T17:14:28Z
 ---
 
@@ -128,3 +128,6 @@ Rationale: The original bug (cleanup killing active workers) was already mitigat
 ### 2026-04-12T17:14:28Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: NO-GO
+
+### 2026-04-16T05:39:43Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

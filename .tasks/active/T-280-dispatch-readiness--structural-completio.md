@@ -8,15 +8,15 @@ description: >
   and TermLink emits zero lifecycle events when sessions die. Explore solutions: dispatch command,
   auto-lifecycle events, dispatch-aware spawn. 5-agent research completed.
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [dispatch, orchestration, lifecycle, mcp]
 components: []
 related_tasks: [T-233, T-256, T-257]
 created: 2026-03-25T14:27:11Z
-last_update: 2026-03-27T17:44:08Z
+last_update: 2026-04-16T05:38:15Z
 date_finished: null
 ---
 
@@ -167,3 +167,7 @@ Skip C — opt-in flags repeat the convention problem that caused this gap.
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** 5-agent research validates B+A path: dispatch command (4.7/5 on directives) + lifecycle events as crash safety net. ~430 LOC, no new RPC methods, composes existing primitives.
+
+### 2026-04-16T05:38:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)

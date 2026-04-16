@@ -62,12 +62,12 @@ Without unification, every new persistent session requires explicit `TERMLINK_RU
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [termlink, systemd, runtime-dir, cross-host, rca]
 components: []
 related_tasks: [T-931, T-933, T-936]
 created: 2026-04-12T07:43:43Z
-last_update: 2026-04-12T07:49:57Z
+last_update: 2026-04-16T05:39:43Z
 date_finished: 2026-04-12T07:49:57Z
 ---
 
@@ -182,3 +182,6 @@ date_finished: 2026-04-12T07:49:57Z
 ### 2026-04-12T07:49:57Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:39:43Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

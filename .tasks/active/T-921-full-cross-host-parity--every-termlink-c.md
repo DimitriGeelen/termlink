@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:05Z
-last_update: 2026-04-11T20:19:55Z
+last_update: 2026-04-16T05:40:16Z
 date_finished: 2026-04-11T20:19:55Z
 ---
 
@@ -157,3 +157,6 @@ Time-box: **one session**, dialogue-driven. No production code. Deliverable = de
 ### 2026-04-11T20:19:55Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:40:16Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

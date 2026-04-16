@@ -6,15 +6,15 @@ description: >
   TermLink spawn/inject/output instead of manual interactive testing.
   11 reopened tasks need proper verification.
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [verification, simulation, testing]
 components: []
 related_tasks: [T-191, T-124, T-126, T-127, T-148, T-156, T-157, T-158, T-160, T-178, T-188]
 created: 2026-03-20T06:05:00Z
-last_update: 2026-03-27T19:08:34Z
+last_update: 2026-04-16T05:38:15Z
 date_finished: null
 ---
 
@@ -111,3 +111,7 @@ simulate the human steps. Research artifact: `docs/reports/T-192-simulation-harn
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Spikes 1-3 pass: dispatch isolation, tl-claude lifecycle, Enter inject all verified programmatically. 9 of 11 human ACs automatable. Build repeatable simulation script.
+
+### 2026-04-16T05:38:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)

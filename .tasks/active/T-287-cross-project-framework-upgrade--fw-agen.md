@@ -4,15 +4,15 @@ name: "Cross-project framework upgrade — fw-agent applies and validates govern
 description: >
   Inception: Cross-project framework upgrade — fw-agent applies and validates governance fixes on .112 via TermLink
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T20:34:23Z
-last_update: 2026-03-27T06:45:19Z
+last_update: 2026-04-16T05:38:15Z
 date_finished: null
 ---
 
@@ -129,3 +129,7 @@ Framework agent on .107 has governance fixes. Applying them to consumer projects
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Bidirectional connectivity proven, framework blockers T-615/T-617/T-618 landed
+
+### 2026-04-16T05:38:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)

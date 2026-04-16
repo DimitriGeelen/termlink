@@ -3,15 +3,15 @@ id: T-186
 name: "termlink inject-remote — standard command for cross-machine prompt injection"
 description: >
   Design a standard CLI command for repeatable cross-machine prompt injection. Currently requires: hex secret parsing, HMAC token generation, TOFU TLS, hub routing — all manual via tofu_test example. Need: 'termlink inject-remote host:port session-name "message" --secret-file /path'. Should handle auth, TOFU, and split-writes automatically. Also consider 'termlink connect-hub' for persistent hub connections.
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [cli, cross-machine, ux]
 components: []
 related_tasks: [T-182, T-183, T-184, T-185]
 created: 2026-03-18T23:28:42Z
-last_update: 2026-03-26T13:30:00Z
+last_update: 2026-04-16T05:38:15Z
 date_finished: null
 ---
 
@@ -114,3 +114,7 @@ test -f docs/reports/T-186-inject-remote-cli-design.md
 
 ### 2026-03-26T13:30:00Z — staleness-review [T-293]
 - **Status:** Inception GO decided. All ACs checked. Awaiting human to complete or spawn build task. `termlink push` (T-285) now covers part of the use case.
+
+### 2026-04-16T05:38:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)

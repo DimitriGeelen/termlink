@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:03Z
-last_update: 2026-04-12T17:15:05Z
+last_update: 2026-04-16T05:39:43Z
 date_finished: 2026-04-12T17:15:05Z
 ---
 
@@ -125,3 +125,6 @@ Rationale: Hub inbox requires non-trivial protocol design: queuing semantics, me
 ### 2026-04-12T17:15:05Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:39:43Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

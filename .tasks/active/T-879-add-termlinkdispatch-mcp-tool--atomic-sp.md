@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-05T06:03:46Z
-last_update: 2026-04-15T15:27:20Z
+last_update: 2026-04-16T05:40:15Z
 date_finished: 2026-04-05T06:32:42Z
 ---
 
@@ -68,3 +68,6 @@ cargo clippy --workspace --all-targets
 
 ### 2026-04-05T06:32:42Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T05:40:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
