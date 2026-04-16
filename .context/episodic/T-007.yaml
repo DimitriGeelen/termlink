@@ -3,25 +3,25 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-08T18:23:43Z
+# Generated: 2026-04-16T18:53:47Z
 # ============================================================================
 
 task_id: T-007
 task_name: "IT-004: Output capture — bidirectional communication"
 workflow_type: inception
-enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-03-08T14:19:41Z
 completed: 2026-03-08T18:23:41Z
 duration_days: 0
-updates_count: 0
+updates_count: 4
 first_commit: 2026-03-08T19:23:38+01:00
-last_commit: 2026-03-08T19:23:38+01:00
+last_commit: 2026-03-08T19:23:47+01:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  GO — PTY ownership model for output capture and bidirectional communication
+  GO — PTY ownership model for output capture and bidirectional communication. Complete — GO decision, PTY ownership for bidirectional communication
 
 # Key outcomes
 outcomes:
@@ -35,21 +35,24 @@ challenges:
 
 # Decisions (from task file Decisions section)
 decisions:
-  # No decisions recorded (mechanical task or old template)
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
-  - ".tasks/active/T-007-it-004-output-capture--bidirectional-com.md"
+  - ".context/episodic/T-007.yaml"
   - "docs/reports/T-007-output-capture-bidirectional.md"
+  - ".tasks/active/T-007-it-004-output-capture--bidirectional-com.md"
+  - ".tasks/completed/T-007-it-004-output-capture--bidirectional-com.md"
 
 # Timeline (auto-mined from git log)
 git_timeline:
   - time: "2026-03-08T19:23:38"
     action: "T-007: GO — PTY ownership model for output capture and bidirectional communication"
+  - time: "2026-03-08T19:23:47"
+    action: "T-007: Complete — GO decision, PTY ownership for bidirectional communication"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 1 commit(s), 0 min
+  # Completed successfully in 2 commit(s), 244 min
 
 # Related tasks
 related_tasks:
@@ -62,12 +65,12 @@ tags: []
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 0
-  commits: 1
-  files_changed: 2
-  lines_added: 302
-  lines_removed: 33
+  wall_clock_minutes: 244
+  commits: 2
+  files_changed: 4
+  lines_added: 395
+  lines_removed: 50
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-007-it-004-output-capture--bidirectional-com.md
+source_file: /opt/termlink/.tasks/completed/T-007-it-004-output-capture--bidirectional-com.md
 generated_by: context-agent-hybrid

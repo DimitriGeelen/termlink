@@ -3,25 +3,25 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-08T17:39:44Z
+# Generated: 2026-04-16T18:53:50Z
 # ============================================================================
 
 task_id: T-020
 task_name: "Fix broken framework hooks — Cellar path + PROJECT_ROOT"
 workflow_type: build
-enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-03-08T17:38:49Z
 completed: 2026-03-08T17:39:43Z
 duration_days: 0
-updates_count: 0
+updates_count: 2
 first_commit: 2026-03-08T18:39:21+01:00
-last_commit: 2026-03-08T18:39:31+01:00
+last_commit: 2026-03-08T18:39:50+01:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  Fix broken framework hooks — Cellar path + PROJECT_ROOT. Task housekeeping — move T-015 through T-019 to completed, add episodics
+  Fix broken framework hooks — Cellar path + PROJECT_ROOT. Task housekeeping — move T-015 through T-019 to completed, add episodics. Complete — framework hooks fixed, task housekeeping done
 
 # Key outcomes
 outcomes:
@@ -32,21 +32,27 @@ outcomes:
 
 # Challenges (auto-detected from git: commits with fix/revert/bug/error)
 challenges:
+  - description: "Complete — framework hooks fixed, task housekeeping done"
+    source: git-mined
   - description: "Fix broken framework hooks — Cellar path + PROJECT_ROOT"
     source: git-mined
 
 # Decisions (from task file Decisions section)
 decisions:
-  # No decisions recorded (mechanical task or old template)
+    chose: "`/usr/local/opt/fw/libexec` (Homebrew stable symlink)"
+    rationale: "Survives `brew upgrade` — symlink always points to active version"
+    alternatives_rejected: ["Hardcoded new Cellar path (`1.2.4`) — same problem on next upgrade"]
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
   - ".claude/settings.json"
+  - ".claude/settings.local.json"
   - ".context/episodic/T-015.yaml"
   - ".context/episodic/T-016.yaml"
   - ".context/episodic/T-017.yaml"
   - ".context/episodic/T-018.yaml"
   - ".context/episodic/T-019.yaml"
+  - ".context/episodic/T-020.yaml"
   - ".context/working/.budget-gate-counter"
   - ".context/working/.budget-status"
   - ".tasks/active/T-020-fix-broken-framework-hooks--cellar-path-.md"
@@ -55,6 +61,7 @@ artifacts:
   - ".tasks/completed/T-017-cli-commands-register-list-ping-status.md"
   - ".tasks/completed/T-018-hub-message-routing-between-sessions.md"
   - ".tasks/completed/T-019-command-execution-and-key-injection-hand.md"
+  - ".tasks/completed/T-020-fix-broken-framework-hooks--cellar-path-.md"
 
 # Timeline (auto-mined from git log)
 git_timeline:
@@ -62,10 +69,12 @@ git_timeline:
     action: "T-020: Fix broken framework hooks — Cellar path + PROJECT_ROOT"
   - time: "2026-03-08T18:39:31"
     action: "T-020: Task housekeeping — move T-015 through T-019 to completed, add episodics"
+  - time: "2026-03-08T18:39:50"
+    action: "T-020: Complete — framework hooks fixed, task housekeeping done"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 2 commit(s), 0 min
+  # Completed successfully in 3 commit(s), 0 min
 
 # Related tasks
 related_tasks:
@@ -79,11 +88,11 @@ tags: []
 # Passive metrics (derived automatically — do not edit)
 metrics:
   wall_clock_minutes: 0
-  commits: 2
-  files_changed: 10
-  lines_added: 543
-  lines_removed: 62
+  commits: 3
+  files_changed: 12
+  lines_added: 653
+  lines_removed: 68
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-020-fix-broken-framework-hooks--cellar-path-.md
+source_file: /opt/termlink/.tasks/completed/T-020-fix-broken-framework-hooks--cellar-path-.md
 generated_by: context-agent-hybrid

@@ -3,25 +3,25 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-08T14:27:13Z
+# Generated: 2026-04-16T18:53:46Z
 # ============================================================================
 
 task_id: T-003
 task_name: "IT-001: Paradigm decision — injection vs message bus vs hybrid"
 workflow_type: inception
-enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-03-08T14:10:53Z
 completed: 2026-03-08T14:27:12Z
 duration_days: 0
-updates_count: 0
+updates_count: 3
 first_commit: 2026-03-08T15:19:57+01:00
-last_commit: 2026-03-08T15:26:01+01:00
+last_commit: 2026-03-08T15:27:18+01:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  Create investigation task backlog from T-002 inception (T-003 through T-012). Paradigm decision — message bus + injection adapter, control/data plane split
+  Create investigation task backlog from T-002 inception (T-003 through T-012). Paradigm decision — message bus + injection adapter, control/data plane split. GO — paradigm decided, message bus + injection adapter, task completed
 
 # Key outcomes
 outcomes:
@@ -35,10 +35,11 @@ challenges:
 
 # Decisions (from task file Decisions section)
 decisions:
-  # No decisions recorded (mechanical task or old template)
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
+  - ".context/episodic/T-003.yaml"
+  - "docs/reports/T-003-paradigm-decision.md"
   - ".tasks/active/T-003-it-001-paradigm-decision--injection-vs-m.md"
   - ".tasks/active/T-004-it-009-protocol-relationships--mcp-lsp-e.md"
   - ".tasks/active/T-005-it-003-message-protocol-design.md"
@@ -49,7 +50,7 @@ artifacts:
   - ".tasks/active/T-010-it-007-interactive-program-handling--vim.md"
   - ".tasks/active/T-011-it-008-distributed-topology--cross-machi.md"
   - ".tasks/active/T-012-it-010-agent-to-agent-communication-patt.md"
-  - "docs/reports/T-003-paradigm-decision.md"
+  - ".tasks/completed/T-003-it-001-paradigm-decision--injection-vs-m.md"
 
 # Timeline (auto-mined from git log)
 git_timeline:
@@ -57,10 +58,12 @@ git_timeline:
     action: "T-003: Create investigation task backlog from T-002 inception (T-003 through T-012)"
   - time: "2026-03-08T15:26:01"
     action: "T-003: Paradigm decision — message bus + injection adapter, control/data plane split"
+  - time: "2026-03-08T15:27:18"
+    action: "T-003: GO — paradigm decided, message bus + injection adapter, task completed"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 2 commit(s), 0 min
+  # Completed successfully in 3 commit(s), 16 min
 
 # Related tasks
 related_tasks:
@@ -73,12 +76,12 @@ tags: []
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 0
-  commits: 2
-  files_changed: 11
-  lines_added: 1038
-  lines_removed: 0
+  wall_clock_minutes: 16
+  commits: 3
+  files_changed: 13
+  lines_added: 1149
+  lines_removed: 15
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test/.tasks/completed/T-003-it-001-paradigm-decision--injection-vs-m.md
+source_file: /opt/termlink/.tasks/completed/T-003-it-001-paradigm-decision--injection-vs-m.md
 generated_by: context-agent-hybrid
