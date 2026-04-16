@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1067: Migrate ring20-management profile .126 → .122 (second renumber)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-16T05:32:35Z
+# ============================================================================
+
+task_id: T-1067
+task_name: "Migrate ring20-management profile .126 → .122 (second renumber)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-15T18:59:49Z
+completed: 2026-04-15T19:01:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-15T21:01:12+02:00
+last_commit: 2026-04-15T21:01:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Migrate ring20-management .126 → .122 (second renumber). Move to completed (verification 2/2, ACs 4/4)
+
+# Key outcomes
+outcomes:
+  - "`~/.termlink/hubs.toml` ring20-management address `192.168.10.126:9100` → `192.168.10.122:9100`"
+  - "Memory file `reference_ring20_infrastructure.md` updated with new IP + rename history"
+  - "T-1064 updated with the second renumber fact"
+  - "`termlink fleet doctor` attempts .122 for ring20-management"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1064-investigate-109--121-hub-outage--both-do.md"
+  - ".tasks/active/T-1067-migrate-ring20-management-profile-126--1.md"
+  - ".tasks/completed/T-1067-migrate-ring20-management-profile-126--1.md"
+  - ".termlink-task"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-15T21:01:12"
+    action: "T-1067: Migrate ring20-management .126 → .122 (second renumber)"
+  - time: "2026-04-15T21:01:23"
+    action: "T-1067: Move to completed (verification 2/2, ACs 4/4)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 4
+  lines_added: 66
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1067-migrate-ring20-management-profile-126--1.md
+generated_by: context-agent-hybrid

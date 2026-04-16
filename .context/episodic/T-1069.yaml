@@ -1,0 +1,103 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1069: Re-apply local fw patches after 1.5.636 upgrade
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-16T05:32:35Z
+# ============================================================================
+
+task_id: T-1069
+task_name: "Re-apply local fw patches after 1.5.636 upgrade"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-15T21:02:11Z
+completed: 2026-04-15T21:09:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-15T23:05:04+02:00
+last_commit: 2026-04-15T23:09:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Re-apply T-1066 + T-1068 local patches (clobbered by fw upgrade). Add fw task help entries for review-queue + close
+
+# Key outcomes
+outcomes:
+  - "`fw task review-queue` subcommand runs and lists partial-complete tasks"
+  - "`fw task review-queue --count` prints an integer"
+  - "`fw task help` output references `review-queue`"
+  - "Handover's `PARTIAL_COMPLETE_SECTION` uses date_finished-ASC sort + tag prefixes"
+  - "Both patch files (`docs/patches/T-1066-*.md`, `docs/patches/T-1068-*.md`) kept as upstream-propagation recipes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/handover/handover.sh"
+  - ".agentic-framework/bin/fw"
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-1007-add-router-tests-for-sessionupdate-and-e.md"
+  - ".tasks/active/T-1008-improve-inbox-cli-help-text-and-add-doct.md"
+  - ".tasks/active/T-1009-add-termlink-remote-inbox--query-inbox-o.md"
+  - ".tasks/active/T-1012-fix-mcp-remote-tools-to-resolve-hub-prof.md"
+  - ".tasks/active/T-1013-create-termlink-deploy-script-for-remote.md"
+  - ".tasks/active/T-1019-add-musl-static-build-target-to-cireleas.md"
+  - ".tasks/active/T-1020-add-termlink-remote-doctor--health-check.md"
+  - ".tasks/active/T-1021-add-termlinkremotedoctor-mcp-tool--healt.md"
+  - ".tasks/active/T-1022-add-termlink-fleet-doctor--health-check-.md"
+  - ".tasks/active/T-1024-add-termlink-hub-restart--graceful-self-.md"
+  - ".tasks/active/T-1025-hub-restart-tcp-detection--server-side-h.md"
+  - ".tasks/active/T-1026-move-hubtcp-write-to-server-layer--fix-h.md"
+  - ".tasks/active/T-1033-add-tests-for-resolvehubpaths--split-bra.md"
+  - ".tasks/active/T-1034-improve-fleet-doctor-diagnostics--show-s.md"
+  - ".tasks/active/T-1035-add-termlink-tofu-command--list-clear-an.md"
+  - ".tasks/active/T-1037-build-and-deploy-latest-binary-to-107--i.md"
+  - ".tasks/active/T-1069-re-apply-local-fw-patches-after-15636-up.md"
+  - ".tasks/active/T-160-pickup-prompt-fix-declare--a-macos-bash-.md"
+  - ".tasks/active/T-789-worktree-isolation-for-termlink-dispatch.md"
+  - ".tasks/active/T-834-add-termlinkregister-mcp-tool--self-regi.md"
+  - ".tasks/active/T-879-add-termlinkdispatch-mcp-tool--atomic-sp.md"
+  - ".tasks/completed/T-1069-re-apply-local-fw-patches-after-15636-up.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-15T23:05:04"
+    action: "T-1069: Re-apply T-1066 + T-1068 local patches (clobbered by fw upgrade)"
+  - time: "2026-04-15T23:09:27"
+    action: "T-1069: Add fw task help entries for review-queue + close"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 25
+  lines_added: 262
+  lines_removed: 39
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1069-re-apply-local-fw-patches-after-15636-up.md
+generated_by: context-agent-hybrid
