@@ -69,3 +69,7 @@ cargo clippy -p termlink-hub -- -D warnings 2>&1 | grep -v "^warning:" | grep -q
 
 ### 2026-04-13T12:51:59Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T23:07:17Z — e2e-evidence [T-1097]
+- **Evidence:** Live hub restart on .107: old_pid=2016909 → new_pid=1750950, ok=true, 32 sessions preserved post-restart
+- **Verified by:** termlink hub restart --json + termlink discover --count

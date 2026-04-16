@@ -64,3 +64,7 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 
 ### 2026-04-13T12:19:55Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T23:07:17Z — e2e-evidence [T-1097]
+- **Evidence:** termlink remote doctor local-test --json produces structured health report (connectivity, sessions, inbox, version)
+- **Verified by:** termlink remote doctor local-test

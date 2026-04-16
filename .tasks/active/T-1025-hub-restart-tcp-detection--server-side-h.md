@@ -128,3 +128,7 @@ See `docs/reports/T-1025-hub-restart-tcp-detection.md` for full research.
 ### 2026-04-13T13:07:18Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T23:07:17Z — e2e-evidence [T-1097]
+- **Evidence:** hub restart JSON shows tcp=null (no TCP listener on .107 hub — expected since this hub uses UDS only)
+- **Verified by:** termlink hub restart --json

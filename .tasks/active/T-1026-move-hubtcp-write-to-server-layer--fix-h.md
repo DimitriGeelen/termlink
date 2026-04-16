@@ -67,3 +67,7 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 
 ### 2026-04-13T13:11:24Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T23:24:50Z — e2e-evidence [T-1097]
+- **Evidence:** hub restart --json correctly reports tcp=null (UDS-only hub); TCP detection is server-side (T-1025) not client-side
+- **Verified by:** termlink hub restart --json
