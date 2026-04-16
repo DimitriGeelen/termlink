@@ -50,12 +50,12 @@ Session on dimitri-mint-dev, 2026-04-12, installing pickup-processor cron on ter
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [cron, migration, registry, T-448]
 components: []
 related_tasks: [T-921]
 created: 2026-04-11T22:56:36Z
-last_update: 2026-04-12T13:14:09Z
+last_update: 2026-04-16T05:40:16Z
 date_finished: 2026-04-12T13:13:47Z
 ---
 
@@ -165,3 +165,6 @@ Three cron layers (live `/etc/cron.d/`, git-tracked crontab stub, `cron-registry
 ### 2026-04-12T13:13:47Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:40:16Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

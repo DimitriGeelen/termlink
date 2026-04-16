@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: [crates/termlink-protocol/src/control.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/events.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/server.rs]
 related_tasks: []
 created: 2026-03-28T23:38:01Z
-last_update: 2026-04-12T09:14:50Z
+last_update: 2026-04-16T05:40:15Z
 date_finished: 2026-04-12T08:43:25Z
 ---
 
@@ -133,3 +133,6 @@ Rationale: Hybrid approach (broadcast channel + long-poll RPC) achieves near-zer
 ### 2026-04-12T08:43:25Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:40:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

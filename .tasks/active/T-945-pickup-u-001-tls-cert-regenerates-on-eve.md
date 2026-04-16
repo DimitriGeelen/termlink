@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:01Z
-last_update: 2026-04-12T17:14:58Z
+last_update: 2026-04-16T05:39:43Z
 date_finished: 2026-04-12T17:14:58Z
 ---
 
@@ -135,3 +135,6 @@ Rationale: Every hub restart breaks all client TOFU trust, requiring manual fing
 ### 2026-04-12T17:14:58Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:39:43Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

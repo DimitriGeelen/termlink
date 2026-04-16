@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [infrastructure, symlink, vendor]
 components: []
 related_tasks: [T-288, T-908]
 created: 2026-04-11T10:49:11Z
-last_update: 2026-04-12T07:09:10Z
+last_update: 2026-04-16T05:40:15Z
 date_finished: 2026-04-11T12:21:19Z
 ---
 
@@ -123,3 +123,6 @@ date_finished: 2026-04-11T12:21:19Z
 ### 2026-04-11T12:21:19Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:40:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

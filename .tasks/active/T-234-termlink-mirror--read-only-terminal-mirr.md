@@ -4,15 +4,15 @@ name: "termlink mirror — read-only terminal mirroring (single session, local+r
 description: >
   termlink mirror — read-only terminal mirroring (single session, local+remote)
 
-status: started-work
+status: captured
 workflow_type: build
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:49Z
-last_update: 2026-03-23T10:24:23Z
+last_update: 2026-04-16T05:38:14Z
 date_finished: null
 ---
 
@@ -75,3 +75,7 @@ grep -rq 'mirror' crates/termlink-session/src/data_server.rs crates/termlink-hub
 
 ### 2026-03-23T09:15:51Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-04-16T05:38:14Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)

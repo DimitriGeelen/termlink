@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:33Z
-last_update: 2026-04-12T17:16:43Z
+last_update: 2026-04-16T05:39:43Z
 date_finished: 2026-04-12T17:16:43Z
 ---
 
@@ -118,3 +118,6 @@ Rationale: Framework-side UX improvement. Dry-run mode already exists for fw upg
 ### 2026-04-12T17:16:43Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:39:43Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

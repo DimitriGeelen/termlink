@@ -4,15 +4,15 @@ name: "Push T-287 findings to fw-agent"
 description: >
   Push T-287 inception findings to framework agent on .107 — confirm upgrade.sh bugs, request register --self in Session Start Protocol
 
-status: started-work
+status: captured
 workflow_type: build
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T22:16:19Z
-last_update: 2026-03-27T17:40:23Z
+last_update: 2026-04-16T05:38:15Z
 date_finished: null
 ---
 
@@ -54,3 +54,7 @@ test -f docs/specs/T-160-declare-A-macos-fix-pickup.md
 
 ### 2026-03-26T21:24:13Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-16T05:38:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)

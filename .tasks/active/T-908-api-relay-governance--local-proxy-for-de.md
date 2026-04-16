@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-09T10:54:14Z
-last_update: 2026-04-12T08:43:29Z
+last_update: 2026-04-16T05:40:15Z
 date_finished: 2026-04-12T08:43:29Z
 ---
 
@@ -307,3 +307,6 @@ Rationale: Build `termlink-relay` as a native Rust crate — a local API relay t
 ### 2026-04-12T08:43:29Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-04-16T05:40:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later

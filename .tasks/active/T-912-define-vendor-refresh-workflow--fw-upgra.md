@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [infrastructure, vendor, upgrade, workflow]
 components: []
 related_tasks: []
 created: 2026-04-11T12:28:41Z
-last_update: 2026-04-12T11:41:37Z
+last_update: 2026-04-16T05:40:15Z
 date_finished: 2026-04-12T11:41:27Z
 ---
 
@@ -182,3 +182,6 @@ Evidence:
 Approach: Checksum manifest (`.upstream-checksums`) + backup directory (`.upgrade-backup/`). Detect local modifications before overwriting, back up modified files, warn, and provide `fw upgrade --restore` for recovery.
 
 Research artifact: `docs/reports/T-912-vendor-refresh-workflow.md`
+
+### 2026-04-16T05:40:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
