@@ -1,33 +1,32 @@
 ---
-id: T-1081
-name: "Rewrite watchdog.sh with hub status + service checks + logging"
+id: T-1080
+name: "Housekeeping: triage stale tasks — move dormant tasks to later horizon"
 description: >
-  Rewrite watchdog.sh with hub status + service checks + logging
+  Housekeeping: triage stale tasks — move dormant tasks to later horizon
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-16T05:37:56Z
-last_update: 2026-04-16T05:37:56Z
-date_finished: null
+created: 2026-04-16T05:37:04Z
+last_update: 2026-04-16T05:41:33Z
+date_finished: 2026-04-16T05:41:33Z
 ---
 
-# T-1081: Rewrite watchdog.sh with hub status + service checks + logging
+# T-1080: Housekeeping: triage stale tasks — move dormant tasks to later horizon
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+43 dormant tasks cluttering the `now` horizon. Moved to `later` to reduce noise.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] 43 dormant tasks moved from `now` to `later` horizon
+- [x] Duplicate T-1081 closed (already done under T-1072)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +62,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-16T05:37:56Z — task-created [task-create-agent]
+### 2026-04-16T05:37:04Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1081-rewrite-watchdogsh-with-hub-status--serv.md
+- **Output:** /opt/termlink/.tasks/active/T-1080-housekeeping-triage-stale-tasks--move-do.md
 - **Context:** Initial task creation
+
+### 2026-04-16T05:41:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

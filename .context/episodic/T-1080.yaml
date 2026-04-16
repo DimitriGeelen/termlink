@@ -1,0 +1,125 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1080: Housekeeping: triage stale tasks — move dormant tasks to later horizon
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-16T05:41:34Z
+# ============================================================================
+
+task_id: T-1080
+task_name: "Housekeeping: triage stale tasks — move dormant tasks to later horizon"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T05:37:04Z
+completed: 2026-04-16T05:41:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-16T07:40:48+02:00
+last_commit: 2026-04-16T07:40:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Housekeeping — move 43 dormant tasks from now to later horizon
+
+# Key outcomes
+outcomes:
+  - "43 dormant tasks moved from `now` to `later` horizon"
+  - "Duplicate T-1081 closed (already done under T-1072)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1076-fix-remote-inbox-cli-ergonomics--argumen.md"
+  - ".tasks/active/T-1080-housekeeping-triage-stale-tasks--move-do.md"
+  - ".tasks/active/T-1081-rewrite-watchdogsh-with-hub-status--serv.md"
+  - ".tasks/active/T-160-pickup-prompt-fix-declare--a-macos-bash-.md"
+  - ".tasks/active/T-186-termlink-inject-remote--standard-command.md"
+  - ".tasks/active/T-192-simulation-harness-for-human-ac-verifica.md"
+  - ".tasks/active/T-234-termlink-mirror--read-only-terminal-mirr.md"
+  - ".tasks/active/T-280-dispatch-readiness--structural-completio.md"
+  - ".tasks/active/T-283-cross-session-failure-blindness--107-rem.md"
+  - ".tasks/active/T-287-cross-project-framework-upgrade--fw-agen.md"
+  - ".tasks/active/T-289-push-t-287-findings-to-fw-agent.md"
+  - ".tasks/active/T-292-audit-health-decay--why-do-warnings-accu.md"
+  - ".tasks/active/T-690-event-subscription--push-based-event-del.md"
+  - ".tasks/active/T-789-worktree-isolation-for-termlink-dispatch.md"
+  - ".tasks/active/T-834-add-termlinkregister-mcp-tool--self-regi.md"
+  - ".tasks/active/T-879-add-termlinkdispatch-mcp-tool--atomic-sp.md"
+  - ".tasks/active/T-908-api-relay-governance--local-proxy-for-de.md"
+  - ".tasks/active/T-909-fix-agentic-framework-symlink--replace-w.md"
+  - ".tasks/active/T-912-define-vendor-refresh-workflow--fw-upgra.md"
+  - ".tasks/active/T-914-fix-termlink-dispatch-wait-for-registrar.md"
+  - ".tasks/active/T-916-fix-dispatch-eventcollect-masking-hub-fa.md"
+  - ".tasks/active/T-921-full-cross-host-parity--every-termlink-c.md"
+  - ".tasks/active/T-922-codify-mcp-auto-exposure--every-new-cli-.md"
+  - ".tasks/active/T-930-should-termlink-hub-run-under-a-supervis.md"
+  - ".tasks/active/T-936-migrate-termlink-cron-from-hand-written-.md"
+  - ".tasks/active/T-937-pickup-termlink-cleanup-kills-active-dis.md"
+  - ".tasks/active/T-939-approvals-page-missing-recommendation-di.md"
+  - ".tasks/active/T-940-rca-unify-termlink-runtime-dir--split-br.md"
+  - ".tasks/active/T-941-pickup-include-persistent-agent-session-.md"
+  - ".tasks/active/T-942-pickup-hub-should-scan-multiple-session-.md"
+  - ".tasks/active/T-945-pickup-u-001-tls-cert-regenerates-on-eve.md"
+  - ".tasks/active/T-946-pickup-u-002-hub-level-inbox--store-file.md"
+  - ".tasks/active/T-947-pickup-canary-30s-pickup-processor-smoke.md"
+  - ".tasks/active/T-950-pickup-30-second-pickup-processor-cycle-.md"
+  - ".tasks/active/T-951-pickup-u-003-send-file-reports-ok-on-hub.md"
+  - ".tasks/active/T-952-pickup-l-004-termlink-inject-vs-push--in.md"
+  - ".tasks/active/T-953-pickup-l-006-termlink-send-file-oktrue-m.md"
+  - ".tasks/active/T-954-pickup-partial-migrations-are-a-recurrin.md"
+  - ".tasks/active/T-955-pickup-dry-run-saved-us-from-silent-data.md"
+  - ".tasks/active/T-956-pickup-pickup-envelopes--messaging-chann.md"
+  - ".tasks/active/T-957-pickup-cross-host-agent-access-requires-.md"
+  - ".tasks/active/T-958-pickup-inception-decide-codepath-has-4-s.md"
+  - ".tasks/active/T-959-pickup-two-pool-architecture-persistent-.md"
+  - ".tasks/active/T-967-persistent-agent-sessions--mark-protect-.md"
+  - ".tasks/active/T-968-pickup-t-1135-persistent-termlink-agent-.md"
+  - ".tasks/active/T-970-fw-task-review-ux-overhaul--dynamic-port.md"
+  - ".tasks/active/T-972-deep-rca-agent-command-amnesia--why-do-a.md"
+  - ".tasks/active/T-976-posttooluse-hook-to-scan-for-bare-comman.md"
+  - ".tasks/active/T-977-fw-hook-enable-command--register-hooks-i.md"
+  - ".tasks/active/T-978-add-checksum-manifest-to-fw-upgrade--det.md"
+  - ".tasks/active/T-980-tier-0-self-approval-bypass--agent-can-c.md"
+  - ".tasks/active/T-984-fw-upgrade-silently-reverts-local-patche.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T07:40:48"
+    action: "T-1080: Housekeeping — move 43 dormant tasks from now to later horizon"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 52
+  lines_added: 396
+  lines_removed: 105
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1080-housekeeping-triage-stale-tasks--move-do.md
+generated_by: context-agent-hybrid

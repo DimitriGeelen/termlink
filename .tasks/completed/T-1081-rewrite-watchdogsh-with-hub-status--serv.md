@@ -1,33 +1,31 @@
 ---
-id: T-1080
-name: "Housekeeping: triage stale tasks — move dormant tasks to later horizon"
+id: T-1081
+name: "Rewrite watchdog.sh with hub status + service checks + logging"
 description: >
-  Housekeeping: triage stale tasks — move dormant tasks to later horizon
+  Rewrite watchdog.sh with hub status + service checks + logging
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-16T05:37:04Z
-last_update: 2026-04-16T05:37:04Z
-date_finished: null
+created: 2026-04-16T05:37:56Z
+last_update: 2026-04-16T05:41:13Z
+date_finished: 2026-04-16T05:41:13Z
 ---
 
-# T-1080: Housekeeping: triage stale tasks — move dormant tasks to later horizon
+# T-1081: Rewrite watchdog.sh with hub status + service checks + logging
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Duplicate of T-1072 which already shipped `scripts/watchdog.sh` + `/etc/cron.d/termlink-watchdog` (1-minute cron checking hub + both agent services). Closing as already-done.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Already shipped under T-1072 — watchdog.sh checks termlink-hub.service, termlink-framework-agent.service, termlink-termlink-agent.service every minute
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +61,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-16T05:37:04Z — task-created [task-create-agent]
+### 2026-04-16T05:37:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1080-housekeeping-triage-stale-tasks--move-do.md
+- **Output:** /opt/termlink/.tasks/active/T-1081-rewrite-watchdogsh-with-hub-status--serv.md
 - **Context:** Initial task creation
+
+### 2026-04-16T05:41:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
