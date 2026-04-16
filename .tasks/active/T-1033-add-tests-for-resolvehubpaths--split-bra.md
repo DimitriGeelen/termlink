@@ -65,3 +65,8 @@ cargo test -p termlink-session connect_addr_raw 2>&1 | grep "1 passed"
 
 ### 2026-04-13T18:30:23Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** cargo test --workspace reports 1091 tests passing (includes resolve_hub_paths tests)
+- **Verified by:** automated command execution
+

@@ -64,3 +64,8 @@ cargo test -p termlink-mcp tofu 2>&1 | grep "passed"
 
 ### 2026-04-13T19:09:37Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** termlink doctor reports 67 MCP tools (includes termlink_tofu_list, termlink_tofu_clear)
+- **Verified by:** automated command execution
+

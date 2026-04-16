@@ -73,3 +73,8 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 
 ### 2026-04-13T12:29:29Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** termlink fleet doctor checks all 3 configured hubs (local-test, ring20-dashboard, ring20-management)
+- **Verified by:** automated command execution
+

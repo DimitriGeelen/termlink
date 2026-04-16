@@ -65,3 +65,8 @@ cargo test -p termlink --test cli_integration tofu 2>&1 | grep "passed"
 
 ### 2026-04-13T18:48:57Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T19:00:39Z — programmatic-evidence [T-1087]
+- **Evidence:** termlink tofu list shows 4 trusted hub entries from known_hubs file
+- **Verified by:** automated command execution
+
