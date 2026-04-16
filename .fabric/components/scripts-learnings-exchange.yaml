@@ -1,0 +1,18 @@
+id: scripts/learnings-exchange.sh
+name: learnings-exchange
+type: script
+subsystem: operations
+location: scripts/learnings-exchange.sh
+tags: [cron, fleet, learnings]
+
+purpose: "15-minute cron: polls reachable termlink peers for new learnings via fleet doctor health check. Currently asker-side only (logs would-ask); responder RPC pending T-1074."
+
+depends_on:
+  - target: crates/termlink-cli/src/commands/remote.rs
+    type: calls
+
+depended_by:
+  []
+
+last_verified: 2026-04-16
+created_by: T-1075
