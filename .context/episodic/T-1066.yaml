@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1066: Add fw task review-queue — list partial-complete tasks awaiting human signature (G-008 mitigation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-16T05:32:34Z
+# ============================================================================
+
+task_id: T-1066
+task_name: "Add fw task review-queue — list partial-complete tasks awaiting human signature (G-008 mitigation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-15T18:48:40Z
+completed: 2026-04-15T18:54:32Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-15T20:54:28+02:00
+last_commit: 2026-04-15T20:54:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add fw task review-queue — surface partial-complete backlog (G-008 mitigation). Move to completed (verification 3/3, ACs 7/7)
+
+# Key outcomes
+outcomes:
+  - "`fw task review-queue` lists partial-complete (status=work-completed) tasks with unchecked Human ACs"
+  - "Output is sorted by date_finished ASC (oldest first)"
+  - "Each row shows: `[TAG]` (RUBBER-STAMP/REVIEW/MIXED/UNTAGGED), T-ID, owner, unchecked/total, name, age in days"
+  - "`--count` flag prints just the integer count (for scripting/handover digest)"
+  - "`--rubber-stamp-only` filters to only RUBBER-STAMP-tagged tasks"
+  - "Command appears in `fw task help` output"
+  - "Running on current repo produces a non-empty, sorted list (61 tasks: 39 rubber-stamp, 22 review)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/bin/fw"
+  - "docs/patches/T-1066-fw-task-review-queue.md"
+  - ".tasks/active/T-1066-add-fw-task-review-queue--list-partial-c.md"
+  - ".tasks/completed/T-1066-add-fw-task-review-queue--list-partial-c.md"
+  - ".termlink-task"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-15T20:54:28"
+    action: "T-1066: Add fw task review-queue — surface partial-complete backlog (G-008 mitigation)"
+  - time: "2026-04-15T20:54:38"
+    action: "T-1066: Move to completed (verification 3/3, ACs 7/7)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 5
+  lines_added: 329
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1066-add-fw-task-review-queue--list-partial-c.md
+generated_by: context-agent-hybrid
