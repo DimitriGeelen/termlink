@@ -4,7 +4,7 @@ name: "Enhance watchdog.sh — add hub liveness check after systemd check"
 description: >
   Enhance watchdog.sh — add hub liveness check after systemd check
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T18:30:35Z
-last_update: 2026-04-16T18:30:35Z
-date_finished: null
+last_update: 2026-04-16T18:31:51Z
+date_finished: 2026-04-16T18:31:51Z
 ---
 
 # T-1083: Enhance watchdog.sh — add hub liveness check after systemd check
@@ -67,3 +67,6 @@ Watchdog only checks systemd units. Add hub liveness ping after systemd check �
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1083-enhance-watchdogsh--add-hub-liveness-che.md
 - **Context:** Initial task creation
+
+### 2026-04-16T18:31:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
