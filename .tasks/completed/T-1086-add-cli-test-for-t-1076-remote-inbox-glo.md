@@ -4,16 +4,16 @@ name: "Add CLI test for T-1076 remote inbox global args fix"
 description: >
   Add CLI test for T-1076 remote inbox global args fix
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-16T18:48:40Z
-last_update: 2026-04-16T18:48:40Z
-date_finished: null
+last_update: 2026-04-16T18:51:23Z
+date_finished: 2026-04-16T18:51:23Z
 ---
 
 # T-1086: Add CLI test for T-1076 remote inbox global args fix
@@ -69,3 +69,6 @@ T-1076 fixed remote inbox CLI (global args + optional subcommand). T-1077 fixed 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1086-add-cli-test-for-t-1076-remote-inbox-glo.md
 - **Context:** Initial task creation
+
+### 2026-04-16T18:51:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
