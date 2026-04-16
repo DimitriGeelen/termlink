@@ -3270,3 +3270,239 @@ fn cli_mcp_serve_stdin_closed() {
         stderr
     );
 }
+
+// --- T-1093: remote profile and fleet reauth tests ---
+
+#[test]
+fn cli_remote_profile_list_empty() {
+    // T-1093: profile list with no config should report empty.
+    let dir = TestDir::new("profile-list-empty");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["remote", "profile", "list"])
+        .output()
+        .expect("Failed to run profile list");
+
+    assert!(output.status.success(), "profile list should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("No hub profiles") || combined.contains("no profiles"),
+        "should report no profiles: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_remote_profile_add_and_list() {
+    // T-1093: profile add should create entry, profile list should show it.
+    let dir = TestDir::new("profile-add-list");
+
+    // Create a dummy secret file
+    let secret_path = dir.path.join("test-secret.hex");
+    std::fs::write(
+        &secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n",
+    )
+    .expect("Failed to write secret file");
+
+    // Add a profile
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote",
+            "profile",
+            "add",
+            "test-hub",
+            "127.0.0.1:9876",
+            "--secret-file",
+            secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("Failed to run profile add");
+
+    assert!(output.status.success(), "profile add should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("Added") || combined.contains("test-hub"),
+        "should confirm addition: {}",
+        combined
+    );
+
+    // Verify list shows the new profile
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["remote", "profile", "list"])
+        .output()
+        .expect("Failed to run profile list");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("test-hub"),
+        "profile list should show test-hub: {}",
+        combined
+    );
+    assert!(
+        combined.contains("127.0.0.1:9876"),
+        "profile list should show address: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_remote_profile_remove_existing() {
+    // T-1093: profile remove should remove an existing profile.
+    let dir = TestDir::new("profile-remove");
+
+    let secret_path = dir.path.join("secret.hex");
+    std::fs::write(
+        &secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n",
+    )
+    .expect("write secret");
+
+    // Add then remove
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote",
+            "profile",
+            "add",
+            "remove-me",
+            "127.0.0.1:9876",
+            "--secret-file",
+            secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add");
+
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["remote", "profile", "remove", "remove-me"])
+        .output()
+        .expect("remove");
+
+    assert!(output.status.success(), "profile remove should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("Removed"),
+        "should confirm removal: {}",
+        combined
+    );
+
+    // Verify it's gone from list
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["remote", "profile", "list"])
+        .output()
+        .expect("list after remove");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        !combined.contains("remove-me"),
+        "removed profile should not appear: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_remote_profile_remove_nonexistent() {
+    // T-1093: removing a nonexistent profile should report not found (but not crash).
+    let dir = TestDir::new("profile-remove-none");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["remote", "profile", "remove", "ghost-hub"])
+        .output()
+        .expect("remove nonexistent");
+
+    // Should succeed (exit 0) but say not found
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("not found") || combined.contains("Not found"),
+        "should report profile not found: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_fleet_reauth_no_config() {
+    // T-1093: fleet reauth with no hubs.toml should report configuration error.
+    let dir = TestDir::new("reauth-no-config");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "reauth", "test-hub"])
+        .output()
+        .expect("reauth no config");
+
+    assert!(
+        !output.status.success(),
+        "fleet reauth with no config should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("No hubs") || stderr.contains("not found") || stderr.contains("configured"),
+        "should report no hub config: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_fleet_reauth_valid_profile() {
+    // T-1093: fleet reauth with valid profile should print heal steps.
+    let dir = TestDir::new("reauth-valid");
+
+    let secret_path = dir.path.join("hub-secret.hex");
+    std::fs::write(
+        &secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n",
+    )
+    .expect("write secret");
+
+    // Create a profile first
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote",
+            "profile",
+            "add",
+            "reauth-test",
+            "127.0.0.1:9876",
+            "--secret-file",
+            secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add profile");
+
+    // Run reauth
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "reauth", "reauth-test"])
+        .output()
+        .expect("fleet reauth");
+
+    assert!(output.status.success(), "fleet reauth should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("reauth") || combined.contains("Heal"),
+        "should print reauth/heal steps: {}",
+        combined
+    );
+    assert!(
+        combined.contains("reauth-test") || combined.contains("127.0.0.1:9876"),
+        "should reference the profile: {}",
+        combined
+    );
+}
