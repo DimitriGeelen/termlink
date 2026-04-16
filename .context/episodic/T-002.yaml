@@ -3,25 +3,25 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-08T14:10:10Z
+# Generated: 2026-04-16T18:53:46Z
 # ============================================================================
 
 task_id: T-002
 task_name: "Cross-terminal session communication via keyboard input injection"
 workflow_type: inception
-enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-03-08T13:59:49Z
 completed: 2026-03-08T14:10:09Z
 duration_days: 0
-updates_count: 0
+updates_count: 4
 first_commit: 2026-03-08T15:00:43+01:00
-last_commit: 2026-03-08T15:04:01+01:00
+last_commit: 2026-03-08T15:10:16+01:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  Research artifact — cross-terminal input injection mechanisms. Constitutional directive mapping — scorecard and distributed architecture
+  Research artifact — cross-terminal input injection mechanisms. Constitutional directive mapping — scorecard and distributed architecture. GO decision — deep reflection, 10 investigation topics, inception complete
 
 # Key outcomes
 outcomes:
@@ -35,12 +35,14 @@ challenges:
 
 # Decisions (from task file Decisions section)
 decisions:
-  # No decisions recorded (mechanical task or old template)
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
-  - ".tasks/active/T-002-cross-terminal-session-communication-via.md"
+  - ".context/episodic/T-002.yaml"
   - "docs/reports/T-002-cross-terminal-input-injection.md"
+  - ".tasks/active/T-001-project-initialization.md"
+  - ".tasks/active/T-002-cross-terminal-session-communication-via.md"
+  - ".tasks/completed/T-002-cross-terminal-session-communication-via.md"
 
 # Timeline (auto-mined from git log)
 git_timeline:
@@ -48,10 +50,12 @@ git_timeline:
     action: "T-002: Research artifact — cross-terminal input injection mechanisms"
   - time: "2026-03-08T15:04:01"
     action: "T-002: Constitutional directive mapping — scorecard and distributed architecture"
+  - time: "2026-03-08T15:10:16"
+    action: "T-002: GO decision — deep reflection, 10 investigation topics, inception complete"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 2 commit(s), 0 min
+  # Completed successfully in 3 commit(s), 10 min
 
 # Related tasks
 related_tasks:
@@ -64,12 +68,12 @@ tags: []
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 0
-  commits: 2
-  files_changed: 2
-  lines_added: 396
-  lines_removed: 0
+  wall_clock_minutes: 10
+  commits: 3
+  files_changed: 5
+  lines_added: 844
+  lines_removed: 93
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-Ag-Framework-Brew-Test/.tasks/completed/T-002-cross-terminal-session-communication-via.md
+source_file: /opt/termlink/.tasks/completed/T-002-cross-terminal-session-communication-via.md
 generated_by: context-agent-hybrid

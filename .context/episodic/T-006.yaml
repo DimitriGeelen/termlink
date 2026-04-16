@@ -3,19 +3,19 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-08T15:27:05Z
+# Generated: 2026-04-16T18:53:47Z
 # ============================================================================
 
 task_id: T-006
 task_name: "IT-002: Session identity, discovery, and lifecycle"
 workflow_type: inception
-enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-03-08T14:19:34Z
 completed: 2026-03-08T15:27:04Z
 duration_days: 0
-updates_count: 0
+updates_count: 3
 
 # Summary (auto-generated from git commit messages)
 summary: |
@@ -37,7 +37,6 @@ challenges:
 
 # Decisions (from task file Decisions section)
 decisions:
-  # No decisions recorded (mechanical task or old template)
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
@@ -49,7 +48,7 @@ git_timeline:
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 1 commit(s), 0 min
+  # Completed successfully in 2 commit(s), 67 min
 
 # Related tasks
 related_tasks:
@@ -62,12 +61,12 @@ tags: []
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 0
-  commits: 1
-  files_changed: 6
-  lines_added: 2552
-  lines_removed: 45
+  wall_clock_minutes: 67
+  commits: 2
+  files_changed: 12
+  lines_added: 2859
+  lines_removed: 103
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-006-it-002-session-identity-discovery-and-li.md
+source_file: /opt/termlink/.tasks/completed/T-006-it-002-session-identity-discovery-and-li.md
 generated_by: context-agent-hybrid

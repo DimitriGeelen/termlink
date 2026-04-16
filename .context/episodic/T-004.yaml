@@ -3,19 +3,19 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-08T15:27:00Z
+# Generated: 2026-04-16T18:53:46Z
 # ============================================================================
 
 task_id: T-004
 task_name: "IT-009: Protocol relationships — MCP, LSP, existing standards"
 workflow_type: inception
-enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-03-08T14:19:29Z
 completed: 2026-03-08T15:26:58Z
 duration_days: 0
-updates_count: 0
+updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
@@ -36,7 +36,6 @@ challenges:
 
 # Decisions (from task file Decisions section)
 decisions:
-  # No decisions recorded (mechanical task or old template)
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
@@ -48,7 +47,7 @@ git_timeline:
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 0 commit(s), 0 min
+  # Completed successfully in 0 commit(s), 67 min
 
 # Related tasks
 related_tasks:
@@ -61,12 +60,12 @@ tags: []
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 0
+  wall_clock_minutes: 67
   commits: 0
   files_changed: 0
   lines_added: 0
   lines_removed: 0
 
 # Metadata
-source_file: /Users/dimidev32/001-projects/010-termlink/.tasks/completed/T-004-it-009-protocol-relationships--mcp-lsp-e.md
+source_file: /opt/termlink/.tasks/completed/T-004-it-009-protocol-relationships--mcp-lsp-e.md
 generated_by: context-agent-hybrid
