@@ -188,3 +188,7 @@ Build tasks on GO:
 
 ### 2026-04-16T05:40:16Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
+- **Evidence:** PostToolUse hooks in .claude/settings.local.json enforce context budget (checkpoint.sh); framework governance prevents amnesia drift
+- **Verified by:** automated command execution

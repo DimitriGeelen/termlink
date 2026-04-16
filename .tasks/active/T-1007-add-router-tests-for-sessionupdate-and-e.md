@@ -65,3 +65,7 @@ cargo test -p termlink-hub 2>&1 | grep "test result"
 
 ### 2026-04-13T09:22:37Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T21:04:36Z — programmatic-evidence [T-1090]
+- **Evidence:** 51 router tests passing (cargo test -p termlink-hub -- router: 51 passed, 0 failed)
+- **Verified by:** automated command execution

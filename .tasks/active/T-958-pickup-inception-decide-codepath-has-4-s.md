@@ -127,3 +127,7 @@ Eviden...
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
+- **Evidence:** fw inception decide command exists (fw inception --help); 4 UX issues from upstream documented as learning
+- **Verified by:** automated command execution

@@ -310,3 +310,7 @@ Rationale: Build `termlink-relay` as a native Rust crate — a local API relay t
 
 ### 2026-04-16T05:40:15Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** MCP tools route through termlink-mcp crate; 67 tools registered via termlink doctor; relay pattern confirmed in crates/termlink-mcp/src/tools.rs
+- **Verified by:** automated command execution

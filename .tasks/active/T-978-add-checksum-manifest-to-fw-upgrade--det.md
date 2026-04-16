@@ -76,3 +76,7 @@ grep -q '_vendored_sync' /opt/termlink/.agentic-framework/lib/upgrade.sh
 
 ### 2026-04-16T05:40:16Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:04:36Z — programmatic-evidence [T-1090]
+- **Evidence:** fw upgrade command exists with --dry-run and --force flags; upgrade help lists file categories that get synced
+- **Verified by:** automated command execution

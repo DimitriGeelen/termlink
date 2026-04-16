@@ -132,3 +132,7 @@ Rationale: This session spent significant time re-diagnosing and re-applying 6 l
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
+- **Evidence:** fw upgrade --help shows --dry-run flag; patch recipe docs/patches/T-1066-fw-task-review-queue.md in place for re-application
+- **Verified by:** automated command execution

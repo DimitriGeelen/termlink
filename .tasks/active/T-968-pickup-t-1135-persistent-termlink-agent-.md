@@ -130,3 +130,7 @@ Evidence:
 
 ### 2026-04-16T05:39:44Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
+- **Evidence:** Watchdog cron at /etc/cron.d/termlink-watchdog runs every minute; checks hub + 2 agent systemd units; persistent sessions confirmed via termlink discover
+- **Verified by:** automated command execution

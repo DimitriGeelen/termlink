@@ -138,3 +138,7 @@ Rationale: Every hub restart breaks all client TOFU trust, requiring manual fing
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
+- **Evidence:** hub.cert.pem persisted at /var/lib/termlink/hub.cert.pem; hub.key.pem at runtime dir /tmp/termlink-0/
+- **Verified by:** automated command execution

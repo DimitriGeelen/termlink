@@ -65,3 +65,7 @@ grep -q "termlink-linux-x86_64-static" .github/workflows/release.yml
 
 ### 2026-04-13T12:12:22Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T21:04:36Z — programmatic-evidence [T-1090]
+- **Evidence:** x86_64-unknown-linux-musl target present in .github/workflows/release.yml with musl-tools build deps
+- **Verified by:** automated command execution

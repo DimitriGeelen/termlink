@@ -114,3 +114,7 @@ date_finished: 2026-04-12T15:59:19Z
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** T-1017 tracks the silent data loss issue; send-file semantics documented in learning L-006; fix implemented
+- **Verified by:** automated command execution

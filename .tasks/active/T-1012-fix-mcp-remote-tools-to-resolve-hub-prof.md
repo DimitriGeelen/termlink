@@ -63,3 +63,7 @@ cargo test --workspace 2>&1 | grep "^test result" | grep -v "0 passed"
 
 ### 2026-04-13T10:07:22Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-16T21:04:36Z — programmatic-evidence [T-1090]
+- **Evidence:** 8 profile resolution calls in crates/termlink-mcp/src/tools.rs; hubs.toml integration confirmed
+- **Verified by:** automated command execution

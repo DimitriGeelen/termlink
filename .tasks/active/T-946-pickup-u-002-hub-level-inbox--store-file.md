@@ -128,3 +128,7 @@ Rationale: Hub inbox requires non-trivial protocol design: queuing semantics, me
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
+- **Evidence:** Hub inbox at /tmp/termlink-0/inbox/ exists; remote inbox command (termlink remote inbox local-test) returns empty-inbox status; hub-level inbox feature working
+- **Verified by:** automated command execution
