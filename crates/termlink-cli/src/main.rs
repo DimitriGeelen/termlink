@@ -190,6 +190,7 @@ async fn main() -> Result<()> {
             commands::metadata::cmd_discover(opts, &display).await
         }
         Command::Kv { target, json, timeout, raw, keys, hub, secret_file, secret, scope, action } => {
+            let action = action.unwrap_or(KvAction::List);
             let opts = target::TargetOpts {
                 hub,
                 secret_file,

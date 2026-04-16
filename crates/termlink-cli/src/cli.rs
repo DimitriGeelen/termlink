@@ -650,41 +650,41 @@ pub(crate) enum Command {
         target: String,
 
         /// Output result as JSON
-        #[arg(long)]
+        #[arg(global = true, long)]
         json: bool,
 
         /// Timeout in seconds (default: 5)
-        #[arg(long, default_value = "5")]
+        #[arg(global = true, long, default_value = "5")]
         timeout: u64,
 
         /// Output raw value (strings without quotes, for piping)
-        #[arg(long)]
+        #[arg(global = true, long)]
         raw: bool,
 
         /// List only key names (one per line, for scripting)
-        #[arg(long)]
+        #[arg(global = true, long)]
         keys: bool,
 
         /// Remote hub address HOST:PORT — forwards the kv call through the
         /// hub to the named session on that host (T-921 cross-host parity).
-        #[arg(long = "target", value_name = "HOST:PORT")]
+        #[arg(global = true, long = "target", value_name = "HOST:PORT")]
         hub: Option<String>,
 
         /// Path to a hex-encoded HMAC secret file for the remote hub.
-        #[arg(long = "secret-file", value_name = "PATH")]
+        #[arg(global = true, long = "secret-file", value_name = "PATH")]
         secret_file: Option<std::path::PathBuf>,
 
         /// Explicit hex-encoded HMAC secret (64 chars / 32 bytes).
-        #[arg(long, value_name = "HEX")]
+        #[arg(global = true, long, value_name = "HEX")]
         secret: Option<String>,
 
         /// Auth scope: observe | interact | control | execute.
         /// Defaults to observe for get/list and interact for set/del.
-        #[arg(long, value_name = "NAME")]
+        #[arg(global = true, long, value_name = "NAME")]
         scope: Option<String>,
 
         #[command(subcommand)]
-        action: KvAction,
+        action: Option<KvAction>,
     },
 
     // === Execution ===
