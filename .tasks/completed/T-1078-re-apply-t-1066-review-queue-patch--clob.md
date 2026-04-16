@@ -4,7 +4,7 @@ name: "Re-apply T-1066 review-queue patch — clobbered by framework upgrade"
 description: >
   Re-apply T-1066 review-queue patch — clobbered by framework upgrade
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T05:28:59Z
-last_update: 2026-04-16T05:28:59Z
-date_finished: null
+last_update: 2026-04-16T05:31:42Z
+date_finished: 2026-04-16T05:31:42Z
 ---
 
 # T-1078: Re-apply T-1066 review-queue patch — clobbered by framework upgrade
@@ -68,3 +68,6 @@ Framework upgrade clobbered the T-1066 `fw task review-queue` patch. Re-apply fr
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1078-re-apply-t-1066-review-queue-patch--clob.md
 - **Context:** Initial task creation
+
+### 2026-04-16T05:31:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
