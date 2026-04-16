@@ -3506,3 +3506,181 @@ fn cli_fleet_reauth_valid_profile() {
         combined
     );
 }
+
+// --- T-1095: fleet doctor with profiles and fleet reauth bootstrap tests ---
+
+#[test]
+fn cli_fleet_doctor_unreachable_profile_json() {
+    // T-1095: fleet doctor with an unreachable profile should show error in JSON.
+    let dir = TestDir::new("fleet-dr-unreach");
+
+    let secret_path = dir.path.join("secret.hex");
+    std::fs::write(
+        &secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n",
+    )
+    .expect("write secret");
+
+    // Create a profile pointing to unreachable address
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote",
+            "profile",
+            "add",
+            "bad-hub",
+            "127.0.0.1:19876",
+            "--secret-file",
+            secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add profile");
+
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "doctor", "--json"])
+        .output()
+        .expect("fleet doctor --json");
+
+    // Fleet doctor exits 0 even with failures (diagnostic, not error)
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(
+        parsed["ok"], false,
+        "ok should be false with unreachable hub"
+    );
+    let hubs = parsed["hubs"].as_array().expect("hubs should be array");
+    assert_eq!(hubs.len(), 1, "should have 1 hub entry");
+    assert_eq!(hubs[0]["status"], "error", "status should be error");
+    assert!(
+        hubs[0]["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("connect")
+            || hubs[0]["error"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Cannot"),
+        "should have connection error: {:?}",
+        hubs[0]["error"]
+    );
+}
+
+#[test]
+fn cli_fleet_reauth_bootstrap_file() {
+    // T-1095: fleet reauth --bootstrap-from file: should update the secret file.
+    let dir = TestDir::new("reauth-bootstrap");
+
+    let secret_path = dir.path.join("hub-secret.hex");
+    std::fs::write(
+        &secret_path,
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+    )
+    .expect("write original secret");
+
+    // Create a profile
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote",
+            "profile",
+            "add",
+            "bs-test",
+            "127.0.0.1:9876",
+            "--secret-file",
+            secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add profile");
+
+    // Create new secret file
+    let new_secret_path = dir.path.join("new-secret.hex");
+    std::fs::write(
+        &new_secret_path,
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n",
+    )
+    .expect("write new secret");
+
+    // Bootstrap reauth
+    let bootstrap_arg = format!("file:{}", new_secret_path.display());
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "reauth", "bs-test", "--bootstrap-from", &bootstrap_arg])
+        .output()
+        .expect("fleet reauth --bootstrap-from");
+
+    assert!(
+        output.status.success(),
+        "fleet reauth bootstrap should succeed"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("heal complete") || combined.contains("OK"),
+        "should confirm heal: {}",
+        combined
+    );
+
+    // Verify secret was updated
+    let updated_secret = std::fs::read_to_string(&secret_path).expect("read updated secret");
+    assert!(
+        updated_secret
+            .trim()
+            .starts_with("bbbbbbbbbbbbbbbbbbbbbbbb"),
+        "secret file should contain the new secret: {}",
+        updated_secret.trim()
+    );
+}
+
+#[test]
+fn cli_fleet_reauth_bootstrap_file_nonexistent() {
+    // T-1095: fleet reauth --bootstrap-from file: with nonexistent path should fail.
+    let dir = TestDir::new("reauth-bs-nofile");
+
+    let secret_path = dir.path.join("secret.hex");
+    std::fs::write(
+        &secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n",
+    )
+    .expect("write secret");
+
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote",
+            "profile",
+            "add",
+            "bs-fail",
+            "127.0.0.1:9876",
+            "--secret-file",
+            secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add profile");
+
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "fleet",
+            "reauth",
+            "bs-fail",
+            "--bootstrap-from",
+            "file:/tmp/nonexistent-secret-1095.hex",
+        ])
+        .output()
+        .expect("fleet reauth with bad file");
+
+    assert!(
+        !output.status.success(),
+        "fleet reauth with nonexistent file should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("No such file") || stderr.contains("not found") || stderr.contains("failed"),
+        "should report file not found: {}",
+        stderr
+    );
+}
