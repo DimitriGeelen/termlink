@@ -69,3 +69,7 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 - **Evidence:** termlink fleet doctor shows secret file path and diagnostic hints for failed hubs
 - **Verified by:** automated command execution
 
+
+### 2026-04-16T23:24:50Z — e2e-evidence [T-1097]
+- **Evidence:** fleet doctor shows secret_source path + diagnostic hints for auth failures ('Secret mismatch — hub was likely restarted with a new secret') on .121
+- **Verified by:** termlink fleet doctor (3 hubs, 1 pass, 2 fail with diagnostics)

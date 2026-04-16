@@ -70,3 +70,7 @@ cargo test -p termlink --test cli_integration tofu 2>&1 | grep "passed"
 - **Evidence:** termlink tofu list shows 4 trusted hub entries from known_hubs file
 - **Verified by:** automated command execution
 
+
+### 2026-04-16T23:24:50Z — e2e-evidence [T-1097]
+- **Evidence:** termlink tofu list --json returns 4 entries with host, fingerprint, first_seen, last_seen fields; text output shows formatted table
+- **Verified by:** termlink tofu list --json + termlink tofu list
