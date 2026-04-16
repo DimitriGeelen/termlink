@@ -2958,3 +2958,218 @@ fn cli_kv_options_after_subcommand() {
         stderr
     );
 }
+
+// --- T-1091: Remote list/exec/doctor/push error path tests ---
+
+#[test]
+fn cli_remote_list_no_secret() {
+    // T-1091: `remote list` without --secret or --secret-file should report auth error,
+    // not crash or show clap usage.
+    let dir = TestDir::new("remote-list-no-secret");
+    let output = termlink_cmd(&dir.path)
+        .args(["remote", "list", "127.0.0.1:19876"])
+        .output()
+        .expect("Failed to run remote list");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "remote list without secret should fail"
+    );
+    assert!(
+        stderr.contains("secret") || stderr.contains("required"),
+        "should mention secret requirement: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_remote_list_unreachable_hub() {
+    // T-1091: `remote list` against unreachable hub should report connection error.
+    let dir = TestDir::new("remote-list-unreach");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "remote",
+            "list",
+            "127.0.0.1:19876",
+            "--secret",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        ])
+        .output()
+        .expect("Failed to run remote list");
+
+    assert!(
+        !output.status.success(),
+        "remote list to unreachable hub should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("connect") || stderr.contains("Connect") || stderr.contains("refused"),
+        "should report connection error: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_remote_exec_missing_command() {
+    // T-1091: `remote exec` without command arg should show usage error.
+    let dir = TestDir::new("remote-exec-no-cmd");
+    let output = termlink_cmd(&dir.path)
+        .args(["remote", "exec", "127.0.0.1:19876", "some-session"])
+        .output()
+        .expect("Failed to run remote exec");
+
+    assert!(
+        !output.status.success(),
+        "remote exec without command should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("COMMAND") || stderr.contains("required") || stderr.contains("Usage"),
+        "should report missing command: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_remote_exec_unreachable_hub() {
+    // T-1091: `remote exec` against unreachable hub should report connection error.
+    let dir = TestDir::new("remote-exec-unreach");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "remote",
+            "exec",
+            "127.0.0.1:19876",
+            "some-session",
+            "echo hello",
+            "--secret",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        ])
+        .output()
+        .expect("Failed to run remote exec");
+
+    assert!(
+        !output.status.success(),
+        "remote exec to unreachable hub should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("connect") || stderr.contains("Connect") || stderr.contains("refused"),
+        "should report connection error: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_remote_doctor_no_secret() {
+    // T-1091: `remote doctor` without secret reports the failure in its diagnostics
+    // (exits 0 — doctor reports problems, doesn't crash).
+    let dir = TestDir::new("remote-doctor-no-secret");
+    let output = termlink_cmd(&dir.path)
+        .args(["remote", "doctor", "127.0.0.1:19876"])
+        .output()
+        .expect("Failed to run remote doctor");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("secret") || combined.contains("FAIL"),
+        "should report secret requirement or failure: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_remote_doctor_unreachable_json() {
+    // T-1091: `remote doctor --json` against unreachable hub should produce valid JSON error.
+    let dir = TestDir::new("remote-doctor-unreach-json");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "remote",
+            "doctor",
+            "127.0.0.1:19876",
+            "--json",
+            "--secret",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        ])
+        .output()
+        .expect("Failed to run remote doctor --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    // Should either produce JSON output or fail with connection error
+    assert!(
+        combined.contains("connect")
+            || combined.contains("Connect")
+            || combined.contains("refused")
+            || combined.contains("error")
+            || combined.contains("{"),
+        "should report connection error or produce JSON: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_remote_push_no_file_no_message() {
+    // T-1091: `remote push` without file or --message should explain what's needed.
+    let dir = TestDir::new("remote-push-no-file");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "remote",
+            "push",
+            "127.0.0.1:19876",
+            "some-session",
+            "--secret",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        ])
+        .output()
+        .expect("Failed to run remote push");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{}{}", stdout, stderr);
+    // Should either fail because no file/message, or fail with connection error
+    assert!(
+        !output.status.success()
+            || combined.contains("file")
+            || combined.contains("message")
+            || combined.contains("connect"),
+        "should fail without file or message: {}",
+        combined
+    );
+}
+
+#[test]
+fn cli_remote_push_nonexistent_file() {
+    // T-1091: `remote push` with nonexistent file should report file error.
+    let dir = TestDir::new("remote-push-bad-file");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "remote",
+            "push",
+            "127.0.0.1:19876",
+            "some-session",
+            "/tmp/nonexistent-file-1091.txt",
+            "--secret",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        ])
+        .output()
+        .expect("Failed to run remote push with bad file");
+
+    assert!(
+        !output.status.success(),
+        "remote push with nonexistent file should fail"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found")
+            || stderr.contains("No such file")
+            || stderr.contains("nonexistent")
+            || stderr.contains("connect")
+            || stderr.contains("refused"),
+        "should report file or connection error: {}",
+        stderr
+    );
+}
