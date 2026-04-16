@@ -4,7 +4,7 @@ name: "Fix learnings-exchange.sh — run fleet doctor once, not per-peer"
 description: >
   Fix learnings-exchange.sh — run fleet doctor once, not per-peer
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T18:28:36Z
-last_update: 2026-04-16T18:28:36Z
-date_finished: null
+last_update: 2026-04-16T18:29:58Z
+date_finished: 2026-04-16T18:29:58Z
 ---
 
 # T-1082: Fix learnings-exchange.sh — run fleet doctor once, not per-peer
@@ -67,3 +67,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1082-fix-learnings-exchangesh--run-fleet-doct.md
 - **Context:** Initial task creation
+
+### 2026-04-16T18:29:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
