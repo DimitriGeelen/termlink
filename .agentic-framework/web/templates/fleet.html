@@ -205,7 +205,7 @@
     <h3>Actions Needed</h3>
     <ol>
         {% for action in actions %}
-        <li>{{ action }}</li>
+        <li>{{ action|linkify_tasks }}</li>
         {% endfor %}
     </ol>
 </div>
