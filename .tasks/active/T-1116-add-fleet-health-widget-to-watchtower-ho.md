@@ -1,0 +1,59 @@
+---
+id: T-1116
+name: "Add fleet health widget to Watchtower home page"
+description: >
+  Show fleet health on home page
+
+status: started-work
+workflow_type: build
+owner: agent
+horizon: now
+tags: []
+components: []
+related_tasks: []
+created: 2026-04-17T22:32:56Z
+last_update: 2026-04-17T22:32:56Z
+date_finished: null
+---
+
+# T-1116: Add fleet health widget to Watchtower home page
+
+## Context
+
+Home page is framework-focused. Add a fleet health widget for at-a-glance operational status.
+
+## Acceptance Criteria
+
+### Agent
+- [x] Home page route passes fleet summary data to template
+- [x] Widget shows hub count and up/down with color coding
+- [x] Widget links to /fleet for detail
+- [x] Home page renders without errors
+
+### Human
+- [ ] [RUBBER-STAMP] Fleet widget visible on home page
+  **Steps:** Open http://localhost:3000/ and look for fleet status near the top
+  **Expected:** Shows hub counts with link to fleet page
+  **If not:** Check browser console
+
+## Verification
+
+curl -sf http://localhost:3000/ | grep -q 'fleet'
+
+## Decisions
+
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
+
+## Updates
+
+### 2026-04-17T22:32:56Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-1116-add-fleet-health-widget-to-watchtower-ho.md
+- **Context:** Initial task creation
