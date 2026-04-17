@@ -111,6 +111,29 @@
         padding: 0.1rem 0.3rem;
         border-radius: 3px;
     }
+    /* T-1109: click-to-copy action lines */
+    .actions-section li.copyable {
+        cursor: pointer;
+        transition: background 0.15s;
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        margin-left: -0.4rem;
+    }
+    .actions-section li.copyable:hover {
+        background: rgba(230, 81, 0, 0.12);
+    }
+    .actions-section .copy-hint {
+        font-size: 0.7rem;
+        color: var(--pico-muted-color);
+        margin-left: 0.5rem;
+    }
+    .actions-section li.copied {
+        background: rgba(76, 175, 80, 0.18) !important;
+    }
+    .actions-section li.copied .copy-hint {
+        color: #2e7d32;
+        font-weight: 600;
+    }
 
     .refresh-info {
         font-size: 0.75rem;
@@ -250,7 +273,10 @@
     <h3>Actions Needed</h3>
     <ol>
         {% for action in actions %}
-        <li>{{ action|linkify_tasks }}</li>
+        <li class="copyable" onclick="copyAction(this)" data-text="{{ action }}">
+            {{ action|linkify_tasks }}
+            <span class="copy-hint">click to copy</span>
+        </li>
         {% endfor %}
     </ol>
 </div>
@@ -282,6 +308,42 @@ function refreshFleet() {
         location.reload();
     }
     countdown = 30;
+}
+
+function copyAction(el) {
+    // T-1109: click-to-copy for action commands.
+    // Copies the full action text to clipboard with graceful fallback for
+    // browsers without Clipboard API (older Safari, non-HTTPS contexts).
+    var text = el.getAttribute('data-text') || el.textContent.trim();
+    var onSuccess = function() {
+        el.classList.add('copied');
+        var hint = el.querySelector('.copy-hint');
+        if (hint) { var original = hint.textContent; hint.textContent = 'copied ✓'; }
+        setTimeout(function() {
+            el.classList.remove('copied');
+            if (hint) hint.textContent = 'click to copy';
+        }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(function() {
+            fallbackCopy(text, onSuccess);
+        });
+    } else {
+        fallbackCopy(text, onSuccess);
+    }
+}
+
+function fallbackCopy(text, onSuccess) {
+    // Textarea + execCommand fallback for non-HTTPS / older browsers
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); onSuccess(); }
+    catch(e) { /* silent */ }
+    document.body.removeChild(ta);
 }
 
 function runDiagnose(profile) {

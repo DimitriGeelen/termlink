@@ -407,3 +407,31 @@ learnings:
   date: 2026-04-16
   context: Added via context agent
   application: TBD
+- id: PL-024
+  learning: "Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-16T05:21:53Z hub_fingerprint=sha256:9d14057d957d954f1095325fc3669fa58ffea6c28653909279b5b0701358f3e8. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-16
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-025
+  learning: "Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-16T21:16:08Z hub_fingerprint=sha256:f75cd394003e3ae382bdc80b826d0547c896466800fcd6c8dd7ef5eed5721c76. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-16
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-026
+  learning: "Layered connectivity diagnostics (TCP → TLS → auth → RPC ping) distinguish failure classes that single-attempt checks (like fleet doctor) can only conflate. Stop probing at the first failing layer — subsequent results are meaningless. When a user's symptom is 'hub is down', they need to know WHICH layer broke; a 'down' badge is detection, not diagnosis."
+  source: P-001
+  task: T-1106
+  date: 2026-04-17
+  context: Added via context agent
+  application: TBD
+- id: PL-027
+  learning: "When a Watchtower blueprint shells out to the termlink CLI, sanitize user-controlled args (profile names: alnum/dash/underscore, ≤64 chars) before passing them to subprocess.run even though args=[...] bypasses the shell. The extra guard makes the endpoint obviously safe to review and defends against future pipe additions."
+  source: P-001
+  task: T-1107
+  date: 2026-04-17
+  context: Added via context agent
+  application: TBD
