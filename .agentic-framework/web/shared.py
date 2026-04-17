@@ -49,6 +49,7 @@ NAV_GROUPS = [
         ("Decisions",   "discovery.decisions",    None),
     ]),
     ("Architecture", [
+        ("Fleet",       "fleet.fleet_dashboard",     None),
         ("Fabric",      "fabric.fabric_overview",   None),
         ("Explorer",    "fabric.fabric_graph",      None),
         ("Terminal",    "terminal.terminal_page",    None),
