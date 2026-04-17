@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1088: Re-apply T-1066 review-queue patch — third clobber by auto-upgrade
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-17T08:09:32Z
+# ============================================================================
+
+task_id: T-1088
+task_name: "Re-apply T-1066 review-queue patch — third clobber by auto-upgrade"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T19:17:41Z
+completed: 2026-04-16T19:19:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-16T21:19:11+02:00
+last_commit: 2026-04-16T21:19:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Re-apply T-1066 review-queue patch (third clobber)
+
+# Key outcomes
+outcomes:
+  - "`fw task review-queue --count` returns an integer"
+  - "`fw task review-queue` shows tagged partial-complete task list"
+  - "`fw task help` output includes review-queue entry"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions: []  # No alternatives — re-applied documented patch recipe
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/bin/fw"
+  - ".tasks/active/T-1088-re-apply-t-1066-review-queue-patch--thir.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T21:19:11"
+    action: "T-1088: Re-apply T-1066 review-queue patch (third clobber)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - "Patch recipe in docs/patches/T-1066-fw-task-review-queue.md enabled fast re-application"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [patch-reapply, fw-upgrade-clobber, PL-022]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 158
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1088-re-apply-t-1066-review-queue-patch--thir.md
+generated_by: context-agent-hybrid

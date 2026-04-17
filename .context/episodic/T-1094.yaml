@@ -1,0 +1,71 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1094: Re-apply T-1068 handover partial-complete patch — clobbered by auto-upgrade
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-17T08:09:39Z
+# ============================================================================
+
+task_id: T-1094
+task_name: "Re-apply T-1068 handover partial-complete patch — clobbered by auto-upgrade"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T21:37:55Z
+completed: 2026-04-16T21:39:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-16T23:39:11+02:00
+last_commit: 2026-04-16T23:39:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Re-apply T-1068 handover partial-complete patch (tags + age sort)
+
+# Key outcomes
+outcomes:
+  - "Handover script contains RUBBER-STAMP/REVIEW tag classification"
+  - "Handover script sorts partial-complete tasks by date_finished ASC"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions: []  # No alternatives — re-applied documented patch recipe
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/handover/handover.sh"
+  - ".tasks/active/T-1094-re-apply-t-1068-handover-partial-complet.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T23:39:11"
+    action: "T-1094: Re-apply T-1068 handover partial-complete patch (tags + age sort)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  - "Patch recipe in docs/patches/T-1068-handover-partial-complete-tags.md enabled fast re-application"
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [patch-reapply, fw-upgrade-clobber, PL-022]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 101
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1094-re-apply-t-1068-handover-partial-complet.md
+generated_by: context-agent-hybrid
