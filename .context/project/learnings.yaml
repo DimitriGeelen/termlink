@@ -435,3 +435,10 @@ learnings:
   date: 2026-04-17
   context: Added via context agent
   application: TBD
+- id: PL-028
+  learning: "When fw task create is invoked via a backgrounded bash command, the --name/--description args from a later invocation may be shadowed by the previous one's prompt (observed 2x in S-2026-0417-1959: T-1107 inherited T-1106 name, T-1109 inherited T-1108 name). Workaround: after task-create backgrounds, read the created file and overwrite frontmatter+body with Write tool if name/description are wrong — do not rely on the --name flag propagating when the shell is non-interactive and output is deferred."
+  source: P-002
+  task: T-1109
+  date: 2026-04-17
+  context: Added via context agent
+  application: TBD
