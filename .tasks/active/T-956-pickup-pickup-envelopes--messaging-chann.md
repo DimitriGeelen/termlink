@@ -74,15 +74,12 @@ date_finished: 2026-04-12T15:59:20Z
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+**Rationale:** Distinction is a mental model, not code. Already codified in CLAUDE.md's `Pickup Message Handling` section (G-020 gate), which blocks edits when pickup messages are mis-scoped as build instructions. No standalone build work needed — operator/agent guidance is structurally enforced.
+**Evidence:**
+- CLAUDE.md `Pickup Message Handling (G-020, T-469)` section present
+- G-020 gate blocks edits on placeholder ACs produced by mis-scoped pickups
+- Learning stored in `.context/project/learnings.yaml`
 
 ## Decisions
 

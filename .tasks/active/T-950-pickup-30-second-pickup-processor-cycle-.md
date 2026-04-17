@@ -74,15 +74,12 @@ date_finished: 2026-04-12T13:03:34Z
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+**Rationale:** 30-second pickup cycle validated as sustainable — zero errors, no runaway resource usage. Codified as the default cadence (later relaxed to 1-min cron for additional headroom without changing semantics). Learning absorbed; no build work required.
+**Evidence:**
+- Pickup cron active at 1-min interval with zero errors (programmatic evidence T-1090, 2026-04-16)
+- No CPU/memory concerns observed in live operation
+- Related learning stored in `.context/project/learnings.yaml`
 
 ## Decisions
 

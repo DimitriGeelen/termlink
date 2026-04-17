@@ -74,15 +74,12 @@ date_finished: 2026-04-12T13:03:33Z
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+**Rationale:** Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
+**Evidence:**
+- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
+- Zero errors in syslog over observation window
+- Processor cadence tuned to 1-min for headroom (see T-950)
 
 ## Decisions
 

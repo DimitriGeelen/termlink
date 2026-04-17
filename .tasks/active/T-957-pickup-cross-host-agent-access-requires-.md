@@ -74,15 +74,12 @@ date_finished: 2026-04-12T15:59:22Z
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+**Rationale:** Requirement captured as a learning and fed into multiple structural fixes rather than a single build: T-940 (runtime-dir unification), T-942 (multi-dir hub scanning), T-941 (persistent agent session templates). No standalone build task needed — absorbed across subsystem work.
+**Evidence:**
+- T-940 / T-942 / T-941 all trace back to this learning
+- Named sessions + hub + shared runtime_dir alignment validated end-to-end by `fw fleet doctor`
+- Learning stored in `.context/project/learnings.yaml`
 
 ## Decisions
 
