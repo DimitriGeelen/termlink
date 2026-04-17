@@ -38,9 +38,7 @@ date_finished: null
 
 ## Verification
 
-cargo test -p termlink -- cli_inject_nonexist 2>&1 | grep "passed"
-cargo test -p termlink -- cli_output_nonexist 2>&1 | grep "passed"
-cargo test -p termlink -- cli_send_nonexist 2>&1 | grep "passed"
+bash -c 'cargo test --test cli_integration -- cli_inject_nonexistent cli_output_nonexistent cli_send_nonexistent 2>&1 | grep -q "3 passed"'
 
 ## Decisions
 

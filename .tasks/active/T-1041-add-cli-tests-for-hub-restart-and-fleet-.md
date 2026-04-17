@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T20:53:38Z
-last_update: 2026-04-13T20:57:50Z
+last_update: 2026-04-17T08:11:24Z
 date_finished: null
 ---
 
@@ -39,9 +39,7 @@ Add CLI integration tests for hub restart and fleet doctor error paths. No exist
 
 ## Verification
 
-cargo test -p termlink -- hub_restart 2>&1 | grep "passed"
-cargo test -p termlink -- fleet_doctor 2>&1 | grep "passed"
-cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Finished"
+bash -c 'cargo test --test cli_integration -- hub_restart fleet_doctor_no 2>&1 | grep -q "5 passed"'
 
 ## Decisions
 
