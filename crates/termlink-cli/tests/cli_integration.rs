@@ -3871,3 +3871,95 @@ fn cli_agent_ask_no_hub() {
         stderr
     );
 }
+
+// --- T-1102: fleet status tests ---
+
+#[test]
+fn cli_fleet_status_no_config() {
+    // T-1102: fleet status with no hubs.toml shows helpful message
+    let dir = TestDir::new("fleet-status-empty");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "status", "--json"])
+        .output()
+        .expect("fleet status --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true, "empty fleet should be ok");
+    assert_eq!(
+        parsed["fleet"].as_array().map(|a| a.len()).unwrap_or(999),
+        0,
+        "should have 0 fleet entries"
+    );
+    assert_eq!(
+        parsed["summary"]["total"], 0,
+        "total should be 0"
+    );
+}
+
+#[test]
+fn cli_fleet_status_unreachable_hub_json() {
+    // T-1102: fleet status with unreachable hub shows down status in JSON
+    let dir = TestDir::new("fleet-status-unreach");
+
+    let secret_path = dir.path.join("secret.hex");
+    std::fs::write(
+        &secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n",
+    )
+    .expect("write secret");
+
+    // Create a profile pointing to unreachable address
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote", "profile", "add", "test-hub", "127.0.0.1:19877",
+            "--secret-file", secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add profile");
+
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "status", "--json", "--timeout", "2"])
+        .output()
+        .expect("fleet status --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], false, "should not be ok with unreachable hub");
+    let fleet = parsed["fleet"].as_array().expect("fleet should be array");
+    assert_eq!(fleet.len(), 1, "should have 1 hub entry");
+    assert!(
+        fleet[0]["status"] == "down" || fleet[0]["status"] == "timeout",
+        "status should be down or timeout, got: {:?}",
+        fleet[0]["status"]
+    );
+    assert_eq!(parsed["summary"]["up"], 0, "0 up");
+    let actions = parsed["actions"].as_array().expect("actions should be array");
+    assert!(!actions.is_empty(), "should have suggested actions");
+}
+
+#[test]
+fn cli_fleet_status_text_mode() {
+    // T-1102: fleet status text mode (no --json) outputs to stderr
+    let dir = TestDir::new("fleet-status-text");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["fleet", "status"])
+        .output()
+        .expect("fleet status text");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    // With no hubs configured, should show helpful message
+    assert!(
+        stderr.contains("No hubs configured") || stderr.contains("FLEET"),
+        "should show fleet info or config hint: {}",
+        stderr
+    );
+}

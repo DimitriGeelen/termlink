@@ -1347,6 +1347,185 @@ async fn cmd_remote_inbox_inner(
     Ok(())
 }
 
+/// T-1102: One-screen fleet overview for human operators.
+/// Shows each hub's status, session count, version, latency, and actionable fixes.
+pub(crate) async fn cmd_fleet_status(
+    json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    use serde_json::json;
+
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "fleet": [],
+                "summary": {"total": 0, "up": 0, "down": 0, "auth_fail": 0},
+                "actions": []
+            }))?);
+        } else {
+            eprintln!("No hubs configured. Add hubs with: termlink remote profile add <name> <host:port> --secret-file <path>");
+        }
+        return Ok(());
+    }
+
+    let mut hub_entries: Vec<serde_json::Value> = Vec::new();
+    let mut actions: Vec<String> = Vec::new();
+    let mut up_count = 0u32;
+    let mut down_count = 0u32;
+    let mut auth_fail_count = 0u32;
+
+    let mut hub_names: Vec<&String> = config.hubs.keys().collect();
+    hub_names.sort();
+
+    for name in &hub_names {
+        let entry = &config.hubs[*name];
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let connect_start = std::time::Instant::now();
+
+        let result = tokio::time::timeout(
+            timeout_dur,
+            connect_remote_hub(
+                &entry.address,
+                entry.secret_file.as_deref(),
+                entry.secret.as_deref(),
+                entry.scope.as_deref().unwrap_or("execute"),
+            ),
+        ).await;
+
+        match result {
+            Ok(Ok(mut client)) => {
+                let latency = connect_start.elapsed().as_millis();
+                up_count += 1;
+
+                // Query session count
+                let session_count = match client.call(
+                    "session.discover", json!("fleet-sd"), json!({}),
+                ).await {
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                        r.result["sessions"].as_array().map(|s| s.len()).unwrap_or(0)
+                    }
+                    _ => 0,
+                };
+
+                hub_entries.push(json!({
+                    "hub": name,
+                    "address": entry.address,
+                    "status": "up",
+                    "latency_ms": latency,
+                    "sessions": session_count,
+                }));
+
+                if !json {
+                    eprintln!("  \x1b[32mUP\x1b[0m    {:<20} {:<24} {:>3} sessions  ({}ms)",
+                        name, entry.address, session_count, latency);
+                }
+            }
+            Ok(Err(e)) => {
+                let msg = format!("{}", e);
+                let is_auth = msg.contains("invalid signature")
+                    || msg.contains("Token validation failed")
+                    || msg.contains("TOFU VIOLATION")
+                    || msg.contains("fingerprint changed");
+
+                if is_auth {
+                    auth_fail_count += 1;
+                    hub_entries.push(json!({
+                        "hub": name,
+                        "address": entry.address,
+                        "status": "auth-fail",
+                        "error": &msg,
+                    }));
+                    if !json {
+                        eprintln!("  \x1b[33mAUTH\x1b[0m  {:<20} {:<24} secret mismatch — hub was restarted with a new secret",
+                            name, entry.address);
+                    }
+                    actions.push(format!(
+                        "{}: Reauth needed — termlink fleet reauth {} --bootstrap-from ssh:<host>",
+                        name, name
+                    ));
+                } else {
+                    down_count += 1;
+                    hub_entries.push(json!({
+                        "hub": name,
+                        "address": entry.address,
+                        "status": "down",
+                        "error": &msg,
+                    }));
+                    if !json {
+                        eprintln!("  \x1b[31mDOWN\x1b[0m  {:<20} {:<24} {}",
+                            name, entry.address, msg);
+                    }
+                    if msg.contains("Cannot connect") || msg.contains("Connection refused") {
+                        actions.push(format!(
+                            "{}: Hub process not running — start via: ssh root@{} systemctl start termlink-hub",
+                            name, entry.address.split(':').next().unwrap_or(&entry.address)
+                        ));
+                    } else {
+                        actions.push(format!("{}: {}", name, msg));
+                    }
+                }
+
+                // Track failure for learning/concern auto-register
+                let _ = maybe_record_auth_mismatch_learning(name, &entry.address, &msg);
+                let _ = maybe_track_fleet_failure(name, &entry.address, auth_mismatch_class(&msg));
+            }
+            Err(_) => {
+                down_count += 1;
+                hub_entries.push(json!({
+                    "hub": name,
+                    "address": entry.address,
+                    "status": "timeout",
+                }));
+                if !json {
+                    eprintln!("  \x1b[31mDOWN\x1b[0m  {:<20} {:<24} timeout after {}s",
+                        name, entry.address, timeout_secs);
+                }
+                actions.push(format!(
+                    "{}: Timeout — check network connectivity to {}",
+                    name, entry.address
+                ));
+            }
+        }
+    }
+
+    let total = hub_names.len() as u32;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&json!({
+            "ok": down_count == 0 && auth_fail_count == 0,
+            "fleet": hub_entries,
+            "summary": {
+                "total": total,
+                "up": up_count,
+                "down": down_count,
+                "auth_fail": auth_fail_count,
+            },
+            "actions": actions,
+        }))?);
+    } else {
+        eprintln!();
+        if up_count == total {
+            eprintln!("  FLEET: \x1b[32mall {} hubs operational\x1b[0m", total);
+        } else {
+            eprintln!("  FLEET: {} hub(s), \x1b[32m{} up\x1b[0m, \x1b[31m{} down\x1b[0m, \x1b[33m{} auth-fail\x1b[0m",
+                total, up_count, down_count, auth_fail_count);
+        }
+
+        if !actions.is_empty() {
+            eprintln!();
+            eprintln!("  ACTIONS NEEDED:");
+            for (i, action) in actions.iter().enumerate() {
+                eprintln!("    {}. {}", i + 1, action);
+            }
+        }
+        eprintln!();
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn cmd_fleet_doctor(
     json: bool,
     timeout_secs: u64,

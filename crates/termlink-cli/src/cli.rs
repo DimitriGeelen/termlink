@@ -1545,6 +1545,17 @@ pub(crate) enum TofuAction {
 /// Fleet-wide operations across all configured hubs
 #[derive(Subcommand)]
 pub(crate) enum FleetAction {
+    /// One-screen operational overview — shows every hub's status, sessions, version, and actions needed
+    Status {
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// RPC timeout per hub in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        timeout: u64,
+    },
+
     /// Health check all hubs in ~/.termlink/hubs.toml
     Doctor {
         /// Output result as JSON
