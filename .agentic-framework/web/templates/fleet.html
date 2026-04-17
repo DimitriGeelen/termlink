@@ -124,6 +124,46 @@
         padding: 3rem;
         color: var(--pico-muted-color);
     }
+
+    /* T-1107: Diagnose button + layered results */
+    .hub-diagnose-btn {
+        background: transparent;
+        border: 1px solid var(--pico-muted-border-color);
+        color: var(--pico-muted-color);
+        padding: 0.25rem 0.7rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        margin-left: 0.5rem;
+    }
+    .hub-diagnose-btn:hover {
+        border-color: var(--pico-primary);
+        color: var(--pico-primary);
+    }
+    .hub-diagnose-results {
+        margin-top: 0.5rem;
+        padding: 0.6rem 0.8rem;
+        background: rgba(0,0,0,0.04);
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    [data-theme="dark"] .hub-diagnose-results {
+        background: rgba(255,255,255,0.03);
+    }
+    .hub-diagnose-results .layer-row {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.15rem 0;
+        font-family: monospace;
+    }
+    .hub-diagnose-results .layer-name { width: 3.5rem; font-weight: 600; }
+    .hub-diagnose-results .layer-status { width: 4rem; }
+    .layer-pass { color: #4CAF50; }
+    .layer-fail { color: #f44336; }
+    .layer-timeout { color: #ff9800; }
+    .hub-diagnose-results .layer-latency { color: var(--pico-muted-color); }
+    .hub-diagnose-results .layer-error { color: var(--pico-muted-color); font-size: 0.8rem; margin-left: 4.5rem; }
+    .hub-diagnose-results .diagnosis { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--pico-muted-border-color); font-style: italic; }
 </style>
 
 <div class="page-header">
@@ -162,6 +202,7 @@
 {% if fleet_entries %}
 <div id="fleet-list">
     {% for hub in fleet_entries %}
+    <div class="hub-card-wrapper">
     <div class="hub-card">
         <span class="status-dot dot-{{ hub.status | replace('-', '') | replace('auth_fail', 'auth') | replace('authfail', 'auth') }}
             {% if hub.status == 'up' %}dot-up{% elif hub.status == 'down' %}dot-down{% elif hub.status == 'timeout' %}dot-timeout{% else %}dot-auth{% endif %}"></span>
@@ -182,6 +223,8 @@
                 {% endif %}
             </div>
         </div>
+        <button class="hub-diagnose-btn" type="button"
+            onclick="runDiagnose('{{ hub.hub }}')">net-test</button>
         <span class="hub-status-badge
             {% if hub.status == 'up' %}badge-up
             {% elif hub.status == 'down' %}badge-down
@@ -189,6 +232,8 @@
             {% else %}badge-auth-fail{% endif %}">
             {{ hub.status | upper }}
         </span>
+    </div>
+    <div class="hub-diagnose-results" id="diag-{{ hub.hub }}" style="display:none;"></div>
     </div>
     {% endfor %}
 </div>
@@ -237,5 +282,49 @@ function refreshFleet() {
         location.reload();
     }
     countdown = 30;
+}
+
+function runDiagnose(profile) {
+    // T-1107: fetch per-layer diagnostic and render inline
+    var box = document.getElementById('diag-' + profile);
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML = '<em>running net test…</em>';
+
+    fetch('/api/fleet/net-test?profile=' + encodeURIComponent(profile) + '&timeout=5')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.hubs || data.hubs.length === 0) {
+                box.innerHTML = '<em>no result: ' + (data.error || 'unknown') + '</em>';
+                return;
+            }
+            var hub = data.hubs[0];
+            var html = '';
+            ['tcp','tls','auth','ping'].forEach(function(layer) {
+                var entry = hub.layers && hub.layers[layer];
+                if (!entry) return;
+                var cls = 'layer-' + entry.status;
+                var marker = entry.status === 'pass' ? 'PASS' :
+                             entry.status === 'fail' ? 'FAIL' :
+                             entry.status === 'timeout' ? 'TIME' : '----';
+                html += '<div class="layer-row">' +
+                        '<span class="layer-name">' + layer.toUpperCase() + '</span>' +
+                        '<span class="layer-status ' + cls + '">' + marker + '</span>' +
+                        '<span class="layer-latency">' + entry.latency_ms + 'ms</span>' +
+                        '</div>';
+                if (entry.error) {
+                    html += '<div class="layer-error">' +
+                            entry.error.replace(/</g,'&lt;').slice(0, 200) + '</div>';
+                }
+            });
+            if (hub.diagnosis) {
+                html += '<div class="diagnosis">→ ' +
+                        hub.diagnosis.replace(/</g,'&lt;') + '</div>';
+            }
+            box.innerHTML = html || '<em>no layer data returned</em>';
+        })
+        .catch(function(err) {
+            box.innerHTML = '<em>error: ' + String(err).replace(/</g,'&lt;') + '</em>';
+        });
 }
 </script>
