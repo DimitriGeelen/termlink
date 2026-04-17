@@ -937,10 +937,10 @@ pub(crate) enum Command {
         action: RemoteAction,
     },
 
-    /// Fleet-wide operations across all configured hubs
+    /// Fleet-wide operations across all configured hubs (defaults to status)
     Fleet {
         #[command(subcommand)]
-        action: FleetAction,
+        action: Option<FleetAction>,
     },
 
     /// Query the hub's offline file inbox (pending transfers for offline sessions)
@@ -1554,6 +1554,10 @@ pub(crate) enum FleetAction {
         /// RPC timeout per hub in seconds (default: 10)
         #[arg(long, default_value = "10")]
         timeout: u64,
+
+        /// Show session names per hub
+        #[arg(short, long)]
+        verbose: bool,
     },
 
     /// Health check all hubs in ~/.termlink/hubs.toml

@@ -320,9 +320,9 @@ async fn main() -> Result<()> {
             InboxAction::List { target, json } => commands::infrastructure::cmd_inbox_list(&target, json).await,
             InboxAction::Clear { target, all, json } => commands::infrastructure::cmd_inbox_clear(target.as_deref(), all, json).await,
         },
-        Command::Fleet { action } => match action {
-            FleetAction::Status { json, timeout } => {
-                commands::remote::cmd_fleet_status(json, timeout).await
+        Command::Fleet { action } => match action.unwrap_or(FleetAction::Status { json: false, timeout: 10, verbose: false }) {
+            FleetAction::Status { json, timeout, verbose } => {
+                commands::remote::cmd_fleet_status(json, timeout, verbose).await
             }
             FleetAction::Doctor { json, timeout } => {
                 commands::remote::cmd_fleet_doctor(json, timeout).await
