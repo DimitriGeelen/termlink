@@ -1352,6 +1352,7 @@ async fn cmd_remote_inbox_inner(
 pub(crate) async fn cmd_fleet_status(
     json: bool,
     timeout_secs: u64,
+    verbose: bool,
 ) -> Result<()> {
     use serde_json::json;
 
@@ -1399,27 +1400,43 @@ pub(crate) async fn cmd_fleet_status(
                 let latency = connect_start.elapsed().as_millis();
                 up_count += 1;
 
-                // Query session count
-                let session_count = match client.call(
+                // Query session count and optionally names
+                let (session_count, session_names) = match client.call(
                     "session.discover", json!("fleet-sd"), json!({}),
                 ).await {
                     Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-                        r.result["sessions"].as_array().map(|s| s.len()).unwrap_or(0)
+                        let sessions = r.result["sessions"].as_array();
+                        let count = sessions.map(|s| s.len()).unwrap_or(0);
+                        let names: Vec<String> = sessions
+                            .map(|s| s.iter()
+                                .filter_map(|sess| sess["display_name"].as_str().map(String::from))
+                                .collect())
+                            .unwrap_or_default();
+                        (count, names)
                     }
-                    _ => 0,
+                    _ => (0, Vec::new()),
                 };
 
-                hub_entries.push(json!({
+                let mut hub_entry = json!({
                     "hub": name,
                     "address": entry.address,
                     "status": "up",
                     "latency_ms": latency,
                     "sessions": session_count,
-                }));
+                });
+                if verbose {
+                    hub_entry["session_names"] = json!(session_names);
+                }
+                hub_entries.push(hub_entry);
 
                 if !json {
                     eprintln!("  \x1b[32mUP\x1b[0m    {:<20} {:<24} {:>3} sessions  ({}ms)",
                         name, entry.address, session_count, latency);
+                    if verbose && !session_names.is_empty() {
+                        for sname in &session_names {
+                            eprintln!("         \x1b[2m- {}\x1b[0m", sname);
+                        }
+                    }
                 }
             }
             Ok(Err(e)) => {
