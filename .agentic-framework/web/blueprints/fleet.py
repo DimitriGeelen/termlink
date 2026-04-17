@@ -37,7 +37,7 @@ def _get_fleet_status():
         if cargo_bin not in env.get("PATH", ""):
             env["PATH"] = cargo_bin + ":" + env.get("PATH", "/usr/bin")
         result = subprocess.run(
-            [binary, "fleet", "status", "--json", "--timeout", "5"],
+            [binary, "fleet", "status", "--json", "--verbose", "--timeout", "5"],
             capture_output=True, text=True, timeout=30, env=env,
         )
         if result.stdout.strip():

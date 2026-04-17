@@ -1,0 +1,64 @@
+---
+id: T-1115
+name: "Fleet page session visibility — show session names per hub"
+description: >
+  Fleet page session visibility — show session names per hub
+
+status: started-work
+workflow_type: build
+owner: agent
+horizon: now
+tags: []
+components: []
+related_tasks: []
+created: 2026-04-17T21:33:47Z
+last_update: 2026-04-17T21:33:47Z
+date_finished: null
+---
+
+# T-1115: Fleet page session visibility — show session names per hub
+
+## Context
+
+Fleet page shows hub status but not which sessions are running. Adding `--verbose` flag to
+the CLI call and showing a collapsible session list per hub gives the operator their full
+"morning check" view.
+
+## Acceptance Criteria
+
+### Agent
+- [x] Fleet blueprint calls `fleet status --json --verbose` to get session names
+- [x] Fleet template shows expandable session list per UP hub
+- [x] `/api/fleet/status` includes session_names in response
+- [x] Fleet page renders without errors
+
+### Human
+- [ ] [RUBBER-STAMP] Session names visible on fleet page
+  **Steps:**
+  1. Open http://localhost:3000/fleet
+  2. Click session count on an UP hub to expand
+  **Expected:** Session names listed
+  **If not:** Check `/api/fleet/status` for session_names field
+
+## Verification
+
+curl -sf http://localhost:3000/fleet | grep -q 'session'
+curl -sf http://localhost:3000/api/fleet/status | python3 -c "import sys,json; d=json.load(sys.stdin); assert len(d['fleet']) > 0"
+
+## Decisions
+
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
+
+## Updates
+
+### 2026-04-17T21:33:47Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-1115-fleet-page-session-visibility--show-sess.md
+- **Context:** Initial task creation
