@@ -321,6 +321,9 @@ async fn main() -> Result<()> {
             InboxAction::Clear { target, all, json } => commands::infrastructure::cmd_inbox_clear(target.as_deref(), all, json).await,
         },
         Command::Fleet { action } => match action {
+            FleetAction::Status { json, timeout } => {
+                commands::remote::cmd_fleet_status(json, timeout).await
+            }
             FleetAction::Doctor { json, timeout } => {
                 commands::remote::cmd_fleet_doctor(json, timeout).await
             }

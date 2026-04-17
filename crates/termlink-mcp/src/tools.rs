@@ -934,6 +934,13 @@ pub struct FleetDoctorParams {
     pub timeout: Option<u64>,
 }
 
+// T-1102: Fleet status params
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetStatusParams {
+    /// Timeout per hub in seconds (default: 10)
+    pub timeout: Option<u64>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct TofuClearParams {
     /// Host:port to clear (e.g., "192.168.10.109:9100")
@@ -4816,6 +4823,97 @@ impl TermLinkTools {
             },
         })).unwrap_or_else(json_err)
     }
+    // === Fleet status (T-1102) ===
+
+    #[tool(
+        name = "termlink_fleet_status",
+        description = "One-screen operational overview of all configured hubs. Shows each hub's status (up/down/auth-fail), session count, latency, and actionable fix steps for broken hubs. The operator's morning-check command."
+    )]
+    async fn termlink_fleet_status(&self, Parameters(p): Parameters<FleetStatusParams>) -> String {
+        let profiles = list_all_hub_profiles();
+        if profiles.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "fleet": [],
+                "summary": {"total": 0, "up": 0, "down": 0, "auth_fail": 0},
+                "actions": [],
+                "message": "No hubs configured in ~/.termlink/hubs.toml",
+            })).unwrap_or_else(json_err);
+        }
+
+        let timeout_secs = p.timeout.unwrap_or(10);
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let mut fleet: Vec<serde_json::Value> = Vec::new();
+        let mut actions: Vec<String> = Vec::new();
+        let mut up_count: u32 = 0;
+        let mut down_count: u32 = 0;
+        let mut auth_fail_count: u32 = 0;
+
+        for (name, address, secret_file, secret_hex) in &profiles {
+            let connect_start = std::time::Instant::now();
+            let result = tokio::time::timeout(
+                timeout_dur,
+                connect_remote_hub_mcp(
+                    address,
+                    secret_file.as_deref(),
+                    secret_hex.as_deref(),
+                    "execute",
+                ),
+            ).await;
+
+            match result {
+                Ok(Ok(mut client)) => {
+                    let latency = connect_start.elapsed().as_millis();
+                    up_count += 1;
+
+                    // Query session count
+                    let session_count = match client.call(
+                        "session.discover",
+                        serde_json::json!("mcp-fleet-sd"),
+                        serde_json::json!({}),
+                    ).await {
+                        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                            r.result["sessions"].as_array().map(|s| s.len()).unwrap_or(0)
+                        }
+                        _ => 0,
+                    };
+
+                    fleet.push(serde_json::json!({
+                        "hub": name, "address": address,
+                        "status": "up", "latency_ms": latency,
+                        "sessions": session_count,
+                    }));
+                }
+                Ok(Err(err_json)) => {
+                    let is_auth = err_json.contains("invalid signature")
+                        || err_json.contains("Token validation")
+                        || err_json.contains("TOFU VIOLATION");
+                    if is_auth {
+                        auth_fail_count += 1;
+                        fleet.push(serde_json::json!({"hub": name, "address": address, "status": "auth-fail", "error": err_json}));
+                        actions.push(format!("{}: Reauth needed — termlink fleet reauth {} --bootstrap-from ssh:<host>", name, name));
+                    } else {
+                        down_count += 1;
+                        fleet.push(serde_json::json!({"hub": name, "address": address, "status": "down", "error": err_json}));
+                        actions.push(format!("{}: {}", name, err_json));
+                    }
+                }
+                Err(_) => {
+                    down_count += 1;
+                    fleet.push(serde_json::json!({"hub": name, "address": address, "status": "timeout"}));
+                    actions.push(format!("{}: Timeout — check network to {}", name, address));
+                }
+            }
+        }
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": down_count == 0 && auth_fail_count == 0,
+            "fleet": fleet,
+            "summary": {"total": fleet.len(), "up": up_count, "down": down_count, "auth_fail": auth_fail_count},
+            "actions": actions,
+        })).unwrap_or_else(json_err)
+    }
+
     // === Fleet doctor (T-1039) ===
 
     #[tool(
