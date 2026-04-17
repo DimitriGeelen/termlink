@@ -331,6 +331,11 @@ async fn main() -> Result<()> {
                 commands::remote::cmd_fleet_reauth(&profile, bootstrap_from.as_deref())
             }
         },
+        Command::Net { action } => match action {
+            NetAction::Test { profile, json, timeout } => {
+                commands::remote::cmd_net_test(profile.as_deref(), json, timeout).await
+            }
+        },
         Command::Tofu { action } => match action {
             TofuAction::List { json } => commands::infrastructure::cmd_tofu_list(json),
             TofuAction::Clear { host, all, json } => commands::infrastructure::cmd_tofu_clear(host.as_deref(), all, json),

@@ -941,6 +941,15 @@ pub struct FleetStatusParams {
     pub timeout: Option<u64>,
 }
 
+// T-1106: Net test params
+#[derive(Deserialize, JsonSchema)]
+pub struct NetTestParams {
+    /// Hub profile name to test (None = test all hubs)
+    pub profile: Option<String>,
+    /// Timeout per layer in seconds (default: 5)
+    pub timeout: Option<u64>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct TofuClearParams {
     /// Host:port to clear (e.g., "192.168.10.109:9100")
@@ -4911,6 +4920,214 @@ impl TermLinkTools {
             "fleet": fleet,
             "summary": {"total": fleet.len(), "up": up_count, "down": down_count, "auth_fail": auth_fail_count},
             "actions": actions,
+        })).unwrap_or_else(json_err)
+    }
+
+    // === Net test (T-1106) ===
+
+    #[tool(
+        name = "termlink_net_test",
+        description = "Layered connectivity diagnostic for configured hubs. Tests each hub through TCP → TLS → auth → RPC ping, pinpointing exactly where a connection breaks. Use when fleet_status shows 'down' and you need to know if it's a network, cert, or secret issue."
+    )]
+    async fn termlink_net_test(&self, Parameters(p): Parameters<NetTestParams>) -> String {
+        use serde_json::json;
+        use std::time::{Duration, Instant};
+
+        let all_profiles = list_all_hub_profiles();
+        if all_profiles.is_empty() {
+            return serde_json::to_string_pretty(&json!({
+                "ok": true, "hubs": [],
+                "summary": {"total": 0, "healthy": 0, "degraded": 0, "unreachable": 0},
+                "message": "No hubs configured in ~/.termlink/hubs.toml",
+            })).unwrap_or_else(json_err);
+        }
+
+        let profiles: Vec<_> = if let Some(ref filter) = p.profile {
+            let matches: Vec<_> = all_profiles.into_iter()
+                .filter(|(n, _, _, _)| n == filter).collect();
+            if matches.is_empty() {
+                return serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "error": format!("Hub profile '{}' not found", filter),
+                })).unwrap_or_else(json_err);
+            }
+            matches
+        } else {
+            all_profiles
+        };
+
+        let timeout_secs = p.timeout.unwrap_or(5);
+        let timeout_dur = Duration::from_secs(timeout_secs);
+        let mut hubs: Vec<serde_json::Value> = Vec::new();
+        let mut healthy = 0u32;
+        let mut degraded = 0u32;
+        let mut unreachable = 0u32;
+
+        for (name, address, secret_file, secret_hex) in &profiles {
+            let parts: Vec<&str> = address.split(':').collect();
+            if parts.len() != 2 {
+                unreachable += 1;
+                hubs.push(json!({
+                    "hub": name, "address": address, "healthy": false,
+                    "diagnosis": "invalid hub address", "layers": {},
+                }));
+                continue;
+            }
+            let host = parts[0].to_string();
+            let port: u16 = match parts[1].parse() {
+                Ok(p) => p,
+                Err(_) => {
+                    unreachable += 1;
+                    hubs.push(json!({
+                        "hub": name, "address": address, "healthy": false,
+                        "diagnosis": "invalid port", "layers": {},
+                    }));
+                    continue;
+                }
+            };
+
+            let mut layers = serde_json::Map::new();
+
+            // L1: TCP
+            let tcp_start = Instant::now();
+            let tcp_result = tokio::time::timeout(
+                timeout_dur,
+                tokio::net::TcpStream::connect((host.as_str(), port)),
+            ).await;
+            let tcp_latency = tcp_start.elapsed().as_millis() as u64;
+
+            let (tcp_ok, tcp_entry) = match tcp_result {
+                Ok(Ok(_)) => (true, json!({"status": "pass", "latency_ms": tcp_latency})),
+                Ok(Err(e)) => (false, json!({"status": "fail", "latency_ms": tcp_latency,
+                    "error": e.to_string()})),
+                Err(_) => (false, json!({"status": "timeout", "latency_ms": timeout_secs * 1000})),
+            };
+            layers.insert("tcp".to_string(), tcp_entry);
+
+            if !tcp_ok {
+                unreachable += 1;
+                hubs.push(json!({
+                    "hub": name, "address": address, "healthy": false,
+                    "diagnosis": "Network-level failure — check firewall/VPN/routing and hub process is listening on the configured port",
+                    "layers": layers,
+                }));
+                continue;
+            }
+
+            // L2+L3: TLS + auth (MCP's connect_remote_hub_mcp bundles both)
+            let conn_start = Instant::now();
+            let conn_result = tokio::time::timeout(
+                timeout_dur,
+                connect_remote_hub_mcp(
+                    address,
+                    secret_file.as_deref(),
+                    secret_hex.as_deref(),
+                    "execute",
+                ),
+            ).await;
+            let conn_latency = conn_start.elapsed().as_millis() as u64;
+
+            match conn_result {
+                Ok(Ok(mut client)) => {
+                    // TLS+auth bundled — report as pass for both layers
+                    layers.insert("tls".to_string(),
+                        json!({"status": "pass", "latency_ms": conn_latency}));
+                    layers.insert("auth".to_string(),
+                        json!({"status": "pass", "latency_ms": 0}));
+
+                    // L4: PING via session.discover
+                    let ping_start = Instant::now();
+                    let ping_result = tokio::time::timeout(
+                        timeout_dur,
+                        client.call("session.discover", json!("mcp-net-ping"), json!({})),
+                    ).await;
+                    let ping_latency = ping_start.elapsed().as_millis() as u64;
+
+                    let (ping_ok, ping_entry) = match ping_result {
+                        Ok(Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_))) =>
+                            (true, json!({"status": "pass", "latency_ms": ping_latency})),
+                        Ok(Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e))) =>
+                            (false, json!({"status": "fail", "latency_ms": ping_latency,
+                                "error": format!("{} {}", e.error.code, e.error.message)})),
+                        Ok(Err(e)) => (false, json!({"status": "fail", "latency_ms": ping_latency,
+                            "error": e.to_string()})),
+                        Err(_) => (false, json!({"status": "timeout",
+                            "latency_ms": timeout_secs * 1000})),
+                    };
+                    layers.insert("ping".to_string(), ping_entry);
+
+                    if ping_ok {
+                        healthy += 1;
+                        hubs.push(json!({
+                            "hub": name, "address": address, "healthy": true, "layers": layers,
+                        }));
+                    } else {
+                        degraded += 1;
+                        hubs.push(json!({
+                            "hub": name, "address": address, "healthy": false,
+                            "diagnosis": "RPC ping failed after auth — hub is reachable and trusted but misbehaving",
+                            "layers": layers,
+                        }));
+                    }
+                }
+                Ok(Err(err_json)) => {
+                    let is_auth = err_json.contains("invalid signature")
+                        || err_json.contains("Token validation")
+                        || err_json.contains("Authentication");
+                    let is_tofu = err_json.contains("TOFU") || err_json.contains("fingerprint");
+
+                    if is_auth && !is_tofu {
+                        layers.insert("tls".to_string(),
+                            json!({"status": "pass", "latency_ms": conn_latency}));
+                        layers.insert("auth".to_string(), json!({
+                            "status": "fail", "latency_ms": conn_latency,
+                            "error": err_json.clone(),
+                        }));
+                        degraded += 1;
+                        hubs.push(json!({
+                            "hub": name, "address": address, "healthy": false,
+                            "diagnosis": "HMAC secret mismatch — run: termlink fleet reauth <profile> --bootstrap-from ssh:<host>",
+                            "layers": layers,
+                        }));
+                    } else {
+                        layers.insert("tls".to_string(), json!({
+                            "status": "fail", "latency_ms": conn_latency,
+                            "error": err_json.clone(),
+                        }));
+                        degraded += 1;
+                        hubs.push(json!({
+                            "hub": name, "address": address, "healthy": false,
+                            "diagnosis": if is_tofu {
+                                "TLS cert changed — run: termlink tofu clear <host:port> and retry"
+                            } else {
+                                "TLS handshake failed — hub may not be speaking TLS, or cert is invalid"
+                            },
+                            "layers": layers,
+                        }));
+                    }
+                }
+                Err(_) => {
+                    layers.insert("tls".to_string(),
+                        json!({"status": "timeout", "latency_ms": timeout_secs * 1000}));
+                    degraded += 1;
+                    hubs.push(json!({
+                        "hub": name, "address": address, "healthy": false,
+                        "diagnosis": "TLS handshake timed out — hub is slow or silently dropping TLS",
+                        "layers": layers,
+                    }));
+                }
+            }
+        }
+
+        serde_json::to_string_pretty(&json!({
+            "ok": degraded == 0 && unreachable == 0,
+            "hubs": hubs,
+            "summary": {
+                "total": profiles.len(),
+                "healthy": healthy,
+                "degraded": degraded,
+                "unreachable": unreachable,
+            },
         })).unwrap_or_else(json_err)
     }
 
