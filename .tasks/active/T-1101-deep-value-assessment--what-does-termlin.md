@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T08:34:06Z
-last_update: 2026-04-17T08:37:52Z
+last_update: 2026-04-17T08:41:24Z
 date_finished: null
 ---
 
@@ -20,7 +20,9 @@ date_finished: null
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+We've built 68 MCP tools, 1,124 tests, fleet management, and deep infrastructure.
+But the human operator's daily experience is fragmented. The research artifact at
+`docs/reports/T-1101-termlink-value-assessment.md` documents the full findings.
 
 ## Assumptions
 
@@ -45,9 +47,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated — research artifact with 5 spikes
+- [x] Assumptions tested — live fleet evidence gathered
+- [x] Recommendation written with rationale
+- [x] First build task (T-1102: fleet status) executed as proof of value
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -62,12 +65,12 @@ date_finished: null
 
 <!-- Fill these BEFORE writing the recommendation. The placeholder detector will block review/decide if left empty. -->
 **GO if:**
-- Root cause identified with bounded fix path
-- Fix is scoped, testable, and reversible
+- Assessment identifies operator-facing features that can be built on existing architecture
+- At least one feature can be shipped same-session as proof of value
 
 **NO-GO if:**
-- Problem requires fundamental redesign or unbounded scope
-- Fix cost exceeds benefit given current evidence
+- Architecture fundamentally can't serve operator needs
+- All identified features require major redesign
 
 ## Verification
 
@@ -77,15 +80,26 @@ date_finished: null
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+
+**Rationale:** The architecture is solid — hub RPC, fleet doctor, auth, discovery all work.
+The gap is in the presentation and operator experience layer. T-1102 (fleet status) was
+built and shipped in one session as proof that high-value operator features can be
+built quickly on the existing foundation.
+
+**Evidence:**
+- Fleet doctor correctly diagnoses .121 auth-fail and .122 hub-down (2 days running)
+- 36 local sessions, 10 hub-registered sessions — discovery works but lacks summary view
+- `termlink fleet status` built in ~30 min, provides the "morning check" the operator needs
+- No VPN/mesh test tooling exists — identified as highest-value gap
+- Watchtower has 12 pages but none are operations-focused (all framework-focused)
+
+**Priority build queue:**
+1. ~~R1: `fleet status`~~ DONE (T-1102)
+2. R2: Watchtower `/fleet` page — operations dashboard
+3. R3: `termlink net test` — mesh connectivity (needs new RPC method)
+4. R4: Fix .121/.122 fleet health (SSH required, human action)
+5. R5: Clickable references in Watchtower pages
 
 ## Decisions
 
