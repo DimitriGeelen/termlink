@@ -60,6 +60,16 @@ test -f .context/episodic/T-233.yaml
 grep -q "T-233" .context/project/decisions.yaml
 test -f docs/reports/T-258-context-amnesia.md
 
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Fix what we can locally (episodics, `decisions.yaml`, memory file) and dispatch framework-repo fixes as inception pickup prompts. Can't edit the framework repo directly from a consumer project, but local fixes are self-contained and reverse the 5 incorrectly NO-GO'd tasks immediately.
+**Evidence:**
+- T-233 episodic created at `.context/episodic/T-233.yaml`
+- T-233 decisions backfilled into `decisions.yaml`
+- Research artifact: `docs/reports/T-258-context-amnesia.md`
+- 5 tasks (T-239–T-242, T-256) reversed to GO with audit trail
+
 ## Decisions
 
 ### 2026-03-24 — Root cause analysis scope

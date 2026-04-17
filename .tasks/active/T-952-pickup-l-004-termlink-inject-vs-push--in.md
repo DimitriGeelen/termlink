@@ -74,15 +74,12 @@ date_finished: 2026-04-12T15:59:17Z
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+**Rationale:** L-004 learning absorbed into CLI surface. Both `termlink inject` (interactive, blocking) and `termlink remote push` (async, fire-and-forget) are shipped and documented. Operator guidance is clear from command names and help text.
+**Evidence:**
+- Both commands available in CLI and verified by T-1090 (2026-04-16)
+- Docstrings reflect the inject-for-interactive / push-for-async distinction
+- Learning stored in `.context/project/learnings.yaml` (L-004)
 
 ## Decisions
 

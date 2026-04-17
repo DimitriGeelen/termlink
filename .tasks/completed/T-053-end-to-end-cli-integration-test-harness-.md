@@ -70,6 +70,15 @@ TermLink CLI has 27 commands and 19 RPC methods. 138 unit tests cover handler lo
      For inception tasks, verification is often not needed (decisions, not code).
 -->
 
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Two-layer approach (library-level extensions to `integration.rs` + binary-level `cli_integration.rs` with ProcessGuard) approved and shipped. All 3 assumptions validated; no-go criteria not triggered.
+**Evidence:**
+- Assumptions A1/A2/A3 all validated in exploration
+- ProcessGuard + wait_for_socket patterns proven reliable (RAII cleanup)
+- `cli_integration.rs` now contains 168+ tests (grown via T-1091..T-1098 series)
+
 ## Decisions
 
 ### 2026-03-09 — Architecture: Two-layer integration test approach

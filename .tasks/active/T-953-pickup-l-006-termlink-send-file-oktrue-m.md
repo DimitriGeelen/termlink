@@ -74,15 +74,12 @@ date_finished: 2026-04-12T15:59:19Z
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+**Rationale:** L-006 learning captured and traced to a real bug class (silent data loss when receiver offline). The consequence of `send-file ok:true` being hub-accepted but not delivered is being fixed structurally by T-1017 (send-file receiver check).
+**Evidence:**
+- T-1017 active build task tracks the fix
+- Semantics documented in `.context/project/learnings.yaml` (L-006)
+- Agent guidance reinforced by PL-004 in project practice list
 
 ## Decisions
 

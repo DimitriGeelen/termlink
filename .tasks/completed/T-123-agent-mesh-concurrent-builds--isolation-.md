@@ -66,6 +66,15 @@ date_finished: 2026-03-12T20:56:55Z
      For inception tasks, verification is often not needed (decisions, not code).
 -->
 
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Git worktree per worker + CARGO_TARGET_DIR per worktree — structural filesystem isolation eliminates file conflict, build contention, and git corruption risks. Worktrees are lightweight (~1-2MB, shared `.git/objects`), ~20 lines of bash in `dispatch.sh`. Cold build cost amortized by parallel wall-clock savings.
+**Evidence:**
+- Implemented in `agents/dispatch/dispatch.sh`
+- Rejected alternatives (file partitioning, CARGO_TARGET_DIR alone, CoW, layered patches) all fail on real-world overlap (T-120/T-121/T-122 share `server.rs`)
+- Decision stamped in `## Decisions` (2026-03-12)
+
 ## Decisions
 
 ### 2026-03-12 — Isolation strategy for parallel build tasks

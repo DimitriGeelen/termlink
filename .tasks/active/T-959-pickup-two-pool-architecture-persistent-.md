@@ -74,15 +74,12 @@ date_finished: 2026-04-12T15:59:57Z
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO
+**Rationale:** Two-pool pattern (persistent `/var/lib/termlink` for daemons, ephemeral `/tmp` for user sessions) is a deliberate design — not a bug to unify. Codify it; fix symptoms at the observer layer (multi-dir hub scan) rather than collapsing pools.
+**Evidence:**
+- T-940 / T-942 (multi-dir hub scanning) make the two-pool model observable without merging pools
+- Pattern documented in `.context/project/learnings.yaml`
+- No operational incidents attributable to the pool split since the learning was codified
 
 ## Decisions
 

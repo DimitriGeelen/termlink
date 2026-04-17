@@ -55,6 +55,16 @@ How should TermLink enable the Agentic Engineering Framework to delegate tasks f
 
 test -f docs/reports/T-012-agent-to-agent-communication.md
 
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Existing TermLink primitives (discover, emit, wait, kv) cover 70%+ of agent-to-agent needs. Only `spawn` and `request` were structurally missing — both small, bounded additions. Context-budget multiplier (each specialist gets fresh 200K) is the killer feature and is structurally guaranteed.
+**Evidence:**
+- Research artifact: docs/reports/T-012-agent-to-agent-communication.md
+- Spike 1 validated A1 (primitives cover 70%+)
+- Gap analysis validated A4 (only spawn + request missing)
+- Framework governance applies naturally (A3 validated) — same repo, same CLAUDE.md
+
 ## Decisions
 
 ### 2026-03-09 — GO decision
