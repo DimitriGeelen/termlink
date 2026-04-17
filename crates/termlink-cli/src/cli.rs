@@ -943,6 +943,12 @@ pub(crate) enum Command {
         action: Option<FleetAction>,
     },
 
+    /// Network connectivity diagnostics (layered per-hub probe)
+    Net {
+        #[command(subcommand)]
+        action: NetAction,
+    },
+
     /// Query the hub's offline file inbox (pending transfers for offline sessions)
     Inbox {
         #[command(subcommand)]
@@ -1590,6 +1596,30 @@ pub(crate) enum FleetAction {
         /// performing the heal.
         #[arg(long = "bootstrap-from")]
         bootstrap_from: Option<String>,
+    },
+}
+
+/// Network connectivity diagnostics (T-1106)
+#[derive(Subcommand)]
+pub(crate) enum NetAction {
+    /// Run layered connectivity probe (TCP → TLS → AUTH → PING) per hub
+    ///
+    /// Complements `fleet status` with per-layer diagnostics that pinpoint
+    /// exactly where a broken hub connection fails. Useful for VPN/mesh
+    /// troubleshooting: if TCP fails it's a network issue; if TLS fails
+    /// it's a cert issue; if AUTH fails it's a secret mismatch.
+    Test {
+        /// Filter to a single hub profile name (default: test all)
+        #[arg(long)]
+        profile: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Timeout per layer in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
     },
 }
 

@@ -3963,3 +3963,109 @@ fn cli_fleet_status_text_mode() {
         stderr
     );
 }
+
+// --- T-1106: net test tests ---
+
+#[test]
+fn cli_net_test_no_config() {
+    // T-1106: net test with no hubs.toml returns empty JSON
+    let dir = TestDir::new("net-test-empty");
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["net", "test", "--json"])
+        .output()
+        .expect("net test --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], true, "empty net test should be ok");
+    assert_eq!(
+        parsed["hubs"].as_array().map(|a| a.len()).unwrap_or(999),
+        0,
+        "should have 0 hub entries"
+    );
+    assert_eq!(parsed["summary"]["total"], 0);
+}
+
+#[test]
+fn cli_net_test_tcp_fail_classifies_network() {
+    // T-1106: unreachable TCP port is classified as network-level failure,
+    // subsequent layers (TLS/AUTH/PING) are not attempted.
+    let dir = TestDir::new("net-test-tcp-fail");
+
+    let secret_path = dir.path.join("secret.hex");
+    std::fs::write(
+        &secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n",
+    )
+    .expect("write secret");
+
+    // Use port 1 (reserved, almost certainly refused) so TCP connect fails fast
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote", "profile", "add", "dead-hub", "127.0.0.1:1",
+            "--secret-file", secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add profile");
+
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["net", "test", "--json", "--timeout", "2"])
+        .output()
+        .expect("net test --json");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+
+    assert_eq!(parsed["ok"], false, "dead hub should not be ok");
+    let hubs = parsed["hubs"].as_array().expect("hubs should be array");
+    assert_eq!(hubs.len(), 1, "should have 1 hub entry");
+
+    let hub = &hubs[0];
+    assert_eq!(hub["healthy"], false, "hub should be unhealthy");
+    assert_eq!(hub["layers"]["tcp"]["status"], "fail",
+        "TCP should fail; got: {:?}", hub["layers"]);
+    // TLS/AUTH/PING should NOT be attempted when TCP fails
+    assert!(hub["layers"].get("tls").is_none(),
+        "TLS should not be attempted when TCP fails");
+    assert!(hub["diagnosis"].as_str().unwrap_or("")
+        .to_lowercase().contains("network"),
+        "diagnosis should mention network; got: {:?}", hub["diagnosis"]);
+    assert_eq!(parsed["summary"]["unreachable"], 1);
+    assert_eq!(parsed["summary"]["healthy"], 0);
+}
+
+#[test]
+fn cli_net_test_profile_filter_unknown() {
+    // T-1106: --profile with unknown name returns error
+    let dir = TestDir::new("net-test-unknown-profile");
+
+    let secret_path = dir.path.join("secret.hex");
+    std::fs::write(&secret_path,
+        "0000000000000000000000000000000000000000000000000000000000000000\n")
+        .expect("write secret");
+    termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args([
+            "remote", "profile", "add", "real-hub", "127.0.0.1:19933",
+            "--secret-file", secret_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("add profile");
+
+    let output = termlink_cmd(&dir.path)
+        .env("HOME", dir.path.as_os_str())
+        .args(["net", "test", "--profile", "nosuch"])
+        .output()
+        .expect("net test --profile nosuch");
+
+    assert!(!output.status.success(), "should exit non-zero for unknown profile");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("not found") || stderr.contains("nosuch"),
+        "should mention profile not found: {}", stderr);
+}

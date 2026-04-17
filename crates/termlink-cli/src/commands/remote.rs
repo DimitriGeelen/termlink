@@ -1679,6 +1679,356 @@ fn classify_fleet_error(msg: &str, address: &str) -> String {
     }
 }
 
+/// T-1106: Run a layered connectivity probe per hub.
+///
+/// Probes in order: TCP connect → TLS handshake → HMAC auth → RPC ping.
+/// Each layer's result (pass/fail + latency) is reported independently so
+/// the operator can see exactly where a connection breaks. Stops at the
+/// first failing layer — subsequent layers require the prior to succeed.
+pub(crate) async fn cmd_net_test(
+    profile_filter: Option<&str>,
+    json: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    use serde_json::json;
+    use std::time::{Duration, Instant};
+
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&json!({
+                "ok": true, "hubs": [],
+                "summary": {"total": 0, "healthy": 0, "degraded": 0, "unreachable": 0},
+            }))?);
+        } else {
+            eprintln!("No hubs configured. Add hubs with: termlink remote profile add <name> <host:port> --secret-file <path>");
+        }
+        return Ok(());
+    }
+
+    let mut hub_names: Vec<&String> = config.hubs.keys().collect();
+    hub_names.sort();
+    if let Some(filter) = profile_filter {
+        hub_names.retain(|n| n.as_str() == filter);
+        if hub_names.is_empty() {
+            anyhow::bail!("Hub profile '{}' not found. Run: termlink remote profile list", filter);
+        }
+    }
+
+    let timeout_dur = Duration::from_secs(timeout_secs);
+    let mut results: Vec<serde_json::Value> = Vec::new();
+    let mut healthy = 0u32;
+    let mut degraded = 0u32;
+    let mut unreachable = 0u32;
+
+    for name in &hub_names {
+        let entry = &config.hubs[*name];
+
+        let (host, port) = match parse_host_port(&entry.address) {
+            Ok(hp) => hp,
+            Err(e) => {
+                unreachable += 1;
+                results.push(json!({
+                    "hub": name, "address": entry.address,
+                    "healthy": false, "diagnosis": format!("invalid address: {}", e),
+                    "layers": {},
+                }));
+                continue;
+            }
+        };
+
+        let mut layers = serde_json::Map::new();
+        let mut hub_healthy = true;
+        let mut diagnosis: Option<&'static str> = None;
+
+        // --- L1: TCP ---
+        let tcp_start = Instant::now();
+        let tcp_result = tokio::time::timeout(
+            timeout_dur,
+            tokio::net::TcpStream::connect((host.as_str(), port)),
+        ).await;
+        let tcp_latency = tcp_start.elapsed().as_millis() as u64;
+        let tcp_ok = matches!(tcp_result, Ok(Ok(_)));
+        layers.insert("tcp".to_string(), match &tcp_result {
+            Ok(Ok(_)) => json!({"status": "pass", "latency_ms": tcp_latency}),
+            Ok(Err(e)) => json!({"status": "fail", "latency_ms": tcp_latency, "error": e.to_string()}),
+            Err(_) => json!({"status": "timeout", "latency_ms": timeout_secs * 1000}),
+        });
+        if !tcp_ok {
+            hub_healthy = false;
+            diagnosis = Some("Network-level failure — check firewall/VPN/routing and hub process is listening on the configured port");
+        }
+
+        // --- L2: TLS ---
+        if tcp_ok {
+            let addr = termlink_protocol::TransportAddr::Tcp {
+                host: host.clone(),
+                port,
+            };
+            let tls_start = Instant::now();
+            let tls_result = tokio::time::timeout(
+                timeout_dur,
+                client::Client::connect_addr(&addr),
+            ).await;
+            let tls_latency = tls_start.elapsed().as_millis() as u64;
+
+            match tls_result {
+                Ok(Ok(mut rpc_client)) => {
+                    layers.insert("tls".to_string(),
+                        json!({"status": "pass", "latency_ms": tls_latency}));
+
+                    // --- L3: AUTH ---
+                    let auth_outcome = net_probe_auth(&mut rpc_client, entry, timeout_dur).await;
+                    match auth_outcome {
+                        Ok(auth_latency) => {
+                            layers.insert("auth".to_string(),
+                                json!({"status": "pass", "latency_ms": auth_latency}));
+
+                            // --- L4: PING (session.discover) ---
+                            let ping_start = Instant::now();
+                            let ping_result = tokio::time::timeout(
+                                timeout_dur,
+                                rpc_client.call("session.discover", json!("net-ping"), json!({})),
+                            ).await;
+                            let ping_latency = ping_start.elapsed().as_millis() as u64;
+                            match ping_result {
+                                Ok(Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_))) => {
+                                    layers.insert("ping".to_string(),
+                                        json!({"status": "pass", "latency_ms": ping_latency}));
+                                }
+                                Ok(Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e))) => {
+                                    hub_healthy = false;
+                                    diagnosis = Some("RPC call rejected — hub is authenticated but refusing session.discover");
+                                    layers.insert("ping".to_string(), json!({
+                                        "status": "fail", "latency_ms": ping_latency,
+                                        "error": format!("{} {}", e.error.code, e.error.message),
+                                    }));
+                                }
+                                Ok(Err(e)) => {
+                                    hub_healthy = false;
+                                    diagnosis = Some("RPC transport error after auth — hub may have disconnected");
+                                    layers.insert("ping".to_string(), json!({
+                                        "status": "fail", "latency_ms": ping_latency,
+                                        "error": e.to_string(),
+                                    }));
+                                }
+                                Err(_) => {
+                                    hub_healthy = false;
+                                    diagnosis = Some("RPC timeout after auth — hub is slow or overloaded");
+                                    layers.insert("ping".to_string(), json!({
+                                        "status": "timeout", "latency_ms": timeout_secs * 1000,
+                                    }));
+                                }
+                            }
+                        }
+                        Err((auth_latency, msg)) => {
+                            hub_healthy = false;
+                            diagnosis = Some("HMAC secret mismatch — run: termlink fleet reauth <profile> --bootstrap-from ssh:<host>");
+                            layers.insert("auth".to_string(), json!({
+                                "status": "fail", "latency_ms": auth_latency,
+                                "error": msg,
+                            }));
+                        }
+                    }
+                }
+                Ok(Err(e)) => {
+                    hub_healthy = false;
+                    let msg = e.to_string();
+                    diagnosis = Some(if msg.contains("TOFU") || msg.contains("fingerprint") {
+                        "TLS cert changed — run: termlink tofu clear <host:port> and retry"
+                    } else {
+                        "TLS handshake failed — hub may not be speaking TLS, or cert is invalid"
+                    });
+                    layers.insert("tls".to_string(), json!({
+                        "status": "fail", "latency_ms": tls_latency,
+                        "error": msg,
+                    }));
+                }
+                Err(_) => {
+                    hub_healthy = false;
+                    diagnosis = Some("TLS handshake timed out — hub is slow or silently dropping TLS");
+                    layers.insert("tls".to_string(), json!({
+                        "status": "timeout", "latency_ms": timeout_secs * 1000,
+                    }));
+                }
+            }
+        }
+
+        if hub_healthy {
+            healthy += 1;
+        } else if layers.get("tcp").and_then(|l| l.get("status")).and_then(|s| s.as_str()) == Some("pass") {
+            degraded += 1;
+        } else {
+            unreachable += 1;
+        }
+
+        let mut hub_result = json!({
+            "hub": name,
+            "address": entry.address,
+            "healthy": hub_healthy,
+            "layers": layers,
+        });
+        if let Some(d) = diagnosis {
+            hub_result["diagnosis"] = json!(d);
+        }
+        results.push(hub_result);
+    }
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&json!({
+            "ok": unreachable == 0 && degraded == 0,
+            "hubs": results,
+            "summary": {
+                "total": hub_names.len(),
+                "healthy": healthy,
+                "degraded": degraded,
+                "unreachable": unreachable,
+            },
+        }))?);
+    } else {
+        render_net_test_text(&results, healthy, degraded, unreachable);
+    }
+
+    Ok(())
+}
+
+/// Parse "host:port" into (host, port) — shared logic with connect_remote_hub.
+fn parse_host_port(addr: &str) -> Result<(String, u16)> {
+    let parts: Vec<&str> = addr.split(':').collect();
+    if parts.len() != 2 {
+        anyhow::bail!("expected host:port, got '{}'", addr);
+    }
+    let host = parts[0].to_string();
+    let port: u16 = parts[1].parse()
+        .context(format!("invalid port in '{}'", addr))?;
+    Ok((host, port))
+}
+
+/// Run the AUTH layer of the net test: build a token from the hub's secret
+/// and call `hub.auth`. Returns Ok(latency_ms) on success or Err((latency_ms, message)).
+async fn net_probe_auth(
+    rpc_client: &mut client::Client,
+    entry: &HubEntry,
+    timeout_dur: std::time::Duration,
+) -> std::result::Result<u64, (u64, String)> {
+    use std::time::Instant;
+    use termlink_session::auth::{self, PermissionScope};
+
+    let start = Instant::now();
+
+    // Read secret (file or inline)
+    let hex = match (entry.secret_file.as_deref(), entry.secret.as_deref()) {
+        (Some(path), _) => match std::fs::read_to_string(path) {
+            Ok(s) => s.trim().to_string(),
+            Err(e) => return Err((start.elapsed().as_millis() as u64,
+                format!("cannot read secret file {}: {}", path, e))),
+        },
+        (None, Some(h)) => h.to_string(),
+        (None, None) => return Err((start.elapsed().as_millis() as u64,
+            "no secret configured (neither secret_file nor inline secret)".to_string())),
+    };
+    if hex.len() != 64 {
+        return Err((start.elapsed().as_millis() as u64,
+            format!("secret must be 64 hex chars, got {}", hex.len())));
+    }
+    let secret_bytes: Vec<u8> = match (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16))
+        .collect::<std::result::Result<Vec<u8>, _>>()
+    {
+        Ok(b) => b,
+        Err(e) => return Err((start.elapsed().as_millis() as u64,
+            format!("invalid hex in secret: {}", e))),
+    };
+    let secret: auth::TokenSecret = match secret_bytes.try_into() {
+        Ok(s) => s,
+        Err(_) => return Err((start.elapsed().as_millis() as u64,
+            "secret must decode to exactly 32 bytes".to_string())),
+    };
+
+    let scope_str = entry.scope.as_deref().unwrap_or("execute");
+    let perm_scope = match scope_str {
+        "observe" => PermissionScope::Observe,
+        "interact" => PermissionScope::Interact,
+        "control" => PermissionScope::Control,
+        "execute" => PermissionScope::Execute,
+        _ => return Err((start.elapsed().as_millis() as u64,
+            format!("invalid scope '{}'", scope_str))),
+    };
+    let token = auth::create_token(&secret, perm_scope, "", 3600);
+
+    let auth_result = tokio::time::timeout(
+        timeout_dur,
+        rpc_client.call("hub.auth", serde_json::json!("net-auth"),
+            serde_json::json!({"token": token.raw})),
+    ).await;
+
+    let latency = start.elapsed().as_millis() as u64;
+    match auth_result {
+        Ok(Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_))) => Ok(latency),
+        Ok(Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e))) => {
+            Err((latency, format!("{} {}", e.error.code, e.error.message)))
+        }
+        Ok(Err(e)) => Err((latency, format!("RPC error: {}", e))),
+        Err(_) => Err((latency, format!("auth timeout after {}s", timeout_dur.as_secs()))),
+    }
+}
+
+/// Render the text output for `termlink net test`.
+fn render_net_test_text(
+    results: &[serde_json::Value],
+    healthy: u32,
+    degraded: u32,
+    unreachable: u32,
+) {
+    eprintln!();
+    for hub in results {
+        let name = hub["hub"].as_str().unwrap_or("?");
+        let addr = hub["address"].as_str().unwrap_or("?");
+        let hub_healthy = hub["healthy"].as_bool().unwrap_or(false);
+
+        let (badge, colour) = if hub_healthy {
+            ("HEALTHY", "\x1b[32m")
+        } else {
+            ("FAIL", "\x1b[31m")
+        };
+        eprintln!("  {colour}{badge}\x1b[0m  {name}  ({addr})");
+
+        for layer in ["tcp", "tls", "auth", "ping"] {
+            let Some(entry) = hub["layers"].get(layer) else { continue };
+            let status = entry["status"].as_str().unwrap_or("?");
+            let latency = entry["latency_ms"].as_u64().unwrap_or(0);
+            let marker = match status {
+                "pass" => "\x1b[32mPASS\x1b[0m",
+                "fail" => "\x1b[31mFAIL\x1b[0m",
+                "timeout" => "\x1b[31mTIME\x1b[0m",
+                _ => "----",
+            };
+            let layer_upper = layer.to_uppercase();
+            eprintln!("    {marker}  {layer_upper:<4}  {latency:>4}ms");
+            if status != "pass" {
+                if let Some(err) = entry["error"].as_str() {
+                    eprintln!("          \x1b[2m└─ {}\x1b[0m", err);
+                }
+            }
+        }
+
+        if let Some(diag) = hub["diagnosis"].as_str() {
+            eprintln!("    \x1b[33m→\x1b[0m {}", diag);
+        }
+        eprintln!();
+    }
+
+    let total = results.len();
+    if degraded == 0 && unreachable == 0 {
+        eprintln!("  NET: \x1b[32mall {} hub(s) fully reachable\x1b[0m", total);
+    } else {
+        eprintln!("  NET: {} hub(s), \x1b[32m{} healthy\x1b[0m, \x1b[33m{} degraded\x1b[0m, \x1b[31m{} unreachable\x1b[0m",
+            total, healthy, degraded, unreachable);
+    }
+    eprintln!();
+}
+
 /// T-1052: classify an error message into the auth/cert drift classes we care about.
 /// Returns `None` for unrelated errors (connection refused, etc.) so we stay quiet.
 fn auth_mismatch_class(msg: &str) -> Option<&'static str> {
