@@ -187,6 +187,37 @@
     .hub-diagnose-results .layer-latency { color: var(--pico-muted-color); }
     .hub-diagnose-results .layer-error { color: var(--pico-muted-color); font-size: 0.8rem; margin-left: 4.5rem; }
     .hub-diagnose-results .diagnosis { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--pico-muted-border-color); font-style: italic; }
+
+    /* T-1115: Session list per hub */
+    .session-toggle {
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 2px;
+    }
+    .session-toggle:hover {
+        color: var(--pico-primary);
+    }
+    .session-list {
+        margin: 0.3rem 0 0 0;
+        padding: 0.4rem 0.6rem;
+        background: rgba(0,0,0,0.03);
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-family: monospace;
+        color: var(--pico-muted-color);
+        list-style: none;
+    }
+    [data-theme="dark"] .session-list {
+        background: rgba(255,255,255,0.03);
+    }
+    .session-list li {
+        padding: 0.1rem 0;
+    }
+    .session-list li::before {
+        content: "› ";
+        color: var(--pico-muted-color);
+    }
 </style>
 
 <div class="page-header">
@@ -236,7 +267,13 @@
             </div>
             <div class="hub-detail">
                 {% if hub.status == 'up' %}
-                    {{ hub.get('sessions', 0) }} sessions &middot; {{ hub.get('latency_ms', '?') }}ms
+                    {% set names = hub.get('session_names', []) %}
+                    {% if names %}
+                    <span class="session-toggle" onclick="toggleSessions('sess-{{ hub.hub }}')">{{ hub.get('sessions', 0) }} sessions</span>
+                    {% else %}
+                    {{ hub.get('sessions', 0) }} sessions
+                    {% endif %}
+                    &middot; {{ hub.get('latency_ms', '?') }}ms
                 {% elif hub.status == 'auth-fail' %}
                     Secret mismatch &mdash; hub was restarted with a new secret
                 {% elif hub.status == 'down' %}
@@ -256,6 +293,11 @@
             {{ hub.status | upper }}
         </span>
     </div>
+    {% if hub.status == 'up' and hub.get('session_names') %}
+    <ul class="session-list" id="sess-{{ hub.hub }}" style="display:none;">
+        {% for name in hub.get('session_names', []) %}<li>{{ name }}</li>{% endfor %}
+    </ul>
+    {% endif %}
     <div class="hub-diagnose-results" id="diag-{{ hub.hub }}" style="display:none;"></div>
     </div>
     {% endfor %}
@@ -344,6 +386,11 @@ function fallbackCopy(text, onSuccess) {
     try { document.execCommand('copy'); onSuccess(); }
     catch(e) { /* silent */ }
     document.body.removeChild(ta);
+}
+
+function toggleSessions(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function runDiagnose(profile) {
