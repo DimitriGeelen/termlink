@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T21:06:59Z
-last_update: 2026-04-17T21:06:59Z
+last_update: 2026-04-17T21:19:27Z
 date_finished: null
 ---
 
@@ -42,8 +42,8 @@ corrupting the output. This breaks the Watchtower /fleet page which shells out t
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
-cargo test -p termlink-cli --test cli_integration -- fleet_status 2>&1 | tail -5
-cargo build -p termlink-cli 2>&1 | tail -3
+cargo test --test cli_integration -- fleet_status 2>&1 | tail -5
+cargo build -p termlink 2>&1 | tail -3
 
 ## Decisions
 
