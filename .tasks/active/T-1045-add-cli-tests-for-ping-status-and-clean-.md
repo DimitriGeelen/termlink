@@ -38,9 +38,7 @@ date_finished: null
 
 ## Verification
 
-cargo test -p termlink -- cli_ping_nonexist 2>&1 | grep "passed"
-cargo test -p termlink -- cli_status_nonexist 2>&1 | grep "passed"
-cargo test -p termlink -- cli_clean_empty 2>&1 | grep "passed"
+bash -c 'cargo test --test cli_integration -- cli_ping_nonexistent cli_status_nonexistent cli_clean_empty 2>&1 | grep -q "3 passed"'
 
 ## Decisions
 

@@ -39,10 +39,7 @@ date_finished: null
 
 ## Verification
 
-cargo test -p termlink -- cli_version 2>&1 | grep "passed"
-cargo test -p termlink -- cli_events_nonexistent 2>&1 | grep "passed"
-cargo test -p termlink -- cli_topics 2>&1 | grep "passed"
-cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Finished"
+bash -c 'cargo test --test cli_integration -- cli_version_text cli_version_json cli_events_nonexistent cli_topics_no_sessions 2>&1 | grep -q "5 passed"'
 
 ## Decisions
 

@@ -38,9 +38,7 @@ date_finished: null
 
 ## Verification
 
-cargo test -p termlink -- cli_tag_add_nonexist 2>&1 | grep "passed"
-cargo test -p termlink -- cli_tag_remove_nonexist 2>&1 | grep "passed"
-cargo test -p termlink -- cli_resize_nonexist 2>&1 | grep "passed"
+bash -c 'cargo test --test cli_integration -- cli_tag_add_nonexistent cli_tag_remove_nonexistent cli_resize_nonexistent 2>&1 | grep -q "3 passed"'
 
 ## Decisions
 
