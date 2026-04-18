@@ -449,3 +449,17 @@ learnings:
   date: 2026-04-18
   context: Added via context agent
   application: TBD
+- id: PL-030
+  learning: "When restarting Watchtower from within a Claude Code session, must use 'setsid python3 -m web.app < /dev/null &' (not just 'nohup ... &' or '... & disown'). Without setsid the new process inherits the harness session and dies when the parent shell command completes. Symptoms: 'running' echoed but immediately curl returns 'not running'."
+  source: P-001
+  task: T-1117
+  date: 2026-04-18
+  context: Added via context agent
+  application: TBD
+- id: PL-031
+  learning: "Flask production mode caches compiled Jinja2 templates in memory. Editing a .html file is NOT picked up until the Python process is fully killed and restarted. 'find __pycache__ -delete' does NOT clear the in-memory cache. Required restart pattern: kill PID by port, wait 2s, setsid restart."
+  source: P-001
+  task: T-1117
+  date: 2026-04-18
+  context: Added via context agent
+  application: TBD
