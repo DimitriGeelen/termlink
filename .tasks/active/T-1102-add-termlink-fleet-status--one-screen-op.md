@@ -4,16 +4,16 @@ name: "Add termlink fleet status — one-screen operational overview"
 description: >
   Add termlink fleet status — one-screen operational overview
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-17T08:42:26Z
-last_update: 2026-04-17T08:42:26Z
-date_finished: null
+last_update: 2026-04-17T09:02:39Z
+date_finished: 2026-04-17T09:02:39Z
 ---
 
 # T-1102: Add termlink fleet status — one-screen operational overview
@@ -65,3 +65,6 @@ bash -c 'cargo test --test cli_integration -- fleet_status 2>&1 | grep -q "passe
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1102-add-termlink-fleet-status--one-screen-op.md
 - **Context:** Initial task creation
+
+### 2026-04-17T09:02:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "Add termlink net test — layered hub connectivity diagnostic (TCP/TLS/au
 description: >
   Add termlink net test — layered hub connectivity diagnostic (TCP/TLS/auth)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-17T15:49:03Z
-last_update: 2026-04-17T15:49:03Z
-date_finished: null
+last_update: 2026-04-17T16:06:26Z
+date_finished: 2026-04-17T16:06:26Z
 ---
 
 # T-1106: Add termlink net test — layered hub connectivity diagnostic (TCP/TLS/auth)
@@ -78,3 +78,6 @@ cargo test -p termlink --test cli_integration -- net_test 2>&1 | tail -5
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1106-add-termlink-net-test--layered-hub-conne.md
 - **Context:** Initial task creation
+
+### 2026-04-17T16:06:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

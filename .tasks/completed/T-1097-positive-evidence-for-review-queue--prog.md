@@ -1,22 +1,22 @@
 ---
-id: T-1094
-name: "Re-apply T-1068 handover partial-complete patch — clobbered by auto-upgrade"
+id: T-1097
+name: "Positive evidence for review queue — programmatic + termlink e2e + Playwright"
 description: >
-  Re-apply T-1068 handover partial-complete patch — clobbered by auto-upgrade
+  Positive evidence for review queue — programmatic + termlink e2e + Playwright
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-16T21:37:55Z
-last_update: 2026-04-16T21:37:55Z
-date_finished: null
+created: 2026-04-16T22:05:26Z
+last_update: 2026-04-16T23:04:09Z
+date_finished: 2026-04-16T23:04:09Z
 ---
 
-# T-1094: Re-apply T-1068 handover partial-complete patch — clobbered by auto-upgrade
+# T-1097: Positive evidence for review queue — programmatic + termlink e2e + Playwright
 
 ## Context
 
@@ -25,8 +25,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] Handover script contains RUBBER-STAMP/REVIEW tag classification
-- [x] Handover script sorts partial-complete tasks by date_finished ASC
+- [x] Approach A: programmatic evidence — all 47 RUBBER-STAMP tasks now have evidence (T-936, T-940 + 5 new test tasks added this round)
+- [x] Approach B: termlink e2e — 6 validations via local hub (inbox status, remote inbox, tofu list, discover, file send, fleet doctor JSON)
+- [x] Approach C: Playwright — 3 Watchtower pages validated (review/T-1007, /approvals, /tasks) — all render correctly
          1. Open https://example.com/dashboard in browser
          2. Verify all panels load within 2 seconds
          3. Check browser console for errors
@@ -53,7 +54,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-16T21:37:55Z — task-created [task-create-agent]
+### 2026-04-16T22:05:26Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1094-re-apply-t-1068-handover-partial-complet.md
+- **Output:** /opt/termlink/.tasks/active/T-1097-positive-evidence-for-review-queue--prog.md
 - **Context:** Initial task creation
+
+### 2026-04-16T23:04:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

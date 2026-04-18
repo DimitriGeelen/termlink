@@ -1,22 +1,22 @@
 ---
-id: T-1123
-name: "Make Watchtower auto-discover PROJECT_ROOT (don't require env var)"
+id: T-1113
+name: "Add termlink net test — hub-to-hub mesh connectivity verification"
 description: >
-  Watchtower defaults PROJECT_ROOT to FRAMEWORK_ROOT when env not set. This makes ambient strip read framework's own .context/ instead of project's. Have shared.py walk up from CWD looking for .context/ + .tasks/ to identify the project root, fall back to FRAMEWORK_ROOT only if no project found.
+  Add termlink net test — hub-to-hub mesh connectivity verification
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-18T09:49:49Z
-last_update: 2026-04-18T09:49:56Z
-date_finished: null
+created: 2026-04-17T20:44:57Z
+last_update: 2026-04-17T20:58:01Z
+date_finished: 2026-04-17T20:58:01Z
 ---
 
-# T-1123: Make Watchtower auto-discover PROJECT_ROOT (don't require env var)
+# T-1113: Add termlink net test — hub-to-hub mesh connectivity verification
 
 ## Context
 
@@ -63,7 +63,11 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-18T09:49:49Z — task-created [task-create-agent]
+### 2026-04-17T20:44:57Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1123-make-watchtower-auto-discover-projectroo.md
+- **Output:** /opt/termlink/.tasks/active/T-1113-add-termlink-net-test--hub-to-hub-mesh-c.md
 - **Context:** Initial task creation
+
+### 2026-04-17T20:58:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Already implemented as T-1106 — net test with 4-layer probe exists

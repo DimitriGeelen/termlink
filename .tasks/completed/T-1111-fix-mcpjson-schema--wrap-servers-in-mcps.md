@@ -1,22 +1,22 @@
 ---
-id: T-1089
-name: "Generate missing episodic summaries for T-1082 and T-1083"
+id: T-1111
+name: "Fix .mcp.json schema — wrap servers in mcpServers key"
 description: >
-  Generate missing episodic summaries for T-1082 and T-1083
+  Fix .mcp.json schema — wrap servers in mcpServers key
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-16T19:19:23Z
-last_update: 2026-04-16T19:19:23Z
-date_finished: null
+created: 2026-04-17T19:45:43Z
+last_update: 2026-04-17T20:08:19Z
+date_finished: 2026-04-17T20:08:19Z
 ---
 
-# T-1089: Generate missing episodic summaries for T-1082 and T-1083
+# T-1111: Fix .mcp.json schema — wrap servers in mcpServers key
 
 ## Context
 
@@ -25,8 +25,13 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] `.context/episodic/T-1082.yaml` exists and parses as valid YAML
-- [x] `.context/episodic/T-1083.yaml` exists and parses as valid YAML
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] `.mcp.json` parses as valid JSON and contains top-level `mcpServers` key wrapping all three servers
+- [ ] `claude mcp list` shows context7, playwright, and termlink without schema errors
+
+### Human
+<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+     Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
      Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
      Example:
@@ -58,7 +63,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-16T19:19:23Z — task-created [task-create-agent]
+### 2026-04-17T19:45:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1089-generate-missing-episodic-summaries-for-.md
+- **Output:** /opt/termlink/.tasks/active/T-1111-fix-mcpjson-schema--wrap-servers-in-mcps.md
 - **Context:** Initial task creation
+
+### 2026-04-17T20:08:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

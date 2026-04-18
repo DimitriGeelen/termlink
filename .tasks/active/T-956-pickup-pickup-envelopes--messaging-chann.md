@@ -12,7 +12,7 @@ tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:35Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-18T15:05:20Z
 date_finished: 2026-04-12T15:59:20Z
 ---
 
@@ -94,7 +94,16 @@ date_finished: 2026-04-12T15:59:20Z
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+Rationale: Distinction is a mental model, not code. Already codified in CLAUDE.md's `Pickup Message Handling` section (G-020 gate), which blocks edits when pickup messages are mis-scoped as build instructions. No standalone build work needed — operator/agent guidance is structurally enforced.
+Evidence:
+- CLAUDE.md `Pickup Message Handling (G-020, T-469)` section present
+- G-020 gate blocks edits on placeholder ACs produced by mis-scoped pickups
+- Learning stored in `.context/project/learnings.yaml`
+
+**Date**: 2026-04-18T15:05:20Z
 
 ## Updates
 
@@ -115,3 +124,13 @@ date_finished: 2026-04-12T15:59:20Z
 ### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
 - **Evidence:** Pickup cron active at 1-min interval; termlink file send used for cross-agent envelope delivery (T-1079 propagation confirmed)
 - **Verified by:** automated command execution
+
+### 2026-04-18T15:05:20Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+Rationale: Distinction is a mental model, not code. Already codified in CLAUDE.md's `Pickup Message Handling` section (G-020 gate), which blocks edits when pickup messages are mis-scoped as build instructions. No standalone build work needed — operator/agent guidance is structurally enforced.
+Evidence:
+- CLAUDE.md `Pickup Message Handling (G-020, T-469)` section present
+- G-020 gate blocks edits on placeholder ACs produced by mis-scoped pickups
+- Learning stored in `.context/project/learnings.yaml`

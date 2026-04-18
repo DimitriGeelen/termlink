@@ -7,7 +7,7 @@ description: >
   and renders inline. Closes the operator loop from detection (fleet status) to diagnosis
   (net test) without terminal switching.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude
 horizon: now
@@ -15,8 +15,8 @@ tags: []
 components: []
 related_tasks: [T-1103, T-1106]
 created: 2026-04-17T15:50:44Z
-last_update: 2026-04-17T16:10:00Z
-date_finished: null
+last_update: 2026-04-17T16:29:37Z
+date_finished: 2026-04-17T16:29:37Z
 ---
 
 # T-1107: Wire net test into Watchtower /fleet page — per-hub diagnose button
@@ -51,3 +51,6 @@ curl -sf 'http://localhost:3000/fleet' | grep -q "net-test"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1107-add-termlink-net-test--layered-hub-conne.md
 - **Context:** Initial task creation (renamed from auto-generated title)
+
+### 2026-04-17T16:29:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

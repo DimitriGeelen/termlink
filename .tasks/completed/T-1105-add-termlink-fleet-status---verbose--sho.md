@@ -4,16 +4,16 @@ name: "Add termlink fleet status --verbose — show sessions per hub and fleet s
 description: >
   Add termlink fleet status --verbose — show sessions per hub and fleet status as default fleet subcommand
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-17T10:42:35Z
-last_update: 2026-04-17T10:42:35Z
-date_finished: null
+last_update: 2026-04-17T10:47:41Z
+date_finished: 2026-04-17T10:47:41Z
 ---
 
 # T-1105: Add termlink fleet status --verbose — show sessions per hub and fleet status as default fleet subcommand
@@ -54,3 +54,6 @@ Enhance fleet status with --verbose to show session names per hub, and make
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1105-add-termlink-fleet-status---verbose--sho.md
 - **Context:** Initial task creation
+
+### 2026-04-17T10:47:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

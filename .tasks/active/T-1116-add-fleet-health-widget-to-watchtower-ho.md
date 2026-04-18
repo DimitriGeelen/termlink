@@ -4,16 +4,16 @@ name: "Add fleet health widget to Watchtower home page"
 description: >
   Show fleet health on home page
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T22:32:56Z
-last_update: 2026-04-17T22:32:56Z
-date_finished: null
+last_update: 2026-04-17T22:51:46Z
+date_finished: 2026-04-17T22:51:46Z
 ---
 
 # T-1116: Add fleet health widget to Watchtower home page
@@ -57,3 +57,6 @@ curl -sf http://localhost:3000/ | grep -q 'fleet'
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1116-add-fleet-health-widget-to-watchtower-ho.md
 - **Context:** Initial task creation
+
+### 2026-04-17T22:51:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
