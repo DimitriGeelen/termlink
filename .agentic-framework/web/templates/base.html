@@ -326,6 +326,12 @@
         </span>
         <span class="sep">|</span>
         <span><strong>{{ ambient.attention_count or 0 }}</strong> items need attention</span>
+        <span class="sep">|</span>
+        <a href="{{ url_for('fleet.fleet_dashboard') }}" id="ambient-fleet" style="display:none; text-decoration:none; color:inherit;"
+           hx-target="#content" hx-swap="innerHTML" hx-push-url="true" title="Fleet status — click for details">
+            <span id="ambient-fleet-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#9e9e9e; vertical-align:middle; margin-right:0.3rem;"></span>
+            <span id="ambient-fleet-text">…</span>
+        </a>
         <span style="flex:1"></span>
         <span title="{{ project_root }}" style="opacity:0.7"><strong>{{ project_root.split('/')[-1] }}</strong></span>
     </div>
@@ -507,6 +513,28 @@
                 hljs.highlightElement(block);
             });
         });
+
+        // Ambient fleet indicator — async load to avoid blocking page render
+        function wtLoadAmbientFleet() {
+            var el = document.getElementById('ambient-fleet');
+            if (!el) return;
+            fetch('/api/fleet/status').then(function(r){return r.json();}).then(function(d){
+                var s = d.summary || {};
+                var total = s.total || 0, up = s.up || 0, down = s.down || 0, af = s.auth_fail || 0;
+                if (total === 0) { el.style.display = 'none'; return; }
+                var txt = up + '/' + total + ' up';
+                if (down) txt += ' · ' + down + ' down';
+                if (af) txt += ' · ' + af + ' auth-fail';
+                document.getElementById('ambient-fleet-text').textContent = txt;
+                var dot = document.getElementById('ambient-fleet-dot');
+                if (up === total) dot.style.background = '#4CAF50';
+                else if (up > 0) dot.style.background = '#ff9800';
+                else dot.style.background = '#f44336';
+                el.style.display = 'inline-flex';
+                el.style.alignItems = 'center';
+            }).catch(function(){ el.style.display = 'none'; });
+        }
+        wtLoadAmbientFleet();
 
         // Theme toggle
         function wtUpdateThemeIcons() {
