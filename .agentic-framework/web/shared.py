@@ -123,17 +123,26 @@ def build_ambient():
         "attention_count": 0,
     }
 
-    # Focus task — currently active tasks
+    # Focus task — prefer focus.yaml, fall back to first active (T-1127)
+    focus_file = PROJECT_ROOT / ".context" / "working" / "focus.yaml"
+    if focus_file.is_file():
+        try:
+            focus_data = yaml.safe_load(focus_file.read_text()) or {}
+            ct = focus_data.get("current_task")
+            if isinstance(ct, str) and re_mod.match(r"^T-\d{3,}$", ct):
+                ambient["focus_task"] = ct
+        except (OSError, yaml.YAMLError):
+            pass
+
     active_dir = PROJECT_ROOT / ".tasks" / "active"
     if active_dir.exists():
         active_tasks = sorted(active_dir.glob("T-*.md"), key=task_id_sort_key)
-        if active_tasks:
-            # Use the first active task as focus
+        ambient["attention_count"] = len(active_tasks)
+        if ambient["focus_task"] is None and active_tasks:
             stem = active_tasks[0].stem
             match = re_mod.match(r"(T-\d{3,})", stem)
             if match:
                 ambient["focus_task"] = match.group(1)
-            ambient["attention_count"] = len(active_tasks)
 
     # Session age — from latest handover
     handovers_dir = PROJECT_ROOT / ".context" / "handovers"
