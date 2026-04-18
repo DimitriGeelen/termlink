@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T17:09:39Z
-last_update: 2026-04-16T21:16:44Z
+last_update: 2026-04-18T19:36:25Z
 date_finished: null
 ---
 
@@ -94,3 +94,12 @@ date_finished: null
   - ring20-management (.122) still **DOWN** — TOFU violation (fingerprint changed sha256:cbc4… → sha256:b855…) AND port 9100 refused. Hub was restarted with a new cert at some point and the process is no longer accepting connections. Human AC #2 still required.
   - local-test (127.0.0.1:9100) UP — 3 sessions.
 - **Recommendation:** Once .122 is healed (Human AC #2), the human can check both ACs and close. No further agent action needed.
+
+### 2026-04-19T00:00Z — observation [agent]
+- **Action:** Second `fleet doctor` run (T-1130 session wrap-up).
+- **Findings:**
+  - ring20-dashboard (.121) still **UP** (58ms, status ok) — healing is stable across days.
+  - ring20-management (.122) **DOWN but rotated again** — fingerprint is now `sha256:5198d1fb…` (was `sha256:b855…` on prev observation, and `sha256:cbc4…` originally). Two rotations since this task opened means the hub process is restarting repeatedly (or the container is being rescheduled — see T-1067 renumber history). Port 9100 is accepting TLS again (no "refused" this time), so the hub process is alive now — just un-trusted.
+  - local-test healthy.
+- **Heal path when operator is ready:** `termlink tofu clear 192.168.10.122:9100 && termlink fleet reauth ring20-management --bootstrap-from ssh:192.168.10.122` (fetches fresh secret + re-pins cert; R2 trust-anchor is SSH which is out-of-band wrt termlink auth). Do NOT auto-clear — rotations this frequent may indicate something operator needs to diagnose (container reschedule loop, hub crash loop, or attacker).
+- **Severity signal:** Two cert rotations on one hub in 24h is the trigger condition for auto-registering a G-NNN (per T-1053 rule). The auth-rotation protocol says "≥3 consecutive auth-mismatches spanning >24h" — we're at 2 in ~24h, so not yet at threshold. Monitoring.
