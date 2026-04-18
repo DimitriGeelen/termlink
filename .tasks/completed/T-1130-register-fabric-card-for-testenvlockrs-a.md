@@ -4,7 +4,7 @@ name: "Register fabric card for test_env_lock.rs and pickup framework globstar b
 description: >
   Register fabric card for test_env_lock.rs and pickup framework globstar bug
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T21:49:13Z
-last_update: 2026-04-18T21:49:13Z
-date_finished: null
+last_update: 2026-04-18T21:58:10Z
+date_finished: 2026-04-18T21:58:10Z
 ---
 
 # T-1130: Register fabric card for test_env_lock.rs and pickup framework globstar bug
@@ -71,3 +71,6 @@ ls /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/P-*-bug-report.y
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1130-register-fabric-card-for-testenvlockrs-a.md
 - **Context:** Initial task creation
+
+### 2026-04-18T21:58:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
