@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1107: Wire net test into Watchtower /fleet page — per-hub diagnose button
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-18T08:53:06Z
+# ============================================================================
+
+task_id: T-1107
+task_name: "Wire net test into Watchtower /fleet page — per-hub diagnose button"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-17T15:50:44Z
+completed: 2026-04-17T16:29:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-17T18:29:21+02:00
+last_commit: 2026-04-17T18:29:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Wire net test into Watchtower /fleet page — per-hub diagnose button
+
+# Key outcomes
+outcomes:
+  - "`/api/fleet/net-test?profile=<name>` endpoint runs `termlink net test --json --profile <name>` and returns parsed JSON"
+  - "`/api/fleet/net-test` (no profile) returns results for all hubs"
+  - "Hub cards on /fleet have a \"net-test\" button that fetches and expands layer results"
+  - "Per-layer rows show TCP/TLS/AUTH/PING with pass/fail + latency"
+  - "Watchtower Python process runs cleanly after changes (no import errors)"
+  - "Profile name sanitized against shell-metacharacter injection (alnum/dash/underscore only)"
+  - "Curl test: endpoint returns valid JSON with expected fields"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/blueprints/fleet.py"
+  - ".agentic-framework/web/templates/fleet.html"
+  - ".tasks/active/T-1107-add-termlink-net-test--layered-hub-conne.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-17T18:29:21"
+    action: "T-1107: Wire net test into Watchtower /fleet page — per-hub diagnose button"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 38 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 38
+  commits: 1
+  files_changed: 3
+  lines_added: 216
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1107-add-termlink-net-test--layered-hub-conne.md
+generated_by: context-agent-hybrid

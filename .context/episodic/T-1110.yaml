@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1110: Backfill retrospective inception decisions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-17T19:35:53Z
+# ============================================================================
+
+task_id: T-1110
+task_name: "Backfill retrospective inception decisions"
+workflow_type: refactor
+enrichment_status: git-derived  # Auto-filled from git; AC/decisions not in task file
+
+# Timeline
+created: 2026-04-17T19:03:17Z
+completed: 2026-04-17T19:35:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-17T21:34:57+02:00
+last_commit: 2026-04-17T21:34:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Backfill Recommendation sections for 11 pending-decision inceptions
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1110-backfill-retrospective-inception-decisio.md"
+  - ".tasks/active/T-947-pickup-canary-30s-pickup-processor-smoke.md"
+  - ".tasks/active/T-950-pickup-30-second-pickup-processor-cycle-.md"
+  - ".tasks/active/T-952-pickup-l-004-termlink-inject-vs-push--in.md"
+  - ".tasks/active/T-953-pickup-l-006-termlink-send-file-oktrue-m.md"
+  - ".tasks/active/T-956-pickup-pickup-envelopes--messaging-chann.md"
+  - ".tasks/active/T-957-pickup-cross-host-agent-access-requires-.md"
+  - ".tasks/active/T-959-pickup-two-pool-architecture-persistent-.md"
+  - ".tasks/completed/T-012-it-010-agent-to-agent-communication-patt.md"
+  - ".tasks/completed/T-053-end-to-end-cli-integration-test-harness-.md"
+  - ".tasks/completed/T-123-agent-mesh-concurrent-builds--isolation-.md"
+  - ".tasks/completed/T-258-context-amnesia-root-cause--t-233-vision.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-17T21:34:57"
+    action: "T-1110: Backfill Recommendation sections for 11 pending-decision inceptions"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 32 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 32
+  commits: 1
+  files_changed: 12
+  lines_added: 149
+  lines_removed: 63
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1110-backfill-retrospective-inception-decisio.md
+generated_by: context-agent-hybrid

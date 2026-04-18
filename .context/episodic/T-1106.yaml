@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1106: Add termlink net test — layered hub connectivity diagnostic (TCP/TLS/auth)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-17T16:07:26Z
+# ============================================================================
+
+task_id: T-1106
+task_name: "Add termlink net test — layered hub connectivity diagnostic (TCP/TLS/auth)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-17T15:49:03Z
+completed: 2026-04-17T16:06:26Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-17T18:05:18+02:00
+last_commit: 2026-04-17T18:05:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink net test — layered hub connectivity diagnostic (TCP/TLS/AUTH/PING)
+
+# Key outcomes
+outcomes:
+  - "`termlink net test` subcommand runs, tests each configured hub in layers"
+  - "Per hub, reports TCP/TLS/AUTH/PING status with pass/fail and latency"
+  - "Text output is colored and readable; JSON output via `--json`"
+  - "`--profile <name>` filters to one hub"
+  - "Classifies failure layer correctly (TCP fail → network; TLS fail → cert; AUTH fail → secret)"
+  - "Integration tests: cli_net_test_no_config, cli_net_test_tcp_fail_classifies_network, cli_net_test_profile_filter_unknown"
+  - "`cargo build -p termlink` succeeds"
+  - "`cargo test -p termlink --test cli_integration -- net_test` passes (3/3)"
+  - "MCP tool `termlink_net_test` registered (count 68 → 69)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1106-add-termlink-net-test--layered-hub-conne.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-17T18:05:18"
+    action: "T-1106: Add termlink net test — layered hub connectivity diagnostic (TCP/TLS/AUTH/PING)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 1
+  files_changed: 6
+  lines_added: 788
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1106-add-termlink-net-test--layered-hub-conne.md
+generated_by: context-agent-hybrid

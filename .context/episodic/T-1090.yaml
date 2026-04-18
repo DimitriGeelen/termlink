@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1090: E2E validation of rubber-stamp review tasks via termlink and local verification
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-16T21:12:12Z
+# ============================================================================
+
+task_id: T-1090
+task_name: "E2E validation of rubber-stamp review tasks via termlink and local verification"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T19:21:00Z
+completed: 2026-04-16T21:12:08Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-16T23:11:59+02:00
+last_commit: 2026-04-16T23:11:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Programmatic evidence for 32 rubber-stamp tasks (44 total with T-1087)
+
+# Key outcomes
+outcomes:
+  - "At least 8 review-queue tasks validated with programmatic evidence (32 new + 12 from T-1087 = 44 total)"
+  - "Evidence recorded as task file updates with programmatic-evidence notes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1007-add-router-tests-for-sessionupdate-and-e.md"
+  - ".tasks/active/T-1012-fix-mcp-remote-tools-to-resolve-hub-prof.md"
+  - ".tasks/active/T-1019-add-musl-static-build-target-to-cireleas.md"
+  - ".tasks/active/T-1090-e2e-validation-of-rubber-stamp-review-ta.md"
+  - ".tasks/active/T-908-api-relay-governance--local-proxy-for-de.md"
+  - ".tasks/active/T-909-fix-agentic-framework-symlink--replace-w.md"
+  - ".tasks/active/T-921-full-cross-host-parity--every-termlink-c.md"
+  - ".tasks/active/T-922-codify-mcp-auto-exposure--every-new-cli-.md"
+  - ".tasks/active/T-937-pickup-termlink-cleanup-kills-active-dis.md"
+  - ".tasks/active/T-941-pickup-include-persistent-agent-session-.md"
+  - ".tasks/active/T-942-pickup-hub-should-scan-multiple-session-.md"
+  - ".tasks/active/T-945-pickup-u-001-tls-cert-regenerates-on-eve.md"
+  - ".tasks/active/T-946-pickup-u-002-hub-level-inbox--store-file.md"
+  - ".tasks/active/T-947-pickup-canary-30s-pickup-processor-smoke.md"
+  - ".tasks/active/T-950-pickup-30-second-pickup-processor-cycle-.md"
+  - ".tasks/active/T-951-pickup-u-003-send-file-reports-ok-on-hub.md"
+  - ".tasks/active/T-952-pickup-l-004-termlink-inject-vs-push--in.md"
+  - ".tasks/active/T-953-pickup-l-006-termlink-send-file-oktrue-m.md"
+  - ".tasks/active/T-954-pickup-partial-migrations-are-a-recurrin.md"
+  - ".tasks/active/T-955-pickup-dry-run-saved-us-from-silent-data.md"
+  - ".tasks/active/T-956-pickup-pickup-envelopes--messaging-chann.md"
+  - ".tasks/active/T-957-pickup-cross-host-agent-access-requires-.md"
+  - ".tasks/active/T-958-pickup-inception-decide-codepath-has-4-s.md"
+  - ".tasks/active/T-959-pickup-two-pool-architecture-persistent-.md"
+  - ".tasks/active/T-967-persistent-agent-sessions--mark-protect-.md"
+  - ".tasks/active/T-968-pickup-t-1135-persistent-termlink-agent-.md"
+  - ".tasks/active/T-972-deep-rca-agent-command-amnesia--why-do-a.md"
+  - ".tasks/active/T-976-posttooluse-hook-to-scan-for-bare-comman.md"
+  - ".tasks/active/T-977-fw-hook-enable-command--register-hooks-i.md"
+  - ".tasks/active/T-978-add-checksum-manifest-to-fw-upgrade--det.md"
+  - ".tasks/active/T-980-tier-0-self-approval-bypass--agent-can-c.md"
+  - ".tasks/active/T-984-fw-upgrade-silently-reverts-local-patche.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T23:11:59"
+    action: "T-1090: Programmatic evidence for 32 rubber-stamp tasks (44 total with T-1087)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 111 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 111
+  commits: 1
+  files_changed: 32
+  lines_added: 177
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1090-e2e-validation-of-rubber-stamp-review-ta.md
+generated_by: context-agent-hybrid
