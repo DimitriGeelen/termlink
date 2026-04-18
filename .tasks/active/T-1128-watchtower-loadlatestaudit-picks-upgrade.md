@@ -63,3 +63,8 @@ PROJECT_ROOT=/opt/termlink PYTHONPATH=.agentic-framework python3 -c "from web.sh
 
 ### 2026-04-18T18:40:30Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-18T19:46Z — evidence [agent]
+- **Action:** Curled http://localhost:3000/ ambient strip.
+- **Result:** Shows `Audit: WARN` (matches today's `.context/audits/2026-04-18.yaml` summary with `warn: 1`), not `Audit: unknown`. The date-prefix glob `[0-9][0-9][0-9][0-9]-*.yaml` correctly skipped `upgrades.yaml`.
+- **Suggest:** Human can check the REVIEW box.
