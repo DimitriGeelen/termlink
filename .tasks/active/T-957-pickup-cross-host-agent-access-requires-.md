@@ -59,12 +59,12 @@ date_finished: 2026-04-12T15:59:22Z
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Hub + named persistent sessions + shared runtime_dir alignment is verifiable via `fw fleet doctor`
+- Structural work (T-940 runtime-dir unification, T-942 multi-dir scan, T-941 persistent session templates) absorbs the learning
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Cross-host access requires a fundamentally different model (e.g., centralized session registry)
+- The three-part alignment proves fragile in production and needs a redesign
 
 ## Verification
 

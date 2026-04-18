@@ -59,12 +59,12 @@ date_finished: 2026-04-12T15:59:19Z
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- L-006 semantic (`ok:true` = hub accepted, not delivered) is captured in learnings.yaml
+- Structural fix tracked elsewhere (T-1017 receiver-check) closes the silent-loss window
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- No one acts on the learning and operators keep interpreting `ok:true` as delivery confirmation
+- The receiver-check fix (T-1017) never lands, leaving silent data loss unresolved
 
 ## Verification
 

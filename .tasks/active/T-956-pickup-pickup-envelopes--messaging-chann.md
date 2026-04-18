@@ -59,12 +59,12 @@ date_finished: 2026-04-12T15:59:20Z
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- CLAUDE.md documents the pickup-envelope (messaging) vs termlink-session (execution) distinction
+- G-020 gate blocks pickup messages mis-scoped as build instructions (already shipping)
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Agents repeatedly treat pickup envelopes as execution requests despite docs + gate
+- The distinction proves impossible to codify without a larger redesign
 
 ## Verification
 
