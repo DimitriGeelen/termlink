@@ -4,7 +4,7 @@ name: "Housekeeping — gitignore runtime state per L-028 + cleanup uncommitted 
 description: >
   Housekeeping — gitignore runtime state per L-028 + cleanup uncommitted churn
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T15:40:05Z
-last_update: 2026-04-18T15:40:05Z
-date_finished: null
+last_update: 2026-04-18T15:43:38Z
+date_finished: 2026-04-18T15:43:38Z
 ---
 
 # T-1126: Housekeeping — gitignore runtime state per L-028 + cleanup uncommitted churn
@@ -25,12 +25,12 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.gitignore` excludes `.playwright-mcp/`, root `*.png`, ephemeral `.context/working/*` counters, and `.context/locks/`
-- [ ] Stray root PNG screenshots removed from working tree
-- [ ] Task lifecycle (active→completed) moves committed
-- [ ] Cron audit rotation (Apr 7-8 purge + new daily audits) committed
-- [ ] Handovers, episodics, approvals, and settings changes committed
-- [ ] `git status --short | grep -v '^??' | wc -l` drops below 30 after cleanup
+- [x] `.gitignore` excludes `.playwright-mcp/`, root `*.png`, ephemeral `.context/working/*` counters, and `.context/locks/`
+- [x] Stray root PNG screenshots removed from working tree
+- [x] Task lifecycle (active→completed) moves committed
+- [x] Cron audit rotation (Apr 7-8 purge + new daily audits) committed
+- [x] Handovers, episodics, approvals, and settings changes committed
+- [x] `git status --short | grep -v '^??' | wc -l` drops below 30 after cleanup (final: 24)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -70,3 +70,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1126-housekeeping--gitignore-runtime-state-pe.md
 - **Context:** Initial task creation
+
+### 2026-04-18T15:43:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
