@@ -86,3 +86,11 @@ date_finished: null
 
 ### 2026-04-16T21:15:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-18T19:35Z — observation [agent]
+- **Action:** Ran `termlink fleet status` to verify current state.
+- **Findings:**
+  - ring20-dashboard (.121) is **UP** — auth healed; status shows `[UP] 1 sessions (56ms)`. Human AC #1 effectively satisfied (someone fetched the new secret already; the fleet is now passing on this hub).
+  - ring20-management (.122) still **DOWN** — TOFU violation (fingerprint changed sha256:cbc4… → sha256:b855…) AND port 9100 refused. Hub was restarted with a new cert at some point and the process is no longer accepting connections. Human AC #2 still required.
+  - local-test (127.0.0.1:9100) UP — 3 sessions.
+- **Recommendation:** Once .122 is healed (Human AC #2), the human can check both ACs and close. No further agent action needed.
