@@ -23,6 +23,34 @@ Thumbs.db
 # Claude Code backup
 .claude/settings.json.bak
 
+# Playwright MCP dev artifacts (L-028)
+.playwright-mcp/
+
+# Root-level screenshots (dev scratch)
+/*.png
+
+# Ephemeral session state (L-028)
+.context/working/.tool-counter
+.context/working/.edit-counter
+.context/working/.new-file-counter
+.context/working/.budget-status
+.context/working/.budget-gate-counter
+.context/working/.prev-token-reading
+.context/working/.session-turn-offset
+.context/working/.session-start-ts
+.context/working/.compact-log
+.context/working/.fleet-failure-state.json
+
+# Task locks (runtime, per-session)
+.context/locks/
+
+# Review markers (runtime scratch)
+.context/working/.reviewed-*
+.context/working/.tier0-approval*
+.context/working/.fleet-learning-*
+.context/working/.learnings-exchange-cursor.yaml
+.context/working/.fw-secret-key
+
 # Framework agent symlinks (machine-specific, point to Homebrew install)
 agents/audit
 agents/context
