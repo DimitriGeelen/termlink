@@ -106,6 +106,7 @@ def build_ambient():
     if handovers_dir.exists():
         sessions = sorted(handovers_dir.glob("S-*.md"), reverse=True)
         if sessions:
+            ambient["session_id"] = sessions[0].stem
             content = sessions[0].read_text(errors="replace")
             ts_match = re_mod.search(r"timestamp:\s*(\S+)", content)
             if ts_match:

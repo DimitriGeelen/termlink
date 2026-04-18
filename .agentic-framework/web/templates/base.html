@@ -318,7 +318,7 @@
               hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
               style="color:inherit; text-decoration:none;" title="Open focus task">{{ ambient.focus_task }}</a>{% else %}No focus{% endif %}</span>
         <span class="sep">|</span>
-        <span>Session: {{ ambient.session_age or 'unknown' }}</span>
+        <span title="{{ ambient.session_id or 'no session' }}">Session: {{ ambient.session_age or 'unknown' }}</span>
         <span class="sep">|</span>
         <a href="{{ url_for('quality.quality_gate') }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
            style="color:inherit; text-decoration:none;" title="Open quality / audit report">Audit:
