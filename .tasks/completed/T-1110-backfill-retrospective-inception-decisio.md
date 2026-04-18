@@ -1,22 +1,22 @@
 ---
-id: T-1111
-name: "Fix .mcp.json schema — wrap servers in mcpServers key"
+id: T-1110
+name: "Backfill retrospective inception decisions"
 description: >
-  Fix .mcp.json schema — wrap servers in mcpServers key
+  Backfill retrospective inception decisions
 
-status: started-work
-workflow_type: build
+status: work-completed
+workflow_type: refactor
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-17T19:45:43Z
-last_update: 2026-04-17T19:45:43Z
-date_finished: null
+created: 2026-04-17T19:03:17Z
+last_update: 2026-04-17T19:35:19Z
+date_finished: 2026-04-17T19:35:19Z
 ---
 
-# T-1111: Fix .mcp.json schema — wrap servers in mcpServers key
+# T-1110: Backfill retrospective inception decisions
 
 ## Context
 
@@ -26,8 +26,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `.mcp.json` parses as valid JSON and contains top-level `mcpServers` key wrapping all three servers
-- [ ] `claude mcp list` shows context7, playwright, and termlink without schema errors
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -63,7 +63,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-17T19:45:43Z — task-created [task-create-agent]
+### 2026-04-17T19:03:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1111-fix-mcpjson-schema--wrap-servers-in-mcps.md
+- **Output:** /opt/termlink/.tasks/active/T-1110-backfill-retrospective-inception-decisio.md
 - **Context:** Initial task creation
+
+### 2026-04-17T19:35:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -12,7 +12,7 @@ tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:12:03Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-18T14:56:54Z
 date_finished: 2026-04-12T13:03:34Z
 ---
 
@@ -94,7 +94,16 @@ date_finished: 2026-04-12T13:03:34Z
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+Rationale: 30-second pickup cycle validated as sustainable — zero errors, no runaway resource usage. Codified as the default cadence (later relaxed to 1-min cron for additional headroom without changing semantics). Learning absorbed; no build work required.
+Evidence:
+- Pickup cron active at 1-min interval with zero errors (programmatic evidence T-1090, 2026-04-16)
+- No CPU/memory concerns observed in live operation
+- Related learning stored in `.context/project/learnings.yaml`
+
+**Date**: 2026-04-18T14:56:54Z
 
 ## Updates
 
@@ -115,3 +124,13 @@ date_finished: 2026-04-12T13:03:34Z
 ### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
 - **Evidence:** Pickup cron active at 1-min interval; no errors in syslog (upgraded from 30s to 1min for sustainability)
 - **Verified by:** automated command execution
+
+### 2026-04-18T14:56:54Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+Rationale: 30-second pickup cycle validated as sustainable — zero errors, no runaway resource usage. Codified as the default cadence (later relaxed to 1-min cron for additional headroom without changing semantics). Learning absorbed; no build work required.
+Evidence:
+- Pickup cron active at 1-min interval with zero errors (programmatic evidence T-1090, 2026-04-16)
+- No CPU/memory concerns observed in live operation
+- Related learning stored in `.context/project/learnings.yaml`

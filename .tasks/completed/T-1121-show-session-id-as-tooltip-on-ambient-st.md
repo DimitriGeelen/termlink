@@ -1,33 +1,33 @@
 ---
-id: T-1110
-name: "Backfill retrospective inception decisions"
+id: T-1121
+name: "Show session ID as tooltip on ambient strip session age"
 description: >
-  Backfill retrospective inception decisions
+  Show session ID as tooltip on ambient strip session age
 
-status: started-work
-workflow_type: refactor
+status: work-completed
+workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-17T19:03:17Z
-last_update: 2026-04-17T19:03:17Z
-date_finished: null
+created: 2026-04-18T09:36:47Z
+last_update: 2026-04-18T09:38:31Z
+date_finished: 2026-04-18T09:38:31Z
 ---
 
-# T-1110: Backfill retrospective inception decisions
+# T-1121: Show session ID as tooltip on ambient strip session age
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The ambient strip shows "Session: 2h ago" with no way to know which session that refers to. Adding the session ID as a tooltip on the session-age span gives operators that context without taking strip space.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] build_ambient adds session_id derived from latest handover filename (e.g., S-2026-0418-1100)
+- [x] base.html session-age span has title attribute showing the session ID
+- [x] Pages still render
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -35,7 +35,7 @@ date_finished: null
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
      Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
      Example:
-       - [ ] [REVIEW] Dashboard renders correctly
+       - [x] [REVIEW] Dashboard renders correctly
          **Steps:**
          1. Open https://example.com/dashboard in browser
          2. Verify all panels load within 2 seconds
@@ -46,9 +46,8 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+curl -sf http://localhost:3000/ > /dev/null
+curl -sf http://localhost:3000/ | grep -qE 'title="S-[0-9]+'
 
 ## Decisions
 
@@ -63,7 +62,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-17T19:03:17Z — task-created [task-create-agent]
+### 2026-04-18T09:36:47Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1110-backfill-retrospective-inception-decisio.md
+- **Output:** /opt/termlink/.tasks/active/T-1121-show-session-id-as-tooltip-on-ambient-st.md
 - **Context:** Initial task creation
+
+### 2026-04-18T09:38:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

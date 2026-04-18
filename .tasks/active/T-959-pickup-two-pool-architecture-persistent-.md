@@ -12,7 +12,7 @@ tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T08:41:35Z
-last_update: 2026-04-16T05:39:44Z
+last_update: 2026-04-18T15:05:25Z
 date_finished: 2026-04-12T15:59:57Z
 ---
 
@@ -94,7 +94,16 @@ date_finished: 2026-04-12T15:59:57Z
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+Rationale: Two-pool pattern (persistent `/var/lib/termlink` for daemons, ephemeral `/tmp` for user sessions) is a deliberate design — not a bug to unify. Codify it; fix symptoms at the observer layer (multi-dir hub scan) rather than collapsing pools.
+Evidence:
+- T-940 / T-942 (multi-dir hub scanning) make the two-pool model observable without merging pools
+- Pattern documented in `.context/project/learnings.yaml`
+- No operational incidents attributable to the pool split since the learning was codified
+
+**Date**: 2026-04-18T15:05:25Z
 
 ## Updates
 
@@ -115,3 +124,13 @@ date_finished: 2026-04-12T15:59:57Z
 ### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
 - **Evidence:** /var/lib/termlink/ (persistent pool) and /tmp/termlink-0/ (ephemeral pool) both exist; hub.cert.pem in persistent, sessions in ephemeral
 - **Verified by:** automated command execution
+
+### 2026-04-18T15:05:25Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+Rationale: Two-pool pattern (persistent `/var/lib/termlink` for daemons, ephemeral `/tmp` for user sessions) is a deliberate design — not a bug to unify. Codify it; fix symptoms at the observer layer (multi-dir hub scan) rather than collapsing pools.
+Evidence:
+- T-940 / T-942 (multi-dir hub scanning) make the two-pool model observable without merging pools
+- Pattern documented in `.context/project/learnings.yaml`
+- No operational incidents attributable to the pool split since the learning was codified

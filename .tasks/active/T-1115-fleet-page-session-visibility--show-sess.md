@@ -4,16 +4,16 @@ name: "Fleet page session visibility — show session names per hub"
 description: >
   Fleet page session visibility — show session names per hub
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T21:33:47Z
-last_update: 2026-04-17T21:33:47Z
-date_finished: null
+last_update: 2026-04-17T22:32:21Z
+date_finished: 2026-04-17T22:18:36Z
 ---
 
 # T-1115: Fleet page session visibility — show session names per hub
@@ -62,3 +62,6 @@ curl -sf http://localhost:3000/api/fleet/status | python3 -c "import sys,json; d
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1115-fleet-page-session-visibility--show-sess.md
 - **Context:** Initial task creation
+
+### 2026-04-17T22:18:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -12,7 +12,7 @@ tags: [watchtower, security, csrf]
 components: []
 related_tasks: []
 created: 2026-04-18T10:01:16Z
-last_update: 2026-04-18T10:01:16Z
+last_update: 2026-04-18T10:01:24Z
 date_finished: null
 ---
 

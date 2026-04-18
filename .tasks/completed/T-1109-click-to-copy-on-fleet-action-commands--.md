@@ -4,7 +4,7 @@ name: "Click-to-copy on /fleet action commands + bundle session learnings"
 description: >
   Make each action line in the /fleet page's Actions Needed section click-to-copy (so the operator can paste the fix command into their terminal in one click). Bundles PL-026 and PL-027 learnings from T-1106/T-1107 via the commit.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T16:42:59Z
-last_update: 2026-04-17T16:42:59Z
-date_finished: null
+last_update: 2026-04-17T17:57:35Z
+date_finished: 2026-04-17T17:57:35Z
 ---
 
 # T-1109: Click-to-copy on /fleet action commands + bundle session learnings
@@ -69,3 +69,6 @@ curl -sf http://localhost:3000/fleet | grep -q "copyAction"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1109-click-to-copy-on-fleet-action-commands--.md
 - **Context:** Initial task creation
+
+### 2026-04-17T17:57:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

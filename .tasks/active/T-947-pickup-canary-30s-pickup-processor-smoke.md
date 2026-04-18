@@ -12,7 +12,7 @@ tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:05Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-18T14:56:49Z
 date_finished: 2026-04-12T13:03:33Z
 ---
 
@@ -94,7 +94,16 @@ date_finished: 2026-04-12T13:03:33Z
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+Rationale: Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
+Evidence:
+- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
+- Zero errors in syslog over observation window
+- Processor cadence tuned to 1-min for headroom (see T-950)
+
+**Date**: 2026-04-18T14:56:48Z
 
 ## Updates
 
@@ -115,3 +124,13 @@ date_finished: 2026-04-12T13:03:33Z
 ### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
 - **Evidence:** Pickup cron running at 1-min interval (/etc/cron.d/agentic-pickup-termlink confirms * * * * *)
 - **Verified by:** automated command execution
+
+### 2026-04-18T14:56:48Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+Rationale: Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
+Evidence:
+- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
+- Zero errors in syslog over observation window
+- Processor cadence tuned to 1-min for headroom (see T-950)

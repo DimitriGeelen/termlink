@@ -4,7 +4,7 @@ name: "Consumer install/update UX — why cargo build when we already ship binar
 description: >
   Inception: Consumer install/update UX — why cargo build when we already ship binaries
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T21:15:31Z
-last_update: 2026-04-15T21:26:49Z
-date_finished: null
+last_update: 2026-04-18T15:17:12Z
+date_finished: 2026-04-18T15:17:12Z
 ---
 
 # T-1070: Consumer install/update UX — why cargo build when we already ship binaries
@@ -172,7 +172,7 @@ Proposed scope for build task (if GO):
 
 Research artifact: `docs/reports/T-1070-consumer-install-ux.md`.
 
-**Date**: 2026-04-18T15:05:37Z
+**Date**: 2026-04-18T15:17:12Z
 
 ## Updates
 
@@ -225,3 +225,29 @@ Proposed scope for build task (if GO):
 3. Update README with the one-liner install.
 
 Research artifact: `docs/reports/T-1070-consumer-install-ux.md`.
+
+### 2026-04-18T15:17:12Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: The release pipeline already ships 5-target binaries to GitHub Releases. The gap is between "binary exists" and "consumer runs it" — a missing `install.sh` curl-pipe bootstrap. Fix is bounded (~80 lines of shell + a Homebrew formula tweak). Every fresh-host scenario hit this session (ring20 LXCs, parallel session's no-cargo host) is unblocked by the same small intervention.
+
+Evidence:
+- `.github/workflows/release.yml` — 5-target matrix confirmed.
+- `scripts/update-homebrew-sha.sh` — Homebrew updater only hashes 4 targets (darwin ×2 + linux-gnu ×2); no musl.
+- `scripts/deploy-remote.sh` — the only "fresh host" install path is SSH-based.
+- `termlink --help` — no `self-update` / `update` subcommand.
+- README — points consumers to `brew install` (macOS-centric) or `cargo install --git` (the failure mode).
+- The 3 ring20 containers (.109/.121/.122) have no working install path without SSH — structural blocker.
+
+Proposed scope for build task (if GO):
+1. Ship `install.sh` at repo root (auto-detect target triple, curl + checksum-verify from GitHub Releases, install to `/usr/local/bin`).
+2. Add the musl variant to the Homebrew formula (or swap linux-gnu for linux-musl to improve LXC compatibility).
+3. Update README with the one-liner install.
+
+Research artifact: `docs/reports/T-1070-consumer-install-ux.md`.
+
+### 2026-04-18T15:17:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

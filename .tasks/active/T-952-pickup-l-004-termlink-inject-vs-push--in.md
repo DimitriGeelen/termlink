@@ -12,7 +12,7 @@ tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:38:31Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-18T15:04:53Z
 date_finished: 2026-04-12T15:59:17Z
 ---
 
@@ -94,7 +94,16 @@ date_finished: 2026-04-12T15:59:17Z
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+Rationale: L-004 learning absorbed into CLI surface. Both `termlink inject` (interactive, blocking) and `termlink remote push` (async, fire-and-forget) are shipped and documented. Operator guidance is clear from command names and help text.
+Evidence:
+- Both commands available in CLI and verified by T-1090 (2026-04-16)
+- Docstrings reflect the inject-for-interactive / push-for-async distinction
+- Learning stored in `.context/project/learnings.yaml` (L-004)
+
+**Date**: 2026-04-18T15:04:53Z
 
 ## Updates
 
@@ -115,3 +124,13 @@ date_finished: 2026-04-12T15:59:17Z
 ### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
 - **Evidence:** termlink inject and termlink remote push both available; inject for intra-hub, push for remote — both in termlink --help
 - **Verified by:** automated command execution
+
+### 2026-04-18T15:04:53Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+Rationale: L-004 learning absorbed into CLI surface. Both `termlink inject` (interactive, blocking) and `termlink remote push` (async, fire-and-forget) are shipped and documented. Operator guidance is clear from command names and help text.
+Evidence:
+- Both commands available in CLI and verified by T-1090 (2026-04-16)
+- Docstrings reflect the inject-for-interactive / push-for-async distinction
+- Learning stored in `.context/project/learnings.yaml` (L-004)

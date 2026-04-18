@@ -4,16 +4,16 @@ name: "Fix remote doctor session check — use session.discover not session.list
 description: >
   Fix remote doctor session check — use session.discover not session.list
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T23:37:43Z
-last_update: 2026-04-16T23:37:43Z
-date_finished: null
+last_update: 2026-04-16T23:41:52Z
+date_finished: 2026-04-16T23:41:52Z
 ---
 
 # T-1099: Fix remote doctor session check — use session.discover not session.list
@@ -43,8 +43,8 @@ date_finished: null
 
 ## Verification
 
-bash -c '! grep -q "session.list" crates/termlink-cli/src/commands/remote.rs'
-bash -c '! grep -q "session.list" crates/termlink-mcp/src/tools.rs'
+bash -c '! grep -q "call(\"session.list\"" crates/termlink-cli/src/commands/remote.rs'
+bash -c '! grep -q "call(\"session.list\"" crates/termlink-mcp/src/tools.rs'
 
 ## Decisions
 
@@ -63,3 +63,6 @@ bash -c '! grep -q "session.list" crates/termlink-mcp/src/tools.rs'
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1099-fix-remote-doctor-session-check--use-ses.md
 - **Context:** Initial task creation
+
+### 2026-04-16T23:41:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

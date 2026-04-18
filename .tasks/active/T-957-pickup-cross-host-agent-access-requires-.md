@@ -12,7 +12,7 @@ tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:41:02Z
-last_update: 2026-04-16T05:39:44Z
+last_update: 2026-04-18T15:05:05Z
 date_finished: 2026-04-12T15:59:22Z
 ---
 
@@ -94,7 +94,16 @@ date_finished: 2026-04-12T15:59:22Z
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+Rationale: Requirement captured as a learning and fed into multiple structural fixes rather than a single build: T-940 (runtime-dir unification), T-942 (multi-dir hub scanning), T-941 (persistent agent session templates). No standalone build task needed — absorbed across subsystem work.
+Evidence:
+- T-940 / T-942 / T-941 all trace back to this learning
+- Named sessions + hub + shared runtime_dir alignment validated end-to-end by `fw fleet doctor`
+- Learning stored in `.context/project/learnings.yaml`
+
+**Date**: 2026-04-18T15:05:05Z
 
 ## Updates
 
@@ -115,3 +124,13 @@ date_finished: 2026-04-12T15:59:22Z
 ### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
 - **Evidence:** Hub secret, TOFU trust, and session discovery all confirmed working: hub.secret in /tmp/termlink-0/, tofu list shows 4 entries, discover shows 8 sessions
 - **Verified by:** automated command execution
+
+### 2026-04-18T15:05:05Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+Rationale: Requirement captured as a learning and fed into multiple structural fixes rather than a single build: T-940 (runtime-dir unification), T-942 (multi-dir hub scanning), T-941 (persistent agent session templates). No standalone build task needed — absorbed across subsystem work.
+Evidence:
+- T-940 / T-942 / T-941 all trace back to this learning
+- Named sessions + hub + shared runtime_dir alignment validated end-to-end by `fw fleet doctor`
+- Learning stored in `.context/project/learnings.yaml`

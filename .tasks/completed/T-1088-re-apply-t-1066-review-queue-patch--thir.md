@@ -4,7 +4,7 @@ name: "Re-apply T-1066 review-queue patch — third clobber by auto-upgrade"
 description: >
   Re-apply T-1066 review-queue patch — third clobber by auto-upgrade
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T19:17:41Z
-last_update: 2026-04-16T19:17:41Z
-date_finished: null
+last_update: 2026-04-16T19:19:16Z
+date_finished: 2026-04-16T19:19:16Z
 ---
 
 # T-1088: Re-apply T-1066 review-queue patch — third clobber by auto-upgrade
@@ -51,3 +51,6 @@ fw task help 2>&1 | grep -q review-queue
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1088-re-apply-t-1066-review-queue-patch--thir.md
 - **Context:** Initial task creation
+
+### 2026-04-16T19:19:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

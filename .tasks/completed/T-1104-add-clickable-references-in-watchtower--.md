@@ -4,7 +4,7 @@ name: "Add clickable references in Watchtower — task IDs link to review pages,
 description: >
   Add clickable references in Watchtower — task IDs link to review pages, hub profiles link to fleet
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T10:08:42Z
-last_update: 2026-04-17T10:08:42Z
-date_finished: null
+last_update: 2026-04-17T20:44:43Z
+date_finished: 2026-04-17T16:05:52Z
 ---
 
 # T-1104: Add clickable references in Watchtower — task IDs link to review pages, hub profiles link to fleet
@@ -30,11 +30,11 @@ shared.py and is registered as a Jinja filter. Currently only used in timeline.h
 - [x] `linkify_tasks` filter applied to task description in task_detail.html
 - [x] `linkify_tasks` filter applied to fleet page actions text
 - [x] `linkify_tasks` filter applied to AC text in task_detail.html (3 occurrences)
-- [ ] Verified links render in browser (requires watchtower restart with template reload)
+- [x] Verified links render: `curl /tasks/T-1101` shows `<a href="/tasks/T-1102">T-1102</a>`
 
 ## Verification
 
-bash -c 'curl -sf http://localhost:3002/tasks | grep -q "href=\"/tasks/T-"'
+curl -sf http://localhost:3000/tasks/T-1101 | grep -q 'href="/tasks/T-'
 
 ## Decisions
 
@@ -53,3 +53,6 @@ bash -c 'curl -sf http://localhost:3002/tasks | grep -q "href=\"/tasks/T-"'
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1104-add-clickable-references-in-watchtower--.md
 - **Context:** Initial task creation
+
+### 2026-04-17T16:05:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,33 +1,32 @@
 ---
-id: T-1123
-name: "Make Watchtower auto-discover PROJECT_ROOT (don't require env var)"
+id: T-1120
+name: "Make project root in ambient strip link to /project"
 description: >
-  Watchtower defaults PROJECT_ROOT to FRAMEWORK_ROOT when env not set. This makes ambient strip read framework's own .context/ instead of project's. Have shared.py walk up from CWD looking for .context/ + .tasks/ to identify the project root, fall back to FRAMEWORK_ROOT only if no project found.
+  Make project root in ambient strip link to /project
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-04-18T09:49:49Z
-last_update: 2026-04-18T09:49:56Z
-date_finished: null
+created: 2026-04-18T09:20:19Z
+last_update: 2026-04-18T09:21:06Z
+date_finished: 2026-04-18T09:21:06Z
 ---
 
-# T-1123: Make Watchtower auto-discover PROJECT_ROOT (don't require env var)
+# T-1120: Make project root in ambient strip link to /project
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The project root display in the ambient strip is plain text. Linking it to /project (project docs page) makes it a discoverable shortcut to project-specific documentation.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Project root in ambient strip is wrapped in an anchor pointing to /project
+- [x] Existing pages still render
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -46,9 +45,8 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+curl -sf http://localhost:3000/ > /dev/null
+curl -sf http://localhost:3000/ | grep -q 'href="/project"'
 
 ## Decisions
 
@@ -63,7 +61,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-04-18T09:49:49Z — task-created [task-create-agent]
+### 2026-04-18T09:20:19Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1123-make-watchtower-auto-discover-projectroo.md
+- **Output:** /opt/termlink/.tasks/active/T-1120-make-project-root-in-ambient-strip-link-.md
 - **Context:** Initial task creation
+
+### 2026-04-18T09:21:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

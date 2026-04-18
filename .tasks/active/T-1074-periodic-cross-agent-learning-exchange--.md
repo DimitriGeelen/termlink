@@ -4,7 +4,7 @@ name: "Periodic cross-agent learning exchange — 15-min cron asks every reachab
 description: >
   Inception: Periodic cross-agent learning exchange — 15-min cron asks every reachable peer what they learned
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T21:32:59Z
-last_update: 2026-04-15T21:32:59Z
+last_update: 2026-04-18T15:17:24Z
 date_finished: null
 ---
 
@@ -137,9 +137,22 @@ This task was propagated to reachable termlink peers at creation time as `pickup
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: (To be written after spikes 1–4. Preliminary direction: GO with a cross-fleet pull-poll-15m-with-dedup approach using `event.broadcast` as the wire because T-1071 proved its protocol-skew resilience. Final recommendation pending.)
+
+**Date**: 2026-04-18T15:17:24Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-18T15:17:24Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** (To be written after spikes 1–4. Preliminary direction: GO with a cross-fleet pull-poll-15m-with-dedup approach using `event.broadcast` as the wire because T-1071 proved its protocol-skew resilience. Final recommendation pending.)
+
+### 2026-04-18T15:17:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Reason:** Inception decision in progress

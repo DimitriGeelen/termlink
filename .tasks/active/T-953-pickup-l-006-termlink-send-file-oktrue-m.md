@@ -12,7 +12,7 @@ tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:38:33Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-18T15:04:56Z
 date_finished: 2026-04-12T15:59:19Z
 ---
 
@@ -94,7 +94,16 @@ date_finished: 2026-04-12T15:59:19Z
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+Rationale: L-006 learning captured and traced to a real bug class (silent data loss when receiver offline). The consequence of `send-file ok:true` being hub-accepted but not delivered is being fixed structurally by T-1017 (send-file receiver check).
+Evidence:
+- T-1017 active build task tracks the fix
+- Semantics documented in `.context/project/learnings.yaml` (L-006)
+- Agent guidance reinforced by PL-004 in project practice list
+
+**Date**: 2026-04-18T15:04:56Z
 
 ## Updates
 
@@ -115,3 +124,13 @@ date_finished: 2026-04-12T15:59:19Z
 ### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
 - **Evidence:** T-1017 tracks the silent data loss issue; send-file semantics documented in learning L-006; fix implemented
 - **Verified by:** automated command execution
+
+### 2026-04-18T15:04:56Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+Rationale: L-006 learning captured and traced to a real bug class (silent data loss when receiver offline). The consequence of `send-file ok:true` being hub-accepted but not delivered is being fixed structurally by T-1017 (send-file receiver check).
+Evidence:
+- T-1017 active build task tracks the fix
+- Semantics documented in `.context/project/learnings.yaml` (L-006)
+- Agent guidance reinforced by PL-004 in project practice list
