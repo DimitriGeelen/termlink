@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1121: Show session ID as tooltip on ambient strip session age
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-18T09:59:21Z
+# ============================================================================
+
+task_id: T-1121
+task_name: "Show session ID as tooltip on ambient strip session age"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T09:36:47Z
+completed: 2026-04-18T09:38:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-18T11:38:32+02:00
+last_commit: 2026-04-18T11:44:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Show session ID as tooltip on ambient strip session age. Capture learning — Watchtower PROJECT_ROOT env required for project-correct ambient strip
+
+# Key outcomes
+outcomes:
+  - "build_ambient adds session_id derived from latest handover filename (e.g., S-2026-0418-1100)"
+  - "base.html session-age span has title attribute showing the session ID"
+  - "Pages still render"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/shared.py"
+  - ".agentic-framework/web/templates/base.html"
+  - ".context/project/enforcement-baseline.sha256"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-18T11:38:32"
+    action: "T-1121: Show session ID as tooltip on ambient strip session age"
+  - time: "2026-04-18T11:44:43"
+    action: "T-1121: Capture learning — Watchtower PROJECT_ROOT env required for project-correct ambient strip"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 5
+  lines_added: 7195
+  lines_removed: 7717
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1121-show-session-id-as-tooltip-on-ambient-st.md
+generated_by: context-agent-hybrid

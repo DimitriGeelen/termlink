@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1119: Make ambient strip focus task and audit status clickable
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-18T09:59:21Z
+# ============================================================================
+
+task_id: T-1119
+task_name: "Make ambient strip focus task and audit status clickable"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T09:04:22Z
+completed: 2026-04-18T09:06:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-18T11:06:01+02:00
+last_commit: 2026-04-18T11:06:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Make ambient strip focus task and audit status clickable
+
+# Key outcomes
+outcomes:
+  - "Focus task in ambient strip is a link to /tasks/<id> when a focus task exists"
+  - "Audit status in ambient strip links to /quality"
+  - "Attention count in ambient strip links to /tasks"
+  - "Existing pages still render without errors"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/templates/base.html"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-18T11:06:01"
+    action: "T-1119: Make ambient strip focus task and audit status clickable"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 1
+  lines_added: 8
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1119-make-ambient-strip-focus-task-and-audit-.md
+generated_by: context-agent-hybrid
