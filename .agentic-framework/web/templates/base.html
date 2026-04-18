@@ -314,18 +314,22 @@
     <!-- Ambient Status Strip -->
     {% if ambient %}
     <div class="ambient-strip container-fluid">
-        <span>{{ ambient.focus_task or 'No focus' }}</span>
+        <span>{% if ambient.focus_task %}<a href="{{ url_for('tasks.task_detail', task_id=ambient.focus_task) }}"
+              hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
+              style="color:inherit; text-decoration:none;" title="Open focus task">{{ ambient.focus_task }}</a>{% else %}No focus{% endif %}</span>
         <span class="sep">|</span>
         <span>Session: {{ ambient.session_age or 'unknown' }}</span>
         <span class="sep">|</span>
-        <span>Audit:
+        <a href="{{ url_for('quality.quality_gate') }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
+           style="color:inherit; text-decoration:none;" title="Open quality / audit report">Audit:
             {% if ambient.audit_status == 'PASS' %}<span class="audit-pass">PASS</span>
             {% elif ambient.audit_status == 'WARN' %}<span class="audit-warn">WARN</span>
             {% elif ambient.audit_status == 'FAIL' %}<span class="audit-fail">FAIL</span>
             {% else %}{{ ambient.audit_status or 'unknown' }}{% endif %}
-        </span>
+        </a>
         <span class="sep">|</span>
-        <span><strong>{{ ambient.attention_count or 0 }}</strong> items need attention</span>
+        <a href="{{ url_for('tasks.tasks') }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
+           style="color:inherit; text-decoration:none;" title="Open tasks board"><strong>{{ ambient.attention_count or 0 }}</strong> items need attention</a>
         <span class="sep">|</span>
         <a href="{{ url_for('fleet.fleet_dashboard') }}" id="ambient-fleet" style="display:none; text-decoration:none; color:inherit;"
            hx-target="#content" hx-swap="innerHTML" hx-push-url="true" title="Fleet status — click for details">
