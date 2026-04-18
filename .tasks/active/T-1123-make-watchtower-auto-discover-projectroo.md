@@ -74,3 +74,8 @@ grep -q "_discover_project_root\|_resolve_project_root" .agentic-framework/web/s
 
 ### 2026-04-18T15:52:31Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-18T19:46Z — evidence [agent]
+- **Action:** Curled http://localhost:3000/ ambient strip.
+- **Result:** Active task list shows `T-160, T-163, T-173, T-174, T-175, T-176, T-180, T-1071, ...` — these are termlink (`/opt/termlink`) task IDs, not framework task IDs. PROJECT_ROOT auto-discovery resolved correctly to /opt/termlink (not falling back to FRAMEWORK_ROOT).
+- **Suggest:** Human can check the REVIEW box.

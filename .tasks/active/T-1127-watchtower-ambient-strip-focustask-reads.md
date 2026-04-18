@@ -64,3 +64,8 @@ grep -q "focus.yaml" .agentic-framework/web/shared.py
 
 ### 2026-04-18T15:57:33Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-18T19:46Z — evidence [agent]
+- **Action:** Curled http://localhost:3000/ after `fw work-on T-1071` set focus to T-1071.
+- **Result:** Ambient strip rendered shows `T-1071` (the focus.yaml current_task value), not the first-alphabetical active task. Verifies the fix tracks real focus.
+- **Suggest:** Human can check the REVIEW box.

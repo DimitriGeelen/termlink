@@ -73,3 +73,11 @@ test -f .context/working/.fw-secret-key && test "$(stat -c %a .context/working/.
 
 ### 2026-04-18T15:48:59Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-18T19:46Z — evidence [agent]
+- **Action:** Verified persistence and live behaviour.
+- **Result:**
+  - `.context/working/.fw-secret-key` exists, mode 600, owner root, 65 bytes (64 hex + newline).
+  - Fingerprint preview: `847b59dc0683…` — same as session start, confirming persistence across restarts.
+  - http://localhost:3000/ returns 200 (rendered HTML), no CSRF 403.
+- **Suggest:** Human can check the REVIEW box.
