@@ -1,0 +1,20 @@
+id: crates/termlink-cli/src/test_env_lock.rs
+name: test_env_lock
+type: module
+subsystem: cli
+location: crates/termlink-cli/src/test_env_lock.rs
+tags: [testing, thread-safety]
+
+purpose: "Crate-wide serialization primitive for tests that mutate process-global state (env::set_current_dir, env::set_var \"HOME\"). Prevents flaky parallel-test races on non-thread-safe OS APIs."
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-04-18
+created_by: unknown
