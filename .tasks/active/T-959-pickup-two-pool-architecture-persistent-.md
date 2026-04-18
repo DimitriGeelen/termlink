@@ -59,12 +59,12 @@ date_finished: 2026-04-12T15:59:57Z
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Two-pool pattern (persistent /var/lib/termlink + ephemeral /tmp) documented as intentional design
+- Observer-layer fix (T-940/T-942 multi-dir hub scan) makes both pools visible without merging them
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- The two-pool split causes recurring operator confusion outweighing its benefits
+- A single-pool design turns out to be simpler and covers the same use cases
 
 ## Verification
 

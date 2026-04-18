@@ -59,12 +59,12 @@ date_finished: 2026-04-12T15:59:17Z
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Both `termlink inject` (interactive) and `termlink remote push` (async) ship in the CLI
+- Command names and help text make the distinction self-evident to operators
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Operators routinely misuse inject vs push despite documentation
+- Semantics overlap in a way that invites silent misdelivery
 
 ## Verification
 
