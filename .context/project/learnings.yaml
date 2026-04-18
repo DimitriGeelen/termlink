@@ -470,3 +470,10 @@ learnings:
   date: 2026-04-18
   context: Added via context agent
   application: TBD
+- id: PL-033
+  learning: "Cross-project pickup loop works end-to-end: termlink pickup send creates P-NNN envelope in target .context/pickup/inbox/, consumer agent processes into inception tasks with research artifacts. Evidence: P-033-P-036 sent 2026-04-18, processed to T-1311-T-1314 same day without human intervention."
+  source: unknown
+  task: T-1129
+  date: 2026-04-18
+  context: Added via context agent
+  application: TBD
