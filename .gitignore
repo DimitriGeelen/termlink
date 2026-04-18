@@ -50,6 +50,8 @@ Thumbs.db
 .context/working/.fleet-learning-*
 .context/working/.learnings-exchange-cursor.yaml
 .context/working/.fw-secret-key
+.context/working/watchtower.log
+.context/working/watchtower.pid
 
 # Framework agent symlinks (machine-specific, point to Homebrew install)
 agents/audit
