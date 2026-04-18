@@ -1,6 +1,27 @@
 {
   "hubs": {
+    "bad-hub": {
+      "concern_registered": false,
+      "consecutive_failures": 0,
+      "first_failure_at": null,
+      "last_class": null,
+      "last_failure_at": null
+    },
     "local-test": {
+      "concern_registered": false,
+      "consecutive_failures": 0,
+      "first_failure_at": null,
+      "last_class": null,
+      "last_failure_at": null
+    },
+    "probe-105": {
+      "concern_registered": false,
+      "consecutive_failures": 1,
+      "first_failure_at": "2026-04-15T17:30:52Z",
+      "last_class": "auth-mismatch",
+      "last_failure_at": "2026-04-15T17:30:52Z"
+    },
+    "probe-131": {
       "concern_registered": false,
       "consecutive_failures": 0,
       "first_failure_at": null,

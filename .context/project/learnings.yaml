@@ -463,3 +463,10 @@ learnings:
   date: 2026-04-18
   context: Added via context agent
   application: TBD
+- id: PL-032
+  learning: "Flask secret_key must be persistent across app restarts — auto-generating on every start invalidates all existing browser session cookies and CSRF tokens. Load-or-generate-and-persist pattern at PROJECT_ROOT/.context/working/.fw-secret-key (chmod 600) gives CSRF tokens lifetime decoupled from process lifetime."
+  source: P-001
+  task: T-1125
+  date: 2026-04-18
+  context: Added via context agent
+  application: TBD
