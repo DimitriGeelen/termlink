@@ -32,6 +32,42 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Secret key resolution (T-1125)
+# ---------------------------------------------------------------------------
+
+def _resolve_secret_key() -> tuple[str, str]:
+    """Return (secret_key_hex, source_label).
+
+    Order: FW_SECRET_KEY env > .context/working/.fw-secret-key > generate+persist.
+    Never logs the key itself; callers log the source label only.
+    """
+    if Config.SECRET_KEY:
+        return Config.SECRET_KEY, "env:FW_SECRET_KEY"
+
+    key_file = PROJECT_ROOT / ".context" / "working" / ".fw-secret-key"
+    if key_file.is_file():
+        try:
+            key = key_file.read_text().strip()
+            if len(key) == 64 and all(c in "0123456789abcdef" for c in key):
+                return key, f"file:{key_file}"
+        except OSError as exc:
+            log.warning("Could not read %s: %s — regenerating", key_file, exc)
+
+    key = secrets.token_hex(32)
+    try:
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        key_file.write_text(key + "\n")
+        key_file.chmod(0o600)
+        return key, f"generated+persisted:{key_file}"
+    except OSError as exc:
+        log.warning(
+            "Could not persist secret key to %s: %s — using in-memory key",
+            key_file, exc,
+        )
+        return key, "generated:in-memory"
+
+
+# ---------------------------------------------------------------------------
 # Application factory
 # ---------------------------------------------------------------------------
 
@@ -43,15 +79,12 @@ def create_app() -> Flask:
         static_folder=str(APP_DIR / "static"),
     )
 
-    # Secret key: require FW_SECRET_KEY in production, auto-generate in dev
-    if Config.SECRET_KEY:
-        app.secret_key = Config.SECRET_KEY
-    else:
-        app.secret_key = secrets.token_hex(32)
-        log.warning(
-            "FW_SECRET_KEY not set — using auto-generated key. "
-            "Set FW_SECRET_KEY for production deployment."
-        )
+    # Secret key resolution order:
+    #   1. FW_SECRET_KEY env var (production deployments, gunicorn)
+    #   2. $PROJECT_ROOT/.context/working/.fw-secret-key (persistent dev default, T-1125)
+    #   3. Generate fresh, persist to the file, chmod 600
+    app.secret_key, _key_source = _resolve_secret_key()
+    log.warning("Flask secret_key source: %s", _key_source)
 
     # -------------------------------------------------------------------
     # CSRF protection
