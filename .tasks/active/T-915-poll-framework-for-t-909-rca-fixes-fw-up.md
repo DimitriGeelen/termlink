@@ -24,7 +24,7 @@ tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-11T14:55:00Z
+last_update: 2026-04-18T15:55:05Z
 date_finished: null
 ---
 
@@ -32,29 +32,25 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Periodic check: have upstream fixes landed for F1-F4?
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Polled framework git log since 2026-04-11 for F1-F4 keywords
+- [x] Findings recorded below; no direct F1 (build readiness) hit — leave horizon=later
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+**Poll results (2026-04-18):**
+- T-1259 (framework): Added CLAUDECODE guard to `fw inception decide` — adjacent but not F1
+- T-1223 (framework): Fixed `inception decide` 500 by adding captured→started-work transition
+- T-1258 (framework): Learnings.yaml RCA — identified Write-tool bypass as a truncation source
+- T-1232 (framework): Mined 232 bugfix learnings — improved retrospective capture
+- **No direct fix for F1** (`--force` still bypasses build readiness G-020 + AC P-010)
+- **No F2** (task-review prompt showing wrong consumer path — still shows `bin/fw`)
+- **F3 partial** (episodic ordering improvements mentioned in T-1236, but not structural deferral)
+- **No F4** (`fw vendor` still undocumented in Quick Reference)
+
+**Decision:** leave horizon=later. No `fw upgrade` warranted yet.
 
 ## Verification
 
@@ -92,3 +88,11 @@ date_finished: null
 - **Inspected code paths:** `git log --since=2026-04-09 -- bin/fw agents/inception lib/inception` → only one unrelated commit (`4fb978f4 T-1081: Fix fw gaps — honor T-397 rename to concerns.yaml`)
 - **Result:** No fixes landed for F1 (decide --force bypass), F2 (wrong runnable path), F3 (premature episodic), or F4 (fw vendor docs). Framework has acknowledged the gaps (T-1101) but no remediation commits yet.
 - **Action:** Leaving horizon=later. Will recheck next session.
+
+### 2026-04-18T15:54:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-18T15:55:05Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
