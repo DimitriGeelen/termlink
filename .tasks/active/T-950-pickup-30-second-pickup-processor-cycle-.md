@@ -59,12 +59,12 @@ date_finished: 2026-04-12T13:03:34Z
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- 30-second (or relaxed 1-minute) pickup cycle runs with zero errors over the observation window
+- No CPU/memory runaway — resource usage stays flat under normal envelope volume
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Cycle leaks resources or drops envelopes under sustained load
+- Shorter cadence creates contention with other framework hooks (budget gate, task hooks)
 
 ## Verification
 

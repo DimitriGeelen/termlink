@@ -59,12 +59,12 @@ date_finished: 2026-04-12T13:03:33Z
 ## Go/No-Go Criteria
 
 **GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Pickup processor demonstrably consumes envelopes (cron firing, no backlog, no errors)
+- Canary learning absorbed — no build work required by this task
 
 **NO-GO if:**
-- [Criterion 1]
-- [Criterion 2]
+- Pickup processor silently drops envelopes or accumulates backlog
+- Canary reveals a defect in the pickup pipeline that needs remediation
 
 ## Verification
 
