@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1097: Positive evidence for review queue — programmatic + termlink e2e + Playwright
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-16T23:04:14Z
+# ============================================================================
+
+task_id: T-1097
+task_name: "Positive evidence for review queue — programmatic + termlink e2e + Playwright"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T22:05:26Z
+completed: 2026-04-16T23:04:09Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-17T01:04:02+02:00
+last_commit: 2026-04-17T01:04:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Positive evidence — all 47 RUBBER-STAMP tasks + termlink e2e + Playwright validation
+
+# Key outcomes
+outcomes:
+  - "Approach A: programmatic evidence — all 47 RUBBER-STAMP tasks now have evidence (T-936, T-940 + 5 new test tasks added this round)"
+  - "Approach B: termlink e2e — 6 validations via local hub (inbox status, remote inbox, tofu list, discover, file send, fleet doctor JSON)"
+  - "Approach C: Playwright — 3 Watchtower pages validated (review/T-1007, /approvals, /tasks) — all render correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1091-add-cli-integration-tests-for-remote-lis.md"
+  - ".tasks/active/T-1092-add-cli-tests-for-dispatch-status-and-mc.md"
+  - ".tasks/active/T-1093-add-cli-tests-for-remote-profile-and-fle.md"
+  - ".tasks/active/T-1095-add-cli-tests-for-fleet-doctor-with-prof.md"
+  - ".tasks/active/T-1096-add-cli-tests-for-inbox-json-output-and-.md"
+  - ".tasks/active/T-1097-positive-evidence-for-review-queue--prog.md"
+  - ".tasks/active/T-936-migrate-termlink-cron-from-hand-written-.md"
+  - ".tasks/active/T-940-rca-unify-termlink-runtime-dir--split-br.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-17T01:04:02"
+    action: "T-1097: Positive evidence — all 47 RUBBER-STAMP tasks + termlink e2e + Playwright validation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 58 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 58
+  commits: 1
+  files_changed: 8
+  lines_added: 126
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1097-positive-evidence-for-review-queue--prog.md
+generated_by: context-agent-hybrid
