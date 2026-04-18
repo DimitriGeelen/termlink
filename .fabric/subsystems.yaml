@@ -2,7 +2,8 @@
 # Defines the high-level architecture for fabric overview and onboarding
 
 subsystems:
-  - name: protocol
+  - id: protocol
+    name: protocol
     description: "Wire protocol definitions — JSON-RPC 2.0 control plane + binary data plane frames"
     root: crates/termlink-protocol/src/
     depends_on: []
@@ -16,7 +17,8 @@ subsystems:
       - crates/termlink-protocol/src/jsonrpc.rs
       - crates/termlink-protocol/src/transport.rs
 
-  - name: session
+  - id: session
+    name: session
     description: "Session lifecycle — identity, registration, discovery, handlers, PTY, events, data plane"
     root: crates/termlink-session/src/
     depends_on: [protocol]
@@ -41,7 +43,8 @@ subsystems:
       - crates/termlink-session/src/server.rs
       - crates/termlink-session/src/transport.rs
 
-  - name: hub
+  - id: hub
+    name: hub
     description: "Message hub — routes requests between sessions, fan-out broadcast, fan-in collection"
     root: crates/termlink-hub/src/
     depends_on: [protocol, session]
@@ -53,7 +56,8 @@ subsystems:
       - crates/termlink-hub/src/server.rs
       - crates/termlink-hub/src/supervisor.rs
 
-  - name: cli
+  - id: cli
+    name: cli
     description: "User-facing CLI binary — 26+ subcommands for session management and communication"
     root: crates/termlink-cli/src/
     depends_on: [protocol, session, hub]
@@ -75,7 +79,8 @@ subsystems:
       - crates/termlink-cli/src/commands/agent.rs
       - crates/termlink-cli/src/commands/file.rs
 
-  - name: agent-mesh
+  - id: agent-mesh
+    name: agent-mesh
     description: "Agent mesh — dispatch tasks to Claude Code agents via TermLink events"
     root: agents/mesh/
     depends_on: [cli, hub, session]
