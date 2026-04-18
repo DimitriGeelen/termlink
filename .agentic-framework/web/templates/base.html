@@ -337,7 +337,8 @@
             <span id="ambient-fleet-text">…</span>
         </a>
         <span style="flex:1"></span>
-        <span title="{{ project_root }}" style="opacity:0.7"><strong>{{ project_root.split('/')[-1] }}</strong></span>
+        <a href="{{ url_for('core.project') }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
+           title="{{ project_root }} — open project docs" style="color:inherit; text-decoration:none; opacity:0.7;"><strong>{{ project_root.split('/')[-1] }}</strong></a>
     </div>
     {% endif %}
 
