@@ -1,0 +1,12 @@
+command_hash: 81554896b761815c1afd6e980e9059d7709d4656868bd550f57c1b3fbebaa9f8
+command_preview: find /opt/termlink/.agentic-framework -name "*.pyc" -path "*/templates*"
+  -delete 2>/dev/null; find /tmp -name "jinja*" -delete 2>/dev/null; echo "cleared"
+risk: 'FIND DELETE: Recursively deletes matching files'
+status: approved
+timestamp: '2026-04-17T10:32:13Z'
+type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-17T10:50:28Z'
+  mechanism: watchtower

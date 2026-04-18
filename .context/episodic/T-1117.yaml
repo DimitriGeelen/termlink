@@ -3,7 +3,7 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-04-18T08:52:42Z
+# Generated: 2026-04-18T09:59:20Z
 # ============================================================================
 
 task_id: T-1117
@@ -16,10 +16,12 @@ created: 2026-04-18T08:50:02Z
 completed: 2026-04-18T08:52:40Z
 duration_days: 0
 updates_count: 2
+first_commit: 2026-04-18T10:52:56+02:00
+last_commit: 2026-04-18T11:49:25+02:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
+  Add fleet indicator to ambient status strip — every-page visibility. Capture session learnings — setsid required for watchtower restart, Jinja2 in-memory cache survives .pyc deletion
 
 # Key outcomes
 outcomes:
@@ -43,15 +45,19 @@ decisions:
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
-  # No artifacts found in git
+  - ".agentic-framework/web/templates/base.html"
+  - ".context/project/learnings.yaml"
 
 # Timeline (auto-mined from git log)
 git_timeline:
-  # No git timeline available
+  - time: "2026-04-18T10:52:56"
+    action: "T-1117: Add fleet indicator to ambient status strip — every-page visibility"
+  - time: "2026-04-18T11:49:25"
+    action: "T-1117: Capture session learnings — setsid required for watchtower restart, Jinja2 in-memory cache survives .pyc deletion"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 0 commit(s), 2 min
+  # Completed successfully in 2 commit(s), 2 min
 
 # Related tasks
 related_tasks:
@@ -65,9 +71,9 @@ tags: []
 # Passive metrics (derived automatically — do not edit)
 metrics:
   wall_clock_minutes: 2
-  commits: 0
-  files_changed: 0
-  lines_added: 0
+  commits: 2
+  files_changed: 2
+  lines_added: 42
   lines_removed: 0
 
 # Metadata
