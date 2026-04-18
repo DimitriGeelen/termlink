@@ -55,40 +55,6 @@
     </div>
 </div>
 
-{# --- Fleet Health Widget (T-1116) ----------------------------- #}
-<div id="fleet-widget" style="margin-bottom:1rem; display:none;">
-    <a href="/fleet" style="text-decoration:none; color:inherit;">
-        <div style="display:flex; align-items:center; gap:0.75rem; padding:0.6rem 1rem; border-radius:6px; border:1px solid var(--pico-muted-border-color); font-size:0.9rem;">
-            <span id="fw-dot" style="width:10px; height:10px; border-radius:50%; background:#9e9e9e;"></span>
-            <strong>Fleet</strong>
-            <span id="fw-summary" style="color:var(--pico-muted-color);">loading…</span>
-            <span style="margin-left:auto; font-size:0.8rem; color:var(--pico-muted-color);">→ details</span>
-        </div>
-    </a>
-</div>
-<script>
-(function(){
-    fetch('/api/fleet/status')
-        .then(function(r){return r.json()})
-        .then(function(d){
-            var w=document.getElementById('fleet-widget');
-            if(!w)return;
-            w.style.display='block';
-            var dot=document.getElementById('fw-dot');
-            var sum=document.getElementById('fw-summary');
-            var s=d.summary||{};
-            var total=s.total||0, up=s.up||0, down=s.down||0, af=s.auth_fail||0;
-            if(total===0){sum.textContent='no hubs configured'; return;}
-            sum.textContent=up+'/'+total+' up'+(down?' · '+down+' down':'')+(af?' · '+af+' auth-fail':'');
-            dot.style.background=d.ok?'#4CAF50':(up>0?'#ff9800':'#f44336');
-        })
-        .catch(function(){
-            var w=document.getElementById('fleet-widget');
-            if(w)w.style.display='none';
-        });
-})();
-</script>
-
 {# --- Focus Task (T-398) ------------------------------------ #}
 {% if focus_task %}
 <article style="padding: 0.6rem 1rem; margin-bottom: 1rem; border-left: 3px solid var(--pico-primary);">
