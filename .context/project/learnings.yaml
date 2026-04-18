@@ -442,3 +442,10 @@ learnings:
   date: 2026-04-17
   context: Added via context agent
   application: TBD
+- id: PL-029
+  learning: "Watchtower started without PROJECT_ROOT env defaults PROJECT_ROOT to FRAMEWORK_ROOT (.agentic-framework), making the ambient strip session age, focus task, and attention count read from the framework's own .context/ and .tasks/ instead of the project's. Discovered in T-1121 when session ID tooltip showed 'no session' — fixed by 'PROJECT_ROOT=/opt/termlink python3 -m web.app'. The 'fw watchtower start' command sets this; ad-hoc starts must too."
+  source: P-001
+  task: T-1121
+  date: 2026-04-18
+  context: Added via context agent
+  application: TBD
