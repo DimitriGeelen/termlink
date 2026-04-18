@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1130: Register fabric card for test_env_lock.rs and pickup framework globstar bug
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-18T21:58:16Z
+# ============================================================================
+
+task_id: T-1130
+task_name: "Register fabric card for test_env_lock.rs and pickup framework globstar bug"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T21:49:13Z
+completed: 2026-04-18T21:58:10Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-18T23:58:06+02:00
+last_commit: 2026-04-18T23:58:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Register test_env_lock fabric card + clear audit drift warning
+
+# Key outcomes
+outcomes:
+  - "Root cause confirmed — bash glob without globstar expands `**` as one level (14 matches vs 68 with globstar)"
+  - "Fabric card registered for `crates/termlink-cli/src/test_env_lock.rs` with real purpose/subsystem"
+  - "`fw audit` no longer warns \"Fabric drift: 1 source file(s) have no fabric card\" (passes: \"All watched source files registered (88 cards)\")"
+  - "Pickup envelope sent to framework describing the bug + patch — P-037 in /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-cli-src-test_env_lock.yaml"
+  - ".tasks/active/T-1130-register-fabric-card-for-testenvlockrs-a.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-18T23:58:06"
+    action: "T-1130: Register test_env_lock fabric card + clear audit drift warning"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 2
+  lines_added: 93
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1130-register-fabric-card-for-testenvlockrs-a.md
+generated_by: context-agent-hybrid
