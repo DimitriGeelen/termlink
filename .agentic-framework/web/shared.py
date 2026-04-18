@@ -19,7 +19,41 @@ logger = logging.getLogger(__name__)
 
 APP_DIR = Path(__file__).resolve().parent
 FRAMEWORK_ROOT = APP_DIR.parent
-PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", str(FRAMEWORK_ROOT)))
+
+
+def _discover_project_root(start: Path | None = None) -> Path | None:
+    """Walk up from `start` (CWD if None) looking for `.framework.yaml`.
+
+    Returns the directory containing `.framework.yaml`, or None if none
+    is found before reaching the filesystem root.
+    """
+    current = (start or Path.cwd()).resolve()
+    root = Path(current.root)
+    while True:
+        if (current / ".framework.yaml").is_file():
+            return current
+        if current == root or current.parent == current:
+            return None
+        current = current.parent
+
+
+def _resolve_project_root() -> tuple[Path, str]:
+    """Return (project_root, source_label). T-1123.
+
+    Order: PROJECT_ROOT env > walk-up from CWD for .framework.yaml
+    > FRAMEWORK_ROOT fallback.
+    """
+    env_val = os.environ.get("PROJECT_ROOT")
+    if env_val:
+        return Path(env_val), "env:PROJECT_ROOT"
+    discovered = _discover_project_root()
+    if discovered is not None and discovered != FRAMEWORK_ROOT:
+        return discovered, f"discovered:{discovered}"
+    return FRAMEWORK_ROOT, f"fallback:FRAMEWORK_ROOT={FRAMEWORK_ROOT}"
+
+
+PROJECT_ROOT, _PROJECT_ROOT_SOURCE = _resolve_project_root()
+logger.warning("PROJECT_ROOT source: %s", _PROJECT_ROOT_SOURCE)
 
 
 def task_id_sort_key(value):
