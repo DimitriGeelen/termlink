@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T09:39:11Z
-last_update: 2026-04-18T09:41:13Z
+last_update: 2026-04-18T20:03:41Z
 date_finished: null
 ---
 
@@ -66,9 +66,9 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated — Watchtower runs `socketio.run(app, ..., allow_unsafe_werkzeug=True)` (`web/app.py:420`), under Werkzeug. Confirmed long-lived service in practice.
+- [x] Assumptions tested — A1 confirmed; A2 NOT confirmed (Flask-SocketIO with `async_mode=threading` constrains WSGI choice to single-worker servers); A3/A4 confirmed; A5 confirmed (already wrapped via lib/watchtower.sh).
+- [x] Recommendation written with rationale — see ## Recommendation
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -100,15 +100,36 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DEFER on WSGI swap; GO on systemd wrapping (the actual root cause).
+
+**Rationale:** Re-reading the problem statement, the failure mode that matters ("restart races during this session") is a process-management problem, not a WSGI-server problem. Swapping Werkzeug for gunicorn does not fix restart races; systemd does. The Werkzeug warning is aesthetic on a single-host LAN tool. Adding gunicorn + gevent + flask-socketio_websocket adds dependency surface without proportional benefit.
+
+## Findings
+
+**Spike 1 — gunicorn vs waitress vs hypercorn:**
+- **waitress**: pure-Python, cross-platform, threaded. **Cannot serve websockets** — would force Flask-SocketIO into long-poll fallback. Acceptable for HTTP-only Watchtower, breaks the web terminal (T-964) UX.
+- **gunicorn**: Linux-only. Standard production for Flask-SocketIO requires `--worker-class gevent` + gevent + gevent-websocket. Adds ~3 dependencies. For multi-worker, **the framework's `_client_sessions` dict and `.context/working/.tool-counter` would race across workers**. So in practice: `--workers 1 --threads N` — which gives no concurrency benefit over Werkzeug's threaded mode.
+- **hypercorn**: ASGI; Flask supports ASGI via `asgiref` but Flask-SocketIO behavior changes; not a drop-in.
+- **Status quo (Werkzeug + `socketio.run(allow_unsafe_werkzeug=True)`)**: Already serves websockets via socketio's threading mode. Single warning at startup. Otherwise functional for the actual workload.
+
+**Spike 2 — Compatibility:**
+- App exposes WSGI callable (`web.app:app`) — confirmed at `web/app.py:376`.
+- `SocketIO(app, async_mode="threading")` (`web/app.py:159`) is single-process by design. Multi-worker would break (a) websocket session affinity, (b) framework hook counters, (c) in-process `_client_sessions` dict.
+
+**Spike 3 — Hooks/signals:**
+- Multi-worker WSGI WOULD break the framework's PreToolUse/PostToolUse counters and the `.tool-counter` file (race-prone). Single-worker WSGI is the only safe option, which negates the main concurrency argument for migration.
+
+**Spike 4 — Startup ergonomics:**
+- The actual restart-race problem is solved by systemd: `Restart=on-failure`, `Type=notify` for clean handoff, `KillMode=mixed` for graceful shutdown. None of that requires a different WSGI server.
+
+## Proposed follow-up tasks (post-DEFER on WSGI, GO on systemd)
+
+1. **[framework, S]** Ship a `watchtower.service` systemd unit template under `agents/monitor/` (or similar) that operators can install with one command. Type=notify if practical, otherwise Type=simple with PIDFile. `ExecStart=python3 -m web.app`. Restart=on-failure, RestartSec=2.
+2. **[framework, XS]** `fw watchtower start` learns to detect a systemd unit and prefer `systemctl --user start watchtower` over direct spawn when installed.
+3. **[framework, XS]** Suppress the Werkzeug warning in production-mode startup OR document explicitly in CLAUDE.md that on a single-host LAN tool the warning is acceptable. (The warning is `flask.cli`-emitted; can be silenced via env or filter.)
+4. **[deferred — revisit if]** Watchtower is exposed across LAN with auth, OR the web terminal sees real production load, OR multi-host federation lands. Then re-open this inception with the changed constraints.
+
+**The mistake to avoid:** swapping the WSGI server is a tempting "production-ize" move that doesn't address the actual symptom (restart races) and adds dependency surface. Fix the cause, not the smell.
 
 ## Decisions
 
@@ -123,7 +144,13 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER on WSGI swap; GO on systemd wrapping (the actual root cause).
+
+Rationale: Re-reading the problem statement, the failure mode that matters ("restart races during this session") is a process-management problem, not a WSGI-server problem. Swapping Werkzeug for gunicorn does not fix restart races; systemd does. The Werkzeug warning is aesthetic on a single-host LAN tool. Adding gunicorn + gevent + flask-socketio_websocket adds dependency surface without proportional benefit.
+
+**Date**: 2026-04-18T20:48:03Z
 
 ## Updates
 
@@ -132,3 +159,10 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 
 ### 2026-04-18T09:40:32Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-18T20:48:03Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER on WSGI swap; GO on systemd wrapping (the actual root cause).
+
+Rationale: Re-reading the problem statement, the failure mode that matters ("restart races during this session") is a process-management problem, not a WSGI-server problem. Swapping Werkzeug for gunicorn does not fix restart races; systemd does. The Werkzeug warning is aesthetic on a single-host LAN tool. Adding gunicorn + gevent + flask-socketio_websocket adds dependency surface without proportional benefit.

@@ -1,0 +1,37 @@
+# Audit Results - 2026-04-19-0100
+timestamp: 2026-04-18T23:00:01Z
+sections: "traceability,episodic,discovery-trends"
+summary:
+  pass: 10
+  warn: 3
+  fail: 0
+findings:
+  - level: PASS
+    check: "Git traceability: 98% (1659/1688 commits reference tasks)"
+  - level: WARN
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
+  - level: PASS
+    check: "All commit task refs resolve to actual tasks"
+  - level: PASS
+    check: "All completed tasks have episodic summaries"
+  - level: WARN
+    check: "14 episodics have empty or TODO summaries"
+    mitigation: "Fill in summary field with actual task description"
+  - level: PASS
+    check: "No orphaned episodic files"
+  - level: PASS
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - level: WARN
+    check: "D5: Task lifecycle — 12 anomaly(s): T-265(3min,human) T-272(0min,human) T-196(29d-active) T-236(26d-active) T-235(26d-active) T-888(13d-active) T-176(31d-active) T-180(31d-active) T-207(28d-active) T-212(28d-active) (+2 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - level: PASS
+    check: "D3: Commit velocity — insufficient data"
+  - level: PASS
+    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+  - level: PASS
+    check: "D6: Completion velocity — normal (PASS recent=11.0 earlier=13.9)"
+  - level: PASS
+    check: "D12: Bypass log — no log file"
+  - level: PASS
+    check: "D9: Control drift — normal (PASS 10_audits_checked)"
