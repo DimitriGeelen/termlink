@@ -12,7 +12,7 @@ tags: [install, ux, T-1070, distribution]
 components: [install.sh]
 related_tasks: []
 created: 2026-04-18T23:02:15Z
-last_update: 2026-04-19T13:54:45Z
+last_update: 2026-04-19T16:11:30Z
 date_finished: 2026-04-19T13:54:45Z
 ---
 

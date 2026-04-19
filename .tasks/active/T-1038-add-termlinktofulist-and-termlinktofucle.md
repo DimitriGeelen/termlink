@@ -38,6 +38,9 @@ T-922 codification: every CLI command should be MCP-reachable. T-1035 added `ter
 
   **Agent evidence (2026-04-15T17:40Z, commit 5d0eb9b9):** doctor reports `"67 MCP tools"`, up from ~65 at T-1038's time (T-1040 added 2 more after). Registration works. Human may tick + close.
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, tofu-mcp-tools):** `termlink_tofu_list` and `termlink_tofu_clear` present in crates/termlink-mcp/src/tools.rs. `termlink doctor` reports `69 MCP tools`. RUBBER-STAMPable.
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"

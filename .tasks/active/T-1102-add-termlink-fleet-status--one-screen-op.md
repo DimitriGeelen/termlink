@@ -43,6 +43,9 @@ See `docs/reports/T-1101-termlink-value-assessment.md` R1.
   **Expected:** Color-coded hub list, session counts, actions for broken hubs
   **If not:** Check fleet status subcommand implementation
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, fleet-status):** `termlink fleet status` produces one-screen output with color-coded UP/AUTH/DOWN per hub, per-hub session count + latency, and a top-level ACTIONS NEEDED block (`ring20-dashboard: Reauth needed — termlink fleet reauth ring20-dashboard --bootstrap-from ssh:<host>`). Actionable, not just descriptive. REVIEW-approvable.
+
 ## Verification
 
 bash -c 'cargo build -p termlink 2>&1 | grep -q "Finished"'

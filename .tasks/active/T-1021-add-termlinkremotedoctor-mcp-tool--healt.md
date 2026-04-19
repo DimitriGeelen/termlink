@@ -40,6 +40,9 @@ MCP auto-exposure pattern: wrap `termlink remote doctor` as MCP tool. Follows T-
 
   **Agent evidence (2026-04-15T17:40Z):** Ran the command. Doctor reports `"termlink 0.9.10 (5d0eb9b9), 67 MCP tools"`. Count is 67 (≥62; higher because subsequent tasks T-1038/T-1040 added more remote tools). Registration plumbing works — spirit of AC satisfied. Human may tick the box and close.
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, remote-doctor-mcp):** `termlink_remote_doctor` present in crates/termlink-mcp/src/tools.rs. `termlink doctor` reports `69 MCP tools`. RUBBER-STAMPable.
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"

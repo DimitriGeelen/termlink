@@ -41,6 +41,9 @@ Expose T-1009's `termlink remote inbox` as MCP tools so AI agents can query inbo
 
   **Agent evidence (2026-04-15T17:40Z, commit 5d0eb9b9):** doctor reports `"67 MCP tools"` (≥59; grew as T-1011/T-1021/T-1038/T-1040 added more). Registration works. Human may tick + close.
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, remote-inbox-status-mcp):** `termlink_remote_inbox_status` present in crates/termlink-mcp/src/tools.rs. `termlink doctor` reports `69 MCP tools`, up from the pre-series baseline. RUBBER-STAMPable.
+
 ## Verification
 
 cargo clippy --workspace -- -D warnings 2>&1 | tail -1

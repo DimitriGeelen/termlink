@@ -40,6 +40,9 @@ Add `termlink remote inbox` subcommand (status/list/clear) that queries inbox on
   **Expected:** Shows status, list, clear subcommands
   **If not:** Check RemoteInboxAction enum wiring
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, remote-inbox):** `termlink remote inbox --help` shows 4 subcommands (status, list, clear, help), secret/scope/timeout options, and positional <HUB> argument. RUBBER-STAMPable.
+
 ## Verification
 
 cargo clippy --workspace -- -D warnings 2>&1 | tail -1

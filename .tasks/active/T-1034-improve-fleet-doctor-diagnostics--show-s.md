@@ -39,6 +39,9 @@ Fleet doctor shows cryptic errors like "Authentication failed: -32010 Token vali
   **Expected:** Failing hubs show what secret file was used and suggest fixes
   **If not:** Check cmd_fleet_doctor output formatting
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, fleet-doctor-diagnostics):** `termlink fleet doctor` against ring20-dashboard prints: `[FAIL] Authentication failed: -32010 Token validation failed: invalid signature` followed by `secret: /root/.termlink/secrets/ring20-dashboard.hex` and the hint `Secret mismatch — hub was likely restarted with a new secret.` Secret path surfaced inline, hint present. RUBBER-STAMPable (or REVIEW-approvable).
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"

@@ -39,6 +39,9 @@ TOFU entries in `~/.termlink/known_hubs` go stale when hubs restart and regenera
   **Expected:** Table showing host:port, fingerprint prefix, first_seen, last_seen
   **If not:** Check ~/.termlink/known_hubs file format
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, tofu-command):** `termlink tofu list` returns 5 trusted hubs with HOST/FINGERPRINT/FIRST SEEN/LAST SEEN columns from /root/.termlink/known_hubs. Sub-commands list/clear behave as documented. RUBBER-STAMPable (or REVIEW-approvable).
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"
