@@ -1,0 +1,91 @@
+---
+id: T-1137
+name: "Install logrotate on proxmox host .180 — prevent /var/log full cascade (G-009)"
+description: >
+  Proxmox host 192.168.10.180 has /var/log on a 224M zram0 filesystem at 100%; pveproxy
+  access.log is 145M. Full /var/log cascades into LXC container reboot loops (CT 200 /
+  ring20-management / .122 rebooted 5× in 5h on 2026-04-19, producing 4 distinct TLS cert
+  rotations observed from termlink clients). Structural fix: logrotate config on the pve
+  host for /var/log/pveproxy/access.log — rotate daily, keep 3, compressed. Short-term
+  mitigation (truncate) is a separate operator action.
+
+status: captured
+workflow_type: build
+owner: human
+horizon: later
+tags: [infrastructure, proxmox, operations]
+components: []
+related_tasks: [T-1064, T-1028, T-1053]
+created: 2026-04-19T08:43:09Z
+last_update: 2026-04-19T08:43:09Z
+date_finished: null
+---
+
+# T-1137: Install logrotate on proxmox host .180 — prevent /var/log full cascade (G-009)
+
+## Context
+
+Proxmox host .180 uses a 224 MiB zram0 filesystem for /var/log. `/var/log/pveproxy/access.log`
+filled to 145 MiB, pushing the volume to 100 %. When /var/log fills, PVE host services
+degrade; LXC containers get killed/restarted. CT 200 (ring20-management / .122) rebooted
+5× in 5h on 2026-04-19, regenerating its TLS cert each time (cbc4 → b855 → 5198d1fb →
+b90adf2598), triggering TOFU violations on every termlink client.
+
+Root cause chain: **proxmox /var/log fills → PVE host degrades → CTs reboot → hub
+regenerates cert → clients fail to reach .122.**
+
+Termlink-side work (T-1028 persist-certs-on-restart, T-1064 investigation) addresses the
+symptom *inside* the container. The structural fix for the cascade is host-side: logrotate
+on the proxmox .180 host.
+
+See `.context/project/concerns.yaml` entry G-009 for full diagnosis.
+
+## Acceptance Criteria
+
+### Human
+- [ ] [REVIEW] logrotate config installed on proxmox .180 for /var/log/pveproxy/access.log
+  **Steps:**
+  1. `ssh root@192.168.10.180`
+  2. Create `/etc/logrotate.d/pveproxy-access` with:
+     ```
+     /var/log/pveproxy/access.log {
+         daily
+         rotate 3
+         compress
+         missingok
+         notifempty
+         copytruncate
+     }
+     ```
+  3. `logrotate -d /etc/logrotate.d/pveproxy-access` (dry-run; check no errors)
+  4. `logrotate -f /etc/logrotate.d/pveproxy-access` (force once to verify)
+  **Expected:** access.log is rotated to access.log.1.gz; new access.log is small/empty
+  **If not:** Check `/var/log/pveproxy/` permissions and logrotate version
+
+- [ ] [REVIEW] /var/log on proxmox .180 is below 50 % after rotation + daily cron active
+  **Steps:**
+  1. `ssh root@192.168.10.180 df -h /var/log`
+  2. Wait 24h, re-check: `ssh root@192.168.10.180 ls -la /var/log/pveproxy/` — expect access.log.1.gz present
+  **Expected:** /var/log < 50 %, one rotated compressed file visible
+  **If not:** Check `/etc/cron.daily/logrotate` is enabled, or add a specific cron
+
+- [ ] [REVIEW] CT 200 (.122) stops rebooting
+  **Steps:**
+  1. After 24h of stable pve host: `ssh root@192.168.10.180 pct status 200`
+  2. `ssh root@192.168.10.180 journalctl --list-boots -n 10` (via CT or host — however reachable)
+  3. `cd /opt/termlink && termlink fleet doctor`
+  **Expected:** CT uptime > 24h, no new boots, ring20-management [PASS]
+  **If not:** Other resource pressure still present — investigate memory, CPU, or disk on pve host
+
+## Verification
+
+# No agent-runnable verification — this is entirely host-side operator work.
+
+## Decisions
+
+## Updates
+
+### 2026-04-19T08:43:09Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-1137-install-logrotate-on-proxmox-host-180--p.md
+- **Context:** Follow-up from G-009 (proxmox .180 /var/log full → CT 200 reboot loop → .122 cert rotations). Parked as horizon=later pending operator action on .180.

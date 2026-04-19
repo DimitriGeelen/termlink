@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T17:09:39Z
-last_update: 2026-04-18T19:36:25Z
+last_update: 2026-04-18T22:13:25Z
 date_finished: null
 ---
 
@@ -103,3 +103,20 @@ date_finished: null
   - local-test healthy.
 - **Heal path when operator is ready:** `termlink tofu clear 192.168.10.122:9100 && termlink fleet reauth ring20-management --bootstrap-from ssh:192.168.10.122` (fetches fresh secret + re-pins cert; R2 trust-anchor is SSH which is out-of-band wrt termlink auth). Do NOT auto-clear — rotations this frequent may indicate something operator needs to diagnose (container reschedule loop, hub crash loop, or attacker).
 - **Severity signal:** Two cert rotations on one hub in 24h is the trigger condition for auto-registering a G-NNN (per T-1053 rule). The auth-rotation protocol says "≥3 consecutive auth-mismatches spanning >24h" — we're at 2 in ~24h, so not yet at threshold. Monitoring.
+
+### 2026-04-19T08:40Z — root cause [agent + .122-side agent]
+- **Action:** Attempted heal via `fleet reauth --bootstrap-from ssh:192.168.10.122`. SSH to .122 failed (no key, no askpass). Cross-host peer on .122 independently diagnosed why the container keeps rotating.
+- **Findings (from .122-side agent, cross-verified):**
+  - CT 200 (ring20-management / .122) rebooted **5× in 5h** on 2026-04-19 (`journalctl --list-boots`).
+  - Proxmox host **.180 has /var/log at 100 %** on a 224 MiB zram0 filesystem.
+  - `/var/log/pveproxy/access.log` alone is **145 MiB** — single file dominates the volume.
+  - This matches framework PL-054 / T-269 (documented class of pve-host /var/log cascade failure).
+  - 4th cert fingerprint observed on .122 this afternoon: `sha256:b90adf2598f5b4a06f73ed69bc5554b3d31d1f9b1578704c1057ddbd51e482af` (chain: cbc4 → b855 → 5198d1fb → b90adf2598). Trips T-1053 threshold (≥3 rotations in >24 h).
+- **Root cause chain:** proxmox /var/log full → PVE host degrades → LXCs killed/restarted → hub regenerates TLS cert on each fresh boot → clients hit TOFU violation → clients fail to connect.
+- **Registered:** G-009 in `.context/project/concerns.yaml` (severity medium, status watching). Follow-up task **T-1137** created for the structural fix (logrotate on .180), owner=human, horizon=later.
+- **Immediate mitigation (operator, one-liner):**
+  ```
+  ssh root@192.168.10.180 'truncate -s 0 /var/log/pveproxy/access.log && df -h /var/log'
+  ```
+- **Why termlink-side healing keeps losing:** cert persistence (T-1028) and TOFU re-pin (T-1064/T-1055) are the right fixes in the common case, but they assume the container *stays up long enough for a client to trust the new cert*. When the container reboots every ~60 min, no amount of client-side healing catches up. The structural fix lives on the host, not in termlink.
+- **Status transition candidate:** once G-009's mitigation lands (operator truncates .180's access.log) **and** T-1137's structural fix (logrotate) is installed, this task's remaining work (heal .122) becomes trivial — wait for one stable hour, then re-run `termlink tofu clear 192.168.10.122:9100` and re-bootstrap. Not setting work-completed yet; heal hasn't occurred.
