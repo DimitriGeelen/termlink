@@ -96,6 +96,14 @@ test -f docs/reports/T-789-worktree-isolation-research.md
   --workdir, --isolate+manifest, --auto-merge, pre-commit gate, audit check.
 
 **Date**: 2026-03-30T13:07:53Z
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** Option A (7/8). Dispatch manifest makes all 5 failure modes deterministically mitigated. 64 tests specified. Implementation:
+
 ## Decision
 
 **Decision**: GO

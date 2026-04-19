@@ -104,6 +104,14 @@ grep -q "Post-install verification" /opt/999-Agentic-Engineering-Framework/insta
 **Rationale**: aef is phantom name with zero references. fw is correct and established.
 
 **Date**: 2026-03-21T15:42:30Z
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** aef is phantom name with zero references. fw is correct and established.
+
 ## Decision
 
 **Decision**: GO

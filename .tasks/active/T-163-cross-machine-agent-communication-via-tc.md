@@ -108,6 +108,22 @@ test -f docs/reports/T-163-cross-machine-agent-communication.md
 
 **Date**: 2026-03-18T10:07:49Z
 
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — content mirrors the existing `## Decisions` block above. CTL-027 audit compliance._
+
+**Recommendation:** GO — proceed with TCP hub cross-machine communication.
+
+**Rationale:** Infrastructure 80% ready; security hardening (token + TLS) prerequisite but additive; file transfer via base64 chunked events feasible.
+
+## Decision
+
+**Decision**: GO
+
+**Rationale**: Mirrors `## Decisions` block above (plural header predates CTL-027 singular-form check; both retained for auditability).
+
+**Date**: 2026-03-18T10:07:49Z
+
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.

@@ -147,6 +147,14 @@ Skip C — opt-in flags repeat the convention problem that caused this gap.
 **Rationale**: 5-agent research validates B+A path: dispatch command (4.7/5 on directives) + lifecycle events as crash safety net. ~430 LOC, no new RPC methods, composes existing primitives.
 
 **Date**: 2026-03-25T14:30:07Z
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** 5-agent research validates B+A path: dispatch command (4.7/5 on directives) + lifecycle events as crash safety net. ~430 LOC, no new RPC methods, composes existing primitives.
+
 ## Decision
 
 **Decision**: GO

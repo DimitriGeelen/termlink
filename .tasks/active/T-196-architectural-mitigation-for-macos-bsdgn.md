@@ -96,6 +96,14 @@ test -f docs/reports/T-196-macos-bsd-gnu-compat-research.md
 **Rationale**: Expand lib/compat.sh with 4 portable function families (~130 lines). All GO criteria met: single file, no new deps, hot-path unaffected, Linux primary path maintained. Framework already has the pattern.
 
 **Date**: 2026-03-20T20:25:09Z
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** Expand lib/compat.sh with 4 portable function families (~130 lines). All GO criteria met: single file, no new deps, hot-path unaffected, Linux primary path maintained. Framework already has the pattern.
+
 ## Decision
 
 **Decision**: GO

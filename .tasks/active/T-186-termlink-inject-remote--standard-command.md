@@ -94,6 +94,14 @@ test -f docs/reports/T-186-inject-remote-cli-design.md
 **Rationale**: All primitives proven (TOFU, auth, hub routing, split-write). Variant D (remote subcommand family) chosen. ~150 lines, no new deps.
 
 **Date**: 2026-03-19T05:50:30Z
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** All primitives proven (TOFU, auth, hub routing, split-write). Variant D (remote subcommand family) chosen. ~150 lines, no new deps.
+
 ## Decision
 
 **Decision**: GO
