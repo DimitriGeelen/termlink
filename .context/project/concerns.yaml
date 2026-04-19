@@ -128,6 +128,23 @@ concerns:
   last_reviewed: 2026-04-15
   related_tasks: [T-1062]
 
+- id: G-009
+  type: gap
+  title: "Proxmox host (.180) /var/log full — cascades into LXC container reboot loop (CT 200 / ring20-management / .122)"
+  description: "Proxmox host 192.168.10.180 has /var/log on a 224M zram0 filesystem at 100%. pveproxy access.log is 145M. CT 200 (ring20-management / .122) rebooted 5× in 5 hours on 2026-04-19 — each reboot regenerates the termlink hub TLS cert, triggering TOFU violations on clients. Observed 4 distinct cert fingerprints on .122 in >24h (cbc4 → b855 → 5198d1fb → b90adf2598), which trips the T-1053 auto-register threshold for hub rotation and matches the pattern class noted by the .122-side agent as PL-054/T-269 (framework-side). Root cause chain: proxmox /var/log fills → PVE host struggles → CTs get killed/restarted → hub starts fresh each time → clients fail to reach .122. The termlink side (T-1064 investigation, T-1028 persist-certs-on-restart) fixes the SYMPTOM on the container; the STRUCTURAL fix is logrotate on the proxmox host. Framework was blind to this for ≥24h — no cross-host disk-pressure check existed."
+  spec_reference: "T-1064 (.109/.121/.122 hub outage investigation), T-1028 (persist TLS certs across hub restarts), T-1053 (auto-register rotation concerns), PL-054 / T-269 (framework-side pattern catalog)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-04-19 ~08:00Z: .122-side agent reported CT 200 rebooted 5× in 5h, pve host .180 /var/log at 100%, pveproxy access.log 145M of 224M zram0. 4th cert rotation on .122 observed same day (cbc4 → b855 → 5198d1fb → b90adf2598)."
+  detection_lag_days: ">1 (pattern observed across multiple sessions before root cause reached proxmox host)"
+  what_works_now: ".121 (ring20-dashboard) is stable and UP. Termlink client heal path (fleet reauth --bootstrap-from ssh:) works when SSH keys are installed. T-1028 hub cert-persist prevents rotation-on-restart IF the container stays up between restarts."
+  what_remains: "1. Install logrotate on the proxmox host (180) for /var/log/pveproxy/access.log — rotate daily, keep 3, compressed. 2. Consider moving /var/log off zram to persistent storage on the pve host. 3. Add a framework cross-host disk-pressure check (fleet doctor could query 'df /var/log' via a per-host probe). 4. Harden hub-side cert persistence so container-reboot cycles don't invalidate client trust (T-1028 work)."
+  mitigation_candidate: "Short-term: truncate access.log (operator, host-side SSH). Medium-term: logrotate config on .180. Long-term: cross-host health check that detects disk pressure before cascade."
+  status: watching
+  created: 2026-04-19
+  last_reviewed: 2026-04-19
+  related_tasks: [T-1064, T-1028, T-1053]
+
 - id: G-008
   type: gap
   title: "64 tasks stuck in partial-complete state — Human ACs accumulate unchecked because no review workflow surfaces them"
