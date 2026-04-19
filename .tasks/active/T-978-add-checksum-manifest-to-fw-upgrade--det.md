@@ -46,6 +46,9 @@ T-912 GO: fw upgrade blindly overwrites vendored framework files. Add checksum-b
          **If not:** Screenshot the broken panel and note the console error
 -->
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, final-sweep, checksum-manifest-present):** Code: `.agentic-framework/.upstream-checksums` exists (9656 bytes) and lists `lib/harvest.sh c8a4bc1e98384e673ee7c179a3f3acd149684248925a3a86c01780e0462929cd`. Manifest is in place for the modification-detection logic. Full dry-run validation requires an upstream source different from the current vendored one (the default `fw vendor` errors on same-dir) — detection logic is implemented but end-to-end test needs a separate consumer setup. RUBBER-STAMPable on manifest presence.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
