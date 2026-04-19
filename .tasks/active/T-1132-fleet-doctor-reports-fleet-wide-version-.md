@@ -4,16 +4,16 @@ name: "fleet doctor reports fleet-wide version diversity (piggyback on query.cap
 description: >
   From T-1071 inception GO. fleet doctor / fleet status should report fleet-wide version diversity, e.g. 'Versions in fleet: 0.9.815 (1 hub), 0.9.99 (1 hub), 0.9.844 (1 hub)'. Cheap — reuses the query.capabilities ping already in fleet doctor probe path. Lets operators see at a glance whether a fleet is homogenous or skewed before a Tier-B typed RPC fails.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [termlink, fleet-doctor, diagnostics, T-1071]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-18T23:00:06Z
-last_update: 2026-04-19T14:08:31Z
-date_finished: null
+last_update: 2026-04-19T14:12:44Z
+date_finished: 2026-04-19T14:12:44Z
 ---
 
 # T-1132: fleet doctor reports fleet-wide version diversity (piggyback on query.capabilities) (from T-1071 GO)
@@ -49,12 +49,20 @@ date_finished: null
   **Expected:** at the end, a `Versions in fleet: …` line appears; counts match what you have deployed
   **If not:** note the hub name, its expected version, and what fleet doctor reports; upgrade the lagging hub (T-1134 install.sh)
 
+  **Agent evidence (2026-04-19):** Rebuilt debug CLI at commit f9075c4f, ran `fleet doctor` against 3 configured hubs. Output format is correct:
+  ```
+  [PASS] connected in 63ms (version: unknown)
+  ...
+  Versions in fleet: unknown (3 hubs)
+  ```
+  All hubs returned `unknown` because the deployed hub binaries (local systemd `/root/.cargo/bin/termlink`, remote .121/.122 hubs) predate the `hub.version` RPC and return method-not-found, which the client correctly falls back to `unknown`. Once the operator reinstalls hubs via T-1134 install.sh one-liner, the version strings will populate. CLI code path is structurally verified; hub-side RPC is shipped in-repo (see router.rs `handle_hub_version`) and awaits deployment.
+
 ## Verification
 
 grep -q 'fn handle_hub_version' /opt/termlink/crates/termlink-hub/src/router.rs
 grep -q 'hub.version' /opt/termlink/crates/termlink-hub/src/router.rs
 grep -q 'fleet_versions\|Versions in fleet' /opt/termlink/crates/termlink-cli/src/commands/remote.rs
-bash -c 'cd /opt/termlink && cargo check -p termlink-hub -p termlink-cli 2>&1 | tail -2 | grep -qE "Finished|Compiling"'
+bash -c 'cd /opt/termlink && cargo check -p termlink-hub -p termlink 2>&1 | tail -2 | grep -qE "Finished|Compiling"'
 
 ## Decisions
 
@@ -77,3 +85,6 @@ bash -c 'cd /opt/termlink && cargo check -p termlink-hub -p termlink-cli 2>&1 | 
 ### 2026-04-19T14:08:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-19T14:12:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
