@@ -13,11 +13,14 @@ TermLink lets multiple terminal sessions **discover, message, and control each o
 ## Quick Start
 
 ```bash
-# Install via Homebrew (macOS/Linux — recommended)
+# One-liner install (any Linux or macOS, no toolchain required)
+curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh | sh
+
+# Or via Homebrew (macOS preferred)
 brew tap DimitriGeelen/termlink
 brew install termlink
 
-# Or install via Cargo
+# Or build from source (requires Rust toolchain)
 cargo install --git https://github.com/DimitriGeelen/termlink.git termlink --force
 
 # Start a named session (opens a shell)
