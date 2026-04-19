@@ -101,6 +101,50 @@ pub mod error_code {
     pub const RATE_LIMITED: i64 = -32008;
     pub const AUTH_REQUIRED: i64 = -32009;
     pub const AUTH_DENIED: i64 = -32010;
+    /// Session's declared protocol_version is older than the target method requires.
+    /// Data field carries `{declared, required, method}` so the client can act on it.
+    /// T-1131 (from T-1071 GO).
+    pub const PROTOCOL_VERSION_TOO_OLD: i64 = -32011;
+}
+
+/// Default `protocol_version` when the field is missing on the wire.
+/// Keeps old clients compatible: absent = "speaks v1".
+pub fn default_protocol_version() -> u8 {
+    1
+}
+
+/// If `declared < required`, build a structured `PROTOCOL_VERSION_TOO_OLD` error
+/// response. If the declared version is at least `required`, returns `None`.
+///
+/// Callers pass the RPC request `id` so the error threads back to the originator.
+/// The error's `data` field carries `{declared, required, method}` so the client
+/// can tell the operator exactly what to upgrade.
+///
+/// This replaces the opaque serde-parse failure that Tier-B methods throw when
+/// a v1 client hits a v2-only field (the KeyEntry class of bug that T-1071
+/// identified). DATA_PLANE_VERSION is currently 1 so no method rejects today
+/// — the helper lights up on the next protocol bump.
+pub fn check_protocol_version(
+    id: serde_json::Value,
+    declared: u8,
+    required: u8,
+    method: &str,
+) -> Option<crate::jsonrpc::ErrorResponse> {
+    if declared >= required {
+        return None;
+    }
+    Some(crate::jsonrpc::ErrorResponse::with_data(
+        id,
+        error_code::PROTOCOL_VERSION_TOO_OLD,
+        &format!(
+            "Method {method} requires protocol_version >= {required}, session declared {declared}"
+        ),
+        serde_json::json!({
+            "declared": declared,
+            "required": required,
+            "method": method,
+        }),
+    ))
 }
 
 /// Common parameters included in every control plane request.
@@ -130,6 +174,8 @@ pub enum KeyEntry {
 /// Session capabilities declared during registration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Capabilities {
+    /// Defaults to 1 when absent on the wire (T-1131 backward-compat).
+    #[serde(default = "default_protocol_version")]
     pub protocol_version: u8,
     #[serde(default)]
     pub data_plane: bool,
@@ -310,5 +356,37 @@ mod tests {
         assert_eq!(method::AUTH_TOKEN, "auth.token");
         assert_eq!(method::SESSION_DISCOVER, "session.discover");
         assert_eq!(method::PTY_MODE, "pty.mode");
+    }
+
+    // T-1131: protocol_version enforcement
+
+    #[test]
+    fn capabilities_missing_protocol_version_defaults_to_1() {
+        // Backward-compat: a wire payload without `protocol_version` must deserialize.
+        let caps: Capabilities =
+            serde_json::from_str(r#"{"data_plane":false}"#).expect("must deserialize");
+        assert_eq!(caps.protocol_version, 1);
+    }
+
+    #[test]
+    fn check_protocol_version_accepts_when_declared_equals_required() {
+        assert!(check_protocol_version(serde_json::json!(1), 1, 1, "session.update").is_none());
+    }
+
+    #[test]
+    fn check_protocol_version_accepts_when_declared_exceeds_required() {
+        assert!(check_protocol_version(serde_json::json!(1), 5, 3, "command.execute").is_none());
+    }
+
+    #[test]
+    fn check_protocol_version_rejects_when_declared_is_older() {
+        let err =
+            check_protocol_version(serde_json::json!(42), 1, 2, "command.execute").expect("reject");
+        assert_eq!(err.error.code, error_code::PROTOCOL_VERSION_TOO_OLD);
+        assert_eq!(err.id, serde_json::json!(42));
+        let data = err.error.data.as_ref().expect("data");
+        assert_eq!(data["declared"], 1);
+        assert_eq!(data["required"], 2);
+        assert_eq!(data["method"], "command.execute");
     }
 }
