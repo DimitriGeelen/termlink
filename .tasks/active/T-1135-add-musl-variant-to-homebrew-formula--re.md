@@ -4,16 +4,16 @@ name: "Add musl variant to Homebrew formula — replace or supplement linux-gnu 
 description: >
   From T-1070 inception GO. scripts/update-homebrew-sha.sh currently hashes 4 targets (darwin x86_64/aarch64 + linux-gnu x86_64/aarch64). Add musl variants (T-1019 artifacts) or swap linux-gnu → linux-musl for better LXC compatibility. Homebrew users on Linux LXC containers (no glibc) currently fall back to cargo build because the gnu binary fails to run. Touch: scripts/update-homebrew-sha.sh + homebrew-tap formula template. Verify: brew install termlink inside a fresh LXC succeeds.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [homebrew, install, T-1070, distribution]
 components: []
 related_tasks: []
 created: 2026-04-18T23:02:30Z
-last_update: 2026-04-19T13:56:52Z
-date_finished: null
+last_update: 2026-04-19T13:58:20Z
+date_finished: 2026-04-19T13:58:20Z
 ---
 
 # T-1135: Add musl variant to Homebrew formula — replace or supplement linux-gnu for LXC compatibility (from T-1070 GO)
@@ -72,3 +72,6 @@ grep -q 'termlink-linux-x86_64-static' /opt/termlink/scripts/update-homebrew-sha
 ### 2026-04-19T13:56:52Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-19T13:58:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

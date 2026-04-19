@@ -4,16 +4,16 @@ name: "Wire protocol_version enforcement at hub — structured error instead of 
 description: >
   From T-1071 inception GO. Hub records each registered session's declared protocol_version (Capabilities.protocol_version: u8, already on wire at control.rs:79 but zero enforcement). On RPC call from a session whose declared version < hub's DATA_PLANE_VERSION for that method, return structured error PROTOCOL_VERSION_TOO_OLD with min required version, instead of letting serde fail with opaque parse error. Backwards-compatible: missing field defaults to 1. This converts the KeyEntry-style silent failures into actionable 'upgrade your client' messages. Load-bearing fix of the three T-1071 follow-ups.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [protocol, termlink, version-skew, T-1071]
-components: []
+components: [crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-18T22:59:37Z
-last_update: 2026-04-19T14:02:30Z
-date_finished: null
+last_update: 2026-04-19T14:06:47Z
+date_finished: 2026-04-19T14:06:47Z
 ---
 
 # T-1131: Wire protocol_version enforcement at hub — structured error instead of opaque serde parse failure (from T-1071 GO)
@@ -72,3 +72,6 @@ bash -c 'cd /opt/termlink && cargo test -p termlink-protocol --lib 2>&1 | tail -
 ### 2026-04-19T14:02:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-19T14:06:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

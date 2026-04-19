@@ -40,6 +40,9 @@ Add termlink_remote_list (discover sessions on remote hub) and termlink_remote_e
 
   **Agent evidence (2026-04-15T17:40Z, commit 5d0eb9b9):** doctor reports `"67 MCP tools"` (≥61; subsequent tasks added more). Registration works. Human may tick + close.
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, remote-list-exec-mcp):** `termlink_remote_list` and `termlink_remote_exec` both present in crates/termlink-mcp/src/tools.rs. `termlink doctor` reports `69 MCP tools`. RUBBER-STAMPable.
+
 ## Verification
 
 cargo clippy --workspace -- -D warnings 2>&1 | tail -1

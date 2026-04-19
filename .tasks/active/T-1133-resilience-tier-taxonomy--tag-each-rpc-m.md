@@ -4,16 +4,16 @@ name: "Resilience-tier taxonomy — tag each RPC method Tier-A (opaque) or Tier-
 description: >
   From T-1071 inception GO. Tag every RPC method as Tier-A (opaque payload, drift-tolerant — event.broadcast, event.emit, kv.set strings) or Tier-B (typed struct, drift-fragile — command.inject, command.exec, session.update). Document in crates/termlink-protocol/src/control.rs as doc comments on each method constant. fleet doctor can then flag fleets where Tier-B methods would fail across the observed version diversity (extends T-1132). This is the 'codify the event.broadcast resilience property' deliverable — promotes a happy accident into a documented design tier.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [termlink, protocol, taxonomy, documentation, T-1071]
-components: []
+components: [crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-18T23:00:36Z
-last_update: 2026-04-19T13:59:14Z
-date_finished: null
+last_update: 2026-04-19T14:00:56Z
+date_finished: 2026-04-19T14:00:56Z
 ---
 
 # T-1133: Resilience-tier taxonomy — tag each RPC method Tier-A (opaque) or Tier-B (typed) in protocol doc comments (from T-1071 GO)
@@ -64,3 +64,6 @@ bash -c 'cd /opt/termlink && cargo check -p termlink-protocol 2>&1 | tail -5 | g
 ### 2026-04-19T13:59:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-19T14:00:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

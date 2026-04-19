@@ -4,16 +4,16 @@ name: "Update README one-liner install — replace 'cargo install --git' hint wi
 description: >
   From T-1070 inception GO. README currently points consumers to 'brew install termlink' (macOS-centric) or 'cargo install --git' (requires toolchain — the failure mode for LXCs). After T-1070-install-sh lands, update README Install section to lead with the curl-pipe one-liner (cross-platform, no toolchain). Keep brew as the macOS preferred path, cargo as the 'from source' path, but de-emphasize. Small, text-only change that consolidates the install UX behind the bootstrap script.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [readme, docs, ux, T-1070]
 components: []
 related_tasks: []
 created: 2026-04-18T23:02:47Z
-last_update: 2026-04-19T13:55:17Z
-date_finished: null
+last_update: 2026-04-19T13:56:06Z
+date_finished: 2026-04-19T13:56:06Z
 ---
 
 # T-1136: Update README one-liner install — replace 'cargo install --git' hint with install.sh curl-pipe (from T-1070 GO)
@@ -63,3 +63,6 @@ bash -c 'head -40 /opt/termlink/README.md | grep -n "install.sh\|brew install\|c
 ### 2026-04-19T13:55:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-19T13:56:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

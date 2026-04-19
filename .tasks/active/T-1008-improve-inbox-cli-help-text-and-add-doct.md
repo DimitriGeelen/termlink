@@ -38,6 +38,9 @@ Two UX improvements: (1) clarify inbox clear help text about --all vs target pre
   **Expected:** Help text explains --all vs target clearly
   **If not:** Suggest improved wording
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, inbox-cli-help-text):** `termlink inbox clear --help` shows clear per-arg descriptions and the new `--all` flag; `termlink doctor --help` lists `--runtime-dir <RUNTIME_DIR>` as documented. Both RUBBER-STAMPable.
+
 ## Verification
 
 cargo clippy --workspace -- -D warnings 2>&1 | tail -1

@@ -4,7 +4,7 @@ name: "Enrich fabric cards — fix manifest.rs and inbox.rs metadata + re-run en
 description: >
   Enrich fabric cards — fix manifest.rs and inbox.rs metadata + re-run enricher
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-19T12:00:47Z
-last_update: 2026-04-19T12:00:47Z
-date_finished: null
+last_update: 2026-04-19T12:04:43Z
+date_finished: 2026-04-19T12:04:43Z
 ---
 
 # T-1138: Enrich fabric cards — fix manifest.rs and inbox.rs metadata + re-run enricher
@@ -68,3 +68,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1138-enrich-fabric-cards--fix-manifestrs-and-.md
 - **Context:** Initial task creation
+
+### 2026-04-19T12:04:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

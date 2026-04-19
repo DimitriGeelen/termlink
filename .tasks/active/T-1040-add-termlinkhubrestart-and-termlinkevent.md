@@ -36,6 +36,9 @@ T-922 codification: every CLI command should be MCP-reachable. The `hub restart`
   **Expected:** Tool count increased by 2 compared to previous build
   **If not:** Check MCP tool registration in tools.rs tool_router macro
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, hub-restart-events-mcp):** `termlink_hub_restart` and `termlink_events` present in crates/termlink-mcp/src/tools.rs. `termlink doctor` reports `69 MCP tools`. RUBBER-STAMPable.
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"
