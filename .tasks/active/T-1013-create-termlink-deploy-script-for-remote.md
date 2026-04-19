@@ -43,6 +43,9 @@ Create a reusable deploy script for deploying termlink binary + hub to remote De
   **Expected:** Hub starts on .121:9100, profile created, ping succeeds
   **If not:** Check SSH connectivity and systemd logs on .121
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, hub-detection, deploy-script-present):** Code: `scripts/deploy-remote.sh` exists. Head: `#!/usr/bin/env bash\n# T-1013: Deploy termlink binary + hub service to a remote host via SSH.\n# Usage: deploy-remote.sh HOST PROFILE_NAME [PORT]`. Script is committed and ready for operator to run against .121 after SSH key authorization. REVIEW-approvable on script presence; live run against .121 remains at operator discretion (auth-fail currently shown on ring20-dashboard).
+
 ## Verification
 
 test -f scripts/deploy-remote.sh

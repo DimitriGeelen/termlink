@@ -35,6 +35,9 @@ date_finished: null
   **Expected:** Shows running PID matching systemctl, runtime dir /var/lib/termlink
   **If not:** Check resolve_hub_paths() fallback
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, hub-detection, hub-status-split-brain):** Live: `termlink hub status` on this host:\n```\nHub: running (PID 2861)\n  Runtime dir: /var/lib/termlink\n  Socket: /var/lib/termlink/hub.sock\n  Pidfile: /var/lib/termlink/hub.pid\n```\n`resolve_hub_paths` found the systemd runtime dir rather than defaulting to /tmp. RUBBER-STAMPable.
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"

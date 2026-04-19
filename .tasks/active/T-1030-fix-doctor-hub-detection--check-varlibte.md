@@ -38,6 +38,9 @@ date_finished: null
   **Expected:** Hub detected from /var/lib/termlink runtime dir
   **If not:** Check if hub.pid exists in /var/lib/termlink/
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, hub-detection, doctor-detects-systemd-hub):** Live: `termlink doctor` on this host reports `hub: running (PID 2861), responding`. The running hub is the systemd-managed one at `/var/lib/termlink` — doctor correctly detects it via the split-brain-aware resolver (not the default /tmp path). REVIEW-approvable.
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"
