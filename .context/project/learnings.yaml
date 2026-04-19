@@ -498,3 +498,10 @@ learnings:
   date: 2026-04-19
   context: Added via context agent
   application: TBD
+- id: PL-037
+  learning: "Episodic YAML parser must tolerate format drift — 3 legacy formats (pure yaml, jekyll frontmatter, yaml+markdown body) coexist from different eras of the enricher. A tolerant loader with graduated fallback (whole-parse → frontmatter → prefix-until-markdown → longest-valid-prefix) handles all 1170 files."
+  source: unknown
+  task: T-1150
+  date: 2026-04-19
+  context: Added via context agent
+  application: TBD

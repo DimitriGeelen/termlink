@@ -306,17 +306,14 @@ def get_episodic_tags():
     if _task_cache["tags"] is not None and (now - _task_cache["ts"]) < _TASK_CACHE_TTL:
         return _task_cache["tags"]
 
+    from web.search_utils import load_episodic_yaml
     tags = {}
     episodic_dir = PROJECT_ROOT / ".context" / "episodic"
     if episodic_dir.exists():
         for f in episodic_dir.glob("T-*.yaml"):
-            try:
-                with open(f) as fh:
-                    edata = yaml.safe_load(fh)
-                if isinstance(edata, dict):
-                    tags[edata.get("task_id", f.stem)] = edata.get("tags", [])
-            except yaml.YAMLError:
-                continue
+            edata = load_episodic_yaml(f)
+            if isinstance(edata, dict):
+                tags[edata.get("task_id", f.stem)] = edata.get("tags", [])
 
     _task_cache["tags"] = tags
     return tags
