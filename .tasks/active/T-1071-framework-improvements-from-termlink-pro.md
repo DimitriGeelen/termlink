@@ -4,7 +4,7 @@ name: "Framework improvements from termlink protocol-skew + event.broadcast work
 description: >
   Inception: Framework improvements from termlink protocol-skew + event.broadcast workaround pattern
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T21:18:07Z
-last_update: 2026-04-15T21:28:32Z
-date_finished: null
+last_update: 2026-04-18T23:01:00Z
+date_finished: 2026-04-18T19:51:42Z
 ---
 
 # T-1071: Framework improvements from termlink protocol-skew + event.broadcast workaround pattern
@@ -71,12 +71,12 @@ Total time-box: **70 minutes**. No code until GO.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated — KeyEntry adjacently-tagged enum at `crates/termlink-protocol/src/control.rs:65-74`, introduced via T-768 (commit 8ea9fa06). Older clients sending bare String fail deserialization on newer hubs.
+- [x] Assumptions tested — A1/A2/A3/A4 all confirmed; see "Findings" below.
+- [x] Recommendation written with rationale — see ## Recommendation
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -103,15 +103,32 @@ Total time-box: **70 minutes**. No code until GO.
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO — split into 3 follow-up build tasks across termlink + framework.
+
+**Rationale:** All four assumptions confirmed. The protocol-skew failure mode is structural (typed serde enums + no version enforcement at hub), but each remediation is small, scoped, and reversible. The `event.broadcast` resilience property is real and worth codifying as a deliberate design tier rather than a happy accident.
+
+## Findings
+
+**A1 (skew is repeatable) — CONFIRMED.** `KeyEntry` at `crates/termlink-protocol/src/control.rs:65-74` uses `#[serde(tag = "type", content = "value")]` adjacently-tagged representation. Older clients sending bare `String` will fail deserialization on any hub built after T-768 (commit 8ea9fa06). Same risk applies to every typed RPC param struct.
+
+**A2 (event.broadcast is resilient) — CONFIRMED.** `event.broadcast` payload is opaque JSON relayed by the hub without struct-level deserialization. Schema drift in *application-level* fields cannot break the relay. The hub only deserializes the envelope (method, common params, opaque payload).
+
+**A3 (framework could warn) — CONFIRMED with caveat.** `Capabilities.protocol_version: u8` is declared at registration (`control.rs:79`) and serialized — the data is on the wire. But grep shows zero enforcement code: it is collected and ignored. The only mention of "protocol version mismatch" is a string hint in `remote.rs:1676` for TLS errors. So the *channel* exists; the *check* doesn't.
+
+**A4 (generic concern) — CONFIRMED.** Any cross-version typed-RPC system has this failure mode. The framework is not termlink-specific, so codifying a "resilience tier" taxonomy would benefit other RPCs the framework may add.
+
+## Proposed follow-up build tasks (post-GO)
+
+1. **[termlink, S]** Wire `protocol_version` enforcement: hub records each registered session's declared protocol_version. On RPC call from a session whose declared version is < hub's `DATA_PLANE_VERSION` for that method, return a structured error (`PROTOCOL_VERSION_TOO_OLD`, code TBD) with the minimum required version, instead of letting serde fail with an opaque parse error. Backwards-compatible: missing field defaults to 1.
+2. **[termlink, S]** `fleet doctor`/`fleet status` reports fleet-wide version diversity (e.g., "Versions in fleet: 0.9.815 (1 hub), 0.9.99 (1 hub), 0.9.844 (1 hub)"). Cheap — reuses existing `query.capabilities` ping already in fleet doctor probe.
+3. **[framework, M]** Resilience-tier taxonomy: tag every RPC method as Tier-A (opaque-payload, drift-tolerant: `event.broadcast`, `event.emit`, `kv.set` strings) or Tier-B (typed struct, drift-fragile: `command.inject`, `command.exec`, `session.update`). Document in `crates/termlink-protocol/src/control.rs` as doc comments. `fleet doctor` flags fleets where Tier-B methods would fail across the version diversity it observes.
+
+Tasks 1 & 2 are termlink-internal; task 3 is partly framework guidance (the taxonomy doc) and partly termlink (the diagnostic). Task 1 is the load-bearing one — it converts opaque parse failures into actionable upgrade hints, which is what was missing on 2026-04-15.
+
+## Out of scope (intentional)
+
+- Schema migration tooling (e.g., shim layer that translates old payload to new). Adds complexity for a transient problem. The structured error from task 1 + operator running `fw upgrade` is sufficient.
+- Auto-upgrade. Operators must remain in control of fleet versions.
 
 ## Decisions
 
@@ -126,7 +143,13 @@ Total time-box: **70 minutes**. No code until GO.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO — split into 3 follow-up build tasks across termlink + framework.
+
+Rationale: All four assumptions confirmed. The protocol-skew failure mode is structural (typed serde enums + no version enforcement at hub), but each remediation is small, scoped, and reversible. The `event.broadcast` resilience property is real and worth codifying as a deliberate design tier rather than a happy accident.
+
+**Date**: 2026-04-18T19:51:42Z
 
 ## Updates
 
@@ -135,3 +158,14 @@ Total time-box: **70 minutes**. No code until GO.
 
 ### 2026-04-15T21:28:32Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-18T19:51:42Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO — split into 3 follow-up build tasks across termlink + framework.
+
+Rationale: All four assumptions confirmed. The protocol-skew failure mode is structural (typed serde enums + no version enforcement at hub), but each remediation is small, scoped, and reversible. The `event.broadcast` resilience property is real and worth codifying as a deliberate design tier rather than a happy accident.
+
+### 2026-04-18T19:51:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
