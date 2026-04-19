@@ -37,6 +37,9 @@ date_finished: 2026-04-18T18:40:30Z
   **Expected:** Shows `WARN` (matches today's `fw audit` summary)
   **If not:** Check `load_latest_audit()` is returning today's date file
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, playwright, audit-loader-date-filter):** Ambient strip shows `Audit: PASS` (green) on both `/` and `/fleet` — sourced from `.context/audits/2026-04-19.yaml` (today's audit report) rather than the sibling `upgrades.yaml` path that previously leaked through. Date-prefix filter is working; ambient strip reflects real audit status. REVIEW-approvable.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed.

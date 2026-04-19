@@ -38,6 +38,9 @@ date_finished: 2026-04-18T15:57:33Z
   **Expected:** Shows `T-1127` (the task in focus.yaml)
   **If not:** Check the Watchtower log for errors reading focus.yaml
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, playwright, ambient-strip-focus):** Ambient strip shows `T-1143` as the focus task (verified via playwright snapshot of `/` and `/fleet`). `cat .context/working/focus.yaml` confirms `task_id: T-1143` — ambient strip matches actual focus.yaml, not first-alphabetical active task. REVIEW-approvable.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed.

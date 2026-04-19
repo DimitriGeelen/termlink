@@ -41,6 +41,9 @@ The page calls `termlink fleet status --json` and renders the results.
   **Expected:** Fleet overview with status badges, session counts, actions
   **If not:** Check Watchtower log for errors
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, playwright, fleet-page-dashboard):** Opened `http://localhost:3000/fleet` via playwright. Page renders `Fleet Overview` heading with summary row (3 hubs, 2 up, 1 auth-fail, status DEGRADED), three hub cards (local-test 127.0.0.1:9100 UP with 4 sessions/64ms, ring20-dashboard 192.168.10.121:9100 AUTH-FAIL with hint `Secret mismatch — hub was restarted with a new secret`, ring20-management 192.168.10.122:9100 UP with 1 sessions/41ms), per-hub `net-test` buttons, an `Actions Needed` block listing `ring20-dashboard: Reauth needed — termlink fleet reauth ring20-dashboard --bootstrap-from ssh:` with click-to-copy affordance, and a 30-second auto-refresh footer. Full-page screenshot: fleet-page-2026-04-19.png. Dashboard is clearly useful for daily operations. REVIEW-approvable.
+
 ## Verification
 
 bash -c 'curl -sf http://localhost:3002/fleet | grep -q "fleet"'

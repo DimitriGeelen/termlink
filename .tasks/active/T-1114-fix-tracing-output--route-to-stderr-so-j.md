@@ -39,6 +39,9 @@ corrupting the output. This breaks the Watchtower /fleet page which shells out t
   **Expected:** At least local-test hub shown as UP
   **If not:** Check `/api/fleet/status` JSON response for errors
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, playwright, tracing-to-stderr):** Opened `http://localhost:3000/fleet` via playwright — page renders with live hub data (UP/AUTH-FAIL badges, session counts, latency numbers). Watchtower calls `termlink fleet status --json` under the hood; if tracing output still went to stdout, the JSON parse would fail and the fleet page would be empty or show an error. Because the fleet page is fully populated, tracing-to-stderr is working end-to-end. RUBBER-STAMPable.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.

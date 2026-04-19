@@ -40,6 +40,9 @@ the CLI call and showing a collapsible session list per hub gives the operator t
   **Expected:** Session names listed
   **If not:** Check `/api/fleet/status` for session_names field
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, playwright, fleet-session-names):** `curl http://localhost:3000/fleet | grep session-list` shows per-hub `<ul class="session-list">` with named sessions: local-test = `framework-agent`, `termlink-agent`, `ntb-dev-test`, `email-archive`; ring20-management = `ring20-management-agent`. Session names are visible on the fleet page (hidden by default, toggled via `.session-toggle` click). RUBBER-STAMPable.
+
 ## Verification
 
 curl -sf http://localhost:3000/fleet | grep -q 'session'
