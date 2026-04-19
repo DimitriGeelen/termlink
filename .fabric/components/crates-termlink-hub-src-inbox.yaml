@@ -1,20 +1,22 @@
 id: crates/termlink-hub/src/inbox.rs
 name: inbox
-type: script
-subsystem: unknown
+type: module
+subsystem: hub
 location: crates/termlink-hub/src/inbox.rs
-tags: []
+tags: [inbox, file-transfer, offline-delivery, persistence]
 
-purpose: "TODO: describe what this component does"
+purpose: "Hub-level file inbox (T-988) — queues file-transfer events (FileInit, FileChunk, FileComplete) to disk when a send-file targets an offline session. On target registration the hub replays pending transfers from {runtime_dir}/inbox/{target_name}/{transfer_id}/ so delivery survives restarts and late-joiners."
 
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
   []
 
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
+  - target: crates/termlink-hub/src/router.rs
+    type: calls
+  - target: crates/termlink-hub/src/supervisor.rs
+    type: calls
+  - target: crates/termlink-hub/src/lib.rs
+    type: calls
 
-last_verified: 2026-04-12
+last_verified: 2026-04-19
 created_by: unknown
