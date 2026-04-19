@@ -1,37 +1,91 @@
 use serde::{Deserialize, Serialize};
 
 /// Control plane message methods.
+///
+/// # Resilience-tier taxonomy (T-1133, from T-1071 GO)
+///
+/// Every method is tagged **Tier-A** or **Tier-B** to make protocol-skew
+/// behavior predictable across the fleet:
+///
+/// - **Tier-A — opaque / drift-tolerant.** Payload is a raw JSON value, a
+///   string, or a free-form envelope. Adding fields to the payload on one
+///   side does not cause the other side to reject the message. Safe across
+///   version skew without coordination. Examples: `event.emit`,
+///   `event.broadcast`, `kv.set`. Use these for best-effort signaling and
+///   any cross-version fan-out.
+///
+/// - **Tier-B — typed / drift-fragile.** Payload deserializes into a named
+///   struct with required fields. Adding or renaming fields on one side can
+///   cause `serde` failures on older peers (opaque "invalid type" errors).
+///   Requires coordinated rollout and protocol_version bumps. Examples:
+///   `command.execute`, `command.inject`, `session.update`.
+///
+/// Fleet observability (T-1132) can flag a fleet where Tier-B methods are in
+/// flight across version diversity. `event.broadcast`'s accidental
+/// drift-tolerance (T-1071) is the prototype Tier-A property — this
+/// taxonomy promotes it from "happy accident" to "documented design tier".
 pub mod method {
+    /// Tier-B — typed registration payload with session metadata and capabilities.
     pub const SESSION_REGISTER: &str = "session.register";
+    /// Tier-B — typed session ID + reason.
     pub const SESSION_DEREGISTER: &str = "session.deregister";
+    /// Tier-B — typed filter struct (tags, caps, name) and typed SessionInfo results.
     pub const SESSION_DISCOVER: &str = "session.discover";
+    /// Tier-A — opaque liveness ping; no structured payload beyond session id.
     pub const SESSION_HEARTBEAT: &str = "session.heartbeat";
+    /// Tier-B — typed update (tags, focus, metadata); adding fields is a breaking change without a protocol bump.
     pub const SESSION_UPDATE: &str = "session.update";
+    /// Tier-B — typed execute params (command, args, env, timeout) and typed result.
     pub const COMMAND_EXECUTE: &str = "command.execute";
+    /// Tier-B — typed injection params (text, session, options).
     pub const COMMAND_INJECT: &str = "command.inject";
+    /// Tier-B — typed signal name + target.
     pub const COMMAND_SIGNAL: &str = "command.signal";
+    /// Tier-B — typed resize dimensions (rows, cols).
     pub const COMMAND_RESIZE: &str = "command.resize";
+    /// Tier-B — typed StatusReport response.
     pub const QUERY_STATUS: &str = "query.status";
+    /// Tier-B — typed OutputResponse (lines, range, encoding).
     pub const QUERY_OUTPUT: &str = "query.output";
+    /// Tier-B — typed Capabilities response (protocol_version, feature flags).
     pub const QUERY_CAPABILITIES: &str = "query.capabilities";
+    /// Tier-A — opaque payload (topic + arbitrary JSON value). Drift-tolerant by construction.
     pub const EVENT_EMIT: &str = "event.emit";
+    /// Tier-B — typed filter (topic, after, limit) and typed event envelope list.
     pub const EVENT_POLL: &str = "event.poll";
+    /// Tier-B — typed topic list response.
     pub const EVENT_TOPICS: &str = "event.topics";
+    /// Tier-A — opaque transition payload; receivers ignore unknown fields.
     pub const EVENT_STATE_CHANGE: &str = "event.state_change";
+    /// Tier-A — opaque error descriptor; best-effort delivery.
     pub const EVENT_ERROR: &str = "event.error";
+    /// Tier-A — opaque fan-out payload. Prototype Tier-A case: drift-tolerant across version skew (T-1071).
     pub const EVENT_BROADCAST: &str = "event.broadcast";
+    /// Tier-B — typed collector semantics (tag filter, timeout) and typed result bundle.
     pub const EVENT_COLLECT: &str = "event.collect";
+    /// Tier-A — opaque payload addressed to a single session.
     pub const EVENT_EMIT_TO: &str = "event.emit_to";
+    /// Tier-B — typed subscription filter + delivery mode.
     pub const EVENT_SUBSCRIBE: &str = "event.subscribe";
+    /// Tier-A — key is a string; value is an opaque JSON value.
     pub const KV_SET: &str = "kv.set";
+    /// Tier-A — returns the opaque value unchanged.
     pub const KV_GET: &str = "kv.get";
+    /// Tier-B — typed list response (key array, prefix filter).
     pub const KV_LIST: &str = "kv.list";
+    /// Tier-A — key-only delete; no structured payload.
     pub const KV_DELETE: &str = "kv.delete";
+    /// Tier-B — typed token-mint request (scope, ttl) and typed response.
     pub const AUTH_TOKEN: &str = "auth.token";
+    /// Tier-B — typed hub handshake (nonce, signature).
     pub const HUB_AUTH: &str = "hub.auth";
+    /// Tier-B — typed pty mode params (raw/cooked, tty flags).
     pub const PTY_MODE: &str = "pty.mode";
+    /// Tier-B — typed route descriptor.
     pub const ORCHESTRATOR_ROUTE: &str = "orchestrator.route";
+    /// Tier-B — typed status request/response.
     pub const ORCHESTRATOR_BYPASS_STATUS: &str = "orchestrator.bypass_status";
+    /// Tier-B — typed invalidation request.
     pub const ORCHESTRATOR_BYPASS_INVALIDATE: &str = "orchestrator.bypass_invalidate";
 }
 
