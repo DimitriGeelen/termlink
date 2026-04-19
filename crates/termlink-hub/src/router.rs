@@ -73,6 +73,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         "inbox.list" => handle_inbox_list(id, &req.params),
         "inbox.status" => handle_inbox_status(id),
         "inbox.clear" => handle_inbox_clear(id, &req.params),
+        "hub.version" => handle_hub_version(id),
         _ => forward_to_target(req, id).await,
     };
 
@@ -683,6 +684,22 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
     }
 
     Response::success(id, json!({ "id": session_id })).into()
+}
+
+/// Handle `hub.version` — return the hub's binary version and wire protocol version.
+///
+/// Tier-A (opaque). No params, no auth beyond what the connection already has.
+/// T-1132 (from T-1071 GO) — fleet doctor calls this to surface version diversity
+/// across the fleet before a Tier-B RPC fails on a skewed hub.
+fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
+    Response::success(
+        id,
+        json!({
+            "hub_version": env!("CARGO_PKG_VERSION"),
+            "protocol_version": termlink_protocol::DATA_PLANE_VERSION,
+        }),
+    )
+    .into()
 }
 
 /// Handle `session.heartbeat` — refresh TTL for a remote session.
@@ -3265,5 +3282,23 @@ mod tests {
 
         unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // T-1132
+
+    #[test]
+    fn hub_version_returns_binary_version_and_protocol_version() {
+        let resp = super::handle_hub_version(json!(7));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.id, json!(7));
+                assert_eq!(r.result["hub_version"], env!("CARGO_PKG_VERSION"));
+                assert_eq!(
+                    r.result["protocol_version"],
+                    termlink_protocol::DATA_PLANE_VERSION
+                );
+            }
+            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+        }
     }
 }

@@ -1565,6 +1565,10 @@ pub(crate) async fn cmd_fleet_doctor(
     let mut total_pass: u32 = 0;
     let total_warn: u32 = 0;
     let mut total_fail: u32 = 0;
+    // T-1132: aggregate binary versions across the fleet. `unknown` covers hubs
+    // that failed to connect or that pre-date the hub.version RPC.
+    let mut fleet_versions: std::collections::BTreeMap<String, u32> =
+        std::collections::BTreeMap::new();
 
     // Sort hub names for deterministic output
     let mut hub_names: Vec<&String> = config.hubs.keys().collect();
@@ -1599,18 +1603,46 @@ pub(crate) async fn cmd_fleet_doctor(
             });
 
         match result {
-            Ok(Ok(_client)) => {
+            Ok(Ok(mut client)) => {
                 let latency = connect_start.elapsed().as_millis();
                 total_pass += 1;
-                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "ok", "latency_ms": latency, "secret_source": &secret_source}));
+
+                // T-1132: probe hub.version; fall back to "unknown" for pre-T-1132 hubs.
+                let hub_version = match client
+                    .call(
+                        "hub.version",
+                        serde_json::json!("fleet-doctor-version"),
+                        serde_json::json!({}),
+                    )
+                    .await
+                {
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => r
+                        .result
+                        .get("hub_version")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string(),
+                    _ => "unknown".to_string(),
+                };
+                *fleet_versions.entry(hub_version.clone()).or_insert(0) += 1;
+
+                hub_results.push(serde_json::json!({
+                    "hub": name,
+                    "address": entry.address,
+                    "status": "ok",
+                    "latency_ms": latency,
+                    "secret_source": &secret_source,
+                    "hub_version": &hub_version,
+                }));
                 if !json {
-                    eprintln!("  [PASS] connected in {}ms", latency);
+                    eprintln!("  [PASS] connected in {}ms (version: {})", latency, hub_version);
                 }
                 // T-1053: pass resets the auth-failure streak + re-arms concern gating.
                 let _ = maybe_track_fleet_failure(name, &entry.address, None);
             }
             Ok(Err(e)) => {
                 total_fail += 1;
+                *fleet_versions.entry("unknown".into()).or_insert(0) += 1;
                 let msg = format!("{}", e);
                 let diagnostic = classify_fleet_error(&msg, &entry.address);
                 hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg, "secret_source": &secret_source, "diagnostic": &diagnostic}));
@@ -1627,6 +1659,7 @@ pub(crate) async fn cmd_fleet_doctor(
             }
             Err(_) => {
                 total_fail += 1;
+                *fleet_versions.entry("unknown".into()).or_insert(0) += 1;
                 let diagnostic = "Check network connectivity and that hub is listening on the configured port";
                 hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "timeout", "secret_source": &secret_source, "diagnostic": diagnostic}));
                 if !json {
@@ -1647,11 +1680,34 @@ pub(crate) async fn cmd_fleet_doctor(
         println!("{}", serde_json::to_string_pretty(&serde_json::json!({
             "ok": total_fail == 0,
             "hubs": hub_results,
-            "summary": {"total": hub_results.len(), "pass": total_pass, "warn": total_warn, "fail": total_fail}
+            "summary": {"total": hub_results.len(), "pass": total_pass, "warn": total_warn, "fail": total_fail},
+            "fleet_versions": fleet_versions,
         }))?);
     } else {
         eprintln!("Fleet summary: {} hub(s), {} ok, {} warn, {} fail",
             hub_results.len(), total_pass, total_warn, total_fail);
+
+        // T-1132: Versions in fleet summary — flag skew with a hint.
+        if !fleet_versions.is_empty() {
+            let parts: Vec<String> = fleet_versions
+                .iter()
+                .map(|(v, count)| {
+                    let plural = if *count == 1 { "hub" } else { "hubs" };
+                    format!("{} ({} {})", v, count, plural)
+                })
+                .collect();
+            eprintln!("Versions in fleet: {}", parts.join(", "));
+            // Count distinct *known* versions to decide whether to flag skew.
+            let distinct_known = fleet_versions
+                .keys()
+                .filter(|v| v.as_str() != "unknown")
+                .count();
+            if distinct_known > 1 {
+                eprintln!(
+                    "  hint: fleet version skew detected — Tier-B RPCs may fail across the diversity; see docs on Tier-A vs Tier-B methods"
+                );
+            }
+        }
     }
 
     Ok(())
