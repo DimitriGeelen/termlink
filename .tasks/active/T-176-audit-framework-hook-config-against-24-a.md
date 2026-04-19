@@ -88,6 +88,14 @@ Framework uses 4 of ~24 available Claude Code hook types (11 matchers). Are we m
 - **Why:** Framework now uses 11 hooks (up from 4). Worth auditing remaining 13 for enforcement gaps.
 - **Rejected:** NO-GO — hooks are sufficient as-is
 
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** Framework uses 11/24 available hooks. Audit remaining 13 for enforcement value.
+
 ## Decision
 
 **Decision**: GO

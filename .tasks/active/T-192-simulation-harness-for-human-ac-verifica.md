@@ -94,6 +94,14 @@ simulate the human steps. Research artifact: `docs/reports/T-192-simulation-harn
 **Rationale**: Spikes 1-3 pass: dispatch isolation, tl-claude lifecycle, Enter inject all verified programmatically. 9 of 11 human ACs automatable. Build repeatable simulation script.
 
 **Date**: 2026-03-20T07:47:12Z
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** Spikes 1-3 pass: dispatch isolation, tl-claude lifecycle, Enter inject all verified programmatically. 9 of 11 human ACs automatable. Build repeatable simulation script.
+
 ## Decision
 
 **Decision**: GO

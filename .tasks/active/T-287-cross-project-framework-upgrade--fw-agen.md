@@ -99,6 +99,14 @@ Framework agent on .107 has governance fixes. Applying them to consumer projects
 **Rationale**: Bidirectional connectivity proven, framework blockers T-615/T-617/T-618 landed
 
 **Date**: 2026-03-27T06:45:05Z
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+**Decision (retro-captured from Decision block):** GO
+
+**Rationale:** Bidirectional connectivity proven, framework blockers T-615/T-617/T-618 landed
+
 ## Decision
 
 **Decision**: GO

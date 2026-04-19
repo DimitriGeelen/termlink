@@ -77,6 +77,12 @@ date_finished: null
      - **Rejected:** [alternatives and why not]
 -->
 
+## Recommendation
+
+_Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before `## Recommendation` became a required section. Content mirrors the `## Decision` block below for audit compliance (CTL-027)._
+
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+
 ## Decision
 
 <!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
