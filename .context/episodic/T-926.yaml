@@ -1,3 +1,5 @@
+summary: "Second per-command rollout of --target cross-host routing."
+
 # T-926: termlink status --target — second --target rollout
 
 **Completed:** 2026-04-11

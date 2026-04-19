@@ -85,3 +85,7 @@ date_finished: null
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-19T12:30Z — housekeeping [agent]
+- **Action:** T-1139 audit remediation touch. Task remains captured/horizon=later pending operator prioritization; no scope change.
+- **Status:** Still backlog — inception not yet entered. Will move when another exploration slot opens.

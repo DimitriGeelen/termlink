@@ -1,3 +1,5 @@
+summary: "Fixed the last plain-text return path found during the T-894/T-895/T-896 JSON standardization sweep."
+
 # T-900: Fix agent_ask timeout return to use structured JSON
 
 **Completed:** 2026-04-05

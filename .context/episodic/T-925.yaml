@@ -1,3 +1,5 @@
+summary: "First per-command rollout of --target cross-host routing."
+
 # T-925: termlink ping --target — first --target rollout
 
 **Completed:** 2026-04-11

@@ -1,3 +1,5 @@
+summary: "Extended the dispatch system with multi-LLM model selection."
+
 # T-904: Multi-LLM model routing for dispatch
 
 **Completed:** 2026-04-11

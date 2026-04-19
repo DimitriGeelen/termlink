@@ -1,3 +1,5 @@
+summary: "Third per-command rollout of --target."
+
 # T-927: termlink signal --target — third rollout
 
 **Completed:** 2026-04-11

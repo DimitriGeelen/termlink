@@ -1,3 +1,5 @@
+summary: "Final batch of the MCP JSON standardization sweep."
+
 # T-896: Standardize MCP resize and request tool outputs to structured JSON
 
 **Completed:** 2026-04-05
