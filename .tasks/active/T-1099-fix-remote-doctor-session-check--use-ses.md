@@ -35,11 +35,16 @@ date_finished: 2026-04-16T23:41:52Z
   **Steps:** `cd /opt/termlink && termlink remote doctor local-test`
   **Expected:** sessions check shows [PASS] with count
   **If not:** Check router method name
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:** `cd /opt/termlink && termlink remote doctor local-test`
-         **Expected:** sessions shows [PASS] with session count
-         **If not:** Check router method mapping
+
+  **Agent evidence (2026-04-19):** Ran against current local hub with rebuilt debug CLI. Output:
+  ```
+  Remote doctor: 127.0.0.1:9100
+    [PASS] connectivity: connected in 62ms
+    [PASS] sessions: 3 session(s): framework-agent, termlink-agent, ntb-dev-test
+    [PASS] inbox: no pending transfers
+    Summary: 3 pass, 0 warn, 0 fail
+  ```
+  session.discover path works and lists named sessions. Human may rubber-stamp.
 
 ## Verification
 
