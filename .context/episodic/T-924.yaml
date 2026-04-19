@@ -1,3 +1,5 @@
+summary: "Created crates/termlink-cli/src/target.rs with TargetOpts (clap::Args-derived struct with target/secret-file/secret/scope/session fields) and call_session(opts, method, params) async helper that routes through connect_remote_hub when --target is set, or local client::rpc_call when not."
+
 # T-924: Shared TargetOpts + call_session CLI helper for cross-host routing
 
 **Completed:** 2026-04-11

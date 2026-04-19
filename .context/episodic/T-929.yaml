@@ -1,3 +1,5 @@
+summary: "Fifth per-command rollout of --target."
+
 # T-929: termlink kv --target — fifth rollout
 
 **Completed:** 2026-04-11

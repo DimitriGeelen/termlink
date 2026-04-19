@@ -1,3 +1,5 @@
+summary: "Documented and executed the one-shot runtime directory migration from /tmp/termlink-0/ (tmpfs, wiped on reboot) to /var/lib/termlink/ (persistent, systemd StateDirectory)."
+
 # T-935: Runtime dir migration — /tmp/termlink-0 to /var/lib/termlink
 
 **Completed:** 2026-04-11

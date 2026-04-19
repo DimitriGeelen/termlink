@@ -1,3 +1,5 @@
+summary: "Added a governance subscriber to the data plane that watches Output frames for configurable regex patterns and emits Governance frames (frame type 0x8) for audit/metrics."
+
 # T-905: Add data plane governance subscriber for post-hoc pattern detection
 
 **Completed:** 2026-04-11

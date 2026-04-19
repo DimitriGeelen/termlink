@@ -1,3 +1,5 @@
+summary: "Added integration tests for the termlink_register and termlink_deregister MCP tools that were introduced in T-834 but only had unit tests for parameter deserialization."
+
 # T-897: Add integration tests for termlink_register and termlink_deregister
 
 **Completed:** 2026-04-05

@@ -1,3 +1,5 @@
+summary: "Converted termlink_spawn from plain text format!() strings to structured JSON output with ok, session_name, and status fields."
+
 # T-894: Standardize MCP termlink_spawn output to structured JSON
 
 **Completed:** 2026-04-05
