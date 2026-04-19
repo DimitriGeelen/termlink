@@ -157,6 +157,10 @@ Rationale: Re-reading the problem statement, the failure mode that matters ("res
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
 
+**Research artifacts:**
+- `docs/reports/T-1122-watchtower-production-server-inception.md` — problem-statement validation and assumption tests
+- `docs/reports/T-1122-watchtower-wsgi-migration-recommendation.md` — recommendation + DEFER rationale
+
 ### 2026-04-18T09:40:32Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 

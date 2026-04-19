@@ -52,7 +52,7 @@ Fix locally: register the one missing fabric card. Fix upstream: pickup P-NNN to
 test -f .fabric/components/crates-termlink-cli-src-test_env_lock.yaml
 grep -q "purpose:" .fabric/components/crates-termlink-cli-src-test_env_lock.yaml
 ! grep -q 'purpose: "TODO' .fabric/components/crates-termlink-cli-src-test_env_lock.yaml
-ls /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/P-*-bug-report.yaml 2>/dev/null | head -1 | xargs -I{} grep -l "globstar" {} >/dev/null
+grep -rlq "globstar" /opt/999-Agentic-Engineering-Framework/.context/pickup/
 
 ## Decisions
 
