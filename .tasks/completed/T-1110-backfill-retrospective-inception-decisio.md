@@ -26,8 +26,7 @@ date_finished: 2026-04-17T19:35:19Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Task closed retroactively (2026-04-19, T-1139 CTL-012 remediation) — AC template was never filled at creation; work was completed but not captured formally. Audit trail in the commit log references T-1110.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

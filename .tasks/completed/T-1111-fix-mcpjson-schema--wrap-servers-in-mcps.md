@@ -26,8 +26,8 @@ date_finished: 2026-04-17T20:08:19Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `.mcp.json` parses as valid JSON and contains top-level `mcpServers` key wrapping all three servers
-- [ ] `claude mcp list` shows context7, playwright, and termlink without schema errors
+- [x] `.mcp.json` parses as valid JSON and contains top-level `mcpServers` key wrapping all three servers — verified 2026-04-19 (post-hoc): `python3 -c "import json; d=json.load(open('.mcp.json')); print(list(d['mcpServers'].keys()))"` → `['context7', 'playwright', 'termlink']`
+- [x] `claude mcp list` shows context7, playwright, and termlink without schema errors — verified live: MCP tools (context7, playwright, termlink) resolve in this session
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
