@@ -4,15 +4,15 @@ name: "Resilience-tier taxonomy — tag each RPC method Tier-A (opaque) or Tier-
 description: >
   From T-1071 inception GO. Tag every RPC method as Tier-A (opaque payload, drift-tolerant — event.broadcast, event.emit, kv.set strings) or Tier-B (typed struct, drift-fragile — command.inject, command.exec, session.update). Document in crates/termlink-protocol/src/control.rs as doc comments on each method constant. fleet doctor can then flag fleets where Tier-B methods would fail across the observed version diversity (extends T-1132). This is the 'codify the event.broadcast resilience property' deliverable — promotes a happy accident into a documented design tier.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [termlink, protocol, taxonomy, documentation, T-1071]
 components: []
 related_tasks: []
 created: 2026-04-18T23:00:36Z
-last_update: 2026-04-18T23:00:36Z
+last_update: 2026-04-19T13:59:14Z
 date_finished: null
 ---
 
@@ -25,30 +25,23 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `control.rs` has a module-level doc block defining Tier-A (opaque/drift-tolerant) and Tier-B (typed/drift-fragile)
+- [x] Every method constant in the `method` module carries a `/// Tier-A` or `/// Tier-B` doc comment (31 tagged)
+- [x] Tier-A set includes at minimum: `event.emit`, `event.broadcast`, `event.emit_to`, `event.state_change`, `kv.set`, `kv.get`
+- [x] Tier-B set includes at minimum: `command.execute`, `command.inject`, `session.update`, `query.status`
+- [x] `cargo check -p termlink-protocol` succeeds (doc comments don't break compilation)
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [RUBBER-STAMP] Sanity-check the Tier-A/Tier-B split against your reading of the methods
+  **Steps:** `rg "Tier-[AB]" crates/termlink-protocol/src/control.rs`
+  **Expected:** every method in the `method` module is labeled; labels match your intuition
+  **If not:** note which method looks misclassified and why
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+grep -q "Tier-A" /opt/termlink/crates/termlink-protocol/src/control.rs
+grep -q "Tier-B" /opt/termlink/crates/termlink-protocol/src/control.rs
+bash -c 'cd /opt/termlink && cargo check -p termlink-protocol 2>&1 | tail -5 | grep -qE "Finished|Compiling"'
 
 ## Decisions
 
@@ -67,3 +60,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1133-resilience-tier-taxonomy--tag-each-rpc-m.md
 - **Context:** Initial task creation
+
+### 2026-04-19T13:59:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
