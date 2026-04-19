@@ -491,3 +491,10 @@ learnings:
   date: 2026-04-19
   context: Added via context agent
   application: TBD
+- id: PL-036
+  learning: "fw handover --commit pushes directly to both origin (OneDev) and github, bypassing the broken OneDev buildspec mirror (G-007). Plain git push origin main only reaches OneDev and leaves a drift window — check-mirror-freshness.sh measured 7+ commits behind, 5min+, no sync during ordinary pushes. Use fw handover --commit or fw release for pushes that must appear on github (e.g., anything the install-check or release workflow needs)."
+  source: T-1140
+  task: T-1140
+  date: 2026-04-19
+  context: Added via context agent
+  application: TBD
