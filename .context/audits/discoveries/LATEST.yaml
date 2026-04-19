@@ -1,11 +1,11 @@
-timestamp: 2026-04-19T13:30:02Z
+timestamp: 2026-04-19T23:30:01Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 1% [TODO] (8/785)"
+    check: "D1: Episodic quality — 1% [TODO] (8/790)"
   - id: D2
     level: WARN
-    check: "D2: Human review queue — 4 task(s) waiting >14d: T-160(15d) T-789(20d) T-834(14d) T-879(14d)"
+    check: "D2: Human review queue — 4 task(s) waiting >14d: T-160(16d) T-789(20d) T-834(14d) T-879(14d)"
     mitigation: "Review with: fw task verify"
   - id: D8
     level: PASS
