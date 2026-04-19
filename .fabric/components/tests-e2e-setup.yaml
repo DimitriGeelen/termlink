@@ -3,15 +3,17 @@ name: e2e-setup
 type: script
 subsystem: cli
 location: tests/e2e/setup.sh
-tags: [e2e, test, portability]
-
-purpose: "Shared E2E setup — portable binary resolution, build, orchestrator registration helpers"
-
-depends_on: []  # Sources e2e-helpers.sh (no card) and builds termlink binary
-
+tags:
+- e2e
+- test
+- portability
+purpose: Shared E2E setup — portable binary resolution, build, orchestrator registration helpers
+depends_on: []
 depended_by:
-  - target: tests/e2e/level9-dispatch-collect.sh
-    relationship: sourced_by
-
+- target: tests/e2e/level9-dispatch-collect.sh
+  relationship: sourced_by
+- target: tests/e2e/level9-dispatch-collect.sh
+  type: _by
 last_verified: 2026-03-12
 created_by: unknown
+last_enriched: '2026-04-19'

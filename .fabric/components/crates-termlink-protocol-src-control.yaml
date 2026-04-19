@@ -20,4 +20,6 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/src/handler.rs
   type: called_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-hub/src/aggregator.rs
+  type: read_by
+last_enriched: '2026-04-19'

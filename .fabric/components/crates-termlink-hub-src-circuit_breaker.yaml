@@ -3,17 +3,20 @@ name: circuit_breaker
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/circuit_breaker.rs
-tags: [reliability, circuit-breaker, fault-tolerance]
-
-purpose: "Per-session circuit breaker — opens after 3 consecutive transport failures, enters half-open after 60s cooldown. Global singleton registry keyed by session ID."
-
-depends_on: []  # No imports from registered components — uses only std
-
+tags:
+- reliability
+- circuit-breaker
+- fault-tolerance
+purpose: Per-session circuit breaker — opens after 3 consecutive transport failures, enters half-open after 60s cooldown.
+  Global singleton registry keyed by session ID.
+depends_on: []
 depended_by:
-  - target: crates/termlink-hub/src/lib.rs
-    relationship: declared_by
-  - target: crates/termlink-hub/src/router.rs
-    relationship: called_by
-
+- target: crates/termlink-hub/src/lib.rs
+  relationship: declared_by
+- target: crates/termlink-hub/src/router.rs
+  relationship: called_by
+- target: crates/termlink-hub/src/router.rs
+  type: called_by
 last_verified: 2026-03-26
 created_by: unknown
+last_enriched: '2026-04-19'

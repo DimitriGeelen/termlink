@@ -28,4 +28,10 @@ created_by: T-223
 depended_by:
 - target: crates/termlink-cli/src/commands/mod.rs
   type: declares_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-cli/src/commands/push.rs
+  type: _by
+- target: crates/termlink-cli/src/target.rs
+  type: called_by
+- target: scripts/learnings-exchange.sh
+  type: called_by
+last_enriched: '2026-04-19'

@@ -45,4 +45,12 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/src/endpoint.rs
   type: called_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-cli/src/commands/dispatch.rs
+  type: _by
+- target: crates/termlink-cli/src/target.rs
+  type: called_by
+- target: crates/termlink-mcp/src/server.rs
+  type: _by
+- target: crates/termlink-mcp/src/tools.rs
+  type: _by
+last_enriched: '2026-04-19'

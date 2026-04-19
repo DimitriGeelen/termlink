@@ -1,0 +1,44 @@
+# Audit Results - 2026-04-19-1330
+timestamp: 2026-04-19T11:30:01Z
+sections: "structure,compliance,quality,discovery"
+summary:
+  pass: 15
+  warn: 2
+  fail: 0
+findings:
+  - level: PASS
+    check: "Tasks directory exists"
+  - level: PASS
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "All 8 project YAML files parse correctly"
+  - level: PASS
+    check: "Fabric: 88 registered, 0 unregistered"
+  - level: PASS
+    check: "Fabric edges: 83/88 cards enriched (5 without edges)"
+  - level: PASS
+    check: "Fabric drift: All watched source files registered (88 cards)"
+  - level: PASS
+    check: "All 132 active tasks are valid"
+  - level: WARN
+    check: "Task T-243 has 27 days old with only 0 updates"
+    mitigation: "Fix in T-243-script-error-yielding--checkpoint-based-.md"
+  - level: PASS
+    check: "D1: Episodic quality — 1% [TODO] (8/783)"
+  - level: WARN
+    check: "D2: Human review queue — 4 task(s) waiting >14d: T-160(15d) T-789(19d) T-834(14d) T-879(14d)"
+    mitigation: "Review with: fw task verify"
+  - level: PASS
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
+  - level: PASS
+    check: "D8b: Handover archive — 0/10 recent handovers have [TODO]s"
+  - level: PASS
+    check: "D10: Decision-without-dialogue — none detected"
+  - level: PASS
+    check: "D11: Gap register staleness — all gaps fresh"

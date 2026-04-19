@@ -3,27 +3,31 @@ name: dispatch
 type: module
 subsystem: cli
 location: crates/termlink-cli/src/commands/dispatch.rs
-tags: [cli, orchestration, dispatch, workers]
-
-purpose: "Atomic spawn+tag+collect for multi-worker orchestration — spawns N workers, tags with dispatch ID, collects events via hub fan-in"
-
+tags:
+- cli
+- orchestration
+- dispatch
+- workers
+purpose: Atomic spawn+tag+collect for multi-worker orchestration — spawns N workers, tags with dispatch ID, collects events
+  via hub fan-in
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    relationship: uses
-  - target: crates/termlink-session/src/manager.rs
-    relationship: uses
-  - target: crates/termlink-cli/src/cli.rs
-    relationship: imports
-  - target: crates/termlink-cli/src/util.rs
-    relationship: imports
-  - target: crates/termlink-hub/src/server.rs
-    relationship: calls
-
+- target: crates/termlink-session/src/client.rs
+  relationship: uses
+- target: crates/termlink-session/src/manager.rs
+  relationship: uses
+- target: crates/termlink-cli/src/cli.rs
+  relationship: imports
+- target: crates/termlink-cli/src/util.rs
+  relationship: imports
+- target: crates/termlink-hub/src/server.rs
+  relationship: calls
 depended_by:
-  - target: crates/termlink-cli/src/commands/mod.rs
-    relationship: declared_by
-  - target: crates/termlink-cli/src/main.rs
-    relationship: called_by
-
+- target: crates/termlink-cli/src/commands/mod.rs
+  relationship: declared_by
+- target: crates/termlink-cli/src/main.rs
+  relationship: called_by
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: declares_by
 last_verified: 2026-03-26
 created_by: T-257
+last_enriched: '2026-04-19'
