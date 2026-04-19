@@ -161,3 +161,20 @@ concerns:
   created: 2026-04-15
   last_reviewed: 2026-04-15
   related_tasks: [T-193, T-372, T-373]
+
+- id: G-010
+  type: gap
+  title: "T-212 Homebrew tap task checked off but tap repo does not exist on GitHub"
+  description: "T-212 (Create Homebrew tap for TermLink distribution) has all Human ACs ticked as complete, including '[RUBBER-STAMP] Create GitHub repo DimitriGeelen/homebrew-termlink', but `gh repo view DimitriGeelen/homebrew-termlink` returns 404 as of 2026-04-19. Either the repo was created and deleted, or the boxes were checked prematurely. Result: the formula at /opt/termlink/homebrew/Formula/termlink.rb is ready (T-1141 populated real sha256s for v0.9.1) but no consumer can run `brew tap DimitriGeelen/termlink` because the tap URL 404s. Framework verification gate (P-011) only runs local shell commands — it has no way to assert external state like 'this GitHub repo exists', so a task can be completed without its external-world deliverable being real."
+  spec_reference: "T-212, T-1141, CLAUDE.md Agent/Human AC Split + Human Task Completion Rule"
+  severity: low
+  trigger_fired: true
+  trigger_event: "2026-04-19: During T-1141 follow-up, `gh repo view DimitriGeelen/homebrew-termlink` returned 'GraphQL: Could not resolve to a Repository'. T-212 shows status=started-work with all Human AC boxes ticked."
+  detection_lag_days: "unknown (T-212 last updated 2026-03-27)"
+  what_works_now: "Formula file in this repo has correct v0.9.1 sha256s (T-1141). install.sh curl-pipe (T-1134) bypasses Homebrew entirely — consumers with no tap have a working install path. `cargo install --git` is documented as a fallback in README."
+  what_remains: "1. Operator creates `DimitriGeelen/homebrew-termlink` on GitHub, copies homebrew/Formula/termlink.rb + homebrew/README.md into it, pushes. 2. Verify `brew tap DimitriGeelen/termlink && brew install termlink` works on a fresh macOS. 3. Consider: add a verification command to T-212 that calls `gh api repos/DimitriGeelen/homebrew-termlink` and fails if 404 — would catch this class of divergence. 4. More broadly: design a verification-extension that lets tasks assert external-world state (repo exists, release asset uploaded, DNS resolves)."
+  mitigation_candidate: "Short-term: operator creates the tap repo. Medium-term: `fw task verify` could accept a `gh-repo-exists:owner/name` verifier and the like. Long-term: rename the Agent/Human AC split to (Verifiable/Unverifiable) or (Local/External) to make explicit what the framework can and cannot attest."
+  status: watching
+  created: 2026-04-19
+  last_reviewed: 2026-04-19
+  related_tasks: [T-212, T-1141]
