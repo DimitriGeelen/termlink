@@ -36,6 +36,9 @@ date_finished: 2026-04-19T13:56:06Z
   **Expected:** `curl -fsSL ... install.sh | sh` appears first; brew second; cargo labeled "from source"
   **If not:** Copy the Quick Start block and note what looks wrong
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, code-grep, readme-install-one-liner):** Code: `README.md` line 17 contains `curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh | sh` — replaces the previous `cargo install --git` hint. README rendering on GitHub remains operator-verified (ties to T-1134 install.sh deliverable). RUBBER-STAMPable on the README change.
+
 ## Verification
 
 grep -q "curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh" /opt/termlink/README.md

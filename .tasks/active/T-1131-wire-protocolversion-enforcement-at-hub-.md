@@ -44,6 +44,9 @@ date_finished: 2026-04-19T14:06:47Z
   **Expected:** foundation looks right; follow-up is the correct next unit
   **If not:** call out which method you want plumbed now vs deferred
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, code-grep, protocol-version-router):** Code: `crates/termlink-hub/src/router.rs` extracts protocol_version at line 654 (`params.get("protocol_version")`), stores at line 670, echoes in query.capabilities at line 699 (`"protocol_version": termlink_protocol::DATA_PLANE_VERSION`). The scope fence (router-only, not Tier-B handlers) matches the T-1131 GO-with-caveats decision. Further plumbing into individual Tier-B handlers remains as follow-up. RUBBER-STAMPable.
+
 ## Verification
 
 grep -q "PROTOCOL_VERSION_TOO_OLD" /opt/termlink/crates/termlink-protocol/src/control.rs

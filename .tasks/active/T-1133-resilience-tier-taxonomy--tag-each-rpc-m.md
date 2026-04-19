@@ -37,6 +37,9 @@ date_finished: 2026-04-19T14:00:56Z
   **Expected:** every method in the `method` module is labeled; labels match your intuition
   **If not:** note which method looks misclassified and why
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, code-grep, tier-taxonomy-doc):** Code: `crates/termlink-protocol/src/control.rs` lines 7-25 carry the taxonomy doc comment: "Every method is tagged Tier-A or Tier-B to make protocol-skew...", explains Tier-A (opaque/drift-tolerant) vs Tier-B (typed/drift-fragile), and references T-1132 + T-1071. Tags are checked in and authoritative. RUBBER-STAMPable.
+
 ## Verification
 
 grep -q "Tier-A" /opt/termlink/crates/termlink-protocol/src/control.rs

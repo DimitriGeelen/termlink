@@ -45,6 +45,9 @@ date_finished: 2026-04-19T13:58:20Z
   **Expected:** binary runs; version reports the installed tag
   **If not:** Note the LXC distro, `uname -m`, and error output; file back via termlink inject
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, code-grep, homebrew-musl-url):** Code: `homebrew/Formula/termlink.rb` line 29 comment: `# Static musl build — works on both glibc and musl hosts, including`; line 32 url: `https://github.com/DimitriGeelen/termlink/releases/download/v#{version}/termlink-linux-x86_64-static`. Formula points at the musl-static variant, not linux-gnu. Still needs live `brew install` test inside a fresh LXC for REVIEW closure, but the formula change is in place. REVIEW-approvable on the formula; live test remains at operator discretion.
+
 ## Verification
 
 grep -q 'termlink-linux-x86_64-static' /opt/termlink/homebrew/Formula/termlink.rb
