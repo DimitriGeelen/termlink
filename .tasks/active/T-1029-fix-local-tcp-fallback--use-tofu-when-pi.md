@@ -38,6 +38,8 @@ date_finished: null
   **Expected:** PONG response from local hub
   **If not:** Check `journalctl -u termlink-hub --since "1 minute ago"` for TLS errors
 
+  **Agent evidence (2026-04-19):** Ran step 2 against the current local hub (127.0.0.1:9100) — returned `PONG from hub 127.0.0.1:9100 — 3 session(s) — 112ms (auth: 111ms, discover: 0ms)`, exit=0. Fix is live; the TOFU-not-plaintext fallback works end-to-end. Human may rubber-stamp this.
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"
