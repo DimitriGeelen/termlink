@@ -122,11 +122,11 @@ concerns:
   detection_lag_days: 0
   what_works_now: "Tags and release artifacts arrive on GitHub via `fw release`'s direct push path. Commits reachable from tags are accessible on GH as dangling refs. OneDev-to-OneDev push is unaffected. The install-check workflow was added successfully (file is on GH via tag), it just won't fire from main-branch pushes until mirror catches up."
   what_remains: "1. Inspect OneDev's PushRepository buildspec job status (likely requires OneDev UI access — operator action). 2. Verify github-push-token is valid. 3. Check if OneDev mirror is rate-limited or queued. 4. Consider fallback: if mirror is chronically slow, document that `fw release` is the authoritative GitHub path and formalize its direct push, or run a reconciliation cron."
-  mitigation_candidate: "Short-term: operator checks OneDev buildspec output for the failing mirror job. Medium-term: add a doctor check — if HEAD on origin != HEAD on github for >15min, WARN. Long-term: decide whether the buildspec mirror is worth keeping vs. just pushing to both remotes from `git push` (simpler, no lag, no silent-stuck-mirror failure mode)."
+  mitigation_candidate: "Short-term: operator checks OneDev buildspec output for the failing mirror job. Medium-term (T-1140, IMPLEMENTED 2026-04-19): scripts/check-mirror-freshness.sh compares origin and GitHub HEADs on demand; exits 0 synced, 1 drift, 2 tooling error; supports --json/--quiet for cron integration. Long-term: decide whether the buildspec mirror is worth keeping vs. just pushing to both remotes from `git push` (simpler, no lag, no silent-stuck-mirror failure mode)."
   status: watching
   created: 2026-04-15
-  last_reviewed: 2026-04-15
-  related_tasks: [T-1062]
+  last_reviewed: 2026-04-19
+  related_tasks: [T-1062, T-1140]
 
 - id: G-009
   type: gap
