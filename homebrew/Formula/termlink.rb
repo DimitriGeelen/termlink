@@ -26,8 +26,11 @@ class Termlink < Formula
       url "https://github.com/DimitriGeelen/termlink/releases/download/v#{version}/termlink-linux-aarch64"
       sha256 "PLACEHOLDER_SHA256_LINUX_AARCH64"  # Update after first release
     else
-      url "https://github.com/DimitriGeelen/termlink/releases/download/v#{version}/termlink-linux-x86_64"
-      sha256 "PLACEHOLDER_SHA256_LINUX_X86_64"  # Update after first release
+      # Static musl build — works on both glibc and musl hosts, including
+      # minimal LXC images where the gnu binary silently fails to load.
+      # T-1135 (from T-1070 GO).
+      url "https://github.com/DimitriGeelen/termlink/releases/download/v#{version}/termlink-linux-x86_64-static"
+      sha256 "PLACEHOLDER_SHA256_LINUX_X86_64_STATIC"  # Update after first release
     end
   end
 

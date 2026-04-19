@@ -4,15 +4,15 @@ name: "Add musl variant to Homebrew formula — replace or supplement linux-gnu 
 description: >
   From T-1070 inception GO. scripts/update-homebrew-sha.sh currently hashes 4 targets (darwin x86_64/aarch64 + linux-gnu x86_64/aarch64). Add musl variants (T-1019 artifacts) or swap linux-gnu → linux-musl for better LXC compatibility. Homebrew users on Linux LXC containers (no glibc) currently fall back to cargo build because the gnu binary fails to run. Touch: scripts/update-homebrew-sha.sh + homebrew-tap formula template. Verify: brew install termlink inside a fresh LXC succeeds.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [homebrew, install, T-1070, distribution]
 components: []
 related_tasks: []
 created: 2026-04-18T23:02:30Z
-last_update: 2026-04-18T23:02:30Z
+last_update: 2026-04-19T13:56:52Z
 date_finished: null
 ---
 
@@ -25,30 +25,31 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Formula on_linux x86_64 branch points at `termlink-linux-x86_64-static` (musl, T-1019 artifact)
+- [x] Formula aarch64 branch remains gnu (no musl aarch64 artifact is released yet)
+- [x] `scripts/update-homebrew-sha.sh` hashes and writes the `-static` sha256 for the linux x86_64 entry
+- [x] No formula sha256 or url line references `termlink-linux-x86_64` (non-static) for x86_64 Linux anymore
+
+### Decisions
+
+### 2026-04-19 — Homebrew linux x86_64 target choice
+- **Chose:** Point Homebrew's linux x86_64 url at the musl static variant (`termlink-linux-x86_64-static`)
+- **Why:** The release workflow produces both gnu and musl; Homebrew has no native way to pick per-host libc. Static works on both glibc and musl, including LXC minimal images where the gnu binary silently fails to run.
+- **Rejected:** Keep gnu (breaks LXC — exact failure mode T-1070 documented). Ruby-side libc detection (brittle; outside formula convention).
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] `brew install termlink` works inside a fresh LXC
+  **Steps:**
+  1. On a minimal LXC (the .121 / .122 / ring20-management test hosts): `brew install DimitriGeelen/termlink/termlink`
+  2. `termlink version`
+  **Expected:** binary runs; version reports the installed tag
+  **If not:** Note the LXC distro, `uname -m`, and error output; file back via termlink inject
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+grep -q 'termlink-linux-x86_64-static' /opt/termlink/homebrew/Formula/termlink.rb
+bash -c '! grep -E "termlink-linux-x86_64\"" /opt/termlink/homebrew/Formula/termlink.rb'
+grep -q 'termlink-linux-x86_64-static' /opt/termlink/scripts/update-homebrew-sha.sh
 
 ## Decisions
 
@@ -67,3 +68,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1135-add-musl-variant-to-homebrew-formula--re.md
 - **Context:** Initial task creation
+
+### 2026-04-19T13:56:52Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
