@@ -39,6 +39,9 @@ Add x86_64-unknown-linux-musl to the GitHub Actions release workflow so that cro
   **Expected:** Static binary available alongside dynamic binaries
   **If not:** Check Actions logs for musl build failures
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, live-termlink, musl-static-release):** Live: `curl -sfL https://github.com/DimitriGeelen/termlink/releases/download/v0.9.1/checksums.txt | grep static` → `e5e0ded04d6e0c5d2257e844416ca7b296135fcad19c0309760abe41a7f2e288  termlink-linux-x86_64-static`. musl-static variant is published in the release. RUBBER-STAMPable.
+
 ## Verification
 
 python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"

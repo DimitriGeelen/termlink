@@ -39,6 +39,17 @@ Adds `termlink remote doctor <hub>` which queries a remote hub via RPC to report
   **Expected:** Health check output showing connectivity, sessions, inbox
   **If not:** Check cmd_remote_doctor implementation in remote.rs
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, live-termlink, remote-doctor-live):** Live: `termlink remote doctor ring20-management` against the running .122 hub:
+```
+Remote doctor: 192.168.10.122:9100
+  [PASS] connectivity: connected in 105ms
+  [PASS] sessions: 1 session(s): ring20-management-agent
+  [PASS] inbox: no pending transfers
+  Summary: 3 pass, 0 warn, 0 fail
+```
+All three health checks pass against a live hub. REVIEW-approvable.
+
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"
