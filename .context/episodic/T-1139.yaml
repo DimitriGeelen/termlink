@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1139: Remediate audit warnings — ownership, verification gates, artifact references
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-19T12:20:21Z
+# ============================================================================
+
+task_id: T-1139
+task_name: "Remediate audit warnings — ownership, verification gates, artifact references"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-19T12:11:00Z
+completed: 2026-04-19T12:20:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-19T14:15:37+02:00
+last_commit: 2026-04-19T14:20:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Remediate audit warnings — ownership, verification, artifacts. Check agent ACs after remediation
+
+# Key outcomes
+outcomes:
+  - "T-1021 + T-1022 ownership flipped to human via `fw task update --owner human`"
+  - "T-1130 failing verification diagnosed — `ls inbox/P-*... | xargs grep` was brittle to the inbox→processed move; replaced with `grep -rlq \"globstar\" pickup/` which searches both directories"
+  - "T-1122 Updates section references both `docs/reports/T-1122-watchtower-production-server-inception.md` and `docs/reports/T-1122-watchtower-wsgi-migration-recommendation.md`"
+  - "T-1074 research artifact stub created at `docs/reports/T-1074-cross-agent-learning-exchange-inception.md`"
+  - "CTL-012 investigated — T-1111 ACs verified live and checked; T-1006/T-1059/T-1110/T-1113 placeholder ACs replaced with honest retro-closure notes"
+  - "`fw audit` re-run after changes (in progress at commit time — numbers will land in episodic)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1074-cross-agent-learning-exchange-inception.md"
+  - ".tasks/active/T-1021-add-termlinkremotedoctor-mcp-tool--healt.md"
+  - ".tasks/active/T-1022-add-termlink-fleet-doctor--health-check-.md"
+  - ".tasks/active/T-1122-migrate-watchtower-from-werkzeug-dev-ser.md"
+  - ".tasks/active/T-1139-remediate-audit-warnings--ownership-veri.md"
+  - ".tasks/completed/T-1006-framework-update-v15519--commit-auto-app.md"
+  - ".tasks/completed/T-1059-send-acadapi-plugin-files-to-hub-105-and.md"
+  - ".tasks/completed/T-1110-backfill-retrospective-inception-decisio.md"
+  - ".tasks/completed/T-1111-fix-mcpjson-schema--wrap-servers-in-mcps.md"
+  - ".tasks/completed/T-1113-add-termlink-net-test--hub-to-hub-mesh-c.md"
+  - ".tasks/completed/T-1130-register-fabric-card-for-testenvlockrs-a.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T14:15:37"
+    action: "T-1139: Remediate audit warnings — ownership, verification, artifacts"
+  - time: "2026-04-19T14:20:06"
+    action: "T-1139: Check agent ACs after remediation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 2
+  files_changed: 11
+  lines_added: 153
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1139-remediate-audit-warnings--ownership-veri.md
+generated_by: context-agent-hybrid
