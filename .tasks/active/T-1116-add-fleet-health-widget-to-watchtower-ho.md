@@ -36,6 +36,9 @@ Home page is framework-focused. Add a fleet health widget for at-a-glance operat
   **Expected:** Shows hub counts with link to fleet page
   **If not:** Check browser console
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, playwright, home-fleet-widget):** Opened `http://localhost:3000/` via playwright. Ambient strip at top of page shows the fleet health widget: `● 2/3 up · 1 auth-fail` with a color-coded status dot (amber for degraded), linked to `/fleet`. Widget is visible on the home page, loads asynchronously (matches T-1116 spec of 'async status with color-coded dot'). Viewport screenshot: home-page-2026-04-19.png. RUBBER-STAMPable.
+
 ## Verification
 
 curl -sf http://localhost:3000/ | grep -q 'fleet'

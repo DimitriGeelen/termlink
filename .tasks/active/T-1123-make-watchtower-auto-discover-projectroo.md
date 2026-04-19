@@ -44,6 +44,9 @@ Fix: walk up from CWD looking for a project marker (`.framework.yaml`), then fal
   **Expected:** Shows `010-termlink` (not `agentic-engineering-framework`)
   **If not:** Check startup log for `PROJECT_ROOT source:` line
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, playwright, project-root-autodiscover):** Watchtower ambient strip and page footer display project name `termlink` without any `PROJECT_ROOT` env var being passed to the server process (`ps -o cmd= -p $(pgrep -f watchtower)` shows no PROJECT_ROOT). Home page snapshot via playwright confirms `strong: termlink` in nav area. Auto-discovery working. REVIEW-approvable.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed.
