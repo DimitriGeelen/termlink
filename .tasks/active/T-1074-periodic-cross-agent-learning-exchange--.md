@@ -148,6 +148,8 @@ This task was propagated to reachable termlink peers at creation time as `pickup
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
 
+**Research artifact:** `docs/reports/T-1074-cross-agent-learning-exchange-inception.md` (skeleton, filled incrementally as exploration proceeds)
+
 ### 2026-04-18T15:17:24Z — inception-decision [inception-workflow]
 - **Action:** Recorded inception decision
 - **Decision:** GO
