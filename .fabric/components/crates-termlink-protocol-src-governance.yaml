@@ -3,16 +3,18 @@ name: governance
 type: module
 subsystem: protocol
 location: crates/termlink-protocol/src/governance.rs
-tags: [governance, data-plane, audit-trail]
-
-purpose: "Governance event payload (GovernanceEvent) for data plane frame type 0x8 — informational audit trail for pattern-matched output, not enforcement"
-
-depends_on:
-  []
-
+tags:
+- governance
+- data-plane
+- audit-trail
+purpose: Governance event payload (GovernanceEvent) for data plane frame type 0x8 — informational audit trail for pattern-matched
+  output, not enforcement
+depends_on: []
 depended_by:
-  - target: crates/termlink-session/src/governance_subscriber.rs
-    type: calls
-
+- target: crates/termlink-session/src/governance_subscriber.rs
+  type: calls
+- target: crates/termlink-session/src/governance_subscriber.rs
+  type: called_by
 last_verified: 2026-04-13
 created_by: T-994
+last_enriched: '2026-04-19'

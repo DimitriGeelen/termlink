@@ -3,25 +3,31 @@ name: mcp-tools
 type: module
 subsystem: mcp
 location: crates/termlink-mcp/src/tools.rs
-tags: [mcp, tools, orchestration, terminal]
-
-purpose: "MCP tool definitions — termlink_ping, termlink_exec, termlink_interact, termlink_emit, termlink_broadcast, termlink_wait, termlink_spawn, termlink_kv, termlink_status"
-
+tags:
+- mcp
+- tools
+- orchestration
+- terminal
+purpose: MCP tool definitions — termlink_ping, termlink_exec, termlink_interact, termlink_emit, termlink_broadcast, termlink_wait,
+  termlink_spawn, termlink_kv, termlink_status
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    relationship: uses
-  - target: crates/termlink-session/src/manager.rs
-    relationship: uses
-  - target: crates/termlink-hub/src/server.rs
-    relationship: calls
-  - target: crates/termlink-hub/src/pidfile.rs
-    relationship: calls
-
+- target: crates/termlink-session/src/client.rs
+  relationship: uses
+- target: crates/termlink-session/src/manager.rs
+  relationship: uses
+- target: crates/termlink-hub/src/server.rs
+  relationship: calls
+- target: crates/termlink-hub/src/pidfile.rs
+  relationship: calls
 depended_by:
-  - target: crates/termlink-mcp/src/lib.rs
-    relationship: re-exported_by
-  - target: crates/termlink-mcp/src/server.rs
-    relationship: imported_by
-
+- target: crates/termlink-mcp/src/lib.rs
+  relationship: re-exported_by
+- target: crates/termlink-mcp/src/server.rs
+  relationship: imported_by
+- target: crates/termlink-mcp/src/lib.rs
+  type: _by
+- target: crates/termlink-mcp/src/server.rs
+  type: _by
 last_verified: 2026-03-26
 created_by: unknown
+last_enriched: '2026-04-19'

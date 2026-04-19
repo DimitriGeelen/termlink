@@ -24,6 +24,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/src/transport.rs
   type: called_by
+- target: crates/termlink-hub/src/aggregator.rs
+  type: read_by
 last_verified: 2026-03-14
 created_by: T-135
-last_enriched: '2026-03-26'
+last_enriched: '2026-04-19'

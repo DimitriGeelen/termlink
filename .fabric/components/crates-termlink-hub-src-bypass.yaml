@@ -3,21 +3,28 @@ name: bypass
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/bypass.rs
-tags: [orchestration, bypass, tier3, promotion, denylist]
-
-purpose: "Bypass registry — tracks commands promoted to Tier 3 (autonomous execution) after PROMOTION_THRESHOLD successful orchestrated runs. Supports denylist, locked updates, atomic save, invalidation."
-
+tags:
+- orchestration
+- bypass
+- tier3
+- promotion
+- denylist
+purpose: Bypass registry — tracks commands promoted to Tier 3 (autonomous execution) after PROMOTION_THRESHOLD successful
+  orchestrated runs. Supports denylist, locked updates, atomic save, invalidation.
 depends_on:
-  - target: crates/termlink-session/src/discovery.rs
-    relationship: calls
-
+- target: crates/termlink-session/src/discovery.rs
+  relationship: calls
 depended_by:
-  - target: crates/termlink-hub/src/lib.rs
-    relationship: declared_by
-  - target: crates/termlink-hub/src/router.rs
-    relationship: used_by
-  - target: crates/termlink-hub/src/trust.rs
-    relationship: called_by
-
+- target: crates/termlink-hub/src/lib.rs
+  relationship: declared_by
+- target: crates/termlink-hub/src/router.rs
+  relationship: used_by
+- target: crates/termlink-hub/src/trust.rs
+  relationship: called_by
+- target: crates/termlink-hub/src/router.rs
+  type: called_by
+- target: crates/termlink-hub/src/trust.rs
+  type: _by
 last_verified: 2026-03-26
 created_by: unknown
+last_enriched: '2026-04-19'

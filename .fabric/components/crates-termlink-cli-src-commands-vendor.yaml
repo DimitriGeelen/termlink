@@ -3,17 +3,20 @@ name: vendor
 type: module
 subsystem: cli
 location: crates/termlink-cli/src/commands/vendor.rs
-tags: [cli, vendor, portability]
-
-purpose: "Vendor the TermLink binary into a project directory for path isolation — copies binary, writes VERSION file, checks .gitignore"
-
-depends_on: []  # No imports from registered components — uses only anyhow + std
-
+tags:
+- cli
+- vendor
+- portability
+purpose: Vendor the TermLink binary into a project directory for path isolation — copies binary, writes VERSION file, checks
+  .gitignore
+depends_on: []
 depended_by:
-  - target: crates/termlink-cli/src/commands/mod.rs
-    relationship: declared_by
-  - target: crates/termlink-cli/src/main.rs
-    relationship: called_by
-
+- target: crates/termlink-cli/src/commands/mod.rs
+  relationship: declared_by
+- target: crates/termlink-cli/src/main.rs
+  relationship: called_by
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: declares_by
 last_verified: 2026-03-26
 created_by: unknown
+last_enriched: '2026-04-19'

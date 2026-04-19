@@ -40,6 +40,8 @@ depended_by:
   type: uses_by
 - target: crates/termlink-cli/src/commands/session.rs
   type: uses_by
+- target: crates/termlink-cli/src/commands/dispatch.rs
+  type: _by
 last_verified: 2026-03-21
 created_by: T-223
-last_enriched: '2026-03-26'
+last_enriched: '2026-04-19'
