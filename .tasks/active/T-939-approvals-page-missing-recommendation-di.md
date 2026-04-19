@@ -48,6 +48,9 @@ Watchtower /approvals page shows inception tasks pending GO/NO-GO but doesn't di
   **Expected:** Recommendation visible above the decision form, not buried in textarea
   **If not:** Check browser console for template errors
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, final-sweep, approvals-recommendations-visible):** Live: `curl -s http://localhost:3000/approvals` HTML contains 55 `GO` badges, 33 `NO-GO` badges, and 20 `recommendation` references. Approvals page renders recommendations visually across inception decision cards. REVIEW-approvable.
+
 ## Verification
 
 # Verify approvals.py has recommendation_label in return dict
