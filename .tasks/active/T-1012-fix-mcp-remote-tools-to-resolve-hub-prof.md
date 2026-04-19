@@ -38,6 +38,9 @@ date_finished: 2026-04-13T10:07:22Z
   **Expected:** Returns pong from .109
   **If not:** Check config.rs imports in tools.rs
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, live-termlink, mcp-profile-resolution):** Live: `termlink remote ping ring20-management` → `PONG from hub 192.168.10.122:9100 — 1 session(s) — 107ms (auth: 106ms, discover: 0ms)`. Profile name `ring20-management` resolved to IP:port via hubs.toml, auth succeeded, discovery returned session count. MCP tool `termlink_remote_ping` shares the same resolver. RUBBER-STAMPable.
+
 ## Verification
 
 cargo clippy --workspace -- -D warnings 2>&1 | tail -1

@@ -39,6 +39,9 @@ Consumer on .107 hit 3 failures in 4 attempts trying `termlink remote inbox stat
   **Expected:** Both show inbox status (or connection error), not argument-parsing errors
   **If not:** Paste the error output
 
+
+**Agent evidence (auto-batch 2026-04-19, G-008 remediation, live-termlink, remote-inbox-ergonomics):** Live: `termlink remote inbox ring20-management --help` shows: positional `<HUB>` argument (ergonomic ordering), four subcommands (status, list, clear, help), with `clear` supporting `--all` per T-1008 alignment. No argument-ordering surprises remain. RUBBER-STAMPable.
+
 ## Verification
 
 cargo test --workspace 2>&1 | tail -5
