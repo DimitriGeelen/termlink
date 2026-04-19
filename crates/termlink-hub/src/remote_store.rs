@@ -25,6 +25,10 @@ pub struct RemoteSessionInfo {
     pub roles: Vec<String>,
     pub tags: Vec<String>,
     pub capabilities: Vec<String>,
+    /// Declared wire protocol version. T-1131 — the hub records this so
+    /// Tier-B methods can return a structured `PROTOCOL_VERSION_TOO_OLD`
+    /// instead of a raw serde parse failure when the session is too old.
+    pub protocol_version: u8,
 }
 
 /// A remote session entry stored in the hub's memory.
@@ -38,6 +42,7 @@ pub struct RemoteEntry {
     pub roles: Vec<String>,
     pub tags: Vec<String>,
     pub capabilities: Vec<String>,
+    pub protocol_version: u8,
     pub state: String,
     pub registered_at: Instant,
     pub last_heartbeat: Instant,
@@ -57,6 +62,7 @@ impl RemoteEntry {
             "display_name": self.display_name,
             "state": self.state,
             "capabilities": self.capabilities,
+            "protocol_version": self.protocol_version,
             "roles": self.roles,
             "tags": self.tags,
             "pid": self.pid,
@@ -93,7 +99,16 @@ impl RemoteStore {
 
     /// Register a new remote session. Returns the assigned ID.
     pub fn register(&self, info: RemoteSessionInfo) -> String {
-        let RemoteSessionInfo { display_name, host, port, pid, roles, tags, capabilities } = info;
+        let RemoteSessionInfo {
+            display_name,
+            host,
+            port,
+            pid,
+            roles,
+            tags,
+            capabilities,
+            protocol_version,
+        } = info;
         let seq = self.next_id.fetch_add(1, Ordering::Relaxed);
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -110,6 +125,7 @@ impl RemoteStore {
             roles,
             tags,
             capabilities,
+            protocol_version,
             state: "ready".to_string(),
             registered_at: now,
             last_heartbeat: now,
@@ -207,7 +223,16 @@ mod tests {
     use super::*;
 
     fn info(name: &str, host: &str, port: u16, pid: Option<u32>, roles: Vec<String>, tags: Vec<String>, caps: Vec<String>) -> RemoteSessionInfo {
-        RemoteSessionInfo { display_name: name.into(), host: host.into(), port, pid, roles, tags, capabilities: caps }
+        RemoteSessionInfo {
+            display_name: name.into(),
+            host: host.into(),
+            port,
+            pid,
+            roles,
+            tags,
+            capabilities: caps,
+            protocol_version: 1,
+        }
     }
 
     #[test]

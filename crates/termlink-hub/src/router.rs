@@ -648,11 +648,27 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
     let roles = extract_string_array(params, "roles");
     let tags = extract_string_array(params, "tags");
     let capabilities = extract_string_array(params, "capabilities");
+    // T-1131: sessions may declare their wire protocol version; default to 1
+    // when absent so pre-T-1131 clients keep registering normally.
+    let protocol_version = params
+        .get("protocol_version")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as u8)
+        .unwrap_or(1);
 
     let display_name_clone = display_name.clone();
     let host_clone = host.clone();
-    let session_id = store.register(crate::remote_store::RemoteSessionInfo { display_name, host, port, pid, roles, tags, capabilities });
-    tracing::info!(id = %session_id, "Remote session registered");
+    let session_id = store.register(crate::remote_store::RemoteSessionInfo {
+        display_name,
+        host,
+        port,
+        pid,
+        roles,
+        tags,
+        capabilities,
+        protocol_version,
+    });
+    tracing::info!(id = %session_id, protocol_version, "Remote session registered");
 
     // T-966: Subscribe aggregator to this session's event bus
     if let Some(agg) = aggregator() {
@@ -2268,6 +2284,7 @@ mod tests {
             roles: vec![],
             tags: vec![],
             capabilities: vec![],
+            protocol_version: 1,
         });
 
         // Forward a ping to the remote session via the router
