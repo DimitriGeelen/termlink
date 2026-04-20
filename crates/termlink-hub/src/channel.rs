@@ -1,0 +1,570 @@
+//! Hub-side handlers for the T-1160 `channel.*` RPC surface.
+//!
+//! The hub owns one [`termlink_bus::Bus`] keyed off `<runtime_dir>/bus/`
+//! (initialised once at server start by [`init_bus`]). Every `channel.post`
+//! arriving over JSON-RPC is verified against the sender's ed25519 public
+//! key using the canonical byte layout defined in
+//! `termlink_protocol::control::channel::canonical_sign_bytes` before the
+//! envelope is appended to the bus. All four verbs are Tier-A per T-1133:
+//! payloads are opaque `base64(String)` on the wire.
+
+use std::path::PathBuf;
+use std::sync::OnceLock;
+
+use base64::Engine;
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use serde_json::{json, Value};
+
+use termlink_bus::{Bus, Envelope, Retention};
+use termlink_protocol::control::channel::canonical_sign_bytes;
+use termlink_protocol::control::error_code;
+use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
+
+static BUS: OnceLock<Bus> = OnceLock::new();
+
+/// Initialise the global bus. Called once by the hub server at startup.
+/// Safe to call before any `channel.*` request arrives; panics only on
+/// filesystem / SQLite failure (a hub that cannot open its bus cannot serve).
+pub fn init_bus(root: PathBuf) {
+    let bus = Bus::open(&root)
+        .unwrap_or_else(|e| panic!("failed to open channel bus at {}: {e}", root.display()));
+    let _ = BUS.set(bus);
+}
+
+pub(crate) fn bus() -> Option<&'static Bus> {
+    BUS.get()
+}
+
+fn bus_or_err(id: Value) -> std::result::Result<&'static Bus, RpcResponse> {
+    match bus() {
+        Some(b) => Ok(b),
+        None => Err(ErrorResponse::internal_error(id, "channel bus not initialized").into()),
+    }
+}
+
+fn param_str<'a>(params: &'a Value, key: &str) -> Option<&'a str> {
+    params.get(key).and_then(|v| v.as_str())
+}
+
+fn retention_from_json(val: &Value) -> Option<Retention> {
+    let kind = val.get("kind").and_then(|v| v.as_str())?;
+    match kind {
+        "forever" => Some(Retention::Forever),
+        "days" => {
+            let d = val.get("value").and_then(|v| v.as_u64())?;
+            Some(Retention::Days(d.min(u64::from(u32::MAX)) as u32))
+        }
+        "messages" => {
+            let n = val.get("value").and_then(|v| v.as_u64())?;
+            Some(Retention::Messages(n))
+        }
+        _ => None,
+    }
+}
+
+fn retention_to_json(r: Retention) -> Value {
+    match r {
+        Retention::Forever => json!({"kind": "forever"}),
+        Retention::Days(d) => json!({"kind": "days", "value": d}),
+        Retention::Messages(n) => json!({"kind": "messages", "value": n}),
+    }
+}
+
+/// `channel.create(name, retention)` — idempotent on name.
+pub async fn handle_channel_create(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_create_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_create_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let name = match param_str(params, "name") {
+        Some(n) if !n.is_empty() => n,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'name' in params").into(),
+    };
+    let retention = params
+        .get("retention")
+        .and_then(retention_from_json)
+        .unwrap_or(Retention::Forever);
+    match bus.create_topic(name, retention) {
+        Ok(()) => Response::success(
+            id,
+            json!({"ok": true, "name": name, "retention": retention_to_json(retention)}),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(id, &format!("channel.create: {e}")).into(),
+    }
+}
+
+/// `channel.post(topic, msg_type, payload_b64, artifact_ref?, ts, sender_id,
+/// sender_pubkey_hex, signature_hex)` — verifies signature then appends.
+pub async fn handle_channel_post(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_post_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_post_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let msg_type = match param_str(params, "msg_type") {
+        Some(t) => t.to_string(),
+        None => return ErrorResponse::new(id, -32602, "Missing 'msg_type' in params").into(),
+    };
+    let payload_b64 = match param_str(params, "payload_b64") {
+        Some(p) => p,
+        None => return ErrorResponse::new(id, -32602, "Missing 'payload_b64' in params").into(),
+    };
+    let payload = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
+        Ok(b) => b,
+        Err(e) => return ErrorResponse::new(id, -32602, &format!("payload_b64 decode: {e}")).into(),
+    };
+    let artifact_ref = param_str(params, "artifact_ref").map(|s| s.to_string());
+    let ts_unix_ms = params
+        .get("ts")
+        .and_then(|v| v.as_i64())
+        .unwrap_or_else(|| {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0)
+        });
+    let sender_id = match param_str(params, "sender_id") {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => return ErrorResponse::new(id, -32602, "Missing 'sender_id' in params").into(),
+    };
+    let pubkey_hex = match param_str(params, "sender_pubkey_hex") {
+        Some(p) => p,
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing 'sender_pubkey_hex' in params").into();
+        }
+    };
+    let signature_hex = match param_str(params, "signature_hex") {
+        Some(s) => s,
+        None => return ErrorResponse::new(id, -32602, "Missing 'signature_hex' in params").into(),
+    };
+
+    let verifying_key = match parse_pubkey_hex(pubkey_hex) {
+        Some(k) => k,
+        None => {
+            return ErrorResponse::new(
+                id,
+                error_code::CHANNEL_SIGNATURE_INVALID,
+                "sender_pubkey_hex is not a valid 32-byte ed25519 public key",
+            )
+            .into();
+        }
+    };
+    let signature = match parse_signature_hex(signature_hex) {
+        Some(s) => s,
+        None => {
+            return ErrorResponse::new(
+                id,
+                error_code::CHANNEL_SIGNATURE_INVALID,
+                "signature_hex is not a valid 64-byte ed25519 signature",
+            )
+            .into();
+        }
+    };
+    let signed_bytes = canonical_sign_bytes(
+        &topic,
+        &msg_type,
+        &payload,
+        artifact_ref.as_deref(),
+        ts_unix_ms,
+    );
+    if verifying_key.verify(&signed_bytes, &signature).is_err() {
+        return ErrorResponse::new(
+            id,
+            error_code::CHANNEL_SIGNATURE_INVALID,
+            "channel.post signature failed verification",
+        )
+        .into();
+    }
+
+    let env = Envelope {
+        topic: topic.clone(),
+        sender_id,
+        msg_type,
+        payload,
+        artifact_ref,
+        ts_unix_ms,
+    };
+    match bus.post(&topic, &env).await {
+        Ok(offset) => Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into(),
+        Err(termlink_bus::BusError::UnknownTopic(t)) => ErrorResponse::new(
+            id,
+            error_code::CHANNEL_TOPIC_UNKNOWN,
+            &format!("unknown topic: {t}"),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(id, &format!("channel.post: {e}")).into(),
+    }
+}
+
+/// `channel.subscribe(topic, cursor?, limit?)` → `{messages, next_cursor}`.
+pub async fn handle_channel_subscribe(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_subscribe_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_subscribe_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let cursor = params
+        .get("cursor")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let limit = params
+        .get("limit")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as usize)
+        .unwrap_or(100)
+        .min(1000);
+
+    let iter = match bus.subscribe(&topic, cursor) {
+        Ok(i) => i,
+        Err(termlink_bus::BusError::UnknownTopic(t)) => {
+            return ErrorResponse::new(
+                id,
+                error_code::CHANNEL_TOPIC_UNKNOWN,
+                &format!("unknown topic: {t}"),
+            )
+            .into();
+        }
+        Err(e) => return ErrorResponse::internal_error(id, &format!("channel.subscribe: {e}")).into(),
+    };
+
+    let mut messages: Vec<Value> = Vec::new();
+    let mut last_offset: Option<u64> = None;
+    for (i, item) in iter.enumerate() {
+        if i >= limit {
+            break;
+        }
+        let (offset, env) = match item {
+            Ok(x) => x,
+            Err(e) => return ErrorResponse::internal_error(id, &format!("channel.subscribe decode: {e}")).into(),
+        };
+        last_offset = Some(offset);
+        messages.push(envelope_to_json(offset, &env));
+    }
+    let next_cursor = last_offset.map(|o| o + 1).unwrap_or(cursor);
+    Response::success(
+        id,
+        json!({"messages": messages, "next_cursor": next_cursor}),
+    )
+    .into()
+}
+
+/// `channel.list(prefix?)` → `{topics: [{name, retention}]}`.
+pub async fn handle_channel_list(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_list_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_list_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let prefix = param_str(params, "prefix").unwrap_or("");
+    let names = match bus.list_topics() {
+        Ok(v) => v,
+        Err(e) => return ErrorResponse::internal_error(id, &format!("channel.list: {e}")).into(),
+    };
+    let filtered: Vec<Value> = names
+        .into_iter()
+        .filter(|n| prefix.is_empty() || n.starts_with(prefix))
+        .map(|name| {
+            let ret = bus
+                .topic_retention(&name)
+                .ok()
+                .flatten()
+                .unwrap_or(Retention::Forever);
+            json!({"name": name, "retention": retention_to_json(ret)})
+        })
+        .collect();
+    Response::success(id, json!({"topics": filtered})).into()
+}
+
+fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
+    let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
+    json!({
+        "offset": offset,
+        "topic": env.topic,
+        "sender_id": env.sender_id,
+        "msg_type": env.msg_type,
+        "payload_b64": payload_b64,
+        "artifact_ref": env.artifact_ref,
+        "ts": env.ts_unix_ms,
+    })
+}
+
+fn parse_pubkey_hex(hex: &str) -> Option<VerifyingKey> {
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for (i, chunk) in hex.as_bytes().chunks(2).enumerate() {
+        out[i] = u8::from_str_radix(std::str::from_utf8(chunk).ok()?, 16).ok()?;
+    }
+    VerifyingKey::from_bytes(&out).ok()
+}
+
+fn parse_signature_hex(hex: &str) -> Option<Signature> {
+    if hex.len() != 128 {
+        return None;
+    }
+    let mut out = [0u8; 64];
+    for (i, chunk) in hex.as_bytes().chunks(2).enumerate() {
+        out[i] = u8::from_str_radix(std::str::from_utf8(chunk).ok()?, 16).ok()?;
+    }
+    Some(Signature::from_bytes(&out))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
+    use serde_json::json;
+    use tempfile::TempDir;
+    use termlink_protocol::jsonrpc::RpcResponse;
+
+    fn tmp_bus() -> (TempDir, Bus) {
+        let dir = TempDir::new().unwrap();
+        let bus = Bus::open(dir.path()).unwrap();
+        (dir, bus)
+    }
+
+    fn signing_key() -> SigningKey {
+        // Deterministic for test stability.
+        SigningKey::from_bytes(&[42u8; 32])
+    }
+
+    fn hex_of(bytes: &[u8]) -> String {
+        let mut s = String::with_capacity(bytes.len() * 2);
+        for b in bytes {
+            use std::fmt::Write;
+            let _ = write!(&mut s, "{b:02x}");
+        }
+        s
+    }
+
+    fn unwrap_success(resp: RpcResponse) -> Value {
+        match resp {
+            RpcResponse::Success(s) => s.result,
+            RpcResponse::Error(e) => panic!("expected success, got error: {:?}", e.error),
+        }
+    }
+
+    fn unwrap_error(resp: RpcResponse) -> (i64, String) {
+        match resp {
+            RpcResponse::Error(e) => (e.error.code, e.error.message),
+            RpcResponse::Success(_) => panic!("expected error, got success"),
+        }
+    }
+
+    fn post_params(
+        key: &SigningKey,
+        topic: &str,
+        msg_type: &str,
+        payload: &[u8],
+        ts: i64,
+    ) -> Value {
+        let signed = canonical_sign_bytes(topic, msg_type, payload, None, ts);
+        let sig = key.sign(&signed);
+        json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "ts": ts,
+            "sender_id": "tester",
+            "sender_pubkey_hex": hex_of(key.verifying_key().as_bytes()),
+            "signature_hex": hex_of(&sig.to_bytes()),
+        })
+    }
+
+    #[tokio::test]
+    async fn create_then_list_returns_topic() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_create_with(
+            &bus,
+            json!(1),
+            &json!({"name": "broadcast:global", "retention": {"kind": "forever"}}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"], true);
+        assert_eq!(v["name"], "broadcast:global");
+
+        let list = handle_channel_list_with(&bus, json!(2), &json!({})).await;
+        let v = unwrap_success(list);
+        let topics = v["topics"].as_array().unwrap();
+        assert_eq!(topics.len(), 1);
+        assert_eq!(topics[0]["name"], "broadcast:global");
+        assert_eq!(topics[0]["retention"]["kind"], "forever");
+    }
+
+    #[tokio::test]
+    async fn list_prefix_filters() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("a:x", Retention::Forever).unwrap();
+        bus.create_topic("b:y", Retention::Messages(10)).unwrap();
+        let resp =
+            handle_channel_list_with(&bus, json!(1), &json!({"prefix": "a:"})).await;
+        let v = unwrap_success(resp);
+        let topics = v["topics"].as_array().unwrap();
+        assert_eq!(topics.len(), 1);
+        assert_eq!(topics[0]["name"], "a:x");
+    }
+
+    #[tokio::test]
+    async fn post_then_subscribe_roundtrip() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let key = signing_key();
+        let post = handle_channel_post_with(
+            &bus,
+            json!(1),
+            &post_params(&key, "t", "note", b"hello", 1_000_000),
+        )
+        .await;
+        let v = unwrap_success(post);
+        assert_eq!(v["offset"], 0);
+        assert_eq!(v["ts"], 1_000_000);
+
+        let sub = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({"topic": "t", "cursor": 0}),
+        )
+        .await;
+        let v = unwrap_success(sub);
+        let msgs = v["messages"].as_array().unwrap();
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0]["offset"], 0);
+        assert_eq!(msgs[0]["sender_id"], "tester");
+        assert_eq!(msgs[0]["msg_type"], "note");
+        assert_eq!(
+            msgs[0]["payload_b64"].as_str().unwrap(),
+            base64::engine::general_purpose::STANDARD.encode(b"hello")
+        );
+        assert_eq!(v["next_cursor"], 1);
+    }
+
+    #[tokio::test]
+    async fn bad_signature_rejected_with_typed_error() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let key = signing_key();
+        // Flip one byte of the signature.
+        let mut params = post_params(&key, "t", "note", b"hello", 0);
+        let orig = params["signature_hex"].as_str().unwrap().to_string();
+        let tampered = format!(
+            "{}{}",
+            &orig[..orig.len() - 2],
+            if &orig[orig.len() - 2..] == "00" { "01" } else { "00" },
+        );
+        params["signature_hex"] = json!(tampered);
+        let resp = handle_channel_post_with(&bus, json!(1), &params).await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_SIGNATURE_INVALID);
+        assert!(msg.contains("verification") || msg.contains("valid"), "msg={msg}");
+    }
+
+    #[tokio::test]
+    async fn post_to_unknown_topic_returns_typed_error() {
+        let (_d, bus) = tmp_bus();
+        let key = signing_key();
+        let resp = handle_channel_post_with(
+            &bus,
+            json!(1),
+            &post_params(&key, "never-created", "note", b"hi", 0),
+        )
+        .await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+    }
+
+    #[tokio::test]
+    async fn subscribe_cursor_advances_across_calls() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let key = signing_key();
+        for i in 0..3i64 {
+            let _ = handle_channel_post_with(
+                &bus,
+                json!(1),
+                &post_params(&key, "t", "note", &[i as u8], i),
+            )
+            .await;
+        }
+        let first = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "t", "cursor": 0, "limit": 2}),
+        )
+        .await;
+        let v = unwrap_success(first);
+        assert_eq!(v["messages"].as_array().unwrap().len(), 2);
+        let next = v["next_cursor"].as_u64().unwrap();
+        assert_eq!(next, 2);
+
+        let second = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({"topic": "t", "cursor": next}),
+        )
+        .await;
+        let v = unwrap_success(second);
+        assert_eq!(v["messages"].as_array().unwrap().len(), 1);
+        assert_eq!(v["next_cursor"], 3);
+    }
+
+    #[tokio::test]
+    async fn subscribe_unknown_topic_returns_typed_error() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "nope"}),
+        )
+        .await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+    }
+
+    #[tokio::test]
+    async fn create_missing_name_is_invalid_params() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_create_with(&bus, json!(1), &json!({})).await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602);
+    }
+}
