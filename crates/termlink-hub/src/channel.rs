@@ -22,13 +22,66 @@ use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
 
 static BUS: OnceLock<Bus> = OnceLock::new();
 
+/// The canonical topic T-1162 mirrors `event.broadcast` into so subscribers
+/// can read fan-out events via the new `channel.*` surface without waiting
+/// for every producer to migrate.
+pub const BROADCAST_GLOBAL_TOPIC: &str = "broadcast:global";
+
 /// Initialise the global bus. Called once by the hub server at startup.
 /// Safe to call before any `channel.*` request arrives; panics only on
 /// filesystem / SQLite failure (a hub that cannot open its bus cannot serve).
 pub fn init_bus(root: PathBuf) {
     let bus = Bus::open(&root)
         .unwrap_or_else(|e| panic!("failed to open channel bus at {}: {e}", root.display()));
+    // T-1162: auto-register broadcast:global so the event.broadcast shim can
+    // dual-write without a separate bootstrap step. Idempotent on name+policy.
+    if let Err(e) = bus.create_topic(BROADCAST_GLOBAL_TOPIC, Retention::Messages(1000)) {
+        tracing::warn!(
+            topic = BROADCAST_GLOBAL_TOPIC,
+            error = %e,
+            "T-1162: could not auto-create broadcast mirror topic — shim will no-op"
+        );
+    }
     let _ = BUS.set(bus);
+}
+
+/// T-1162: Mirror an `event.broadcast` payload into the `broadcast:global`
+/// channel topic. Best-effort — never fails the caller; logs on error.
+/// No signature required (hub-originated envelope; `sender_id` marks origin).
+pub async fn mirror_event_broadcast(topic: &str, payload: &Value) {
+    let Some(bus) = bus() else {
+        tracing::debug!("T-1162 mirror: bus not initialised — skipping");
+        return;
+    };
+    mirror_event_broadcast_with(bus, topic, payload).await;
+}
+
+/// Test-friendly variant: post into the supplied `Bus` instead of the
+/// process-global one so unit tests can verify mirror behaviour against
+/// an isolated tempdir-rooted bus.
+pub(crate) async fn mirror_event_broadcast_with(bus: &Bus, topic: &str, payload: &Value) {
+    let payload_bytes = match serde_json::to_vec(payload) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(error = %e, "T-1162 mirror: failed to serialize payload");
+            return;
+        }
+    };
+    let ts_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let env = Envelope {
+        topic: BROADCAST_GLOBAL_TOPIC.to_string(),
+        sender_id: "hub:event.broadcast".to_string(),
+        msg_type: topic.to_string(),
+        payload: payload_bytes,
+        artifact_ref: None,
+        ts_unix_ms,
+    };
+    if let Err(e) = bus.post(BROADCAST_GLOBAL_TOPIC, &env).await {
+        tracing::warn!(error = %e, "T-1162 mirror: bus.post failed");
+    }
 }
 
 pub(crate) fn bus() -> Option<&'static Bus> {
@@ -566,5 +619,71 @@ mod tests {
         let resp = handle_channel_create_with(&bus, json!(1), &json!({})).await;
         let (code, _) = unwrap_error(resp);
         assert_eq!(code, -32602);
+    }
+
+    // === T-1162: event.broadcast → channel:broadcast:global mirror ===
+
+    #[tokio::test]
+    async fn mirror_event_broadcast_lands_envelope_in_broadcast_global() {
+        let (_d, bus) = tmp_bus();
+        // Caller's responsibility in production is init_bus; replicate here.
+        bus.create_topic(BROADCAST_GLOBAL_TOPIC, Retention::Messages(1000))
+            .unwrap();
+
+        mirror_event_broadcast_with(&bus, "deploy.start", &json!({"version": "1.0"})).await;
+
+        // Read back via the same path channel.subscribe uses.
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!("sub-1"),
+            &json!({ "topic": BROADCAST_GLOBAL_TOPIC }),
+        )
+        .await;
+        let result = unwrap_success(resp);
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1, "expected 1 mirrored envelope");
+        let env = &messages[0];
+        assert_eq!(env["topic"], BROADCAST_GLOBAL_TOPIC);
+        assert_eq!(env["msg_type"], "deploy.start");
+        assert_eq!(env["sender_id"], "hub:event.broadcast");
+        // Payload round-trips as JSON bytes — decode base64 and parse.
+        let b64 = env["payload_b64"].as_str().unwrap();
+        let bytes = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
+        let decoded: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(decoded, json!({"version": "1.0"}));
+    }
+
+    #[tokio::test]
+    async fn mirror_event_broadcast_without_bus_is_noop() {
+        // Calling the public entry point with no process-global bus set
+        // must not panic or error — the shim is best-effort.
+        mirror_event_broadcast("x.y", &json!({})).await;
+    }
+
+    #[tokio::test]
+    async fn mirror_handles_multiple_events_in_order() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic(BROADCAST_GLOBAL_TOPIC, Retention::Messages(1000))
+            .unwrap();
+
+        for i in 0..5i32 {
+            mirror_event_broadcast_with(&bus, "tick", &json!({"n": i})).await;
+        }
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!("sub-2"),
+            &json!({ "topic": BROADCAST_GLOBAL_TOPIC, "limit": 100u64 }),
+        )
+        .await;
+        let result = unwrap_success(resp);
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 5);
+        for (i, env) in messages.iter().enumerate() {
+            let b64 = env["payload_b64"].as_str().unwrap();
+            let bytes = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
+            let decoded: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(decoded["n"], i as i32);
+        }
     }
 }

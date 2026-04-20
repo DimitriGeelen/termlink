@@ -227,6 +227,11 @@ async fn handle_event_broadcast(
     let targeted = registrations.len();
     let topic_owned = topic.to_string();
 
+    // T-1162: dual-write the broadcast into channel:broadcast:global so
+    // subscribers on the new T-1155 bus surface observe every event.broadcast
+    // without forcing producers to migrate. Best-effort; never blocks fanout.
+    crate::channel::mirror_event_broadcast(&topic_owned, &payload).await;
+
     // Dispatch to all targets concurrently with per-target timeout
     let mut join_set = tokio::task::JoinSet::new();
 
