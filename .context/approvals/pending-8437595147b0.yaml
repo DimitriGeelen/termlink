@@ -1,0 +1,10 @@
+command_hash: 8437595147b03176be956c142ff14f480105c3224c0d67e35578ae928810a6bb
+command_preview: '.agentic-framework/bin/fw inception decide T-1155 go --rationale
+  "User approved after 5-spike exploration recommendation: build the bus in-hub, log-append
+  persistence, self-sovereign ed25519 identity,'
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: pending
+timestamp: '2026-04-20T14:09:38Z'
+type: tier0
