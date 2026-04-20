@@ -61,6 +61,34 @@ impl Meta {
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(names)
     }
+
+    pub(crate) fn topic_exists(&self, name: &str) -> Result<bool> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let n: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM topics WHERE name = ?1",
+            params![name],
+            |r| r.get(0),
+        )?;
+        Ok(n > 0)
+    }
+
+    /// Atomically read-then-increment the next-offset counter for `topic`.
+    /// Returns the offset assigned to the new record (0-based).
+    pub(crate) fn next_offset(&self, topic: &str) -> Result<u64> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        let current: i64 = tx.query_row(
+            "SELECT next_offset FROM offsets WHERE topic = ?1",
+            params![topic],
+            |r| r.get(0),
+        )?;
+        tx.execute(
+            "UPDATE offsets SET next_offset = ?1 WHERE topic = ?2",
+            params![current + 1, topic],
+        )?;
+        tx.commit()?;
+        Ok(current as u64)
+    }
 }
 
 fn init_schema(conn: &Connection) -> Result<()> {
