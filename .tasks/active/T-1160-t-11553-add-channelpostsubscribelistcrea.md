@@ -20,35 +20,44 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+API surface for the T-1155 bus: wires T-1158 (`termlink-bus` core) + T-1159 (identity) into the hub's JSON-RPC router, the CLI, and the MCP tool registry. Per R-033 (T-922), every new CLI verb must be MCP-reachable.
+
+Depends on: T-1158 (bus library), T-1159 (signing for `sender_id` + signature on posts). R-033 + G-020 gate this task — keep scope to the 4 verbs.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Hub router adds 4 RPC methods in `crates/termlink-hub/src/router.rs`:
+  - `channel.create(name, retention)` → `{topic_id}`; idempotent on name
+  - `channel.post(topic, msg_type, payload, artifact_ref?, sender_pubkey, signature)` → `{offset, ts}`; hub verifies signature against sender_pubkey over `topic||msg_type||payload||artifact_ref||ts` before append
+  - `channel.subscribe(topic, cursor?, limit?)` → `{messages: [...], next_cursor}`; `cursor=null` starts from 0
+  - `channel.list(prefix?)` → `{topics: [{name, message_count, last_offset, retention}]}`
+- [ ] CLI subcommand `termlink channel` with `create`, `post` (stdin payload), `subscribe` (streaming, polls every 1s), `list` — arg parsing mirrors `termlink inbox` shape
+- [ ] MCP tools registered in `crates/termlink-mcp`: `termlink_channel_create`, `termlink_channel_post`, `termlink_channel_subscribe`, `termlink_channel_list` — `termlink doctor` reports updated tool count
+- [ ] Protocol version bumped in `crates/termlink-protocol/src/lib.rs::PROTOCOL_VERSION` and the new methods are tagged Tier-A (opaque) per T-1133 taxonomy
+- [ ] Router tests in `crates/termlink-hub/tests/`: post+subscribe roundtrip, signature-verify failure rejects post with typed error, cursor advances correctly on repeated subscribe, list returns created topics
+- [ ] CLI integration tests: `termlink channel create` then `post` then `subscribe` on a local hub; all exit 0; stdout JSON parses
+- [ ] Backward compat: `event.broadcast` / `inbox.*` / `file.*` continue to work unchanged (migration is T-1162..T-1164's job)
+- [ ] `cargo build` + `cargo test` + `cargo clippy -- -D warnings` pass workspace-wide
+- [ ] Design doc updated: `docs/reports/T-1155-agent-communication-bus.md` gets a new "Build log — T-1160" section with protocol wire format frozen
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Validate the 4-verb surface is complete
+  **Steps:**
+  1. Read the method signatures in router.rs
+  2. Compare against T-1155 §"Subsumption mapping" table — does this cover `event.broadcast`, `inbox.*`, `file.*` migration needs?
+  3. If a migration target is missing a verb (e.g., `channel.delete`, `channel.ack`), flag it now rather than post-migration
+  **Expected:** Approval or one follow-up task for missing verbs
+  **If not:** List missing verbs
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+cargo build
+cargo test -p termlink-hub router::tests::channel
+cargo test -p termlink-cli channel
+cargo clippy -- -D warnings
+grep -q "channel.post" crates/termlink-hub/src/router.rs
+grep -q "termlink_channel_post" crates/termlink-mcp/src/lib.rs
 
 ## Decisions
 
