@@ -12,6 +12,14 @@ pub use transport::TransportAddr;
 /// Protocol version for the data plane binary frames.
 pub const DATA_PLANE_VERSION: u8 = 1;
 
+/// Control-plane (JSON-RPC) protocol version.
+///
+/// Bumped to **2** by T-1160 when the `channel.*` bus surface was added.
+/// All new methods are Tier-A per T-1133, so v1 clients continue to work
+/// against a v2 hub for every method they already speak; the bump signals
+/// "this hub also supports channel.* / bus semantics".
+pub const CONTROL_PLANE_VERSION: u8 = 2;
+
 /// Magic bytes for data plane frame sync: "TL" (0x54, 0x4C).
 pub const FRAME_MAGIC: [u8; 2] = [0x54, 0x4C];
 

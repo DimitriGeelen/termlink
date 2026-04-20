@@ -87,6 +87,69 @@ pub mod method {
     pub const ORCHESTRATOR_BYPASS_STATUS: &str = "orchestrator.bypass_status";
     /// Tier-B — typed invalidation request.
     pub const ORCHESTRATOR_BYPASS_INVALIDATE: &str = "orchestrator.bypass_invalidate";
+
+    // --- T-1160: channel.* bus surface (T-1155 bus). All Tier-A (opaque payload). ---
+
+    /// Tier-A — create a channel (topic) with a retention policy. Idempotent on name.
+    /// Params: `{ name, retention: {kind, value?} }`.
+    pub const CHANNEL_CREATE: &str = "channel.create";
+
+    /// Tier-A — append a signed envelope to a topic.
+    /// Params: `{ topic, msg_type, payload_b64, artifact_ref?, ts, sender_id, sender_pubkey_hex, signature_hex }`.
+    /// Hub verifies `signature_hex` against `sender_pubkey_hex` over the canonical bytes
+    /// before appending — see `channel::canonical_sign_bytes`.
+    pub const CHANNEL_POST: &str = "channel.post";
+
+    /// Tier-A — pull messages from a topic starting at `cursor`.
+    /// Params: `{ topic, cursor?, limit? }` → `{ messages: [...], next_cursor }`.
+    pub const CHANNEL_SUBSCRIBE: &str = "channel.subscribe";
+
+    /// Tier-A — list existing topics (optional prefix filter).
+    /// Params: `{ prefix? }` → `{ topics: [{name, last_offset, retention}] }`.
+    pub const CHANNEL_LIST: &str = "channel.list";
+}
+
+/// T-1160 channel.* canonical signing bytes.
+///
+/// Identity separable from transport trust (T-1159) means every `channel.post`
+/// carries an ed25519 signature over the *message intent*, not the transport
+/// framing. The canonical byte string below is what both sides (sender + hub)
+/// feed into the signer / verifier. Fields are length-prefixed so a later
+/// addition cannot retro-validate an old signature.
+///
+/// Layout (all integers big-endian):
+/// ```text
+///   u32 len(topic)    | topic bytes
+///   u32 len(msg_type) | msg_type bytes
+///   u32 len(payload)  | payload bytes
+///   u32 len(artifact) | artifact bytes   (empty if absent)
+///   i64 ts_unix_ms
+/// ```
+pub mod channel {
+    /// Build the canonical byte vector that is signed and verified for a
+    /// `channel.post`. See the module-level doc for the layout.
+    pub fn canonical_sign_bytes(
+        topic: &str,
+        msg_type: &str,
+        payload: &[u8],
+        artifact_ref: Option<&str>,
+        ts_unix_ms: i64,
+    ) -> Vec<u8> {
+        let artifact = artifact_ref.unwrap_or("").as_bytes();
+        let mut buf = Vec::with_capacity(
+            4 + topic.len() + 4 + msg_type.len() + 4 + payload.len() + 4 + artifact.len() + 8,
+        );
+        buf.extend_from_slice(&(topic.len() as u32).to_be_bytes());
+        buf.extend_from_slice(topic.as_bytes());
+        buf.extend_from_slice(&(msg_type.len() as u32).to_be_bytes());
+        buf.extend_from_slice(msg_type.as_bytes());
+        buf.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+        buf.extend_from_slice(payload);
+        buf.extend_from_slice(&(artifact.len() as u32).to_be_bytes());
+        buf.extend_from_slice(artifact);
+        buf.extend_from_slice(&ts_unix_ms.to_be_bytes());
+        buf
+    }
 }
 
 /// TermLink-specific JSON-RPC error codes (in addition to standard -32700..-32603).
@@ -105,6 +168,10 @@ pub mod error_code {
     /// Data field carries `{declared, required, method}` so the client can act on it.
     /// T-1131 (from T-1071 GO).
     pub const PROTOCOL_VERSION_TOO_OLD: i64 = -32011;
+    /// T-1160 `channel.post` signature did not verify against sender pubkey.
+    pub const CHANNEL_SIGNATURE_INVALID: i64 = -32012;
+    /// T-1160 `channel.post` referenced a topic that has not been created.
+    pub const CHANNEL_TOPIC_UNKNOWN: i64 = -32013;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
@@ -376,6 +443,33 @@ mod tests {
     #[test]
     fn check_protocol_version_accepts_when_declared_exceeds_required() {
         assert!(check_protocol_version(serde_json::json!(1), 5, 3, "command.execute").is_none());
+    }
+
+    #[test]
+    fn channel_method_constants_are_stable() {
+        assert_eq!(method::CHANNEL_CREATE, "channel.create");
+        assert_eq!(method::CHANNEL_POST, "channel.post");
+        assert_eq!(method::CHANNEL_SUBSCRIBE, "channel.subscribe");
+        assert_eq!(method::CHANNEL_LIST, "channel.list");
+    }
+
+    #[test]
+    fn channel_canonical_sign_bytes_is_deterministic_and_length_prefixed() {
+        let a = channel::canonical_sign_bytes("t", "note", b"hi", None, 0);
+        let b = channel::canonical_sign_bytes("t", "note", b"hi", None, 0);
+        assert_eq!(a, b, "same inputs → same bytes");
+        // Length prefix of topic "t" (1 byte) is [0,0,0,1].
+        assert_eq!(&a[..4], &[0, 0, 0, 1]);
+    }
+
+    #[test]
+    fn channel_canonical_sign_bytes_distinguishes_artifact_from_empty() {
+        let none = channel::canonical_sign_bytes("t", "note", b"hi", None, 0);
+        let some = channel::canonical_sign_bytes("t", "note", b"hi", Some(""), 0);
+        // Both encode zero-length — they must produce identical bytes.
+        assert_eq!(none, some);
+        let real = channel::canonical_sign_bytes("t", "note", b"hi", Some("ref://x"), 0);
+        assert_ne!(none, real);
     }
 
     #[test]
