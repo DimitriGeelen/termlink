@@ -4,16 +4,16 @@ name: "T-1155/5 Migrate event.broadcast callers → channel.post(topic=broadcast
 description: >
   ~2 producer sites in events.rs + tools.rs. Wrap legacy method as channel.post adapter; preserve semantics. See T-1155 S-5 migration plan phase 2.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
-owner: agent
+owner: human
 horizon: now
 tags: [T-1155, bus, migration]
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:10Z
-last_update: 2026-04-20T22:27:44Z
-date_finished: null
+last_update: 2026-04-20T22:31:41Z
+date_finished: 2026-04-20T22:31:41Z
 ---
 
 # T-1162: T-1155/5 Migrate event.broadcast callers → channel.post(topic=broadcast:global)
@@ -85,3 +85,6 @@ grep -q "mirror_event_broadcast" crates/termlink-hub/src/channel.rs
 ### 2026-04-20T22:27:44Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-20T22:31:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -12,7 +12,7 @@ tags: [T-1155, bus, offline-tolerance]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:08Z
-last_update: 2026-04-20T22:20:02Z
+last_update: 2026-04-20T22:20:19Z
 date_finished: 2026-04-20T22:20:02Z
 ---
 

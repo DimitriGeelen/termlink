@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1173: T-1162 follow-up: audit event.collect/event.poll kind-filter callers (no migration needed)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-20T22:40:48Z
+# ============================================================================
+
+task_id: T-1173
+task_name: "T-1162 follow-up: audit event.collect/event.poll kind-filter callers (no migration needed)"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T22:28:50Z
+completed: 2026-04-20T22:40:46Z
+duration_days: 0
+updates_count: 5
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-1162 follow-up: audit event.collect/event.poll kind-filter callers (no migration needed)
+
+# Key outcomes
+outcomes:
+  - "Audit `event.collect`/`event.poll` call sites across the workspace (completed — see Context above)"
+  - "Grep workspace for payload `kind`-field filter patterns (completed — only retention-policy `kind` found, never payload filter)"
+  - "Confirm the T-1162 shim is self-sufficient — new consumers can use `channel.subscribe(\"broadcast:global\")` directly without any producer or receiver rewrite (shipped in T-1162, verified by `BROADCAST_GLOBAL_TOPIC` constant + auto-creation at `init_bus` + unit tests in channel.rs)"
+  - "Record the finding in Context + Decisions so future agents don't re-open this task speculatively"
+  - "`cargo build --workspace` passes (no code change; sanity check workspace still compiles)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Audit and close — no code changes."
+    rationale: "Workspace grep shows zero `kind`-filter callers; all consumers use `topic` (RPC param) routing. Rewriting non-existent callers is speculative work; the T-1162 shim already exposes the new surface for any *future* consumer that wants it."
+    alternatives_rejected: [""]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration, audit]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1173-t-1162-follow-up-migrate-eventcollecteve.md
+generated_by: context-agent-hybrid
