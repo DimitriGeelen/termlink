@@ -73,6 +73,18 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         "inbox.list" => handle_inbox_list(id, &req.params),
         "inbox.status" => handle_inbox_status(id),
         "inbox.clear" => handle_inbox_clear(id, &req.params),
+        control::method::CHANNEL_CREATE => {
+            crate::channel::handle_channel_create(id, &req.params).await
+        }
+        control::method::CHANNEL_POST => {
+            crate::channel::handle_channel_post(id, &req.params).await
+        }
+        control::method::CHANNEL_SUBSCRIBE => {
+            crate::channel::handle_channel_subscribe(id, &req.params).await
+        }
+        control::method::CHANNEL_LIST => {
+            crate::channel::handle_channel_list(id, &req.params).await
+        }
         "hub.version" => handle_hub_version(id),
         _ => forward_to_target(req, id).await,
     };

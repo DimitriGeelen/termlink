@@ -66,6 +66,11 @@ impl Bus {
         self.meta.list_topics()
     }
 
+    /// Retention policy for `topic`, or `None` if the topic doesn't exist.
+    pub fn topic_retention(&self, topic: &str) -> Result<Option<Retention>> {
+        self.meta.topic_retention(topic)
+    }
+
     /// Append an envelope to `topic`'s log. Returns the logical offset
     /// (0-based sequence number) assigned to the new record. The topic
     /// must have been registered via `create_topic` first.

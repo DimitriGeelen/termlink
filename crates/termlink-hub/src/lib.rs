@@ -1,5 +1,6 @@
 pub mod aggregator;
 pub mod bypass;
+pub mod channel;
 pub mod circuit_breaker;
 pub mod inbox;
 pub mod pidfile;

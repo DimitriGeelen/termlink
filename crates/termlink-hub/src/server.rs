@@ -170,6 +170,10 @@ pub async fn run_with_tcp(
     // T-966: Initialize the event aggregator
     router::init_aggregator();
 
+    // T-1160: Initialize the channel bus at <runtime_dir>/bus/.
+    let bus_root = termlink_session::discovery::runtime_dir().join("bus");
+    crate::channel::init_bus(bus_root);
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {

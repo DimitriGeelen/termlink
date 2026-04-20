@@ -7,6 +7,9 @@ edition.workspace = true
 [dependencies]
 termlink-protocol = { workspace = true }
 termlink-session = { workspace = true }
+termlink-bus = { workspace = true }
+ed25519-dalek = "2"
+base64 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
