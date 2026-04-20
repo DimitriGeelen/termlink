@@ -3,7 +3,7 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-04-20T00:01:21Z
+# Generated: 2026-04-20T07:23:56Z
 # ============================================================================
 
 task_id: T-1151
@@ -16,10 +16,12 @@ created: 2026-04-19T23:59:42Z
 completed: 2026-04-20T00:01:17Z
 duration_days: 1
 updates_count: 2
+first_commit: 2026-04-20T02:01:30+02:00
+last_commit: 2026-04-20T02:01:30+02:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
+  Wire load_episodic_yaml into task + inception detail pages
 
 # Key outcomes
 outcomes:
@@ -41,15 +43,19 @@ decisions:
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
-  # No artifacts found in git
+  - ".agentic-framework/web/blueprints/inception.py"
+  - ".agentic-framework/web/blueprints/tasks.py"
+  - ".context/episodic/T-1151.yaml"
+  - ".tasks/completed/T-1151-extend-t-1150--wire-loadepisodicyaml-int.md"
 
 # Timeline (auto-mined from git log)
 git_timeline:
-  # No git timeline available
+  - time: "2026-04-20T02:01:30"
+    action: "T-1151: Wire load_episodic_yaml into task + inception detail pages"
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 0 commit(s), 1 min
+  # Completed successfully in 1 commit(s), 1 min
 
 # Related tasks
 related_tasks:
@@ -63,10 +69,10 @@ tags: []
 # Passive metrics (derived automatically — do not edit)
 metrics:
   wall_clock_minutes: 1
-  commits: 0
-  files_changed: 0
-  lines_added: 0
-  lines_removed: 0
+  commits: 1
+  files_changed: 4
+  lines_added: 134
+  lines_removed: 10
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-1151-extend-t-1150--wire-loadepisodicyaml-int.md

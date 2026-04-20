@@ -505,3 +505,11 @@ learnings:
   date: 2026-04-19
   context: Added via context agent
   application: TBD
+- id: PL-038
+  learning: "Episodic generator fallback must strip YAML fold markers (>|) when pulling description text — sed extraction in shell leaves literal '>' when the task has 'description: >' folded scalar, producing summary: |
+  > in episodics. Guard both at extraction and at summary_text fallback, and final-fall to task_name."
+  source: unknown
+  task: T-1152
+  date: 2026-04-20
+  context: Added via context agent
+  application: TBD
