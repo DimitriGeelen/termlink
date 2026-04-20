@@ -4,7 +4,7 @@ name: "Channel-based communication bus for TermLink agents — subsume event.bro
 description: >
   Inception: Channel-based communication bus for TermLink agents — subsume event.broadcast + inbox + pickup + send-file
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-20T09:46:28Z
-last_update: 2026-04-20T09:53:17Z
-date_finished: null
+last_update: 2026-04-20T14:02:47Z
+date_finished: 2026-04-20T14:02:47Z
 ---
 
 # T-1155: Channel-based communication bus for TermLink agents — subsume event.broadcast + inbox + pickup + send-file
@@ -74,7 +74,7 @@ Time-boxed spikes — hard stop at **3h total**. If not done, descope, don't ext
 - [x] All 5 decision criteria evaluated (subsumption / liveness / auth / migration / storage)
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -142,7 +142,35 @@ Time-boxed spikes — hard stop at **3h total**. If not done, descope, don't ext
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO — build the bus, in-hub, log-append, self-sovereign identity, offline-tolerant client.
+
+Rationale: All 5 go/no-go criteria met after 5-spike exploration. The bus is worth building because it does more than unify existing primitives — the self-sovereign identity design (S-4) structurally resolves the T-1051 auth-rotation pain by separating identity trust from transport trust, rather than just adding another layer on top.
+
+Evidence:
+- S-1 (subsumption): 30 call sites across 8 files map cleanly to `channel.post` + `channel.subscribe`. `event.broadcast` + `inbox` + `file.send/receive` + `pickup` all collapse to one primitive.
+- S-2 (persistence): log-append with per-channel retention is the only model that cleanly subsumes pickup's "arrived-while-offline" semantic + inbox's per-recipient cursor + file-send durability.
+- S-3 (liveness): bus running inside hub + client-side SQLite queue + replay on reconnect = no new liveness domain. Bus outages degrade to bounded-latency posts, not lost messages.
+- S-4 (auth): ed25519 self-sovereign agent keys separate message authenticity from hub transport trust. Hub rotations (T-1051 lineage) stop invalidating messages. This is the structural fix, not a workaround.
+- S-5 (migration): ~4000–6000 LOC effort, 3–5 weeks, 4-phase migration with legacy primitives staying live during transition. No flag day.
+
+What this replaces:
+- `event.broadcast` → `channel.post(topic="broadcast:global")`
+- `inbox.{list,status,clear}` → `channel.{subscribe,post}` with recipient channel
+- `file.send/receive` → `channel.post {type: artifact}` (artifact is a typed message)
+- `pickup` (shell) → kept as-is with a `pickup → channel` bridge at framework boundary
+
+Out of scope for MVP (defer as separate follow-ups if GO):
+- Cross-hub federation (multi-hub-as-one-bus)
+- Channel ACLs beyond "authenticated can post"
+- Wire format optimization (JSON for now)
+
+Research artifact: [docs/reports/T-1155-agent-communication-bus.md](../../docs/reports/T-1155-agent-communication-bus.md) — full spike details, tradeoff analysis, risks, and proposed follow-up task list.
+
+Decide via: `bin/fw inception decide T-1155 go` (or `no-go` / `defer`) from `/opt/termlink`.
+
+**Date**: 2026-04-20T14:02:47Z
 
 ## Updates
 
@@ -151,3 +179,36 @@ Time-boxed spikes — hard stop at **3h total**. If not done, descope, don't ext
 
 ### 2026-04-20T09:47:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-20T14:02:47Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO — build the bus, in-hub, log-append, self-sovereign identity, offline-tolerant client.
+
+Rationale: All 5 go/no-go criteria met after 5-spike exploration. The bus is worth building because it does more than unify existing primitives — the self-sovereign identity design (S-4) structurally resolves the T-1051 auth-rotation pain by separating identity trust from transport trust, rather than just adding another layer on top.
+
+Evidence:
+- S-1 (subsumption): 30 call sites across 8 files map cleanly to `channel.post` + `channel.subscribe`. `event.broadcast` + `inbox` + `file.send/receive` + `pickup` all collapse to one primitive.
+- S-2 (persistence): log-append with per-channel retention is the only model that cleanly subsumes pickup's "arrived-while-offline" semantic + inbox's per-recipient cursor + file-send durability.
+- S-3 (liveness): bus running inside hub + client-side SQLite queue + replay on reconnect = no new liveness domain. Bus outages degrade to bounded-latency posts, not lost messages.
+- S-4 (auth): ed25519 self-sovereign agent keys separate message authenticity from hub transport trust. Hub rotations (T-1051 lineage) stop invalidating messages. This is the structural fix, not a workaround.
+- S-5 (migration): ~4000–6000 LOC effort, 3–5 weeks, 4-phase migration with legacy primitives staying live during transition. No flag day.
+
+What this replaces:
+- `event.broadcast` → `channel.post(topic="broadcast:global")`
+- `inbox.{list,status,clear}` → `channel.{subscribe,post}` with recipient channel
+- `file.send/receive` → `channel.post {type: artifact}` (artifact is a typed message)
+- `pickup` (shell) → kept as-is with a `pickup → channel` bridge at framework boundary
+
+Out of scope for MVP (defer as separate follow-ups if GO):
+- Cross-hub federation (multi-hub-as-one-bus)
+- Channel ACLs beyond "authenticated can post"
+- Wire format optimization (JSON for now)
+
+Research artifact: [docs/reports/T-1155-agent-communication-bus.md](../../docs/reports/T-1155-agent-communication-bus.md) — full spike details, tradeoff analysis, risks, and proposed follow-up task list.
+
+Decide via: `bin/fw inception decide T-1155 go` (or `no-go` / `defer`) from `/opt/termlink`.
+
+### 2026-04-20T14:02:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
