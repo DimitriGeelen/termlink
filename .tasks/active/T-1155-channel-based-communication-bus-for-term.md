@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-20T09:46:28Z
-last_update: 2026-04-20T09:47:36Z
+last_update: 2026-04-20T09:49:23Z
 date_finished: null
 ---
 
@@ -64,14 +64,14 @@ Time-boxed spikes — hard stop at **3h total**. If not done, descope, don't ext
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Call-site census complete (S-1) — counts and pattern classification recorded in research artifact
-- [ ] Persistence model spike complete (S-2) — ranked recommendation with disqualifiers
-- [ ] Offline-tolerance spike complete (S-3) — verdict on A-004 recorded
-- [ ] Auth integration sketch complete (S-4) — ranked recommendation with disqualifiers
-- [ ] Migration scope estimate complete (S-5) — concrete count + effort estimate
-- [ ] All 5 assumptions (A-001..A-005) either validated or explicitly deferred
-- [ ] Recommendation written in research artifact with evidence from all 5 spikes
-- [ ] All 5 decision criteria evaluated (subsumption / liveness / auth / migration / storage)
+- [x] Call-site census complete (S-1) — counts and pattern classification recorded in research artifact
+- [x] Persistence model spike complete (S-2) — ranked recommendation with disqualifiers
+- [x] Offline-tolerance spike complete (S-3) — verdict on A-004 recorded
+- [x] Auth integration sketch complete (S-4) — ranked recommendation with disqualifiers
+- [x] Migration scope estimate complete (S-5) — concrete count + effort estimate
+- [x] All 5 assumptions (A-001..A-005) either validated or explicitly deferred
+- [x] Recommendation written in research artifact with evidence from all 5 spikes
+- [x] All 5 decision criteria evaluated (subsumption / liveness / auth / migration / storage)
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -103,15 +103,31 @@ Time-boxed spikes — hard stop at **3h total**. If not done, descope, don't ext
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation: GO** — build the bus, in-hub, log-append, self-sovereign identity, offline-tolerant client.
+
+**Rationale:** All 5 go/no-go criteria met after 5-spike exploration. The bus is *worth building* because it does more than unify existing primitives — the self-sovereign identity design (S-4) structurally resolves the T-1051 auth-rotation pain by separating identity trust from transport trust, rather than just adding another layer on top.
+
+**Evidence:**
+- **S-1 (subsumption):** 30 call sites across 8 files map cleanly to `channel.post` + `channel.subscribe`. `event.broadcast` + `inbox` + `file.send/receive` + `pickup` all collapse to one primitive.
+- **S-2 (persistence):** log-append with per-channel retention is the only model that cleanly subsumes pickup's "arrived-while-offline" semantic + inbox's per-recipient cursor + file-send durability.
+- **S-3 (liveness):** bus running inside hub + client-side SQLite queue + replay on reconnect = no new liveness domain. Bus outages degrade to bounded-latency posts, not lost messages.
+- **S-4 (auth):** ed25519 self-sovereign agent keys separate message authenticity from hub transport trust. Hub rotations (T-1051 lineage) stop invalidating messages. This is the structural fix, not a workaround.
+- **S-5 (migration):** ~4000–6000 LOC effort, 3–5 weeks, 4-phase migration with legacy primitives staying live during transition. No flag day.
+
+**What this replaces:**
+- `event.broadcast` → `channel.post(topic="broadcast:global")`
+- `inbox.{list,status,clear}` → `channel.{subscribe,post}` with recipient channel
+- `file.send/receive` → `channel.post {type: artifact}` (artifact is a typed message)
+- `pickup` (shell) → kept as-is with a `pickup → channel` bridge at framework boundary
+
+**Out of scope for MVP (defer as separate follow-ups if GO):**
+- Cross-hub federation (multi-hub-as-one-bus)
+- Channel ACLs beyond "authenticated can post"
+- Wire format optimization (JSON for now)
+
+**Research artifact:** [docs/reports/T-1155-agent-communication-bus.md](../../docs/reports/T-1155-agent-communication-bus.md) — full spike details, tradeoff analysis, risks, and proposed follow-up task list.
+
+**Decide via:** `bin/fw inception decide T-1155 go` (or `no-go` / `defer`) from `/opt/termlink`.
 
 ## Decisions
 
