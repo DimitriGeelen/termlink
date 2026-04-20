@@ -83,9 +83,9 @@ Time-box: **90 min**. No code until GO.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -115,7 +115,22 @@ Time-box: **90 min**. No code until GO.
 
 ## Recommendation
 
-(To be written after spikes 1–4. Preliminary direction: GO with a cross-fleet pull-poll-15m-with-dedup approach using `event.broadcast` as the wire because T-1071 proved its protocol-skew resilience. Final recommendation pending.)
+**GO — pivot implementation to T-1155 bus** (do not build standalone 15-min cron).
+
+**Why the pivot vs original proposal:**
+- Fleet-reachability evidence (S-1, 2026-04-20): 2/3 configured peers fail `fleet doctor` — a cron design wastes cycles and floods logs against sick peers; a bus with offline queue (T-1161) doesn't.
+- Event-driven post-on-write (S-2) strictly beats 15-min polling once a subscribe channel exists; latency drops from 0–15m to seconds, wasted calls → 0.
+- T-1155 bus already provides schema, dedup, auth (ed25519 via T-1159), and retention — the original 4 moving parts collapse to one topic on an existing bus.
+
+**Follow-up:** one new task, deferred until T-1158 (bus crate) lands:
+- **T-1168** (to be created): Publish learnings to `channel:learnings` on `fw context add-learning`; subscribe daemon writes to `received-learnings.yaml`; Watchtower "fleet insights" panel.
+- Depends on: T-1158, T-1159, T-1160.
+
+**Invalidated assumptions:** A2 (15-min cadence wrong — event-driven beats), A3 (pull>push wrong — post-on-write dominates with durable subscribe).
+
+**Confirmed assumptions:** A1, A4, A5 (schema level), A6.
+
+See `docs/reports/T-1074-cross-agent-learning-exchange-inception.md` for full spike evidence and rationale.
 
 ## Propagation note
 
@@ -137,11 +152,11 @@ This task was propagated to reachable termlink peers at creation time as `pickup
 
 ## Decision
 
-**Decision**: GO
+**Decision**: GO (pivot to T-1155 bus)
 
-**Rationale**: (To be written after spikes 1–4. Preliminary direction: GO with a cross-fleet pull-poll-15m-with-dedup approach using `event.broadcast` as the wire because T-1071 proved its protocol-skew resilience. Final recommendation pending.)
+**Rationale**: Fleet reachability evidence (S-1, 2026-04-20) shows 2/3 peers unreachable — a cron polling design wastes cycles against sick peers. T-1155 bus (GO 2026-04-20) provides durable subscribe + ed25519 identity + offline queue which structurally subsumes the original cron design. One follow-up task (T-1168) on top of the bus replaces the 4 moving parts of the original proposal. See `docs/reports/T-1074-cross-agent-learning-exchange-inception.md` for full spike evidence.
 
-**Date**: 2026-04-18T15:17:24Z
+**Date**: 2026-04-18T15:17:24Z (initial GO); rationale replaced 2026-04-20T14:50Z after running S-1..S-5.
 
 ## Updates
 
