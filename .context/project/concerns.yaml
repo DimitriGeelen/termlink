@@ -180,3 +180,20 @@ concerns:
   created: 2026-04-19
   last_reviewed: 2026-04-19
   related_tasks: [T-212, T-1141]
+
+- id: G-011
+  type: gap
+  title: "Local hub secret cache drift — ~/.termlink/secrets/<IP>.hex silently diverges from <runtime_dir>/hub.secret on hub restart"
+  description: "When an agent is asked to share its local hub's secret with a peer (e.g., during heal-after-rotation), it reaches for the IP-keyed cache file at ~/.termlink/secrets/<hub-ip>.hex instead of the live authoritative file at <runtime_dir>/hub.secret. The cache is written once at heal time and never invalidated when the hub regenerates. Result: peers receive a stale secret that looks plausible (64-char hex, correct shape) but authenticates to nothing. Peer-side diagnosis points at the peer as the source of the mismatch, when the source is the giver's stale cache. Mirror-image of T-1051/T-933 (which address receiving-end drift after hub rotation) — this gap is giving-end drift."
+  spec_reference: "T-1051 (hub auth reliability inception), T-933 (persist-if-present hub.secret), T-1028 (TLS cert persist), T-1052/T-1053 (auto-register learnings/concerns on auth-mismatch), CLAUDE.md §Hub Auth Rotation Protocol"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-04-20 session: peer agent diagnosing a cross-hub auth mismatch found that /root/.termlink/secrets/192.168.10.121.hex (dated 2026-04-18 09:44) had diverged from /tmp/termlink-0/hub.secret after the hub restarted 2026-04-19 08:13. Peer had shared 79f4c6… from the stale cache; authoritative value was e4530da2…. Remote side was auth'ing cleanly; only the handoff was wrong. Resolved by cp-from-authoritative + chmod 600."
+  detection_lag_days: "~1 day between hub restart and discovery"
+  what_works_now: "1. Profiles like [hubs.local-test] that point secret_file directly at <runtime_dir>/hub.secret always see live state (no cache layer). 2. fleet doctor detects downstream symptoms (auth-mismatch on peer connection). 3. Tier-1 reauth printer (T-1054) gives operators the incantation once the problem is identified. 4. Tier-2 --bootstrap-from ssh: (T-1055) heals cleanly when SSH is available."
+  what_remains: "1. Pre-handoff freshness check — when an agent reads ~/.termlink/secrets/<ip>.hex to share with a peer, warn if its mtime predates <runtime_dir>/hub.secret's mtime. 2. Deprecate IP-keyed cache for self-hub lookups in favor of direct reads from <runtime_dir>/hub.secret (profile-level: secret_file should point at the live file, not a copy). 3. fw doctor check comparing mtime of every ~/.termlink/secrets/*.hex entry against the corresponding hub's authoritative file (where locally resolvable). 4. Separately: audit file perms on ~/.termlink/secrets/*.hex — at least one file (proxmox4.hex) observed at chmod 644 (world-readable) which is a distinct security smell this gap surfaced."
+  mitigation_candidate: "Short-term: document the 'read-live, not cache, for own hub' pattern in CLAUDE.md §Hub Auth Rotation Protocol. Medium-term: add fw doctor freshness/perms check. Long-term: structural deprecation of IP-keyed caches for same-host self-hub access; the authoritative <runtime_dir>/hub.secret becomes the canonical read path and IP-keyed caches are only for remote hubs where the operator has explicitly chosen to cache."
+  status: watching
+  created: 2026-04-20
+  last_reviewed: 2026-04-20
+  related_tasks: [T-1051, T-933, T-1028, T-1052, T-1053, T-1054, T-1055]

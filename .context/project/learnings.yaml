@@ -527,3 +527,10 @@ learnings:
   date: 2026-04-20
   context: Added via context agent
   application: TBD
+- id: PL-041
+  learning: "Before sharing local hub secret with a peer, read from the live authoritative runtime file, not from the IP-keyed cache at dotfile-path secrets/own-ip.hex. Cache is derivative state with no invalidation signal on hub restart. Compare mtimes as a sanity check. Observed 2026-04-20: peer handed over a 2-day-old cached secret; authoritative runtime file was 1 day newer. Mirror-image of T-1051 receiving-side drift."
+  source: unknown
+  task: T-1051
+  date: 2026-04-20
+  context: Added via context agent
+  application: TBD
