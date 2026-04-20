@@ -1679,6 +1679,16 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Show local offline-queue status — pending-post count + oldest timestamp (T-1161 diagnostic)
+    QueueStatus {
+        /// Path to the queue sqlite file (default: ~/.termlink/outbound.sqlite, or $TERMLINK_IDENTITY_DIR/outbound.sqlite if set)
+        #[arg(long)]
+        queue_path: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Fleet-wide operations across all configured hubs

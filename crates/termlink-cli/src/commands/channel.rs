@@ -194,6 +194,76 @@ pub(crate) async fn cmd_channel_subscribe(
     }
 }
 
+/// T-1172: Read-only view of the local offline queue (T-1161).
+///
+/// No hub contact — opens the SQLite file at `queue_path` (or default
+/// `~/.termlink/outbound.sqlite`) and reports pending count + head
+/// metadata. Safe to run while a live `BusClient` owns the queue
+/// because rusqlite handles the WAL-mode concurrency.
+pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bool) -> Result<()> {
+    use termlink_session::offline_queue::{default_queue_path, OfflineQueue};
+
+    let path = match queue_path {
+        Some(p) => PathBuf::from(p),
+        None => default_queue_path(),
+    };
+
+    if !path.exists() {
+        if json_output {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "queue_path": path.display().to_string(),
+                    "exists": false,
+                    "pending": 0,
+                }))?
+            );
+        } else {
+            println!("pending: 0 (queue file not created yet: {})", path.display());
+        }
+        return Ok(());
+    }
+
+    let queue = OfflineQueue::open(&path)
+        .with_context(|| format!("Failed to open offline queue at {}", path.display()))?;
+    let size = queue.size().context("Failed to read queue size")?;
+    let head = queue.peek_oldest().context("Failed to peek queue head")?;
+
+    if json_output {
+        let head_json = head.as_ref().map(|(id, post)| {
+            json!({
+                "queue_id": id.0,
+                "topic": post.topic,
+                "msg_type": post.msg_type,
+                "ts_unix_ms": post.ts_unix_ms,
+                "sender_id": post.sender_id,
+                "artifact_ref": post.artifact_ref,
+            })
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "queue_path": path.display().to_string(),
+                "exists": true,
+                "cap": queue.cap(),
+                "pending": size,
+                "oldest": head_json,
+            }))?
+        );
+    } else {
+        println!("queue:    {}", path.display());
+        println!("cap:      {} (env TERMLINK_OUTBOUND_CAP overrides)", queue.cap());
+        println!("pending:  {size}");
+        if let Some((id, post)) = head {
+            println!(
+                "oldest:   id={} topic={} msg_type={} ts_ms={} sender={}",
+                id.0, post.topic, post.msg_type, post.ts_unix_ms, post.sender_id
+            );
+        }
+    }
+    Ok(())
+}
+
 pub(crate) async fn cmd_channel_list(
     prefix: Option<&str>,
     hub: Option<&str>,
