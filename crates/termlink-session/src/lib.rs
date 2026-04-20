@@ -1,4 +1,6 @@
+pub mod agent_identity;
 pub mod auth;
+pub mod known_peers;
 pub mod endpoint;
 pub mod identity;
 pub mod discovery;
