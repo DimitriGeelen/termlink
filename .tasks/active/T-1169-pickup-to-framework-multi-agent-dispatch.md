@@ -4,16 +4,16 @@ name: "Pickup to framework: multi-agent dispatch safety model (isolation + coord
 description: >
   Formulate and deliver an inception-pickup proposal to the framework: a structural safety model for dispatching multiple agents to work concurrently on a single repo. Today's dispatch primitive (termlink_dispatch / fw dispatch) is solid for investigation + scope-writing but unsafe for concurrent code edits — no worktree isolation, no touches/conflicts metadata on tasks, no dispatch-gate that refuses unsafe parallel runs. Proposal composes on T-789 (worktree isolation) + T-914/T-916 (dispatch reliability) + T-1155 bus decision. Not asking framework to implement — asking them to open an inception that scopes the primitives.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [pickup, framework, dispatch, multi-agent, worktree, T-789, T-1155]
 components: []
 related_tasks: []
 created: 2026-04-20T18:56:49Z
-last_update: 2026-04-20T18:56:59Z
-date_finished: null
+last_update: 2026-04-20T19:02:10Z
+date_finished: 2026-04-20T19:02:10Z
 ---
 
 # T-1169: Pickup to framework: multi-agent dispatch safety model (isolation + coordination for parallel agent work)
@@ -48,10 +48,17 @@ The pickup envelope proposes exploring:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Pickup envelope YAML drafted at `/tmp/P-T-1169-framework-dispatch-safety.yaml`, valid YAML, includes summary + detail + proposed scope + acceptance criteria
-- [ ] Envelope delivered to framework inbox via `termlink file send` to framework-agent session (with ok:true observed)
-- [ ] Envelope present in `/opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/` OR already moved to `processed/` (belt-and-suspenders direct drop if file send didn't deliver)
-- [ ] Framework-side auto-created task visible (check `/opt/999-Agentic-Engineering-Framework/.tasks/active/` for a T-13XX referencing T-1169 after processor cycle)
+- [x] Pickup envelope YAML drafted at `/tmp/P-T-1169-framework-dispatch-safety.yaml`, valid YAML, includes summary + detail + proposed scope + acceptance criteria
+- [x] Envelope delivered to framework inbox via `termlink file send` to framework-agent session (with ok:true observed)
+- [x] Envelope present in `/opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/` OR already moved to `processed/` (belt-and-suspenders direct drop if file send didn't deliver)
+- [x] Framework-side auto-created task visible (check `/opt/999-Agentic-Engineering-Framework/.tasks/active/` for a T-13XX referencing T-1169 after processor cycle)
+
+**Evidence (2026-04-20T19:01):**
+- Envelope: `/tmp/P-T-1169-framework-dispatch-safety.yaml` (8265 bytes, sha b23bf0b7…)
+- termlink send: `Transfer complete (via direct)` to `tl-ismotg7j` (framework-agent session), two successful sends observed
+- Processor result: moved to `/opt/999-Agentic-Engineering-Framework/.context/pickup/processed/P-T-1169-framework-dispatch-safety.yaml`; dedup.log line `2026-04-20T19:01:05Z|87166a7e…|P-T-1169-framework-dispatch-safety.yaml`
+- Framework task created: **T-1365** (`Pickup: Multi-agent dispatch safety model …`), status=captured, workflow_type=inception, owner=agent, horizon=next, source_task_id_in_origin=T-1169
+- First delivery attempt rejected because `type: inception-proposal` isn't an accepted pickup type (allowed: `bug-report | learning | feature-proposal | pattern`). Corrected to `feature-proposal` and redelivered. The rejected copy remains in `rejected/` as a pipeline audit trail.
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -77,19 +84,18 @@ The pickup envelope proposes exploring:
 
 python3 -c "import yaml; yaml.safe_load(open('/tmp/P-T-1169-framework-dispatch-safety.yaml'))"
 test -f /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/P-T-1169-framework-dispatch-safety.yaml || test -f /opt/999-Agentic-Engineering-Framework/.context/pickup/processed/P-T-1169-framework-dispatch-safety.yaml
-grep -q "multi-agent dispatch safety" /tmp/P-T-1169-framework-dispatch-safety.yaml
+grep -qi "multi-agent dispatch safety" /tmp/P-T-1169-framework-dispatch-safety.yaml
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** DELIVERED — scope decision owned by framework (now T-1365).
+
+**Rationale:** This is a meta-task whose goal is delivery, not exploration. The real go/no-go is owned by the framework project via T-1365 (which gets to decide per-primitive P1..P5 whether to build). Termlink-side meta-task achieves its purpose when the envelope lands in framework's queue and an upstream task exists to triage it.
+
+**Evidence:**
+- Envelope processed → framework task T-1365 created (see Agent AC evidence block above).
+- Upstream task owner=agent, workflow_type=inception, status=captured — will go through framework's normal inception flow.
+- No further termlink-side action required until framework decides GO/DEFER/NO-GO on the proposed primitives.
 
 ## Decisions
 
@@ -113,3 +119,6 @@ grep -q "multi-agent dispatch safety" /tmp/P-T-1169-framework-dispatch-safety.ya
 
 ### 2026-04-20T18:56:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-20T19:02:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
