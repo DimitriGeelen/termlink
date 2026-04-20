@@ -75,30 +75,74 @@ impl Bus {
         }
         let appender = self.appender_for(topic)?;
         let bytes = log::encode_envelope(env)?;
-        appender.append(&bytes).await?;
-        self.meta.next_offset(topic)
+        let byte_pos = appender.append(&bytes).await?;
+        let length = bytes.len() as u64;
+        self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms)
     }
 
     /// Subscribe to `topic` starting at logical offset `cursor`. Returns
     /// an iterator yielding `(offset, envelope)` for every record whose
     /// offset is >= `cursor`. Empty topics yield an empty iterator.
+    ///
+    /// The iterator is backed by the SQLite records index plus positional
+    /// reads into the log file, so records trimmed by `sweep` are not
+    /// yielded even if the underlying file still contains their bytes.
     pub fn subscribe(&self, topic: &str, cursor: Offset) -> Result<SubscribeIter> {
         if !self.meta.topic_exists(topic)? {
             return Err(BusError::UnknownTopic(topic.to_string()));
         }
-        let path = log::topic_log_path(&self.root, topic);
-        let reader = log::LogReader::open(&path)?;
-        let Some(reader) = reader else {
+        let records = self.meta.records_from(topic, cursor)?;
+        if records.is_empty() {
             return Ok(Box::new(std::iter::empty()));
-        };
-        let iter = reader.enumerate().filter_map(move |(idx, res)| {
-            let offset = idx as Offset;
-            if offset < cursor {
-                return None;
+        }
+        let path = log::topic_log_path(&self.root, topic);
+        let reader = match std::fs::File::open(&path) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Box::new(std::iter::empty()));
             }
-            Some(res.and_then(|bytes| log::decode_envelope(&bytes).map(|env| (offset, env))))
-        });
+            Err(e) => return Err(BusError::Io(e)),
+        };
+        let iter = log::ReaderIter::new(reader, records);
         Ok(Box::new(iter))
+    }
+
+    /// Persist a subscriber's cursor. Use this after consuming records so
+    /// a crash restart resumes where the subscriber left off.
+    pub fn advance_cursor(
+        &self,
+        subscriber_id: &str,
+        topic: &str,
+        offset: Offset,
+    ) -> Result<()> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        self.meta.put_cursor(subscriber_id, topic, offset)
+    }
+
+    /// Read the persisted cursor for a subscriber. `None` if never set.
+    pub fn get_cursor(&self, subscriber_id: &str, topic: &str) -> Result<Option<Offset>> {
+        self.meta.get_cursor(subscriber_id, topic)
+    }
+
+    /// Apply the retention policy for `topic`, deleting record index rows
+    /// that fall outside the policy. Returns the number of records pruned.
+    /// Explicit — the library runs no background thread (per T-1155).
+    pub fn sweep(&self, topic: &str, now_unix_ms: i64) -> Result<u64> {
+        let retention = match self.meta.topic_retention(topic)? {
+            Some(r) => r,
+            None => return Err(BusError::UnknownTopic(topic.to_string())),
+        };
+        let (keep_after, keep_last) = match retention {
+            Retention::Forever => return Ok(0),
+            Retention::Days(d) => {
+                let cutoff = now_unix_ms - i64::from(d) * 86_400_000;
+                (Some(cutoff), None)
+            }
+            Retention::Messages(n) => (None, Some(n)),
+        };
+        self.meta.sweep_records(topic, keep_after, keep_last)
     }
 
     fn appender_for(&self, topic: &str) -> Result<std::sync::Arc<log::LogAppender>> {
@@ -223,5 +267,73 @@ mod tests {
         let (_dir, bus) = tmp_bus();
         let err = bus.post("t", &env("t", b"x")).await.unwrap_err();
         assert!(matches!(err, BusError::UnknownTopic(_)));
+    }
+
+    #[tokio::test]
+    async fn cursor_persists_and_rounds_trip() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        for i in 0..3 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), None);
+        bus.advance_cursor("sub-A", "t", 2).unwrap();
+        assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), Some(2));
+        bus.advance_cursor("sub-A", "t", 3).unwrap();
+        assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), Some(3));
+    }
+
+    #[tokio::test]
+    async fn sweep_retention_messages_keeps_last_n() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(2)).unwrap();
+        for i in 0..5 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        let pruned = bus.sweep("t", 0).unwrap();
+        assert_eq!(pruned, 3);
+        let offsets: Vec<u64> = bus
+            .subscribe("t", 0)
+            .unwrap()
+            .map(|r| r.unwrap().0)
+            .collect();
+        assert_eq!(offsets, vec![3, 4]);
+    }
+
+    #[tokio::test]
+    async fn sweep_retention_days_keeps_fresh() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Days(1)).unwrap();
+        let day_ms: i64 = 86_400_000;
+        let now: i64 = 10 * day_ms;
+        let old = Envelope {
+            ts_unix_ms: now - 2 * day_ms,
+            ..env("t", b"old")
+        };
+        let fresh = Envelope {
+            ts_unix_ms: now,
+            ..env("t", b"fresh")
+        };
+        bus.post("t", &old).await.unwrap();
+        bus.post("t", &fresh).await.unwrap();
+        let pruned = bus.sweep("t", now).unwrap();
+        assert_eq!(pruned, 1);
+        let payloads: Vec<Vec<u8>> = bus
+            .subscribe("t", 0)
+            .unwrap()
+            .map(|r| r.unwrap().1.payload)
+            .collect();
+        assert_eq!(payloads, vec![b"fresh".to_vec()]);
+    }
+
+    #[tokio::test]
+    async fn sweep_forever_is_noop() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        for i in 0..3 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.sweep("t", 0).unwrap(), 0);
+        assert_eq!(bus.subscribe("t", 0).unwrap().count(), 3);
     }
 }
