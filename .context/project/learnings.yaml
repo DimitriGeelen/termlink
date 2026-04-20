@@ -520,3 +520,10 @@ learnings:
   date: 2026-04-20
   context: Added via context agent
   application: TBD
+- id: PL-040
+  learning: "Pickup envelope 'type:' field is a closed vocabulary (bug-report | learning | feature-proposal | pattern). Semantically reasonable values like 'inception-proposal' are auto-rejected by the processor. Source: framework lib/pickup.sh:92 + :353. When filing framework pickups, use 'feature-proposal' for architectural improvement proposals, 'bug-report' for concrete bugs, 'learning' for shareable insights, 'pattern' for reusable patterns. Check the allowed list first."
+  source: P-002
+  task: T-1169
+  date: 2026-04-20
+  context: Added via context agent
+  application: TBD
