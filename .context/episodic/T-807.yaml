@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add unit tests for dispatch command parsing and validation
 # Key outcomes
 outcomes:
   - "Verified dispatch.rs has 8 existing unit tests covering all validation paths"

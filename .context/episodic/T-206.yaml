@@ -19,8 +19,7 @@ updates_count: 0
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Remove sudo from installer — PATH-based install
 # Key outcomes
 outcomes:
   - "Task completed"

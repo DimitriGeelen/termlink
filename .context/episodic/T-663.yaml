@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to list_sessions calls in watch and topics commands
 # Key outcomes
 outcomes:
   - "JSON error for list_sessions failure in cmd_watch"

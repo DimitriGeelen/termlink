@@ -19,8 +19,7 @@ updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --id flag to list command for outputting session ID with --first
 # Key outcomes
 outcomes:
   - "--ids flag exists on list command (verified: `termlink list --help` shows `--ids`)"

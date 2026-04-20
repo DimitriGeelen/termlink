@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --ids flag to list command for session ID output
 # Key outcomes
 outcomes:
   - "`--ids` flag added to `Command::List` in cli.rs"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON-aware error output to dispatch command validation errors
 # Key outcomes
 outcomes:
   - "`cmd_dispatch` count==0 validation outputs JSON error when `--json` is passed"

@@ -19,8 +19,7 @@ updates_count: 0
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Inception: Attach-self — register existing shell as TermLink endpoint
 # Key outcomes
 outcomes:
   - "Problem statement validated"

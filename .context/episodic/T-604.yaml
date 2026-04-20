@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --raw flag to kv get for piping-friendly value output
 # Key outcomes
 outcomes:
   - "`--raw` flag added to Kv command in cli.rs (bool, default false)"

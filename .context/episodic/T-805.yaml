@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add since parameter to event.subscribe for cursor-based replay
 # Key outcomes
 outcomes:
   - "`event.subscribe` accepts optional `since` parameter (u64 sequence number)"

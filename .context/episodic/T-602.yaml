@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --wait flag to discover command that polls until a match is found
 # Key outcomes
 outcomes:
   - "`--wait` and `--wait-timeout` flags added to Discover command in cli.rs"

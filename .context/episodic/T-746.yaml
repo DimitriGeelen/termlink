@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Close 5 stale issues-status tasks — features already implemented
 # Key outcomes
 outcomes:
   - "T-630 closed (--raw on kv get already exists)"

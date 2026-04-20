@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add install-check CI workflow — close G-005 (no-locked external install path)
 # Key outcomes
 outcomes:
   - "`.github/workflows/install-check.yml` exists and triggers on push + pull_request to main"

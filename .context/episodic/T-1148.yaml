@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Codify batch-evidence pattern to memory + remaining G-008 sweep (G-008 remediation)
 # Key outcomes
 outcomes:
   - "Memory file written at `/root/.claude/projects/-opt-termlink/memory/workflow_batch_evidence_g008.md`"

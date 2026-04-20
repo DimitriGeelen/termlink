@@ -19,8 +19,7 @@ updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --dry-run flag to vendor status with JSON output showing update-needed info
 # Key outcomes
 outcomes:
   - "vendor status --check flag exists (covers dry-run use case)"

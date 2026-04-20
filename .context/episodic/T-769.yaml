@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add edge case tests for jsonrpc.rs — with_data, deserialization edge cases, RpcResponse dispatch
 # Key outcomes
 outcomes:
   - "Add test for `ErrorResponse::with_data()` including data payload"

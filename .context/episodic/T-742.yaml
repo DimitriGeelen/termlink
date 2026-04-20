@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add ok:true to discover --count --json output
 # Key outcomes
 outcomes:
   - "`discover --count --json` output includes `\"ok\": true`"

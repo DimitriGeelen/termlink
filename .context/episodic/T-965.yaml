@@ -19,8 +19,7 @@ updates_count: 3
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  CLI subscription — watch/wait/collect use event.subscribe with poll fallback
 # Key outcomes
 outcomes:
   - "`watch` command uses event.subscribe with poll fallback (events.rs:429)"

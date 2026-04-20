@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add CLI integration tests for uncovered error paths
 # Key outcomes
 outcomes:
   - "Add test for `agent ask` with no target (error path)"

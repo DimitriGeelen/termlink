@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add uid to list --json output for multi-user environments
 # Key outcomes
 outcomes:
   - "`uid` field added to list --json output"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --count flag to event watch to exit after N events
 # Key outcomes
 outcomes:
   - "`--count N` flag added to `EventCommand::Watch` and hidden `Command::Watch` in cli.rs"

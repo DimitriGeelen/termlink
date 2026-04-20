@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Batch-evidence 10 RUBBER-STAMP Human ACs (G-008 remediation)
 # Key outcomes
 outcomes:
   - "`/tmp/batch-evidence.py` runs cleanly and reports `updated 10/10 task files`"

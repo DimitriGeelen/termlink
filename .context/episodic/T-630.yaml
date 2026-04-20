@@ -19,8 +19,7 @@ updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --raw flag to kv get for agent ask to output raw action response
 # Key outcomes
 outcomes:
   - "--raw flag exists on kv command (verified: `termlink kv --help` shows `--raw`)"

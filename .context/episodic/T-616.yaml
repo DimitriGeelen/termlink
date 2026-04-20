@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --no-header flag to list command to suppress table header
 # Key outcomes
 outcomes:
   - "`--no-header` flag added to List command in cli.rs"

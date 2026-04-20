@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --timeout flag to event watch for time-bounded watching
 # Key outcomes
 outcomes:
   - "`--timeout N` flag added to `EventCommand::Watch` and hidden `Command::Watch` in cli.rs"

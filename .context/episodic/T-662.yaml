@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to remote command connection and RPC errors
 # Key outcomes
 outcomes:
   - "JSON error for connect_remote_hub failure in cmd_remote_list"

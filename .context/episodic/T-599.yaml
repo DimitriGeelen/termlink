@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix pre-push hook: add .agentic-framework/ audit script path resolution
 # Key outcomes
 outcomes:
   - "Task completed"

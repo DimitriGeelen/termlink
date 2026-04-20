@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to vendor command filesystem errors
 # Key outcomes
 outcomes:
   - "vendor command filesystem errors have JSON error output (7 locations)"

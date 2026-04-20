@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix update-homebrew-sha.sh to handle 4 platform variants (add Linux aarch64)
 # Key outcomes
 outcomes:
   - "Script extracts SHA256 for all 4 platforms: darwin-aarch64, darwin-x86_64, linux-x86_64, linux-aarch64"

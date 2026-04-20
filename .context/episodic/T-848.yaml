@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add termlink_dispatch_status MCP tool — query dispatch manifest status
 # Key outcomes
 outcomes:
   - "DUPLICATE — termlink_dispatch_status already exists (added in previous session). No work needed."

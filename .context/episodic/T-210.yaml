@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix aef references in installer, add post-install verification
 # Key outcomes
 outcomes:
   - "Zero \"aef\" references in install.sh (verified upstream)"

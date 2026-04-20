@@ -19,8 +19,7 @@ updates_count: 5
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  RCA: Unify termlink runtime dir — split-brain blocks cross-host session discovery
 # Key outcomes
 outcomes:
   - "Task completed"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --keys flag to kv list for outputting just key names
 # Key outcomes
 outcomes:
   - "`--keys` flag added to Kv command in cli.rs"

@@ -19,8 +19,7 @@ updates_count: 1
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Wire --since flag to events subscribe CLI command
 # Key outcomes
 outcomes:
   - "Verified no CLI subscribe command exists (RPC-level only)"

@@ -19,8 +19,7 @@ updates_count: 3
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add termlink remote status for hub-level diagnostics
 # Key outcomes
 outcomes:
   - "Reconsidered — hub-level status already covered by remote ping + remote list"

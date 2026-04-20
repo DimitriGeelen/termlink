@@ -19,8 +19,7 @@ updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  IT-009: Protocol relationships — MCP, LSP, existing standards
 # Key outcomes
 outcomes:
   - "Problem statement validated"

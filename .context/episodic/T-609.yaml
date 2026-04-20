@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON-aware error output to spawn command backend failures
 # Key outcomes
 outcomes:
   - "spawn_via_terminal error wrapped with JSON output when json is true"

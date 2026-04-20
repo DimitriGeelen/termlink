@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to file send connection errors
 # Key outcomes
 outcomes:
   - "file.init, chunk, and file.complete connection errors have JSON error output"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Batch-evidence 2 framework Human ACs (T-978/T-939) (G-008 remediation)
 # Key outcomes
 outcomes:
   - "`.agentic-framework/.upstream-checksums` exists and lists `lib/harvest.sh` with a SHA (T-978)"

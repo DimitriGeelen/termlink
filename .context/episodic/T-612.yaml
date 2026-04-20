@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --cap filter to list command for capability-based filtering
 # Key outcomes
 outcomes:
   - "`--cap` flag added to List command in cli.rs"

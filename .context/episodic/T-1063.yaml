@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Doc fix — add fw release to CLAUDE.md Quick Reference with Tier-0 warning
 # Key outcomes
 outcomes:
   - "Project CLAUDE.md Quick Reference table includes an `fw release` row"

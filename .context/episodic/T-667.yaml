@@ -19,8 +19,7 @@ updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --json flag to hub start command for structured startup info
 # Key outcomes
 outcomes:
   - "--json flag exists on hub start (verified: `termlink hub start --help` shows `--json`)"

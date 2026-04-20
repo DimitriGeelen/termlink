@@ -19,8 +19,7 @@ updates_count: 3
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --version flag and improve CLI help text
 # Key outcomes
 outcomes:
   - "Already has `-V/--version` flag (clap built-in)"

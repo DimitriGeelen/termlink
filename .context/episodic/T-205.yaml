@@ -19,8 +19,7 @@ updates_count: 5
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Drop PyYAML phantom dependency from installer
 # Key outcomes
 outcomes:
   - "Confirmed zero PyYAML imports in core framework (web/docgen use it optionally)"

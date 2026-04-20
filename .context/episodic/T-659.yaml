@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix pre-push hook audit script resolution for .agentic-framework layout
 # Key outcomes
 outcomes:
   - "Hook template in hooks.sh adds `.agentic-framework/` resolution path — BLOCKED by project boundary; upstream fix needed"

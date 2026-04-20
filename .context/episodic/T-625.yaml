@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --payload-only flag to event collect
 # Key outcomes
 outcomes:
   - "`--payload-only` flag added to `EventCommand::Collect` and hidden `Command::Collect` in cli.rs"

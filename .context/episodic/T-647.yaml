@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to connection-failed errors in event commands
 # Key outcomes
 outcomes:
   - "events.rs connection-failed errors have JSON error output (4 commands)"

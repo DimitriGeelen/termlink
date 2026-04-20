@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add ok:true to tag update, kv set, kv get, kv list, kv del JSON success responses
 # Key outcomes
 outcomes:
   - "`cmd_tag` JSON success includes `\"ok\": true`"

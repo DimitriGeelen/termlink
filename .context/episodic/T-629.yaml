@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --first flag to list command to output only the first matching session
 # Key outcomes
 outcomes:
   - "`--first` flag added to `Command::List` in cli.rs"

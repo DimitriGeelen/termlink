@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --json output to termlink event emit and emit-to
 # Key outcomes
 outcomes:
   - "EventCommand::Emit, EmitTo, Broadcast, Poll have `json: bool` fields"

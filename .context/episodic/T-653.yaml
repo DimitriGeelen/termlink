@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to dispatch binary-path and spawn errors
 # Key outcomes
 outcomes:
   - "`cmd_dispatch` binary-path error has JSON error output"

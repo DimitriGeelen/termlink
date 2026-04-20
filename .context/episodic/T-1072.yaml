@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Cron watchdog for termlink supervisor stack — catches clean-exit drops
 # Key outcomes
 outcomes:
   - "`scripts/watchdog.sh` exists, executable, checks 3 units"

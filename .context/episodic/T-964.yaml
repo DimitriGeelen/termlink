@@ -19,8 +19,7 @@ updates_count: 3
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  EventBus broadcast channel — add subscribe() alongside poll()
 # Key outcomes
 outcomes:
   - "EventBus has broadcast::Sender<Event> alongside ring buffer (events.rs)"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  T-1061 TermLink review feedback
 # Key outcomes
 outcomes:
   - "Review document written to /opt/999-Agentic-Engineering-Framework/docs/reports/T-1061-termlink-review-feedback.md"

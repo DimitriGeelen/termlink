@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add events.rs EventBus edge case tests
 # Key outcomes
 outcomes:
   - "Add test for all() and all_by_topic() methods"

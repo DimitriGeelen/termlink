@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to register PTY spawn and signal parse errors
 # Key outcomes
 outcomes:
   - "PTY spawn, persist, list, and signal parse errors have JSON error output"
