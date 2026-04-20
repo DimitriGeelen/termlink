@@ -17,6 +17,8 @@ depended_by:
   relationship: called_by
 - target: crates/termlink-cli/src/commands/mod.rs
   type: declares_by
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
 last_verified: 2026-03-26
 created_by: unknown
-last_enriched: '2026-04-19'
+last_enriched: '2026-04-21'

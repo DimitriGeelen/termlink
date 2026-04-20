@@ -16,6 +16,8 @@ depends_on:
   type: calls
 - target: crates/termlink-hub/src/lib.rs
   type: exports-via
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-hub/src/server.rs
   type: calls
@@ -25,6 +27,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-mcp/src/tools.rs
   type: _by
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-03-10
 created_by: T-080
-last_enriched: '2026-04-19'
+last_enriched: '2026-04-21'

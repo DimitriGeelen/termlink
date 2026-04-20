@@ -3,18 +3,22 @@ name: governance_subscriber
 type: module
 subsystem: session
 location: crates/termlink-session/src/governance_subscriber.rs
-tags: [governance, pattern-matching, audit-trail]
-
-purpose: "Governance subscriber — watches Output frames for regex pattern matches, strips ANSI escapes, and emits Governance frames (0x8) as non-blocking audit trail events"
-
+tags:
+- governance
+- pattern-matching
+- audit-trail
+purpose: Governance subscriber — watches Output frames for regex pattern matches, strips ANSI escapes, and emits Governance
+  frames (0x8) as non-blocking audit trail events
 depends_on:
-  - target: crates/termlink-protocol/src/governance.rs
-    type: calls
-  - target: crates/termlink-protocol/src/data.rs
-    type: calls
-
+- target: crates/termlink-protocol/src/governance.rs
+  type: calls
+- target: crates/termlink-protocol/src/data.rs
+  type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 depended_by:
-  []
-
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
 last_verified: 2026-04-13
 created_by: T-994
+last_enriched: '2026-04-21'

@@ -3,21 +3,26 @@ name: target
 type: module
 subsystem: cli
 location: crates/termlink-cli/src/target.rs
-tags: [cross-host, routing, T-924]
-
-purpose: "Shared cross-host routing helpers — TargetOpts struct and call_session() for CLI commands that work both locally and via remote hub forwarding"
-
+tags:
+- cross-host
+- routing
+- T-924
+purpose: Shared cross-host routing helpers — TargetOpts struct and call_session() for CLI commands that work both locally
+  and via remote hub forwarding
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    type: calls
-  - target: crates/termlink-session/src/manager.rs
-    type: calls
-  - target: crates/termlink-cli/src/commands/remote.rs
-    type: calls
-
+- target: crates/termlink-session/src/client.rs
+  type: calls
+- target: crates/termlink-session/src/manager.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/remote.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 depended_by:
-  # Cross-host CLI commands (T-925..T-935) will wire in as consumers
-  []
-
+- target: crates/termlink-cli/src/main.rs
+  type: called_by
 last_verified: 2026-04-13
 created_by: T-994
+last_enriched: '2026-04-21'

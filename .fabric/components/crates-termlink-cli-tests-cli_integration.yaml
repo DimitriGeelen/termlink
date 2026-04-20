@@ -13,9 +13,11 @@ purpose: End-to-end CLI binary integration tests — spawns termlink processes w
 depends_on:
 - target: crates/termlink-cli/src/main.rs
   type: tests
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
 last_verified: 2026-03-09
 created_by: T-054
 depended_by:
 - target: crates/termlink-cli/tests/interactive_integration.rs
   type: extended_by
-last_enriched: '2026-03-26'
+last_enriched: '2026-04-21'

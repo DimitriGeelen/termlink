@@ -13,6 +13,8 @@ purpose: Peer credential extraction and UID-based authentication for Unix socket
 depends_on:
 - target: crates/termlink-session/src/lib.rs
   type: exports-via
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-session/src/server.rs
   type: calls
@@ -22,6 +24,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-hub/src/tls.rs
   type: called_by
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
 last_verified: 2026-03-10
 created_by: T-077
-last_enriched: '2026-03-26'
+last_enriched: '2026-04-21'

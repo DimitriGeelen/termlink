@@ -6,8 +6,8 @@ location: crates/termlink-cli/src/commands/mod.rs
 tags:
 - cli
 - module-root
-purpose: Module declarations for 13 command modules — session, pty, events, metadata, execution, dispatch, infrastructure, token,
-  remote, agent, file, push, vendor
+purpose: Module declarations for 13 command modules — session, pty, events, metadata, execution, dispatch, infrastructure,
+  token, remote, agent, file, push, vendor
 depends_on:
 - target: crates/termlink-cli/src/commands/session.rs
   type: declares
@@ -35,11 +35,43 @@ depends_on:
   type: declares
 - target: crates/termlink-cli/src/commands/vendor.rs
   type: declares
+- target: crates/termlink-cli/src/commands/session.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/pty.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/events.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/metadata.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/dispatch.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/infrastructure.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/token.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/remote.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/agent.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/file.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/push.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/vendor.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/identity.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/channel.rs
+  type: calls
 depended_by:
 - target: crates/termlink-cli/src/main.rs
   type: uses
 - target: crates/termlink-cli/src/main.rs
   type: uses_by
+- target: crates/termlink-cli/src/main.rs
+  type: called_by
 last_verified: 2026-03-21
 created_by: T-223
-last_enriched: '2026-03-26'
+last_enriched: '2026-04-21'

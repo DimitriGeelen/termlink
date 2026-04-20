@@ -14,6 +14,8 @@ depends_on:
   type: calls
 - target: crates/termlink-protocol/src/jsonrpc.rs
   type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
 depended_by:
@@ -25,4 +27,6 @@ depended_by:
   type: called_by
 - target: crates/termlink-test-utils/src/lib.rs
   type: called_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_enriched: '2026-04-21'

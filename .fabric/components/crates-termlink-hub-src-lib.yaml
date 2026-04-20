@@ -19,6 +19,34 @@ depends_on:
 - crates/termlink-hub/src/route_cache.rs
 - crates/termlink-hub/src/template_cache.rs
 - crates/termlink-hub/src/tls.rs
+- target: crates/termlink-hub/src/aggregator.rs
+  type: calls
+- target: crates/termlink-hub/src/bypass.rs
+  type: calls
+- target: crates/termlink-hub/src/channel.rs
+  type: calls
+- target: crates/termlink-hub/src/circuit_breaker.rs
+  type: calls
+- target: crates/termlink-hub/src/inbox.rs
+  type: calls
+- target: crates/termlink-hub/src/pidfile.rs
+  type: calls
+- target: crates/termlink-hub/src/remote_store.rs
+  type: calls
+- target: crates/termlink-hub/src/route_cache.rs
+  type: calls
+- target: crates/termlink-hub/src/router.rs
+  type: calls
+- target: crates/termlink-hub/src/template_cache.rs
+  type: calls
+- target: crates/termlink-hub/src/trust.rs
+  type: calls
+- target: crates/termlink-hub/src/server.rs
+  type: calls
+- target: crates/termlink-hub/src/supervisor.rs
+  type: calls
+- target: crates/termlink-hub/src/tls.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -26,4 +54,4 @@ depended_by:
   type: exports-via_by
 - target: crates/termlink-hub/src/supervisor.rs
   type: exports-via_by
-last_enriched: '2026-03-26'
+last_enriched: '2026-04-21'

@@ -3,13 +3,20 @@ name: tls
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/tls.rs
-tags: [security, tls, tcp]
-
-purpose: "TLS certificate generation and configuration for TCP hub connections. Generates self-signed certs on startup, provides TlsAcceptor for server and TlsConnector builder for clients."
-
+tags:
+- security
+- tls
+- tcp
+purpose: TLS certificate generation and configuration for TCP hub connections. Generates self-signed certs on startup, provides
+  TlsAcceptor for server and TlsConnector builder for clients.
 depends_on:
-  - target: crates/termlink-session/src/auth.rs
-    type: calls
-
+- target: crates/termlink-session/src/auth.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 last_verified: 2026-03-18
 created_by: agent
+last_enriched: '2026-04-21'
+depended_by:
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
