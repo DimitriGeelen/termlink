@@ -2062,10 +2062,10 @@ fn render_net_test_text(
             };
             let layer_upper = layer.to_uppercase();
             eprintln!("    {marker}  {layer_upper:<4}  {latency:>4}ms");
-            if status != "pass" {
-                if let Some(err) = entry["error"].as_str() {
-                    eprintln!("          \x1b[2m└─ {}\x1b[0m", err);
-                }
+            if status != "pass"
+                && let Some(err) = entry["error"].as_str()
+            {
+                eprintln!("          \x1b[2m└─ {}\x1b[0m", err);
             }
         }
 

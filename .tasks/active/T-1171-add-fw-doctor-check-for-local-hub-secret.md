@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-20T20:08:57Z
-last_update: 2026-04-20T20:17:37Z
+last_update: 2026-04-20T20:19:30Z
 date_finished: null
 ---
 
@@ -44,20 +44,20 @@ Two checks, both additive in `cmd_doctor` at
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `cmd_doctor` in `crates/termlink-cli/src/commands/infrastructure.rs` gains a `secret_cache` check block
-- [ ] Perms audit: scans `~/.termlink/secrets/*.hex` (excluding `*.bak`). For any file whose mode != 0o600, emits `warn` listing the path and actual mode
-- [ ] Freshness heuristic: when `resolve_hub_paths().parent()/hub.secret` exists and is readable, compares mtime against each `.hex` cache file. For any cache older than the hub secret, emits `warn` listing the stale file(s) with both mtimes
-- [ ] Missing `~/.termlink/secrets/` directory is a `pass` (no cache, nothing to drift) — not a warn
-- [ ] JSON output (`--json`) includes the `secret_cache` check entries in the `checks` array with the same `{check, status, message}` shape as the existing checks
-- [ ] Unit test: one test writes a tmp `.hex` with mode 0o644 and asserts the perms branch is taken (use existing test pattern in the crate; if none, table-test the helper function)
-- [ ] `cargo build -p termlink-cli` succeeds
-- [ ] `cargo test -p termlink-cli` succeeds (all existing tests + new test)
-- [ ] `cargo clippy -p termlink-cli -- -D warnings` succeeds
+- [x] `cmd_doctor` in `crates/termlink-cli/src/commands/infrastructure.rs` gains a `secret_cache` check block
+- [x] Perms audit: scans `~/.termlink/secrets/*.hex` (excluding `*.bak`). For any file whose mode != 0o600, emits `warn` listing the path and actual mode
+- [x] Freshness heuristic: when `resolve_hub_paths().parent()/hub.secret` exists and is readable, compares mtime against each `.hex` cache file. For any cache older than the hub secret, emits `warn` listing the stale file(s) with both mtimes
+- [x] Missing `~/.termlink/secrets/` directory is a `pass` (no cache, nothing to drift) — not a warn
+- [x] JSON output (`--json`) includes the `secret_cache` check entries in the `checks` array with the same `{check, status, message}` shape as the existing checks
+- [x] Unit test: one test writes a tmp `.hex` with mode 0o644 and asserts the perms branch is taken (use existing test pattern in the crate; if none, table-test the helper function) — 5 tests added in `tests` mod
+- [x] `cargo build -p termlink` succeeds
+- [x] `cargo test -p termlink` succeeds (all existing tests + new test) — 168 + 5
+- [x] `cargo clippy -p termlink -- -D warnings` succeeds (fixed pre-existing collapsible_if in remote.rs:2065 as a precondition)
 
 ### Human
 - [ ] [RUBBER-STAMP] Run `termlink doctor` on this box and confirm the `secret_cache` check appears in the output
   **Steps:**
-  1. `cd /opt/termlink && cargo build -p termlink-cli --release`
+  1. `cd /opt/termlink && cargo build -p termlink --release`
   2. `./target/release/termlink doctor`
   3. Look for a `secret_cache` line in the check list
   **Expected:** One `pass` or `warn` line prefixed with `secret_cache:`
@@ -65,9 +65,9 @@ Two checks, both additive in `cmd_doctor` at
 
 ## Verification
 
-cargo build -p termlink-cli
-cargo test -p termlink-cli
-cargo clippy -p termlink-cli -- -D warnings
+cargo build -p termlink
+cargo test -p termlink
+cargo clippy -p termlink -- -D warnings
 grep -q "secret_cache" crates/termlink-cli/src/commands/infrastructure.rs
 
 ## Decisions

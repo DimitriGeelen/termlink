@@ -448,6 +448,48 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
+    // 7b. T-1171 / G-011: Client-side secret cache audit.
+    //
+    //     ~/.termlink/secrets/<host>.hex is a cache of the shared hub.secret.
+    //     When the hub restarts with a new secret (or the runtime_dir migrates)
+    //     the cache silently diverges and the next auth fails. Two surface
+    //     signals, both low-cost to compute locally:
+    //       (a) perms must be 0600 — world-readable caches leaked the G-011
+    //           smell where proxmox4.hex was 644.
+    //       (b) if this host runs a local hub, any cache file older than the
+    //           live hub.secret is a drift candidate. The operator confirms
+    //           whether the cache actually points at the local hub; we only
+    //           surface the age signal, we don't auto-heal.
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let secrets_dir = PathBuf::from(&home).join(".termlink").join("secrets");
+        if !secrets_dir.exists() {
+            check!("secret_cache", pass, "no cached secrets");
+        } else {
+            let local_hub_secret: Option<(PathBuf, std::time::SystemTime)> = {
+                let (pidfile, _) = resolve_hub_paths();
+                pidfile.parent().and_then(|dir| {
+                    let p = dir.join("hub.secret");
+                    std::fs::metadata(&p)
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .map(|t| (p, t))
+                })
+            };
+            let issues = audit_secret_cache(
+                &secrets_dir,
+                local_hub_secret.as_ref().map(|(p, t)| (p.as_path(), *t)),
+            );
+            if issues.is_empty() {
+                check!("secret_cache", pass, "all cached secrets look healthy");
+            } else {
+                for msg in &issues {
+                    check!("secret_cache", warn, msg.clone());
+                }
+            }
+        }
+    }
+
     // 8. Version + MCP tools
     let version = env!("CARGO_PKG_VERSION");
     let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
@@ -908,4 +950,143 @@ pub(crate) fn cmd_tofu_clear(host: Option<&str>, all: bool, json_output: bool) -
         anyhow::bail!("Specify a host:port to clear, or use --all to clear everything");
     }
     Ok(())
+}
+
+/// T-1171 / G-011: Audit `~/.termlink/secrets/*.hex` for perm smells and
+/// staleness relative to a local hub secret. Returns a warning message per
+/// issue; empty vec means all caches look healthy.
+///
+/// - Skips non-regular files, entries whose name doesn't end in `.hex`, and
+///   `.bak` siblings.
+/// - Perm check: any mode != 0o600 (low 9 bits) is flagged.
+/// - Freshness check: only runs when `local_hub` is provided. A cache with
+///   `mtime < hub_mtime` is flagged — the operator decides whether the
+///   cache actually points at the local hub.
+pub(crate) fn audit_secret_cache(
+    secrets_dir: &std::path::Path,
+    local_hub: Option<(&std::path::Path, std::time::SystemTime)>,
+) -> Vec<String> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut issues = Vec::new();
+    let entries = match std::fs::read_dir(secrets_dir) {
+        Ok(e) => e,
+        Err(_) => return issues,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n,
+            None => continue,
+        };
+        if !name.ends_with(".hex") || name.ends_with(".bak") {
+            continue;
+        }
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        if !meta.is_file() {
+            continue;
+        }
+        let mode = meta.permissions().mode() & 0o777;
+        if mode != 0o600 {
+            issues.push(format!(
+                "{} has mode {:o} (expected 600) — world/group-readable cache",
+                path.display(),
+                mode
+            ));
+        }
+        if let Some((hub_path, hub_mtime)) = local_hub
+            && let Ok(cache_mtime) = meta.modified()
+            && cache_mtime < hub_mtime
+        {
+            issues.push(format!(
+                "{} is older than local {} — may be stale if this cache points at the local hub",
+                path.display(),
+                hub_path.display()
+            ));
+        }
+    }
+    issues
+}
+
+#[cfg(test)]
+mod tests {
+    use super::audit_secret_cache;
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn tmpdir(label: &str) -> std::path::PathBuf {
+        let base = std::env::temp_dir().join(format!(
+            "termlink-audit-test-{}-{}",
+            label,
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        base
+    }
+
+    fn write_hex(dir: &std::path::Path, name: &str, mode: u32) -> std::path::PathBuf {
+        let p = dir.join(name);
+        fs::write(&p, b"deadbeef").unwrap();
+        fs::set_permissions(&p, fs::Permissions::from_mode(mode)).unwrap();
+        p
+    }
+
+    #[test]
+    fn missing_dir_is_empty() {
+        let missing = std::env::temp_dir().join("termlink-audit-test-nonexistent-xyz");
+        let _ = fs::remove_dir_all(&missing);
+        assert!(audit_secret_cache(&missing, None).is_empty());
+    }
+
+    #[test]
+    fn good_perms_no_local_hub_is_empty() {
+        let d = tmpdir("good");
+        write_hex(&d, "ring20.hex", 0o600);
+        assert!(audit_secret_cache(&d, None).is_empty());
+    }
+
+    #[test]
+    fn bad_perms_reported() {
+        let d = tmpdir("bad-perms");
+        write_hex(&d, "proxmox4.hex", 0o644);
+        let issues = audit_secret_cache(&d, None);
+        assert_eq!(issues.len(), 1);
+        assert!(issues[0].contains("mode 644"));
+        assert!(issues[0].contains("proxmox4.hex"));
+    }
+
+    #[test]
+    fn bak_siblings_skipped() {
+        let d = tmpdir("bak");
+        write_hex(&d, "ring20.hex.bak", 0o644); // deliberately bad perms
+        assert!(
+            audit_secret_cache(&d, None).is_empty(),
+            ".bak siblings must not be flagged"
+        );
+    }
+
+    #[test]
+    fn stale_cache_reported_against_local_hub() {
+        let d = tmpdir("stale");
+        let cache = write_hex(&d, "ring20.hex", 0o600);
+        // Backdate cache mtime by 1h using std's File::set_modified.
+        let past = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        fs::File::options()
+            .write(true)
+            .open(&cache)
+            .unwrap()
+            .set_modified(past)
+            .unwrap();
+        let hub_secret = d.join("hub.secret");
+        fs::write(&hub_secret, b"ff").unwrap();
+        let issues = audit_secret_cache(
+            &d,
+            Some((hub_secret.as_path(), std::time::SystemTime::now())),
+        );
+        assert_eq!(issues.len(), 1);
+        assert!(issues[0].contains("older than local"));
+    }
 }
