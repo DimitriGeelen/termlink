@@ -11,6 +11,7 @@ pub(crate) mod agent;
 pub(crate) mod file;
 pub(crate) mod push;
 pub(crate) mod vendor;
+pub(crate) mod identity;
 
 /// Display options shared across list-style commands (list, discover, remote list).
 pub(crate) struct ListDisplayOpts {

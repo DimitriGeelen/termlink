@@ -961,6 +961,12 @@ pub(crate) enum Command {
         action: TofuAction,
     },
 
+    /// Manage agent cryptographic identity (ed25519 keypair, T-1159)
+    Identity {
+        #[command(subcommand)]
+        action: IdentityAction,
+    },
+
     /// Check TermLink runtime health — validates dirs, sessions, hub, sockets
     Doctor {
         /// Output as JSON
@@ -1541,6 +1547,37 @@ pub(crate) enum TofuAction {
         /// Clear all TOFU entries
         #[arg(long)]
         all: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+/// Agent cryptographic identity management (ed25519 keypair, T-1159)
+#[derive(Subcommand)]
+pub(crate) enum IdentityAction {
+    /// Bootstrap a new ed25519 keypair at ~/.termlink/identity.key (chmod 600)
+    Init {
+        /// Overwrite an existing key (previous key is renamed to identity.key.bak-<ts>)
+        #[arg(long)]
+        force: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Print fingerprint + public key hex + file path for the current identity
+    Show {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Rotate the current keypair (alias for `init --force` — explicit for operator intent)
+    Rotate {
+        /// Required — rotation is destructive (the old private key is renamed to a .bak file)
+        #[arg(long)]
+        force: bool,
 
         /// Output as JSON
         #[arg(long)]

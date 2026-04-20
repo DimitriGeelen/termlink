@@ -4,15 +4,15 @@ name: "T-1155/2 Add ed25519 identity keyring to termlink-session"
 description: >
   Self-sovereign agent identity per T-1155 S-4. Generate/store ed25519 keypair per session. Bootstrap command (termlink identity init), show fingerprint (termlink identity show), rotate. TOFU pin on first-contact. Separates identity trust from transport trust — structural fix for T-1051 rotation pain.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [T-1155, bus, identity]
 components: []
 related_tasks: [T-1155]
 created: 2026-04-20T14:12:03Z
-last_update: 2026-04-20T14:12:03Z
+last_update: 2026-04-20T20:42:02Z
 date_finished: null
 ---
 
@@ -27,22 +27,18 @@ Pairs with T-1158 (bus core, unsigned envelope) by layering signatures **on top 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Add `ed25519-dalek` (or verify existing transitive presence and take direct dep) + `rand_core` to `crates/termlink-session/Cargo.toml`
-- [ ] New module `crates/termlink-session/src/identity.rs` exposes:
-  - `Identity` struct wrapping `SigningKey` + `VerifyingKey` + cached fingerprint (sha256 of public key, hex, first 16 chars for display)
-  - `Identity::load_or_create(path) -> Identity` — reads `<path>/identity.key` (32-byte raw seed, chmod 600) or generates + writes atomically with `tempfile + rename`
-  - `Identity::sign(msg: &[u8]) -> Signature` / `Identity::verify(pk, msg, sig) -> bool`
-  - `Identity::public_key_hex() -> String`, `Identity::fingerprint() -> String`
-- [ ] CLI commands under `termlink identity`:
-  - `termlink identity init [--force]` — bootstrap keypair at `~/.termlink/identity.key`; refuses overwrite without `--force`
-  - `termlink identity show` — prints fingerprint + public key hex + path
-  - `termlink identity rotate` — requires `--force`; renames old to `identity.key.bak-<ts>`, writes new key
-- [ ] Keyring (other agents' public keys): `KnownPeers` struct backed by `~/.termlink/known_peers.toml` — maps `peer_id -> {pubkey_hex, first_seen, last_seen, fingerprint}`. API: `learn(peer_id, pubkey)`, `get(peer_id)`, `verify_from(peer_id, msg, sig) -> bool`
-- [ ] TOFU semantics: first observation of a peer's pubkey is accepted + pinned; subsequent mismatches log `IDENTITY_TOFU_VIOLATION` with both fingerprints (mirrors the hub TOFU in `termlink-session::tofu`)
-- [ ] Unit tests: keypair roundtrip, file permissions are 0600, sign+verify with fresh key, known_peers TOFU accept-then-reject-on-mismatch, fingerprint stability across serialize/deserialize
-- [ ] Zero changes to `termlink-bus` — this crate layers over T-1158's opaque payload; the bus does not know about signatures
-- [ ] `cargo build -p termlink-session && cargo test -p termlink-session` passes
-- [ ] `cargo clippy -p termlink-session -- -D warnings` passes
+- [x] Add `ed25519-dalek` + `rand_core` (+ `toml`) to `crates/termlink-session/Cargo.toml`
+- [x] New module `crates/termlink-session/src/agent_identity.rs` (distinct from existing `identity.rs` which owns `SessionId`) exposes `Identity`, `load_or_create`, `init(force)`, `sign`/`verify`, `public_key_hex`, `fingerprint`, `verifying_key`
+- [x] CLI commands under `termlink identity`:
+  - `termlink identity init [--force]` — refuses overwrite without `--force` (structured JSON error)
+  - `termlink identity show` — prints fingerprint + public key hex + path (JSON flag)
+  - `termlink identity rotate --force` — renames old to `identity.key.bak-<ts>`, writes new key; refuses without `--force`
+- [x] Keyring `KnownPeers` in `known_peers.rs` backed by TOML at `<base>/known_peers.toml` with `learn`, `get`, `verify_from`, `peer_ids`
+- [x] TOFU semantics: first observation pins; re-observation is idempotent; mismatched pubkey returns `PeersError::TofuViolation { peer_id, pinned, got }`
+- [x] Unit tests: keypair roundtrip, file perms 0600, sign+verify, TOFU accept-then-violate, fingerprint stability — 13 new tests (7 identity + 6 known_peers)
+- [x] Zero changes to `termlink-bus` — verified; layered cleanly over T-1158's opaque payload
+- [x] `cargo build -p termlink-session && cargo test -p termlink-session` passes (293 tests)
+- [x] `cargo clippy -p termlink-session -- -D warnings` passes
 
 ### Human
 - [ ] [REVIEW] Approve key storage location and format
@@ -78,3 +74,7 @@ test -f crates/termlink-session/src/identity.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1159-t-11552-add-ed25519-identity-keyring-to-.md
 - **Context:** Initial task creation
+
+### 2026-04-20T20:38:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
