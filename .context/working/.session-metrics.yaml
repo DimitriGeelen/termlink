@@ -1,23 +1,23 @@
 # Session quality metrics (T-831, T-850)
 # Extracted from: d938f9cf-f216-439d-ac3f-60adc5eddbac.jsonl
-# Turn offset: 14576 (session starts at turn 14576)
+# Turn offset: 14872 (session starts at turn 14872)
 
 # Cumulative (entire transcript)
-turns: 14578
-tool_calls: 9278
-commits: 265
-commits_per_turn: 0.0182
+turns: 14873
+tool_calls: 9456
+commits: 272
+commits_per_turn: 0.0183
 first_commit_turn: 441
-failed_tool_calls: 589
-failed_tool_call_rate: 0.0635
-edit_bursts: 249
-productive_turns: 6061
-research_turns: 2042
-productive_turns_ratio: 0.4158
-edit_retry_files: 174
+failed_tool_calls: 604
+failed_tool_call_rate: 0.0639
+edit_bursts: 252
+productive_turns: 6194
+research_turns: 2068
+productive_turns_ratio: 0.4165
+edit_retry_files: 178
 
-# Per-session (since turn 14576)
-session_turns: 2
+# Per-session (since turn 14872)
+session_turns: 1
 session_commits: 0
 session_commits_per_turn: 0.0
 session_first_commit_turn: 0
