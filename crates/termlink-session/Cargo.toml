@@ -23,6 +23,7 @@ rustls-pemfile = { workspace = true }
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 toml = "0.8"
+rusqlite = { version = "0.33", features = ["bundled"] }
 
 [dev-dependencies]
 termlink-test-utils = { workspace = true }
