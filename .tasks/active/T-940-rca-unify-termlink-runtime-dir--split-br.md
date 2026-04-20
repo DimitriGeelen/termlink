@@ -1,8 +1,22 @@
 ---
 id: T-940
 name: "RCA: Unify termlink runtime dir — split-brain blocks cross-host session discovery"
-description: >
-  ## Problem discovered
+description: "RCA: Unify termlink runtime dir — split-brain blocks cross-host session discovery — see body for context."
+status: work-completed
+workflow_type: inception
+owner: human
+horizon: later
+tags: [termlink, systemd, runtime-dir, cross-host, rca]
+components: []
+related_tasks: [T-931, T-933, T-936]
+created: 2026-04-12T07:43:43Z
+last_update: 2026-04-16T05:39:43Z
+date_finished: 2026-04-12T07:49:57Z
+---
+
+## Problem Context
+
+## Problem discovered
 
 During deployment of persistent agent sessions (framework-agent, termlink-agent) on .107, a critical split-brain was found:
 
@@ -58,18 +72,6 @@ Without unification, every new persistent session requires explicit `TERMLINK_RU
 - T-931 — hub systemd deployment (introduced the split)
 - T-933 — persist hub secret (the motivation for /var/lib/termlink)
 - T-936 — cron registry migration (related infra consistency theme)
-
-status: work-completed
-workflow_type: inception
-owner: human
-horizon: later
-tags: [termlink, systemd, runtime-dir, cross-host, rca]
-components: []
-related_tasks: [T-931, T-933, T-936]
-created: 2026-04-12T07:43:43Z
-last_update: 2026-04-16T05:39:43Z
-date_finished: 2026-04-12T07:49:57Z
----
 
 # T-940: RCA: Unify termlink runtime dir — split-brain blocks cross-host session discovery
 

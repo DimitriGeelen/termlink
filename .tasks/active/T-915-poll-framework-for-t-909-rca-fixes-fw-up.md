@@ -1,21 +1,7 @@
 ---
 id: T-915
 name: "Poll framework for T-909 RCA fixes; fw upgrade when landed"
-description: >
-  Wait-and-poll task for 4 framework bugs surfaced during T-909 (symlink fix, 2026-04-11). When upstream fixes land, run fw upgrade from termlink and re-verify. If no fixes available, leave on horizon: later and recheck periodically.
-
-FINDINGS (all framework-side; do not patch from termlink):
-
-F1 [HIGH] — fw inception decide --force bypasses build readiness gate (G-020) and AC verification (P-010). T-909 was completed with all 3 Agent ACs unchecked and an empty Recommendation section. Episodic generated 1s after the bypass-completion. Framework should refuse to close any inception task with unchecked Agent ACs OR empty Recommendation, even with --force; --force should require explicit per-AC override flags.
-
-F2 [MEDIUM] — Framework's task-review prompt prints the wrong runnable command path: it shows the in-repo bin/fw path, but consumer projects (like termlink) reach fw via .agentic-framework/bin/fw. T-609 'copy-pasteable commands' learning never propagated into the framework's own UI/output messages. Reproduced live during T-909.
-
-F3 [MEDIUM] — Episodic for T-909 (.context/episodic/T-909.yaml) was generated immediately after fw inception decide --force, BEFORE the actual fix work commits. It captures only 2 evidence/research commits, missing the actual vendoring fix, the 5 follow-up tasks (T-910..T-914), the 3 risk subreports, and the enforcement baseline. Episodic generation should be deferred until task is genuinely closed.
-
-F4 [LOW] — fw vendor is undocumented in CLAUDE.md (not in Quick Reference, not in Component Fabric, not anywhere). Manual workaround: add fw vendor line to local CLAUDE.md.
-
-CHECK PROCEDURE: grep framework git log since 2026-04-11 for keywords (inception decide, --force, build readiness, G-020, episodic, fw vendor). If matches found, run fw upgrade and re-verify. If no matches, update last_update and leave horizon=later.
-
+description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (symlink fix, 2026-04-11). When upstream fixes land, run fw upgrade from termlink and re-verify. If no fixes available, leave on horizon: later and recheck periodically. See body for findings + check procedure."
 status: captured
 workflow_type: build
 owner: agent
@@ -27,6 +13,22 @@ created: 2026-04-11T12:47:25Z
 last_update: 2026-04-18T15:55:05Z
 date_finished: null
 ---
+
+## Findings
+
+All framework-side; do not patch from termlink.
+
+**F1 [HIGH]** — `fw inception decide --force` bypasses build readiness gate (G-020) and AC verification (P-010). T-909 was completed with all 3 Agent ACs unchecked and an empty Recommendation section. Episodic generated 1s after the bypass-completion. Framework should refuse to close any inception task with unchecked Agent ACs OR empty Recommendation, even with --force; --force should require explicit per-AC override flags.
+
+**F2 [MEDIUM]** — Framework's task-review prompt prints the wrong runnable command path: it shows the in-repo bin/fw path, but consumer projects (like termlink) reach fw via `.agentic-framework/bin/fw`. T-609 'copy-pasteable commands' learning never propagated into the framework's own UI/output messages. Reproduced live during T-909.
+
+**F3 [MEDIUM]** — Episodic for T-909 (`.context/episodic/T-909.yaml`) was generated immediately after `fw inception decide --force`, BEFORE the actual fix work commits. It captures only 2 evidence/research commits, missing the actual vendoring fix, the 5 follow-up tasks (T-910..T-914), the 3 risk subreports, and the enforcement baseline. Episodic generation should be deferred until task is genuinely closed.
+
+**F4 [LOW]** — `fw vendor` is undocumented in CLAUDE.md (not in Quick Reference, not in Component Fabric, not anywhere). Manual workaround: add `fw vendor` line to local CLAUDE.md.
+
+## Check Procedure
+
+Grep framework git log since 2026-04-11 for keywords (`inception decide`, `--force`, `build readiness`, G-020, episodic, `fw vendor`). If matches found, run `fw upgrade` and re-verify. If no matches, update `last_update` and leave `horizon=later`.
 
 # T-915: Poll framework for T-909 RCA fixes; fw upgrade when landed
 
