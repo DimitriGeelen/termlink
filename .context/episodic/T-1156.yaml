@@ -1,0 +1,182 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1156: RCA + remediate recurring bin/fw path mistake in agent output
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-20T13:54:07Z
+# ============================================================================
+
+task_id: T-1156
+task_name: "RCA + remediate recurring bin/fw path mistake in agent output"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T13:43:29Z
+completed: 2026-04-20T13:48:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-20T15:47:48+02:00
+last_commit: 2026-04-20T15:48:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix recurring bin/fw path mistake — clarify CLAUDE.md + pickup framework. Close — verification gate PASS 4/4 (pickup processed upstream)
+
+# Key outcomes
+outcomes:
+  - "CLAUDE.md line 715 rule clarified to say `.agentic-framework/bin/fw` for consumer projects, with example"
+  - "Memory entry saved documenting the rule (feedback type) so it survives CLAUDE.md drift"
+  - "Pickup envelope drafted for framework agent documenting the template bug (source: `lib/templates/claude-project.md:621`) and proposed fix (substitute path in `fw init` like `lib/init.sh:580` already does for other emissions)"
+  - "Pickup successfully sent via termlink to the framework project"
+  - "Verification: grep confirms no `bin/fw` (standalone, not `.agentic-framework/bin/fw`) as a runnable-command hint in the updated CLAUDE.md line"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix recurring bin/fw path mistake — clarify CLAUDE.md + pickup framework"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - ".context/audits/2026-04-20.yaml"
+  - ".context/audits/cron/2026-04-12-0200.yaml"
+  - ".context/audits/cron/2026-04-12-0230.yaml"
+  - ".context/audits/cron/2026-04-12-0300.yaml"
+  - ".context/audits/cron/2026-04-12-0330.yaml"
+  - ".context/audits/cron/2026-04-12-0400.yaml"
+  - ".context/audits/cron/2026-04-12-0430.yaml"
+  - ".context/audits/cron/2026-04-12-0500.yaml"
+  - ".context/audits/cron/2026-04-12-0530.yaml"
+  - ".context/audits/cron/2026-04-12-0600.yaml"
+  - ".context/audits/cron/2026-04-12-0630.yaml"
+  - ".context/audits/cron/2026-04-12-0700.yaml"
+  - ".context/audits/cron/2026-04-12-0730.yaml"
+  - ".context/audits/cron/2026-04-12-0800.yaml"
+  - ".context/audits/cron/2026-04-12-0830.yaml"
+  - ".context/audits/cron/2026-04-12-0845.yaml"
+  - ".context/audits/cron/2026-04-12-0900.yaml"
+  - ".context/audits/cron/2026-04-12-0930.yaml"
+  - ".context/audits/cron/2026-04-12-1045.yaml"
+  - ".context/audits/cron/2026-04-12-1100.yaml"
+  - ".context/audits/cron/2026-04-12-1145.yaml"
+  - ".context/audits/cron/2026-04-12-1200.yaml"
+  - ".context/audits/cron/2026-04-12-1245.yaml"
+  - ".context/audits/cron/2026-04-12-1315.yaml"
+  - ".context/audits/cron/2026-04-12-1330.yaml"
+  - ".context/audits/cron/2026-04-12-1345.yaml"
+  - ".context/audits/cron/2026-04-12-1415.yaml"
+  - ".context/audits/cron/2026-04-12-1430.yaml"
+  - ".context/audits/cron/2026-04-12-1445.yaml"
+  - ".context/audits/cron/2026-04-20-0145.yaml"
+  - ".context/audits/cron/2026-04-20-0200.yaml"
+  - ".context/audits/cron/2026-04-20-0215.yaml"
+  - ".context/audits/cron/2026-04-20-0230.yaml"
+  - ".context/audits/cron/2026-04-20-0245.yaml"
+  - ".context/audits/cron/2026-04-20-0300.yaml"
+  - ".context/audits/cron/2026-04-20-0315.yaml"
+  - ".context/audits/cron/2026-04-20-0330.yaml"
+  - ".context/audits/cron/2026-04-20-0345.yaml"
+  - ".context/audits/cron/2026-04-20-0400.yaml"
+  - ".context/audits/cron/2026-04-20-0415.yaml"
+  - ".context/audits/cron/2026-04-20-0430.yaml"
+  - ".context/audits/cron/2026-04-20-0445.yaml"
+  - ".context/audits/cron/2026-04-20-0500.yaml"
+  - ".context/audits/cron/2026-04-20-0515.yaml"
+  - ".context/audits/cron/2026-04-20-0530.yaml"
+  - ".context/audits/cron/2026-04-20-0545.yaml"
+  - ".context/audits/cron/2026-04-20-0600.yaml"
+  - ".context/audits/cron/2026-04-20-0615.yaml"
+  - ".context/audits/cron/2026-04-20-0630.yaml"
+  - ".context/audits/cron/2026-04-20-0645.yaml"
+  - ".context/audits/cron/2026-04-20-0700.yaml"
+  - ".context/audits/cron/2026-04-20-0715.yaml"
+  - ".context/audits/cron/2026-04-20-0730.yaml"
+  - ".context/audits/cron/2026-04-20-0745.yaml"
+  - ".context/audits/cron/2026-04-20-0815.yaml"
+  - ".context/audits/cron/2026-04-20-0830.yaml"
+  - ".context/audits/cron/2026-04-20-0845.yaml"
+  - ".context/audits/cron/2026-04-20-0900.yaml"
+  - ".context/audits/cron/2026-04-20-0915.yaml"
+  - ".context/audits/cron/2026-04-20-0930.yaml"
+  - ".context/audits/cron/2026-04-20-0945.yaml"
+  - ".context/audits/cron/2026-04-20-1000.yaml"
+  - ".context/audits/cron/2026-04-20-1015.yaml"
+  - ".context/audits/cron/2026-04-20-1030.yaml"
+  - ".context/audits/cron/2026-04-20-1045.yaml"
+  - ".context/audits/cron/2026-04-20-1100.yaml"
+  - ".context/audits/cron/2026-04-20-1115.yaml"
+  - ".context/audits/cron/2026-04-20-1130.yaml"
+  - ".context/audits/cron/2026-04-20-1145.yaml"
+  - ".context/audits/cron/2026-04-20-1200.yaml"
+  - ".context/audits/cron/2026-04-20-1215.yaml"
+  - ".context/audits/cron/2026-04-20-1230.yaml"
+  - ".context/audits/cron/2026-04-20-1245.yaml"
+  - ".context/audits/cron/2026-04-20-1300.yaml"
+  - ".context/audits/cron/2026-04-20-1315.yaml"
+  - ".context/audits/cron/2026-04-20-1330.yaml"
+  - ".context/audits/cron/2026-04-20-1345.yaml"
+  - ".context/audits/cron/2026-04-20-1400.yaml"
+  - ".context/audits/cron/2026-04-20-1415.yaml"
+  - ".context/audits/cron/2026-04-20-1430.yaml"
+  - ".context/audits/cron/2026-04-20-1445.yaml"
+  - ".context/audits/cron/2026-04-20-1500.yaml"
+  - ".context/audits/cron/2026-04-20-1515.yaml"
+  - ".context/audits/cron/2026-04-20-1530.yaml"
+  - ".context/audits/cron/2026-04-20-1545.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/.fleet-failure-state.json"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-start-ts"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1155-channel-based-communication-bus-for-term.md"
+  - ".tasks/active/T-1156-rca--remediate-recurring-binfw-path-mist.md"
+  - ".tasks/completed/T-1156-rca--remediate-recurring-binfw-path-mist.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-20T15:47:48"
+    action: "T-1156: Fix recurring bin/fw path mistake — clarify CLAUDE.md + pickup framework"
+  - time: "2026-04-20T15:48:18"
+    action: "T-1156: Close — verification gate PASS 4/4 (pickup processed upstream)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 103
+  lines_added: 6912
+  lines_removed: 7615
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1156-rca--remediate-recurring-binfw-path-mist.md
+generated_by: context-agent-hybrid
