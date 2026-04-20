@@ -513,6 +513,12 @@ pub struct ChannelListParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelQueueStatusParams {
+    /// Optional path to the queue sqlite file. Defaults to `~/.termlink/outbound.sqlite`.
+    pub queue_path: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct RemoteInboxStatusParams {
     /// Remote hub address in "host:port" format or profile name
     pub hub: String,
@@ -5554,6 +5560,53 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_channel_queue_status",
+        description = "Read-only view of the local T-1161 offline-queue: pending-post count, cap, and head-of-line post metadata. Does not contact the hub."
+    )]
+    async fn termlink_channel_queue_status(
+        &self,
+        Parameters(p): Parameters<ChannelQueueStatusParams>,
+    ) -> String {
+        use termlink_session::offline_queue::{default_queue_path, OfflineQueue};
+        let path = match p.queue_path {
+            Some(s) => std::path::PathBuf::from(s),
+            None => default_queue_path(),
+        };
+        if !path.exists() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "queue_path": path.display().to_string(),
+                "exists": false,
+                "pending": 0,
+            }))
+            .unwrap_or_else(json_err);
+        }
+        let queue = match OfflineQueue::open(&path) {
+            Ok(q) => q,
+            Err(e) => return json_err(format!("Failed to open offline queue: {e}")),
+        };
+        let size = queue.size().unwrap_or(0);
+        let head = queue.peek_oldest().ok().flatten();
+        let head_json = head.map(|(id, post)| {
+            serde_json::json!({
+                "queue_id": id.0,
+                "topic": post.topic,
+                "msg_type": post.msg_type,
+                "ts_unix_ms": post.ts_unix_ms,
+                "sender_id": post.sender_id,
+                "artifact_ref": post.artifact_ref,
+            })
+        });
+        serde_json::to_string_pretty(&serde_json::json!({
+            "queue_path": path.display().to_string(),
+            "exists": true,
+            "cap": queue.cap(),
+            "pending": size,
+            "oldest": head_json,
+        }))
+        .unwrap_or_else(json_err)
     }
 
 }

@@ -4081,9 +4081,33 @@ fn cli_channel_help_lists_four_verbs() {
         .expect("channel --help");
     assert!(output.status.success(), "channel --help should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for verb in ["create", "post", "subscribe", "list"] {
+    // Four original verbs (T-1160) + queue-status (T-1172).
+    for verb in ["create", "post", "subscribe", "list", "queue-status"] {
         assert!(stdout.contains(verb), "channel --help missing verb '{verb}':\n{stdout}");
     }
+}
+
+#[test]
+fn cli_channel_queue_status_empty_path_ok() {
+    // T-1172: running against a non-existent queue path prints a count-0 line
+    // and exits 0, regardless of whether the hub is running.
+    let dir = TestDir::new("channel-queue-status");
+    let queue_path = dir.path.join("nonexistent-queue.sqlite");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "channel",
+            "queue-status",
+            "--queue-path",
+            &queue_path.display().to_string(),
+        ])
+        .output()
+        .expect("channel queue-status");
+    assert!(output.status.success(), "queue-status should exit 0 on missing file");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("pending: 0"),
+        "expected pending: 0, got: {stdout}"
+    );
 }
 
 #[test]

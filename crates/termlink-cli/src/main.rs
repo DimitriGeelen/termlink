@@ -379,6 +379,9 @@ async fn main() -> Result<()> {
             ChannelAction::List { prefix, hub, json } => {
                 commands::channel::cmd_channel_list(prefix.as_deref(), hub.as_deref(), json).await
             }
+            ChannelAction::QueueStatus { queue_path, json } => {
+                commands::channel::cmd_channel_queue_status(queue_path.as_deref(), json)
+            }
         },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {

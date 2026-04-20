@@ -303,9 +303,9 @@ mod tests {
             seen.entry(post.topic.clone()).or_default().push(post.payload[1]);
             q.pop(id).unwrap();
         }
-        for (_, order) in &seen {
-            let mut expected: Vec<u8> = (0..20u8).collect();
-            assert_eq!(order, &expected.drain(..).collect::<Vec<_>>());
+        let expected: Vec<u8> = (0..20u8).collect();
+        for order in seen.values() {
+            assert_eq!(order, &expected);
         }
     }
 
