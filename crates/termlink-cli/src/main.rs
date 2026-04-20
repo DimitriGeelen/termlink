@@ -346,6 +346,40 @@ async fn main() -> Result<()> {
             IdentityAction::Show { json } => commands::identity::cmd_identity_show(json),
             IdentityAction::Rotate { force, json } => commands::identity::cmd_identity_rotate(force, json),
         },
+        Command::Channel { action } => match action {
+            ChannelAction::Create { name, retention, hub, json } => {
+                commands::channel::cmd_channel_create(&name, &retention, hub.as_deref(), json).await
+            }
+            ChannelAction::Post {
+                topic,
+                msg_type,
+                payload,
+                artifact_ref,
+                sender_id,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_post(
+                    &topic,
+                    &msg_type,
+                    payload.as_deref(),
+                    artifact_ref.as_deref(),
+                    sender_id.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
+            ChannelAction::Subscribe { topic, cursor, limit, follow, hub, json } => {
+                commands::channel::cmd_channel_subscribe(
+                    &topic, cursor, limit, follow, hub.as_deref(), json,
+                )
+                .await
+            }
+            ChannelAction::List { prefix, hub, json } => {
+                commands::channel::cmd_channel_list(prefix.as_deref(), hub.as_deref(), json).await
+            }
+        },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {
                 unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", dir) };

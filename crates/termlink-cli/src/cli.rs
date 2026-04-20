@@ -967,6 +967,12 @@ pub(crate) enum Command {
         action: IdentityAction,
     },
 
+    /// Interact with the T-1155 agent communication bus — create/post/subscribe/list topics
+    Channel {
+        #[command(subcommand)]
+        action: ChannelAction,
+    },
+
     /// Check TermLink runtime health — validates dirs, sessions, hub, sockets
     Doctor {
         /// Output as JSON
@@ -1578,6 +1584,96 @@ pub(crate) enum IdentityAction {
         /// Required — rotation is destructive (the old private key is renamed to a .bak file)
         #[arg(long)]
         force: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+/// Channel bus subcommands (T-1160, T-1155)
+#[derive(Subcommand)]
+pub(crate) enum ChannelAction {
+    /// Create a topic with a retention policy
+    Create {
+        /// Topic name (e.g. "broadcast:global", "channel:learnings")
+        name: String,
+
+        /// Retention: "forever", "days:N", or "messages:N" (default: forever)
+        #[arg(long, default_value = "forever")]
+        retention: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Post a signed envelope to a topic (reads payload from stdin if not given)
+    Post {
+        /// Topic name
+        topic: String,
+
+        /// Message type (free-form string, e.g. "note", "learning", "artifact")
+        #[arg(long, default_value = "note")]
+        msg_type: String,
+
+        /// Payload (inline). If omitted, read from stdin.
+        #[arg(long)]
+        payload: Option<String>,
+
+        /// Artifact reference (e.g. "ref://...") — optional opaque pointer
+        #[arg(long)]
+        artifact_ref: Option<String>,
+
+        /// Override sender_id (default: the identity file fingerprint)
+        #[arg(long)]
+        sender_id: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Read messages from a topic starting at a cursor (prints one envelope per line)
+    Subscribe {
+        /// Topic name
+        topic: String,
+
+        /// Cursor to start from (default: 0)
+        #[arg(long, default_value_t = 0u64)]
+        cursor: u64,
+
+        /// Maximum messages per poll (default: 100, max 1000)
+        #[arg(long, default_value_t = 100u64)]
+        limit: u64,
+
+        /// Keep polling every 1s instead of a one-shot drain
+        #[arg(long)]
+        follow: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON-lines
+        #[arg(long)]
+        json: bool,
+    },
+    /// List existing topics (optional prefix filter)
+    List {
+        /// Filter by topic prefix
+        #[arg(long)]
+        prefix: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
 
         /// Output as JSON
         #[arg(long)]
