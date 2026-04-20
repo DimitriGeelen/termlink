@@ -4,7 +4,7 @@ name: "Pickup to framework — G-006 pre-push hook stamps wrong VERSION into .ag
 description: >
   Pickup to framework — G-006 pre-push hook stamps wrong VERSION into .agentic-framework/VERSION
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-20T13:54:50Z
-last_update: 2026-04-20T13:54:50Z
-date_finished: null
+last_update: 2026-04-20T13:56:37Z
+date_finished: 2026-04-20T13:56:37Z
 ---
 
 # T-1157: Pickup to framework — G-006 pre-push hook stamps wrong VERSION into .agentic-framework/VERSION
@@ -72,3 +72,6 @@ test -f /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/P-T-1157-bu
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1157-pickup-to-framework--g-006-pre-push-hook.md
 - **Context:** Initial task creation
+
+### 2026-04-20T13:56:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
