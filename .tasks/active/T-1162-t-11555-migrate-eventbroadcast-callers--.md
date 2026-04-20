@@ -20,35 +20,40 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+First migration in the T-1155 bus rollout (per T-1155 §"Migration strategy" Phase 2): `event.broadcast` callers move to `channel.post(topic="broadcast:global")`. Smallest migration surface (~5 call sites per T-1155 §"Subsumption mapping"), chosen first to prove the pattern.
+
+Depends on: T-1160 (channel API shipped). Legacy `event.broadcast` stays working until T-1166 retires it.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Audit all current callers of `event.broadcast` — `grep -rn "event.broadcast\|event_broadcast" crates/ lib/` produces the exhaustive list; add it to this task file under "Call sites"
+- [ ] Each caller rewritten to `channel.post(topic="broadcast:global", msg_type=<existing kind>, payload=<existing payload>)`; signature attached via T-1159 identity
+- [ ] Receiver side: where agents call `event.collect` / `event.poll` with a kind filter, rewrite to `channel.subscribe(topic="broadcast:global")` with client-side filter on `msg_type`
+- [ ] Topic `broadcast:global` auto-created on hub startup (idempotent `channel.create`) so agents can post without a prior bootstrap step
+- [ ] Keep `event.broadcast` router method operational — it internally forwards to the channel.post path (shim). Add `#[deprecated(note = "migrate to channel.post topic=broadcast:global (T-1162)")]`
+- [ ] Integration test: two test sessions, one broadcasts via legacy `event.broadcast`, other via new `channel.post` — both arrive at subscribers of `broadcast:global`
+- [ ] Dispatch coordination path (T-914/T-916 lineage) still works end-to-end after the migration — `termlink dispatch-status` shows active workers, workers report back
+- [ ] T-1071 "broadcast resilience" pattern preserved: fallback to `event.broadcast` if new topic doesn't exist (pre-hub-upgrade peers) — use the capabilities handshake already in place
+- [ ] `cargo build && cargo test && cargo clippy -- -D warnings` pass workspace-wide
+- [ ] Telemetry: `termlink fleet doctor` reports `broadcast.migration.status = partial | complete` based on the call-site audit
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Smoke-test a real dispatch cycle after the migration
+  **Steps:**
+  1. Run `termlink dispatch "echo hello"` against a local hub
+  2. Confirm the worker runs, reports back, and `event.collect` still returns the exit code
+  3. Run `termlink channel subscribe broadcast:global` in one terminal while dispatching in another — verify events are visible under both old (`event.collect`) and new (`channel.subscribe`) APIs
+  **Expected:** Both paths observe the same events
+  **If not:** Note which direction leaks; open a follow-up
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+cargo build
+cargo test -p termlink-hub broadcast
+cargo clippy -- -D warnings
+grep -rn "event.broadcast\|event_broadcast" crates/ | tee /tmp/T-1162-callsites.txt
+grep -q "broadcast:global" crates/termlink-hub/src/router.rs
 
 ## Decisions
 

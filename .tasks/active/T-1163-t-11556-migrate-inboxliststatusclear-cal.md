@@ -20,35 +20,41 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Second migration in the T-1155 bus rollout: `inbox.{list, status, clear}` move to `channel.{subscribe, list}` semantics on a per-recipient topic. Largest migration surface (~18 call sites across 4 files per T-1155 §"Subsumption mapping"). Follows T-1162 (broadcast).
+
+Depends on: T-1162 done (proves migration pattern). Legacy `inbox.*` stays working until T-1166 retires it.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Audit all current callers of `inbox.list`, `inbox.status`, `inbox.clear` — `grep -rn "inbox\.\(list\|status\|clear\)\|inbox_list\|inbox_status\|inbox_clear" crates/ lib/` produces the exhaustive list; capture in this task file under "Call sites"
+- [ ] Topic naming convention: per-recipient topic `inbox:<session-id>` — auto-created when first message is posted to it
+- [ ] Each `inbox.list(target)` caller rewritten to `channel.subscribe(topic="inbox:"+target, cursor=last_cursor_for_this_caller)` — read cursor stored client-side
+- [ ] `inbox.status(target)` → `channel.list(prefix="inbox:"+target)` + count since cursor
+- [ ] `inbox.clear(target)` → advance cursor to `latest_offset` (do NOT delete from log — retention policy handles eviction)
+- [ ] Legacy `inbox.*` router methods remain operational as shims forwarding to channel semantics; `#[deprecated(note = "migrate to channel.{subscribe,list} with topic=inbox:<target> (T-1163)")]`
+- [ ] Remote inbox commands (T-1009, T-1010, T-1020) — `termlink remote inbox` — also dual-mode: prefer `channel.subscribe`, fall back to `inbox.list` if channel API absent (capabilities check)
+- [ ] Integration test: post via legacy `inbox` semantics and new `channel.post`, read back via both APIs — content identical
+- [ ] `cargo build && cargo test && cargo clippy -- -D warnings` pass workspace-wide
+- [ ] No user-visible behavioral change: `termlink inbox list`, `termlink remote inbox list` produce the same output as before
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Confirm per-recipient topic naming (`inbox:<session-id>`)
+  **Steps:**
+  1. Consider whether session-id (ephemeral) vs peer-pubkey-fingerprint (stable across restarts) is the right recipient identifier
+  2. Ephemeral session-id loses messages across restart; stable identity does not
+  3. Decide: cut over to stable-identity-as-recipient now, or defer to post-migration task?
+  **Expected:** Decision recorded
+  **If not:** Open a follow-up task for recipient identity migration
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+cargo build
+cargo test -p termlink-hub inbox
+cargo test -p termlink-cli inbox
+cargo clippy -- -D warnings
+grep -rn "inbox\.\(list\|status\|clear\)" crates/ | tee /tmp/T-1163-callsites.txt
+grep -q "inbox:" crates/termlink-hub/src/router.rs
 
 ## Decisions
 

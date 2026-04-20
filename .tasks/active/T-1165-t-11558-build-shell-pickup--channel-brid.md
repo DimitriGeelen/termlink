@@ -20,35 +20,39 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Fourth migration in the T-1155 bus rollout: the shell-based pickup system (inbox/processed/rejected directories under `<framework>/.context/pickup/`) gets a one-way bridge to the bus. **Shell pickup stays portable** — it still works offline, without termlink, in any framework consumer. The bridge lets online bus subscribers also see pickups.
+
+Depends on: T-1160 (channel API shipped). Referenced in PL-040 (pickup type closed vocabulary) — this task does not change that vocabulary, only mirrors envelopes to the bus.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] New framework bash script `lib/pickup-channel-bridge.sh` — invoked by the pickup processor after moving an envelope to `processed/`
+- [ ] Bridge reads the processed envelope YAML → constructs `channel.post(topic="framework:pickup", msg_type="pickup-<type>", payload=<envelope-yaml>)` via `termlink channel post`
+- [ ] Graceful degradation: if `termlink` binary missing OR hub unreachable, the bridge logs and exits 0 (non-fatal — shell pickup must stay portable per T-1155 §"Out of scope" / §"Migration strategy Phase 3")
+- [ ] Idempotence: the bridge carries a dedup key derived from the envelope sha256 — re-running does not duplicate channel posts
+- [ ] Opt-out: env var `FW_PICKUP_CHANNEL_BRIDGE=0` disables the bridge entirely for projects that don't want their pickups on the bus
+- [ ] Documentation in `lib/pickup.sh` header explaining the bridge hook + env-var knob
+- [ ] Integration test: drop an envelope in `inbox/` → wait for processor → verify (a) envelope is in `processed/` and (b) `termlink channel subscribe framework:pickup` observes it
+- [ ] Bridge is one-way: channel posts do NOT create new inbox envelopes. Cross-project sharing remains via the existing `termlink file send` + pickup path (which itself becomes `channel.post msg_type=artifact` under T-1164 — naturally composed)
+- [ ] No changes to existing pickup envelope schema, processor logic, or the closed vocabulary (bug-report | learning | feature-proposal | pattern) — this task is observation only
+- [ ] Update `docs/reports/T-1155-agent-communication-bus.md` with the shell-bridge design decision
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Confirm one-way design
+  **Steps:**
+  1. Verify the bridge is post-only (channel → pickup is not implemented)
+  2. Consider: do you want bidirectional (bus subscribers can *inject* pickups)? This would blur framework-pickup as a messaging channel with bus-as-channel. T-956 pickup lesson says keep them distinct.
+  3. Decide whether to accept one-way or open a follow-up for bidirectional
+  **Expected:** Approval of one-way + optional follow-up task
+  **If not:** State the missing flow direction
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+bash -n lib/pickup-channel-bridge.sh
+test -x lib/pickup-channel-bridge.sh
+grep -q "FW_PICKUP_CHANNEL_BRIDGE" lib/pickup-channel-bridge.sh
+grep -q "pickup-channel-bridge" lib/pickup.sh
 
 ## Decisions
 
