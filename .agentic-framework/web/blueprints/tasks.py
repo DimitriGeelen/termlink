@@ -395,11 +395,8 @@ def task_detail(task_id):
     episodic = None
     episodic_file = PROJECT_ROOT / ".context" / "episodic" / f"{task_id}.yaml"
     if episodic_file.exists():
-        try:
-            with open(episodic_file) as f:
-                episodic = yaml.safe_load(f)
-        except yaml.YAMLError:
-            episodic = None
+        from web.search_utils import load_episodic_yaml
+        episodic = load_episodic_yaml(episodic_file)
 
     status_options = _load_enums()["statuses"]
 
