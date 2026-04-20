@@ -1,0 +1,10 @@
+[watchtower] Starting Watchtower on port 3100 (project: /opt/termlink)...
+[watchtower] Health check passed.
+[firewall] Opening port 3100/tcp (UFW policy is DROP)...
+[firewall] Port 3100 opened for LAN access.
+
+Watchtower is running
+  Local:  http://localhost:3100
+  LAN:    http://192.168.10.107:3100
+  PID:    3048856
+  Log:    /opt/termlink/.context/working/watchtower.log
