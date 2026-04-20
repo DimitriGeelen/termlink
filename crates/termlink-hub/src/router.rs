@@ -3243,7 +3243,7 @@ mod tests {
         unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
 
         // Deposit
-        crate::inbox::deposit("clear-me", "file.init", &json!({"transfer_id": "x1"}), Some("s"));
+        let _ = crate::inbox::deposit("clear-me", "file.init", &json!({"transfer_id": "x1"}), Some("s"));
 
         // Clear
         let resp = handle_inbox_clear(json!(1), &json!({"target": "clear-me"}));
@@ -3273,8 +3273,8 @@ mod tests {
         unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
 
         // Deposit to two targets
-        crate::inbox::deposit("t1", "file.init", &json!({"transfer_id": "a"}), Some("s"));
-        crate::inbox::deposit("t2", "file.init", &json!({"transfer_id": "b"}), Some("s"));
+        let _ = crate::inbox::deposit("t1", "file.init", &json!({"transfer_id": "a"}), Some("s"));
+        let _ = crate::inbox::deposit("t2", "file.init", &json!({"transfer_id": "b"}), Some("s"));
 
         // Clear all
         let resp = handle_inbox_clear(json!(1), &json!({"all": true}));

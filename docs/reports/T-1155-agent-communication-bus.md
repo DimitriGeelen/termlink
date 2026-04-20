@@ -357,6 +357,81 @@ Proposed follow-up tasks to create after decision:
 
 To be filled when spike S-1 output is ready for discussion.
 
+## Build log — T-1160 (channel.* RPC surface)
+
+**Landed:** 2026-04-20. Wires the T-1158 bus core and T-1159 identity into
+a usable API — hub router, CLI, MCP tools.
+
+### Frozen protocol wire format
+
+All four verbs are **Tier-A** (opaque) per T-1133 — adding fields to the
+JSON payload does not break older peers.
+
+| Method | Params | Result |
+|---|---|---|
+| `channel.create` | `{name, retention: {kind, value?}}` | `{ok, name, retention}` |
+| `channel.post` | `{topic, msg_type, payload_b64, artifact_ref?, ts, sender_id, sender_pubkey_hex, signature_hex}` | `{offset, ts}` |
+| `channel.subscribe` | `{topic, cursor?, limit?}` | `{messages, next_cursor}` |
+| `channel.list` | `{prefix?}` | `{topics: [{name, retention}]}` |
+
+Retention kind is `"forever" | "days" | "messages"`; `value` is ignored
+for `forever` and required for the other two.
+
+**Error codes** (added to `error_code` in `termlink-protocol::control`):
+
+- `-32012 CHANNEL_SIGNATURE_INVALID` — pubkey or signature failed to parse
+  or did not verify against the canonical bytes.
+- `-32013 CHANNEL_TOPIC_UNKNOWN` — post/subscribe targeted a topic the hub
+  has no record of.
+
+**Canonical signing bytes** (`control::channel::canonical_sign_bytes`):
+
+```
+u32 len(topic)    | topic bytes
+u32 len(msg_type) | msg_type bytes
+u32 len(payload)  | payload bytes
+u32 len(artifact) | artifact bytes   (empty if absent)
+i64 ts_unix_ms                       (big-endian)
+```
+
+Every field is length-prefixed big-endian so a future addition cannot
+retroactively validate an older signature. `artifact_ref=None` and
+`artifact_ref=Some("")` are intentionally equivalent on the wire — both
+encode zero-length.
+
+**Subsumption targets.** These four verbs cover the migration paths
+queued in T-1162..T-1166:
+
+- `event.broadcast` → `channel.post(topic=broadcast:global, msg_type=...)`
+- `inbox.{list,status,clear}` → `channel.{subscribe,list}` on per-recipient topics
+- `file.send/receive` → `channel.post(msg_type=artifact, artifact_ref=...)`
+
+**Backward-compat.** `event.broadcast`, `inbox.*`, `file.*`, `event.emit`,
+every Tier-B typed method — all continue to work unchanged.
+`CONTROL_PLANE_VERSION` bumped from 1 to 2 as a presence flag; it does
+NOT gate any existing method because every new method is Tier-A.
+
+### Where to find each piece
+
+| Concern | File |
+|---|---|
+| Protocol constants + sig layout | `crates/termlink-protocol/src/{lib,control}.rs` |
+| Hub router handlers | `crates/termlink-hub/src/channel.rs` |
+| Hub routing table | `crates/termlink-hub/src/router.rs` (in `route()`) |
+| Server `init_bus` | `crates/termlink-hub/src/server.rs` |
+| CLI verbs | `crates/termlink-cli/src/commands/channel.rs` |
+| MCP tools | `crates/termlink-mcp/src/tools.rs` (doctor reports 73 tools, was 69) |
+
+### Live smoke (local hub)
+
+```
+$ termlink channel create channel:smoke --retention messages:100
+$ echo "hello bus" | termlink channel post channel:smoke --msg-type note
+Posted to channel:smoke — offset=0, ts=1776721023139
+$ termlink channel subscribe channel:smoke
+[0] d1993c2c3ec44c94 note: hello bus
+```
+
 ## Recommendation
 
 *[to be written after spikes S-1..S-5 complete]*

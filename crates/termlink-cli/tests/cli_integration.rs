@@ -4069,3 +4069,49 @@ fn cli_net_test_profile_filter_unknown() {
     assert!(stderr.contains("not found") || stderr.contains("nosuch"),
         "should mention profile not found: {}", stderr);
 }
+
+// === T-1160 channel subcommand ===
+
+#[test]
+fn cli_channel_help_lists_four_verbs() {
+    let dir = TestDir::new("channel-help");
+    let output = termlink_cmd(&dir.path)
+        .args(["channel", "--help"])
+        .output()
+        .expect("channel --help");
+    assert!(output.status.success(), "channel --help should exit 0");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for verb in ["create", "post", "subscribe", "list"] {
+        assert!(stdout.contains(verb), "channel --help missing verb '{verb}':\n{stdout}");
+    }
+}
+
+#[test]
+fn cli_channel_list_without_hub_errors_cleanly() {
+    let dir = TestDir::new("channel-nohub");
+    let output = termlink_cmd(&dir.path)
+        .args(["channel", "list"])
+        .output()
+        .expect("channel list");
+    assert!(!output.status.success(), "channel list with no hub should exit non-zero");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Hub is not running") || stderr.contains("not running"),
+        "expected 'not running' message, got stderr: {stderr}"
+    );
+}
+
+#[test]
+fn cli_channel_post_rejects_unknown_retention() {
+    let dir = TestDir::new("channel-badret");
+    let output = termlink_cmd(&dir.path)
+        .args(["channel", "create", "t", "--retention", "bogus"])
+        .output()
+        .expect("channel create bad retention");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("retention"),
+        "expected retention error, got: {stderr}"
+    );
+}
