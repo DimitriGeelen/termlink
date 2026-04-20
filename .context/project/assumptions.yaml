@@ -33,3 +33,43 @@ assumptions:
   linked_task: T-908
   created: '2026-04-09'
   resolved_date: null
+- id: A-005
+  statement: Agents want channels, not just 1:1 sessions (A-001)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1155
+  created: '2026-04-20'
+  resolved_date: null
+- id: A-006
+  statement: Persistent history + cursor worth storage/complexity cost (A-002)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1155
+  created: '2026-04-20'
+  resolved_date: null
+- id: A-007
+  statement: Single trust anchor achievable without making hub rotation harder (A-003)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1155
+  created: '2026-04-20'
+  resolved_date: null
+- id: A-008
+  statement: Offline-tolerant posting feasible via local queue + replay (A-004)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1155
+  created: '2026-04-20'
+  resolved_date: null
+- id: A-009
+  statement: Migration from event.broadcast+inbox+pickup+send-file is tractable (A-005)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1155
+  created: '2026-04-20'
+  resolved_date: null
