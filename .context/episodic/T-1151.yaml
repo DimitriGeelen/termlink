@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1151: Extend T-1150 — wire load_episodic_yaml into tasks.py and inception.py task-detail pages
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-20T00:01:21Z
+# ============================================================================
+
+task_id: T-1151
+task_name: "Extend T-1150 — wire load_episodic_yaml into tasks.py and inception.py task-detail pages"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-19T23:59:42Z
+completed: 2026-04-20T00:01:17Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Replace `yaml.safe_load` in `web/blueprints/tasks.py:400` (task detail page) with `load_episodic_yaml`"
+  - "Replace `yaml.safe_load` in `web/blueprints/inception.py:348` (inception detail page) with `load_episodic_yaml`"
+  - "`curl http://localhost:3000/tasks/T-927` returns 200 (T-927 had anchor-error before T-1150)"
+  - "`curl http://localhost:3000/tasks/T-121` returns 200 (T-121 had frontmatter-error before T-1150)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1151-extend-t-1150--wire-loadepisodicyaml-int.md
+generated_by: context-agent-hybrid
