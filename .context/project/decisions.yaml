@@ -199,3 +199,17 @@ decisions:
     date: 2026-04-20
     task: T-1173
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-008
+    decision: "`cmd_channel_post` calls `client.flush().await` BEFORE issuing its own `post(pending)`, but only when `queue_size() > 0`"
+    scope: project
+    date: 2026-04-20
+    task: T-1174
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-009
+    decision: "New `hub_socket_soft(hub)` returns the path unconditionally; `cmd_channel_post` uses it; `subscribe`/`list`/`create` keep the strict `hub_socket(hub)?` that bails on missing socket"
+    scope: project
+    date: 2026-04-20
+    task: T-1174
+    rationale: "Auto-captured from task file on completion"

@@ -8,7 +8,9 @@ use serde_json::{Value, json};
 
 use termlink_protocol::control::{channel::canonical_sign_bytes, method};
 use termlink_session::agent_identity::{Identity, identity_path};
+use termlink_session::bus_client::{BusClient, PostOutcome};
 use termlink_session::client;
+use termlink_session::offline_queue::{PendingPost, default_queue_path};
 
 use super::infrastructure::resolve_hub_paths;
 
@@ -59,6 +61,16 @@ fn hub_socket(hub: Option<&str>) -> Result<PathBuf> {
         );
     }
     Ok(sock)
+}
+
+/// `channel post` tolerates a missing socket (offline-queue fallback), so
+/// resolve the path without asserting it exists. T-1174.
+fn hub_socket_soft(hub: Option<&str>) -> PathBuf {
+    if let Some(h) = hub {
+        return PathBuf::from(h);
+    }
+    let (_, sock) = resolve_hub_paths();
+    sock
 }
 
 fn hex_of(bytes: &[u8]) -> String {
@@ -123,28 +135,67 @@ pub(crate) async fn cmd_channel_post(
     let resolved_sender = sender_id
         .map(|s| s.to_string())
         .unwrap_or_else(|| identity.fingerprint().to_string());
-    let params = json!({
-        "topic": topic,
-        "msg_type": msg_type,
-        "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
-        "artifact_ref": artifact_ref,
-        "ts": ts_unix_ms,
-        "sender_id": resolved_sender,
-        "sender_pubkey_hex": identity.public_key_hex(),
-        "signature_hex": hex_of(&sig.to_bytes()),
-    });
-    let sock = hub_socket(hub)?;
-    let resp = client::rpc_call(&sock, method::CHANNEL_POST, params)
+    let pending = PendingPost {
+        topic: topic.to_string(),
+        msg_type: msg_type.to_string(),
+        payload: payload_bytes,
+        artifact_ref: artifact_ref.map(|s| s.to_string()),
+        ts_unix_ms,
+        sender_id: resolved_sender,
+        sender_pubkey_hex: identity.public_key_hex().to_string(),
+        signature_hex: hex_of(&sig.to_bytes()),
+    };
+    let sock = hub_socket_soft(hub);
+    let queue_path = default_queue_path();
+    let (client, _flush_task) = BusClient::connect(sock, &queue_path)
+        .context("open bus client / offline queue")?;
+    // Opportunistic drain: the CLI is one-shot, so the background flush task
+    // never gets a 5 s tick. Drain any backlog *before* posting so queued items
+    // keep FIFO order relative to this call. Best-effort; transport failure
+    // leaves the queue intact for the next invocation. T-1174.
+    if client.queue_size() > 0 {
+        let report = client.flush().await;
+        if report.sent > 0 && !json_output {
+            eprintln!(
+                "Drained {} queued post(s) from previous offline period",
+                report.sent
+            );
+        }
+    }
+    let outcome = client
+        .post(pending)
         .await
-        .context("Hub rpc_call failed")?;
-    let result = client::unwrap_result(resp)
-        .map_err(|e| anyhow!("Hub returned error for channel.post: {e}"))?;
-    if json_output {
-        println!("{}", serde_json::to_string_pretty(&result)?);
-    } else {
-        let offset = result["offset"].as_u64().unwrap_or(0);
-        let ts = result["ts"].as_i64().unwrap_or(0);
-        println!("Posted to {topic} — offset={offset}, ts={ts}");
+        .map_err(|e| anyhow!("channel.post failed (and offline queue also failed): {e}"))?;
+    match outcome {
+        PostOutcome::Delivered { offset } => {
+            if json_output {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "delivered": {"offset": offset, "ts": ts_unix_ms}
+                    }))?
+                );
+            } else {
+                println!("Posted to {topic} — offset={offset}, ts={ts_unix_ms}");
+            }
+        }
+        PostOutcome::Queued { queue_id } => {
+            if json_output {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "queued": {
+                            "queue_id": queue_id,
+                            "queue_path": queue_path.display().to_string(),
+                        }
+                    }))?
+                );
+            } else {
+                println!(
+                    "Queued to {topic} — queue_id={queue_id} (hub unreachable; will flush on next reconnect)"
+                );
+            }
+        }
     }
     Ok(())
 }

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1174: Wire termlink channel post through BusClient so CLI gets offline-queue tolerance
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-20T23:20:06Z
+# ============================================================================
+
+task_id: T-1174
+task_name: "Wire termlink channel post through BusClient so CLI gets offline-queue tolerance"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T23:09:11Z
+completed: 2026-04-20T23:19:43Z
+duration_days: 0
+updates_count: 4
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Wire termlink channel post through BusClient so CLI gets offline-queue tolerance
+
+# Key outcomes
+outcomes:
+  - "`cmd_channel_post` in `crates/termlink-cli/src/commands/channel.rs` constructs a `PendingPost` from its args (topic, msg_type, payload, artifact_ref, ts_unix_ms, resolved sender_id, identity pubkey hex, signature hex) and delegates to `BusClient::post` instead of calling `client::rpc_call(method::CHANNEL_POST, ...)` directly"
+  - "Queue path resolves via `offline_queue::default_queue_path()` (which already respects `$TERMLINK_IDENTITY_DIR` per T-1161)"
+  - "CLI output for `PostOutcome::Delivered` is unchanged (`Posted to {topic} — offset={N}, ts={T}`) so existing smoke tests and human muscle memory keep working"
+  - "CLI output for `PostOutcome::Queued` is a new, clearly labelled line: `Queued to {topic} — queue_id={N} (hub unreachable; will flush on next reconnect)`"
+  - "`--json` flag still works in both cases; JSON shape is `{\"delivered\": {\"offset\": N, \"ts\": T}}` vs `{\"queued\": {\"queue_id\": N, \"queue_path\": \"...\"}}` (new but small, backward-compatible for consumers who key off `\"offset\"` vs `\"queue_id\"`)"
+  - "Live smoke test run by agent (see transcript in Updates below): hub up → Delivered; hub down → Queued x3 → pending:3; hub restart → next CLI post drains all 3 in FIFO then delivers its own at offset=3; pending:0; subscribe shows perfect FIFO"
+  - "`cargo build --workspace` + `cargo test --workspace --lib` (708 tests) + `cargo clippy --workspace --tests -- -D warnings` all pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "`cmd_channel_post` calls `client.flush().await` BEFORE issuing its own `post(pending)`, but only when `queue_size() > 0`"
+    rationale: "CLI is one-shot — the BusClient's background 5 s flush task never gets a tick before process exit. Without inline flush, the queue would grow indefinitely across CLI invocations. Flushing *before* the new post preserves FIFO (queued items land first, new one takes the next offset), and reports \"Drained N queued post(s) from previous offline period\" so operators see the catch-up"
+    alternatives_rejected: ["(a) Flush after post — would reorder offsets (new post gets offset N, queued items get N+1..N+K, but they were enqueued earlier — semantic drift). (b) Leave the async flush task alone — works only for long-running consumers; CLI users would accumulate queue forever. (c) Add a dedicated `termlink channel flush` verb — more surface area for the same thing a post call can do implicitly"]
+    chose: "New `hub_socket_soft(hub)` returns the path unconditionally; `cmd_channel_post` uses it; `subscribe`/`list`/`create` keep the strict `hub_socket(hub)?` that bails on missing socket"
+    rationale: "Only `post` has an offline fallback. `subscribe`/`list`/`create` genuinely can't proceed without a live hub (there's no local state to return). Keeping the strict resolver on those paths preserves the clear \"hub not running\" error that ops expect"
+    alternatives_rejected: ["Relaxing `hub_socket` across all verbs — would make `subscribe` silently return empty when the hub is down, hiding a failure mode operators need to see"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, cli, offline-queue]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1174-wire-termlink-channel-post-through-buscl.md
+generated_by: context-agent-hybrid
