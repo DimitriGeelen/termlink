@@ -65,47 +65,6 @@ impl LogAppender {
     }
 }
 
-/// Streaming reader over a topic's log file. Yields every framed record
-/// from the start; callers advance past a cursor by draining the prefix.
-pub(crate) struct LogReader {
-    file: File,
-}
-
-impl LogReader {
-    pub(crate) fn open(path: &Path) -> Result<Option<Self>> {
-        match File::open(path) {
-            Ok(file) => Ok(Some(Self { file })),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(BusError::Io(e)),
-        }
-    }
-}
-
-impl Iterator for LogReader {
-    type Item = Result<Vec<u8>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut len_buf = [0u8; 8];
-        match self.file.read_exact(&mut len_buf) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return None,
-            Err(e) => return Some(Err(BusError::Io(e))),
-        }
-        let len = u64::from_be_bytes(len_buf);
-        let Ok(len) = usize::try_from(len) else {
-            return Some(Err(BusError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "record length overflows usize",
-            ))));
-        };
-        let mut buf = vec![0u8; len];
-        if let Err(e) = self.file.read_exact(&mut buf) {
-            return Some(Err(BusError::Io(e)));
-        }
-        Some(Ok(buf))
-    }
-}
-
 /// Serialize an envelope to the on-disk byte form. JSON for wedge 2 —
 /// T-1155 §"Open questions deferred" leaves the codec choice open.
 pub(crate) fn encode_envelope(env: &Envelope) -> Result<Vec<u8>> {
@@ -118,4 +77,44 @@ pub(crate) fn decode_envelope(bytes: &[u8]) -> Result<Envelope> {
     serde_json::from_slice(bytes).map_err(|e| {
         BusError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     })
+}
+
+/// Iterator that reads records at specific byte positions. Used by
+/// `Bus::subscribe` after the SQLite index tells us which records survive.
+pub(crate) struct ReaderIter {
+    file: File,
+    records: std::vec::IntoIter<crate::meta::RecordLoc>,
+}
+
+impl ReaderIter {
+    pub(crate) fn new(file: File, records: Vec<crate::meta::RecordLoc>) -> Self {
+        Self {
+            file,
+            records: records.into_iter(),
+        }
+    }
+}
+
+impl Iterator for ReaderIter {
+    type Item = Result<(Offset, Envelope)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let loc = self.records.next()?;
+        // Skip the 8-byte length prefix — we have the length in `loc`.
+        let payload_start = loc.byte_pos + 8;
+        if let Err(e) = self.file.seek(SeekFrom::Start(payload_start)) {
+            return Some(Err(BusError::Io(e)));
+        }
+        let Ok(len) = usize::try_from(loc.length) else {
+            return Some(Err(BusError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "record length overflows usize",
+            ))));
+        };
+        let mut buf = vec![0u8; len];
+        if let Err(e) = self.file.read_exact(&mut buf) {
+            return Some(Err(BusError::Io(e)));
+        }
+        Some(decode_envelope(&buf).map(|env| (loc.offset, env)))
+    }
 }

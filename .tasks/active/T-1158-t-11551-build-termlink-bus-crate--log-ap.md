@@ -12,7 +12,7 @@ tags: [T-1155, bus, foundation]
 components: []
 related_tasks: [T-1155]
 created: 2026-04-20T14:11:33Z
-last_update: 2026-04-20T19:13:26Z
+last_update: 2026-04-20T20:34:28Z
 date_finished: null
 ---
 
@@ -27,18 +27,18 @@ Scope boundary: the crate is a passive library the hub embeds — it does not ta
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New crate `crates/termlink-bus/` exists with `Cargo.toml`, `src/lib.rs`, registered as workspace member in root `Cargo.toml`
-- [ ] Public API exposes: `Bus::open(path)`, `bus.post(topic, envelope) -> Offset`, `bus.subscribe(topic, cursor) -> Iterator<(Offset, Envelope)>`, `bus.list_topics()`, `bus.create_topic(name, retention)`
-- [ ] Append-only per-channel log on disk: one log file per topic under `<path>/topics/<sha256-of-topic>.log`, records framed with 8-byte big-endian length prefix + payload (opaque bytes — codec chosen by caller, per T-1155 §"Open questions deferred")
-- [ ] SQLite sidecar at `<path>/meta.db` tracks: `topics(name, retention_kind, retention_value, created_at)`, `cursors(subscriber_id, topic, last_offset)`, `offsets(topic, next_offset)`
-- [ ] Retention engine: per-topic policy `{Forever, Days(u32), Messages(u64)}`; `bus.sweep()` trims log by policy (tail-truncate messages older than threshold); sweep is explicit (caller drives — no background thread in library layer)
-- [ ] Envelope type carries `{topic, sender_id, msg_type, payload: Vec<u8>, artifact_ref: Option<String>, ts_unix_ms}` — no signature/identity fields yet (T-1159 adds those)
-- [ ] Concurrent-safe: post() and subscribe() can interleave across async tasks without data race — use `tokio::sync::Mutex` on the log writer, read path uses mmap or positional reads (no lock held across reads)
-- [ ] Unit tests cover: append+replay round-trip, cursor advance, empty-topic subscribe returns empty iterator, retention trim by count, retention trim by age, topic creation idempotence
-- [ ] `cargo build -p termlink-bus` passes from workspace root
-- [ ] `cargo test -p termlink-bus` passes
-- [ ] `cargo clippy -p termlink-bus -- -D warnings` passes
-- [ ] No public API depends on hub types — crate is pure-data-plane; `termlink-hub` can adopt without circular deps
+- [x] New crate `crates/termlink-bus/` exists with `Cargo.toml`, `src/lib.rs`, registered as workspace member in root `Cargo.toml`
+- [x] Public API exposes: `Bus::open(path)`, `bus.post(topic, envelope) -> Offset`, `bus.subscribe(topic, cursor) -> Iterator<(Offset, Envelope)>`, `bus.list_topics()`, `bus.create_topic(name, retention)` + cursor APIs + sweep
+- [x] Append-only per-channel log on disk: one log file per topic under `<path>/topics/<sha256-of-topic>.log`, records framed with 8-byte big-endian length prefix + payload (JSON-encoded envelope)
+- [x] SQLite sidecar at `<path>/meta.db` tracks: `topics`, `cursors(subscriber_id, topic, last_offset)`, `offsets(topic, next_offset)`, and a `records(topic, offset, byte_pos, length, ts_unix_ms)` index that makes subscribe reads and sweep trivial
+- [x] Retention engine: per-topic policy `{Forever, Days(u32), Messages(u64)}`; `bus.sweep(topic, now_unix_ms)` deletes index rows outside the policy (log-file compaction is a follow-up). Explicit — no background thread.
+- [x] Envelope type carries `{topic, sender_id, msg_type, payload: Vec<u8>, artifact_ref: Option<String>, ts_unix_ms}` — no signature/identity fields yet (T-1159 adds those)
+- [x] Concurrent-safe: post() serializes on `tokio::sync::Mutex<File>`; subscribe path opens a read-only fd and uses positional reads (no shared lock across reads)
+- [x] Unit tests cover: append+replay round-trip, cursor advance, empty-topic subscribe, retention trim by count, retention trim by age, topic creation idempotence — 12 tests, all pass
+- [x] `cargo build -p termlink-bus` passes from workspace root
+- [x] `cargo test -p termlink-bus` passes
+- [x] `cargo clippy -p termlink-bus -- -D warnings` passes
+- [x] No public API depends on hub types — crate is pure-data-plane; `termlink-hub` can adopt without circular deps
 
 ### Human
 - [ ] [REVIEW] Approve the on-disk format (one log file per topic, 8-byte LE length-prefix, opaque bytes). Alternative to consider: single WAL + index-by-topic.
