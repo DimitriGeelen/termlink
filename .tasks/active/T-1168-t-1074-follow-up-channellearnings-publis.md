@@ -38,25 +38,23 @@ Cross-agent learning exchange on top of the T-1155 channel bus. Replaces the 15-
 - [ ] Never auto-applies received learnings — humans decide promotion to local rules
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Verify the Watchtower "fleet insights" panel surfaces cross-agent learnings
+  **Steps:**
+  1. After deploy, add a test learning via `fw context add-learning "test from <project>"`
+  2. Open the target project's Watchtower `/fleet-insights` page
+  3. Confirm the learning appears within one subscribe-poll cycle
+  4. Confirm it's stored in `.context/project/received-learnings.yaml` (not `learnings.yaml`)
+  **Expected:** Visible + origin attribution preserved
+  **If not:** Check subscriber daemon is running; check bus connectivity
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+cargo build
+cargo test -p termlink-watchtower learnings
+bash -n agents/context/context.sh
+grep -q "channel:learnings" agents/context/context.sh
+grep -q "received-learnings" agents/context/context.sh
+test -f .context/project/received-learnings.yaml || echo "will be created on first receive"
 
 ## Decisions
 
