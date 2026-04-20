@@ -197,3 +197,20 @@ concerns:
   created: 2026-04-20
   last_reviewed: 2026-04-20
   related_tasks: [T-1051, T-933, T-1028, T-1052, T-1053, T-1054, T-1055]
+
+- id: G-012
+  type: gap
+  title: "fw fabric enrich does not detect edges for Rust sources — new crate files accumulate edgeless"
+  description: "The Python-based fabric enricher (agents/fabric/enrich.py) fails to extract depends_on/depended_by edges from Rust source files. As of 2026-04-21, 19/104 fabric cards have zero edges on both directions — all are either (a) Rust files in the new T-1155 bus stack (termlink-bus crate + channel.rs, bus_client.rs, offline_queue.rs, etc.) or (b) non-Rust utility scripts (install.sh, watchdog.sh, transcripts-agent). Running `fw fabric enrich --dry-run` on any of them reports 0 edges added — the enricher is fundamentally blind to `use` / `mod` / `crate::` references. The audit warns '19/104 cards have no edges' every session; the suggested mitigation ('Run: fw fabric enrich') is a no-op for this class. The cards themselves were auto-created by `fw fabric register` with `subsystem: unknown` and `purpose: TODO` placeholders — purely structural, no semantic content. Blast-radius analysis for the bus stack is therefore incomplete: changing bus_client.rs does not light up impact on any downstream consumer because the edges don't exist."
+  spec_reference: "agents/fabric/enrich.py, agents/fabric/fabric.sh, CLAUDE.md §Component Fabric, audit trend analysis (19-card warning recurring since T-1158 landed)"
+  severity: low
+  trigger_fired: true
+  trigger_event: "2026-04-21 session: after closing T-1173, investigated the recurring 19-edgeless-card audit warning. `fw fabric enrich --dry-run` against all 104 cards: 0 enriched, 0 edges added. Against one specific bus-stack card (bus_client.rs) same result. Cards have the shape `subsystem: unknown, purpose: TODO, depends_on: [], depended_by: []` — pure skeletons from auto-registration."
+  detection_lag_days: "~3 days (T-1158 landed 2026-04-18; 19-card warning recurring in audit trend analysis since but never root-caused until now)"
+  what_works_now: "1. Registration itself works — `fw fabric register <path>` creates the card file. 2. Non-Rust files that reference each other via calls (shell scripts calling shell scripts) ARE enriched — see agents/mesh/agent-wrapper.sh with 3 edges. 3. `fw fabric drift` correctly reports 'unregistered: 0' — registration coverage is fine; only edge detection is broken."
+  what_remains: "1. Teach enrich.py to parse Rust `use` and `mod` statements — extract (a) crate-external dependencies (e.g., `use termlink_bus::Bus`) and (b) intra-crate module references. 2. For cards with `purpose: TODO`, consider refusing to commit them or auto-suggesting a purpose from the file's module docstring. 3. Lower the audit threshold or change the warning to distinguish 'no edges because enricher failed' from 'no edges because genuinely leaf utility'. 4. Consider: a framework-side task to author purposes + edges for the 19 current edgeless cards as a one-time backfill (cheaper than fixing the enricher if the codebase stabilises)."
+  mitigation_candidate: "Short-term: operators and agents ignore the warning for this class; use `cargo tree` + direct code reading for Rust blast-radius instead. Medium-term: framework-side task to add Rust parsing to enrich.py (regex-based first pass: `use \\w+(::\\w+)+` → extract crate paths). Long-term: replace the Python enricher with a language-server-based one that uses rust-analyzer / tree-sitter for accurate dependency extraction."
+  status: watching
+  created: 2026-04-21
+  last_reviewed: 2026-04-21
+  related_tasks: [T-1158, T-1159, T-1160, T-1161]
