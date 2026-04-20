@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base64::Engine as _;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -467,6 +468,48 @@ pub struct InboxClearParams {
     pub target: Option<String>,
     /// Clear all pending transfers for all targets
     pub all: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelCreateParams {
+    /// Topic name (e.g. "broadcast:global", "channel:learnings")
+    pub name: String,
+    /// Retention policy kind: "forever" | "days" | "messages". Default: forever.
+    pub retention_kind: Option<String>,
+    /// Retention value for "days" or "messages" kinds. Ignored for "forever".
+    pub retention_value: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelPostParams {
+    /// Topic name
+    pub topic: String,
+    /// Free-form message type tag (e.g. "note", "learning", "artifact"). Default: "note".
+    pub msg_type: Option<String>,
+    /// Inline UTF-8 payload. Exactly one of `payload` or `payload_b64` is required.
+    pub payload: Option<String>,
+    /// Base64 binary payload. Exactly one of `payload` or `payload_b64` is required.
+    pub payload_b64: Option<String>,
+    /// Optional opaque artifact reference (e.g. "ref://...").
+    pub artifact_ref: Option<String>,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelSubscribeParams {
+    /// Topic name
+    pub topic: String,
+    /// Cursor to start at. Default: 0.
+    pub cursor: Option<u64>,
+    /// Max messages per call. Default: 100, max 1000.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelListParams {
+    /// Optional topic name prefix filter.
+    pub prefix: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -5338,6 +5381,178 @@ impl TermLinkTools {
                 })).unwrap_or_else(json_err)
             }
             Err(e) => json_err(format!("Event poll failed: {e}")),
+        }
+    }
+
+    // === Channel Bus Tools (T-1160, T-1155) ===
+
+    #[tool(
+        name = "termlink_channel_create",
+        description = "Create a T-1155 bus topic with a retention policy on the local hub. Idempotent on name — a second call with the same policy is a no-op; a conflicting policy returns an error."
+    )]
+    async fn termlink_channel_create(
+        &self,
+        Parameters(p): Parameters<ChannelCreateParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let retention = match p.retention_kind.as_deref().unwrap_or("forever") {
+            "forever" => serde_json::json!({"kind": "forever"}),
+            "days" => serde_json::json!({"kind": "days", "value": p.retention_value.unwrap_or(30)}),
+            "messages" => serde_json::json!({"kind": "messages", "value": p.retention_value.unwrap_or(1000)}),
+            other => return json_err(format!("unknown retention_kind: {other}")),
+        };
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_CREATE,
+            serde_json::json!({"name": p.name, "retention": retention}),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.create error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_post",
+        description = "Post a signed envelope to a T-1155 bus topic on the local hub. The post is signed with the caller's ed25519 identity (auto-initialized at ~/.termlink/identity.key on first use)."
+    )]
+    async fn termlink_channel_post(
+        &self,
+        Parameters(p): Parameters<ChannelPostParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let payload_bytes = match (p.payload, p.payload_b64) {
+            (Some(s), None) => s.into_bytes(),
+            (None, Some(b64)) => match base64::engine::general_purpose::STANDARD.decode(&b64) {
+                Ok(b) => b,
+                Err(e) => return json_err(format!("payload_b64 decode: {e}")),
+            },
+            (Some(_), Some(_)) => return json_err("pass either 'payload' or 'payload_b64', not both"),
+            (None, None) => return json_err("pass 'payload' (string) or 'payload_b64' (base64)"),
+        };
+        let msg_type = p.msg_type.unwrap_or_else(|| "note".to_string());
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            &msg_type,
+            &payload_bytes,
+            p.artifact_ref.as_deref(),
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "artifact_ref": p.artifact_ref,
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.post error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_subscribe",
+        description = "Pull messages from a T-1155 bus topic starting at an optional cursor. Returns messages plus a next_cursor for resumption. One-shot — the MCP caller loops externally if needed."
+    )]
+    async fn termlink_channel_subscribe(
+        &self,
+        Parameters(p): Parameters<ChannelSubscribeParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "cursor": p.cursor.unwrap_or(0),
+            "limit": p.limit.unwrap_or(100),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.subscribe error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_list",
+        description = "List T-1155 bus topics known to the local hub, optionally filtered by prefix. Returns each topic's name and retention policy."
+    )]
+    async fn termlink_channel_list(
+        &self,
+        Parameters(p): Parameters<ChannelListParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let params = match p.prefix {
+            Some(pref) => serde_json::json!({"prefix": pref}),
+            None => serde_json::json!({}),
+        };
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_LIST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.list error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
         }
     }
 
