@@ -534,3 +534,10 @@ learnings:
   date: 2026-04-20
   context: Added via context agent
   application: TBD
+- id: PL-042
+  learning: "Project-boundary hook does fuzzy path-matching on argv; text containing slash-separated tokens that resemble absolute paths can trigger false-positive blocks on fw context add-learning and git commit -m. Workaround: reword the argument to avoid path-like tokens, or pass via a file (-F for commit). Seen 3 times in one session (2026-04-20) while shipping G-011."
+  source: P-001
+  task: T-1171
+  date: 2026-04-20
+  context: Added via context agent
+  application: TBD
