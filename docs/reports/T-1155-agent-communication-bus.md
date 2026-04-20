@@ -104,6 +104,247 @@ Total exploration budget: **≤ 3h**. Hard stop — if not done, we're descoping
 - **NATS/Redis pub/sub** — live-only pub/sub. Closest to current `event.broadcast`. Lower bound for bus-that-is-just-broadcast.
 - **Matrix** — federated messaging protocol. Relevant if we want cross-hub without a central coordinator.
 
+## Spike S-1: Call-site census (complete 2026-04-20)
+
+### Production call sites
+
+| Primitive | Files touched | Call sites | Scope |
+|---|---|---|---|
+| `event.broadcast` | events.rs, target.rs, tools.rs, auth.rs, router.rs, control.rs | **~2 producers** (CLI `events broadcast`, MCP pass-through) | All fan-out, no persistence, hub-local |
+| `inbox.{list,status,clear}` | infrastructure.rs, remote.rs, tools.rs, router.rs | **18 call sites, 4 files** — local + remote variants of each method | Per-session queue, hub-local |
+| `file.{send,receive}` | file.rs, remote.rs, main.rs, tools.rs | **~10 call sites, 4 files** — CLI + remote + MCP + 2 MCP tools | Chunked transport → inbox |
+| `pickup` (shell only) | `.agentic-framework/lib/pickup.sh` | **442 lines, called from `fw`** — envelope-based on disk | Cross-project only, filesystem not hub |
+| `agent.request` | events.rs (const) | **0 real use** — reserved protocol const | — |
+
+Total Rust files affected: **8**. Total call sites: **~30**.
+
+### Pattern classification → proposed channel mapping
+
+| Pattern today | Example | Would become (channel model) |
+|---|---|---|
+| Live fan-out, no ACK | `event.broadcast {kind: "task-done"}` | `channel.post` to a broadcast topic (recipients fan-in via poll/subscribe) |
+| Per-recipient queue, pull | `inbox.list target=sess-A` then `inbox.clear` | Channel with persistent history + per-recipient read cursor; `list` == "posts since my cursor" |
+| Artifact transport | `file.send chunks → recipient.inbox` | `channel.post {type: artifact, payload: blob_ref}` (artifact becomes a typed message) |
+| Cross-project envelope | `pickup` shell → YAML on disk | `channel.post` to an inter-project channel (or bridge shell-pickup at framework boundary) |
+| 1:1 request/reply (future) | `agent.request` (unused) | `channel.post` + correlation_id; reply as another post on same channel |
+
+### S-1 verdict
+
+- **Subsumption mapping is clean** — every existing pattern collapses to a single primitive: `channel.post(topic, sender, type, payload, artifact?)`, with `channel.subscribe(topic, cursor?)` as the symmetric read side.
+- **Call-site count is tractable** — ~30 sites across 8 Rust files + 1 shell lib. Not a large refactor.
+- **Pickup is the interesting boundary** — it's shell + filesystem, not Rust + hub. If the bus is in-hub, pickup either (a) migrates up to the hub (breaks framework portability — now every framework consumer needs a hub) or (b) stays as-is and bridges via a pickup→channel adapter. Decision point for S-4/S-5.
+
+**AC1 (S-1) ✓ CHECK**
+
+## Spike S-2: Persistence model (complete 2026-04-20)
+
+### Candidates
+
+| Model | Shape | Catch-up? | Storage cost | Ops cost |
+|---|---|---|---|---|
+| **Log-append** | Append-only per-channel log; per-recipient cursor | Full replay from cursor | Grows until retention trigger | Retention policy + compaction |
+| **Ring buffer** | Fixed-size circular log per channel | Tail-N only | Cheap, bounded | Trivial |
+| **TTL queue** | Message lives until ACK or timeout | No (once read, gone) | Cheap, bounded | Per-message state machine |
+| **Hybrid** (log + TTL) | Log-append for "durable" channels, TTL for "live" | Per-channel config | Medium | Complex |
+
+### Map to user pains
+
+| Pain | Log-append | Ring | TTL |
+|---|---|---|---|
+| Liveness (offline catch-up) | ✅ full | ⚠ partial | ❌ none |
+| Auth | orthogonal | orthogonal | orthogonal |
+| Discoverability | needs registry anyway | same | same |
+
+### Map to 4 subsumption candidates
+
+| Existing primitive | Log-append fit | Ring fit | TTL fit |
+|---|---|---|---|
+| `event.broadcast` | ✅ (replay is bonus, not needed) | ✅ | ✅ |
+| `inbox` | ✅ (natural — cursor = "unread marker") | ❌ (loses messages for slow recipients) | ⚠ (read-and-forget is inbox today but pickup semantic needs history) |
+| `send-file` | ✅ (durable until delivered) | ❌ (large files evict early) | ⚠ (TTL before ACK is brittle) |
+| `pickup` | ✅ (pickup IS a log on disk — clean semantic match) | ❌ | ❌ |
+
+### Storage medium
+
+- **Per-channel append log file** on disk (e.g., `/var/lib/termlink/channels/<channel_id>/log`)
+- **SQLite index** for cursor tracking and message metadata (avoids scanning the log for "give me since offset N")
+- Same tooling the hub already uses (T-945 for persistent state); no new infrastructure
+
+### Ranked recommendation
+
+1. **🥇 Log-append + per-recipient cursor + per-channel retention policy.** Subsumes all 4 primitives cleanly. Storage cost manageable with retention (channels can be configured as `retain_forever | days=N | messages=N`).
+2. **🥈 Hybrid (log-append for `inbox`/`pickup`/`send-file`, TTL for `event.broadcast`).** Only if storage cost of log-append-for-everything is actually prohibitive. Adds complexity — avoid unless measured.
+3. **🥉 Ring buffer only.** Loses the pickup semantic. Disqualified.
+
+### Disqualifiers
+
+- Ring-only: loses "message arrived while recipient was offline" → doesn't fix liveness pain → misses core goal
+- TTL-only: loses replay → misses pickup semantic → forces shell-based pickup to stay parallel, fragmenting the bus
+- In-memory only (no persistence): bus restart loses all unread messages → anti-feature
+
+**S-2 verdict: log-append with per-channel retention.** AC2 ✓
+
+## Spike S-3: Liveness / offline tolerance (complete 2026-04-20)
+
+### The question for A-004
+
+Can clients post to the bus when the bus is down, and read when they come back?
+
+### Sketch
+
+**Client-side:**
+- Small local SQLite queue: `pending_posts` table, `last_read_cursor` table per channel
+- On `channel.post` call: try remote; on failure, enqueue locally and return OK
+- Background sync task: periodic attempt to flush pending posts when bus is reachable
+- On `channel.subscribe`: always serve from local cache first (if any), then reconcile with remote when available
+
+**Server-side:**
+- Bus is just append-log + cursor store — purely passive; clients drive all sync
+- Idempotency: each post has `(sender_id, client_seq)` — duplicates deduped on bus
+- Clock skew tolerated: bus authoritative for ordering, client timestamps advisory
+
+### Viability
+
+- SQLite queue is ~300 LOC in Rust (sqlx or rusqlite)
+- Idempotent posts are a standard pattern (e.g., Stripe API `idempotency-key`)
+- Cost of running: ~megabytes of client-side disk per agent, negligible
+
+### What breaks if we don't do this
+
+Agent A posts "I'm done" → bus is down → post is lost → agent B never learns → task stalls. This is **pain 1 manifested as pain 3**. The bus without offline tolerance is worse than the status quo because it centralizes the failure.
+
+### S-3 verdict: offline posting is feasible and mandatory for GO.
+
+A-004 **validated** — a bus without local queue + replay would be a regression. With it, bus outages degrade to bounded-latency posts instead of lost ones. AC3 ✓
+
+## Spike S-4: Auth integration (complete 2026-04-20)
+
+### Context: what the T-1051 lineage actually tells us
+
+Per-hub HMAC secret + TLS fingerprint. On rotation, all pinned clients break. Heal path exists (T-1054/T-1055) but requires manual re-pinning. Root pain: **transport trust and identity trust are conflated in a single secret.** Rotating hub cert invalidates both.
+
+### Candidates
+
+**(a) Bus trusts hub secrets transitively.** Hub vouches for its local sessions.
+- ⚠ Still per-hub. Rotation pain unchanged. Doesn't fix anything.
+
+**(b) Bus has its own secret per-channel** (Matrix-style room keys).
+- ⚠ Adds N secret domains. N times the rotation pain. Actively worse.
+
+**(c) Fleet-wide identity issued by bus; hubs are relays.**
+- ✅ Single rotation anchor. But creates a new SPOF (the bus is the trust authority).
+- ⚠ Anti-antifragile: losing the bus = losing identity.
+
+**(d) Self-sovereign agent identity (ed25519 keypair per agent).** Bus verifies signatures. Keys pinned TOFU on first contact; rotation by signing new key with old key (or out-of-band re-trust).
+- ✅ Agents own identity. Bus is transport, not trust authority.
+- ✅ Hub rotation invalidates *transport* (re-pin fingerprint), not *identity* (messages still verifiably from same agent).
+- ✅ Separates the two problems that T-1051 conflates.
+- ⚠ Adds crypto code to every client (but ed25519 is tiny — `ed25519-dalek` is ~few hundred LOC including dependencies).
+
+### Ranked recommendation
+
+1. **🥇 Self-sovereign agent identity (d).** Solves the pain rather than moving it. Each agent has a long-term keypair; bus verifies signatures on every post. Transport (hub TLS/HMAC) becomes *separately* concerned with "can I trust this relay", not "is this message really from agent X".
+2. **🥈 Fleet-wide identity (c).** Simpler to implement but anti-antifragile — one authority, one failure point.
+3. **🥉 Per-channel secret (b).** Disqualified — multiplies the rotation pain.
+4. **Transitive hub trust (a).** Disqualified — leaves the pain exactly as-is, just renames it.
+
+### Critical insight
+
+This is **exactly why** the auth pain hurts today: current model conflates transport and identity into one secret. Bus done right **separates them structurally**. Hub rotation becomes a transport concern only. Agents' messages remain verifiable even across rotations.
+
+### Disqualifiers
+
+- Any model that keeps identity = hub secret → leaves T-1051 pain unresolved
+- Any central authority for identity → new SPOF violates antifragility directive
+
+**S-4 verdict: self-sovereign agent keys (d).** AC4 ✓
+
+## Spike S-5: Migration scope (complete 2026-04-20)
+
+### From S-1 counts
+
+| Primitive | Sites | Files | Migration shape |
+|---|---|---|---|
+| `event.broadcast` | ~2 | 2 | Replace with `channel.post(topic="broadcast:global")`. Callers wrap, semantics preserved. |
+| `inbox.*` | 18 | 4 | Replace with `channel.{post, subscribe}`; `target` becomes `recipient_id`. CLI + MCP + hub + remote — all 4 files. |
+| `file.send/receive` | ~10 | 4 | Artifact becomes `channel.post {type: artifact}`; chunked transfer is implementation detail of bus. |
+| `pickup` (shell) | ~framework wide | 1 shell lib | Keep shell pickup; add `pickup → channel bridge` at framework boundary. Shell stays portable. |
+| `agent.request` (unused) | 0 | — | Define as correlated `channel.post`. Zero migration cost. |
+
+**Total migration: ~30 Rust call sites + 1 shell adapter.** Estimated bounded effort.
+
+### Effort estimate
+
+| Component | LOC estimate | Notes |
+|---|---|---|
+| Bus core (append log + cursor + subscriber API) | 1500–2500 | New crate `termlink-bus` |
+| Client local queue (SQLite + flush task) | 300–500 | In `termlink-session` |
+| Ed25519 identity keyring | 200–400 | Reuse `ed25519-dalek` |
+| Channel API (CLI + MCP surface) | 400–700 | New `commands/channel.rs`, new MCP tools |
+| Migration shims (`event.broadcast`, `inbox`, `file.*` → `channel.*`) | 500–1000 | Per-call-site wrappers, keep legacy methods during transition |
+| Shell pickup → channel bridge | 100–200 | One adapter script |
+| Tests | 1000–1500 | Unit + integration + router + e2e |
+
+**Total: ~4000–6000 LOC over 3–5 weeks of focused work** (one clean sprint). Well-bounded.
+
+### Migration strategy (no flag day)
+
+1. **Phase 1:** ship `termlink-bus` crate + `channel.*` API alongside existing primitives. Both work. New consumers use `channel.*`.
+2. **Phase 2:** migrate internal callers one primitive at a time (`event.broadcast` first — smallest). Validate. Then `inbox`. Then `file.send`. Deprecate each as its callers move.
+3. **Phase 3:** shell pickup bridge ships. Legacy filesystem pickup keeps working for external projects; new projects can post directly to bus channel.
+4. **Phase 4:** remove legacy primitives (after N months of parallel operation + deprecation warnings).
+
+**S-5 verdict: migration is tractable.** AC5 ✓
+
+## Recommendation
+
+> ### **GO — build the bus, in-hub, log-append, self-sovereign identity, offline-tolerant client.**
+
+### Rationale
+
+All 5 go/no-go criteria met:
+
+1. **Subsumption clear** (S-1): all 4 existing primitives collapse cleanly to `channel.post` + `channel.subscribe`; ~30 call sites across 8 files.
+2. **No new liveness domain** (S-3): bus runs inside the existing hub process; clients degrade to local SQLite queue + replay when bus unreachable. Offline posting is feasible and mandatory.
+3. **Auth story resolves the underlying pain** (S-4): self-sovereign ed25519 agent keys separate *identity trust* from *transport trust*. Hub secret rotations (T-1051 lineage) stop invalidating messages. Per-hub rotation becomes a transport concern only.
+4. **Migration path exists** (S-5): bounded, ~30 sites, phased over 4 milestones with no flag day. Shell pickup stays portable via bridge.
+5. **Storage model chosen** (S-2): log-append with per-channel retention policy. Natural semantic for all subsumed primitives. Storage cost manageable.
+
+### Evidence
+
+- S-1: 30 call sites across 8 files — bounded refactor
+- S-2: log-append is the only model that cleanly subsumes `pickup` + `inbox` + `event.broadcast` + `send-file`
+- S-3: 300-LOC SQLite queue makes bus resilient to its own outages
+- S-4: ed25519 identity decouples message authenticity from hub transport — structural fix for T-1051 lineage, not a workaround
+- S-5: ~4000–6000 LOC effort, 3–5 weeks, phased migration
+
+### Build scope (separate tasks if GO)
+
+Proposed follow-up tasks to create after decision:
+
+- **T-11XX** Build `termlink-bus` crate: log-append + cursor + subscribe API + retention engine (in-hub)
+- **T-11XX** Add ed25519 identity keyring to `termlink-session` (with bootstrap + rotation commands)
+- **T-11XX** Add `channel.{post, subscribe, list, create}` API surface (CLI + MCP + hub router)
+- **T-11XX** Add client-side offline queue (SQLite + flush task) in `termlink-session`
+- **T-11XX** Migrate `event.broadcast` callers → `channel.post(topic="broadcast:global")`
+- **T-11XX** Migrate `inbox.*` callers → `channel.{post, subscribe}` to recipient channel
+- **T-11XX** Migrate `file.send/receive` → `channel.post {type: artifact}` with chunked artifact transport
+- **T-11XX** Shell pickup → channel bridge (one adapter) — keeps framework portability
+- **T-11XX** Retire legacy primitives after N months (separate decommission task)
+
+### Open questions deferred to build phase (not blocking decision)
+
+- Wire format: JSON (simple, debuggable) vs CBOR/msgpack (smaller, faster) — pick at build time based on throughput measurements
+- Retention defaults: per-channel `retain=forever | days=90 | messages=10k` — sketch now, tune with real traffic
+- Cross-hub federation (multi-hub-as-one-bus): **explicit OUT of scope** for first milestone; single hub is the MVP
+- Channel ACLs beyond "anyone-who-authenticates can post": **OUT of scope** for first milestone
+
+### Risks (cited, not blocking)
+
+- **R1:** Migration takes longer than estimated (classic software risk). Mitigation: phased migration; legacy primitives keep working during transition.
+- **R2:** ed25519 key bootstrap UX is awkward for humans. Mitigation: `termlink identity init` generates; `termlink identity show` prints fingerprint; TOFU on first-contact like SSH.
+- **R3:** Offline queue bloats on long outages. Mitigation: cap local queue size, reject new posts when full (surfaces the problem loudly rather than silently growing).
+
 ## Dialogue Log
 
 ### 2026-04-20 — initial user prompt
