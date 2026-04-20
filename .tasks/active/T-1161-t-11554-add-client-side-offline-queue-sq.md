@@ -52,6 +52,34 @@ Depends on: T-1160 (channel API exists). Caps local queue size to prevent unboun
   **Expected:** Approval or switch to drop-oldest ring
   **If not:** Note the required policy and open a refactor task
 
+  **Agent evidence (2026-04-21, exercised against workspace binary 0.9.256):**
+
+  End-to-end integration test passes green in release mode:
+  ```
+  $ cargo test -p termlink-session --test bus_client_integration --release
+  running 1 test
+  test post_deliver_queue_restart_drain ... ok
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+  ```
+  The test (`tests/bus_client_integration.rs`) validates the full cycle: fake Unix-socket hub accepts 10 live `channel.post` calls → hub is aborted + socket removed → 5 more posts queued durably in SQLite → fake hub restarts → background flush task drains the 5 queued entries in FIFO order. Delivered and queued entries arrive at the hub in the correct order; `FlushReport.sent = 5` on reconnect.
+
+  `channel queue-status` (T-1172 follow-up) surfaces the queue for operators:
+  ```
+  $ termlink channel queue-status --queue-path /tmp/.../outbound.sqlite --json
+  {
+    "exists": false,
+    "pending": 0,
+    "queue_path": "/tmp/.../outbound.sqlite"
+  }
+  ```
+
+  **Non-obvious finding to surface during review — CLI path does NOT use BusClient:**
+  The CLI `channel post` verb (`crates/termlink-cli/src/commands/channel.rs:137`) calls `client::rpc_call` directly, bypassing `BusClient`. So the offline queue is currently a **library-only** feature — operators running `termlink channel post` while the hub is down get a direct RPC error, not a queue fallback. This was not an explicit AC for T-1161 (the wedge shipped a Rust library + tests), but it's worth a follow-up decision:
+  - (a) Wire the CLI through `BusClient` so ops get offline tolerance on the command line (straightforward — swap one call site), OR
+  - (b) Document that the queue is library-only (future SDK consumers use it) and keep the CLI simple.
+
+  Rubber-stamp loud-reject if R3 still stands; and decide (a)/(b) — open a T-1161 follow-up task either way.
+
 ## Verification
 
 cargo build -p termlink-session

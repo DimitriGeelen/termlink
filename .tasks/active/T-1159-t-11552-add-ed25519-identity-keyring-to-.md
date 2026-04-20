@@ -49,6 +49,57 @@ Pairs with T-1158 (bus core, unsigned envelope) by layering signatures **on top 
   **Expected:** Approval or a requirement to add stronger protection (keyring, encrypted at rest, etc.)
   **If not:** Note the required protection level; may require a follow-up hardening task
 
+  **Agent evidence (2026-04-21, exercised against workspace binary 0.9.256 with `TERMLINK_IDENTITY_DIR` override):**
+
+  Init creates a 32-byte ed25519 seed at chmod 600, deterministic fingerprint derived from the public key:
+  ```
+  $ termlink identity init
+  Identity initialized
+    Path:        /tmp/.../identity/identity.key
+    Fingerprint: 75fe1cc647cd3173
+    Public key:  f7a4cb3ad1a10c00a9920755c25af4acd426690f3397a8ce5b1902c780e6523e
+  $ stat -c '%a' identity.key  → 600
+  $ ls -la identity/
+  -rw------- 1 root root 32  identity.key
+  ```
+
+  `show` is idempotent and exposes both text and JSON:
+  ```
+  $ termlink identity show --json
+  {
+    "action": "loaded",
+    "fingerprint": "75fe1cc647cd3173",
+    "ok": true,
+    "path": "/tmp/.../identity/identity.key",
+    "public_key_hex": "f7a4cb3ad1a10c00a9920755c25af4acd426690f3397a8ce5b1902c780e6523e"
+  }
+  ```
+
+  `show` before `init` fails safe with a structured JSON error (no panic, no zero key):
+  ```
+  $ termlink identity show --json
+  {"error":"not_initialized","hint":"run 'termlink identity init' first","ok":false,"path":"..."}
+  ```
+
+  `rotate` without `--force` refuses (destructive guard works):
+  ```
+  $ termlink identity rotate
+  Rotation is destructive. Re-run with --force to proceed.
+  ```
+
+  `rotate --force` writes a new key and backs up the old:
+  ```
+  $ termlink identity rotate --force
+  Identity rotated   Fingerprint: c7d31e571b2aa020   (was 75fe1cc647cd3173)
+  $ ls -la identity/
+  -rw------- 1 root root 32 identity.key
+  -rw------- 1 root root 32 identity.key.bak-1776725896065
+  ```
+
+  New fingerprint is live on subsequent `channel post` calls — posts to `topic-msgs` show `sender_id = c7d31e571b2aa020` matching the rotated key.
+
+  Rubber-stamp if `~/.termlink/identity.key` + chmod 600 + TOFU-on-first-use satisfies trust policy; otherwise open a hardening follow-up.
+
 ## Verification
 
 cargo build -p termlink-session

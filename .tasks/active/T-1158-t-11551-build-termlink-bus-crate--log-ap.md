@@ -49,6 +49,35 @@ Scope boundary: the crate is a passive library the hub embeds — it does not ta
   **Expected:** Approval or a refactor task opened
   **If not:** Note why the format is wrong and what to change
 
+  **Agent evidence (2026-04-21, smoke-tested against workspace binary 0.9.256 in isolated tempdir hub):**
+
+  All three retention policies round-trip correctly:
+  ```
+  $ termlink channel create topic-forever --retention forever     → Created (forever)
+  $ termlink channel create topic-days    --retention days:7      → Created (days:7)
+  $ termlink channel create topic-msgs    --retention messages:3  → Created (messages:3)
+  $ termlink channel list
+    broadcast:global  [messages:1000]
+    topic-days        [days:7]
+    topic-forever     [forever]
+    topic-msgs        [messages:3]
+  ```
+
+  Post + cursor-subscribe round-trip on `topic-msgs` (retention=messages:3, 4 appends):
+  - Posts return offsets 0..3 monotonic as expected
+  - `channel subscribe topic-msgs --cursor 0` returns all 4 records
+  - `channel subscribe topic-msgs --cursor 2` returns only offsets 2,3 — cursor filter correct
+
+  **Runtime observation worth calling out in review:** retention=messages:3 on a synchronous subscribe returned all 4 messages. Sweep appears to be lazy (no inline eviction on `post`), which is consistent with the AC wording "no background thread" + explicit `bus.sweep()` — but may confuse operators expecting Kafka-style bounded topics on read. Suggest either documenting the sweep contract or having `post` trigger a best-effort same-topic sweep after the append commits.
+
+  JSON-lines subscribe works and carries every envelope field (`sender_id`, `msg_type`, `payload_b64`, `artifact_ref`, `offset`, `ts`, `topic`):
+  ```
+  $ termlink channel subscribe broadcast:global --limit 5 --json
+  {"artifact_ref":null,"msg_type":"learning","offset":0,"payload_b64":"eyJsIjoibDEifQ==","sender_id":"c7d31e57...","topic":"broadcast:global","ts":1776725942134}
+  ```
+
+  Rubber-stamp the format if the lazy-eviction contract is acceptable; otherwise open a follow-up.
+
 ## Verification
 
 cargo build -p termlink-bus
