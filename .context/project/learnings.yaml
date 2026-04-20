@@ -513,3 +513,10 @@ learnings:
   date: 2026-04-20
   context: Added via context agent
   application: TBD
+- id: PL-039
+  learning: "Inception tasks whose 'pending' recommendations predate a newer related inception should be revisited, not ignored. T-1074 (learning-exchange) had its GO decision recorded with rationale 'final recommendation pending' on 2026-04-18. T-1155 (channel bus) got GO 2026-04-20 with scope that structurally subsumes the original T-1074 design. When finishing T-1074's spikes, the right answer wasn't to build the 15-min cron — it was to pivot to the bus and defer implementation. Check-before-build: scan related_tasks and recent GO-decided inceptions for work that changes the cost/benefit of a pending recommendation."
+  source: P-002
+  task: T-1074
+  date: 2026-04-20
+  context: Added via context agent
+  application: TBD
