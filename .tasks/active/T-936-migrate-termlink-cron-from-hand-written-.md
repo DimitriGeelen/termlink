@@ -1,8 +1,22 @@
 ---
 id: T-936
 name: "Migrate termlink cron from hand-written crontab to registry-based installer"
-description: >
-  ## Problem
+description: "Migrate termlink cron from hand-written crontab to registry-based installer — see body for context."
+status: work-completed
+workflow_type: inception
+owner: human
+horizon: later
+tags: [cron, migration, registry, T-448]
+components: []
+related_tasks: [T-921]
+created: 2026-04-11T22:56:36Z
+last_update: 2026-04-16T05:40:16Z
+date_finished: 2026-04-12T13:13:47Z
+---
+
+## Migration Inventory
+
+## Problem
 
 Termlink's cron has three inconsistent layers discovered during P-009 pickup-processor rollout on 2026-04-12:
 
@@ -46,18 +60,6 @@ Decide the target end-state and produce a migration plan. Options to evaluate:
 ## Source
 
 Session on dimitri-mint-dev, 2026-04-12, installing pickup-processor cron on termlink. Discovery made during dry-run review before applying `fw cron install` — which would have been destructive.
-
-status: work-completed
-workflow_type: inception
-owner: human
-horizon: later
-tags: [cron, migration, registry, T-448]
-components: []
-related_tasks: [T-921]
-created: 2026-04-11T22:56:36Z
-last_update: 2026-04-16T05:40:16Z
-date_finished: 2026-04-12T13:13:47Z
----
 
 # T-936: Migrate termlink cron from hand-written crontab to registry-based installer
 
