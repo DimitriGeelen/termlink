@@ -55,6 +55,38 @@ Depends on: T-1160 (channel API shipped). Legacy `event.broadcast` stays working
   **Expected:** Both paths observe the same events
   **If not:** Note which direction leaks; open a follow-up
 
+  **Agent evidence (2026-04-21, agent-run against workspace binary 0.9.256):**
+
+  Ran isolated throwaway hub in a tempdir (`/tmp/termlink-t1162-test.eDtzEg`) so the live hub + 4 sessions stayed untouched. Binary compiled from HEAD — contains the T-1162 shim.
+
+  1. **Auto-creation check:** Fresh hub startup → `termlink channel list` →
+     ```
+     broadcast:global  [messages:1000]
+     ```
+     → confirms `channel::init_bus` registers `BROADCAST_GLOBAL_TOPIC` at startup with `Retention::Messages(1000)` as designed.
+
+  2. **Mirror-with-no-receivers check:** `termlink broadcast 'smoke.t1162' -p '{"msg":"hello bus","seq":1}'` → `Broadcast 'smoke.t1162': 0/0 succeeded`. Then `channel subscribe broadcast:global` →
+     ```
+     [0] hub:event.broadcast smoke.t1162: {"msg":"hello bus","seq":1}
+     ```
+     → even with 0 registered receivers, the hub still mirrors into the bus topic. `sender_id = hub:event.broadcast` matches the shim's envelope shape; `msg_type` carries the original topic; payload byte-exact.
+
+  3. **Dual-path parity check:** Spawned session `t1162-receiver`; ran `termlink broadcast 'dual.path.test' -p '{"msg":"both paths should see this","seq":2}'` → `Broadcast 'dual.path.test': 1/1 succeeded`.
+     - **Old API** (`termlink events --topic dual.path.test --timeout 1 t1162-receiver`):
+       ```
+       [0] dual.path.test: {"msg":"both paths should see this","seq":2} (t=1776725604)
+       1 event(s), next_seq: 1
+       ```
+     - **New API** (`termlink channel subscribe broadcast:global --limit 10`):
+       ```
+       [0] hub:event.broadcast smoke.t1162: {"msg":"hello bus","seq":1}
+       [1] hub:event.broadcast dual.path.test: {"msg":"both paths should see this","seq":2}
+       ```
+     - Both surfaces observe the same payload; semantic preservation confirmed.
+     - Hub cleanly stopped; tempdir removed.
+
+  **Not yet exercised:** full `termlink dispatch "echo hello"` cycle (workers + event.collect). The broadcast/subscribe primitives are the surface T-1162 touches; dispatch rides on top of `event.collect` which is unchanged. Rubber-stamp this AC if the three evidence blocks above are sufficient, or run step 1 manually if you want dispatch-level confirmation.
+
 ## Verification
 
 cargo build --workspace
