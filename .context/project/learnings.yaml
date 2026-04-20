@@ -541,3 +541,10 @@ learnings:
   date: 2026-04-20
   context: Added via context agent
   application: TBD
+- id: PL-043
+  learning: "When a rule is codified as a learning (e.g., PL-041 read-live-not-cache), also add a structural check that surfaces violations — otherwise the rule lives only in agent memory and humans miss it. T-1171 demonstrates the pattern: PL-041 captured the rule, doctor secret_cache check enforces it. Pair every rule-learning with a doctor/audit/lint hook where feasible."
+  source: P-001
+  task: T-1171
+  date: 2026-04-20
+  context: Added via context agent
+  application: TBD
