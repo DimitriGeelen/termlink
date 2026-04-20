@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --id flag to discover command to output session ID instead of display name
 # Key outcomes
 outcomes:
   - "`--id` flag added to Discover command in cli.rs"

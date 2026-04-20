@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to invalid-JSON-input errors across commands
 # Key outcomes
 outcomes:
   - "Invalid JSON input errors have JSON error output in 6 commands"

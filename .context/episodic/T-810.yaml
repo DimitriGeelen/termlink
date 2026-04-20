@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Update CHANGELOG and docs with event_subscribe, doctor dispatch check
 # Key outcomes
 outcomes:
   - "CHANGELOG.md updated with new features under 0.9.0"

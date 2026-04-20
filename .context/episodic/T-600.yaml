@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON-aware error output to request command timeout and emit failure
 # Key outcomes
 outcomes:
   - "`cmd_request` emit failure path outputs JSON error when `--json` is passed"

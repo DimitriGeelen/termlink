@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Rewrite watchdog.sh with hub status + service checks + logging
 # Key outcomes
 outcomes:
   - "Already shipped under T-1072 — watchdog.sh checks termlink-hub.service, termlink-framework-agent.service, termlink-termlink-agent.service every minute"

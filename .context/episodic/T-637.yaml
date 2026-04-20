@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to session command session-not-found errors
 # Key outcomes
 outcomes:
   - "All 5 session commands (ping, status, exec, send, signal) have JSON error output for session-not-found"

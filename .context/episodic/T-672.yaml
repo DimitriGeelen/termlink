@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add metadata field to list --json output
 # Key outcomes
 outcomes:
   - "`metadata` field added to list --json output (shell, term, cwd, termlink_version)"

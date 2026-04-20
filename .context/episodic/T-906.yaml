@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add model param to dispatch
 # Key outcomes
 outcomes:
   - "MCP DispatchParams has model: Option<String> field"

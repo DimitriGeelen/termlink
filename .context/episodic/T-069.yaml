@@ -19,8 +19,7 @@ updates_count: 0
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Event schema v2 — progress, cancel, schema versioning, error codes
 # Key outcomes
 outcomes:
   - "`task.progress` event type defined with `percent` (0-100) and `message` fields"

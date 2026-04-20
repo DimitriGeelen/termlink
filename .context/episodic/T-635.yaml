@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --wait and --wait-timeout flags to list command
 # Key outcomes
 outcomes:
   - "`--wait` and `--wait-timeout` flags added to `Command::List` in cli.rs"

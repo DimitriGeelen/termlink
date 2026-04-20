@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to token create hex and scope errors
 # Key outcomes
 outcomes:
   - "token create hex and scope errors have JSON error output"

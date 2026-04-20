@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add registration.rs backward-compat and metadata tests
 # Key outcomes
 outcomes:
   - "Add test for SessionMetadata serde (all fields, optional omission)"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to file receive errors
 # Key outcomes
 outcomes:
   - "Missing chunk bails (2 locations) have JSON error output"

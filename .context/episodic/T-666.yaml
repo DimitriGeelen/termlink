@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --json flag to remote profile add and remove commands
 # Key outcomes
 outcomes:
   - "`--json` flag added to ProfileAction::Add and ProfileAction::Remove in cli.rs"

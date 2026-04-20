@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Populate homebrew formula SHA256s for v0.9.1 (placeholder → real)
 # Key outcomes
 outcomes:
   - "`scripts/update-homebrew-sha.sh v0.9.1` runs cleanly and updates all four sha256 lines + the `version` line"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add token create+inspect roundtrip integration test
 # Key outcomes
 outcomes:
   - "Add test: register with --token-secret, token create --json, verify ok:true + token field"

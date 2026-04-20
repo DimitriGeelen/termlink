@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add unit tests for protocol control types — CommonParams, TerminalInfo, Capabilities serde
 # Key outcomes
 outcomes:
   - "Add serde roundtrip test for `CommonParams` (with and without optional fields)"

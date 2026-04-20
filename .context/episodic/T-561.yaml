@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --json output to termlink run
 # Key outcomes
 outcomes:
   - "`Run` variant in cli.rs has `json: bool` field"

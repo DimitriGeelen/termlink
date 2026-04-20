@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Create pickup prompt for framework agent: fix pre-push hook template for .agentic-framework layout
 # Key outcomes
 outcomes:
   - "Pickup prompt file created"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --timeout flag to termlink send
 # Key outcomes
 outcomes:
   - "`Send` variant in cli.rs has `timeout: u64` field with default 10"

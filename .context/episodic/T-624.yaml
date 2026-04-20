@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --payload-only flag to event watch for raw payload extraction
 # Key outcomes
 outcomes:
   - "`--payload-only` flag added to `EventCommand::Watch` and hidden `Command::Watch` in cli.rs"

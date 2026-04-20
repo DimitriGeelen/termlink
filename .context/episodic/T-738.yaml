@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add ok:true to push, remote discover-first, remote inject, remote file-send, remote events JSON
 # Key outcomes
 outcomes:
   - "`cmd_push` JSON success includes `\"ok\": true`"

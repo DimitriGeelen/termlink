@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Update CHANGELOG.md — add 0.9.0 release notes for features since 0.8.0
 # Key outcomes
 outcomes:
   - "Add 0.9.0 section to CHANGELOG.md with Added/Changed/Fixed subsections"

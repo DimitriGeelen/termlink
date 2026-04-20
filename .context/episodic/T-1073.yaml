@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Cron fw pickup process every minute
 # Key outcomes
 outcomes:
   - "`/etc/cron.d/agentic-pickup-termlink` installed, runs every minute"

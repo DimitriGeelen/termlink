@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix pty interact --json not propagating non-zero exit code and always reporting ok:true
 # Key outcomes
 outcomes:
   - "`ok` field reflects exit code: `true` when 0 or null, `false` when non-zero"

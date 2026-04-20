@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add event_subscribe MCP tool for push-based event delivery
 # Key outcomes
 outcomes:
   - "`EventSubscribeParams` struct defined with target, timeout_ms, topic, since, max_events"

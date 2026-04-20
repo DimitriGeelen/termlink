@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add dispatch manifest health check to termlink doctor
 # Key outcomes
 outcomes:
   - "New \"dispatch\" check added to `cmd_doctor` in infrastructure.rs"

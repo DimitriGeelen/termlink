@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add created_at and heartbeat_at to list --json output
 # Key outcomes
 outcomes:
   - "`created_at` field added to list --json output"

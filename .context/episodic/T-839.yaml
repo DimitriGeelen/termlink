@@ -19,8 +19,7 @@ updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add unit tests for protocol jsonrpc response parsing and client error formatting
 # Key outcomes
 outcomes:
   - "Investigation confirms existing test coverage is comprehensive (79+ tests in protocol crate)"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON-aware error output to remote inject, remote status, and remote exec
 # Key outcomes
 outcomes:
   - "remote inject error paths output JSON when --json is passed"

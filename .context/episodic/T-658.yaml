@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to request command emit and run command startup errors
 # Key outcomes
 outcomes:
   - "`cmd_request` emit error has JSON error output"

@@ -19,8 +19,7 @@ updates_count: 3
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  IT-002: Session identity, discovery, and lifecycle
 # Key outcomes
 outcomes:
   - "Problem statement validated"

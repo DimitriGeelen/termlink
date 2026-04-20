@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Upgrade termlink watch to use event.subscribe for lower latency
 # Key outcomes
 outcomes:
   - "`cmd_watch` uses `event.subscribe` RPC instead of `event.poll`"

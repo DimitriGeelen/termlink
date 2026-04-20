@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  send AcadApi plugin files to hub .105 and instruct ingest+incept
 # Key outcomes
 outcomes:
   - "Task completed"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON-aware error output to inject timeout and inject error
 # Key outcomes
 outcomes:
   - "inject timeout outputs JSON error when --json is passed"

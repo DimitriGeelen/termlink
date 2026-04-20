@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add ok:false to pty interact JSON error responses
 # Key outcomes
 outcomes:
   - "\"Session has no PTY\" error includes `\"ok\": false`"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Framework gap — P-011 verification gate blind to un-staged files
 # Key outcomes
 outcomes:
   - "Gap description written to `docs/reports/fw-upstream-T918-p011-unstaged-blindspot.md`"

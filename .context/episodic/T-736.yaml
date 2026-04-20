@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add ok:true to event watch, wait, topics, collect JSON responses
 # Key outcomes
 outcomes:
   - "`cmd_watch` streaming JSON events include `\"ok\": true`"

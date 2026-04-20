@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add ok:true to event poll, emit, broadcast, emit-to JSON success responses
 # Key outcomes
 outcomes:
   - "`cmd_events` JSON success path includes `\"ok\": true` in output"

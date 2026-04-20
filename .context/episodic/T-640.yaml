@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to agent command session-not-found errors
 # Key outcomes
 outcomes:
   - "`cmd_agent_ask` session-not-found has JSON error output"

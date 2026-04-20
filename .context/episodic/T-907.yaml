@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Verification report for T-1061 phases
 # Key outcomes
 outcomes:
   - "Verification report written to docs/reports/verification-T1061-phases.md"

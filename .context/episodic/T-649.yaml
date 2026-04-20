@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to file receive session-not-found error
 # Key outcomes
 outcomes:
   - "`cmd_file_receive` session-not-found has JSON error output"

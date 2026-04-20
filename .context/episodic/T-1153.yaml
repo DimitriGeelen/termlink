@@ -1,29 +1,33 @@
 # ============================================================================
-# EPISODIC MEMORY - T-655: Add JSON error output to token inspect parsing errors
+# EPISODIC MEMORY - T-1153: Migrate 164 legacy episodics — replace bare > summary with task name
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-03-28T20:11:30Z
+# Generated: 2026-04-20T07:38:31Z
 # ============================================================================
 
-task_id: T-655
-task_name: "Add JSON error output to token inspect parsing errors"
+task_id: T-1153
+task_name: "Migrate 164 legacy episodics — replace bare > summary with task name"
 workflow_type: build
 enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
-created: 2026-03-28T20:10:42Z
-completed: 2026-03-28T20:11:29Z
+created: 2026-04-20T07:36:50Z
+completed: 2026-04-20T07:38:18Z
 duration_days: 0
 updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  Add JSON error output to token inspect parsing errors
+  Migrate 164 legacy episodics — replace bare > summary with task name
+
 # Key outcomes
 outcomes:
-  - "token inspect base64 and JSON parse errors have JSON error output"
-  - "`cargo check -p termlink` passes"
+  - "Write `/tmp/fix-episodic-summaries.py` that finds episodics where `summary:` block is just `>` and replaces it with `task_name` from the matching task file (active or completed)"
+  - "Dry-run: count degenerate episodics before migration is >100 (actual: 155)"
+  - "Run migration; count degenerate episodics after is 0"
+  - "Spot-check: T-1142 summary now reads the task name, not `>`"
+  - "Watchtower still serves home/tasks/search pages (200s)"
 
 # Challenges (auto-detected from git: commits with fix/revert/bug/error)
 challenges:
@@ -46,7 +50,7 @@ git_timeline:
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 0 commit(s), 0 min
+  # Completed successfully in 0 commit(s), 1 min
 
 # Related tasks
 related_tasks:
@@ -59,12 +63,12 @@ tags: []
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 0
+  wall_clock_minutes: 1
   commits: 0
   files_changed: 0
   lines_added: 0
   lines_removed: 0
 
 # Metadata
-source_file: /opt/termlink/.tasks/completed/T-655-add-json-error-output-to-token-inspect-p.md
+source_file: /opt/termlink/.tasks/completed/T-1153-migrate-164-legacy-episodics--replace-ba.md
 generated_by: context-agent-hybrid

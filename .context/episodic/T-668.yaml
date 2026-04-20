@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix vendor binary copy to handle ETXTBSY (text file busy) via atomic rename
 # Key outcomes
 outcomes:
   - "Vendor binary copy uses copy-to-temp then atomic rename pattern"

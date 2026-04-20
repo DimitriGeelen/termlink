@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --names flag to list command for piping session names
 # Key outcomes
 outcomes:
   - "`--names` flag added to List command in cli.rs"

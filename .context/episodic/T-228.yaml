@@ -19,8 +19,7 @@ updates_count: 0
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix ephemeral working files causing merge conflicts and audit failures
 # Key outcomes
 outcomes:
   - "`.context/working/.gitignore` updated with 6 missing ephemeral files"

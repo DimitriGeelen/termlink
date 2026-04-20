@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --timeout flag to event collect for time-bounded collection
 # Key outcomes
 outcomes:
   - "`--timeout N` flag added to `EventCommand::Collect` and hidden `Command::Collect` in cli.rs"

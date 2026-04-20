@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add github-mirror freshness check to detect G-007 silent drift
 # Key outcomes
 outcomes:
   - "`scripts/check-mirror-freshness.sh` exists, executable, POSIX-portable (`sh -n` passes, `shellcheck` clean)"

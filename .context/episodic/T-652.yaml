@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON error output to interact command internal errors
 # Key outcomes
 outcomes:
   - "`cmd_interact` query output and inject errors have JSON error output"

@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add data.rs frame protocol edge case tests
 # Key outcomes
 outcomes:
   - "Add test for FrameType::from_u8 with invalid values (0x08, 0xFF)"

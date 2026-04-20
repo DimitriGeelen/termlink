@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Remove sudo from install.sh, add --modify-path flag
 # Key outcomes
 outcomes:
   - "No sudo calls in install.sh (verified upstream)"

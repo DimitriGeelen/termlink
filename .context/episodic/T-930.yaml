@@ -19,8 +19,7 @@ updates_count: 5
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Should termlink hub run under a supervisor with TCP bound by default on .107?
 # Key outcomes
 outcomes:
   - "Task completed"

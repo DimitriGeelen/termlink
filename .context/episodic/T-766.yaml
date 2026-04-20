@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add strip_ansi_codes unit tests and needs_write tests in handler.rs
 # Key outcomes
 outcomes:
   - "Add test for `strip_ansi_codes` with plain text passthrough"

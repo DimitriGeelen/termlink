@@ -19,8 +19,7 @@ updates_count: 0
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Hub remote session reaper — TTL enforcement background task
 # Key outcomes
 outcomes:
   - "Task completed"

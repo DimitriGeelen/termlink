@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Fix watchtower episodic YAML parser — tolerate frontmatter + multi-doc + markdown body formats
 # Key outcomes
 outcomes:
   - "Add `load_episodic_yaml(path)` helper that returns a dict for all 1170 episodic files (0 broken remaining)"

@@ -19,8 +19,7 @@ updates_count: 6
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Implement fw dispatch — SSH-based cross-machine agent communication
 # Key outcomes
 outcomes:
   - "`fw dispatch send --host HOST --task T-XXX --agent TYPE --summary \"text\"` works over SSH (upstream T-517)"

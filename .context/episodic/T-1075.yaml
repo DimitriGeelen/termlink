@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Implement cross-agent learnings exchange — cron + script + dedup
 # Key outcomes
 outcomes:
   - "`scripts/learnings-exchange.sh` exists, executable, runs without error with 0 peers"

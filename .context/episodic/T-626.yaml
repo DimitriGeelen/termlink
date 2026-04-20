@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --json flag to vendor status command errors
 # Key outcomes
 outcomes:
   - "`cmd_vendor` source-not-found bail has JSON error output"

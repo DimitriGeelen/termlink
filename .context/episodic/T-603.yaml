@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add JSON-aware error output to token create and inspect validation errors
 # Key outcomes
 outcomes:
   - "`cmd_token_create` invalid secret length outputs JSON error when `--json` is passed"

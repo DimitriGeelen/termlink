@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add capabilities field to list --json output
 # Key outcomes
 outcomes:
   - "`capabilities` field added to `list --json` output"

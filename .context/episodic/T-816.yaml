@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add unit tests for infrastructure.rs doctor command
 # Key outcomes
 outcomes:
   - "Investigated test coverage for infrastructure.rs"

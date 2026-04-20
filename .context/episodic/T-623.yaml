@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --json flag to hub stop command
 # Key outcomes
 outcomes:
   - "`--json` flag added to `HubAction::Stop` in cli.rs"

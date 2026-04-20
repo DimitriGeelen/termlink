@@ -19,8 +19,7 @@ updates_count: 4
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --json error output to connect_remote_hub argument validation
 # Key outcomes
 outcomes:
   - "All callers of connect_remote_hub wrap errors in JSON when --json is set"

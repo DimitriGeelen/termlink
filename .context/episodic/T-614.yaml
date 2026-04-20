@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add --short flag to status command for one-line summary output
 # Key outcomes
 outcomes:
   - "`--short` flag added to Status command in cli.rs"

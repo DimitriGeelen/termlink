@@ -19,8 +19,7 @@ updates_count: 2
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  >
-
+  Add unit tests for codec.rs frame encoding/decoding edge cases
 # Key outcomes
 outcomes:
   - "Add test for empty payload frame roundtrip through codec"
