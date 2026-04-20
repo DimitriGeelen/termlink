@@ -1,0 +1,16 @@
+[package]
+name = "termlink-bus"
+description = "TermLink agent channel bus — append-only per-topic log, per-recipient cursors, retention (T-1155)"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true }
+rusqlite = { version = "0.33", features = ["bundled"] }
+
+[dev-dependencies]
+tempfile = "3"
