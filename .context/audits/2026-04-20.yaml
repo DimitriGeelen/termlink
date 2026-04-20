@@ -1,8 +1,8 @@
-# Audit Results - 2026-04-20-1130
-timestamp: 2026-04-20T09:30:56Z
+# Audit Results - 2026-04-20-1552
+timestamp: 2026-04-20T13:52:48Z
 summary:
   pass: 282
-  warn: 7
+  warn: 9
   fail: 0
 findings:
   - level: PASS
@@ -24,12 +24,12 @@ findings:
   - level: PASS
     check: "Fabric drift: All watched source files registered (90 cards)"
   - level: PASS
-    check: "All 137 active tasks are valid"
+    check: "All 138 active tasks are valid"
   - level: WARN
     check: "Task T-243 has 28 days old with only 1 updates"
     mitigation: "Fix in T-243-script-error-yielding--checkpoint-based-.md"
   - level: PASS
-    check: "Git traceability: 98% (1714/1743 commits reference tasks)"
+    check: "Git traceability: 98% (1718/1747 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -44,10 +44,11 @@ findings:
   - level: PASS
     check: "Practices documented: 10 practice(s) in practices.yaml"
   - level: WARN
-    check: "Bugfix-learning coverage: 34% (33/97)"
+    check: "Bugfix-learning coverage: 33% (33/98)"
     mitigation: "Use: fw fix-learned T-XXX 'what was learned from this fix'"
-  - level: PASS
-    check: "All completed tasks have episodic summaries"
+  - level: WARN
+    check: "Completed task T-1156 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-1156"
   - level: PASS
     check: "All 795 episodic summaries have quality content"
   - level: PASS
@@ -63,7 +64,7 @@ findings:
   - level: PASS
     check: "All 48 completed inceptions have research artifacts"
   - level: PASS
-    check: "C-001: All 10 active inceptions have research artifacts"
+    check: "C-001: All 11 active inceptions have research artifacts"
   - level: PASS
     check: "C-002: commit-msg hook has research artifact check"
   - level: PASS
@@ -71,12 +72,13 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: WARN
-    check: "CTL-001: Focus file empty but 1 commit(s) in last 30min"
+    check: "CTL-001: Focus file empty but 2 commit(s) in last 30min"
     mitigation: "Check .claude/settings.json hook configuration for check-active-task"
+  - level: WARN
+    check: "CTL-003: Budget status file stale (5min old)"
+    mitigation: "Check PreToolUse hook wiring for budget-gate.sh"
   - level: PASS
-    check: "CTL-003: Budget status file fresh (< 5min old)"
-  - level: PASS
-    check: "CTL-004: Tool counter at 11 (last commit: 9 minutes ago)"
+    check: "CTL-004: Tool counter at 2 (last commit: 5 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -94,7 +96,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-1016 has decision (3 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-1051 has decision (5 commits)"
+    check: "CTL-009: Inception T-1051 has decision (7 commits)"
   - level: PASS
     check: "CTL-009: Inception T-1070 has decision (8 commits)"
   - level: PASS
@@ -105,6 +107,8 @@ findings:
     check: "CTL-009: Inception T-1112 has decision (5 commits)"
   - level: PASS
     check: "CTL-009: Inception T-1122 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1155 has decision (3 commits)"
   - level: PASS
     check: "CTL-009: Inception T-163 has decision (7 commits)"
   - level: PASS
@@ -204,7 +208,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-104 has decision (20 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-105 has decision (25 commits)"
+    check: "CTL-009: Inception T-105 has decision (27 commits)"
   - level: PASS
     check: "CTL-009: Inception T-106 has decision (43 commits)"
   - level: PASS
@@ -263,6 +267,8 @@ findings:
     check: "CTL-027: Inception T-1112 has Recommendation + Decision sections"
   - level: PASS
     check: "CTL-027: Inception T-1122 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-1155 has Recommendation + Decision sections"
   - level: PASS
     check: "CTL-027: Inception T-163 has Recommendation + Decision sections"
   - level: PASS
@@ -356,13 +362,13 @@ findings:
   - level: PASS
     check: "CTL-011: pre-push hook installed and executable"
   - level: PASS
-    check: "CTL-012: All 780 completed tasks have checked ACs"
+    check: "CTL-012: All 781 completed tasks have checked ACs"
+  - level: PASS
+    check: "CTL-013: T-1156 verification re-run: 4/4 pass"
   - level: PASS
     check: "CTL-013: T-1154 verification re-run: 1/1 pass"
   - level: PASS
     check: "CTL-013: T-1153 verification re-run: 3/3 pass"
-  - level: PASS
-    check: "CTL-013: T-1152 verification re-run: 1/1 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -562,7 +568,7 @@ findings:
   - level: PASS
     check: "D1: Episodic quality — 1% [TODO] (8/795)"
   - level: WARN
-    check: "D2: Human review queue — 4 task(s) waiting >14d: T-160(16d) T-789(20d) T-834(15d) T-879(15d)"
+    check: "D2: Human review queue — 4 task(s) waiting >14d: T-160(16d) T-789(21d) T-834(15d) T-879(15d)"
     mitigation: "Review with: fw task verify"
   - level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
@@ -578,12 +584,12 @@ findings:
     check: "D5: Task lifecycle — 12 anomaly(s): T-265(3min,human) T-272(0min,human) T-196(30d-active) T-236(28d-active) T-235(28d-active) T-888(15d-active) T-176(32d-active) T-180(32d-active) T-207(29d-active) T-212(29d-active) (+2 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: WARN
-    check: "D3: Commit velocity — WARN drop today=10 avg=48 ratio=0.2x"
+    check: "D3: Commit velocity — WARN drop today=14 avg=48 ratio=0.3x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 51_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 45_commits_24h)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=6.7 earlier=17.4)"
+    check: "D6: Completion velocity — normal (PASS recent=7.0 earlier=17.4)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS
