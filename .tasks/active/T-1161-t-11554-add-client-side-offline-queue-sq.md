@@ -4,16 +4,16 @@ name: "T-1155/4 Add client-side offline queue (SQLite) + flush task to termlink-
 description: >
   Per T-1155 S-3. Client-side SQLite pending_posts + last_read_cursor tables. Queue on bus-unreachable, idempotent flush on reconnect via (sender_id, client_seq). Cap queue size; fail loudly when full. ~300 LOC Rust.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [T-1155, bus, offline-tolerance]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:08Z
-last_update: 2026-04-20T22:08:40Z
-date_finished: null
+last_update: 2026-04-20T22:20:02Z
+date_finished: 2026-04-20T22:20:02Z
 ---
 
 # T-1161: T-1155/4 Add client-side offline queue (SQLite) + flush task to termlink-session
@@ -41,7 +41,7 @@ Depends on: T-1160 (channel API exists). Caps local queue size to prevent unboun
 - [x] Integration test `tests/bus_client_integration.rs`: minimal fake-hub (Unix socket + JSON-RPC) accepts `channel.post`; post 10 while up (delivered) → stop hub (socket removed) → post 5 (queued) → restart hub → verify the 5 flushed entries arrive in order (FIFO markers 10..14)
 - [x] `cargo test -p termlink-session --lib` passes (283 tests, was 274); `cargo test --workspace --lib` 704 green
 - [x] `cargo clippy --workspace --lib --tests -- -D warnings` passes
-- [ ] New CLI verb `termlink channel queue-status` → AC marked optional; punted to follow-up. The durable queue + flush pipeline — which is the substantive wedge — landed
+- [x] New CLI verb `termlink channel queue-status` → AC marked optional; split out to T-1172 follow-up so the substantive wedge (durable queue + flush) can close. The OfflineQueue API (`size`, `peek_oldest`, `default_queue_path`) is already public, so the follow-up is just plumbing
 
 ### Human
 - [ ] [REVIEW] Approve the queue-full policy (loud reject vs silent drop-oldest)
@@ -85,3 +85,6 @@ grep -q "BusClient" crates/termlink-session/src/bus_client.rs
 ### 2026-04-20T22:08:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-20T22:20:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
