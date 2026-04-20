@@ -341,6 +341,11 @@ async fn main() -> Result<()> {
             TofuAction::List { json } => commands::infrastructure::cmd_tofu_list(json),
             TofuAction::Clear { host, all, json } => commands::infrastructure::cmd_tofu_clear(host.as_deref(), all, json),
         },
+        Command::Identity { action } => match action {
+            IdentityAction::Init { force, json } => commands::identity::cmd_identity_init(force, json),
+            IdentityAction::Show { json } => commands::identity::cmd_identity_show(json),
+            IdentityAction::Rotate { force, json } => commands::identity::cmd_identity_rotate(force, json),
+        },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {
                 unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", dir) };

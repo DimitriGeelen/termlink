@@ -159,7 +159,9 @@ pub fn fingerprint_of(pk: &VerifyingKey) -> String {
     hex_encode(&digest)[..16].to_string()
 }
 
-pub(crate) fn identity_path(base: &Path) -> PathBuf {
+/// Resolve `<base>/identity.key`. Exposed so CLI code can report the exact
+/// path the user should protect / back up.
+pub fn identity_path(base: &Path) -> PathBuf {
     base.join("identity.key")
 }
 
