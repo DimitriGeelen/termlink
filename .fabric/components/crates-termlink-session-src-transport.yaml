@@ -3,17 +3,23 @@ name: transport
 type: module
 subsystem: session
 location: crates/termlink-session/src/transport.rs
-tags: [transport, unix-socket, tcp, trait]
-
-purpose: "Transport abstraction layer — Connection, TransportListener, Transport, LivenessProbe traits; UnixTransport, TcpTransport, UnixLivenessProbe, TcpLivenessProbe implementations"
-
+tags:
+- transport
+- unix-socket
+- tcp
+- trait
+purpose: Transport abstraction layer — Connection, TransportListener, Transport, LivenessProbe traits; UnixTransport, TcpTransport,
+  UnixLivenessProbe, TcpLivenessProbe implementations
 depends_on:
-  - target: crates/termlink-protocol/src/transport.rs
-    type: calls
-
+- target: crates/termlink-protocol/src/transport.rs
+  type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 depended_by:
-  - target: crates/termlink-session/src/lib.rs
-    type: re-exports
-
+- target: crates/termlink-session/src/lib.rs
+  type: re-exports
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
 last_verified: 2026-03-14
 created_by: T-135
+last_enriched: '2026-04-21'

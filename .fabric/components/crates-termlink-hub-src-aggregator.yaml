@@ -3,21 +3,28 @@ name: EventAggregator
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/aggregator.rs
-tags: [events, aggregation, subscription]
-
-purpose: "Hub-level event aggregator — maintains persistent subscriptions to session event buses and republishes into a single broadcast channel (T-966)"
-
+tags:
+- events
+- aggregation
+- subscription
+purpose: Hub-level event aggregator — maintains persistent subscriptions to session event buses and republishes into a single
+  broadcast channel (T-966)
 depends_on:
-  - target: crates/termlink-session/src/client.rs
-    type: calls
-  - target: crates/termlink-protocol/src/control.rs
-    type: reads
-  - target: crates/termlink-protocol/src/transport.rs
-    type: reads
-
+- target: crates/termlink-session/src/client.rs
+  type: calls
+- target: crates/termlink-protocol/src/control.rs
+  type: reads
+- target: crates/termlink-protocol/src/transport.rs
+  type: reads
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
-  - target: crates/termlink-hub/src/router.rs
-    type: calls
-
+- target: crates/termlink-hub/src/router.rs
+  type: calls
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-04-12
 created_by: T-966
+last_enriched: '2026-04-21'

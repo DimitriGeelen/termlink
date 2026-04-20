@@ -3,20 +3,23 @@ name: manifest
 type: module
 subsystem: cli
 location: crates/termlink-cli/src/manifest.rs
-tags: [dispatch, worktree, persistence]
-
-purpose: "Dispatch manifest — tracks worktree branches created by `termlink dispatch --isolate`. Persists lifecycle state (pending → merged | conflict | deferred | expired) to .termlink/dispatch-manifest.json so subsequent `termlink dispatch merge`, `cleanup`, and status commands can reconcile long-lived worker branches."
-
-depends_on:
-  []
-
+tags:
+- dispatch
+- worktree
+- persistence
+purpose: Dispatch manifest — tracks worktree branches created by `termlink dispatch --isolate`. Persists lifecycle state (pending
+  → merged | conflict | deferred | expired) to .termlink/dispatch-manifest.json so subsequent `termlink dispatch merge`, `cleanup`,
+  and status commands can reconcile long-lived worker branches.
+depends_on: []
 depended_by:
-  - target: crates/termlink-cli/src/commands/dispatch.rs
-    type: calls
-  - target: crates/termlink-cli/src/commands/infrastructure.rs
-    type: calls
-  - target: crates/termlink-cli/src/main.rs
-    type: calls
-
+- target: crates/termlink-cli/src/commands/dispatch.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/infrastructure.rs
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: called_by
 last_verified: 2026-04-19
 created_by: unknown
+last_enriched: '2026-04-21'

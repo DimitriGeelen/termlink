@@ -3,20 +3,28 @@ name: inbox
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/inbox.rs
-tags: [inbox, file-transfer, offline-delivery, persistence]
-
-purpose: "Hub-level file inbox (T-988) — queues file-transfer events (FileInit, FileChunk, FileComplete) to disk when a send-file targets an offline session. On target registration the hub replays pending transfers from {runtime_dir}/inbox/{target_name}/{transfer_id}/ so delivery survives restarts and late-joiners."
-
+tags:
+- inbox
+- file-transfer
+- offline-delivery
+- persistence
+purpose: Hub-level file inbox (T-988) — queues file-transfer events (FileInit, FileChunk, FileComplete) to disk when a send-file
+  targets an offline session. On target registration the hub replays pending transfers from {runtime_dir}/inbox/{target_name}/{transfer_id}/
+  so delivery survives restarts and late-joiners.
 depends_on:
-  []
-
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
-  - target: crates/termlink-hub/src/router.rs
-    type: calls
-  - target: crates/termlink-hub/src/supervisor.rs
-    type: calls
-  - target: crates/termlink-hub/src/lib.rs
-    type: calls
-
+- target: crates/termlink-hub/src/router.rs
+  type: calls
+- target: crates/termlink-hub/src/supervisor.rs
+  type: calls
+- target: crates/termlink-hub/src/lib.rs
+  type: calls
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-04-19
 created_by: unknown
+last_enriched: '2026-04-21'

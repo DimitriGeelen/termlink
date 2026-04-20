@@ -12,4 +12,6 @@ created_by: T-043
 depended_by:
 - target: crates/termlink-session/src/codec.rs
   type: called_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-protocol/src/lib.rs
+  type: called_by
+last_enriched: '2026-04-21'

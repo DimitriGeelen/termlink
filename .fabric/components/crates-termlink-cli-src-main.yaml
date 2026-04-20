@@ -16,6 +16,20 @@ depends_on:
   type: uses
 - target: crates/termlink-cli/src/commands/mod.rs
   type: uses
+- target: crates/termlink-cli/src/cli.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: calls
+- target: crates/termlink-cli/src/config.rs
+  type: calls
+- target: crates/termlink-cli/src/manifest.rs
+  type: calls
+- target: crates/termlink-cli/src/target.rs
+  type: calls
+- target: crates/termlink-cli/src/util.rs
+  type: calls
+- target: crates/termlink-cli/src/test_env_lock.rs
+  type: calls
 last_verified: 2026-03-21
 created_by: T-043
 depended_by:
@@ -31,4 +45,4 @@ depended_by:
   type: tests_by
 - target: docs/guides/upstream-reporting.md
   type: documents_by
-last_enriched: '2026-03-26'
+last_enriched: '2026-04-21'

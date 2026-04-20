@@ -25,6 +25,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-hub/src/trust.rs
   type: _by
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-03-26
 created_by: unknown
-last_enriched: '2026-04-19'
+last_enriched: '2026-04-21'

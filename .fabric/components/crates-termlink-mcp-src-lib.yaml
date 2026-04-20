@@ -3,19 +3,23 @@ name: mcp-lib
 type: library
 subsystem: mcp
 location: crates/termlink-mcp/src/lib.rs
-tags: [mcp, foundation, re-exports]
-
-purpose: "MCP crate root — declares tools and server modules, re-exports TermLinkTools"
-
+tags:
+- mcp
+- foundation
+- re-exports
+purpose: MCP crate root — declares tools and server modules, re-exports TermLinkTools
 depends_on:
-  - target: crates/termlink-mcp/src/tools.rs
-    relationship: declares
-  - target: crates/termlink-mcp/src/server.rs
-    relationship: declares
-
+- target: crates/termlink-mcp/src/tools.rs
+  relationship: declares
+- target: crates/termlink-mcp/src/server.rs
+  relationship: declares
+- target: crates/termlink-mcp/src/tools.rs
+  type: calls
+- target: crates/termlink-mcp/src/server.rs
+  type: calls
 depended_by:
-  - target: crates/termlink-cli/src/main.rs
-    relationship: used_by
-
+- target: crates/termlink-cli/src/main.rs
+  relationship: used_by
 last_verified: 2026-03-26
 created_by: unknown
+last_enriched: '2026-04-21'

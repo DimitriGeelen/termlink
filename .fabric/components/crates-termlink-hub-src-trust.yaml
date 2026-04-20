@@ -3,16 +3,20 @@ name: trust
 type: module
 subsystem: hub
 location: crates/termlink-hub/src/trust.rs
-tags: [orchestration, supervision, T-233]
-
-purpose: "3-axis qualitative trust assessment (D-008). Computes supervision level from script maturity, context familiarity, and blast radius. Antifragility: failed-and-recovered scripts score higher than never-failed."
-
+tags:
+- orchestration
+- supervision
+- T-233
+purpose: '3-axis qualitative trust assessment (D-008). Computes supervision level from script maturity, context familiarity,
+  and blast radius. Antifragility: failed-and-recovered scripts score higher than never-failed.'
 depends_on:
-  - target: crates/termlink-hub/src/bypass.rs
-    relationship: calls
+- target: crates/termlink-hub/src/bypass.rs
+  relationship: calls
 depended_by:
-  - target: crates/termlink-hub/src/lib.rs
-    relationship: declared_by
-
+- target: crates/termlink-hub/src/lib.rs
+  relationship: declared_by
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-03-24
 created_by: T-242
+last_enriched: '2026-04-21'

@@ -3,19 +3,24 @@ name: endpoint
 type: module
 subsystem: session
 location: crates/termlink-session/src/endpoint.rs
-tags: [session, orchestration, T-263]
-
-purpose: "Event-only TermLink endpoint API. Any process becomes a TermLink participant (events, KV, discovery) without PTY ownership. Library API (Endpoint::start/run_background) + CLI (register --self). Composition over ownership."
-
+tags:
+- session
+- orchestration
+- T-263
+purpose: Event-only TermLink endpoint API. Any process becomes a TermLink participant (events, KV, discovery) without PTY
+  ownership. Library API (Endpoint::start/run_background) + CLI (register --self). Composition over ownership.
 depends_on:
-  - target: crates/termlink-session/src/manager.rs
-    type: calls
-  - target: crates/termlink-session/src/handler.rs
-    type: calls
-  - target: crates/termlink-session/src/server.rs
-    type: calls
-  - target: crates/termlink-session/src/registration.rs
-    type: calls
-
+- target: crates/termlink-session/src/manager.rs
+  type: calls
+- target: crates/termlink-session/src/handler.rs
+  type: calls
+- target: crates/termlink-session/src/server.rs
+  type: calls
+- target: crates/termlink-session/src/registration.rs
+  type: calls
 last_verified: 2026-03-24
 created_by: T-263
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_enriched: '2026-04-21'

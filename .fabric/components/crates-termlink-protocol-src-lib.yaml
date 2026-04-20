@@ -14,9 +14,77 @@ depends_on:
 - crates/termlink-protocol/src/events.rs
 - crates/termlink-protocol/src/jsonrpc.rs
 - crates/termlink-protocol/src/transport.rs
+- target: crates/termlink-protocol/src/control.rs
+  type: calls
+- target: crates/termlink-protocol/src/data.rs
+  type: calls
+- target: crates/termlink-protocol/src/error.rs
+  type: calls
+- target: crates/termlink-protocol/src/events.rs
+  type: calls
+- target: crates/termlink-protocol/src/governance.rs
+  type: calls
+- target: crates/termlink-protocol/src/jsonrpc.rs
+  type: calls
+- target: crates/termlink-protocol/src/transport.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
 - target: crates/termlink-protocol/src/events.rs
   type: exports-via_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-cli/src/commands/agent.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/channel.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/file.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/pty.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/push.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/remote.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/session.rs
+  type: called_by
+- target: crates/termlink-cli/src/target.rs
+  type: called_by
+- target: crates/termlink-cli/src/util.rs
+  type: called_by
+- target: crates/termlink-hub/src/aggregator.rs
+  type: called_by
+- target: crates/termlink-hub/src/channel.rs
+  type: called_by
+- target: crates/termlink-hub/src/inbox.rs
+  type: called_by
+- target: crates/termlink-hub/src/router.rs
+  type: called_by
+- target: crates/termlink-hub/src/server.rs
+  type: called_by
+- target: crates/termlink-hub/src/supervisor.rs
+  type: called_by
+- target: crates/termlink-mcp/src/tools.rs
+  type: called_by
+- target: crates/termlink-session/src/auth.rs
+  type: called_by
+- target: crates/termlink-session/src/bus_client.rs
+  type: called_by
+- target: crates/termlink-session/src/client.rs
+  type: called_by
+- target: crates/termlink-session/src/codec.rs
+  type: called_by
+- target: crates/termlink-session/src/data_server.rs
+  type: called_by
+- target: crates/termlink-session/src/executor.rs
+  type: called_by
+- target: crates/termlink-session/src/governance_subscriber.rs
+  type: called_by
+- target: crates/termlink-session/src/handler.rs
+  type: called_by
+- target: crates/termlink-session/src/registration.rs
+  type: called_by
+- target: crates/termlink-session/src/server.rs
+  type: called_by
+- target: crates/termlink-session/src/transport.rs
+  type: called_by
+last_enriched: '2026-04-21'

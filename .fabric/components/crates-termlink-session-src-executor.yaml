@@ -11,9 +11,13 @@ purpose: Command execution — spawn shell commands with timeout/env/cwd, resolv
 depends_on:
 - target: crates/termlink-protocol/src/control.rs
   type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 last_verified: 2026-03-08
 created_by: T-043
 depended_by:
 - target: crates/termlink-session/src/handler.rs
   type: called_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_enriched: '2026-04-21'

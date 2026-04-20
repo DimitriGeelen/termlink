@@ -20,9 +20,13 @@ depends_on:
   type: uses
 - target: crates/termlink-cli/src/util.rs
   type: uses
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 last_verified: 2026-03-21
 created_by: T-223
 depended_by:
 - target: crates/termlink-cli/src/commands/mod.rs
   type: declares_by
-last_enriched: '2026-03-26'
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
+last_enriched: '2026-04-21'
