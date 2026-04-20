@@ -50,6 +50,49 @@ Depends on: T-1158 (bus library), T-1159 (signing for `sender_id` + signature on
   **Expected:** Approval or one follow-up task for missing verbs
   **If not:** List missing verbs
 
+  **Agent evidence (2026-04-21, all 4 verbs exercised end-to-end against workspace binary 0.9.256 + isolated hub):**
+
+  1. **`channel create`** — all three retention policies:
+     ```
+     channel create topic-forever --retention forever     → Created (forever)
+     channel create topic-days    --retention days:7      → Created (days:7)
+     channel create topic-msgs    --retention messages:3  → Created (messages:3)
+     ```
+
+  2. **`channel post`** (signed with the T-1159 identity key, 4 appends to `topic-msgs`):
+     ```
+     Posted — offset=0, ts=1776725910246
+     Posted — offset=1, ts=1776725910255
+     Posted — offset=2, ts=1776725910263
+     Posted — offset=3, ts=1776725910270
+     ```
+     → `sender_id` on every envelope matches the live identity fingerprint — the hub signature verify gate admitted the signed envelopes; no `-32xxx` error.
+
+  3. **`channel subscribe`** (cursor + limit + JSON shapes all tested):
+     ```
+     channel subscribe topic-msgs --cursor 2 --limit 10
+     [2] c7d31e57... note: {"test":"m3","seq":3}
+     [3] c7d31e57... note: {"test":"m4","seq":4}
+
+     channel subscribe broadcast:global --limit 5 --json
+     {"artifact_ref":null,"msg_type":"learning","offset":0,"payload_b64":"eyJsIjoibDEifQ==","sender_id":"c7d31e57...","topic":"broadcast:global","ts":1776725942134}
+     ```
+
+  4. **`channel list`** returned every created topic + the T-1162 auto-created `broadcast:global`:
+     ```
+     broadcast:global  [messages:1000]
+     topic-days        [days:7]
+     topic-forever     [forever]
+     topic-msgs        [messages:3]
+     ```
+
+  **Coverage vs. T-1155 Subsumption mapping — gaps the human should weigh:**
+  - `channel.delete(topic)` — not shipped. T-1166 (retire legacy primitives) will need a teardown verb eventually, but MVP ships without it.
+  - `channel.ack(topic, cursor)` — not shipped. Cursor is client-held (passed on subscribe), so no hub-side ack is strictly needed; noted in case pub/sub durability requires it later.
+  - `channel.delete_topic / prune` — sweep exists (`bus.sweep` internal) but no user-facing verb. T-1166 decision.
+
+  Rubber-stamp the 4-verb surface, or open a follow-up task for `channel.delete` / `channel.ack` if they'll be needed for migrations T-1163..T-1166.
+
 ## Verification
 
 cargo build --workspace
