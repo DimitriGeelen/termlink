@@ -12,7 +12,7 @@ tags: [pickup, framework, dispatch, multi-agent, worktree, T-789, T-1155]
 components: []
 related_tasks: []
 created: 2026-04-20T18:56:49Z
-last_update: 2026-04-20T19:02:10Z
+last_update: 2026-04-20T19:05:28Z
 date_finished: 2026-04-20T19:02:10Z
 ---
 

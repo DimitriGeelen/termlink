@@ -4,16 +4,16 @@ name: "Add fw doctor check for local hub secret cache drift (G-011)"
 description: >
   Add fw doctor check: compare mtime of each ~/.termlink/secrets/*.hex against the corresponding hub's authoritative secret file (where locally resolvable). Warn if cache is older. Also audit chmod 600 on all .hex files (proxmox4.hex currently 644 — security smell). Deliverable: one new check in agents/doctor/, test coverage, CLAUDE.md §Hub Auth Rotation Protocol updated with the 'read-live, not cache' rule.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-04-20T20:08:57Z
-last_update: 2026-04-20T20:19:30Z
-date_finished: null
+last_update: 2026-04-20T20:26:51Z
+date_finished: 2026-04-20T20:24:07Z
 ---
 
 # T-1171: Add fw doctor check for local hub secret cache drift (G-011)
@@ -93,3 +93,6 @@ grep -q "secret_cache" crates/termlink-cli/src/commands/infrastructure.rs
 
 ### 2026-04-20T20:17:37Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-20T20:24:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
