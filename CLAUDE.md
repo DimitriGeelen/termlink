@@ -712,7 +712,7 @@ When giving the human a command to run (Tier 0 approvals, inception decisions, v
 
 1. **Single-line, copy-pasteable** — works when pasted into any terminal, from any directory
 2. **Prefixed with `cd`** — always include `cd /path/to/project &&` so directory context is explicit
-3. **Use `bin/fw` not `fw`** — the global `fw` may resolve to a different install
+3. **Use the vendored path, not global `fw`** — in this consumer project the executable lives at `.agentic-framework/bin/fw`, never `bin/fw` (that only exists inside the framework repo itself). The global `fw` may resolve to a different install. Correct: `cd /opt/termlink && .agentic-framework/bin/fw <cmd>`.
 4. **No bare multi-line** — if multiple commands are needed, chain with `&&` on one line
 
 ### Inception Discipline
