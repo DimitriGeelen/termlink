@@ -20,35 +20,44 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Offline-tolerance for the T-1155 bus (per S-3 verdict): clients queue `channel.post` locally when the hub is unreachable and flush on reconnect. This closes the bootstrap paradox (the bus depends on the hub being reachable, but agents need to keep posting even when it's not).
+
+Depends on: T-1160 (channel API exists). Caps local queue size to prevent unbounded growth (R3 mitigation from T-1155).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Add `rusqlite` (or verify existing) to `crates/termlink-session/Cargo.toml`
+- [ ] New module `crates/termlink-session/src/offline_queue.rs` exposes:
+  - `OfflineQueue::open(path) -> OfflineQueue` — opens/creates `~/.termlink/outbound.sqlite`
+  - `queue.enqueue(post: PendingPost) -> Result<QueueId>` — stores serialized post envelope + topic + timestamp; rejects with `QueueFull` when over cap
+  - `queue.flush(client: &BusClient) -> FlushReport {sent: u64, failed: u64}` — pops oldest → POSTs to hub → on success deletes row; on transient failure leaves in place and breaks loop
+  - `queue.size() -> u64`, `queue.peek_oldest() -> Option<PendingPost>`
+- [ ] Queue cap: default `1000` entries; configurable via env `TERMLINK_OUTBOUND_CAP`; when full, new enqueue returns typed `QueueFull` error (loud failure, not silent drop — R3)
+- [ ] Flush task: `tokio::task::spawn` a periodic flusher (5s interval, configurable) started automatically by `BusClient::connect()` — cancel-safe on drop
+- [ ] `BusClient::post()` transparently routes through queue when hub unreachable: try direct RPC → on `Transport` error, enqueue + return `Ok(Queued)`; on success, return `Ok(Delivered{offset})`
+- [ ] Unit tests: enqueue + flush roundtrip, cap enforcement, flush with hub down leaves queue intact, flush after hub comes back drains queue in order, concurrent enqueue from multiple tasks preserves FIFO within a topic
+- [ ] Integration test: spin up a local hub, post 10 messages, kill hub, post 5 more (queued), restart hub, verify all 15 arrive in order
+- [ ] `cargo build -p termlink-session && cargo test -p termlink-session offline_queue` passes
+- [ ] `cargo clippy -p termlink-session -- -D warnings` passes
+- [ ] New CLI verb `termlink channel queue-status` → shows pending count + oldest timestamp (for debugging; optional per scope — punt to follow-up if over-budget)
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] [REVIEW] Approve the queue-full policy (loud reject vs silent drop-oldest)
+  **Steps:**
+  1. Confirm "reject new posts when full" matches your failure-mode preference
+  2. Alternative: drop-oldest ring behavior — would hide the overflow from callers
+  3. The bus spec (R3) recommends loud reject; verify this is still correct
+  **Expected:** Approval or switch to drop-oldest ring
+  **If not:** Note the required policy and open a refactor task
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+cargo build -p termlink-session
+cargo test -p termlink-session offline_queue
+cargo clippy -p termlink-session -- -D warnings
+grep -q "OfflineQueue" crates/termlink-session/src/offline_queue.rs
+grep -q "outbound.sqlite" crates/termlink-session/src/offline_queue.rs
 
 ## Decisions
 
