@@ -4,16 +4,16 @@ name: "T-1155/1 Build termlink-bus crate — log-append + cursor + subscribe + r
 description: >
   Foundation crate for T-1155 channel bus. Append-only per-channel log, per-recipient cursor store, subscribe API, per-channel retention engine. In-hub. See docs/reports/T-1155-agent-communication-bus.md §Recommendation.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [T-1155, bus, foundation]
 components: []
 related_tasks: [T-1155]
 created: 2026-04-20T14:11:33Z
-last_update: 2026-04-20T20:34:28Z
-date_finished: null
+last_update: 2026-04-20T20:38:03Z
+date_finished: 2026-04-20T20:38:03Z
 ---
 
 # T-1158: T-1155/1 Build termlink-bus crate — log-append + cursor + subscribe + retention
@@ -79,3 +79,6 @@ grep -q "termlink-bus" Cargo.toml
 ### 2026-04-20T19:13:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-20T20:38:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

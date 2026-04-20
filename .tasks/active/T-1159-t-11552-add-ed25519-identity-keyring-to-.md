@@ -4,16 +4,16 @@ name: "T-1155/2 Add ed25519 identity keyring to termlink-session"
 description: >
   Self-sovereign agent identity per T-1155 S-4. Generate/store ed25519 keypair per session. Bootstrap command (termlink identity init), show fingerprint (termlink identity show), rotate. TOFU pin on first-contact. Separates identity trust from transport trust — structural fix for T-1051 rotation pain.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [T-1155, bus, identity]
 components: []
 related_tasks: [T-1155]
 created: 2026-04-20T14:12:03Z
-last_update: 2026-04-20T20:42:02Z
-date_finished: null
+last_update: 2026-04-20T20:46:26Z
+date_finished: 2026-04-20T20:46:26Z
 ---
 
 # T-1159: T-1155/2 Add ed25519 identity keyring to termlink-session
@@ -78,3 +78,6 @@ test -f crates/termlink-session/src/identity.rs
 ### 2026-04-20T20:38:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-20T20:46:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
