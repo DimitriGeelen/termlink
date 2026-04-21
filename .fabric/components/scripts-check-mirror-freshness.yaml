@@ -1,7 +1,7 @@
 id: scripts/check-mirror-freshness.sh
 name: check-mirror-freshness
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/check-mirror-freshness.sh
 tags: []
 

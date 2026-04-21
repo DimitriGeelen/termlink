@@ -1,7 +1,7 @@
 id: install.sh
 name: install
 type: script
-subsystem: unknown
+subsystem: distribution
 location: install.sh
 tags: []
 
