@@ -10,7 +10,7 @@ tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-18T15:55:05Z
+last_update: 2026-04-21T11:02:35Z
 date_finished: null
 ---
 
@@ -54,6 +54,14 @@ Periodic check: have upstream fixes landed for F1-F4?
 
 **Decision:** leave horizon=later. No `fw upgrade` warranted yet.
 
+**Poll results (2026-04-21):**
+- Framework active on T-1288/T-1368-T-1375 series — G-048/G-052/G-053/G-054 fixes, task-ID allocator serialization, keylock hardening, absolute hook paths. Nothing touches F1-F4.
+- `agents/inception/` directory: only T-1279 (task-ID serialization) — unrelated to F1 `decide --force` bypass.
+- T-1324 (b55309e7) "fw inception decide auto-ticks [REVIEW]/[RUBBER-STAMP] Human AC" — adjacent to F1 (improves completion hygiene) but does NOT block `--force` from bypassing build-readiness/AC gates.
+- `CLAUDE.md` edits: T-1325 added `fw prompt` to Quick Reference. No `fw vendor` doc addition (F4 still open).
+- No commits touching F2 (consumer path `.agentic-framework/bin/fw` in task-review output) or F3 (episodic deferral).
+- **Decision:** leave horizon=later. No `fw upgrade` warranted. Next poll in ~3 days.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
@@ -96,5 +104,13 @@ Periodic check: have upstream fixes landed for F1-F4?
 - **Change:** horizon: later → now (auto-sync)
 
 ### 2026-04-18T15:55:05Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-21T11:01:37Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-21T11:02:35Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
