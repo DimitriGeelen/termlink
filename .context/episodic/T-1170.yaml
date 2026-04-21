@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1170: T-1169 housekeeping: add research artifact for inception (C-001)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-20T19:05:33Z
+# ============================================================================
+
+task_id: T-1170
+task_name: "T-1169 housekeeping: add research artifact for inception (C-001)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T19:03:34Z
+completed: 2026-04-20T19:05:32Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-1169 housekeeping: add research artifact for inception (C-001)
+
+# Key outcomes
+outcomes:
+  - "Research artifact `docs/reports/T-1169-framework-dispatch-safety-pickup.md` exists"
+  - "Artifact documents P1..P5 primitives, delivery trail, triggering dialogue, recommendation"
+  - "Artifact references framework task T-1365 (upstream landing point)"
+  - "PL-040 (pickup type closed vocabulary) captured in the artifact"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1170-t-1169-housekeeping-add-research-artifac.md
+generated_by: context-agent-hybrid
