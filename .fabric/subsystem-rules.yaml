@@ -40,3 +40,13 @@ rules:
   - pattern: "crates/termlink-test-utils/**"
     type: script
     subsystem: test-utils
+
+  # Root-level installer — curl-pipe bootstrap (T-1134).
+  - pattern: "install.sh"
+    type: script
+    subsystem: distribution
+
+  # Operational diagnostics — paired with scripts/watchdog.sh (operations).
+  - pattern: "scripts/check-mirror-freshness.sh"
+    type: script
+    subsystem: operations
