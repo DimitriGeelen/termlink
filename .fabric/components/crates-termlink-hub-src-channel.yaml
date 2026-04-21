@@ -1,7 +1,7 @@
 id: crates/termlink-hub/src/channel.rs
 name: channel
 type: script
-subsystem: unknown
+subsystem: hub
 location: crates/termlink-hub/src/channel.rs
 tags: []
 purpose: 'TODO: describe what this component does'

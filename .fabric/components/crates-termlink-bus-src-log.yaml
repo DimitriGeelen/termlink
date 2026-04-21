@@ -1,7 +1,7 @@
 id: crates/termlink-bus/src/log.rs
 name: log
 type: script
-subsystem: unknown
+subsystem: bus
 location: crates/termlink-bus/src/log.rs
 tags: []
 purpose: 'TODO: describe what this component does'

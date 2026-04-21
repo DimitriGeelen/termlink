@@ -1,7 +1,7 @@
 id: crates/termlink-cli/src/commands/identity.rs
 name: identity
 type: script
-subsystem: unknown
+subsystem: cli
 location: crates/termlink-cli/src/commands/identity.rs
 tags: []
 purpose: 'TODO: describe what this component does'

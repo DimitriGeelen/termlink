@@ -1,7 +1,7 @@
 id: crates/termlink-bus/src/lib.rs
 name: lib
 type: script
-subsystem: unknown
+subsystem: bus
 location: crates/termlink-bus/src/lib.rs
 tags: []
 purpose: 'TODO: describe what this component does'

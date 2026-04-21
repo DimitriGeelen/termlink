@@ -1,7 +1,7 @@
 id: crates/termlink-session/src/known_peers.rs
 name: known_peers
 type: script
-subsystem: unknown
+subsystem: session
 location: crates/termlink-session/src/known_peers.rs
 tags: []
 purpose: 'TODO: describe what this component does'

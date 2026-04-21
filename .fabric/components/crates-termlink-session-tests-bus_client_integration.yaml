@@ -1,7 +1,7 @@
 id: crates/termlink-session/tests/bus_client_integration.rs
 name: bus_client_integration
 type: script
-subsystem: unknown
+subsystem: session
 location: crates/termlink-session/tests/bus_client_integration.rs
 tags: []
 purpose: 'TODO: describe what this component does'

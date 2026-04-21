@@ -1,0 +1,42 @@
+# Project-specific subsystem inference rules for fw fabric register.
+#
+# Consumed by .agentic-framework/agents/fabric/lib/register.sh:185 via
+# fnmatch against the first non-empty pattern match. Added T-1177 to
+# close the subsystem-classification gap surfaced after T-1175's Rust
+# enricher landed (14 Rust cards were landing as subsystem=unknown).
+#
+# Pattern semantics: Python fnmatch (glob), matched against the
+# project-relative path. Order matters — first match wins.
+#
+# Each crate under crates/ maps to its short subsystem name; this
+# matches the naming convention already in use by cards that were
+# manually classified at registration time (cli, session, hub, …).
+
+rules:
+  - pattern: "crates/termlink-bus/**"
+    type: script
+    subsystem: bus
+
+  - pattern: "crates/termlink-cli/**"
+    type: script
+    subsystem: cli
+
+  - pattern: "crates/termlink-hub/**"
+    type: script
+    subsystem: hub
+
+  - pattern: "crates/termlink-mcp/**"
+    type: script
+    subsystem: mcp
+
+  - pattern: "crates/termlink-protocol/**"
+    type: script
+    subsystem: protocol
+
+  - pattern: "crates/termlink-session/**"
+    type: script
+    subsystem: session
+
+  - pattern: "crates/termlink-test-utils/**"
+    type: script
+    subsystem: test-utils
