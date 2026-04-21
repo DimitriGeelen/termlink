@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1172: T-1161 follow-up: termlink channel queue-status CLI verb
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-20T22:26:35Z
+# ============================================================================
+
+task_id: T-1172
+task_name: "T-1161 follow-up: termlink channel queue-status CLI verb"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T22:19:52Z
+completed: 2026-04-20T22:26:01Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-21T00:25:56+02:00
+last_commit: 2026-04-21T00:25:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink channel queue-status (CLI + MCP mirror)
+
+# Key outcomes
+outcomes:
+  - "New CLI verb `termlink channel queue-status` wired in `crates/termlink-cli/src/cli.rs` (`ChannelAction::QueueStatus { queue_path, json }`) and dispatched in `main.rs`"
+  - "Implementation in `crates/termlink-cli/src/commands/channel.rs::cmd_channel_queue_status`:"
+  - "MCP mirror `termlink_channel_queue_status` registered in `crates/termlink-mcp/src/tools.rs` (R-033 / T-922 — every CLI verb must be MCP-reachable)"
+  - "CLI help test: `cli_channel_help_lists_four_verbs` extended (or new sibling test) to confirm `queue-status` appears under `termlink channel --help`"
+  - "`cargo test --workspace --lib` green; `cargo clippy --workspace --lib --tests -- -D warnings` clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-session/src/offline_queue.rs"
+  - ".tasks/active/T-1172-t-1161-follow-up-termlink-channel-queue-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-21T00:25:56"
+    action: "T-1172: Add termlink channel queue-status (CLI + MCP mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 7
+  lines_added: 187
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1172-t-1161-follow-up-termlink-channel-queue-.md
+generated_by: context-agent-hybrid

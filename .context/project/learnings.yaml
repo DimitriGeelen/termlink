@@ -548,3 +548,10 @@ learnings:
   date: 2026-04-20
   context: Added via context agent
   application: TBD
+- id: PL-044
+  learning: "Fabric subsystem-rules.yaml is the canonical way to classify component cards — extend the glob rules and re-register, don't edit cards manually. Covers language workspaces (crates/termlink-*) and leaf scripts (install.sh, scripts/*.sh) alike. Matched by Python fnmatch, first rule wins, evaluated inside agents/fabric/lib/register.sh:185."
+  source: P-001
+  task: T-1178
+  date: 2026-04-21
+  context: Added via context agent
+  application: TBD
