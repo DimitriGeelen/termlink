@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1177: Add .fabric/subsystem-rules.yaml + backfill 14 unknown Rust cards
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-21T07:56:40Z
+# ============================================================================
+
+task_id: T-1177
+task_name: "Add .fabric/subsystem-rules.yaml + backfill 14 unknown Rust cards"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-21T07:55:14Z
+completed: 2026-04-21T07:56:39Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add .fabric/subsystem-rules.yaml + backfill 14 unknown Rust cards
+
+# Key outcomes
+outcomes:
+  - "`.fabric/subsystem-rules.yaml` created with one rule per existing workspace crate (`termlink-bus`, `termlink-cli`, `termlink-hub`, `termlink-mcp`, `termlink-protocol`, `termlink-session`, `termlink-test-utils`)"
+  - "Backfill script updates the 14 existing unknown-subsystem Rust card files in-place so their `subsystem:` field matches the crate name pattern"
+  - "Unknown-subsystem count of Rust cards drops from 14 to 0"
+  - "Total subsystem count for `bus` rises from 0 (didn't exist before) — new subsystem is populated with the 6 bus cards + derived entries; other existing subsystems (`cli`, `session`, `hub`) unchanged"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1177-add-fabricsubsystem-rulesyaml--backfill-.md
+generated_by: context-agent-hybrid

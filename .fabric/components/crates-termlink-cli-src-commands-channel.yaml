@@ -1,7 +1,7 @@
 id: crates/termlink-cli/src/commands/channel.rs
 name: channel
 type: script
-subsystem: unknown
+subsystem: cli
 location: crates/termlink-cli/src/commands/channel.rs
 tags: []
 purpose: 'TODO: describe what this component does'

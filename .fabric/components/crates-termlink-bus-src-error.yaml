@@ -1,7 +1,7 @@
 id: crates/termlink-bus/src/error.rs
 name: error
 type: script
-subsystem: unknown
+subsystem: bus
 location: crates/termlink-bus/src/error.rs
 tags: []
 purpose: 'TODO: describe what this component does'
