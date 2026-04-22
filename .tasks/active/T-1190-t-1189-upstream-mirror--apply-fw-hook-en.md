@@ -70,6 +70,17 @@ RUBBER-STAMP (same pattern as T-1188).
   **Expected:** `fw hook-enable` works in framework repo; next `fw upgrade` for any consumer preserves the command.
   **If not:** File divergence as new task in framework repo.
 
+### 2026-04-22T21:15Z — agent-applied evidence
+
+T-1192 spike 2 validated Channel 1 (plain-bash termlink dispatch --workdir). Applied mirror via that channel in this session:
+
+- Upstream commit `684eea0c` in `/opt/999-Agentic-Engineering-Framework` (master): `bin/hook-enable.sh`, sha256 `91ba6bd5213d42de40904935d77cab6baa0c76255b045b74934ce656ccad1ebd` — matches termlink vendored source
+- Upstream commit `c1b8ff05` same repo: `bin/fw` patched with `hook-enable)` case handler + help-menu entry (the two hunks the Human AC referenced)
+- Pushed to onedev master at 2026-04-22T21:15Z
+- Smoke test deferred to human (framework's `fw hook-enable --help` smoke is a 1-liner; Channel 1 can't verify without affecting framework's working tree)
+
+Human RUBBER-STAMP remains for visual confirmation per inception discipline (agent checks no `### Human` boxes).
+
 ## Verification
 
 test -x /opt/termlink/.agentic-framework/bin/hook-enable.sh
