@@ -67,7 +67,9 @@ date_finished: null
 - ring20-dashboard (192.168.10.121:9100): FAIL — Token validation failed: invalid signature (hub restart; needs heal — T-1064 still active)
 - ring20-management (192.168.10.102:9100): FAIL — Cannot connect (hub not running or IP drift; ring20-management was renumbered to .122 in memory but hubs.toml still lists .102)
 ```
-ring20-dashboard .121 is the exact symptom this task targets (secret rotation, T-1051 heal path applies). ring20-management at .102 in hubs.toml is stale; per memory `reference_ring20_infrastructure.md` the container renumbered to .122 on 2026-04-15 — the hubs.toml needs updating too (separate cleanup). The two REVIEW actions (heal .121, start hub on .122) remain operator-only steps.
+ring20-dashboard .121 is the exact symptom this task targets (secret rotation, T-1051 heal path applies). ring20-management's hub is actually alive at .102: `nc -zv 192.168.10.102 9100` succeeds; `termlink remote ping` surfaces `TOFU VIOLATION: fingerprint changed` from `sha256:bd00d548…` to `sha256:7cadf7a7…` — classic T-1028 cert-rotation-on-restart (the deployed .102 binary predates T-1028's persist patch). Heal path for .102: `termlink tofu clear 192.168.10.102:9100` (local-only, documented in CLAUDE.md §Hub Auth Rotation Protocol). The memory note about `.122 (renumbered 2026-04-15)` is 7 days old; `.102` is the current endpoint on 2026-04-22. The two REVIEW actions (heal .121 secret, re-pin .102 TOFU) remain operator-only steps.
+
+(Also correcting the prior evidence line above: the FAIL for .102 was `Cannot connect` at the high-level fleet-doctor output but `termlink remote ping` reveals the true cause is TOFU VIOLATION, not connectivity. Fleet-doctor's wrapping of the TOFU error as "Cannot connect" is itself mildly misleading — captured as a follow-up observation.)
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
