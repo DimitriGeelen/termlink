@@ -74,6 +74,17 @@ session.
   any consumer preserves the scanner instead of leaving it as a vendored-only phantom.
   **If not:** File the divergence as a new task in the framework repo.
 
+### 2026-04-22T21:15Z — agent-applied evidence
+
+T-1192 spike 2 validated Channel 1 (plain-bash termlink dispatch --workdir). Applied mirror via that channel in this session:
+
+- Upstream commit: `25718851` in `/opt/999-Agentic-Engineering-Framework` (master)
+- Pushed to onedev master at 2026-04-22T21:14Z
+- File: `agents/context/pl007-scanner.sh`, sha256 `40b2986fc96f21575a02a26ca759be0ddd379fb9be879f57409e97bef541a84f` — matches termlink vendored source
+- Smoke-test: scanner smoke battery passed in this session (session handover S-2026-0422-2059 commit `0a047eab`, in-session firings observed on this commit's own push audit)
+
+Human RUBBER-STAMP remains for visual confirmation per inception discipline (agent checks no `### Human` boxes).
+
 ## Verification
 
 test -x /opt/termlink/.agentic-framework/agents/context/pl007-scanner.sh
