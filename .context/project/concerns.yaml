@@ -128,7 +128,7 @@ concerns:
   status: watching
   created: 2026-04-15
   last_reviewed: 2026-04-22
-  last_observation: "2026-04-22T18:44Z: OneDev at 2418513a, GitHub main still at 10ff8455 (4 commits behind; last session's handover commit). Sustained drift of 4 commits × 7 hours since last successful mirror. Direct confirmation via `curl https://api.github.com/repos/DimitriGeelen/termlink/commits/main`."
+  last_observation: "2026-04-22T19:00Z: Mirror caught up. OneDev and GitHub both at 0c19bd6c (last session's auto-handover commit S-2026-0422-2059). `git ls-remote origin main` and `git ls-remote github main` agree. The 7-hour lag window seen at 18:44Z self-resolved when the pre-push audit hook's two-stage push landed the handover on both remotes. Keep watching — this is a recurring intermittent, not a one-off fix."
   related_tasks: [T-1062, T-1140]
 
 - id: G-009
