@@ -85,3 +85,7 @@ test -z "$(echo '{"tool_name":"Bash","tool_input":{"command":"fw task review T-1
 
 ### 2026-04-22T11:17:21Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-22T18:45Z — easier-path-available [T-1189]
+- **Finding:** The Human RUBBER-STAMP above asks the human to hand-edit `.claude/settings.json`. Since T-1189 landed, that step can be done via `cd /opt/termlink && .agentic-framework/bin/fw hook-enable --name pl007-scanner --matcher Bash --event PostToolUse` (idempotent; prints "already registered" on re-run).
+- **Note:** The B-005 enforcement-config-protection hook will still block **agent** invocations of hook-enable (correctly — only humans should edit settings.json). But a human-run invocation works.
