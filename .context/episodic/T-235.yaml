@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-235: Research clean terminal output rendering for mirror mode
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T18:54:15Z
+# ============================================================================
+
+task_id: T-235
+task_name: "Research clean terminal output rendering for mirror mode"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-23T09:09:57Z
+completed: 2026-04-22T18:41:36Z
+duration_days: 29
+updates_count: 7
+first_commit: 2026-04-22T12:07:59+02:00
+last_commit: 2026-04-22T20:42:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Expand research artifact + fill task body — GO on vte+grid approach. Close inception with GO; T-1191 captures follow-on build task
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (code read + artefact surface identified)"
+  - "Recommendation written with rationale (GO on approach C, vte + in-process grid)"
+  - "Assumptions fully tested — A-1 partial, A-3 confirmed; A-2 and A-4 deferred to post-GO spike (spike moved to follow-on build task T-1191)"
+  - "[REVIEW] Approve GO/NO-GO on approach C (vte + minimal grid) vs alternatives in the artifact"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-235-terminal-output-rendering.md"
+  - ".tasks/active/T-1189-build-fw-hook-enable-command--t-977-clai.md"
+  - ".tasks/active/T-1191-implement-vtegrid-mirror-renderer-from-t.md"
+  - ".tasks/active/T-235-research-clean-terminal-output-rendering.md"
+  - ".tasks/completed/T-235-research-clean-terminal-output-rendering.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-22T12:07:59"
+    action: "T-235: Expand research artifact + fill task body — GO on vte+grid approach"
+  - time: "2026-04-22T20:42:46"
+    action: "T-235: Close inception with GO; T-1191 captures follow-on build task"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 43771 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 43771
+  commits: 2
+  files_changed: 5
+  lines_added: 274
+  lines_removed: 35
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-235-research-clean-terminal-output-rendering.md
+generated_by: context-agent-hybrid
