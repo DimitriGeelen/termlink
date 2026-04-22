@@ -74,3 +74,8 @@ date_finished: 2026-04-12T10:51:24Z
 
 ### 2026-04-22T04:52:53Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-22T18:40Z — repair-task-cross-reference [T-1189]
+- **Finding:** G-015 blast-radius audit confirmed Agent AC [x] claims were false — `bin/hook-enable.sh` did not exist and `fw hook-enable` route was not in `bin/fw`. See concerns.yaml G-015.
+- **Repair:** T-1189 built the artifacts honestly in the termlink-vendored copy (`.agentic-framework/bin/hook-enable.sh` sha256 91ba6bd5213d42de40904935d77cab6baa0c76255b045b74934ce656ccad1ebd). T-1190 tracks the upstream mirror.
+- **T-977 disposition:** leave as-is (owner=human, work-completed, Human RUBBER-STAMP still unchecked). The scanner registration step T-977's Human AC demands is now actually executable via `fw hook-enable --name pl007-scanner --matcher Bash --event PostToolUse`. When human runs that, they can tick T-977's Human AC AND T-1187's simultaneously.
