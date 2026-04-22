@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [T-1155, bus, pickup, framework-bridge]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:17Z
-last_update: 2026-04-20T14:12:17Z
+last_update: 2026-04-22T04:52:49Z
 date_finished: null
 ---
 
@@ -71,3 +71,6 @@ grep -q "pickup-channel-bridge" lib/pickup.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1165-t-11558-build-shell-pickup--channel-brid.md
 - **Context:** Initial task creation
+
+### 2026-04-22T04:52:49Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T07:27:33Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T07:33:41Z
 ---
 
@@ -83,3 +83,6 @@ test -f /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/P-009-bug-r
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

@@ -4,15 +4,15 @@ name: "Research clean terminal output rendering for mirror mode"
 description: >
   Research clean terminal output rendering for mirror mode
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:57Z
-last_update: 2026-03-24T07:10:58Z
+last_update: 2026-04-22T04:52:50Z
 date_finished: null
 ---
 
@@ -97,3 +97,7 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 
 ### 2026-03-23T09:10:09Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-22T04:52:50Z — status-update [task-update-agent]
+- **Change:** horizon: later → next
+- **Change:** status: started-work → captured (auto-sync)

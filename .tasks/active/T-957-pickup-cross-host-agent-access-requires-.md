@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:41:02Z
-last_update: 2026-04-18T15:05:05Z
+last_update: 2026-04-22T04:52:53Z
 date_finished: 2026-04-12T15:59:22Z
 ---
 
@@ -134,3 +134,6 @@ Evidence:
 - T-940 / T-942 / T-941 all trace back to this learning
 - Named sessions + hub + shared runtime_dir alignment validated end-to-end by `fw fleet doctor`
 - Learning stored in `.context/project/learnings.yaml`
+
+### 2026-04-22T04:52:53Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

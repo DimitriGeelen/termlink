@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T16:46:26Z
-last_update: 2026-04-16T05:39:44Z
+last_update: 2026-04-22T04:52:54Z
 date_finished: 2026-04-12T17:17:21Z
 ---
 
@@ -136,3 +136,6 @@ Rationale: This session spent significant time re-diagnosing and re-applying 6 l
 ### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
 - **Evidence:** fw upgrade --help shows --dry-run flag; patch recipe docs/patches/T-1066-fw-task-review-queue.md in place for re-application
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:54Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

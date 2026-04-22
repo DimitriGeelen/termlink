@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [infrastructure, symlink, vendor]
 components: []
 related_tasks: [T-288, T-908]
 created: 2026-04-11T10:49:11Z
-last_update: 2026-04-16T05:40:15Z
+last_update: 2026-04-22T04:52:51Z
 date_finished: 2026-04-11T12:21:19Z
 ---
 
@@ -130,3 +130,6 @@ date_finished: 2026-04-11T12:21:19Z
 ### 2026-04-16T21:04:50Z — programmatic-evidence [T-1090]
 - **Evidence:** .agentic-framework is a real directory (drwxr-xr-x), not a symlink — vendored copy confirmed
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:51Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

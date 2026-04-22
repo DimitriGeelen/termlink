@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:12:03Z
-last_update: 2026-04-18T14:56:54Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T13:03:34Z
 ---
 
@@ -134,3 +134,6 @@ Evidence:
 - Pickup cron active at 1-min interval with zero errors (programmatic evidence T-1090, 2026-04-16)
 - No CPU/memory concerns observed in live operation
 - Related learning stored in `.context/project/learnings.yaml`
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

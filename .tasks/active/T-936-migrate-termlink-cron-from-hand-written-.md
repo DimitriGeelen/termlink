@@ -5,12 +5,12 @@ description: "Migrate termlink cron from hand-written crontab to registry-based 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [cron, migration, registry, T-448]
 components: []
 related_tasks: [T-921]
 created: 2026-04-11T22:56:36Z
-last_update: 2026-04-16T05:40:16Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T13:13:47Z
 ---
 
@@ -174,3 +174,6 @@ Three cron layers (live `/etc/cron.d/`, git-tracked crontab stub, `cron-registry
 ### 2026-04-16T22:08:30Z — programmatic-evidence [T-1097]
 - **Evidence:** 4 crons installed via /etc/cron.d/ (agentic-audit, agentic-learnings-exchange, agentic-pickup, termlink-watchdog); registry-based pattern confirmed
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

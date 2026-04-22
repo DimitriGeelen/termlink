@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: [termlink, dispatch, bug, observability]
 components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: []
 created: 2026-04-11T12:30:39Z
-last_update: 2026-04-16T05:40:15Z
+last_update: 2026-04-22T04:52:51Z
 date_finished: 2026-04-12T20:35:30Z
 ---
 
@@ -79,3 +79,6 @@ cargo test --package termlink --bin termlink commands::dispatch::tests::worker_s
 
 ### 2026-04-16T05:40:15Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-22T04:52:51Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

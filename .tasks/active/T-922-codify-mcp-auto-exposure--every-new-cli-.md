@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:14Z
-last_update: 2026-04-16T05:40:16Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T21:29:17Z
 ---
 
@@ -125,3 +125,6 @@ Rationale: Current MCP tools already cover active CLI commands (register, dispat
 ### 2026-04-16T21:04:50Z — programmatic-evidence [T-1090]
 - **Evidence:** 67 MCP tools registered (termlink doctor confirms); all recent CLI commands have MCP counterparts
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

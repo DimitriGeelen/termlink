@@ -5,12 +5,12 @@ description: "RCA: Unify termlink runtime dir — split-brain blocks cross-host 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [termlink, systemd, runtime-dir, cross-host, rca]
 components: []
 related_tasks: [T-931, T-933, T-936]
 created: 2026-04-12T07:43:43Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T07:49:57Z
 ---
 
@@ -191,3 +191,6 @@ Without unification, every new persistent session requires explicit `TERMLINK_RU
 ### 2026-04-16T22:08:30Z — programmatic-evidence [T-1097]
 - **Evidence:** T-1029..T-1032 fix split-brain: resolve_hub_paths searches both /var/lib/termlink and runtime dir; 98 hub tests passing; hub status correctly shows /tmp/termlink-0
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

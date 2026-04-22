@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T11:48:17Z
-last_update: 2026-04-16T05:40:16Z
+last_update: 2026-04-22T04:52:54Z
 date_finished: 2026-04-12T11:51:35Z
 ---
 
@@ -83,3 +83,6 @@ grep -q '_vendored_sync' /opt/termlink/.agentic-framework/lib/upgrade.sh
 ### 2026-04-16T21:04:36Z — programmatic-evidence [T-1090]
 - **Evidence:** fw upgrade command exists with --dry-run and --force flags; upgrade help lists file categories that get synced
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:54Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

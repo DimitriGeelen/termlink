@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:05Z
-last_update: 2026-04-16T05:40:16Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-11T20:19:55Z
 ---
 
@@ -164,3 +164,6 @@ Time-box: **one session**, dialogue-driven. No production code. Deliverable = de
 ### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
 - **Evidence:** 67 MCP tools, remote inbox/doctor/list/exec all working; fleet doctor --json shows hub status; termlink discover shows sessions across hosts
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

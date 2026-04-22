@@ -9,12 +9,12 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [verification, simulation, testing]
 components: []
 related_tasks: [T-191, T-124, T-126, T-127, T-148, T-156, T-157, T-158, T-160, T-178, T-188]
 created: 2026-03-20T06:05:00Z
-last_update: 2026-04-16T05:38:15Z
+last_update: 2026-04-22T04:52:50Z
 date_finished: null
 ---
 
@@ -123,3 +123,6 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-16T05:38:15Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-22T04:52:50Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

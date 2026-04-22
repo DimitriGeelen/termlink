@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:05Z
-last_update: 2026-04-18T14:56:49Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T13:03:33Z
 ---
 
@@ -134,3 +134,6 @@ Evidence:
 - Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
 - Zero errors in syslog over observation window
 - Processor cadence tuned to 1-min for headroom (see T-950)
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

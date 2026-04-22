@@ -5,12 +5,12 @@ description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (sym
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-21T11:02:35Z
+last_update: 2026-04-22T04:52:51Z
 date_finished: null
 ---
 
@@ -114,3 +114,6 @@ Periodic check: have upstream fixes landed for F1-F4?
 ### 2026-04-21T11:02:35Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-22T04:52:51Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

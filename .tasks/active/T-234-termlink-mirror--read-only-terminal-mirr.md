@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:49Z
-last_update: 2026-04-16T05:38:14Z
+last_update: 2026-04-22T04:52:50Z
 date_finished: null
 ---
 
@@ -79,3 +79,6 @@ grep -rq 'mirror' crates/termlink-session/src/data_server.rs crates/termlink-hub
 ### 2026-04-16T05:38:14Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-22T04:52:50Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

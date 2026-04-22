@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-11T23:00:01Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T17:14:28Z
 ---
 
@@ -135,3 +135,6 @@ Rationale: The original bug (cleanup killing active workers) was already mitigat
 ### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
 - **Evidence:** Learning captured from upstream framework; termlink discover shows workers with state=ready — cleanup no longer kills active workers
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

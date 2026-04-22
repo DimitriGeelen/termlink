@@ -7,12 +7,12 @@ description: >
 status: issues
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-05T07:27:29Z
-last_update: 2026-04-05T07:27:53Z
+last_update: 2026-04-22T04:52:51Z
 date_finished: null
 ---
 
@@ -79,3 +79,6 @@ date_finished: null
 
 ### 2026-04-05T07:27:53Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-22T04:52:51Z — status-update [task-update-agent]
+- **Change:** horizon: later → next
