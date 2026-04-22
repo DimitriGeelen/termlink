@@ -86,3 +86,8 @@ bash -c 'cp /opt/termlink/.claude/settings.json /tmp/t1189-before.json && /opt/t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1189-build-fw-hook-enable-command--t-977-clai.md
 - **Context:** Initial task creation
+
+### 2026-04-22T19:05Z — rubber-stamp-evidence
+- **RUBBER-STAMP 1 satisfied:** Human registered pl007-scanner via `fw hook-enable`. `.claude/settings.json` diff committed as 0a047eab. `grep pl007-scanner .claude/settings.json` returns 1 entry under PostToolUse→Bash. Hook is firing live in session S-2026-0422-2100.
+- **RUBBER-STAMP 2 pending:** Upstream mirror (T-1190) — cross-project work, operator territory.
+- **Human can tick RUBBER-STAMP 1** when ready. See T-1187 Updates 2026-04-22T19:03Z for the 4/4 smoke battery.

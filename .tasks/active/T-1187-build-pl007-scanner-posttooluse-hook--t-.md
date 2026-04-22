@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-22T11:13:21Z
-last_update: 2026-04-22T11:17:21Z
+last_update: 2026-04-22T18:52:50Z
 date_finished: 2026-04-22T11:17:21Z
 ---
 
@@ -89,3 +89,13 @@ test -z "$(echo '{"tool_name":"Bash","tool_input":{"command":"fw task review T-1
 ### 2026-04-22T18:45Z — easier-path-available [T-1189]
 - **Finding:** The Human RUBBER-STAMP above asks the human to hand-edit `.claude/settings.json`. Since T-1189 landed, that step can be done via `cd /opt/termlink && .agentic-framework/bin/fw hook-enable --name pl007-scanner --matcher Bash --event PostToolUse` (idempotent; prints "already registered" on re-run).
 - **Note:** The B-005 enforcement-config-protection hook will still block **agent** invocations of hook-enable (correctly — only humans should edit settings.json). But a human-run invocation works.
+
+### 2026-04-22T19:03Z — rubber-stamp-evidence
+- **Scanner registered in settings.json** (commit 0a047eab): `{ "type": "command", "command": ".agentic-framework/bin/fw hook pl007-scanner" }` present under `hooks.PostToolUse[matcher=Bash].hooks`.
+- **Scanner firing observationally:** First two Bash tool calls of session S-2026-0422-2100 (`git status` + `git log`) each emitted a `PL-007 REMINDER` system-reminder. Hook is live end-to-end.
+- **Smoke battery:** 4/4 test cases pass when replayed manually:
+  1. Bare `fw inception decide` in Bash tool output → emits PL-007 reminder ✓
+  2. Command was `fw task review T-123` → suppressed (review precursor exemption) ✓
+  3. Agent's own command contained the pattern → suppressed (self-exec exemption) ✓
+  4. Non-Bash tool_name → skipped entirely ✓
+- **Human action:** tick the RUBBER-STAMP box above. Verification already done above.

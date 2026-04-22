@@ -79,3 +79,8 @@ date_finished: 2026-04-12T10:51:24Z
 - **Finding:** G-015 blast-radius audit confirmed Agent AC [x] claims were false — `bin/hook-enable.sh` did not exist and `fw hook-enable` route was not in `bin/fw`. See concerns.yaml G-015.
 - **Repair:** T-1189 built the artifacts honestly in the termlink-vendored copy (`.agentic-framework/bin/hook-enable.sh` sha256 91ba6bd5213d42de40904935d77cab6baa0c76255b045b74934ce656ccad1ebd). T-1190 tracks the upstream mirror.
 - **T-977 disposition:** leave as-is (owner=human, work-completed, Human RUBBER-STAMP still unchecked). The scanner registration step T-977's Human AC demands is now actually executable via `fw hook-enable --name pl007-scanner --matcher Bash --event PostToolUse`. When human runs that, they can tick T-977's Human AC AND T-1187's simultaneously.
+
+### 2026-04-22T19:04Z — rubber-stamp-evidence
+- **Registration landed** (commit 0a047eab): `.claude/settings.json` now wires pl007-scanner as a PostToolUse Bash hook.
+- **Hook firing confirmed:** First Bash tool calls of session S-2026-0422-2100 emitted `PL-007 REMINDER` system-reminders with `additionalContext` citing PL-007 — exactly the pathway this task's Human AC requires.
+- **T-977 Human AC satisfied observationally.** Human can tick when ready (see T-1187 Updates log 2026-04-22T19:03Z for full 4/4 smoke battery evidence).
