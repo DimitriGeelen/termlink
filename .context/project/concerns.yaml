@@ -253,3 +253,20 @@ concerns:
   created: 2026-04-22
   last_reviewed: 2026-04-22
   related_tasks: [T-1028, T-1034, T-1051, T-1052, T-1181, T-1183]
+
+- id: G-015
+  type: gap
+  title: "Completion gate does not verify file-path claims in Agent ACs — false-complete slips through"
+  description: "T-976 was closed 2026-04-12 with Agent AC `[x] PostToolUse hook script exists: agents/context/pl007-scanner.sh`. As of 2026-04-22 that file did not exist anywhere in the repo or upstream framework (`find / -name 'pl007-scanner*'` returned empty). The completion gate (P-010) verifies ACs are ticked but does not parse AC text for file-path claims and stat() them. Net effect: an AC that lies about an artifact existing passes the gate. Untested claims about files accumulate silently until a later task (T-1187) happens to look for the file."
+  spec_reference: "P-010 completion gate, .agentic-framework/agents/task-create/update-task.sh, CLAUDE.md 'Verification Before Completion'"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-04-22: T-976 Agent AC [x] claimed pl007-scanner.sh existed at `.agentic-framework/agents/context/pl007-scanner.sh` but the file was missing from repo and upstream framework. Discovered while batch-classifying stuck partial-complete tasks."
+  detection_lag_days: "10 (T-976 closed 2026-04-12; gap observed 2026-04-22)"
+  what_works_now: "## Verification section (P-011 gate) does run shell commands including `test -f` — when authors write them. T-976's Verification block DOES reference the scanner path but was not enforced at completion time (P-011 may have been added after T-976 shipped, or was bypassed). So the mechanism exists, just not retroactively applied."
+  what_remains: "1. ✓ Build the missing artifact honestly (T-1187). 2. Consider a soft scanner that greps Agent AC bullets for file-path patterns (`.sh`, `.py`, `.rs`, `.toml`) and stats them at completion time — advisory, not blocking, to avoid false positives on prose. 3. Spot-audit other work-completed tasks with file-path claims to quantify the blast radius."
+  mitigation_candidate: "T-1187 fixes the symptom (builds the missing scanner). Structural fix deferred until blast-radius audit justifies the tooling cost. Log here so a future pattern (3+ false-completes) triggers a Level D response."
+  status: watching
+  created: 2026-04-22
+  last_reviewed: 2026-04-22
+  related_tasks: [T-976, T-1187]
