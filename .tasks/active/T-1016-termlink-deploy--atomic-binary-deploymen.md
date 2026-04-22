@@ -60,7 +60,7 @@ Deploying termlink to remote hosts (.109, .121) currently requires 6+ manual ste
 - [x] Recommendation written with rationale (GO)
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. `cd /opt/termlink && bin/fw task review T-1016`
   2. Review recommendation and evidence from T-1023/T-1027
@@ -142,3 +142,7 @@ Rationale: All prerequisites are met. T-1028 (cert persistence) and T-933 (secre
 - **Rationale:** Recommendation: GO
 
 Rationale: All prerequisites are met. T-1028 (cert persistence) and T-933 (secret persistence) solve the auth/TOFU breakage. The remaining work is ~100 lines orchestrating: conn...
+
+### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
+- **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
+- **Decision:** already recorded in Decision section prior to this approval

@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1101: Deep value assessment — what does termlink actually give the human operator, what works end-to-end, what's cargo cult
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T10:20:55Z
+# ============================================================================
+
+task_id: T-1101
+task_name: "Deep value assessment — what does termlink actually give the human operator, what works end-to-end, what's cargo cult"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-17T08:34:06Z
+completed: 2026-04-17T10:50:39Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-17T10:41:18+02:00
+last_commit: 2026-04-17T10:41:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Deep value assessment — operator experience gaps, GO on fleet status + ops dashboard
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated — research artifact with 5 spikes"
+  - "Assumptions tested — live fleet evidence gathered"
+  - "Recommendation written with rationale"
+  - "First build task (T-1102: fleet status) executed as proof of value"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1101-termlink-value-assessment.md"
+  - ".tasks/active/T-1041-add-cli-tests-for-hub-restart-and-fleet-.md"
+  - ".tasks/active/T-1042-add-cli-tests-for-version-events-and-top.md"
+  - ".tasks/active/T-1043-add-cli-tests-for-info-and-exec-error-pa.md"
+  - ".tasks/active/T-1044-add-cli-tests-for-inject-and-output-erro.md"
+  - ".tasks/active/T-1045-add-cli-tests-for-ping-status-and-clean-.md"
+  - ".tasks/active/T-1046-add-cli-tests-for-tag-and-spawn-error-pa.md"
+  - ".tasks/active/T-1101-deep-value-assessment--what-does-termlin.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-17T10:41:18"
+    action: "T-1101: Deep value assessment — operator experience gaps, GO on fleet status + ops dashboard"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 136 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 136
+  commits: 1
+  files_changed: 8
+  lines_added: 304
+  lines_removed: 20
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1101-deep-value-assessment--what-does-termlin.md
+generated_by: context-agent-hybrid

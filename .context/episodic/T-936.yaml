@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-936: Migrate termlink cron from hand-written crontab to registry-based installer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T10:20:57Z
+# ============================================================================
+
+task_id: T-936
+task_name: "Migrate termlink cron from hand-written crontab to registry-based installer"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T22:56:36Z
+completed: 2026-04-22T04:52:52Z
+duration_days: 11
+updates_count: 7
+first_commit: 2026-04-12T09:23:20+02:00
+last_commit: 2026-04-12T15:14:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Populate cron-registry.yaml from live crontab — 11 jobs now visible in Watchtower. Inception complete — GO recommendation for full registry migration. GO — cron migrated to registry-based installer, all 11 jobs on vendored binary path
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+  - "[RUBBER-STAMP] Record go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/approvals/pending-2ccd27a8e3e2.yaml"
+  - ".context/bypass-log.yaml"
+  - ".context/cron-registry.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.gate-bypass-log.yaml"
+  - ".context/working/.new-file-counter"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.tier0-approval"
+  - ".context/working/.tier0-approval.pending"
+  - ".context/working/.tool-counter"
+  - "docs/reports/T-936-cron-registry-migration.md"
+  - ".tasks/active/T-936-migrate-termlink-cron-from-hand-written-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T09:23:20"
+    action: "T-936: Populate cron-registry.yaml from live crontab — 11 jobs now visible in Watchtower"
+  - time: "2026-04-12T14:55:02"
+    action: "T-936: Inception complete — GO recommendation for full registry migration"
+  - time: "2026-04-12T15:14:09"
+    action: "T-936: GO — cron migrated to registry-based installer, all 11 jobs on vendored binary path"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 14756 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cron, migration, registry, T-448]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14756
+  commits: 3
+  files_changed: 14
+  lines_added: 220
+  lines_removed: 48
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-936-migrate-termlink-cron-from-hand-written-.md
+generated_by: context-agent-hybrid

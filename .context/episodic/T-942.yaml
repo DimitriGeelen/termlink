@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-942: Pickup: Hub should scan multiple session dirs — eliminates runtime dir split-brain (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T10:20:58Z
+# ============================================================================
+
+task_id: T-942
+task_name: "Pickup: Hub should scan multiple session dirs — eliminates runtime dir split-brain (from termlink)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T07:49:08Z
+completed: 2026-04-22T04:52:52Z
+duration_days: 10
+updates_count: 6
+first_commit: 2026-04-12T18:54:41+02:00
+last_commit: 2026-04-12T18:54:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-942 T-954: Inception triage — multi-dir scan (DEFER), partial migration (DEFER)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (single runtime_dir, env-dependent resolution)"
+  - "Assumptions tested (TERMLINK_RUNTIME_DIR already provides standardization; T-959 says two-pool is valid)"
+  - "Recommendation written with rationale (DEFER: env var standardization may suffice)"
+  - "[RUBBER-STAMP] Record go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-942-pickup-hub-should-scan-multiple-session-.md"
+  - ".tasks/active/T-954-pickup-partial-migrations-are-a-recurrin.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T18:54:41"
+    action: "T-942 T-954: Inception triage — multi-dir scan (DEFER), partial migration (DEFER)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14223 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, feature-proposal]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14223
+  commits: 1
+  files_changed: 2
+  lines_added: 64
+  lines_removed: 54
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-942-pickup-hub-should-scan-multiple-session-.md
+generated_by: context-agent-hybrid

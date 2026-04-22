@@ -88,7 +88,7 @@ Time-box: **90 min**. No code until GO.
 - [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -175,3 +175,7 @@ This task was propagated to reachable termlink peers at creation time as `pickup
 ### 2026-04-18T15:17:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Reason:** Inception decision in progress
+
+### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
+- **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
+- **Decision:** already recorded in Decision section prior to this approval

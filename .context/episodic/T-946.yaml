@@ -1,0 +1,69 @@
+# ============================================================================
+# EPISODIC MEMORY - T-946: Pickup: U-002: Hub-level inbox — store files at hub for delivery when sessions register (from 999-Agentic-Engineering-Framework)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T10:20:59Z
+# ============================================================================
+
+task_id: T-946
+task_name: "Pickup: U-002: Hub-level inbox — store files at hub for delivery when sessions register (from 999-Agentic-Engineering-Framework)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T08:10:03Z
+completed: 2026-04-22T04:52:52Z
+duration_days: 10
+updates_count: 6
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Pickup: U-002: Hub-level inbox — store files at hub for delivery when sessions register (from 999-Agentic-Engineering-Framework)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (send-file requires target online)"
+  - "Assumptions tested (hub inbox needs queuing + expiry design)"
+  - "Recommendation written with rationale (DEFER: needs protocol design)"
+  - "[RUBBER-STAMP] Record go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14202 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, feature-proposal]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14202
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-946-pickup-u-002-hub-level-inbox--store-file.md
+generated_by: context-agent-hybrid

@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:03:30Z
-last_update: 2026-04-22T04:52:53Z
+last_update: 2026-04-22T10:21:02Z
 date_finished: 2026-04-12T10:10:58Z
 ---
 
@@ -88,7 +88,7 @@ We attempted 5 fixes in this session (memory, CLAUDE.md, auto-invoke, port detec
 - [ ] Recommendation written with rationale
 
 ### Human
-- [ ] [RUBBER-STAMP] Record go/no-go decision
+- [x] [RUBBER-STAMP] Record go/no-go decision
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
   2. Find T-972, select GO / NO-GO / DEFER, click Record Decision
@@ -195,3 +195,7 @@ Build tasks on GO:
 
 ### 2026-04-22T04:52:53Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
+- **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
+- **Decision:** already recorded in Decision section prior to this approval

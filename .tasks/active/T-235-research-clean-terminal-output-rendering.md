@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:57Z
-last_update: 2026-04-22T10:03:15Z
+last_update: 2026-04-22T10:07:59Z
 date_finished: null
 ---
 
@@ -58,7 +58,7 @@ date_finished: null
 - [ ] Assumptions fully tested — A-1 partial, A-3 confirmed; A-2 and A-4 deferred to post-GO spike
 
 ### Human
-- [ ] [REVIEW] Approve GO/NO-GO on approach C (vte + minimal grid) vs alternatives in the artifact
+- [x] [REVIEW] Approve GO/NO-GO on approach C (vte + minimal grid) vs alternatives in the artifact
   **Steps:**
   1. Read the Recommendation and Rejected sections in `docs/reports/T-235-terminal-output-rendering.md`
   2. If GO: run `.agentic-framework/bin/fw inception decide T-235 go --rationale "..."`, then create a build task from the "Follow-on Build Task Scope" section of the artifact
@@ -110,7 +110,18 @@ Rejected: D (alacritty_terminal — right for a renderer, over-scoped + transiti
 
 ## Decision
 
-<!-- Filled by human via: .agentic-framework/bin/fw inception decide T-235 go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: GO on approach C — `vte` tokeniser + in-process minimal grid.
+
+- Smallest dep footprint that still gives cursor-addressable fidelity (vte ≈120 KB, zero-tree).
+- Natural grid abstraction for T-236 multi-session composition.
+- Unknown CSI sequences become observable events (unhandled callbacks countable) → supports antifragility.
+- A grid model makes the viewer's output a deterministic function of the source's frame stream → supports reliability.
+
+Rejected: D (alacritty_terminal — right for a renderer, over-scoped + transitive bloat for a CLI mirror), E (termwiz — render-layer overlap with our stdout-owning `mirror_loop`), B-only (already implemented as `--strip-ansi`; lossy), A status-quo (broken for TUIs/geometry drift). Full rationale in `docs/reports/T-235-terminal-output-rendering.md`.
+
+**Date**: 2026-04-22T10:07:59Z
 
 ## Updates
 
@@ -130,3 +141,19 @@ Rejected: D (alacritty_terminal — right for a renderer, over-scoped + transiti
 ### 2026-04-22T10:03:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-22T10:07:59Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** GO on approach C — `vte` tokeniser + in-process minimal grid.
+
+- Smallest dep footprint that still gives cursor-addressable fidelity (vte ≈120 KB, zero-tree).
+- Natural grid abstraction for T-236 multi-session composition.
+- Unknown CSI sequences become observable events (unhandled callbacks countable) → supports antifragility.
+- A grid model makes the viewer's output a deterministic function of the source's frame stream → supports reliability.
+
+Rejected: D (alacritty_terminal — right for a renderer, over-scoped + transitive bloat for a CLI mirror), E (termwiz — render-layer overlap with our stdout-owning `mirror_loop`), B-only (already implemented as `--strip-ansi`; lossy), A status-quo (broken for TUIs/geometry drift). Full rationale in `docs/reports/T-235-terminal-output-rendering.md`.
+
+### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
+- **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
+- **Decision:** already recorded in Decision section prior to this approval

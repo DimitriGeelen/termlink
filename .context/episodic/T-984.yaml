@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-984: fw upgrade silently reverts local patches — do_vendor has no modification detection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T10:21:02Z
+# ============================================================================
+
+task_id: T-984
+task_name: "fw upgrade silently reverts local patches — do_vendor has no modification detection"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T16:46:26Z
+completed: 2026-04-22T04:52:54Z
+duration_days: 10
+updates_count: 6
+first_commit: 2026-04-12T18:48:02+02:00
+last_commit: 2026-04-12T18:48:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — fw upgrade local patch reversion RCA + GO recommendation
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (6 files reverted in this session, documented in research artifact)"
+  - "Assumptions tested (do_vendor confirmed no checksum logic; consumer patches are structurally necessary)"
+  - "Recommendation written with rationale (GO: Option C + D)"
+  - "[RUBBER-STAMP] Record go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-984-fw-upgrade-local-patch-reversion.md"
+  - ".tasks/active/T-984-fw-upgrade-silently-reverts-local-patche.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T18:48:02"
+    action: "T-984: Inception — fw upgrade local patch reversion RCA + GO recommendation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13686 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13686
+  commits: 1
+  files_changed: 2
+  lines_added: 211
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-984-fw-upgrade-silently-reverts-local-patche.md
+generated_by: context-agent-hybrid
