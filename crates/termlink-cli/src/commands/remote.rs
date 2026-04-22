@@ -1643,7 +1643,11 @@ pub(crate) async fn cmd_fleet_doctor(
             Ok(Err(e)) => {
                 total_fail += 1;
                 *fleet_versions.entry("unknown".into()).or_insert(0) += 1;
-                let msg = format!("{}", e);
+                // T-1181: use {:#} (anyhow alternate) so classify_fleet_error sees
+                // the full cause chain. Default Display drops anyhow's .context()
+                // wrappers, which was collapsing TOFU VIOLATION under "Cannot
+                // connect — is the hub running?" and losing the actionable hint.
+                let msg = format!("{:#}", e);
                 let diagnostic = classify_fleet_error(&msg, &entry.address);
                 hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg, "secret_source": &secret_source, "diagnostic": &diagnostic}));
                 if !json {
@@ -2975,6 +2979,36 @@ mod tests {
         assert_eq!(auth_mismatch_class("Connection refused"), None);
         assert_eq!(auth_mismatch_class("Secret file not found"), None);
         assert_eq!(auth_mismatch_class("TLS handshake failed"), None);
+    }
+
+    // -------------------------------------------------------------------
+    // T-1181: fleet-doctor classify_fleet_error must see the full anyhow
+    // chain (not just the top-level .context wrapper). Pins the behaviour
+    // that a "Cannot connect…: TOFU VIOLATION…" composed message lands in
+    // the TOFU branch, not the generic fallback.
+    // -------------------------------------------------------------------
+    #[test]
+    fn classify_fleet_error_matches_wrapped_tofu_cause() {
+        // Composed form produced by format!("{:#}", e) when the outer
+        // context is "Cannot connect to … — is the hub running?" and the
+        // inner cause carries "TOFU VIOLATION".
+        let msg = "Cannot connect to 192.168.10.102:9100 — is the hub running?: unexpected error: TOFU VIOLATION: Hub 192.168.10.102:9100 fingerprint changed";
+        let hint = classify_fleet_error(msg, "192.168.10.102:9100");
+        assert!(
+            hint.contains("termlink tofu clear 192.168.10.102:9100"),
+            "expected actionable TOFU hint, got: {hint}"
+        );
+    }
+
+    #[test]
+    fn classify_fleet_error_matches_wrapped_auth_cause() {
+        // Auth-mismatch wrapped under a connect-context outer.
+        let msg = "Cannot connect to 10.0.0.1:9100 — is the hub running?: Token validation failed: invalid signature";
+        let hint = classify_fleet_error(msg, "10.0.0.1:9100");
+        assert!(
+            hint.contains("Secret mismatch"),
+            "expected auth-mismatch hint, got: {hint}"
+        );
     }
 
     /// Reuse the crate-wide test env lock. Any test in this binary that
