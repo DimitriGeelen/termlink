@@ -1440,7 +1440,12 @@ pub(crate) async fn cmd_fleet_status(
                 }
             }
             Ok(Err(e)) => {
-                let msg = format!("{}", e);
+                // T-1183: use {:#} (anyhow alternate) so the inner chain is
+                // visible to the is_auth substring checks. Same PL-046
+                // pattern T-1181 fixed in cmd_fleet_doctor — default Display
+                // drops .context() wrappers, collapsing TOFU VIOLATION under
+                // the outer "Cannot connect" context.
+                let msg = format!("{:#}", e);
                 let is_auth = msg.contains("invalid signature")
                     || msg.contains("Token validation failed")
                     || msg.contains("TOFU VIOLATION")
