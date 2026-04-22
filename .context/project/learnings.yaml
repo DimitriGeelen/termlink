@@ -563,7 +563,7 @@ learnings:
   context: fleet-doctor auto-registered
   application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
 - id: PL-046
-  learning: "anyhow::Error Display ("{}") prints only the top-level message — the .context() chain is dropped. Inner causes (TOFU VIOLATION, auth-mismatch, TLS handshake) disappear when a connect is wrapped with .context("Cannot connect to X"). Any code that string-matches an error message (like classify_fleet_error) must use format!("{:#}", e) or walk e.chain() — otherwise you'll silently match only the outermost wrapper."
+  learning: 'anyhow::Error Display ("{}") prints only the top-level message — the .context() chain is dropped. Inner causes (TOFU VIOLATION, auth-mismatch, TLS handshake) disappear when a connect is wrapped with .context("Cannot connect to X"). Any code that string-matches an error message (like classify_fleet_error) must use format!("{:#}", e) or walk e.chain() — otherwise you''ll silently match only the outermost wrapper.'
   source: P-001
   task: T-1181
   date: 2026-04-22
