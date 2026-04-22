@@ -1,21 +1,37 @@
-timestamp: 2026-04-20T14:00:01Z
+timestamp: 2026-04-22T18:53:07Z
 findings:
+  - id: D1
+    level: PASS
+    check: "D1: Episodic quality — 0% [TODO] (8/826)"
+  - id: D2
+    level: WARN
+    check: "D2: Human review queue — 3 task(s) waiting >14d: T-160(18d) T-834(17d) T-879(17d)"
+    mitigation: "Review with: fw task verify"
+  - id: D8
+    level: PASS
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
+  - id: D10
+    level: PASS
+    check: "D10: Decision-without-dialogue — none detected"
+  - id: D11
+    level: PASS
+    check: "D11: Gap register staleness — all gaps fresh"
   - id: D4
     level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 12 anomaly(s): T-265(3min,human) T-272(0min,human) T-196(30d-active) T-236(28d-active) T-235(28d-active) T-888(15d-active) T-176(32d-active) T-180(32d-active) T-207(29d-active) T-212(29d-active) (+2 more)"
+    check: "D5: Task lifecycle — 20 anomaly(s): T-265(3min,human) T-272(0min,human) T-980(3min,human) T-1042(8d-active) T-1028(9d-active) T-1045(8d-active) T-1016(9d-active) T-1040(8d-active) T-888(17d-active) T-1043(8d-active) (+10 more)"
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — insufficient data"
+    check: "D3: Commit velocity — normal (PASS today=31 avg=40 ratio=0.8x)"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 31_commits_24h)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=7.3 earlier=17.4)"
+    check: "D6: Completion velocity — normal (PASS recent=6.7 earlier=12.7)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
@@ -24,7 +40,7 @@ findings:
     check: "D9: Control drift — normal (PASS 10_audits_checked)"
 
 summary:
-  pass: 6
-  warn: 1
+  pass: 10
+  warn: 2
   fail: 0
-  total: 7
+  total: 12
