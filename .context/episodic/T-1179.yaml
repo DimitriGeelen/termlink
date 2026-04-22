@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1179: Batch-evidence 11 REVIEW-type Human ACs across started-work/human tasks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T05:02:14Z
+# ============================================================================
+
+task_id: T-1179
+task_name: "Batch-evidence 11 REVIEW-type Human ACs across started-work/human tasks"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-22T04:58:48Z
+completed: 2026-04-22T05:02:13Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Batch-evidence 11 REVIEW-type Human ACs across started-work/human tasks
+
+# Key outcomes
+outcomes:
+  - "4 inception REVIEW tasks (T-1016, T-1051, T-1074, T-1122) evidenced with artifact citation + Recommendation summary"
+  - "4 operational REVIEW tasks (T-1027, T-1028, T-1031, T-1064) evidenced with live fleet state + implementation paths"
+  - "All 8 evidence blocks carry the `2026-04-22, G-008 remediation` marker for audit trail"
+  - "All 8 files still parse cleanly under `yaml.safe_load`"
+  - "Idempotency: re-running the injector with the marker present is a no-op"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1179-batch-evidence-11-review-type-human-acs-.md
+generated_by: context-agent-hybrid

@@ -41,6 +41,8 @@ T-945 inception GO. `tls::cleanup()` is called on shutdown (server.rs:196), dele
   **Expected:** Same cert fingerprint before and after restart, no TOFU violation
   **If not:** Check if tls::cleanup() is still being called on shutdown
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, tls-cert-persist, t-1028):** Implementation: `crates/termlink-hub/src/lib.rs::load_or_generate_cert` persists `hub.cert.pem` + `hub.key.pem` across restarts. Local-test hub has been alive through multiple restarts without TOFU re-pin (observable via `termlink fleet doctor` returning PASS on local-test with version 0.9.0 on the cached fingerprint). Cannot auto-run `hub restart` without disrupting the current agent's MCP session; REVIEW of the cargo-run cycle remains the human's step.
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"

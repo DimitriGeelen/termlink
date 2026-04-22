@@ -60,6 +60,14 @@ date_finished: null
   **Expected:** ring20-management shows [PASS]
   **If not:** Check if systemd unit exists, install via deploy script if missing
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, fleet-heal-needed, t-1064):** Fleet heal IS still required — `termlink fleet doctor` on 2026-04-22 shows:
+```
+- local-test (127.0.0.1:9100): PASS, version 0.9.0
+- ring20-dashboard (192.168.10.121:9100): FAIL — Token validation failed: invalid signature (hub restart; needs heal — T-1064 still active)
+- ring20-management (192.168.10.102:9100): FAIL — Cannot connect (hub not running or IP drift; ring20-management was renumbered to .122 in memory but hubs.toml still lists .102)
+```
+ring20-dashboard .121 is the exact symptom this task targets (secret rotation, T-1051 heal path applies). ring20-management at .102 in hubs.toml is stale; per memory `reference_ring20_infrastructure.md` the container renumbered to .122 on 2026-04-15 — the hubs.toml needs updating too (separate cleanup). The two REVIEW actions (heal .121, start hub on .122) remain operator-only steps.
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.

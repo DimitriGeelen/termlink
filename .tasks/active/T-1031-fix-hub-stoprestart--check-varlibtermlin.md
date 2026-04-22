@@ -41,6 +41,8 @@ date_finished: null
   **Expected:** Hub process stopped (systemd shows inactive/dead)
   **If not:** Check if pidfile was found in /var/lib/termlink
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, hub-stop-systemd, t-1031):** Implementation at `crates/termlink-cli/src/commands/infrastructure.rs::cmd_hub_stop` uses `resolve_hub_paths()` which checks `/var/lib/termlink` (systemd default) when the default `/tmp/termlink-0` is absent. Not live-tested from this session because `hub stop` would terminate the agent's hub connection. Paired test: `crates/termlink-cli/src/commands/infrastructure.rs` unit tests for `resolve_hub_paths` exist (see T-1033). REVIEW remains the human's operational cycle.
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"

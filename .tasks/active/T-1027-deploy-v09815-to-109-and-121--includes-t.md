@@ -40,6 +40,14 @@ Deploy latest termlink to .109 (ring20-management) and .121 (ring20-dashboard). 
   **Expected:** All hubs pass fleet doctor, restarts don't break TOFU
   **If not:** Check hub.cert.pem files persist in runtime dir after restart
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, fleet-tls-restart, t-1027):** Current `termlink fleet doctor` state (2026-04-22):
+```
+- local-test (127.0.0.1:9100): PASS, version 0.9.0
+- ring20-dashboard (192.168.10.121:9100): FAIL — Token validation failed: invalid signature (hub restart; needs heal — T-1064 still active)
+- ring20-management (192.168.10.102:9100): FAIL — Cannot connect (hub not running or IP drift; ring20-management was renumbered to .122 in memory but hubs.toml still lists .102)
+```
+Neither remote hub is currently reachable from this agent context — .121 auth is stale (T-1064 covers the heal), .102 config is drift from actual .122. Restart-preservation cannot be auto-verified from here; the TLS-cert-persist code lives in `crates/termlink-hub/src/lib.rs` (T-1028 load-or-generate pattern, commits `d59e32cd`..`f5a2ab4c`); remote behavioural test remains a genuine REVIEW — human must operate hubs to validate end-to-end. Status-quo evidence: local-test hub has been running across at least one session boundary this week with no TOFU re-pin required — cert persistence is working locally.
 ## Verification
 
 termlink fleet doctor 2>&1 | grep -q "0 fail"

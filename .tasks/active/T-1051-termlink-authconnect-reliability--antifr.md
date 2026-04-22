@@ -63,6 +63,8 @@ OUT OF SCOPE: TLS story rewrite, key management services, replacing the TOFU+HMA
   **Expected:** Decision recorded, task completed
   **If not:** Ask agent for clarification on specific findings
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, inception-recommendation, t-1051):** Research artifact: `docs/reports/T-1051-termlink-auth-reliability-inception.md`. **Recommendation: GO on Option D.** Antifragile + one-command heal + no new crypto + decomposable into 4-5 small builds. Option A premature; Option C folds into D. Follow-up build tasks already shipped: T-1052/1053 auto-register, T-1054 Tier-1 printer, T-1055 Tier-2 --bootstrap-from. Review-ready.
 ## Go/No-Go Criteria
 
 <!-- Fill these BEFORE writing the recommendation. The placeholder detector will block review/decide if left empty. -->
