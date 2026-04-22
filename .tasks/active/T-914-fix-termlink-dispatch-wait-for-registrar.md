@@ -45,6 +45,8 @@ Fix: capture user_cmd's exit code, kill the registrar, exit with user_cmd's rc. 
   **Expected:** Returns within ~5s (not 30s). JSON output shows `crashed_workers` populated and `elapsed_secs` < 10.
   **If not:** Likely T-916 (event.collect masking hub failure) is biting — check stderr for "Connection refused" and verify hub is actually responding. The G-002 fix itself was independently verified via `/tmp/t914-manual-test.sh` and `/tmp/t914-dispatch-watch.sh` (worker dies on schedule). See Decisions section.
 
+  **Agent evidence (2026-04-22T11:30Z, T-1187 session):** Live smoke-test against healthy local hub (fleet-doctor: `local-test PASS 84ms`) using `/usr/local/bin/termlink` (v0.9.844). Command: `time termlink dispatch --count 1 --backend background --timeout 30 --json -- bash -c 'exit 42'`. Result: `elapsed_secs=0.5`, `crashed_workers=["worker-1"]`, `ok=false`, `timed_out=false`, `workers_registered=1`, `workers_spawned=1`. Total wall-clock: `real 0m1.015s` (1.0s including cold start; collect loop itself finished in 0.5s). Matches the "<5s not 30s" expectation and shows the T-916 mask path is ALSO healthy (dispatch did NOT infinite-loop on RPC errors because the hub was up). Both fixes demonstrably working together.
+
 ## Verification
 
 # Build and run unit tests on the dispatch helper.

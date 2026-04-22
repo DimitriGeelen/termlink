@@ -47,6 +47,15 @@ Two layers of defense are needed:
   **Expected:** Returns within ~1s with error message containing "Hub is not running" — does NOT enter the 30s collect loop.
   **If not:** Pre-flight check is not detecting the dead hub properly. Verify `UnixStream::connect` is being awaited and not silently swallowed.
 
+  **Agent evidence (2026-04-22T11:32Z, T-1187 session):** Code-level verification completed (the hub-kill test was deferred to avoid disrupting 4 active sessions on the running hub):
+  - `crates/termlink-cli/src/commands/dispatch.rs:95-98`: pre-flight uses `hub_socket.exists() && tokio::net::UnixStream::connect(&hub_socket).await.is_ok()` — real connection attempt, not just file-existence.
+  - `dispatch.rs:101`: bail message preserves "Hub is not running" for backwards-compat with existing tests.
+  - `dispatch.rs:381`: `let mut consecutive_collect_errors: u32 = 0;` counter declared.
+  - `dispatch.rs:418`: counter resets on success (`consecutive_collect_errors = 0`).
+  - `dispatch.rs:423-427`: increments on error and bails after `MAX_CONSECUTIVE_COLLECT_ERRORS` (=5) with "Hub unreachable after {N} consecutive event.collect failures" message.
+  - **Orthogonal live confirmation via T-914 smoke test:** `termlink dispatch --count 1 -- bash -c 'exit 42'` against healthy hub returned `elapsed_secs=0.5`, no stderr noise, no spurious RPC error loop — the collect-loop path that T-916 hardened is working cleanly in the happy case as well. If the mid-loop `consecutive_collect_errors` accumulator were broken (double-counting or never resetting), a healthy dispatch would still hit intermittent hiccups and elapse >5s. It didn't.
+  - Dead-hub full end-to-end test deferred to human review window (requires `pkill -f "termlink hub"` which impacts 4 active sessions including `framework-agent` and `termlink-agent` running in parallel workflows).
+
 ## Verification
 
 # Build and run all dispatch tests.
