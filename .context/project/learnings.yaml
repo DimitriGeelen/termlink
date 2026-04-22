@@ -583,3 +583,10 @@ learnings:
   date: 2026-04-22
   context: Added via context agent
   application: TBD
+- id: PL-049
+  learning: "False-complete repair pattern: when a task closed with Agent AC [x] turns out to lie about a file artifact, the repair is (1) build the artifact honestly in a new task (T-XXX-repair), (2) create an upstream-mirror follow-on if the build lives in a gitignored vendored copy (T-1188 pattern), (3) annotate the original false-complete with a repair-cross-reference update, (4) refresh the governing gap entry with both hits-now-have-build-tasks evidence. Repair tasks inherit the original's Human ACs contextually: the new artifact makes the original Human step executable, so humans can tick both simultaneously on next review."
+  source: PL-007
+  task: T-1189
+  date: 2026-04-22
+  context: Added via context agent
+  application: TBD
