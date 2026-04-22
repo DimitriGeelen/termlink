@@ -253,9 +253,11 @@ concerns:
   what_works_now: "classify_fleet_error correctly handles TOFU/auth/tls strings when they ARE in the input message (unit-tested at remote.rs #[test] fleet_learning_classifies_auth_errors). The auth_mismatch_class function feeds T-1052 learning auto-register and T-1053 concern escalation correctly because it sees the same msg. Only the human-facing hint path is broken."
   what_remains: "1. ✓ Switched remote.rs:1646 to `format!(\"{:#}\", e)` in T-1181. 2. ✓ Added unit tests pinning wrapped-cause behaviour in T-1181. 3. ✓ Audited crates/termlink-cli/src/commands/remote.rs for sibling call sites — found + fixed remote.rs:1443 (cmd_fleet_status) in T-1183. `grep -n 'format!(\"{}\", e)' crates/termlink-cli/src/commands/remote.rs` now returns zero matches. 4. Longer-term: a clippy lint forbidding `format!(\"{}\", e)` on anyhow values in user-facing error paths would catch future regressions, but has not been authored (nice-to-have, not blocking)."
   mitigation_candidate: "Two fixes landed: T-1181 (fleet-doctor hint path) and T-1183 (fleet-status classification + action path). Both validated live against .102 (real TOFU-rotated hub) — before/after diffs in task files. Gap can move to resolved once both ship (both committed, pushed to onedev). Optional clippy-lint hardening tracked as a future candidate."
-  status: watching
+  status: closed
+  resolution: "Both sites fixed and shipped 2026-04-22. T-1181 commit 6e4a1670 (cmd_fleet_doctor remote.rs:1646 → format!(\"{:#}\", e) + unit tests). T-1183 commit c440f813 (cmd_fleet_status remote.rs:1443, same pattern). Evidence collected in commit c10cb75e (T-1102 live fleet status shows actionable heals). `grep -n 'format!(\"{}\", e)' crates/termlink-cli/src/commands/remote.rs` now returns zero matches at anyhow error sites. Optional clippy-lint hardening deferred as nice-to-have."
   created: 2026-04-22
   last_reviewed: 2026-04-22
+  closed: 2026-04-22
   related_tasks: [T-1028, T-1034, T-1051, T-1052, T-1181, T-1183]
 
 - id: G-015
