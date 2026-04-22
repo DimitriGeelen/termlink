@@ -11,12 +11,12 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [dispatch, orchestration, lifecycle, mcp]
 components: []
 related_tasks: [T-233, T-256, T-257]
 created: 2026-03-25T14:27:11Z
-last_update: 2026-04-16T05:38:15Z
+last_update: 2026-04-22T04:52:50Z
 date_finished: null
 ---
 
@@ -179,3 +179,6 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-16T05:38:15Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-22T04:52:50Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

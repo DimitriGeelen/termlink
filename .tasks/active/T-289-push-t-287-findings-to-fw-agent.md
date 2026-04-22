@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T22:16:19Z
-last_update: 2026-04-16T05:38:15Z
+last_update: 2026-04-22T04:52:51Z
 date_finished: null
 ---
 
@@ -58,3 +58,6 @@ test -f docs/specs/T-160-declare-A-macos-fix-pickup.md
 ### 2026-04-16T05:38:15Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-22T04:52:51Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

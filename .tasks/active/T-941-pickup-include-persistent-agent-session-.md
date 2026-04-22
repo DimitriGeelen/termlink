@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T07:49:06Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T21:29:28Z
 ---
 
@@ -125,3 +125,6 @@ Rationale: Framework-side work. T-931 systemd unit proves the pattern works. Tem
 ### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
 - **Evidence:** systemd units termlink-framework-agent.service and termlink-termlink-agent.service both active (watchdog.sh confirms); persistent session pattern codified
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

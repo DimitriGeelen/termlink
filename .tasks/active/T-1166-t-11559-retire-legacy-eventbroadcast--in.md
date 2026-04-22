@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: decommission
 owner: agent
-horizon: later
+horizon: next
 tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-04-20T14:12:20Z
+last_update: 2026-04-22T04:52:49Z
 date_finished: null
 ---
 
@@ -74,3 +74,6 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1166-t-11559-retire-legacy-eventbroadcast--in.md
 - **Context:** Initial task creation
+
+### 2026-04-22T04:52:49Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

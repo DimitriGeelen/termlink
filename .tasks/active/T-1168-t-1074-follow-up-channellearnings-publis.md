@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [T-1074, T-1155, bus, learnings-exchange]
 components: []
 related_tasks: [T-1074, T-1155, T-1158, T-1159, T-1160, T-1161]
 created: 2026-04-20T14:43:26Z
-last_update: 2026-04-20T14:43:26Z
+last_update: 2026-04-22T04:52:49Z
 date_finished: null
 ---
 
@@ -73,3 +73,6 @@ test -f .context/project/received-learnings.yaml || echo "will be created on fir
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1168-t-1074-follow-up-channellearnings-publis.md
 - **Context:** Initial task creation
+
+### 2026-04-22T04:52:49Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

@@ -12,12 +12,12 @@ description: >
 status: captured
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: [infrastructure, proxmox, operations]
 components: []
 related_tasks: [T-1064, T-1028, T-1053]
 created: 2026-04-19T08:43:09Z
-last_update: 2026-04-19T08:43:09Z
+last_update: 2026-04-22T04:52:49Z
 date_finished: null
 ---
 
@@ -89,3 +89,6 @@ See `.context/project/concerns.yaml` entry G-009 for full diagnosis.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1137-install-logrotate-on-proxmox-host-180--p.md
 - **Context:** Follow-up from G-009 (proxmox .180 /var/log full → CT 200 reboot loop → .122 cert rotations). Parked as horizon=later pending operator action on .180.
+
+### 2026-04-22T04:52:49Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

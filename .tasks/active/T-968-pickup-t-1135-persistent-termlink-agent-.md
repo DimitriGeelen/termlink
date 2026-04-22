@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T09:44:01Z
-last_update: 2026-04-16T05:39:44Z
+last_update: 2026-04-22T04:52:53Z
 date_finished: 2026-04-12T21:29:29Z
 ---
 
@@ -134,3 +134,6 @@ Evidence:
 ### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
 - **Evidence:** Watchdog cron at /etc/cron.d/termlink-watchdog runs every minute; checks hub + 2 agent systemd units; persistent sessions confirmed via termlink discover
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:53Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

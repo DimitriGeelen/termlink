@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T07:49:08Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T17:14:43Z
 ---
 
@@ -136,3 +136,6 @@ Rationale: The split-brain issue is real but the current `TERMLINK_RUNTIME_DIR` 
 ### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
 - **Evidence:** Hub runs from /tmp/termlink-0 with sessions/ dir; /var/lib/termlink/ also exists with hub.cert.pem — multi-dir layout confirmed
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

@@ -4,15 +4,15 @@ name: "Multi-session mirror — termlink mirror --tag with TUI grid"
 description: >
   Multi-session mirror — termlink mirror --tag with TUI grid
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:59Z
-last_update: 2026-03-23T09:10:09Z
+last_update: 2026-04-22T04:52:50Z
 date_finished: null
 ---
 
@@ -60,3 +60,7 @@ date_finished: null
 
 ### 2026-03-23T09:10:09Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-22T04:52:50Z — status-update [task-update-agent]
+- **Change:** horizon: later → next
+- **Change:** status: started-work → captured (auto-sync)

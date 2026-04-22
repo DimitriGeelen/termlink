@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:31Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:53Z
 date_finished: 2026-04-12T17:16:34Z
 ---
 
@@ -131,3 +131,6 @@ Rationale: This is subsumed by T-984 (fw upgrade local patch reversion). If T-98
 ### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
 - **Evidence:** Learning registered; fw upgrade --dry-run flag available to preview changes; checksum manifest tracks modifications (T-978)
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:53Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

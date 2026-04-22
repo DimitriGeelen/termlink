@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:01Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T17:14:58Z
 ---
 
@@ -142,3 +142,6 @@ Rationale: Every hub restart breaks all client TOFU trust, requiring manual fing
 ### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
 - **Evidence:** hub.cert.pem persisted at /var/lib/termlink/hub.cert.pem; hub.key.pem at runtime dir /tmp/termlink-0/
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

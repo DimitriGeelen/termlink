@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [T-233, orchestration, error-yielding]
 components: []
 related_tasks: [T-233]
 created: 2026-03-23T13:28:06Z
-last_update: 2026-03-23T13:28:06Z
+last_update: 2026-04-22T04:52:50Z
 date_finished: null
 ---
 
@@ -95,3 +95,6 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-19T12:30Z — housekeeping [agent]
 - **Action:** T-1139 audit remediation touch. Task remains captured/horizon=later pending operator prioritization; no scope change.
 - **Status:** Still backlog — inception not yet entered. Will move when another exploration slot opens.
+
+### 2026-04-22T04:52:50Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

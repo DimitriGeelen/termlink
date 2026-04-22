@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T08:41:35Z
-last_update: 2026-04-18T15:05:25Z
+last_update: 2026-04-22T04:52:53Z
 date_finished: 2026-04-12T15:59:57Z
 ---
 
@@ -134,3 +134,6 @@ Evidence:
 - T-940 / T-942 (multi-dir hub scanning) make the two-pool model observable without merging pools
 - Pattern documented in `.context/project/learnings.yaml`
 - No operational incidents attributable to the pool split since the learning was codified
+
+### 2026-04-22T04:52:53Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

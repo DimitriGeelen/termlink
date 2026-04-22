@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T09:59:44Z
-last_update: 2026-04-18T09:59:51Z
+last_update: 2026-04-22T04:52:49Z
 date_finished: null
 ---
 
@@ -67,3 +67,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1124-run-t-1122-wsgi-migration-spikes-after-g.md
 - **Context:** Initial task creation
+
+### 2026-04-22T04:52:49Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

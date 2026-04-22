@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:27:24Z
-last_update: 2026-04-16T05:39:44Z
+last_update: 2026-04-22T04:52:53Z
 date_finished: 2026-04-12T10:44:32Z
 ---
 
@@ -84,3 +84,6 @@ test -f /opt/termlink/.agentic-framework/agents/context/pl007-scanner.sh
 ### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
 - **Evidence:** PostToolUse hooks active in .claude/settings.local.json (checkpoint.sh); bare-command scanning is part of framework governance
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:53Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

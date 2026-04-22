@@ -8,12 +8,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: later
+horizon: next
 tags: [framework, macos-compat]
 components: []
 related_tasks: [T-141]
 created: 2026-03-17T20:46:25Z
-last_update: 2026-04-16T05:40:15Z
+last_update: 2026-04-22T04:52:49Z
 date_finished: 2026-04-03T22:47:33Z
 ---
 
@@ -73,3 +73,6 @@ grep -q "diagnose.sh" docs/specs/T-160-declare-A-macos-fix-pickup.md
 
 ### 2026-04-16T05:40:15Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-22T04:52:49Z — status-update [task-update-agent]
+- **Change:** horizon: later → next

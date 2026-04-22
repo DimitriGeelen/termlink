@@ -6,15 +6,15 @@ description: >
   in the framework's bash scripts (date -d, declare -A, head -n -1, stat -c).
   Priority: Linux (must) > macOS (must) > Windows/WSL (bonus).
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [framework, macos-compat, portability]
 components: []
 related_tasks: [T-160]
 created: 2026-03-20T20:19:57Z
-last_update: 2026-03-22T17:22:24Z
+last_update: 2026-04-22T04:52:50Z
 date_finished: null
 ---
 
@@ -124,3 +124,7 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 
 ### 2026-03-22T17:22:24Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-04-22T04:52:50Z — status-update [task-update-agent]
+- **Change:** horizon: later → next
+- **Change:** status: started-work → captured (auto-sync)

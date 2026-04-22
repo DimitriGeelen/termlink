@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: next
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-04-12T08:10:03Z
-last_update: 2026-04-16T05:39:43Z
+last_update: 2026-04-22T04:52:52Z
 date_finished: 2026-04-12T17:15:05Z
 ---
 
@@ -132,3 +132,6 @@ Rationale: Hub inbox requires non-trivial protocol design: queuing semantics, me
 ### 2026-04-16T21:09:44Z — programmatic-evidence [T-1090]
 - **Evidence:** Hub inbox at /tmp/termlink-0/inbox/ exists; remote inbox command (termlink remote inbox local-test) returns empty-inbox status; hub-level inbox feature working
 - **Verified by:** automated command execution
+
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: later → next
