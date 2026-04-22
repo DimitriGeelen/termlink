@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-22T05:26:15Z
-last_update: 2026-04-22T05:28:30Z
+last_update: 2026-04-22T05:29:39Z
 date_finished: 2026-04-22T05:28:30Z
 ---
 
@@ -69,3 +69,32 @@ cargo build -p termlink 2>&1 | tail -5 | grep -qE "Finished|Compiling"
 
 ### 2026-04-22T05:28:30Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-22T07:41Z — agent-evidence (rubber-stamp support, does NOT check Human AC per T-193)
+
+Release build + live fleet-doctor run completed against a real TOFU-rotated hub (.102):
+
+**Build:**
+```
+$ cargo build -p termlink --release
+    Finished `release` profile [optimized] target(s) in 2m 21s
+$ ./target/release/termlink --version
+termlink 0.9.274
+```
+
+**Before fix (installed binary 0.9.206, same hubs.toml, same TOFU pin state):**
+```
+--- ring20-management (192.168.10.102:9100) ---
+  [FAIL] Cannot connect to 192.168.10.102:9100 — is the hub running?
+  hint: Unexpected error — check hub logs on the remote host for details
+```
+
+**After fix (rebuilt 0.9.274 from this task's HEAD):**
+```
+--- ring20-management (192.168.10.102:9100) ---
+  [FAIL] Cannot connect to 192.168.10.102:9100 — is the hub running?: unexpected error: TOFU VIOLATION: Hub 192.168.10.102:9100 fingerprint changed!
+  ...
+  hint: Hub certificate changed. If expected (hub restart), clear with: termlink tofu clear 192.168.10.102:9100
+```
+
+The hint changed from the generic fallback to the actionable TOFU branch — exactly what the task targeted. The `{:#}` alternate formatter now surfaces the inner chain so `classify_fleet_error` matches the correct branch. The RUBBER-STAMP AC is satisfied in substance; only the checkbox remains for the human.
