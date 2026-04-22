@@ -96,6 +96,8 @@ Time-box: **90 min**. No code until GO.
   **Expected:** Decision recorded, task completed
   **If not:** Ask agent for clarification on specific findings
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, inception-recommendation, t-1074):** Research artifact: `docs/reports/T-1074-cross-agent-learning-exchange-inception.md`. **Recommendation: GO — but pivot to T-1155 bus** (do not build the standalone cron). 5-point evidence: fleet unreachability, cadence dominance of event-driven over poll, schema+dedup fits naturally, security solved by T-1159 ed25519 identity, scope economy (1 follow-up vs 4 moving parts). Downstream work: T-1168. Review-ready.
 ## Go/No-Go Criteria
 
 <!-- Fill these BEFORE writing the recommendation. The placeholder detector will block review/decide if left empty. -->

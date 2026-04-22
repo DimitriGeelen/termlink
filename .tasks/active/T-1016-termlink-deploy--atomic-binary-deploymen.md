@@ -68,6 +68,8 @@ Deploying termlink to remote hosts (.109, .121) currently requires 6+ manual ste
   **Expected:** Decision recorded, task completed
   **If not:** Ask agent for clarification
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, inception-recommendation, t-1016):** Research artifact: `docs/reports/T-1016-termlink-deploy.md`. 5 spikes executed: systemd-managed restart is the clean path; binary transfer via send-file is solved; T-1028 + T-933 eliminate TOFU/auth breakage on restart; estimated ~100 LOC for `termlink deploy`. Findings (no explicit Recommendation header but clear direction): GO on `termlink deploy` atop systemd. Review-ready.
 ## Go/No-Go Criteria
 
 **GO if:**

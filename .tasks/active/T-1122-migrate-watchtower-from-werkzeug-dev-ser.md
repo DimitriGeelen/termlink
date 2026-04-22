@@ -79,6 +79,8 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
   **Expected:** Decision recorded, task completed
   **If not:** Ask agent for clarification on specific findings
 
+
+**Agent evidence (auto-batch 2026-04-22, G-008 remediation, inception-recommendation, t-1122):** Research artifact: `docs/reports/T-1122-watchtower-wsgi-migration-recommendation.md`. **Recommendation: DEFER on WSGI swap; GO on systemd wrapping.** Root cause of restart races is process management, not WSGI. Werkzeug warning is aesthetic on single-host LAN tool. Spike matrix evaluated waitress/gunicorn/hypercorn — gunicorn would race .tool-counter under multi-worker. Companion artifact `T-1122-watchtower-production-server-inception.md` holds full spike evidence. Review-ready.
 ## Go/No-Go Criteria
 
 <!-- Fill these BEFORE writing the recommendation. The placeholder detector will block review/decide if left empty. -->
