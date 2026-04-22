@@ -68,3 +68,26 @@ cargo build -p termlink 2>&1 | tail -3
 
 ### 2026-04-17T21:20:32Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+**Agent evidence (auto-batch 2026-04-22 T-1184, G-008 remediation, watchtower-fleet-route):** Page renders under correct PROJECT_ROOT via Flask test_client. The earlier 404 I observed on port 3000 was a PROJECT_ROOT mismatch — that watchtower serves `/opt/999-Agentic-Engineering-Framework`, not `/opt/termlink`. When create_app is invoked with `PROJECT_ROOT=/opt/termlink`:
+
+```python
+# Flask test_client bypasses process boundary; blueprints load from vendored .agentic-framework/
+>>> resp = client.get('/fleet')
+/fleet: HTTP 200, 48126 bytes
+Hub names rendered: ['local-test', 'ring20-dashboard', 'ring20-management']
+IPs rendered: ['127.0.0.1', '192.168.10.102', '192.168.10.121']
+Badge status occurrences: up=2 down=2 auth-fail=2
+Session-visibility markup hits: 2   # T-1115
+Home page size: 74363 bytes
+Home mentions fleet widget: True    # T-1116
+```
+
+**Heal path for RUBBER-STAMP verification (operator):**
+```
+PROJECT_ROOT=/opt/termlink python3 -m web.app --port 3001 &
+xdg-open http://localhost:3001/fleet   # or browse manually
+```
+
+Route + templates + subprocess hookup to `termlink fleet status --json` are all wired; the existing .107 watchtower just has a different project scope. Substance satisfied; checkbox remains for human to browse the rendered page (T-193).
+
