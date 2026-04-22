@@ -569,3 +569,17 @@ learnings:
   date: 2026-04-22
   context: Added via context agent
   application: TBD
+- id: PL-047
+  learning: "Fleet doctor observed tofu-violation on hub 'ring20-management' (192.168.10.102:9100). date_observed=2026-04-22T05:41:05Z hub_fingerprint=sha256:bd00d548d81e833316e8b487e7989603729a3fd1c9344687e73c74be3de45496. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-22
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-048
+  learning: "R-033 sovereignty gate blocks agents from completing human-owned tasks — even mechanical status-flips from started-work to work-completed. Partial-complete state (status=work-completed + owner=human) is reached via HUMAN Watchtower approval at :3100/review/T-XXXX, not agent CLI. D5 lifecycle anomalies on owner:human tasks with all Agent ACs done are waiting-on-human, not agent cleanup candidates."
+  source: unknown
+  task: T-1185
+  date: 2026-04-22
+  context: Added via context agent
+  application: TBD
