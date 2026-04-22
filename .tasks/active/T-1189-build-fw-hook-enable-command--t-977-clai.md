@@ -63,6 +63,13 @@ blocked this session's mechanical completion of T-1187's RUBBER-STAMP.
 
 - [ ] [RUBBER-STAMP] Mirror the new artifacts to framework repo (see T-1190 follow-up)
 
+### 2026-04-22T21:27Z — mirror-landed evidence
+
+Applied in this session via T-1192 Channel 1 (plain-bash termlink dispatch --workdir, no claude). Upstream framework master commits:
+- `684eea0c` — `bin/hook-enable.sh` (sha256 `91ba6bd5...`, byte-identical to termlink vendored)
+- `c1b8ff05` — `bin/fw` dispatcher patch (new `hook-enable)` case + help-menu entry)
+Both pushed to onedev master. Next `fw upgrade` on consumer projects preserves the registrar instead of silent-revert.
+
 ## Verification
 
 test -x /opt/termlink/.agentic-framework/bin/hook-enable.sh
