@@ -55,7 +55,7 @@ OUT OF SCOPE: TLS story rewrite, key management services, replacing the TOFU+HMA
 - [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -128,3 +128,7 @@ OUT OF SCOPE: TLS story rewrite, key management services, replacing the TOFU+HMA
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Option D: persist-by-default + auto-registered learning + fleet reauth heal command. Peer reviewed.
+
+### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
+- **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
+- **Decision:** already recorded in Decision section prior to this approval

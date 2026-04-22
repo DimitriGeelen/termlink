@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-980: Tier 0 self-approval bypass — agent can call fw tier0 approve to unblock its own Tier 0 blocked commands
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T10:21:02Z
+# ============================================================================
+
+task_id: T-980
+task_name: "Tier 0 self-approval bypass — agent can call fw tier0 approve to unblock its own Tier 0 blocked commands"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T13:18:00Z
+completed: 2026-04-22T04:52:54Z
+duration_days: 10
+updates_count: 7
+first_commit: 2026-04-12T15:20:14+02:00
+last_commit: 2026-04-12T15:20:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — Tier 0 self-approval bypass RCA + GO recommendation
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+  - "[RUBBER-STAMP] Record go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - "docs/reports/T-980-tier0-self-approval-bypass.md"
+  - ".tasks/active/T-980-tier-0-self-approval-bypass--agent-can-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T15:20:14"
+    action: "T-980: Inception — Tier 0 self-approval bypass RCA + GO recommendation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13894 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13894
+  commits: 1
+  files_changed: 3
+  lines_added: 197
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-980-tier-0-self-approval-bypass--agent-can-c.md
+generated_by: context-agent-hybrid

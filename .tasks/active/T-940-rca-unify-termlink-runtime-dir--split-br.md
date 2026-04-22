@@ -10,7 +10,7 @@ tags: [termlink, systemd, runtime-dir, cross-host, rca]
 components: []
 related_tasks: [T-931, T-933, T-936]
 created: 2026-04-12T07:43:43Z
-last_update: 2026-04-22T04:52:52Z
+last_update: 2026-04-22T10:20:58Z
 date_finished: 2026-04-12T07:49:57Z
 ---
 
@@ -107,7 +107,7 @@ Without unification, every new persistent session requires explicit `TERMLINK_RU
 - [ ] Recommendation written with rationale
 
 ### Human
-- [ ] [RUBBER-STAMP] Record go/no-go decision
+- [x] [RUBBER-STAMP] Record go/no-go decision
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
   2. Find T-940, select GO / NO-GO / DEFER, click Record Decision
@@ -194,3 +194,7 @@ Without unification, every new persistent session requires explicit `TERMLINK_RU
 
 ### 2026-04-22T04:52:52Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
+- **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
+- **Decision:** already recorded in Decision section prior to this approval

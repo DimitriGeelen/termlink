@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:05Z
-last_update: 2026-04-22T04:52:52Z
+last_update: 2026-04-22T10:20:57Z
 date_finished: 2026-04-11T20:19:55Z
 ---
 
@@ -80,7 +80,7 @@ Time-box: **one session**, dialogue-driven. No production code. Deliverable = de
 - [ ] Recommendation filled with GO/NO-GO/DEFER + rationale + evidence
 
 ### Human
-- [ ] [RUBBER-STAMP] Record go/no-go decision
+- [x] [RUBBER-STAMP] Record go/no-go decision
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
   2. Find T-921, select GO / NO-GO / DEFER, click Record Decision
@@ -167,3 +167,7 @@ Time-box: **one session**, dialogue-driven. No production code. Deliverable = de
 
 ### 2026-04-22T04:52:52Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
+- **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
+- **Decision:** already recorded in Decision section prior to this approval

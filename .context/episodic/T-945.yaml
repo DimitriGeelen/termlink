@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-945: Pickup: U-001: TLS cert regenerates on every hub restart, breaking all client TOFU trust (from 999-Agentic-Engineering-Framework)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T10:20:59Z
+# ============================================================================
+
+task_id: T-945
+task_name: "Pickup: U-001: TLS cert regenerates on every hub restart, breaking all client TOFU trust (from 999-Agentic-Engineering-Framework)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T08:10:01Z
+completed: 2026-04-22T04:52:52Z
+duration_days: 10
+updates_count: 6
+first_commit: 2026-04-12T18:52:17+02:00
+last_commit: 2026-04-12T18:52:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-937 T-945: Inception triage — cleanup bug (NO-GO), TLS cert persistence (GO)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (tls.rs regenerates unconditionally, cleanup deletes on shutdown)"
+  - "Assumptions tested (T-933 pattern confirmed applicable; cert files at known paths)"
+  - "Recommendation written with rationale (GO: 2-file fix, directly follows T-933 pattern)"
+  - "[RUBBER-STAMP] Record go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "T-937 T-945: Inception triage — cleanup bug (NO-GO), TLS cert persistence (GO)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-937-pickup-termlink-cleanup-kills-active-dis.md"
+  - ".tasks/active/T-945-pickup-u-001-tls-cert-regenerates-on-eve.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T18:52:17"
+    action: "T-937 T-945: Inception triage — cleanup bug (NO-GO), TLS cert persistence (GO)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14202 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14202
+  commits: 1
+  files_changed: 2
+  lines_added: 67
+  lines_removed: 54
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-945-pickup-u-001-tls-cert-regenerates-on-eve.md
+generated_by: context-agent-hybrid
