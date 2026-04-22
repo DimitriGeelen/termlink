@@ -276,5 +276,6 @@ concerns:
   status: watching
   created: 2026-04-22
   last_reviewed: 2026-04-22
+  last_observation: "2026-04-22T19:08Z: T-1187 deliverable validated live in session S-2026-0422-2100. pl007-scanner registered in settings.json (commit 0a047eab) and firing end-to-end — fired 3× on tool output containing `bin/fw` in this session. 4/4 smoke battery passes (bare pattern → fires; fw task review precursor → suppressed; self-exec → suppressed; non-Bash → skipped). The T-1187 artifact is honest — closes the first of the two G-015 symptomatic repairs."
   blast_radius_audit_2026-04-22: "164 [x] ACs with path-bearing tokens scanned across .tasks/ — 2 true false-completes (T-976, T-977), 9 false-positives (user-home paths like ~/.termlink/hubs.toml, URL fragments, PROJECT_ROOT placeholders). Both true hits now have work-completed repair tasks."
   related_tasks: [T-976, T-977, T-1187, T-1188, T-1189, T-1190]
