@@ -149,6 +149,8 @@ concerns:
   observations:
     - date: 2026-04-22
       note: "Fleet-doctor from .107 shows ring20-management at 192.168.10.102:9100 unreachable ('No route to host' — network layer, not auth). TOFU pin for .102 last_seen 2026-04-21T13:15Z — hub was reachable yesterday. Possible G-009 cascade recurrence OR 5th container renumber (see ring20-management memory: 4 renumbers in 5 days as of 2026-04-20). Note: G-009's original title still references .122; the container has since renumbered through .102 and possibly beyond. Title drift — broaden 'CT 200 / ring20-management / <current-IP>' when refreshing."
+    - date: 2026-04-22T18:48Z
+      note: "Re-confirmed cascade still active. ICMP ping .102: 100% packet loss. Proxmox host .180 ITSELF is up (ping 0.117ms) with services :22, :80, :8006 (PVE UI), :9100 (Prometheus Node Exporter — confirmed by HTTP title tag). So cascade chain: .180 up → container CT 200 down at .102 → hub appears network-unreachable to fleet-doctor. Container is either rebooting, powered off, or 5th renumber. No change from earlier 2026-04-22 observation — still operator territory (logrotate on .180 + container revival)."
   related_tasks: [T-1064, T-1028, T-1053]
 
 - id: G-008
@@ -236,6 +238,7 @@ concerns:
   status: watching
   created: 2026-04-22
   last_reviewed: 2026-04-22
+  last_observation: "2026-04-22T18:47Z: hub is reachable (ping 0.152ms; TCP 9100 + SSH 22 both accept). Failure is PURELY auth-drift — secret on hub has rotated and local cache is stale. T-1054 reauth Tier-1 prints the heal plan successfully (ssh 192.168.10.121 + file write). T-1055 --bootstrap-from ssh:192.168.10.121 fails in this env because SSH needs password/key; either human completes the SSH handshake interactively OR the heal runs via the Tier-1 printed sequence where the human supplies the out-of-band channel."
   related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055]
 
 - id: G-014
