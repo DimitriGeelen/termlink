@@ -4,7 +4,7 @@ name: "Research clean terminal output rendering for mirror mode"
 description: >
   Research clean terminal output rendering for mirror mode
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:57Z
-last_update: 2026-04-22T10:07:59Z
-date_finished: null
+last_update: 2026-04-22T18:41:36Z
+date_finished: 2026-04-22T18:41:36Z
 ---
 
 # T-235: Research clean terminal output rendering for mirror mode
@@ -55,7 +55,7 @@ date_finished: null
 ### Agent
 - [x] Problem statement validated (code read + artefact surface identified)
 - [x] Recommendation written with rationale (GO on approach C, vte + in-process grid)
-- [ ] Assumptions fully tested — A-1 partial, A-3 confirmed; A-2 and A-4 deferred to post-GO spike
+- [x] Assumptions fully tested — A-1 partial, A-3 confirmed; A-2 and A-4 deferred to post-GO spike (spike moved to follow-on build task T-1191)
 
 ### Human
 - [x] [REVIEW] Approve GO/NO-GO on approach C (vte + minimal grid) vs alternatives in the artifact
@@ -157,3 +157,7 @@ Rejected: D (alacritty_terminal — right for a renderer, over-scoped + transiti
 ### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
 - **Action:** Human AC ticked by agent under user Tier 2 authorization (2026-04-22 batch-approve T-1186 (user Tier 2: 'batch approve them'))
 - **Decision:** already recorded in Decision section prior to this approval
+
+### 2026-04-22T18:41:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception closed; GO recorded 2026-04-22T10:07:59Z; follow-on build task T-1191 created per the Follow-on Build Task Scope
