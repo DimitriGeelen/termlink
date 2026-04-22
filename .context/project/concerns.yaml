@@ -216,3 +216,37 @@ concerns:
   last_reviewed: 2026-04-21
   closed: 2026-04-21
   related_tasks: [T-1158, T-1159, T-1160, T-1161, T-1175]
+
+- id: G-013
+  type: gap
+  title: "TermLink hub 'ring20-dashboard' (192.168.10.121:9100) has been failing fleet-doctor with auth-mismatch for 6+ consecutive runs over >24h"
+  description: "Auto-registered by T-1053 under G-019 (framework-blind-to-persistent-failure guard). Hub has failed fleet-doctor with error class 'auth-mismatch' for 6 consecutive runs since 2026-04-19T16:03:47Z (first observed). This indicates either a genuinely broken hub auth state OR stale client credentials that were not refreshed after a hub rotation. Per T-1051 Option D, the heal path is: 1) confirm the hub is intended to be up (termlink remote ping 192.168.10.121:9100 from a trusted anchor), 2) if yes, refresh the client secret (termlink fleet reauth ring20-dashboard when T-1054 lands, or manually copy /var/lib/termlink/hub.secret via an out-of-band channel for now)."
+  spec_reference: "T-1051 inception, T-1053 implementation, .context/working/.fleet-failure-state.json"
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-04-22T05:00:44Z: 6 consecutive fleet-doctor failures on ring20-dashboard (192.168.10.121:9100) with class auth-mismatch, first observed 2026-04-19T16:03:47Z"
+  detection_lag_days: "1"
+  what_works_now: "Fleet doctor correctly classifies the error and emits a hint. T-1052 has already recorded an isolated learning. This concern escalates the sustained pattern to Watchtower visibility."
+  what_remains: "Operator must refresh the client's cached secret for this hub. Long-term fix: T-1054 (termlink fleet reauth) lands a one-command heal."
+  mitigation_candidate: "Ship T-1054 (fleet reauth Tier-1) and T-1055 (fleet reauth --bootstrap-from, Tier-2)."
+  status: watching
+  created: 2026-04-22
+  last_reviewed: 2026-04-22
+  related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055]
+
+- id: G-014
+  type: gap
+  title: "fleet-doctor error Display drops anyhow context chain — TOFU/auth causes misclassified as 'Cannot connect'"
+  description: "In `cmd_fleet_doctor` (crates/termlink-cli/src/commands/remote.rs:1646), failed connections are formatted via `format!(\"{}\", e)` which prints only the top-level anyhow Error message. The outer `.context(\"Cannot connect to {} — is the hub running?\")` wrapper at remote.rs:93 hides inner causes like `TOFU VIOLATION: fingerprint changed` or `Token validation failed`. Downstream `classify_fleet_error` walks its branch matrix against that collapsed string and falls through to the generic 'Unexpected error' fallback, dropping the actionable hint (`termlink tofu clear <addr>` or secret-refresh guidance). Net effect: fleet-doctor reports TOFU rotations as connectivity failures, misleading operators into debugging the wrong layer."
+  spec_reference: "crates/termlink-cli/src/commands/remote.rs:1646 (error formatting), remote.rs:1721 (classify_fleet_error branch matrix), remote.rs:93 (connect_addr .context wrapper), anyhow::Error Display vs LowerExp rules"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-04-22 session: while evidencing T-1064, `termlink fleet doctor` reported ring20-management (.102) as 'Cannot connect — is the hub running?'. Follow-up `termlink remote ping ring20-management` revealed the true cause: `TOFU VIOLATION: Hub 192.168.10.102:9100 fingerprint changed from sha256:bd00d548… to sha256:7cadf7a7…`. The hub was reachable (nc -zv succeeded); the cert had rotated. Fleet-doctor had the data in the error chain, just didn't render it."
+  detection_lag_days: "0 (caught within a single evidence cycle, after looking past the first error)"
+  what_works_now: "classify_fleet_error correctly handles TOFU/auth/tls strings when they ARE in the input message (unit-tested at remote.rs #[test] fleet_learning_classifies_auth_errors). The auth_mismatch_class function feeds T-1052 learning auto-register and T-1053 concern escalation correctly because it sees the same msg. Only the human-facing hint path is broken."
+  what_remains: "1. Switch the format! call to `format!(\"{:#}\", e)` (anyhow alternate Display walks the chain) so classify_fleet_error sees 'Cannot connect … : TOFU VIOLATION …'. 2. Add unit tests pinning the wrapped-cause behaviour (composed message input → TOFU branch / auth-mismatch branch output). 3. Review any other place in the crate where anyhow errors are formatted for user consumption — check for the same lossy pattern."
+  mitigation_candidate: "One-line fix lands in T-1181 (this session). Gap closes when that task ships. Longer-term: add a linter / clippy lint forbidding `format!(\"{}\", e)` in user-facing error paths inside the crate."
+  status: watching
+  created: 2026-04-22
+  last_reviewed: 2026-04-22
+  related_tasks: [T-1028, T-1034, T-1051, T-1052, T-1181]
