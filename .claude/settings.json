@@ -112,6 +112,10 @@
           {
             "type": "command",
             "command": ".agentic-framework/bin/fw hook error-watchdog"
+          },
+          {
+            "type": "command",
+            "command": ".agentic-framework/bin/fw hook pl007-scanner"
           }
         ]
       },
