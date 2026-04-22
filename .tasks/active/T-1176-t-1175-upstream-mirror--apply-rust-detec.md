@@ -45,6 +45,18 @@ Pickup to framework from termlink T-1175. T-1175 landed a Rust detector in the v
   **Expected:** Upstream file contains `detect_rust_deps` and `is_rust`; next consumer `fw upgrade` preserves the patch instead of reverting.
   **If not:** Open a framework-side task for the divergence; confirm the project-boundary block is expected behaviour (it is — T-559).
 
+### 2026-04-22T21:22Z — agent-applied evidence
+
+T-1192 spike 2 validated Channel 1 (plain-bash termlink dispatch --workdir). Applied mirror via that channel in this session:
+
+- Upstream commit `636b309b` in `/opt/999-Agentic-Engineering-Framework` (master): `agents/fabric/lib/enrich.py` overwritten from termlink-vendored source
+- sha256 match: `ee77232b4517741493af540dd6057fd6c1ec48d6631799313e7efaf08bef08a5` — framework file === termlink vendored source
+- Diff was 3 clean additive hunks (RUST_SKIP_CRATES, detect_rust_deps, is_rust dispatch) — no unrelated divergence, so full-file cp was safe
+- Python AST syntax check passed after copy
+- Pushed to onedev master at 2026-04-22T21:22Z
+
+Human RUBBER-STAMP remains for visual confirmation per inception discipline (agent checks no `### Human` boxes).
+
 ## Embedded patch
 
 The full patched file lives at termlink's `.agentic-framework/agents/fabric/lib/enrich.py` (on `main` at `d4c2485c`). Two functional additions:

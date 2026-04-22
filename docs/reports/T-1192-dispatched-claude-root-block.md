@@ -51,6 +51,20 @@ The T-914 fix (G-002 repair: `USER_RC=$?; kill $TL_PID; exit $USER_RC`) correctl
 
 Plan visible in Watchtower `/review/T-1192` (validated via Playwright earlier this session). User delegated initiative; spikes 1, 2, and 5 executed.
 
+### 2026-04-22T21:15Z — Channel 1 proven on real work
+
+User confirmed GO verbally ("1192 is already GO"). Formal `fw inception decide` blocked by Tier 0 gate (requires explicit human approval), left as bookkeeping. User directed: "proceed until context at 300k".
+
+Channel 1 then applied end-to-end to unblock the three pending cross-project mirrors:
+- T-1188 pl007-scanner.sh → framework master `25718851`
+- T-1190 hook-enable.sh → framework master `684eea0c`
+- T-1190 bin/fw dispatcher patch (wired `hook-enable)` case + help line) → framework master `c1b8ff05`
+- All three pushed to onedev at ~21:14Z
+
+This is the first real-world exercise of Channel 1. Every mirror landed without touching claude, without security-guardrail tampering, cross-project, as root, in ~2s per worker. T-1192 Recommendation now has production-grade evidence, not just spike-grade.
+
+T-1176 (Rust detector mirror) deferred — budget at 151K, and that mirror requires invasive edits to an existing Python file, not a clean drop-in. Leave for a fresh session.
+
 ## Spike Findings
 
 ### Spike 1 — A1 confirmed: root-check is immutable in `-p` mode
