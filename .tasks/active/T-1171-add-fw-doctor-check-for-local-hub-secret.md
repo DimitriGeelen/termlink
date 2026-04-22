@@ -96,3 +96,33 @@ grep -q "secret_cache" crates/termlink-cli/src/commands/infrastructure.rs
 
 ### 2026-04-20T20:24:07Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+**Agent evidence (auto-batch 2026-04-22 T-1182, G-008 remediation, t-1171):** Before/after run on this host comparing installed 0.9.206 vs freshly-built 0.9.274 (commit `6e4a1670`) — the `secret_cache` check is present and `pass` in the new binary, absent in the old.
+
+```
+$ termlink doctor 2>&1 | grep secret_cache        # installed 0.9.206
+(no output — check does not exist in this binary)
+
+$ ./target/release/termlink doctor 2>&1 | grep secret_cache   # rebuilt 0.9.274
+  ✓ secret_cache: all cached secrets look healthy
+```
+
+Full rebuilt doctor output shows the check integrated into the existing 10-check list:
+
+```
+  ✓ runtime_dir: /var/lib/termlink
+  ✓ sessions_dir: /var/lib/termlink/sessions
+  ✓ sessions: 4 registered, all responding
+  ✓ hub: running (PID 1718329), responding
+  ✓ ufw_listener: ufw allows 9100/tcp — listener present
+  ✓ sockets: no orphaned sockets
+  ✓ dispatch: no dispatch manifest
+  ✓ inbox: no pending transfers
+  ✓ secret_cache: all cached secrets look healthy
+  ✓ version: termlink 0.9.274 (4fe7f010), 74 MCP tools
+
+All 10 checks passed
+```
+
+The `secret_cache` line appears exactly once, between `inbox` and `version` — matches the AC shape. RUBBER-STAMP substance satisfied; checkbox remains for human (T-193).
+

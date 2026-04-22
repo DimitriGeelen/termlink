@@ -88,3 +88,16 @@ bash -c 'cd /opt/termlink && cargo check -p termlink-hub -p termlink 2>&1 | tail
 
 ### 2026-04-19T14:12:44Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+**Agent evidence (auto-batch 2026-04-22 T-1182, G-008 remediation, t-1132):** Live `termlink fleet doctor` run from freshly-built binary (0.9.274, commit `6e4a1670`) against current fleet — version-diversity line is present and populated.
+
+```
+$ ./target/release/termlink fleet doctor
+Fleet doctor: 3 hub(s) configured
+...
+Fleet summary: 3 hub(s), 1 ok, 0 warn, 2 fail
+Versions in fleet: 0.9.0 (1 hub), unknown (2 hubs)
+```
+
+The `Versions in fleet:` trailer summarises `query.capabilities` responses across all configured hubs. Two hubs reported `unknown` because they failed to connect (TOFU violation + auth mismatch) — for `pass` hubs the version string is reported authoritatively (0.9.0 on local-test). REVIEW substance satisfied: the feature is live, the line renders, the aggregate renders the configured-hub count. Checkbox remains for human (T-193).
+
