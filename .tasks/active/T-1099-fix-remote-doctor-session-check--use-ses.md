@@ -71,3 +71,18 @@ bash -c '! grep -q "call(\"session.list\"" crates/termlink-mcp/src/tools.rs'
 
 ### 2026-04-16T23:41:52Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+**Agent evidence (auto-batch 2026-04-22 T-1182, G-008 remediation, t-1099):** Live `termlink remote doctor local-test` run from this host (192.168.10.107) against the local hub — all session-discovery checks pass.
+
+```
+$ termlink remote doctor local-test
+Remote doctor: 127.0.0.1:9100
+  [PASS] connectivity: connected in 81ms
+  [PASS] sessions: 4 session(s): framework-agent, termlink-agent, ntb-dev-test, email-archive
+  [PASS] inbox: no pending transfers
+
+  Summary: 3 pass, 0 warn, 0 fail
+```
+
+The `sessions:` line lists live session display names, which is the `session.discover` codepath (not the pre-fix `session.list` that returned metadata-only). Four concurrent sessions are enumerated correctly. RUBBER-STAMP substance satisfied; checkbox remains for human (T-193).
+
