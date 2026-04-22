@@ -144,7 +144,10 @@ concerns:
   mitigation_candidate: "Short-term: truncate access.log (operator, host-side SSH). Medium-term: logrotate config on .180. Long-term: cross-host health check that detects disk pressure before cascade."
   status: watching
   created: 2026-04-19
-  last_reviewed: 2026-04-19
+  last_reviewed: 2026-04-22
+  observations:
+    - date: 2026-04-22
+      note: "Fleet-doctor from .107 shows ring20-management at 192.168.10.102:9100 unreachable ('No route to host' — network layer, not auth). TOFU pin for .102 last_seen 2026-04-21T13:15Z — hub was reachable yesterday. Possible G-009 cascade recurrence OR 5th container renumber (see ring20-management memory: 4 renumbers in 5 days as of 2026-04-20). Note: G-009's original title still references .122; the container has since renumbered through .102 and possibly beyond. Title drift — broaden 'CT 200 / ring20-management / <current-IP>' when refreshing."
   related_tasks: [T-1064, T-1028, T-1053]
 
 - id: G-008
