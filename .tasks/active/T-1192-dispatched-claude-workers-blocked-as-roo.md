@@ -108,15 +108,17 @@ Time-boxed spikes. Each produces a single artifact (shell script, task file, or 
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO — Channel 1 (plain-bash dispatch) as default, Channel 4 (container) earmarked for future Claude-judgment cases.
+
+**Rationale:** `termlink dispatch --workdir /opt/<other> -- bash -c '...'` already runs as root, cross-project, without invoking claude. All 3 pending dispatch use-cases (T-1188, T-1190, T-1176) are mechanical file-copy+patch-apply. No new subsystem required; estimated ≤50 LoC polish + a mirror helper script. Preserves the Anthropic root-guard by routing around it instead of silencing it.
+
+**Evidence:**
+- Spike 1: `--allow-dangerously-skip-permissions` does NOT bypass the root check; root-guard is structural in `-p` mode (claude 2.1.117). A1 validated.
+- Spike 2: bash worker dispatched to `/opt/999-Agentic-Engineering-Framework` runs as root, produces file artifacts (`pwd`+`git log` evidence captured). `termlink emit <session> task.completed` works in isolation. Integration needs ~10-LoC polish for fast-exit race.
+- Spike 5: 3/3 currently pending dispatches are mechanical. Longer horizon ~67% mechanical. A4 (≥80%) holds for 2-week window.
+- Rejected Channel 2 (sudo -u): per-host + per-user auth migration dominates container cost.
+
+See `docs/reports/T-1192-dispatched-claude-root-block.md` for full findings and follow-up task list.
 
 ## Decisions
 
