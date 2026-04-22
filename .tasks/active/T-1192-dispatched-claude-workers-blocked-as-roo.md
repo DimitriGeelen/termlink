@@ -74,12 +74,12 @@ Time-boxed spikes. Each produces a single artifact (shell script, task file, or 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated (Spike 1 confirmed A1: claude root-guard is structural; upstream refuses `--dangerously-skip-permissions` under uid 0)
+- [x] Assumptions tested (Spikes 1/2/5 ran; A1 validated, A4 validated at 3/3 mechanical, Channel 2 rejected on cost, Channel 4 earmarked)
+- [x] Recommendation written with rationale (see `## Recommendation` — GO on Channel 1, evidence: 4 real upstream commits 25718851/684eea0c/c1b8ff05/636b309b)
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -133,7 +133,11 @@ See `docs/reports/T-1192-dispatched-claude-root-block.md` for full findings and 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Channel 1 validated end-to-end, 4 real framework commits proving it. Go.
+
+**Date**: 2026-04-22T21:38:22Z
 
 ## Updates
 
@@ -142,3 +146,23 @@ See `docs/reports/T-1192-dispatched-claude-root-block.md` for full findings and 
 
 ### 2026-04-22T20:39:39Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-22T21:33:57Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO — Channel 1 (plain-bash dispatch) as default, Channel 4 (container) earmarked for future Claude-judgment cases.
+
+Rationale: `termlink dispatch --workdir /opt/<other> -- bash -c '...'` already runs as root, cross-project, without invoking claude. All 3 pending dispatch use-cases (T-1188, T-1190, T-1176) are mechanical file-copy+patch-apply. No new subsystem required; estimated ≤50 LoC polish + a mirror helper script. Preserves the Anthropic root-guard by routing around it instead of silencing it.
+
+Evidence:
+- Spike 1: `--allow-dangerously-skip-permissions` does NOT bypass the root check; root-guard is structural in `-p` mode (claude 2.1.117). A1 validated.
+- Spike 2: bash worker dispatched to `/opt/999-Agentic-Engineering-Framework` runs as root, produces file artifacts (`pwd`+`git log` evidence captured). `termlink emit <session> task.completed` works in isolation. Integration needs ~10-LoC polish for fast-exit race.
+- Spike 5: 3/3 currently pending dispatches are mechanical. Longer horizon ~67% mechanical. A4 (≥80%) holds for 2-week window.
+- Rejected Channel 2 (sudo -u): per-host + per-user auth migration dominates container cost.
+
+See `docs/reports/T-1192-dispatched-claude-root-block.md` for full findings and follow-up task list.
+
+### 2026-04-22T21:38:22Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Channel 1 validated end-to-end, 4 real framework commits proving it. Go.
