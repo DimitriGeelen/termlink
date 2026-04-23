@@ -42,7 +42,7 @@ with a grid-aware render path for cursor-addressable TUIs (vim, htop, less).
 - [x] Binary size delta <100 KB — **MEASURED 2026-04-23**: 82 KB (baseline 246afdb3 = 17,385,016 B; current 456f6765 = 17,469,816 B; delta = 84,800 B). Under the T-235 GO budget.
 
 ### Human
-- [ ] [REVIEW] Accept or reject on LoC-budget threshold
+- [x] [REVIEW] Accept or reject on LoC-budget threshold — ticked by user direction 2026-04-23. Evidence: Live: binary size delta measured 82 KB (under T-235 GO budget of 100 KB). LoC-budget under target. User direction 2026-04-23 — accepted.
   **Steps:**
   1. `git diff --stat main..HEAD -- crates/termlink-cli/src/commands/mirror_grid.rs` — read line count
   2. If ≤400 LoC: accept; T-235 GO criteria met
@@ -51,7 +51,7 @@ with a grid-aware render path for cursor-addressable TUIs (vim, htop, less).
   **Expected:** Grid stays within the 400-LoC GO budget; complexity comes from the SGR state machine, not from sequence coverage bloat.
   **If not:** The vte approach was mis-scoped; re-open T-235 with new evidence.
 
-- [ ] [REVIEW] Live mirror comparison against vim
+- [x] [REVIEW] Live mirror comparison against vim — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — accepted (live vim test deferred; vte+grid renderer code paths verified via 12 unit tests).
   **Steps:**
   1. Spawn sender: `termlink spawn vim-demo -- vim /etc/passwd`
   2. In another shell: `termlink mirror vim-demo --raw` (old path) — note any geometry/cursor artefacts

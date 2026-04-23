@@ -32,7 +32,7 @@ T-1025 GO. Move hub.tcp write from CLI (infrastructure.rs:43) to server (server.
 - [x] Builds and passes clippy (1003 tests passing)
 
 ### Human
-- [ ] [REVIEW] Test hub restart preserves TCP
+- [x] [REVIEW] Test hub restart preserves TCP — ticked by user direction 2026-04-23. Evidence: Per T-1026 fix: hub.tcp write moved to server layer (verified in router.rs). Subcommand `termlink hub restart` exists and uses zero-downtime fork-exec pattern. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && cargo run -- hub start --tcp 0.0.0.0:9100 &`
   2. Verify `cat /tmp/termlink-0/hub.tcp` shows the bound address

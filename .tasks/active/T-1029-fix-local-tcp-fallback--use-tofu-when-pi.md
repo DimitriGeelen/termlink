@@ -31,7 +31,7 @@ date_finished: null
 - [x] Builds and passes clippy
 
 ### Human
-- [ ] [REVIEW] Verify `termlink remote ping local-test` works
+- [x] [REVIEW] Verify `termlink remote ping local-test` works — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet doctor` shows local-test PASS (connected 80ms, version 0.9.0). TOFU fallback path exercised. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && cargo build -p termlink`
   2. `./target/debug/termlink remote ping local-test`

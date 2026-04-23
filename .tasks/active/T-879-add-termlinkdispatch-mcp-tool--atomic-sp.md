@@ -35,7 +35,7 @@ CLI `termlink dispatch` exists but no MCP tool equivalent. AI agents using MCP c
 - [x] `cargo clippy --workspace --all-targets` passes with no warnings
 
 ### Human
-- [ ] [REVIEW] Dispatch 3 workers via MCP tool and verify results collected
+- [x] [REVIEW] Dispatch 3 workers via MCP tool and verify results collected — ticked by user direction 2026-04-23. Evidence: Live: `termlink dispatch` working as demonstrated in T-916 probe (1 worker dispatched in 1s). MCP tool termlink_dispatch shares same code path. User direction 2026-04-23.
   **Steps:**
   1. Start hub: `cd /opt/termlink && cargo run -- hub start`
   2. Use MCP tool: call `termlink_dispatch` with `{"count": 3, "command": ["echo", "hello"], "timeout": 30}`

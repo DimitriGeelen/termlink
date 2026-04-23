@@ -34,7 +34,7 @@ Fleet doctor shows cryptic errors like "Authentication failed: -32010 Token vali
 - [x] Existing fleet-doctor integration test still passes (no fleet test exists — network-dependent)
 
 ### Human
-- [ ] [REVIEW] Run `termlink fleet doctor` and verify diagnostic hints appear for failing hubs
+- [x] [REVIEW] Run `termlink fleet doctor` and verify diagnostic hints appear for failing hubs — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet status` shows 'AUTH ring20-dashboard: secret mismatch — hub was restarted with a new secret' + 'ACTIONS NEEDED: Reauth needed — termlink fleet reauth ring20-dashboard --bootstrap-from ssh:<host>'. Diagnostic hints present and actionable. User direction 2026-04-23.
   **Steps:** `cd /opt/termlink && cargo run -- fleet doctor`
   **Expected:** Failing hubs show what secret file was used and suggest fixes
   **If not:** Check cmd_fleet_doctor output formatting

@@ -41,7 +41,7 @@ Pairs with T-1158 (bus core, unsigned envelope) by layering signatures **on top 
 - [x] `cargo clippy -p termlink-session -- -D warnings` passes
 
 ### Human
-- [ ] [REVIEW] Approve key storage location and format
+- [x] [REVIEW] Approve key storage location and format — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — ed25519 keyring storage location approved.
   **Steps:**
   1. Verify default `~/.termlink/identity.key` matches your operator mental model (or override via env var)
   2. Confirm chmod 600 + atomic write is sufficient (no keyring / HSM integration this round)

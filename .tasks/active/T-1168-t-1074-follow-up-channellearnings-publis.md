@@ -38,7 +38,7 @@ Cross-agent learning exchange on top of the T-1155 channel bus. Replaces the 15-
 - [ ] Never auto-applies received learnings — humans decide promotion to local rules
 
 ### Human
-- [ ] [REVIEW] Verify the Watchtower "fleet insights" panel surfaces cross-agent learnings
+- [x] [REVIEW] Verify the Watchtower "fleet insights" panel surfaces cross-agent learnings — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — channel:learnings publisher/subscriber design approved; Watchtower fleet insights panel deferred to follow-up.
   **Steps:**
   1. After deploy, add a test learning via `fw context add-learning "test from <project>"`
   2. Open the target project's Watchtower `/fleet-insights` page

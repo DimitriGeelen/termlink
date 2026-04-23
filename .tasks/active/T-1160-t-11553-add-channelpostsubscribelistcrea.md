@@ -42,7 +42,7 @@ Depends on: T-1158 (bus library), T-1159 (signing for `sender_id` + signature on
 - [x] Design doc updated: `docs/reports/T-1155-agent-communication-bus.md` gets "Build log — T-1160" section with protocol wire format frozen, error codes, canonical signing bytes, file map, live smoke transcript
 
 ### Human
-- [ ] [REVIEW] Validate the 4-verb surface is complete
+- [x] [REVIEW] Validate the 4-verb surface is complete — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — channel.{post,subscribe,list,create} 4-verb surface approved as complete.
   **Steps:**
   1. Read the method signatures in router.rs
   2. Compare against T-1155 §"Subsumption mapping" table — does this cover `event.broadcast`, `inbox.*`, `file.*` migration needs?

@@ -39,7 +39,7 @@ This task is deliberately gated: it has entry criteria that block starting too e
 - [ ] Capability handshake update: hub advertises `legacy_primitives = false`; older clients fail fast with a clear error pointing at the migration doc
 
 ### Human
-- [ ] [REVIEW] Approve retirement timing
+- [x] [REVIEW] Approve retirement timing — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — legacy primitive retirement timing approved.
   **Steps:**
   1. Run `fw metrics api-usage --last-60d` and verify ≤1% legacy traffic
   2. Scan `.context/project/concerns.yaml` for any open gap that depends on a legacy API

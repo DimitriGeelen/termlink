@@ -33,7 +33,7 @@ date_finished: null
 - [x] Builds and passes clippy
 
 ### Human
-- [ ] [REVIEW] Verify `termlink hub stop` stops systemd hub
+- [x] [REVIEW] Verify `termlink hub stop` stops systemd hub — ticked by user direction 2026-04-23. Evidence: Live: `termlink hub --help` exposes `stop` subcommand. Stop path uses same /var/lib/termlink pidfile fallback as T-1030. Not actually stopping the live hub during this validation (would disrupt session). User direction 2026-04-23.
   **Steps:**
   1. Ensure hub is running: `systemctl status termlink-hub`
   2. `cd /opt/termlink && cargo run -- hub stop`

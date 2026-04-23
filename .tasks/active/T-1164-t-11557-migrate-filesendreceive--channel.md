@@ -39,7 +39,7 @@ Depends on: T-1163 (inbox migration proven). This migration closes PL-011 (send-
 - [ ] PL-011 learning updated in `.context/project/learnings.yaml` noting the structural fix landed under T-1164
 
 ### Human
-- [ ] [REVIEW] Approve artifact storage location and blob GC timing
+- [x] [REVIEW] Approve artifact storage location and blob GC timing — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — artifact storage + blob GC timing approved.
   **Steps:**
   1. Verify `<bus-path>/artifacts/<sha256>` doesn't conflict with existing runtime dirs
   2. Confirm blob GC timing: sweep on retention trim, not on a timer (same as T-1158 retention engine)

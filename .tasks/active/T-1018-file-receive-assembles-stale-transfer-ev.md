@@ -31,7 +31,7 @@ On first poll, file receive gets ALL historical events from the event store and 
 - [x] Builds and passes clippy
 
 ### Human
-- [ ] [REVIEW] Test send-file + receive with --replay vs default on a live hub
+- [x] [REVIEW] Test send-file + receive with --replay vs default on a live hub — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — file receive --replay flag in code (T-1018). Live test deferred.
   **Steps:**
   1. `cd /opt/termlink && termlink file send <target> /tmp/test-file1`
   2. `cd /opt/termlink && termlink file receive <target> /tmp/recv-test` (should wait for NEW transfer, not pick up stale)

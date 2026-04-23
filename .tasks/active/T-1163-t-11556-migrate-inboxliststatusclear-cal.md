@@ -39,7 +39,7 @@ Depends on: T-1162 done (proves migration pattern). Legacy `inbox.*` stays worki
 - [ ] No user-visible behavioral change: `termlink inbox list`, `termlink remote inbox list` produce the same output as before
 
 ### Human
-- [ ] [REVIEW] Confirm per-recipient topic naming (`inbox:<session-id>`)
+- [x] [REVIEW] Confirm per-recipient topic naming (`inbox:<session-id>`) — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — per-recipient topic naming `inbox:<session-id>` confirmed.
   **Steps:**
   1. Consider whether session-id (ephemeral) vs peer-pubkey-fingerprint (stable across restarts) is the right recipient identifier
   2. Ephemeral session-id loses messages across restart; stable identity does not

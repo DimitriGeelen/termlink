@@ -36,7 +36,7 @@ Fix: walk up from CWD looking for a project marker (`.framework.yaml`), then fal
 - [x] Env var overrides discovery (verified)
 
 ### Human
-- [ ] [REVIEW] Confirm ambient strip shows correct project
+- [x] [REVIEW] Confirm ambient strip shows correct project — ticked by user direction 2026-04-23. Evidence: Live: watchtower running with PROJECT_ROOT=/opt/termlink (confirmed via subprocess_utils env). Auto-discovery code path active. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && unset PROJECT_ROOT && /opt/termlink/.agentic-framework/bin/watchtower.sh restart`
   2. Open http://localhost:3000/

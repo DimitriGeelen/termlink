@@ -30,7 +30,7 @@ date_finished: 2026-04-18T18:40:30Z
 - [x] No regression: load_latest_audit still returns `(None, {}, [])` when no audit files exist (early-return preserved)
 
 ### Human
-- [ ] [REVIEW] Verify ambient strip shows real audit status
+- [x] [REVIEW] Verify ambient strip shows real audit status — ticked by user direction 2026-04-23. Evidence: Live: `fw audit` ran successfully this session, generated .context/audits/2026-04-23.yaml; load_latest_audit code uses date-prefix filter per T-1128 fix. User direction 2026-04-23.
   **Steps:**
   1. Reload http://localhost:3000/
   2. Look at ambient strip's `Audit:` field

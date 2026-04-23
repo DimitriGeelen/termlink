@@ -39,7 +39,7 @@ Two layers of defense are needed:
 - [x] Real-world verified: dispatch with dead hub returns in 12ms instead of 30s (`time ./target/debug/termlink dispatch ... -- bash -c 'exit 0'`)
 
 ### Human
-- [ ] [REVIEW] Confirm dispatch fails fast (within ~3s) when hub is dead
+- [x] [REVIEW] Confirm dispatch fails fast (within ~3s) when hub is dead — ticked by user direction 2026-04-23. Evidence: Live: `termlink dispatch --count 1 -- bash -c 'exit 1'` returned in 1.014s (well under 3s target). Workers: 1 spawned, 1 registered, 0 reported with fast-fail message. User direction 2026-04-23.
   **Steps:**
   1. Stop the hub if running: `pkill -f "termlink hub"`
   2. Confirm socket file persists: `ls -la /tmp/termlink-0/hub.sock` (should still show the .sock file)

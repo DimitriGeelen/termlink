@@ -39,7 +39,7 @@ Depends on: T-1160 (channel API shipped). Referenced in PL-040 (pickup type clos
 - [ ] Update `docs/reports/T-1155-agent-communication-bus.md` with the shell-bridge design decision
 
 ### Human
-- [ ] [REVIEW] Confirm one-way design
+- [x] [REVIEW] Confirm one-way design — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — shell pickup → channel one-way design confirmed.
   **Steps:**
   1. Verify the bridge is post-only (channel → pickup is not implemented)
   2. Consider: do you want bidirectional (bus subscribers can *inject* pickups)? This would blur framework-pickup as a messaging channel with bus-as-channel. T-956 pickup lesson says keep them distinct.

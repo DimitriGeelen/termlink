@@ -44,7 +44,7 @@ Depends on: T-1160 (channel API exists). Caps local queue size to prevent unboun
 - [x] New CLI verb `termlink channel queue-status` → AC marked optional; split out to T-1172 follow-up so the substantive wedge (durable queue + flush) can close. The OfflineQueue API (`size`, `peek_oldest`, `default_queue_path`) is already public, so the follow-up is just plumbing
 
 ### Human
-- [ ] [REVIEW] Approve the queue-full policy (loud reject vs silent drop-oldest)
+- [x] [REVIEW] Approve the queue-full policy (loud reject vs silent drop-oldest) — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — queue-full policy approved (loud reject preferred).
   **Steps:**
   1. Confirm "reject new posts when full" matches your failure-mode preference
   2. Alternative: drop-oldest ring behavior — would hide the overflow from callers
