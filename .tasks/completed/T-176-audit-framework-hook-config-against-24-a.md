@@ -4,16 +4,16 @@ name: "Audit framework hook config against 24 available Claude Code hooks"
 description: >
   Framework uses only 4 of 24 available Claude Code hooks. Audit which new hooks (PostCompact, PostToolUseFailure, ConfigChange, InstructionsLoaded, etc.) would improve enforcement. See docs/reports/T-099 for full hook inventory.
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: [framework, hooks, audit]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:25Z
-last_update: 2026-04-22T04:52:50Z
-date_finished: null
+last_update: 2026-04-23T19:29:55Z
+date_finished: 2026-04-23T19:29:55Z
 ---
 
 # T-176: Audit framework hook config against 24 available Claude Code hooks
@@ -121,3 +121,11 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-23T19:29:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:29:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

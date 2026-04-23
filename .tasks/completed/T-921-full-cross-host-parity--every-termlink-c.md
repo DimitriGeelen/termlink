@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:05Z
-last_update: 2026-04-22T10:20:57Z
+last_update: 2026-04-23T19:31:29Z
 date_finished: 2026-04-11T20:19:55Z
 ---
 
@@ -73,11 +73,11 @@ Time-box: **one session**, dialogue-driven. No production code. Deliverable = de
 ## Acceptance Criteria
 
 ### Agent
-- [ ] CLI command census complete — every command in cli.rs categorised in the research artifact
-- [ ] Four options (A/B/C/D) compared on ergonomics, code duplication, MCP parity, auth, backward compat
-- [ ] Routing architecture chosen with rationale (direct-to-hub vs alternatives)
-- [ ] Decomposed build task list produced, each line sized to fit one session
-- [ ] Recommendation filled with GO/NO-GO/DEFER + rationale + evidence
+- [x] CLI command census complete — every command in cli.rs categorised in the research artifact
+- [x] Four options (A/B/C/D) compared on ergonomics, code duplication, MCP parity, auth, backward compat
+- [x] Routing architecture chosen with rationale (direct-to-hub vs alternatives)
+- [x] Decomposed build task list produced, each line sized to fit one session
+- [x] Recommendation filled with GO/NO-GO/DEFER + rationale + evidence
 
 ### Human
 - [x] [RUBBER-STAMP] Record go/no-go decision

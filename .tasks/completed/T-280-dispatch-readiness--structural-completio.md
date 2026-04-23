@@ -8,16 +8,16 @@ description: >
   and TermLink emits zero lifecycle events when sessions die. Explore solutions: dispatch command,
   auto-lifecycle events, dispatch-aware spawn. 5-agent research completed.
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: [dispatch, orchestration, lifecycle, mcp]
 components: []
 related_tasks: [T-233, T-256, T-257]
 created: 2026-03-25T14:27:11Z
-last_update: 2026-04-22T04:52:50Z
-date_finished: null
+last_update: 2026-04-23T19:30:04Z
+date_finished: 2026-04-23T19:30:04Z
 ---
 
 # T-280: Dispatch readiness — structural completion signaling for TermLink agent orchestration
@@ -182,3 +182,11 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-23T19:30:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:30:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

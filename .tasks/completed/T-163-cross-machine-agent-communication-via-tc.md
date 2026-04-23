@@ -6,16 +6,16 @@ description: >
   in near real-time via TermLink TCP hub, with bidirectional messaging,
   file transfer, and appropriate security?
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: [remote-access, tcp, security, cross-machine]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-145, T-146, T-147, T-155, T-157]
 created: 2026-03-18T09:42:29Z
-last_update: 2026-04-22T04:52:49Z
-date_finished: null
+last_update: 2026-04-23T19:29:54Z
+date_finished: 2026-04-23T19:29:54Z
 ---
 
 # T-163: Cross-machine agent communication via TCP hub
@@ -140,3 +140,11 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — content mirrors the existin
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-23T19:29:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:29:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

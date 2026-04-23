@@ -1,8 +1,8 @@
 ---
-id: T-953
-name: "Pickup: L-006: termlink send-file ok:true means hub accepted, NOT delivered — verify receipt independently (from 999-Agentic-Engineering-Framework)"
+id: T-947
+name: "Pickup: Canary: 30s pickup processor smoke test — safe to discard (from termlink)"
 description: >
-  Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1125. Type: learning.
+  Auto-created from pickup envelope. Source: termlink, task T-940. Type: learning.
 
 status: work-completed
 workflow_type: inception
@@ -11,12 +11,12 @@ horizon: next
 tags: [pickup, learning]
 components: []
 related_tasks: []
-created: 2026-04-12T08:38:33Z
-last_update: 2026-04-22T10:21:00Z
-date_finished: 2026-04-12T15:59:19Z
+created: 2026-04-12T08:10:05Z
+last_update: 2026-04-23T19:30:28Z
+date_finished: 2026-04-12T13:03:33Z
 ---
 
-# T-953: Pickup: L-006: termlink send-file ok:true means hub accepted, NOT delivered — verify receipt independently (from 999-Agentic-Engineering-Framework)
+# T-947: Pickup: Canary: 30s pickup processor smoke test — safe to discard (from termlink)
 
 ## Problem Statement
 
@@ -53,18 +53,18 @@ date_finished: 2026-04-12T15:59:19Z
 - [x] [RUBBER-STAMP] Record go/no-go decision
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
-  2. Find T-953, select GO / NO-GO / DEFER, click Record Decision
+  2. Find T-947, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
 ## Go/No-Go Criteria
 
 **GO if:**
-- L-006 semantic (`ok:true` = hub accepted, not delivered) is captured in learnings.yaml
-- Structural fix tracked elsewhere (T-1017 receiver-check) closes the silent-loss window
+- Pickup processor demonstrably consumes envelopes (cron firing, no backlog, no errors)
+- Canary learning absorbed — no build work required by this task
 
 **NO-GO if:**
-- No one acts on the learning and operators keep interpreting `ok:true` as delivery confirmation
-- The receiver-check fix (T-1017) never lands, leaving silent data loss unresolved
+- Pickup processor silently drops envelopes or accumulates backlog
+- Canary reveals a defect in the pickup pipeline that needs remediation
 
 ## Verification
 
@@ -75,11 +75,11 @@ date_finished: 2026-04-12T15:59:19Z
 ## Recommendation
 
 **Recommendation:** GO
-**Rationale:** L-006 learning captured and traced to a real bug class (silent data loss when receiver offline). The consequence of `send-file ok:true` being hub-accepted but not delivered is being fixed structurally by T-1017 (send-file receiver check).
+**Rationale:** Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
 **Evidence:**
-- T-1017 active build task tracks the fix
-- Semantics documented in `.context/project/learnings.yaml` (L-006)
-- Agent guidance reinforced by PL-004 in project practice list
+- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
+- Zero errors in syslog over observation window
+- Processor cadence tuned to 1-min for headroom (see T-950)
 
 ## Decisions
 
@@ -97,45 +97,45 @@ date_finished: 2026-04-12T15:59:19Z
 **Decision**: GO
 
 **Rationale**: Recommendation: GO
-Rationale: L-006 learning captured and traced to a real bug class (silent data loss when receiver offline). The consequence of `send-file ok:true` being hub-accepted but not delivered is being fixed structurally by T-1017 (send-file receiver check).
+Rationale: Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
 Evidence:
-- T-1017 active build task tracks the fix
-- Semantics documented in `.context/project/learnings.yaml` (L-006)
-- Agent guidance reinforced by PL-004 in project practice list
+- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
+- Zero errors in syslog over observation window
+- Processor cadence tuned to 1-min for headroom (see T-950)
 
-**Date**: 2026-04-18T15:04:56Z
+**Date**: 2026-04-18T14:56:48Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
 
-### 2026-04-12T15:59:19Z — status-update [task-update-agent]
+### 2026-04-12T13:03:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
 
-### 2026-04-12T15:59:19Z — status-update [task-update-agent]
+### 2026-04-12T13:03:33Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
-- **Reason:** Learning captured, no build work needed
+- **Reason:** Canary test message — explicitly safe to discard
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 
-### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
-- **Evidence:** T-1017 tracks the silent data loss issue; send-file semantics documented in learning L-006; fix implemented
+### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
+- **Evidence:** Pickup cron running at 1-min interval (/etc/cron.d/agentic-pickup-termlink confirms * * * * *)
 - **Verified by:** automated command execution
 
-### 2026-04-18T15:04:56Z — inception-decision [inception-workflow]
+### 2026-04-18T14:56:48Z — inception-decision [inception-workflow]
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Recommendation: GO
-Rationale: L-006 learning captured and traced to a real bug class (silent data loss when receiver offline). The consequence of `send-file ok:true` being hub-accepted but not delivered is being fixed structurally by T-1017 (send-file receiver check).
+Rationale: Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
 Evidence:
-- T-1017 active build task tracks the fix
-- Semantics documented in `.context/project/learnings.yaml` (L-006)
-- Agent guidance reinforced by PL-004 in project practice list
+- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
+- Zero errors in syslog over observation window
+- Processor cadence tuned to 1-min for headroom (see T-950)
 
-### 2026-04-22T04:52:53Z — status-update [task-update-agent]
+### 2026-04-22T04:52:52Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 
 ### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]

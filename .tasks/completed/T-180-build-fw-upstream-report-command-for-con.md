@@ -3,16 +3,16 @@ id: T-180
 name: "Build fw upstream report command for consumer-to-framework bug reports"
 description: >
   Two-path upstream reporting for consumer-to-framework feedback. PRIMARY: TermLink inject-remote — directly inject improvement prompts into framework agent Claude session on another machine (proven in T-184/T-185: 5 prompts, 7.4KB injected). FALLBACK: fw upstream report --title ... --attach-doctor — create a task file with evidence when TermLink not available. Both scenarios need clear docs. Discovered 2026-03-18.
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: [framework, cli, upstream]
 components: []
 related_tasks: []
 created: 2026-03-18T22:25:12Z
-last_update: 2026-04-22T04:52:50Z
-date_finished: null
+last_update: 2026-04-23T19:29:57Z
+date_finished: 2026-04-23T19:29:57Z
 ---
 
 # T-180: Build fw upstream report command for consumer-to-framework bug reports
@@ -126,3 +126,11 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-23T19:29:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:29:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

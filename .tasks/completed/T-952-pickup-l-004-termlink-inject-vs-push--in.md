@@ -1,8 +1,8 @@
 ---
-id: T-947
-name: "Pickup: Canary: 30s pickup processor smoke test — safe to discard (from termlink)"
+id: T-952
+name: "Pickup: L-004: TermLink inject vs push — inject for interactive, push for async only (from 999-Agentic-Engineering-Framework)"
 description: >
-  Auto-created from pickup envelope. Source: termlink, task T-940. Type: learning.
+  Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1126. Type: learning.
 
 status: work-completed
 workflow_type: inception
@@ -11,12 +11,12 @@ horizon: next
 tags: [pickup, learning]
 components: []
 related_tasks: []
-created: 2026-04-12T08:10:05Z
-last_update: 2026-04-22T10:20:59Z
-date_finished: 2026-04-12T13:03:33Z
+created: 2026-04-12T08:38:31Z
+last_update: 2026-04-23T19:30:28Z
+date_finished: 2026-04-12T15:59:17Z
 ---
 
-# T-947: Pickup: Canary: 30s pickup processor smoke test — safe to discard (from termlink)
+# T-952: Pickup: L-004: TermLink inject vs push — inject for interactive, push for async only (from 999-Agentic-Engineering-Framework)
 
 ## Problem Statement
 
@@ -53,18 +53,18 @@ date_finished: 2026-04-12T13:03:33Z
 - [x] [RUBBER-STAMP] Record go/no-go decision
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
-  2. Find T-947, select GO / NO-GO / DEFER, click Record Decision
+  2. Find T-952, select GO / NO-GO / DEFER, click Record Decision
   **Expected:** Decision recorded, task completed
 
 ## Go/No-Go Criteria
 
 **GO if:**
-- Pickup processor demonstrably consumes envelopes (cron firing, no backlog, no errors)
-- Canary learning absorbed — no build work required by this task
+- Both `termlink inject` (interactive) and `termlink remote push` (async) ship in the CLI
+- Command names and help text make the distinction self-evident to operators
 
 **NO-GO if:**
-- Pickup processor silently drops envelopes or accumulates backlog
-- Canary reveals a defect in the pickup pipeline that needs remediation
+- Operators routinely misuse inject vs push despite documentation
+- Semantics overlap in a way that invites silent misdelivery
 
 ## Verification
 
@@ -75,11 +75,11 @@ date_finished: 2026-04-12T13:03:33Z
 ## Recommendation
 
 **Recommendation:** GO
-**Rationale:** Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
+**Rationale:** L-004 learning absorbed into CLI surface. Both `termlink inject` (interactive, blocking) and `termlink remote push` (async, fire-and-forget) are shipped and documented. Operator guidance is clear from command names and help text.
 **Evidence:**
-- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
-- Zero errors in syslog over observation window
-- Processor cadence tuned to 1-min for headroom (see T-950)
+- Both commands available in CLI and verified by T-1090 (2026-04-16)
+- Docstrings reflect the inject-for-interactive / push-for-async distinction
+- Learning stored in `.context/project/learnings.yaml` (L-004)
 
 ## Decisions
 
@@ -97,45 +97,45 @@ date_finished: 2026-04-12T13:03:33Z
 **Decision**: GO
 
 **Rationale**: Recommendation: GO
-Rationale: Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
+Rationale: L-004 learning absorbed into CLI surface. Both `termlink inject` (interactive, blocking) and `termlink remote push` (async, fire-and-forget) are shipped and documented. Operator guidance is clear from command names and help text.
 Evidence:
-- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
-- Zero errors in syslog over observation window
-- Processor cadence tuned to 1-min for headroom (see T-950)
+- Both commands available in CLI and verified by T-1090 (2026-04-16)
+- Docstrings reflect the inject-for-interactive / push-for-async distinction
+- Learning stored in `.context/project/learnings.yaml` (L-004)
 
-**Date**: 2026-04-18T14:56:48Z
+**Date**: 2026-04-18T15:04:53Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
 
-### 2026-04-12T13:03:33Z — status-update [task-update-agent]
+### 2026-04-12T15:59:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
 
-### 2026-04-12T13:03:33Z — status-update [task-update-agent]
+### 2026-04-12T15:59:17Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
-- **Reason:** Canary test message — explicitly safe to discard
+- **Reason:** Learning captured, no build work needed
 
 ### 2026-04-16T05:39:43Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 
-### 2026-04-16T21:05:40Z — programmatic-evidence [T-1090]
-- **Evidence:** Pickup cron running at 1-min interval (/etc/cron.d/agentic-pickup-termlink confirms * * * * *)
+### 2026-04-16T21:08:45Z — programmatic-evidence [T-1090]
+- **Evidence:** termlink inject and termlink remote push both available; inject for intra-hub, push for remote — both in termlink --help
 - **Verified by:** automated command execution
 
-### 2026-04-18T14:56:48Z — inception-decision [inception-workflow]
+### 2026-04-18T15:04:53Z — inception-decision [inception-workflow]
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Recommendation: GO
-Rationale: Canary by design — the test was explicitly "safe to discard" and its purpose was to verify the pickup processor wakes up and consumes envelopes. No build work required; the learning ("canary tests are valid lightweight smoke tests") is absorbed.
+Rationale: L-004 learning absorbed into CLI surface. Both `termlink inject` (interactive, blocking) and `termlink remote push` (async, fire-and-forget) are shipped and documented. Operator guidance is clear from command names and help text.
 Evidence:
-- Pickup cron `/etc/cron.d/agentic-pickup-termlink` active at 1-min interval (programmatic evidence from T-1090, 2026-04-16)
-- Zero errors in syslog over observation window
-- Processor cadence tuned to 1-min for headroom (see T-950)
+- Both commands available in CLI and verified by T-1090 (2026-04-16)
+- Docstrings reflect the inject-for-interactive / push-for-async distinction
+- Learning stored in `.context/project/learnings.yaml` (L-004)
 
-### 2026-04-22T04:52:52Z — status-update [task-update-agent]
+### 2026-04-22T04:52:53Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 
 ### 2026-04-22T10:20Z — human-ac-approved [T-1186 batch]
