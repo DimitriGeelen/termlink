@@ -31,7 +31,7 @@ date_finished: 2026-04-19T13:56:06Z
 - [x] No references remain recommending `cargo install --git` as a default install
 
 ### Human
-- [ ] [RUBBER-STAMP] README renders correctly on GitHub
+- [x] [RUBBER-STAMP] README renders correctly on GitHub — ticked by user direction 2026-04-23. Evidence: Live: README.md lines 15-25 show install order matches AC: install.sh curl-pipe FIRST, brew second, cargo install --git labeled 'build from source (requires Rust toolchain)' third. URL = https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh. Verified 2026-04-23T17:40Z.
   **Steps:** Open https://github.com/DimitriGeelen/termlink and read the Quick Start block
   **Expected:** `curl -fsSL ... install.sh | sh` appears first; brew second; cargo labeled "from source"
   **If not:** Copy the Quick Start block and note what looks wrong
