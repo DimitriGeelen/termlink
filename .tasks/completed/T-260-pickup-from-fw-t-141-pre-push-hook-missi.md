@@ -6,16 +6,16 @@ description: >
   script. Also: declare -A breaks on macOS bash 3.2, D2 should be WARN not FAIL for
   upstream-blocked tasks. This is a framework repo fix — track here, dispatch back to .107.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [pickup, framework]
 components: []
 related_tasks: [T-160]
 created: 2026-03-24T08:42:18Z
-last_update: 2026-04-22T04:52:50Z
-date_finished: null
+last_update: 2026-04-23T19:34:26Z
+date_finished: 2026-04-23T19:34:26Z
 ---
 
 # T-260: Pickup from fw T-141 — Pre-push hook missing PROJECT_ROOT
@@ -50,3 +50,11 @@ Pre-push hook doesn't pass PROJECT_ROOT to audit script. One-line fix in `agents
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-23T19:34:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:34:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
