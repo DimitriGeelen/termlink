@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use tokio::sync::Mutex;
 
 use super::mirror_grid::Grid;
+use termlink_session::client;
 use termlink_session::codec::FrameReader;
 use termlink_session::data_server;
 use termlink_session::manager;
@@ -138,7 +139,7 @@ impl Panel {
     }
 }
 
-pub(crate) async fn cmd_mirror_tag(tag: &str) -> Result<()> {
+pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<()> {
     // 1. Discover sessions with matching tag.
     let all = manager::list_sessions(false).context("Failed to list sessions")?;
     let sessions: Vec<_> = all
@@ -161,7 +162,9 @@ pub(crate) async fn cmd_mirror_tag(tag: &str) -> Result<()> {
         term_rows
     );
 
-    // 3. Connect all data-plane sockets in parallel.
+    // 3. Connect all data-plane sockets in parallel. For each session, also
+    //    prefetch scrollback via the control plane and feed it into the panel's
+    //    parser so the grid reflects existing state on first paint.
     let mut panels: Vec<Arc<Mutex<Panel>>> = Vec::with_capacity(sessions.len());
     let mut streams: Vec<tokio::net::UnixStream> = Vec::with_capacity(sessions.len());
     let mut ok_layouts: Vec<PanelLayout> = Vec::with_capacity(sessions.len());
@@ -177,7 +180,41 @@ pub(crate) async fn cmd_mirror_tag(tag: &str) -> Result<()> {
         match tokio::net::UnixStream::connect(&data_socket).await {
             Ok(stream) => {
                 let label = format!("{} ({})", reg.display_name, reg.id);
-                let panel = Panel::new(layout.grid_cols, layout.grid_rows, label);
+                let mut panel = Panel::new(layout.grid_cols, layout.grid_rows, label);
+
+                // Scrollback prefetch via control-plane query.output. Failure here
+                // is non-fatal — the panel just starts blank and gets populated
+                // by the live data-plane stream.
+                match client::rpc_call(
+                    reg.socket_path(),
+                    "query.output",
+                    serde_json::json!({ "lines": scrollback_lines }),
+                )
+                .await
+                {
+                    Ok(resp) => match client::unwrap_result(resp) {
+                        Ok(result) => {
+                            if let Some(output) = result["output"].as_str() {
+                                if !output.is_empty() {
+                                    panel.feed(output.as_bytes());
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "  [{}] {} — scrollback fetch returned error ({})",
+                                i, reg.display_name, e
+                            );
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!(
+                            "  [{}] {} — scrollback prefetch failed ({})",
+                            i, reg.display_name, e
+                        );
+                    }
+                }
+
                 panels.push(Arc::new(Mutex::new(panel)));
                 streams.push(stream);
                 ok_layouts.push(*layout);

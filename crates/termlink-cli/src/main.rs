@@ -108,7 +108,7 @@ async fn main() -> Result<()> {
             PtyCommand::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
             PtyCommand::Mirror { target, scrollback, raw, tag } => {
                 if let Some(t) = tag {
-                    commands::mirror_grid_composer::cmd_mirror_tag(&t).await
+                    commands::mirror_grid_composer::cmd_mirror_tag(&t, scrollback).await
                 } else {
                     commands::pty::cmd_mirror(&resolve_target(target)?, scrollback, raw).await
                 }
@@ -153,7 +153,7 @@ async fn main() -> Result<()> {
         Command::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
         Command::Mirror { target, scrollback, raw, tag } => {
             if let Some(t) = tag {
-                commands::mirror_grid_composer::cmd_mirror_tag(&t).await
+                commands::mirror_grid_composer::cmd_mirror_tag(&t, scrollback).await
             } else {
                 commands::pty::cmd_mirror(&resolve_target(target)?, scrollback, raw).await
             }
