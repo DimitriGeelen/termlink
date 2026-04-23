@@ -27,3 +27,15 @@ patches:
   - file: agents/context/check-tier0.sh
     task: T-981
     description: "Block fw tier0 approve — prevent agent self-approval bypass"
+
+  - file: web/blueprints/fleet.py
+    task: T-1103
+    description: "Watchtower /fleet page — termlink-only operational dashboard (not yet upstreamed)"
+
+  - file: web/templates/fleet.html
+    task: T-1103
+    description: "Watchtower /fleet page template (companion to fleet.py)"
+
+  - file: web/blueprints/__init__.py
+    task: T-1103
+    description: "Register fleet_bp from termlink-local fleet blueprint"
