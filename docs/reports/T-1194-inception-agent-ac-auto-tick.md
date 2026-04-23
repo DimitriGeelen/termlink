@@ -108,7 +108,17 @@ Single build task, ~30 LoC:
 
 Grep uncovered the existing auto-tick infrastructure. The gap is strictly that Agent ACs were out of scope. Recommendation is now a tight 10-line extension. Ready for human decision.
 
+### 2026-04-23T11:00Z — Patch drafted and functionally tested (spike, pre-GO)
+
+`/tmp/t1194-inception-agent-ac-patch.py` written: targeted string replacement, idempotent, 25 lines added to `lib/inception.sh`. Tests pass:
+
+- **Positive case** (`/tmp/test-task-1194.md`): task with `## Recommendation` + unchecked Agent ACs → 3 ceremonial ACs ticked (`Problem statement validated`, `Assumptions tested`, `Recommendation written with rationale`); custom AC `Custom criterion should NOT be ticked` left untouched; templated Human AC also ticked (existing behavior preserved).
+- **Negative case** (`/tmp/test-norec.md`): task without `## Recommendation` → Agent ACs NOT ticked (guard works); Human AC still ticked.
+- **Syntax**: `bash -n` clean on patched file.
+
+The patch is ready to apply via `python3 /tmp/t1194-inception-agent-ac-patch.py <target>` as soon as the human records GO. Channel 1 dispatch will mirror to upstream `/opt/999-Agentic-Engineering-Framework/lib/inception.sh`.
+
 ## Next
 
-Human runs `fw inception decide T-1194 go|no-go --rationale "..."` after reviewing. If GO, a separate build task will implement the extension.
+Human runs `fw inception decide T-1194 go|no-go --rationale "..."` after reviewing. If GO, a separate build task will apply the drafted patch (vendored + upstream via Channel 1) and add a regression test.
 
