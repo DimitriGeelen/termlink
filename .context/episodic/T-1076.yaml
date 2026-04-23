@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1076: Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand, option propagation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:25:32Z
+# ============================================================================
+
+task_id: T-1076
+task_name: "Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand, option propagation"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T04:37:59Z
+completed: 2026-04-16T04:55:01Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-16T06:44:32+02:00
+last_commit: 2026-04-16T06:55:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix remote inbox CLI — global options, optional subcommand defaults to status. Learning PL-023 — clap global args + optional subcommand pattern
+
+# Key outcomes
+outcomes:
+  - "`termlink remote inbox <hub> status --secret-file <path>` works (options after subcommand)"
+  - "`termlink remote inbox <hub> --secret-file <path> status` also works (options before subcommand)"
+  - "`termlink remote inbox <hub>` defaults to `status` (no bare \"requires subcommand\" error)"
+  - "`cargo test` passes"
+  - "`cargo clippy` clean"
+  - "[RUBBER-STAMP] Consumer-friendly syntax verified — ticked by user direction 2026-04-23. Evidence: Live: `termlink remote inbox local-test` and `termlink remote inbox local-test status` both return 'Inbox on 127.0.0.1:9100: empty' (no argument-parsing errors, default subcommand works). Verified 2026-04-23T17:35Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix remote inbox CLI — global options, optional subcommand defaults to status"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "`#[arg(global = true)]` on parent options + `Option<RemoteInboxAction>` defaulting to Status"
+    rationale: "Minimal change (2 files, ~5 lines), no API break, clap-native solution"
+    alternatives_rejected: ["Flattening auth args into each variant (too much duplication), restructuring to flat commands like `inbox-status` (breaking change)"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/decisions.yaml"
+  - ".context/project/learnings.yaml"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1076-fix-remote-inbox-cli-ergonomics--argumen.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T06:44:32"
+    action: "T-1076: Fix remote inbox CLI — global options, optional subcommand defaults to status"
+  - time: "2026-04-16T06:55:01"
+    action: "T-1076: Learning PL-023 — clap global args + optional subcommand pattern"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 3
+  files_changed: 9
+  lines_added: 93
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1076-fix-remote-inbox-cli-ergonomics--argumen.md
+generated_by: context-agent-hybrid
