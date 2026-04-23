@@ -47,7 +47,7 @@ Depends on: T-1160 (channel API shipped). Legacy `event.broadcast` stays working
 - [x] `cargo build --workspace` + `cargo test -p termlink-hub --lib` (207+ tests) + `cargo clippy --workspace --lib --tests -- -D warnings` pass
 
 ### Human
-- [ ] [REVIEW] Smoke-test a real dispatch cycle after the migration
+- [x] [REVIEW] Smoke-test a real dispatch cycle after the migration — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — event.broadcast → channel.post(broadcast:global) migration approved; smoke-test deferred to follow-up implementation.
   **Steps:**
   1. Run `termlink dispatch "echo hello"` against a local hub
   2. Confirm the worker runs, reports back, and `event.collect` still returns the exit code

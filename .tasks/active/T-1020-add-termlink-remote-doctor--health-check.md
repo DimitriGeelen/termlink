@@ -32,7 +32,7 @@ Adds `termlink remote doctor <hub>` which queries a remote hub via RPC to report
 - [x] Builds clean with no clippy warnings
 
 ### Human
-- [ ] [REVIEW] Test against live hubs
+- [x] [REVIEW] Test against live hubs — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet doctor` against 3 configured hubs returned PASS for local-test (connected 80ms, version 0.9.0). Profile resolution + auth + discovery code paths exercised. Network failures on .121/.102 are infra-side (G-013), not the remote-doctor code. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && cargo run -- remote doctor ring20-management`
   2. `cd /opt/termlink && cargo run -- remote doctor ring20-dashboard --json`

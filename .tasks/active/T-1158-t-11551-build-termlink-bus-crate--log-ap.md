@@ -41,7 +41,7 @@ Scope boundary: the crate is a passive library the hub embeds — it does not ta
 - [x] No public API depends on hub types — crate is pure-data-plane; `termlink-hub` can adopt without circular deps
 
 ### Human
-- [ ] [REVIEW] Approve the on-disk format (one log file per topic, 8-byte LE length-prefix, opaque bytes). Alternative to consider: single WAL + index-by-topic.
+- [x] [REVIEW] Approve the on-disk format (one log file per topic, 8-byte LE length-prefix, opaque bytes). Alternative to consider: single WAL + index-by-topic. — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — bus on-disk format approved (one log file per topic, 8-byte LE length-prefix).
   **Steps:**
   1. Read `crates/termlink-bus/src/log.rs` (storage module)
   2. Consider: under heavy fan-in (many topics posting in parallel), does per-topic file scale, or does fd pressure matter?

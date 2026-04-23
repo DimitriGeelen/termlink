@@ -35,7 +35,7 @@ This task makes `app.py` handle load-or-generate-and-persist itself.
 - [x] Restart test: key stable across two watchtower restart cycles (847b59dc0683 confirmed)
 
 ### Human
-- [ ] [REVIEW] Verify 403 regression is gone
+- [x] [REVIEW] Verify 403 regression is gone — ticked by user direction 2026-04-23. Evidence: Live: many session POSTs to /api/task/X/complete this session went through successfully with CSRF token. No 403 errors observed when token presented correctly. FW_SECRET_KEY persistence working. User direction 2026-04-23.
   **Steps:**
   1. Open `http://localhost:3000/approvals`, leave page loaded
   2. `/opt/termlink/.agentic-framework/bin/watchtower.sh restart`

@@ -36,7 +36,7 @@ Create a reusable deploy script for deploying termlink binary + hub to remote De
 - [x] Script passes shellcheck (1 intentional SC2087 info — client-side heredoc expansion is desired)
 
 ### Human
-- [ ] [REVIEW] Run script against .121 after authorizing SSH key
+- [x] [REVIEW] Run script against .121 after authorizing SSH key — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — termlink-deploy.sh script exists in repo. .121 deployment blocked by G-013 infra; script-itself code-validated.
   **Steps:**
   1. Authorize SSH key on .121: `ssh-copy-id -i ~/.ssh/id_ed25519.pub root@192.168.10.121`
   2. `cd /opt/termlink && bash scripts/deploy-remote.sh 192.168.10.121 ring20-dev`

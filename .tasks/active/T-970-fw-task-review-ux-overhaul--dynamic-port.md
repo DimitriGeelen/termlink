@@ -76,7 +76,7 @@ date_finished: 2026-04-12T09:54:35Z
 - [x] Pickup P-019 sent to framework agent
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — fw task review UX overhaul GO.
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation

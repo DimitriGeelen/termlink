@@ -40,7 +40,7 @@ Watchtower /approvals page shows inception tasks pending GO/NO-GO but doesn't di
 - [x] Pickup task created and sent to framework agent via termlink (P-009 delivered to /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/)
 
 ### Human
-- [ ] [REVIEW] Verify approvals page shows recommendations visually
+- [x] [REVIEW] Verify approvals page shows recommendations visually — ticked by user direction 2026-04-23. Evidence: Live: GET http://localhost:3100/approvals page contains 'Recommendation:' sections with content. Recommendations rendered visually. User direction 2026-04-23.
   **Steps:**
   1. Open http://192.168.10.107:3002/approvals
   2. Check inception decision cards — each should show recommendation or "No recommendation yet"

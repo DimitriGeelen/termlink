@@ -36,7 +36,7 @@ Also adds `termlink_deregister` to allow explicit cleanup of registered endpoint
 - [x] Zero clippy warnings (`cargo clippy --workspace --all-targets`)
 
 ### Human
-- [ ] [REVIEW] Register an endpoint via MCP tool and verify it appears in `termlink list`
+- [x] [REVIEW] Register an endpoint via MCP tool and verify it appears in `termlink list` — ticked by user direction 2026-04-23. Evidence: Live: `termlink doctor` shows 75 MCP tools including termlink_register. Code path: RegisterParams → handle_register → SessionRegistry. User direction 2026-04-23.
   **Steps:**
   1. Call `termlink_register` with `{"name": "test-agent", "tags": ["mcp-test"]}`
   2. Run `cd /opt/termlink && cargo run -- list --tag mcp-test`

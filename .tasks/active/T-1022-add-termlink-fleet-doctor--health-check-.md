@@ -32,7 +32,7 @@ Reads all hubs from ~/.termlink/hubs.toml and runs remote doctor on each. Provid
 - [x] Builds and passes clippy
 
 ### Human
-- [ ] [REVIEW] Run `termlink fleet doctor` and verify all hubs checked
+- [x] [REVIEW] Run `termlink fleet doctor` and verify all hubs checked — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet doctor` returns 'Fleet doctor: 3 hub(s) configured', enumerates each (UP/AUTH/DOWN), shows ACTIONS NEEDED block per hub. Output scannable + actionable. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && cargo run -- fleet doctor`
   **Expected:** Shows health for each hub in hubs.toml with summary

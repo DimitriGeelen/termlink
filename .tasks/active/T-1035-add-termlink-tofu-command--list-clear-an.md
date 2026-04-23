@@ -34,7 +34,7 @@ TOFU entries in `~/.termlink/known_hubs` go stale when hubs restart and regenera
 - [x] Integration test for list and clear commands (5 CLI tests + 5 unit tests)
 
 ### Human
-- [ ] [REVIEW] Run `termlink tofu list` and verify it shows current known_hubs entries
+- [x] [REVIEW] Run `termlink tofu list` and verify it shows current known_hubs entries — ticked by user direction 2026-04-23. Evidence: Live: `termlink tofu list` returns 'Trusted hubs (6 entries)' from /root/.termlink/known_hubs with HOST/FINGERPRINT/FIRST SEEN/LAST SEEN columns. Tofu management surface working. User direction 2026-04-23.
   **Steps:** `cd /opt/termlink && cargo run -- tofu list`
   **Expected:** Table showing host:port, fingerprint prefix, first_seen, last_seen
   **If not:** Check ~/.termlink/known_hubs file format

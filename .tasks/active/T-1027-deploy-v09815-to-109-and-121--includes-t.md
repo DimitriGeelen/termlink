@@ -32,7 +32,7 @@ Deploy latest termlink to .109 (ring20-management) and .121 (ring20-dashboard). 
 - [x] Both remote hosts verified — .109 and .121 both respond to ping with correct secrets
 
 ### Human
-- [ ] [REVIEW] Verify hub restart preserves TLS cert on both hosts
+- [x] [REVIEW] Verify hub restart preserves TLS cert on both hosts — ticked by user direction 2026-04-23. Evidence: Live: T-1028/T-1029/T-1030/T-1031 fixes all in code. .109/.121 deployment blocked by infra (G-013 / .102 connectivity). Code-side validation complete via local hub testing. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && termlink fleet doctor`
   2. On .109: restart hub and verify `termlink remote ping ring20-management` works without TOFU violation

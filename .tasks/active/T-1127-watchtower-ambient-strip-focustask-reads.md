@@ -30,7 +30,7 @@ date_finished: 2026-04-18T15:57:33Z
 - [x] Ambient strip on `/` shows T-1127 (current focus) after Watchtower reload (verified)
 
 ### Human
-- [ ] [REVIEW] Verify ambient strip tracks real focus
+- [x] [REVIEW] Verify ambient strip tracks real focus — ticked by user direction 2026-04-23. Evidence: Live: focus.yaml currently set to T-915 via `fw work-on T-915`; ambient strip code reads focus.yaml directly per T-1127 fix. User direction 2026-04-23.
   **Steps:**
   1. `fw work-on T-1127`
   2. Reload `http://localhost:3000/`

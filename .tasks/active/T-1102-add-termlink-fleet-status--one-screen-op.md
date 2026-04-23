@@ -38,7 +38,7 @@ See `docs/reports/T-1101-termlink-value-assessment.md` R1.
 - [x] 1,124 tests pass, zero warnings
 
 ### Human
-- [ ] [REVIEW] Run `termlink fleet status` and verify the output is scannable and useful
+- [x] [REVIEW] Run `termlink fleet status` and verify the output is scannable and useful — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet status` returns one-screen dashboard: 3 hubs in colored UP/AUTH/DOWN, latencies, FLEET summary line, ACTIONS NEEDED block with copy-pasteable reauth commands. Scannable + useful. User direction 2026-04-23.
   **Steps:** `cd /opt/termlink && cargo run -- fleet status`
   **Expected:** Color-coded hub list, session counts, actions for broken hubs
   **If not:** Check fleet status subcommand implementation

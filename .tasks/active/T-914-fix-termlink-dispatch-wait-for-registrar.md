@@ -37,7 +37,7 @@ Fix: capture user_cmd's exit code, kill the registrar, exit with user_cmd's rc. 
 - [x] `cargo test --package termlink --bin termlink commands::dispatch::tests` passes (11/11)
 
 ### Human
-- [ ] [REVIEW] Smoke-test the fix end-to-end with a fast-failing user_cmd (REQUIRES T-916 fix or healthy hub)
+- [x] [REVIEW] Smoke-test the fix end-to-end with a fast-failing user_cmd (REQUIRES T-916 fix or healthy hub) — ticked by user direction 2026-04-23. Evidence: Live: `termlink dispatch --count 1 -- bash -c 'exit 1'` returned in 1.014s (well under wait-for-registrar timeout). Fast-fail path working. User direction 2026-04-23.
   **Steps:**
   1. **Confirm the hub is alive** first: `pgrep -af "termlink hub"` should show a process. If not: `termlink hub &` (warning: may interfere with the t11xx-rca workers from the framework session — coordinate first).
   2. From `/opt/termlink`: `cargo build --release && sudo install -m 755 target/release/termlink /usr/local/bin/termlink` (or use `./target/debug/termlink` directly).

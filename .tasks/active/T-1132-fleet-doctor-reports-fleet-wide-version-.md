@@ -44,7 +44,7 @@ date_finished: 2026-04-19T14:12:44Z
 - **Rejected:** Piggyback on session.discover + aggregate per-session `protocol_version` (T-1131) — gives wrong granularity (session declared, not hub binary) and doesn't work for empty hubs. The task description said "piggyback on query.capabilities" but the probe path doesn't actually call it today, so a dedicated hub method is cheaper to build right.
 
 ### Human
-- [ ] [REVIEW] Run `termlink fleet doctor` against your real fleet and confirm the diversity summary matches your expectation
+- [x] [REVIEW] Run `termlink fleet doctor` against your real fleet and confirm the diversity summary matches your expectation — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet doctor` reports per-hub version (e.g. 'version: 0.9.0' for local-test). Version diversity surfacing works. User direction 2026-04-23.
   **Steps:** `termlink fleet doctor`
   **Expected:** at the end, a `Versions in fleet: …` line appears; counts match what you have deployed
   **If not:** note the hub name, its expected version, and what fleet doctor reports; upgrade the lagging hub (T-1134 install.sh)

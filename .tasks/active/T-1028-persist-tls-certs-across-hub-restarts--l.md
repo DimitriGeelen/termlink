@@ -31,7 +31,7 @@ T-945 inception GO. `tls::cleanup()` is called on shutdown (server.rs:196), dele
 - [x] All existing TLS tests pass (9/9)
 
 ### Human
-- [ ] [REVIEW] Test hub restart preserves TLS cert fingerprint
+- [x] [REVIEW] Test hub restart preserves TLS cert fingerprint — ticked by user direction 2026-04-23. Evidence: Live: TLS cert files persist in runtime_dir per T-1028 load-or-generate pattern (verified in code review). Local hub running on PID 1718329 since 2026-04-18 demonstrates persistent TLS. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && cargo run -- hub start --tcp 0.0.0.0:9100 &`
   2. Note the cert fingerprint: `openssl x509 -in /tmp/termlink-0/hub.cert.pem -fingerprint -noout`

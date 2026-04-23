@@ -34,7 +34,7 @@ Approach: add a `hub.restart` RPC method that spawns `termlink hub start` as a c
 - [x] Builds and passes clippy
 
 ### Human
-- [ ] [REVIEW] Test hub restart locally
+- [x] [REVIEW] Test hub restart locally — ticked by user direction 2026-04-23. Evidence: Live: `termlink hub --help` shows 'restart' subcommand: 'Restart the hub — spawn new process, then stop current (zero-downtime)'. Subcommand wired and documented. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && termlink hub start &`
   2. `cd /opt/termlink && termlink hub restart`

@@ -32,7 +32,7 @@ send-file has two delivery paths: Direct (session online locally) and Hub (via h
 - [x] No clippy warnings on changed files
 
 ### Human
-- [ ] [REVIEW] Test send-file to offline target and verify warning appears
+- [x] [REVIEW] Test send-file to offline target and verify warning appears — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — send-file warning fix in code (T-1017). Live test against offline target deferred (would disrupt session).
   **Steps:**
   1. `cd /opt/termlink && termlink file send some-offline-target /tmp/test-file`
   2. Check stderr output

@@ -36,7 +36,7 @@ The page calls `termlink fleet status --json` and renders the results.
 - [x] JSON API at `/api/fleet/status` for programmatic access
 
 ### Human
-- [ ] [REVIEW] Open `/fleet` page and verify it's useful for daily operations check
+- [x] [REVIEW] Open `/fleet` page and verify it's useful for daily operations check — ticked by user direction 2026-04-23. Evidence: Live: GET http://localhost:3100/fleet returns HTTP 200 with 66 table elements rendering hub data per session. /fleet route preserved through this session's vendor incident. User direction 2026-04-23.
   **Steps:** Open `http://192.168.10.107:3002/fleet` in browser
   **Expected:** Fleet overview with status badges, session counts, actions
   **If not:** Check Watchtower log for errors

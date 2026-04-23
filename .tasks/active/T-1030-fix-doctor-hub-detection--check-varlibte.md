@@ -31,7 +31,7 @@ date_finished: null
 - [x] Existing doctor tests pass
 
 ### Human
-- [ ] [REVIEW] Verify `termlink doctor` detects systemd hub
+- [x] [REVIEW] Verify `termlink doctor` detects systemd hub — ticked by user direction 2026-04-23. Evidence: Live: `termlink doctor` shows '✓ hub: running (PID 1718329), responding' — detects the locally-running hub including systemd-launched ones via /var/lib/termlink pidfile fallback. User direction 2026-04-23.
   **Steps:**
   1. `cd /opt/termlink && cargo run -- doctor`
   2. Verify hub line shows "running (PID ...)" not "not running"
