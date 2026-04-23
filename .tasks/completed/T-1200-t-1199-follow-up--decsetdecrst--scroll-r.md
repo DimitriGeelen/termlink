@@ -4,16 +4,16 @@ name: "T-1199 follow-up — DECSET/DECRST + scroll region + alt-screen for mirro
 description: >
   T-1199 follow-up — DECSET/DECRST + scroll region + alt-screen for mirror grid
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/mirror_grid.rs]
 related_tasks: []
 created: 2026-04-23T13:55:31Z
-last_update: 2026-04-23T13:55:31Z
-date_finished: null
+last_update: 2026-04-23T13:58:04Z
+date_finished: 2026-04-23T13:58:04Z
 ---
 
 # T-1200: T-1199 follow-up — DECSET/DECRST + scroll region + alt-screen for mirror grid
@@ -70,3 +70,6 @@ Follow-up to T-1199. Adds the CSI coverage needed for vim, htop, less to render 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1200-t-1199-follow-up--decsetdecrst--scroll-r.md
 - **Context:** Initial task creation
+
+### 2026-04-23T13:58:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

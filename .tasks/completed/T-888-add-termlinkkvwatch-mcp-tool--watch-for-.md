@@ -4,7 +4,7 @@ name: "Add termlink_kv_watch MCP tool — watch for key-value changes on a sessi
 description: >
   Add termlink_kv_watch MCP tool — watch for key-value changes on a session
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-05T07:27:29Z
-last_update: 2026-04-23T15:26:33Z
-date_finished: null
+last_update: 2026-04-23T15:32:22Z
+date_finished: 2026-04-23T15:32:22Z
 ---
 
 # T-888: Add termlink_kv_watch MCP tool — watch for key-value changes on a session
@@ -80,3 +80,6 @@ grep -q "termlink_kv_watch" crates/termlink-mcp/src/tools.rs
 ### 2026-04-23T15:26:33Z — status-update [task-update-agent]
 - **Change:** status: issues → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T15:32:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

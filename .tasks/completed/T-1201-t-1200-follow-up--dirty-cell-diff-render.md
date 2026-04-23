@@ -4,16 +4,16 @@ name: "T-1200 follow-up — dirty-cell diff render + unicode width for mirror gr
 description: >
   T-1200 follow-up — dirty-cell diff render + unicode width for mirror grid
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/pty.rs]
 related_tasks: []
 created: 2026-04-23T14:01:10Z
-last_update: 2026-04-23T14:01:10Z
-date_finished: null
+last_update: 2026-04-23T14:04:22Z
+date_finished: 2026-04-23T14:04:22Z
 ---
 
 # T-1201: T-1200 follow-up — dirty-cell diff render + unicode width for mirror grid
@@ -71,3 +71,6 @@ Follow-up to T-1200. Two remaining T-1191 items: (a) dirty-cell diff render (cur
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1201-t-1200-follow-up--dirty-cell-diff-render.md
 - **Context:** Initial task creation
+
+### 2026-04-23T14:04:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "T-888 follow-up: add MCP integration test for termlink_kv_watch"
 description: >
   T-888 follow-up: add MCP integration test for termlink_kv_watch
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-23T16:19:16Z
-last_update: 2026-04-23T16:19:16Z
-date_finished: null
+last_update: 2026-04-23T16:20:47Z
+date_finished: 2026-04-23T16:20:47Z
 ---
 
 # T-1205: T-888 follow-up: add MCP integration test for termlink_kv_watch
@@ -58,3 +58,6 @@ grep -q "termlink_kv_watch" crates/termlink-mcp/tests/mcp_integration.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1205-t-888-follow-up-add-mcp-integration-test.md
 - **Context:** Initial task creation
+
+### 2026-04-23T16:20:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

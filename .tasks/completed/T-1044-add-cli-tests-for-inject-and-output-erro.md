@@ -4,16 +4,16 @@ name: "Add CLI tests for inject and output error paths"
 description: >
   Add CLI integration tests for inject and output on nonexistent sessions. Continues error-path test coverage.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T22:24:32Z
-last_update: 2026-04-13T22:25:33Z
-date_finished: null
+last_update: 2026-04-23T16:56:56Z
+date_finished: 2026-04-23T16:54:26Z
 ---
 
 # T-1044: Add CLI tests for inject and output error paths
@@ -60,3 +60,7 @@ bash -c 'cargo test --test cli_integration -- cli_inject_nonexistent cli_output_
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1044-add-cli-tests-for-inject-and-output-erro.md
 - **Context:** Initial task creation
+
+### 2026-04-23T16:54:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

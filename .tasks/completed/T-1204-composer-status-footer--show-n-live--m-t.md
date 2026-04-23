@@ -4,16 +4,16 @@ name: "Composer status footer — show N live / M total panels at bottom (T-236 
 description: >
   Composer status footer — show N live / M total panels at bottom (T-236 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/mirror_grid_composer.rs]
 related_tasks: []
 created: 2026-04-23T15:06:38Z
-last_update: 2026-04-23T15:06:38Z
-date_finished: null
+last_update: 2026-04-23T15:08:23Z
+date_finished: 2026-04-23T15:08:23Z
 ---
 
 # T-1204: Composer status footer — show N live / M total panels at bottom (T-236 follow-up)
@@ -79,3 +79,6 @@ cargo test -p termlink --bin termlink mirror_grid_composer 2>&1 | tail -5 | grep
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1204-composer-status-footer--show-n-live--m-t.md
 - **Context:** Initial task creation
+
+### 2026-04-23T15:08:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

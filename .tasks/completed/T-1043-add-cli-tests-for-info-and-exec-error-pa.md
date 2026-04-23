@@ -4,16 +4,16 @@ name: "Add CLI tests for info and exec error paths"
 description: >
   Add CLI integration tests for info on nonexistent session and exec on nonexistent session. Quick error-path coverage.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T22:15:21Z
-last_update: 2026-04-13T22:16:23Z
-date_finished: null
+last_update: 2026-04-23T16:56:24Z
+date_finished: 2026-04-23T16:54:22Z
 ---
 
 # T-1043: Add CLI tests for info and exec error paths
@@ -60,3 +60,7 @@ bash -c 'cargo test --test cli_integration -- cli_info_nonexistent cli_exec_none
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1043-add-cli-tests-for-info-and-exec-error-pa.md
 - **Context:** Initial task creation
+
+### 2026-04-23T16:54:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

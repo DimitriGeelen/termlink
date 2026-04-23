@@ -4,16 +4,16 @@ name: "Fix hub status — use resolve_hub_paths for split-brain runtime dir"
 description: >
   hub status uses default hub_pidfile_path(), missing hubs at /var/lib/termlink. Apply same resolve_hub_paths() pattern from T-1031.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-hub/src/router.rs, crates/termlink-session/src/client.rs]
 related_tasks: []
 created: 2026-04-13T14:07:16Z
-last_update: 2026-04-13T14:20:44Z
-date_finished: null
+last_update: 2026-04-23T17:05:29Z
+date_finished: 2026-04-23T17:05:29Z
 ---
 
 # T-1032: Fix hub status — use resolve_hub_paths for split-brain runtime dir
@@ -62,3 +62,7 @@ cargo clippy -p termlink -- -D warnings 2>&1 | grep -v "^warning:" | grep -q "Fi
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1032-fix-hub-status--use-resolvehubpaths-for-.md
 - **Context:** Initial task creation
+
+### 2026-04-23T17:05:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

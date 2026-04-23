@@ -4,7 +4,7 @@ name: "Add CLI tests for version, events, and topics commands"
 description: >
   Add CLI integration tests for version output, events on nonexistent session, and topics with no sessions. Fills test coverage gaps.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T21:41:45Z
-last_update: 2026-04-13T21:43:23Z
-date_finished: null
+last_update: 2026-04-23T17:06:13Z
+date_finished: 2026-04-23T17:06:13Z
 ---
 
 # T-1042: Add CLI tests for version, events, and topics commands
@@ -61,3 +61,7 @@ bash -c 'cargo test --test cli_integration -- cli_version_text cli_version_json 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1042-add-cli-tests-for-version-events-and-top.md
 - **Context:** Initial task creation
+
+### 2026-04-23T17:06:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

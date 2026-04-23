@@ -4,7 +4,7 @@ name: "Add termlink_hub_restart and termlink_events MCP tools — T-922 codifica
 description: >
   Add MCP tools for hub restart and event history queries. Continues T-922 codification: every CLI command should be MCP-reachable.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T20:23:42Z
-last_update: 2026-04-13T20:34:53Z
-date_finished: null
+last_update: 2026-04-23T17:05:50Z
+date_finished: 2026-04-23T17:05:50Z
 ---
 
 # T-1040: Add termlink_hub_restart and termlink_events MCP tools — T-922 codification
@@ -63,3 +63,7 @@ cargo test -p termlink-mcp events_params 2>&1 | grep "passed"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1040-add-termlinkhubrestart-and-termlinkevent.md
 - **Context:** Initial task creation
+
+### 2026-04-23T17:05:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
