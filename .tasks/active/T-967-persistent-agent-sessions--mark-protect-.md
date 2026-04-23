@@ -68,9 +68,9 @@ Currently there's no way to distinguish a "stale orphan" from a "persistent agen
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
 - [x] [RUBBER-STAMP] Record go/no-go decision

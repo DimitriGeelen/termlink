@@ -83,9 +83,9 @@ We attempted 5 fixes in this session (memory, CLAUDE.md, auto-invoke, port detec
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
 - [x] [RUBBER-STAMP] Record go/no-go decision
