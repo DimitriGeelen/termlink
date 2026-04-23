@@ -32,6 +32,18 @@ pub(crate) struct Grid {
     sgr: SgrState,
     saved_cursor: Option<(u16, u16)>,
     unhandled_csi: u64,
+    scroll_top: u16,
+    scroll_bottom: u16,
+    pub cursor_visible: bool,
+    /// Saved primary-screen state when alt-screen is active.
+    alt_backup: Option<AltScreenBackup>,
+}
+
+struct AltScreenBackup {
+    cells: Vec<Cell>,
+    cursor_row: u16,
+    cursor_col: u16,
+    sgr: SgrState,
 }
 
 impl Grid {
@@ -46,6 +58,80 @@ impl Grid {
             sgr: SgrState::default(),
             saved_cursor: None,
             unhandled_csi: 0,
+            scroll_top: 0,
+            scroll_bottom: rows.saturating_sub(1),
+            cursor_visible: true,
+            alt_backup: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn is_alt_screen(&self) -> bool {
+        self.alt_backup.is_some()
+    }
+
+    fn scroll_up_region(&mut self) {
+        let top = self.scroll_top as usize;
+        let bot = self.scroll_bottom as usize;
+        if top >= bot || bot >= self.rows as usize {
+            return;
+        }
+        let cols = self.cols as usize;
+        for r in top..bot {
+            let dst_start = r * cols;
+            let src_start = (r + 1) * cols;
+            for c in 0..cols {
+                self.cells[dst_start + c] = self.cells[src_start + c];
+            }
+        }
+        let last = bot * cols;
+        for c in 0..cols {
+            self.cells[last + c] = Cell::default();
+        }
+    }
+
+    fn scroll_down_region(&mut self) {
+        let top = self.scroll_top as usize;
+        let bot = self.scroll_bottom as usize;
+        if top >= bot || bot >= self.rows as usize {
+            return;
+        }
+        let cols = self.cols as usize;
+        for r in (top + 1..=bot).rev() {
+            let dst_start = r * cols;
+            let src_start = (r - 1) * cols;
+            for c in 0..cols {
+                self.cells[dst_start + c] = self.cells[src_start + c];
+            }
+        }
+        let first = top * cols;
+        for c in 0..cols {
+            self.cells[first + c] = Cell::default();
+        }
+    }
+
+    fn enter_alt_screen(&mut self) {
+        if self.alt_backup.is_some() {
+            return;
+        }
+        let size = (self.cols as usize) * (self.rows as usize);
+        self.alt_backup = Some(AltScreenBackup {
+            cells: std::mem::replace(&mut self.cells, vec![Cell::default(); size]),
+            cursor_row: self.cursor_row,
+            cursor_col: self.cursor_col,
+            sgr: self.sgr,
+        });
+        self.cursor_row = 0;
+        self.cursor_col = 0;
+        self.sgr = SgrState::default();
+    }
+
+    fn leave_alt_screen(&mut self) {
+        if let Some(backup) = self.alt_backup.take() {
+            self.cells = backup.cells;
+            self.cursor_row = backup.cursor_row;
+            self.cursor_col = backup.cursor_col;
+            self.sgr = backup.sgr;
         }
     }
 
@@ -73,6 +159,8 @@ impl Grid {
         if self.cursor_col >= cols {
             self.cursor_col = cols.saturating_sub(1);
         }
+        self.scroll_top = 0;
+        self.scroll_bottom = rows.saturating_sub(1);
     }
 
     #[inline]
@@ -206,6 +294,7 @@ impl Grid {
         out.write_all(
             format!("\x1b[0m\x1b[{};{}H", self.cursor_row + 1, self.cursor_col + 1).as_bytes(),
         )?;
+        out.write_all(if self.cursor_visible { b"\x1b[?25h" } else { b"\x1b[?25l" })?;
         out.flush()
     }
 }
@@ -257,7 +346,11 @@ impl Perform for Grid {
                 self.cursor_col = next_tab.min(self.cols.saturating_sub(1));
             }
             0x0A | 0x0B | 0x0C => {
-                self.cursor_row = self.cursor_row.saturating_add(1).min(self.rows.saturating_sub(1));
+                if self.cursor_row == self.scroll_bottom {
+                    self.scroll_up_region();
+                } else {
+                    self.cursor_row = self.cursor_row.saturating_add(1).min(self.rows.saturating_sub(1));
+                }
             }
             0x0D => {
                 self.cursor_col = 0;
@@ -317,6 +410,51 @@ impl Perform for Grid {
                 if let Some((r, c)) = self.saved_cursor {
                     self.cursor_row = r;
                     self.cursor_col = c;
+                }
+            }
+            'r' => {
+                // DECSTBM: set scroll region. Params are 1-based; default 1..=rows.
+                let top = first.max(1).saturating_sub(1);
+                let bot = if second == 0 {
+                    self.rows.saturating_sub(1)
+                } else {
+                    second.saturating_sub(1).min(self.rows.saturating_sub(1))
+                };
+                if top < bot {
+                    self.scroll_top = top;
+                    self.scroll_bottom = bot;
+                }
+                self.cursor_row = top;
+                self.cursor_col = 0;
+            }
+            'S' => {
+                let n = first.max(1);
+                for _ in 0..n {
+                    self.scroll_up_region();
+                }
+            }
+            'T' => {
+                let n = first.max(1);
+                for _ in 0..n {
+                    self.scroll_down_region();
+                }
+            }
+            'h' | 'l' if intermediates == [b'?'] => {
+                let set = c == 'h';
+                for slice in params.iter() {
+                    for &mode in slice.iter() {
+                        match mode {
+                            25 => self.cursor_visible = set,
+                            1049 => {
+                                if set {
+                                    self.enter_alt_screen();
+                                } else {
+                                    self.leave_alt_screen();
+                                }
+                            }
+                            _ => self.unhandled_csi = self.unhandled_csi.saturating_add(1),
+                        }
+                    }
                 }
             }
             _ => {
@@ -384,5 +522,63 @@ mod tests {
         assert!(s.contains("A"));
         assert!(s.contains("B"));
         assert!(s.contains("\x1b[2J"));
+    }
+
+    #[test]
+    fn decset_1049_swaps_alt_screen() {
+        let mut g = Grid::new(4, 2);
+        feed(&mut g, b"P1");
+        assert!(!g.is_alt_screen());
+        feed(&mut g, b"\x1b[?1049h");
+        assert!(g.is_alt_screen());
+        feed(&mut g, b"ALT");
+        // Alt buffer has ALT, primary buffer untouched.
+        assert_eq!(g.cells[0].ch, 'A');
+        feed(&mut g, b"\x1b[?1049l");
+        assert!(!g.is_alt_screen());
+        assert_eq!(g.cells[0].ch, 'P');
+        assert_eq!(g.cells[1].ch, '1');
+    }
+
+    #[test]
+    fn decset_25_toggles_cursor_visibility() {
+        let mut g = Grid::new(2, 1);
+        assert!(g.cursor_visible);
+        feed(&mut g, b"\x1b[?25l");
+        assert!(!g.cursor_visible);
+        feed(&mut g, b"\x1b[?25h");
+        assert!(g.cursor_visible);
+    }
+
+    #[test]
+    fn decstbm_plus_lf_scrolls_region() {
+        let mut g = Grid::new(2, 4);
+        // Fill rows 0..=3 with 'a'/'b'/'c'/'d'.
+        feed(&mut g, b"aa\r\nbb\r\ncc\r\ndd");
+        // Set scroll region rows 2..=3 (1-based: 2;3), cursor to (top, 0).
+        feed(&mut g, b"\x1b[2;3r");
+        // Move cursor to bottom of region (1-based row 3, col 1).
+        feed(&mut g, b"\x1b[3;1H");
+        // LF at bottom of region should scroll 'bb' up to row 1, row 2 becomes ''.
+        feed(&mut g, b"\n");
+        // Row 0 (untouched by scroll): 'aa'
+        assert_eq!(g.cells[0].ch, 'a');
+        // Row 1: was 'bb' before, scroll up replaced it with 'cc'
+        assert_eq!(g.cells[2].ch, 'c');
+        // Row 2 (new bottom inside region): cleared
+        assert_eq!(g.cells[4].ch, ' ');
+        // Row 3 (outside region): still 'dd'
+        assert_eq!(g.cells[6].ch, 'd');
+    }
+
+    #[test]
+    fn render_emits_cursor_visibility() {
+        let mut g = Grid::new(2, 1);
+        feed(&mut g, b"\x1b[?25l");
+        let mut out = Vec::new();
+        g.render_full(&mut out).unwrap();
+        let s = String::from_utf8_lossy(&out);
+        assert!(s.contains("\x1b[?25l"));
+        assert!(!s.contains("\x1b[?25h"));
     }
 }
