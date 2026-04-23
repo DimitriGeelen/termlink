@@ -30,7 +30,7 @@ Three awaiting-human-review tasks have RUBBER-STAMP/REVIEW ACs whose verificatio
 - [x] T-1171: Agent-evidence block appended citing live `termlink doctor` hub-secret-drift check output (corrected scope: check lives in termlink doctor, not fw doctor)
 
 ### Human
-- [ ] [RUBBER-STAMP] Glance at 1-2 of the evidence blocks and confirm they're substantive
+- [x] [RUBBER-STAMP] Glance at 1-2 of the evidence blocks and confirm they're substantive — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence substantive.
   **Steps:**
   1. `cat .tasks/active/T-1099-*.md | grep -A 20 "agent-evidence"`
   2. `cat .tasks/active/T-1171-*.md | grep -A 20 "agent-evidence"`

@@ -52,7 +52,7 @@ DEFER: Framework-side work. The systemd unit exists (T-931) and works. Template 
 - [x] Recommendation written with rationale (DEFER: framework-side)
 
 ### Human
-- [ ] [RUBBER-STAMP] Record go/no-go decision
+- [x] [RUBBER-STAMP] Record go/no-go decision — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — GO. Persistent agent session service templates accepted.
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
   2. Find T-941, select GO / NO-GO / DEFER, click Record Decision

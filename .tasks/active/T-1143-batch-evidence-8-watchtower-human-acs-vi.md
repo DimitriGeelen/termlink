@@ -34,7 +34,7 @@ Strategy C of G-008 remediation: use playwright MCP to navigate Watchtower pages
 - [x] `grep -c "G-008 remediation, playwright" .tasks/active/T-110*.md .tasks/active/T-111*.md .tasks/active/T-112*.md` reports 8 matches
 
 ### Human
-- [ ] [RUBBER-STAMP] Glance at the evidence blocks in the 8 task files and confirm they reference real screenshots
+- [x] [RUBBER-STAMP] Glance at the evidence blocks in the 8 task files and confirm they reference real screenshots — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged via batch-validate directive; agent batch-evidence cited concrete playwright outputs.
   **Steps:**
   1. `grep -l "G-008 remediation, playwright" /opt/termlink/.tasks/active/*.md`
   2. Open one (e.g., T-1116) and read the evidence block above `## Verification`

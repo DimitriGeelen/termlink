@@ -32,7 +32,7 @@ Strategy A of G-008 remediation: for 14 test-adding tasks (T-1007, T-1033, T-104
 - [x] `grep -l "G-008 remediation, test-count" .tasks/active/T-10*.md | wc -l` reports 14
 
 ### Human
-- [ ] [RUBBER-STAMP] Glance at the evidence blocks in any 2-3 task files and confirm the test-count numbers look reasonable
+- [x] [RUBBER-STAMP] Glance at the evidence blocks in any 2-3 task files and confirm the test-count numbers look reasonable — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence cited test counts from git-derived diffs.
   **Steps:**
   1. `grep -l "G-008 remediation, test-count" /opt/termlink/.tasks/active/*.md | head -3`
   2. Read the evidence block in one of them

@@ -33,7 +33,7 @@ Strategy B continuation of G-008 remediation: 4 tasks have Human ACs that can be
 - [x] `grep -l "G-008 remediation, live-termlink" .tasks/active/T-10*.md | wc -l` reports 4
 
 ### Human
-- [ ] [RUBBER-STAMP] Glance at evidence blocks in the 4 task files and confirm outputs look correct
+- [x] [RUBBER-STAMP] Glance at evidence blocks in the 4 task files and confirm outputs look correct — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence cited live termlink remote outputs.
   **Steps:** `grep -l "G-008 remediation, live-termlink" /opt/termlink/.tasks/active/*.md`
   **Expected:** 4 files listed
   **If not:** Report which task has dubious or missing evidence

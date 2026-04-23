@@ -32,7 +32,7 @@ corrupting the output. This breaks the Watchtower /fleet page which shells out t
 - [x] Tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Watchtower /fleet page shows hub data instead of error
+- [x] [RUBBER-STAMP] Watchtower /fleet page shows hub data instead of error — ticked by user direction 2026-04-23. Evidence: Live: curl /fleet returns HTTP 200, page renders 66 hub/session table elements. User direction 2026-04-23.
   **Steps:**
   1. Open http://localhost:3000/fleet in browser
   2. Check that hub cards are visible with status badges

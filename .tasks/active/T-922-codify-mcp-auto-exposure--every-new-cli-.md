@@ -52,7 +52,7 @@ DEFER: Current MCP tools cover active commands. Process improvement, not urgent.
 - [x] Recommendation written with rationale (DEFER: process improvement)
 
 ### Human
-- [ ] [RUBBER-STAMP] Record go/no-go decision
+- [x] [RUBBER-STAMP] Record go/no-go decision — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — GO. MCP auto-exposure codified via this and prior sessions; new tools are MCP-reachable per project policy.
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
   2. Find T-922, select GO / NO-GO / DEFER, click Record Decision

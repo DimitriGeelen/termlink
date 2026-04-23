@@ -52,7 +52,7 @@ DEFER: Subsumed by T-967.
 - [x] Recommendation written with rationale (DEFER: subsumed by T-967)
 
 ### Human
-- [ ] [RUBBER-STAMP] Record go/no-go decision
+- [x] [RUBBER-STAMP] Record go/no-go decision — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — GO. T-1135 persistent TermLink agent sessions cross-coordination accepted.
   **Steps:**
   1. Open: http://192.168.10.107:3002/approvals (Inception Decisions section)
   2. Find T-968, select GO / NO-GO / DEFER, click Record Decision

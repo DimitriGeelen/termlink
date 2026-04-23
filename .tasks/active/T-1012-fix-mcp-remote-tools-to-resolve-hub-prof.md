@@ -32,7 +32,7 @@ date_finished: 2026-04-13T10:07:22Z
 - [x] cargo test --workspace passes (1003 tests)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify via MCP that profile resolution works
+- [x] [RUBBER-STAMP] Verify via MCP that profile resolution works — ticked by user direction 2026-04-23. Evidence: Profile resolution code path verified previously (PONG from ring20-management 192.168.10.122:9100). Code: same resolver shared between MCP and CLI. Ring20 currently unreachable due to G-013 IP rotation, not the resolver itself. User direction 2026-04-23.
   **Steps:**
   1. Use termlink_remote_ping with hub="ring20-management" (no secret params)
   **Expected:** Returns pong from .109

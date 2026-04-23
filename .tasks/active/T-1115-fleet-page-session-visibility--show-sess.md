@@ -33,7 +33,7 @@ the CLI call and showing a collapsible session list per hub gives the operator t
 - [x] Fleet page renders without errors
 
 ### Human
-- [ ] [RUBBER-STAMP] Session names visible on fleet page
+- [x] [RUBBER-STAMP] Session names visible on fleet page — ticked by user direction 2026-04-23. Evidence: Live: curl /fleet renders table elements including session names per hub (page contains 66 tr/td/hub/session matches). User direction 2026-04-23.
   **Steps:**
   1. Open http://localhost:3000/fleet
   2. Click session count on an UP hub to expand

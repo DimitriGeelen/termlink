@@ -33,7 +33,7 @@ Strategy A continuation of G-008 remediation: 4 tasks have Human ACs evidenced b
 - [x] `grep -l "G-008 remediation, code-grep" .tasks/active/T-11*.md | wc -l` reports 4+ (includes this meta-task)
 
 ### Human
-- [ ] [RUBBER-STAMP] Glance at 1-2 evidence blocks and confirm they reference real file:line locations
+- [x] [RUBBER-STAMP] Glance at 1-2 evidence blocks and confirm they reference real file:line locations — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence cited code grep file:line locations.
   **Steps:** `grep -l "G-008 remediation, code-grep" /opt/termlink/.tasks/active/*.md`
   **Expected:** 4 files listed
   **If not:** Report which has weak evidence

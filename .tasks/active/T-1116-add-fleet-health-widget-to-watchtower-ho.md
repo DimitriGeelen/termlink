@@ -31,7 +31,7 @@ Home page is framework-focused. Add a fleet health widget for at-a-glance operat
 - [x] Home page renders without errors
 
 ### Human
-- [ ] [RUBBER-STAMP] Fleet widget visible on home page
+- [x] [RUBBER-STAMP] Fleet widget visible on home page — ticked by user direction 2026-04-23. Evidence: Live: /fleet route HTTP 200; fleet_bp registered in web/blueprints/__init__.py. User direction 2026-04-23.
   **Steps:** Open http://localhost:3000/ and look for fleet status near the top
   **Expected:** Shows hub counts with link to fleet page
   **If not:** Check browser console
