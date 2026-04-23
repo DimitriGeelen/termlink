@@ -4,16 +4,16 @@ name: "Push T-287 findings to fw-agent"
 description: >
   Push T-287 inception findings to framework agent on .107 — confirm upgrade.sh bugs, request register --self in Session Start Protocol
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T22:16:19Z
-last_update: 2026-04-22T04:52:51Z
-date_finished: null
+last_update: 2026-04-23T19:34:06Z
+date_finished: 2026-04-23T19:34:06Z
 ---
 
 # T-289: Push T-287 findings to fw-agent
@@ -61,3 +61,11 @@ test -f docs/specs/T-160-declare-A-macos-fix-pickup.md
 
 ### 2026-04-22T04:52:51Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-23T19:34:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:34:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

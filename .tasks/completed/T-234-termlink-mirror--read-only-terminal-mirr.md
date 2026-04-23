@@ -4,16 +4,16 @@ name: "termlink mirror — read-only terminal mirroring (single session, local+r
 description: >
   termlink mirror — read-only terminal mirroring (single session, local+remote)
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/data_server.rs]
 related_tasks: []
 created: 2026-03-23T09:09:49Z
-last_update: 2026-04-22T04:52:50Z
-date_finished: null
+last_update: 2026-04-23T19:34:25Z
+date_finished: 2026-04-23T19:34:25Z
 ---
 
 # T-234: termlink mirror — read-only terminal mirroring (single session, local+remote)
@@ -82,3 +82,11 @@ grep -rq 'mirror' crates/termlink-session/src/data_server.rs crates/termlink-hub
 
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-23T19:34:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:34:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
