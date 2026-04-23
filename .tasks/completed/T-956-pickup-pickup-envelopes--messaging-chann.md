@@ -12,7 +12,7 @@ tags: [pickup, learning]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:35Z
-last_update: 2026-04-22T10:21:01Z
+last_update: 2026-04-23T19:30:29Z
 date_finished: 2026-04-12T15:59:20Z
 ---
 

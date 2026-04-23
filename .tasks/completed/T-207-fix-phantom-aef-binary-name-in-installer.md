@@ -4,16 +4,16 @@ name: "Fix phantom aef binary name in installer"
 description: >
   Inception: Fix phantom aef binary name in installer
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-21T15:32:44Z
-last_update: 2026-04-22T04:52:50Z
-date_finished: null
+last_update: 2026-04-23T19:30:03Z
+date_finished: 2026-04-23T19:30:03Z
 ---
 
 # T-207: Fix phantom aef binary name in installer
@@ -145,3 +145,11 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-23T19:30:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:30:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

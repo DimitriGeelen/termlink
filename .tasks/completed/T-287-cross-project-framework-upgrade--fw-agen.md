@@ -4,16 +4,16 @@ name: "Cross-project framework upgrade — fw-agent applies and validates govern
 description: >
   Inception: Cross-project framework upgrade — fw-agent applies and validates governance fixes on .112 via TermLink
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T20:34:23Z
-last_update: 2026-04-22T04:52:51Z
-date_finished: null
+last_update: 2026-04-23T19:30:06Z
+date_finished: 2026-04-23T19:30:06Z
 ---
 
 # T-287: Cross-project framework upgrade — fw-agent applies and validates governance fixes on .112 via TermLink
@@ -144,3 +144,11 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 
 ### 2026-04-22T04:52:51Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-23T19:30:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:30:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

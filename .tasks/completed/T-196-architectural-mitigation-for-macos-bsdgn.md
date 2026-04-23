@@ -6,16 +6,16 @@ description: >
   in the framework's bash scripts (date -d, declare -A, head -n -1, stat -c).
   Priority: Linux (must) > macOS (must) > Windows/WSL (bonus).
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: [framework, macos-compat, portability]
 components: []
 related_tasks: [T-160]
 created: 2026-03-20T20:19:57Z
-last_update: 2026-04-22T04:52:50Z
-date_finished: null
+last_update: 2026-04-23T19:30:01Z
+date_finished: 2026-04-23T19:30:01Z
 ---
 
 # T-196: Architectural mitigation for macOS BSD/GNU shell incompatibilities
@@ -128,3 +128,11 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-23T19:30:01Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-23T19:30:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
