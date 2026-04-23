@@ -715,7 +715,7 @@ async fn mirror_loop_grid(stream: tokio::net::UnixStream) -> Result<()> {
                                 }
                                 let stdout = std::io::stdout();
                                 let mut out = stdout.lock();
-                                let _ = grid.render_full(&mut out);
+                                let _ = grid.render_diff(&mut out);
                             }
                             FrameType::Resize => {
                                 if frame.payload.len() >= 4 {

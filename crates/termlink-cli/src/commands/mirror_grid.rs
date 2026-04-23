@@ -1,5 +1,6 @@
 use std::io::{self, Write};
 
+use unicode_width::UnicodeWidthChar;
 use vte::{Params, Perform};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -15,11 +16,13 @@ pub(crate) struct SgrState {
 pub(crate) struct Cell {
     pub ch: char,
     pub sgr: SgrState,
+    /// Display width: 1 = normal, 2 = wide (left half), 0 = wide-cell continuation (right half).
+    pub width: u8,
 }
 
 impl Default for Cell {
     fn default() -> Self {
-        Cell { ch: ' ', sgr: SgrState::default() }
+        Cell { ch: ' ', sgr: SgrState::default(), width: 1 }
     }
 }
 
@@ -37,6 +40,10 @@ pub(crate) struct Grid {
     pub cursor_visible: bool,
     /// Saved primary-screen state when alt-screen is active.
     alt_backup: Option<AltScreenBackup>,
+    /// Previous rendered frame — `None` means the next render must be a full paint.
+    prev_cells: Option<Vec<Cell>>,
+    prev_cursor: (u16, u16),
+    prev_cursor_visible: bool,
 }
 
 struct AltScreenBackup {
@@ -62,6 +69,9 @@ impl Grid {
             scroll_bottom: rows.saturating_sub(1),
             cursor_visible: true,
             alt_backup: None,
+            prev_cells: None,
+            prev_cursor: (0, 0),
+            prev_cursor_visible: true,
         }
     }
 
@@ -172,17 +182,36 @@ impl Grid {
         if self.cursor_row >= self.rows {
             self.cursor_row = self.rows.saturating_sub(1);
         }
-        if self.cursor_col >= self.cols {
+        let w = UnicodeWidthChar::width(ch).unwrap_or(1) as u8;
+        if w == 0 {
+            // Combining mark / zero-width — silently drop for v1.
+            return;
+        }
+        if self.cursor_col.saturating_add(w as u16) > self.cols {
             // Wrap to next line.
             self.cursor_col = 0;
-            self.cursor_row = self.cursor_row.saturating_add(1).min(self.rows.saturating_sub(1));
+            if self.cursor_row == self.scroll_bottom {
+                self.scroll_up_region();
+            } else {
+                self.cursor_row = self.cursor_row.saturating_add(1).min(self.rows.saturating_sub(1));
+            }
         }
         let idx = self.idx(self.cursor_row, self.cursor_col);
         if let Some(cell) = self.cells.get_mut(idx) {
             cell.ch = ch;
             cell.sgr = self.sgr;
+            cell.width = w;
         }
-        self.cursor_col = self.cursor_col.saturating_add(1);
+        if w == 2 {
+            // Mark continuation cell so diff render can skip it.
+            let cont = self.idx(self.cursor_row, self.cursor_col + 1);
+            if let Some(cell) = self.cells.get_mut(cont) {
+                cell.ch = '\0';
+                cell.sgr = self.sgr;
+                cell.width = 0;
+            }
+        }
+        self.cursor_col = self.cursor_col.saturating_add(w as u16);
     }
 
     fn clear_line(&mut self, mode: u16) {
@@ -273,29 +302,111 @@ impl Grid {
         }
     }
 
-    /// Emit a full repaint to `out`. Dirty-cell diffing is a follow-up.
-    pub fn render_full(&self, out: &mut impl Write) -> io::Result<()> {
+    /// Emit a full repaint to `out`. Always safe, always correct.
+    pub fn render_full(&mut self, out: &mut impl Write) -> io::Result<()> {
         // Clear viewer screen + home cursor + reset SGR.
         out.write_all(b"\x1b[2J\x1b[H\x1b[0m")?;
         let mut last_sgr = SgrState::default();
         for r in 0..self.rows {
             out.write_all(format!("\x1b[{};1H", r + 1).as_bytes())?;
-            for c in 0..self.cols {
+            let mut c = 0u16;
+            while c < self.cols {
                 let cell = self.cells[self.idx(r, c)];
+                if cell.width == 0 {
+                    // Continuation cell — already emitted by the wide predecessor.
+                    c += 1;
+                    continue;
+                }
                 if cell.sgr != last_sgr {
                     write_sgr(out, &cell.sgr)?;
                     last_sgr = cell.sgr;
                 }
                 let mut buf = [0u8; 4];
                 out.write_all(cell.ch.encode_utf8(&mut buf).as_bytes())?;
+                c += cell.width.max(1) as u16;
             }
         }
-        // Restore cursor to source's logical position.
         out.write_all(
             format!("\x1b[0m\x1b[{};{}H", self.cursor_row + 1, self.cursor_col + 1).as_bytes(),
         )?;
         out.write_all(if self.cursor_visible { b"\x1b[?25h" } else { b"\x1b[?25l" })?;
-        out.flush()
+        out.flush()?;
+        self.snapshot_as_prev();
+        Ok(())
+    }
+
+    /// Emit only cells that differ from the last render. Falls back to `render_full`
+    /// on first call (prev buffer empty) or if dims changed since the last snapshot.
+    pub fn render_diff(&mut self, out: &mut impl Write) -> io::Result<()> {
+        let need_full = match &self.prev_cells {
+            None => true,
+            Some(prev) => prev.len() != self.cells.len(),
+        };
+        if need_full {
+            return self.render_full(out);
+        }
+        let prev = self.prev_cells.as_ref().unwrap();
+        let mut wrote_any = false;
+        for r in 0..self.rows {
+            let mut c = 0u16;
+            while c < self.cols {
+                let idx = self.idx(r, c);
+                let cur = self.cells[idx];
+                let old = prev[idx];
+                if cur.width == 0 {
+                    c += 1;
+                    continue;
+                }
+                if cur != old {
+                    // Find run of dirty cells on this row.
+                    let start = c;
+                    out.write_all(format!("\x1b[{};{}H", r + 1, start + 1).as_bytes())?;
+                    // Force SGR re-emit on first cell of the run by seeding a differing state.
+                    let mut last_sgr = SgrState { bold: !cur.sgr.bold, ..cur.sgr };
+                    while c < self.cols {
+                        let i = self.idx(r, c);
+                        let cc = self.cells[i];
+                        let oo = prev[i];
+                        if cc.width == 0 {
+                            c += 1;
+                            continue;
+                        }
+                        if cc == oo {
+                            break;
+                        }
+                        if cc.sgr != last_sgr {
+                            write_sgr(out, &cc.sgr)?;
+                            last_sgr = cc.sgr;
+                        }
+                        let mut buf = [0u8; 4];
+                        out.write_all(cc.ch.encode_utf8(&mut buf).as_bytes())?;
+                        c += cc.width.max(1) as u16;
+                        wrote_any = true;
+                    }
+                } else {
+                    c += cur.width.max(1) as u16;
+                }
+            }
+        }
+        // Cursor & visibility.
+        let cur_pos = (self.cursor_row, self.cursor_col);
+        if wrote_any || cur_pos != self.prev_cursor {
+            out.write_all(
+                format!("\x1b[0m\x1b[{};{}H", self.cursor_row + 1, self.cursor_col + 1).as_bytes(),
+            )?;
+        }
+        if self.cursor_visible != self.prev_cursor_visible {
+            out.write_all(if self.cursor_visible { b"\x1b[?25h" } else { b"\x1b[?25l" })?;
+        }
+        out.flush()?;
+        self.snapshot_as_prev();
+        Ok(())
+    }
+
+    fn snapshot_as_prev(&mut self) {
+        self.prev_cells = Some(self.cells.clone());
+        self.prev_cursor = (self.cursor_row, self.cursor_col);
+        self.prev_cursor_visible = self.cursor_visible;
     }
 }
 
@@ -580,5 +691,45 @@ mod tests {
         let s = String::from_utf8_lossy(&out);
         assert!(s.contains("\x1b[?25l"));
         assert!(!s.contains("\x1b[?25h"));
+    }
+
+    #[test]
+    fn render_diff_emits_only_changes() {
+        let mut g = Grid::new(4, 1);
+        feed(&mut g, b"ABCD");
+        // First call primes prev_cells via render_full.
+        let mut out1 = Vec::new();
+        g.render_diff(&mut out1).unwrap();
+        assert!(out1.windows(4).any(|w| w == b"\x1b[2J"), "first render should be full repaint");
+
+        // Change only cell 1 from 'B' to 'X'.
+        feed(&mut g, b"\x1b[1;2HX");
+        let mut out2 = Vec::new();
+        g.render_diff(&mut out2).unwrap();
+        let s = String::from_utf8_lossy(&out2);
+        // No full clear on second render.
+        assert!(!s.contains("\x1b[2J"), "second render must not full-clear");
+        // X is emitted.
+        assert!(s.contains("X"));
+        // A/C/D are NOT re-emitted as standalone chars (we only wrote the changed cell).
+        // Sanity: diff output is smaller than full output for a 1-cell change.
+        assert!(out2.len() < out1.len(), "diff output should be smaller than full");
+    }
+
+    #[test]
+    fn wide_char_advances_cursor_by_two() {
+        let mut g = Grid::new(6, 1);
+        // CJK '中' is width-2.
+        let mut parser = Parser::new();
+        for b in "A中B".as_bytes() {
+            parser.advance(&mut g, *b);
+        }
+        assert_eq!(g.cells[0].ch, 'A');
+        assert_eq!(g.cells[0].width, 1);
+        assert_eq!(g.cells[1].ch, '中');
+        assert_eq!(g.cells[1].width, 2);
+        assert_eq!(g.cells[2].width, 0, "cell to the right of wide char is a continuation");
+        assert_eq!(g.cells[3].ch, 'B');
+        assert_eq!(g.cursor_col, 4);
     }
 }
