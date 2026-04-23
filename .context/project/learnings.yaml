@@ -590,3 +590,17 @@ learnings:
   date: 2026-04-22
   context: Added via context agent
   application: TBD
+- id: PL-050
+  learning: "Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-23T13:42:02Z hub_fingerprint=sha256:7f927cc0c6ee272caa06033c8964a952616da736b92b90f1fd7e1b5a4420d10e. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-23
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-051
+  learning: "Tier-2 fleet reauth --bootstrap-from ssh: requires a trusted SSH key from the caller host; without one, the autoheal is blocked at the OOB gate and the agent must fall back to Tier-1 plan rendering for human execution. This is by design (R2 rule: trust anchor must not depend on termlink auth being healed) — do not try to work around it."
+  source: PL-050
+  task: T-1198
+  date: 2026-04-23
+  context: Added via context agent
+  application: TBD
