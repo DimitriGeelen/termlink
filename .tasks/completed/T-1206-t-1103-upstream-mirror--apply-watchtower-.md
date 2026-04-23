@@ -3,7 +3,7 @@ id: T-1206
 name: "T-1103 upstream mirror — apply Watchtower /fleet page in framework repo"
 description: >
   T-1103 built the Watchtower /fleet page in the termlink vendored copy only — never mirrored to upstream. The 2026-04-23 vendor refresh (T-915) wiped fleet.py + fleet.html because they don't exist upstream. Files restored from git and registered in .local-patches, but the durable fix is to land them upstream so the next vendor refresh preserves them automatically.
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -11,8 +11,8 @@ tags: [framework, upstream-mirror, vendor-loss-recovery]
 components: []
 related_tasks: [T-1103, T-1114, T-1115, T-1116, T-1184, T-915]
 created: 2026-04-23T18:55:00Z
-last_update: 2026-04-23T18:55:00Z
-date_finished: null
+last_update: 2026-04-23T19:33:36Z
+date_finished: 2026-04-23T19:33:36Z
 ---
 
 # T-1206: T-1103 upstream mirror — apply Watchtower /fleet page in framework repo
@@ -35,7 +35,7 @@ Discovered during T-915 vendor refresh on 2026-04-23: `fw vendor --source /opt/9
 - [x] This pickup task records the artifacts + apply plan self-contained
 
 ### Human
-- [ ] [RUBBER-STAMP] Mirror fleet.py + fleet.html to framework repo
+- [x] [RUBBER-STAMP] Mirror fleet.py + fleet.html to framework repo — landed in framework commit 8b5395c4 (pushed to onedev master)
   **Steps:**
   1. From a session rooted at `/opt/999-Agentic-Engineering-Framework` (NOT /opt/termlink — T-559 boundary):
      ```
@@ -74,3 +74,7 @@ curl -sf http://localhost:3100/fleet -o /dev/null
 - **Action:** Created task to track upstream mirror of T-1103 fleet page
 - **Trigger:** T-915 vendor refresh wiped fleet.py + fleet.html
 - **Recovery:** Files restored in commit aa1bc066; registered in .local-patches in subsequent commit
+
+### 2026-04-23T19:33:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
