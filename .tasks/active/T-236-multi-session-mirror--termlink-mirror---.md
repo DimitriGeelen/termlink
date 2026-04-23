@@ -4,15 +4,15 @@ name: "Multi-session mirror — termlink mirror --tag with TUI grid"
 description: >
   Multi-session mirror — termlink mirror --tag with TUI grid
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T09:09:59Z
-last_update: 2026-04-22T04:52:50Z
+last_update: 2026-04-23T14:17:28Z
 date_finished: null
 ---
 
@@ -20,25 +20,31 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Follow-on to T-235 GO (vte+grid single-session mirror, landed via T-1199/1200/1201).
+Scope: compose N sessions matching a tag into a single TUI grid view. Reuses the
+per-session `Grid` primitive; adds a layout planner + composite renderer + parallel
+reader tasks, gated behind `termlink mirror --tag <TAG>`.
+
+Research artefact: `docs/reports/T-235-terminal-output-rendering.md`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `termlink mirror --tag <TAG>` CLI surface exists (option added to both `mirror` and `pty mirror` enum variants, mutually exclusive with positional target)
+- [ ] Tag discovery uses `manager::list_sessions` + existing tag filter; errors cleanly when 0 sessions match
+- [ ] New module `crates/termlink-cli/src/commands/mirror_grid_composer.rs` contains: layout planner (N → rows × cols grid), `PanelLayout { row, col, cols, rows, label }`, composite dispatch loop
+- [ ] `Grid::render_diff_at(offset_row, offset_col, out)` + `Grid::render_full_at(...)` added to `mirror_grid.rs`; existing `render_diff`/`render_full` delegate to the `_at` variants with (0,0) offsets OR remain and `_at` siblings coexist — existing 11 tests must still pass
+- [ ] Layout planner unit tests: `compute_layout(1) == 1×1`, `compute_layout(4) == 2×2`, `compute_layout(6) == 3×2`, `compute_layout(9) == 3×3`
+- [ ] At least 2 additional tests: `render_diff_at_applies_offset`, `layout_divides_terminal_without_overlap`
+- [ ] Binary compiles clean on `cargo build -p termlink` (no new warnings introduced in composer or mirror_grid)
+- [ ] All existing tests still green: `cargo test -p termlink --bin termlink mirror_grid` passes 11/11
+- [ ] New tests green: composer tests pass
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+cargo build -p termlink 2>&1 | grep -E "^(error|warning: unused)" && exit 1 || echo "build OK"
+cargo test -p termlink --bin termlink mirror_grid 2>&1 | tail -5 | grep -q "test result: ok"
+cargo test -p termlink --bin termlink mirror_grid_composer 2>&1 | tail -5 | grep -q "test result: ok"
 
 ## Decisions
 
@@ -64,3 +70,9 @@ date_finished: null
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-23T14:17:28Z — status-update [task-update-agent]
+- **Change:** horizon: next → now
+
+### 2026-04-23T14:17:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
