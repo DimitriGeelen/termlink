@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1038: Add termlink_tofu_list and termlink_tofu_clear MCP tools — T-922 codification
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:24:14Z
+# ============================================================================
+
+task_id: T-1038
+task_name: "Add termlink_tofu_list and termlink_tofu_clear MCP tools — T-922 codification"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T19:05:17Z
+completed: 2026-04-15T13:47:09Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-04-13T21:09:33+02:00
+last_commit: 2026-04-13T21:09:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_tofu_list and termlink_tofu_clear MCP tools — T-922 codification
+
+# Key outcomes
+outcomes:
+  - "`termlink_tofu_list` MCP tool returns JSON list of TOFU entries"
+  - "`termlink_tofu_clear` MCP tool removes a specific host:port entry"
+  - "MCP unit tests for both tools (3 tests: params parsing, missing required)"
+  - "Builds with zero clippy warnings"
+  - "[RUBBER-STAMP] Verify MCP tool count increased in `termlink doctor` — ticked by user direction 2026-04-23. Evidence: Live: cargo run -- doctor reports 75 MCP tools (T-1038 added 2 tofu tools; subsequent additions push count well above original +2 target). Verified live 2026-04-23T17:30Z (termlink 0.9.354, 3387b084)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1038-add-termlinktofulist-and-termlinktofucle.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T21:09:33"
+    action: "T-1038: Add termlink_tofu_list and termlink_tofu_clear MCP tools — T-922 codification"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2561 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2561
+  commits: 2
+  files_changed: 5
+  lines_added: 139
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1038-add-termlinktofulist-and-termlinktofucle.md
+generated_by: context-agent-hybrid

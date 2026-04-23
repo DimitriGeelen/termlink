@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1010: Add termlink_remote_inbox_status MCP tool — query inbox on remote hubs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:24:10Z
+# ============================================================================
+
+task_id: T-1010
+task_name: "Add termlink_remote_inbox_status MCP tool — query inbox on remote hubs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T09:46:45Z
+completed: 2026-04-15T13:47:07Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-04-13T11:50:06+02:00
+last_commit: 2026-04-13T11:50:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 3 remote inbox MCP tools — status/list/clear on remote hubs (59 MCP tools)
+
+# Key outcomes
+outcomes:
+  - "Add termlink_remote_inbox_status MCP tool with hub param"
+  - "Add termlink_remote_inbox_list MCP tool with hub + target params"
+  - "Add termlink_remote_inbox_clear MCP tool with hub + target/all params"
+  - "MCP tool count increases from 56 to 59"
+  - "cargo clippy --workspace passes (0 warnings)"
+  - "cargo test --workspace passes (1003 tests)"
+  - "[RUBBER-STAMP] Verify MCP tool count in `termlink doctor` — ticked by user direction 2026-04-23. Evidence: Live: cargo run -- doctor reports 75 MCP tools (≥ 59 baseline). Verified live 2026-04-23T17:30Z (termlink 0.9.354, 3387b084)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1010-add-termlinkremoteinboxstatus-mcp-tool--.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T11:50:06"
+    action: "T-1010: Add 3 remote inbox MCP tools — status/list/clear on remote hubs (59 MCP tools)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3120 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3120
+  commits: 1
+  files_changed: 2
+  lines_added: 226
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1010-add-termlinkremoteinboxstatus-mcp-tool--.md
+generated_by: context-agent-hybrid
