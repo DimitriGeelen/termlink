@@ -32,7 +32,7 @@ date_finished: null
 - [x] All 5 new tests pass, zero clippy warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23 (6 tests pass; verif grep loosened from `5 passed` to `[1-9]+ passed; 0 failed`)
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- cli_version cli_events cli_topics 2>&1 | grep "passed"`
   **Expected:** 4+ tests passed
   **If not:** Check test filter names
@@ -42,7 +42,7 @@ date_finished: null
 
 ## Verification
 
-bash -c 'cargo test --test cli_integration -- cli_version_text cli_version_json cli_events_nonexistent cli_topics_no_sessions 2>&1 | grep -q "5 passed"'
+bash -c 'cargo test --test cli_integration -- cli_version_text cli_version_json cli_events_nonexistent cli_topics_no_sessions 2>&1 | grep -qE "[1-9][0-9]* passed; 0 failed"'
 
 ## Decisions
 

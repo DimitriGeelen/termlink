@@ -30,7 +30,7 @@ date_finished: null
 - [x] Builds and passes clippy
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify `termlink hub status` shows systemd hub
+- [x] [RUBBER-STAMP] Verify `termlink hub status` shows systemd hub — ticked by user direction 2026-04-23. Live: PID 1718329, runtime dir /var/lib/termlink, socket /var/lib/termlink/hub.sock — systemd path resolved correctly
   **Steps:** `cd /opt/termlink && cargo run -- hub status`
   **Expected:** Shows running PID matching systemctl, runtime dir /var/lib/termlink
   **If not:** Check resolve_hub_paths() fallback

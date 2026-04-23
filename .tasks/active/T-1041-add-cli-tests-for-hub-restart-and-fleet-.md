@@ -32,7 +32,7 @@ Add CLI integration tests for hub restart and fleet doctor error paths. No exist
 - [x] All 5 new tests pass, zero clippy warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23 (verification command exit 0)
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- hub_restart fleet_doctor 2>&1 | grep "passed"`
   **Expected:** 4+ tests passed
   **If not:** Check test names match the filter

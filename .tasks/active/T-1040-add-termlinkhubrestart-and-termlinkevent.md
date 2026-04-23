@@ -31,7 +31,7 @@ T-922 codification: every CLI command should be MCP-reachable. The `hub restart`
 - [x] Builds with zero clippy warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify MCP tool count increased in `termlink doctor`
+- [x] [RUBBER-STAMP] Verify MCP tool count increased in `termlink doctor` — ticked by user direction 2026-04-23. Live: doctor reports `75 MCP tools` (was 69 at task-time, +6 since: hub_restart, events, kv_watch, etc.)
   **Steps:** `cd /opt/termlink && cargo run -- doctor 2>&1 | grep -i tool`
   **Expected:** Tool count increased by 2 compared to previous build
   **If not:** Check MCP tool registration in tools.rs tool_router macro
