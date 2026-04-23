@@ -12,7 +12,7 @@ tags: [readme, docs, ux, T-1070]
 components: []
 related_tasks: []
 created: 2026-04-18T23:02:47Z
-last_update: 2026-04-19T13:56:06Z
+last_update: 2026-04-23T17:26:26Z
 date_finished: 2026-04-19T13:56:06Z
 ---
 

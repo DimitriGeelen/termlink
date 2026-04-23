@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1136: Update README one-liner install — replace 'cargo install --git' hint with install.sh curl-pipe (from T-1070 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:26:27Z
+# ============================================================================
+
+task_id: T-1136
+task_name: "Update README one-liner install — replace 'cargo install --git' hint with install.sh curl-pipe (from T-1070 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T23:02:47Z
+completed: 2026-04-19T13:56:06Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-19T15:56:01+02:00
+last_commit: 2026-04-19T15:56:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  README — lead with install.sh curl-pipe one-liner
+
+# Key outcomes
+outcomes:
+  - "README Quick Start lead block is the `curl | sh` one-liner pointing at the T-1134 installer"
+  - "Homebrew path retained as a secondary option (macOS-preferred)"
+  - "`cargo install --git` demoted to \"from source\" with a clear label"
+  - "No references remain recommending `cargo install --git` as a default install"
+  - "[RUBBER-STAMP] README renders correctly on GitHub — ticked by user direction 2026-04-23. Evidence: Live: README.md lines 15-25 show install order matches AC: install.sh curl-pipe FIRST, brew second, cargo install --git labeled 'build from source (requires Rust toolchain)' third. URL = https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh. Verified 2026-04-23T17:40Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "README.md"
+  - ".tasks/active/T-1136-update-readme-one-liner-install--replace.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T15:56:01"
+    action: "T-1136: README — lead with install.sh curl-pipe one-liner"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 893 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [readme, docs, ux, T-1070]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 893
+  commits: 2
+  files_changed: 3
+  lines_added: 25
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1136-update-readme-one-liner-install--replace.md
+generated_by: context-agent-hybrid
