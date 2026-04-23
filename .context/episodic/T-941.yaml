@@ -1,0 +1,69 @@
+# ============================================================================
+# EPISODIC MEMORY - T-941: Pickup: Include persistent agent session service templates in framework deploy scaffold (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:14:01Z
+# ============================================================================
+
+task_id: T-941
+task_name: "Pickup: Include persistent agent session service templates in framework deploy scaffold (from termlink)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T07:49:06Z
+completed: 2026-04-22T04:52:52Z
+duration_days: 10
+updates_count: 5
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (T-931 systemd unit works; template belongs in framework)"
+  - "Assumptions tested (framework deploy scaffold is the right location)"
+  - "Recommendation written with rationale (DEFER: framework-side)"
+  - "[RUBBER-STAMP] Record go/no-go decision — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — GO. Persistent agent session service templates accepted."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14223 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, feature-proposal]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14223
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-941-pickup-include-persistent-agent-session-.md
+generated_by: context-agent-hybrid

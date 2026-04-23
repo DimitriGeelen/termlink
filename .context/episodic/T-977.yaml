@@ -1,0 +1,111 @@
+# ============================================================================
+# EPISODIC MEMORY - T-977: fw hook-enable command — register hooks in settings.json from CLI
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:14:02Z
+# ============================================================================
+
+task_id: T-977
+task_name: "fw hook-enable command — register hooks in settings.json from CLI"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T10:49:55Z
+completed: 2026-04-22T18:40:14Z
+duration_days: 10
+updates_count: 7
+first_commit: 2026-04-12T12:51:20+02:00
+last_commit: 2026-04-22T20:40:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add fw hook-enable command — clean CLI for hook registration. Completion + learning L-039 (hook registration UX). Fix Human AC — replace template placeholder with real steps. Cross-reference T-1189 repair in Updates log
+
+# Key outcomes
+outcomes:
+  - "`bin/hook-enable.sh` script exists with --matcher and --event flags"
+  - "`fw hook-enable` route added in bin/fw"
+  - "Idempotent — running twice doesn't duplicate the entry"
+  - "T-976 pl007-scanner registered via the new command"
+  - "[RUBBER-STAMP] Verify pl007-scanner hook fires on bare command output — ticked by user direction 2026-04-23. Evidence: Live: PL-007 REMINDER lines appear in PostToolUse:Bash hook output throughout this session whenever bare command patterns surface. Hook is firing as designed. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix Human AC — replace template placeholder with real steps"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/bin/fw"
+  - ".agentic-framework/bin/hook-enable.sh"
+  - ".claude/settings.json"
+  - ".context/approvals/resolved-247fa5cd2aed.yaml"
+  - ".context/approvals/resolved-743f79d5da14.yaml"
+  - ".context/approvals/resolved-745194ea2606.yaml"
+  - ".context/approvals/resolved-ddfa39f364e6.yaml"
+  - ".context/audits/2026-04-12.yaml"
+  - ".context/audits/cron/2026-04-12-1245.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/episodic/T-974.yaml"
+  - ".context/locks/T-974.lock"
+  - ".context/locks/T-975.lock"
+  - ".context/locks/T-976.lock"
+  - ".context/locks/T-977.lock"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.agent-dispatch-counter"
+  - ".context/working/.approval-notified"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.new-file-counter"
+  - ".context/working/.reviewed-T-976"
+  - ".context/working/.reviewed-T-977"
+  - ".context/working/.tier0-approval"
+  - ".tasks/active/T-975-refactor-gate-scripts-to-use-shared-watc.md"
+  - ".tasks/active/T-977-fw-hook-enable-command--register-hooks-i.md"
+  - ".tasks/completed/T-974-create-libwatchtowersh-shared-helper--wa.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T12:51:20"
+    action: "T-977: Add fw hook-enable command — clean CLI for hook registration"
+  - time: "2026-04-12T12:51:47"
+    action: "T-977: Completion + learning L-039 (hook registration UX)"
+  - time: "2026-04-12T12:52:23"
+    action: "T-977: Fix Human AC — replace template placeholder with real steps"
+  - time: "2026-04-22T20:40:14"
+    action: "T-977: Cross-reference T-1189 repair in Updates log"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 14870 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14870
+  commits: 4
+  files_changed: 28
+  lines_added: 367
+  lines_removed: 97
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-977-fw-hook-enable-command--register-hooks-i.md
+generated_by: context-agent-hybrid

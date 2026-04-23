@@ -12,7 +12,7 @@ tags: [protocol, termlink, version-skew, T-1071]
 components: [crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-18T22:59:37Z
-last_update: 2026-04-19T14:06:47Z
+last_update: 2026-04-23T19:13:48Z
 date_finished: 2026-04-19T14:06:47Z
 ---
 

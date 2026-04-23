@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1145: Batch-evidence 4 remote/inbox Human ACs via live termlink (G-008 remediation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:13:58Z
+# ============================================================================
+
+task_id: T-1145
+task_name: "Batch-evidence 4 remote/inbox Human ACs via live termlink (G-008 remediation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-19T17:49:08Z
+completed: 2026-04-19T17:50:49Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-19T19:50:49+02:00
+last_commit: 2026-04-19T19:50:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Batch-evidence 4 remote/inbox Human ACs via live termlink (G-008 remediation)
+
+# Key outcomes
+outcomes:
+  - "`termlink remote ping ring20-management` returns PONG with latency (evidence for T-1012)"
+  - "GitHub Releases v0.9.1 checksums.txt contains `termlink-linux-x86_64-static` (evidence for T-1019)"
+  - "`termlink remote doctor ring20-management` returns 3 PASS, 0 fail (evidence for T-1020)"
+  - "`termlink remote inbox ring20-management --help` shows 4 subcommands (evidence for T-1076)"
+  - "Evidence injected into 4 task files before `## Verification`"
+  - "`grep -l \"G-008 remediation, live-termlink\" .tasks/active/T-10*.md | wc -l` reports 4"
+  - "[RUBBER-STAMP] Glance at evidence blocks in the 4 task files and confirm outputs look correct — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence cited live termlink remote outputs."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1012-fix-mcp-remote-tools-to-resolve-hub-prof.md"
+  - ".tasks/active/T-1019-add-musl-static-build-target-to-cireleas.md"
+  - ".tasks/active/T-1020-add-termlink-remote-doctor--health-check.md"
+  - ".tasks/active/T-1076-fix-remote-inbox-cli-ergonomics--argumen.md"
+  - ".tasks/active/T-1145-batch-evidence-4-remoteinbox-human-acs-v.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T19:50:49"
+    action: "T-1145: Batch-evidence 4 remote/inbox Human ACs via live termlink (G-008 remediation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 5
+  lines_added: 84
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1145-batch-evidence-4-remoteinbox-human-acs-v.md
+generated_by: context-agent-hybrid

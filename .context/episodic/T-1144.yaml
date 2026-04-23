@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1144: Batch-evidence 14 test-add Human ACs via git-derived test counts (G-008 remediation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:13:58Z
+# ============================================================================
+
+task_id: T-1144
+task_name: "Batch-evidence 14 test-add Human ACs via git-derived test counts (G-008 remediation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-19T17:45:37Z
+completed: 2026-04-19T17:47:49Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-19T19:47:49+02:00
+last_commit: 2026-04-19T19:47:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Batch-evidence 14 test-add Human ACs via git-derived test counts (G-008 remediation)
+
+# Key outcomes
+outcomes:
+  - "Per-task implementation commits identified via `git log --grep`"
+  - "Per-task `+N tests` count derived via `git show <commit> | grep '^+.*fn '`"
+  - "Current total test counts confirmed: 168 in crates/termlink-cli/tests/cli_integration.rs, 198+ in crates/termlink-hub/src/router.rs"
+  - "Evidence blocks injected into all 14 task files before `## Verification`"
+  - "`grep -l \"G-008 remediation, test-count\" .tasks/active/T-10*.md | wc -l` reports 14"
+  - "[RUBBER-STAMP] Glance at the evidence blocks in any 2-3 task files and confirm the test-count numbers look reasonable — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence cited test counts from git-derived diffs."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1007-add-router-tests-for-sessionupdate-and-e.md"
+  - ".tasks/active/T-1033-add-tests-for-resolvehubpaths--split-bra.md"
+  - ".tasks/active/T-1041-add-cli-tests-for-hub-restart-and-fleet-.md"
+  - ".tasks/active/T-1042-add-cli-tests-for-version-events-and-top.md"
+  - ".tasks/active/T-1043-add-cli-tests-for-info-and-exec-error-pa.md"
+  - ".tasks/active/T-1044-add-cli-tests-for-inject-and-output-erro.md"
+  - ".tasks/active/T-1045-add-cli-tests-for-ping-status-and-clean-.md"
+  - ".tasks/active/T-1046-add-cli-tests-for-tag-and-spawn-error-pa.md"
+  - ".tasks/active/T-1091-add-cli-integration-tests-for-remote-lis.md"
+  - ".tasks/active/T-1092-add-cli-tests-for-dispatch-status-and-mc.md"
+  - ".tasks/active/T-1093-add-cli-tests-for-remote-profile-and-fle.md"
+  - ".tasks/active/T-1095-add-cli-tests-for-fleet-doctor-with-prof.md"
+  - ".tasks/active/T-1096-add-cli-tests-for-inbox-json-output-and-.md"
+  - ".tasks/active/T-1098-add-cli-tests-for-mirror-interact-and-ag.md"
+  - ".tasks/active/T-1144-batch-evidence-14-test-add-human-acs-via.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T19:47:49"
+    action: "T-1144: Batch-evidence 14 test-add Human ACs via git-derived test counts (G-008 remediation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 15
+  lines_added: 109
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1144-batch-evidence-14-test-add-human-acs-via.md
+generated_by: context-agent-hybrid
