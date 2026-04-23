@@ -393,6 +393,10 @@ pub(crate) enum Command {
         /// Number of scrollback lines to show on connect (default: 100)
         #[arg(long, default_value = "100")]
         scrollback: u64,
+
+        /// Use legacy byte-passthrough path (no grid emulation)
+        #[arg(long)]
+        raw: bool,
     },
 
     // === Hidden backward-compat aliases for Event commands ===
@@ -2118,6 +2122,10 @@ pub(crate) enum PtyCommand {
         /// Number of scrollback lines to show on connect (default: 100)
         #[arg(long, default_value = "100")]
         scrollback: u64,
+
+        /// Use legacy byte-passthrough path (no grid emulation)
+        #[arg(long)]
+        raw: bool,
     },
 }
 

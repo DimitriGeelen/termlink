@@ -592,7 +592,7 @@ pub(crate) async fn cmd_stream(target: &str) -> Result<()> {
     result
 }
 
-pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64) -> Result<()> {
+pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64, raw: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -628,19 +628,24 @@ pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64) -> Result<()
         .context("Failed to connect to data plane")?;
 
     eprintln!(
-        "Mirroring {} ({}) — read-only. Press Ctrl+C to stop.",
-        reg.display_name, reg.id
+        "Mirroring {} ({}){} — read-only. Press Ctrl+C to stop.",
+        reg.display_name,
+        reg.id,
+        if raw { " [raw]" } else { "" }
     );
 
-    mirror_loop(stream).await
+    if raw {
+        mirror_loop_raw(stream).await
+    } else {
+        mirror_loop_grid(stream).await
+    }
 }
 
-/// Read-only data plane mirror loop — receives Output frames, ignores everything else.
-async fn mirror_loop(stream: tokio::net::UnixStream) -> Result<()> {
+/// Legacy byte-passthrough mirror loop (pre-T-1199).
+async fn mirror_loop_raw(stream: tokio::net::UnixStream) -> Result<()> {
     let (read_half, _write_half) = tokio::io::split(stream);
     let mut reader = FrameReader::new(read_half);
 
-    // Handle Ctrl+C gracefully
     let mut sigint = tokio::signal::unix::signal(
         tokio::signal::unix::SignalKind::interrupt(),
     ).context("Failed to register SIGINT handler")?;
@@ -656,10 +661,74 @@ async fn mirror_loop(stream: tokio::net::UnixStream) -> Result<()> {
                             std::io::Write::write_all(&mut out, &frame.payload)?;
                             std::io::Write::flush(&mut out)?;
                         }
-                        // Silently ignore all other frame types (Pong, Close, etc.)
                         if frame.header.frame_type == FrameType::Close {
                             eprintln!("\nSession closed connection.");
                             break;
+                        }
+                    }
+                    Ok(None) => {
+                        eprintln!("\nData plane disconnected.");
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("\nData plane error: {e}");
+                        break;
+                    }
+                }
+            }
+
+            _ = sigint.recv() => {
+                eprintln!("\nMirror stopped.");
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Grid-aware mirror loop — feeds Output frames through a vte parser and emits
+/// a full repaint per frame. Dirty-cell diffing is a follow-up (see T-1191).
+async fn mirror_loop_grid(stream: tokio::net::UnixStream) -> Result<()> {
+    use super::mirror_grid::Grid;
+
+    let (read_half, _write_half) = tokio::io::split(stream);
+    let mut reader = FrameReader::new(read_half);
+
+    let mut sigint = tokio::signal::unix::signal(
+        tokio::signal::unix::SignalKind::interrupt(),
+    ).context("Failed to register SIGINT handler")?;
+
+    let (cols, rows) = terminal_size();
+    let mut grid = Grid::new(cols.max(1), rows.max(1));
+    let mut parser = vte::Parser::new();
+
+    loop {
+        tokio::select! {
+            frame = reader.read_frame() => {
+                match frame {
+                    Ok(Some(frame)) => {
+                        match frame.header.frame_type {
+                            FrameType::Output => {
+                                for b in &frame.payload {
+                                    parser.advance(&mut grid, *b);
+                                }
+                                let stdout = std::io::stdout();
+                                let mut out = stdout.lock();
+                                let _ = grid.render_full(&mut out);
+                            }
+                            FrameType::Resize => {
+                                if frame.payload.len() >= 4 {
+                                    let c = u16::from_be_bytes([frame.payload[0], frame.payload[1]]);
+                                    let r = u16::from_be_bytes([frame.payload[2], frame.payload[3]]);
+                                    grid.resize(c.max(1), r.max(1));
+                                }
+                            }
+                            FrameType::Close => {
+                                eprintln!("\nSession closed connection.");
+                                break;
+                            }
+                            _ => {}
                         }
                     }
                     Ok(None) => {
