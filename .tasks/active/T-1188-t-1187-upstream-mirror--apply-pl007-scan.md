@@ -48,7 +48,7 @@ session.
   false-completion class this pickup remediates
 
 ### Human
-- [ ] [RUBBER-STAMP] Apply the scanner to the framework repo and commit
+- [x] [RUBBER-STAMP] Apply the scanner to the framework repo and commit — ticked by user direction 2026-04-23. Evidence: upstream mirrored 2026-04-22T21:14Z via T-1192 Channel 1; commit `25718851` ("T-1188 upstream mirror: pl007-scanner PostToolUse hook from termlink") confirmed present in `/opt/999-Agentic-Engineering-Framework` master via `git -C ... log --oneline 25718851`. sha256 of upstream `agents/context/pl007-scanner.sh` === termlink-vendored source.
   **Steps:**
   1. In a session rooted at `/opt/999-Agentic-Engineering-Framework` (NOT from /opt/termlink):
      ```
