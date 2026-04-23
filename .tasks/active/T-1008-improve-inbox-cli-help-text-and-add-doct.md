@@ -32,7 +32,7 @@ Two UX improvements: (1) clarify inbox clear help text about --all vs target pre
 - [x] cargo clippy --workspace passes (0 warnings)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify `termlink inbox clear --help` reads clearly
+- [x] [RUBBER-STAMP] Verify `termlink inbox clear --help` reads clearly — ticked by user direction 2026-04-23. Evidence: Live: `termlink inbox clear --help` shows clear per-arg descriptions for `[TARGET]` and `--all` flag (mutually exclusive). Verified 2026-04-23T17:35Z.
   **Steps:**
   1. `cd /opt/termlink && cargo run -- inbox clear --help`
   **Expected:** Help text explains --all vs target clearly
