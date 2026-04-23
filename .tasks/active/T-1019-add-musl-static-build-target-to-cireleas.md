@@ -31,7 +31,7 @@ Add x86_64-unknown-linux-musl to the GitHub Actions release workflow so that cro
 - [x] YAML is valid
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify musl binary appears in next release after tagging
+- [x] [RUBBER-STAMP] Verify musl binary appears in next release after tagging — ticked by user direction 2026-04-23. Evidence: live curl of GitHub release v0.9.1 checksums.txt returns sha256 e5e0ded0...288 for termlink-linux-x86_64-static. musl variant is published. Verified 2026-04-23T17:50Z.
   **Steps:**
   1. Tag a release: `cd /opt/termlink && git tag v0.X.Y && git push origin --tags`
   2. Check GitHub Actions for successful build
