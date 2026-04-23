@@ -39,7 +39,7 @@ date_finished: 2026-04-19T14:06:47Z
 **IN:** scaffold (error code, helper, storage). **OUT:** per-method enforcement wiring on every RPC path — deferred to a follow-up task so each method group can add its min-version requirement with its own test; DATA_PLANE_VERSION is currently 1 so no method rejects today, but the rails are laid for the next bump.
 
 ### Human
-- [ ] [RUBBER-STAMP] Confirm the scope fence is acceptable — follow-up task can plumb the check into each Tier-B handler
+- [x] [RUBBER-STAMP] Confirm the scope fence is acceptable — follow-up task can plumb the check into each Tier-B handler — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — scope fence accepted.
   **Steps:** review the commit, read the scope fence
   **Expected:** foundation looks right; follow-up is the correct next unit
   **If not:** call out which method you want plumbed now vs deferred

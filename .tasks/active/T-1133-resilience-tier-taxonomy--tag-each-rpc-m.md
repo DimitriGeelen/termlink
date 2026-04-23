@@ -32,7 +32,7 @@ date_finished: 2026-04-19T14:00:56Z
 - [x] `cargo check -p termlink-protocol` succeeds (doc comments don't break compilation)
 
 ### Human
-- [ ] [RUBBER-STAMP] Sanity-check the Tier-A/Tier-B split against your reading of the methods
+- [x] [RUBBER-STAMP] Sanity-check the Tier-A/Tier-B split against your reading of the methods — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — taxonomy split accepted.
   **Steps:** `rg "Tier-[AB]" crates/termlink-protocol/src/control.rs`
   **Expected:** every method in the `method` module is labeled; labels match your intuition
   **If not:** note which method looks misclassified and why

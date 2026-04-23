@@ -33,7 +33,7 @@ Strategy B continuation of G-008 remediation: 4 tasks have Human ACs that can be
 - [x] `grep -l "G-008 remediation, hub-detection" .tasks/active/T-10*.md | wc -l` reports 4
 
 ### Human
-- [ ] [RUBBER-STAMP] Glance at 1-2 evidence blocks and confirm outputs look correct
+- [x] [RUBBER-STAMP] Glance at 1-2 evidence blocks and confirm outputs look correct — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence cited live termlink hub-detection outputs.
   **Steps:** `grep -l "G-008 remediation, hub-detection" /opt/termlink/.tasks/active/*.md`
   **Expected:** 4 files listed
   **If not:** Report which has weak evidence

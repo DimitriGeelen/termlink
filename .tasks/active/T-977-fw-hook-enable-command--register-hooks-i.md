@@ -31,7 +31,7 @@ date_finished: 2026-04-12T10:51:24Z
 - [x] T-976 pl007-scanner registered via the new command
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify pl007-scanner hook fires on bare command output
+- [x] [RUBBER-STAMP] Verify pl007-scanner hook fires on bare command output — ticked by user direction 2026-04-23. Evidence: Live: PL-007 REMINDER lines appear in PostToolUse:Bash hook output throughout this session whenever bare command patterns surface. Hook is firing as designed. User direction 2026-04-23.
   **Steps:**
   1. Run a command whose output contains "fw inception decide" (e.g., `fw task review` on an inception task)
   2. Check that the agent receives a PL-007 reminder in additionalContext

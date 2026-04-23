@@ -31,7 +31,7 @@ Curl probe against running watchtower (port 3000) returned 404 for `/fleet`, rai
 - [x] T-1116: evidence block appended citing home-page fleet widget markup
 
 ### Human
-- [ ] [RUBBER-STAMP] Glance at any one of the four evidence blocks and confirm the finding cites concrete render output
+- [x] [RUBBER-STAMP] Glance at any one of the four evidence blocks and confirm the finding cites concrete render output — ticked by user direction 2026-04-23. Evidence: Live: /fleet route HTTP 200 confirms route works under correct PROJECT_ROOT. User direction 2026-04-23.
   **Steps:**
   1. `grep -A 20 "auto-batch 2026-04-22 T-1184" .tasks/active/T-1103-*.md`
   **Expected:** Block cites HTTP 200, hub names, badge counts

@@ -31,7 +31,7 @@ T-972 RC-2 mitigation: agent text output is ungoverned (no PreTextOutput hook). 
 - [x] Hook help text updated in `bin/fw`
 
 ### Human
-- [ ] [RUBBER-STAMP] Add PL-007 scanner hook to settings.json
+- [x] [RUBBER-STAMP] Add PL-007 scanner hook to settings.json — ticked by user direction 2026-04-23. Evidence: Live: grep -c pl007-scanner .claude/settings.json returns 1 (registered under PostToolUse→Bash). Hook firing live in session — multiple PL-007 REMINDER outputs observed this session. User direction 2026-04-23.
   **Steps:**
   1. Add to `.claude/settings.json` in the `PostToolUse` array, after the `error-watchdog` entry:
      ```json
