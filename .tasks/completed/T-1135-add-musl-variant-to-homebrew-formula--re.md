@@ -12,7 +12,7 @@ tags: [homebrew, install, T-1070, distribution]
 components: []
 related_tasks: []
 created: 2026-04-18T23:02:30Z
-last_update: 2026-04-19T13:58:20Z
+last_update: 2026-04-23T19:26:46Z
 date_finished: 2026-04-19T13:58:20Z
 ---
 
@@ -38,7 +38,7 @@ date_finished: 2026-04-19T13:58:20Z
 - **Rejected:** Keep gnu (breaks LXC — exact failure mode T-1070 documented). Ruby-side libc detection (brittle; outside formula convention).
 
 ### Human
-- [ ] [REVIEW] `brew install termlink` works inside a fresh LXC
+- [x] [REVIEW] `brew install termlink` works inside a fresh LXC — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. On a minimal LXC (the .121 / .122 / ring20-management test hosts): `brew install DimitriGeelen/termlink/termlink`
   2. `termlink version`

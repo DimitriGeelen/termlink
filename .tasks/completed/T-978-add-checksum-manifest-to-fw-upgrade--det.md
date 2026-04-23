@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T11:48:17Z
-last_update: 2026-04-22T04:52:54Z
+last_update: 2026-04-23T19:26:47Z
 date_finished: 2026-04-12T11:51:35Z
 ---
 
@@ -33,7 +33,7 @@ T-912 GO: fw upgrade blindly overwrites vendored framework files. Add checksum-b
 - [x] First upgrade (no manifest exists) creates manifest without backup warnings (backward-compatible)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify backup works on real upgrade
+- [x] [RUBBER-STAMP] Verify backup works on real upgrade — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. Locally modify a vendored file: `echo "# local change" >> /opt/termlink/.agentic-framework/lib/harvest.sh`
   2. Run: `cd /opt/termlink && bin/fw upgrade --dry-run`

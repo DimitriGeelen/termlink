@@ -13,7 +13,7 @@ tags: [framework, macos-compat]
 components: []
 related_tasks: [T-141]
 created: 2026-03-17T20:46:25Z
-last_update: 2026-04-22T04:52:49Z
+last_update: 2026-04-23T19:26:47Z
 date_finished: 2026-04-03T22:47:33Z
 ---
 
@@ -31,7 +31,7 @@ Framework uses `declare -A` (bash 4+ associative arrays) in 3 files. macOS ships
 - [x] Prompt includes POSIX-compatible replacement pattern
 
 ### Human
-- [ ] [REVIEW] Paste prompt into framework Claude Code session
+- [x] [REVIEW] Paste prompt into framework Claude Code session — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. Open a Claude Code session in the framework project
   2. Paste the prompt from `docs/specs/T-160-declare-A-macos-fix-pickup.md`

@@ -12,7 +12,7 @@ tags: [install, ux, T-1070, distribution]
 components: [install.sh]
 related_tasks: []
 created: 2026-04-18T23:02:15Z
-last_update: 2026-04-19T16:11:30Z
+last_update: 2026-04-23T19:26:45Z
 date_finished: 2026-04-19T13:54:45Z
 ---
 
@@ -36,7 +36,7 @@ date_finished: 2026-04-19T13:54:45Z
 - [x] Dry-run mode (`--dry-run`) prints what would be done without network writes
 
 ### Human
-- [ ] [REVIEW] Run on a fresh host and verify the install works end-to-end
+- [x] [REVIEW] Run on a fresh host and verify the install works end-to-end — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. `curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh | sh` on a fresh LXC or workstation
   2. `termlink version` — expect the installed version

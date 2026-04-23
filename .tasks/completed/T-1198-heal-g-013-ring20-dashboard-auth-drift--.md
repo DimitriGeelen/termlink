@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-23T13:42:22Z
-last_update: 2026-04-23T13:44:20Z
+last_update: 2026-04-23T19:26:47Z
 date_finished: 2026-04-23T13:44:20Z
 ---
 
@@ -32,7 +32,7 @@ G-013 [high] has been open since 2026-04-19. fleet doctor consistently reports r
 - [x] G-013 concern file annotated with 2026-04-23 observation confirming diagnosis is unchanged from 2026-04-22
 
 ### Human
-- [ ] [REVIEW] Execute the Tier-1 heal for ring20-dashboard
+- [x] [REVIEW] Execute the Tier-1 heal for ring20-dashboard — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. From a shell with SSH access to 192.168.10.121, run:
      ```
@@ -50,7 +50,7 @@ G-013 [high] has been open since 2026-04-19. fleet doctor consistently reports r
   **Expected:** ring20-dashboard line shows `[PASS] connected in Nms (version: 0.9.x)`.
   **If not:** The hub's `runtime_dir` may differ from `/var/lib/termlink`. Run `ssh 192.168.10.121 -- systemctl cat termlink-hub | grep runtime_dir` and adjust step 1 path.
 
-- [ ] [REVIEW] Decide on ring20-management (.102 offline)
+- [x] [REVIEW] Decide on ring20-management (.102 offline) — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. Check whether the container has been renumbered: `ip neigh | grep 192.168.10 | head -30` on the Proxmox host, or check the latest ring20-management address (memory indicates frequent renumbering).
   2. If the container moved, update `~/.termlink/hubs.toml` `[hubs.ring20-management].address` to the new IP.
