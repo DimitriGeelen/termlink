@@ -31,7 +31,7 @@ date_finished: null
 - [x] All 3 tests pass, zero clippy warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23 (verification command exit 0)
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- cli_tag_nonexist cli_resize_nonexist 2>&1 | grep "passed"`
   **Expected:** 3 tests passed
   **If not:** Check test filter names
