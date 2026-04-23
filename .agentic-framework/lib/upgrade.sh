@@ -376,6 +376,22 @@ CRONREGEOF
                 if [ "$dry_run" = true ]; then
                     echo -e "  ${CYAN}WOULD MIGRATE${NC}  Replace symlink with project-detecting shim"
                 else
+                    # T-1278: defence-in-depth — if the resolved target sits
+                    # next to a FRAMEWORK.md, refuse. It's a framework repo's
+                    # bin/fw, not a PATH shim location.
+                    local target_dir
+                    target_dir=$(dirname "$link_target" 2>/dev/null || echo "")
+                    if [ -n "$target_dir" ] && [ -f "$target_dir/../FRAMEWORK.md" ]; then
+                        echo -e "  ${RED}REFUSED${NC}  $current_fw resolves into a framework repo ($target_dir/..)"
+                        echo -e "         Refusing to overwrite a framework repo's bin/fw with the shim."
+                        echo -e "         Inspect: ls -la $current_fw && readlink -f $current_fw"
+                        return 1
+                    fi
+                    # T-1278: remove symlink before copy. Plain `cp` follows the
+                    # destination symlink and writes the shim *through* it into
+                    # the framework repo's bin/fw, corrupting the real CLI into
+                    # a shim → every fw call then infinite-exec-loops.
+                    rm -f "$current_fw"
                     cp "$shim_src" "$current_fw"
                     chmod +x "$current_fw"
                     changes=$((changes + 1))
@@ -593,18 +609,24 @@ print(sum(len(v) for v in data.get('hooks', {}).values()))
     local recommended_servers='{"context7":1,"playwright":1,"termlink":1}'
 
     if [ -f "$mcp_file" ]; then
-        # Check for missing recommended servers
+        # Check for missing recommended servers. T-1354: servers live under
+        # top-level `mcpServers` key (Claude Code schema). If an older file
+        # has servers at the root, treat that as the full server map (the
+        # merge path below will migrate it into mcpServers).
         local mcp_analysis
         mcp_analysis=$(RECOMMENDED="$recommended_servers" MCP_FILE="$mcp_file" python3 -c "
 import json, os, sys
 recommended = json.loads(os.environ['RECOMMENDED'])
 try:
     with open(os.environ['MCP_FILE']) as f:
-        existing = json.load(f)
+        raw = json.load(f)
 except (json.JSONDecodeError, FileNotFoundError):
-    existing = {}
-missing = [k for k in recommended if k not in existing]
-print(f'{len(existing)}|{len(missing)}|{\",\".join(missing)}')
+    raw = {}
+servers = raw.get('mcpServers') if isinstance(raw.get('mcpServers'), dict) else raw
+if not isinstance(servers, dict):
+    servers = {}
+missing = [k for k in recommended if k not in servers]
+print(f'{len(servers)}|{len(missing)}|{\",\".join(missing)}')
 " 2>/dev/null || echo "0|0|parse-error")
         local existing_count missing_mcp_count missing_mcp_names
         existing_count=$(echo "$mcp_analysis" | cut -d'|' -f1)
@@ -616,23 +638,25 @@ print(f'{len(existing)}|{len(missing)}|{\",\".join(missing)}')
             if [ "$dry_run" = true ]; then
                 echo -e "  ${CYAN}WOULD ADD${NC}  Missing MCP servers: $missing_mcp_names"
             else
-                # Merge missing servers into existing config (preserves custom servers)
+                # Merge missing servers into existing config (preserves custom servers).
+                # T-1354: writes under `mcpServers` wrapper; migrates old flat schema.
                 RECOMMENDED="$recommended_servers" MCP_FILE="$mcp_file" python3 -c "
 import json, os
 recommended_keys = json.loads(os.environ['RECOMMENDED'])
 mcp_file = os.environ['MCP_FILE']
 with open(mcp_file) as f:
-    existing = json.load(f)
+    raw = json.load(f)
+servers = raw.get('mcpServers') if isinstance(raw.get('mcpServers'), dict) else dict(raw)
 defaults = {
     'context7': {'command': 'npx', 'args': ['-y', '@upstash/context7-mcp']},
     'playwright': {'command': 'npx', 'args': ['@playwright/mcp@latest', '--no-sandbox']},
     'termlink': {'command': 'termlink', 'args': ['mcp', 'serve']},
 }
 for key in recommended_keys:
-    if key not in existing and key in defaults:
-        existing[key] = defaults[key]
+    if key not in servers and key in defaults:
+        servers[key] = defaults[key]
 with open(mcp_file, 'w') as f:
-    json.dump(existing, f, indent=2)
+    json.dump({'mcpServers': servers}, f, indent=2)
     f.write('\n')
 " 2>/dev/null
                 echo -e "  ${GREEN}UPDATED${NC}  Added missing MCP servers: $missing_mcp_names (preserved $existing_count existing)"
@@ -647,17 +671,19 @@ with open(mcp_file, 'w') as f:
         else
             cat > "$mcp_file" << 'MCPJSON'
 {
-  "context7": {
-    "command": "npx",
-    "args": ["-y", "@upstash/context7-mcp"]
-  },
-  "playwright": {
-    "command": "npx",
-    "args": ["@playwright/mcp@latest", "--no-sandbox"]
-  },
-  "termlink": {
-    "command": "termlink",
-    "args": ["mcp", "serve"]
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--no-sandbox"]
+    },
+    "termlink": {
+      "command": "termlink",
+      "args": ["mcp", "serve"]
+    }
   }
 }
 MCPJSON
@@ -666,22 +692,37 @@ MCPJSON
     fi
 
     # ── 7. .claude/commands/resume.md ──
+    # T-1383 (closes G-056): compare consumer file against shared template and
+    # refresh on drift. Prior behavior preserved existing file regardless of
+    # template changes, so upstream fixes never propagated.
     echo -e "${YELLOW}[7/10] Claude Code commands${NC}"
 
     local resume_file="$target_dir/.claude/commands/resume.md"
+    local resume_tmpl="$FRAMEWORK_ROOT/lib/templates/resume-md.md"
 
-    # Use the version from init.sh if no separate template exists
-    if [ -f "$resume_file" ]; then
-        echo -e "  ${GREEN}OK${NC}  resume.md exists"
+    if [ ! -f "$resume_tmpl" ]; then
+        echo -e "  ${YELLOW}WARN${NC}  template missing at lib/templates/resume-md.md — skipping drift check"
+    elif [ -f "$resume_file" ]; then
+        if diff -q "$resume_tmpl" "$resume_file" >/dev/null 2>&1; then
+            echo -e "  ${GREEN}OK${NC}  resume.md matches template"
+        else
+            changes=$((changes + 1))
+            if [ "$dry_run" = true ]; then
+                echo -e "  ${CYAN}WOULD UPDATE${NC}  resume.md (drift from template detected)"
+            else
+                cp "$resume_file" "$resume_file.bak"
+                cp "$resume_tmpl" "$resume_file"
+                echo -e "  ${GREEN}UPDATED${NC}  resume.md refreshed from template. Backup: resume.md.bak"
+            fi
+        fi
     else
         changes=$((changes + 1))
         if [ "$dry_run" = true ]; then
             echo -e "  ${CYAN}WOULD CREATE${NC}  .claude/commands/resume.md"
         else
             mkdir -p "$target_dir/.claude/commands"
-            # Copy from init function logic
-            echo -e "  ${YELLOW}SKIP${NC}  resume.md — run 'fw init --force' to regenerate"
-            skipped=$((skipped + 1))
+            cp "$resume_tmpl" "$resume_file"
+            echo -e "  ${GREEN}CREATED${NC}  .claude/commands/resume.md from template"
         fi
     fi
 
@@ -797,6 +838,21 @@ EOF
     else
         echo -e "  ${YELLOW}SKIP${NC}  No settings.json — enforcement baseline not applicable"
         skipped=$((skipped + 1))
+    fi
+
+    # T-1323: Detect stale tracked __pycache__ files inside vendored framework.
+    # do_vendor now ships a .gitignore that prevents future leaks; this advisory
+    # tells the consumer how to clean up files already added to their git index.
+    if [ -d "$target_dir/.agentic-framework" ] && command -v git &>/dev/null; then
+        local pyc_count
+        pyc_count=$(cd "$target_dir" && git ls-files .agentic-framework/ 2>/dev/null \
+            | grep -c -E '__pycache__|\.pyc$' 2>/dev/null || echo 0)
+        if [ "$pyc_count" -gt 0 ]; then
+            echo ""
+            echo -e "${YELLOW}WARN${NC}  Vendored framework has $pyc_count tracked __pycache__/.pyc file(s)"
+            echo -e "        Cleanup (one-time): cd $target_dir && git rm -r --cached '.agentic-framework/**/__pycache__' '.agentic-framework/**/*.pyc'"
+            echo -e "        Future runs will not add these files (.gitignore now ships in vendored dir)"
+        fi
     fi
 
     # ── Summary ──

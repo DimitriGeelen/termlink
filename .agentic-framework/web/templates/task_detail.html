@@ -202,7 +202,7 @@
         <p class="editable-desc" role="button" tabindex="0"
            onclick="startDescEdit('{{ task_id }}')"
            onkeydown="if(event.key==='Enter')startDescEdit('{{ task_id }}')"
-           title="Click to edit">{{ task.description|linkify_tasks }}</p>
+           title="Click to edit">{{ task.description }}</p>
     </div>
     <div id="desc-edit" style="display:none;">
         <form hx-post="/api/task/{{ task_id }}/description" hx-target="#desc-result" hx-swap="innerHTML">
@@ -245,7 +245,7 @@
                        onchange="this.form.requestSubmit()"
                        style="margin:0;">
             </form>
-            <span class="{% if ac.checked %}ac-checked{% endif %}">{{ ac.text|linkify_tasks }}</span>
+            <span class="{% if ac.checked %}ac-checked{% endif %}">{{ ac.text }}</span>
         </li>
         {% endfor %}
     </ul>
@@ -271,7 +271,7 @@
             {% elif ac.confidence == 'rubber-stamp' %}
             <span class="confidence-badge badge-rubber-stamp">Rubber-stamp</span>
             {% endif %}
-            <span class="{% if ac.checked %}ac-checked{% endif %}">{{ ac.text|linkify_tasks }}</span>
+            <span class="{% if ac.checked %}ac-checked{% endif %}">{{ ac.text }}</span>
         </summary>
         {% if ac.steps or ac.expected or ac.if_not %}
         <div class="human-ac-body">
@@ -315,7 +315,7 @@
                        onchange="this.form.requestSubmit()"
                        style="margin:0;">
             </form>
-            <span class="{% if ac.checked %}ac-checked{% endif %}">{{ ac.text|linkify_tasks }}</span>
+            <span class="{% if ac.checked %}ac-checked{% endif %}">{{ ac.text }}</span>
         </li>
         {% endfor %}
     </ul>

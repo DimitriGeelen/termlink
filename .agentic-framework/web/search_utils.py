@@ -16,67 +16,6 @@ logger = logging.getLogger(__name__)
 from web.shared import PROJECT_ROOT
 
 
-def load_episodic_yaml(path):
-    """Parse an episodic file tolerantly — return dict or None.
-
-    Handles three legacy formats the old enricher produced:
-    - Canonical pure YAML (current format)
-    - Jekyll-style frontmatter: leading `---` ... `---` with body after
-    - YAML-then-markdown-body where body has `*word*` or unterminated quotes
-      that tear the stream after the first block
-    """
-    import yaml
-    try:
-        text = Path(path).read_text()
-    except OSError:
-        return None
-
-    # Strategy 1: try whole-file parse (canonical case — fast path)
-    try:
-        data = yaml.safe_load(text)
-        if isinstance(data, dict):
-            return data
-    except yaml.YAMLError:
-        pass
-
-    # Strategy 2: frontmatter extraction — leading `---` then next `---`
-    if text.startswith("---\n"):
-        end = text.find("\n---", 4)
-        if end > 0:
-            try:
-                data = yaml.safe_load(text[4:end])
-                if isinstance(data, dict):
-                    return data
-            except yaml.YAMLError:
-                pass
-
-    # Strategy 3: take lines until first markdown heading or blank-line-then-#
-    yaml_lines = []
-    for line in text.splitlines():
-        stripped = line.lstrip()
-        if stripped.startswith("# T-") or stripped.startswith("## "):
-            break
-        yaml_lines.append(line)
-    try:
-        data = yaml.safe_load("\n".join(yaml_lines))
-        if isinstance(data, dict):
-            return data
-    except yaml.YAMLError:
-        pass
-
-    # Strategy 4: shrink to the longest leading prefix that parses
-    lines = text.splitlines()
-    for cut in range(len(lines), 0, -1):
-        try:
-            data = yaml.safe_load("\n".join(lines[:cut]))
-            if isinstance(data, dict):
-                return data
-        except yaml.YAMLError:
-            continue
-
-    return None
-
-
 def categorize(path_str: str) -> str:
     """Classify a file path into a search result category."""
     if ".tasks/active/" in path_str:
@@ -174,18 +113,23 @@ def aggregate_tags(limit: int = 30) -> list[dict]:
     if _tag_cache["data"] is not None and (now - _tag_cache["ts"]) < _TAG_CACHE_TTL:
         return _tag_cache["data"][:limit]
 
+    import yaml as _yaml
+
     counts: dict[str, int] = {}
     ep_dir = PROJECT_ROOT / ".context" / "episodic"
     if ep_dir.exists():
         for f in ep_dir.glob("T-*.yaml"):
-            data = load_episodic_yaml(f)
-            if not isinstance(data, dict):
-                logger.warning("Failed to parse episodic file %s (all strategies exhausted)", f)
+            try:
+                with open(f) as fh:
+                    data = _yaml.safe_load(fh)
+                if isinstance(data, dict):
+                    for tag in data.get("tags", []):
+                        t = str(tag).strip()
+                        if t:
+                            counts[t] = counts.get(t, 0) + 1
+            except Exception as e:
+                logger.warning("Failed to parse episodic file %s: %s", f, e)
                 continue
-            for tag in data.get("tags", []):
-                t = str(tag).strip()
-                if t:
-                    counts[t] = counts.get(t, 0) + 1
 
     # Filter out noise: single-char, pure directive refs (D1, D2), policy refs (P-xxx)
     skip = re.compile(r'^(D\d|P-\d|[A-Z]-\d|.{0,2})$')

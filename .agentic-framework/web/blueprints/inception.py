@@ -24,6 +24,58 @@ def _md(text):
     html = markdown2.markdown(text, extras=["fenced-code-blocks", "tables"])
     return Markup(html)
 
+
+def _extract_rationale_from_recommendation(rec_body):
+    """T-1390 (F4 fix): Extract only the rationale body from a structured
+    ## Recommendation block, not the whole section.
+
+    The structured format is:
+        **Recommendation:** GO / NO-GO / DEFER
+        **Rationale:** <text that may span paragraphs>
+        **Evidence:**
+        - bullet 1
+        - bullet 2
+
+    Without this filter, pre-filling the decision textarea with the whole
+    block produced rationale values like "Recommendation: GO\\n\\nRationale:
+    ... Evidence: - ..." — the human's recorded decision then contained the
+    self-referential prefix plus full evidence bullets (observed on T-1284
+    and 60 other decided inceptions, see T-1388 F4).
+
+    Fallback: when no `**Rationale:**` marker exists, return the full body
+    stripped of ** formatting (preserves behavior for free-form recommendations).
+    """
+    if not rec_body:
+        return ""
+    # Strip **bold** markers first so we work with plain text
+    plain = re_mod.sub(r"\*\*([^*]+)\*\*", r"\1", rec_body).strip()
+    # Look for "Rationale:" marker and slice to next top-level marker
+    m = re_mod.search(r"(?m)^Rationale:\s*(.*?)(?=^(?:Evidence|Recommendation|Build|Reversibility|Alternative|See):|\Z)",
+                      plain, re_mod.DOTALL)
+    if m:
+        return m.group(1).strip()
+    # Fallback — no structured markers
+    return plain
+
+
+def _extract_recommendation_stance(rec_body):
+    """T-1391 (F3 fix): Extract the Recommendation stance (GO/NO-GO/DEFER) from
+    the `**Recommendation:**` header line of a structured ## Recommendation
+    section. Returns the stance lowercased ('go', 'no-go', 'defer') or None
+    when the section is unstructured/empty.
+
+    Enables the template to compare agent's recommendation vs human's decision
+    and collapse duplicate UI when the human adopted the recommendation as-is.
+    """
+    if not rec_body:
+        return None
+    plain = re_mod.sub(r"\*\*([^*]+)\*\*", r"\1", rec_body)
+    m = re_mod.search(r"(?mi)^Recommendation:\s*(GO|NO-GO|NO_GO|DEFER)\b", plain)
+    if not m:
+        return None
+    stance = m.group(1).lower().replace("_", "-")
+    return stance
+
 bp = Blueprint("inception", __name__)
 
 
@@ -325,15 +377,26 @@ def inception_detail(task_id):
             extra_sections.append({"heading": heading, "content": _md(content)})
 
     # T-679: Pre-populate rationale from ## Recommendation section
+    # T-1390 (F4 fix): extract only the Rationale body from structured
+    # recommendations (Recommendation/Rationale/Evidence format). Without
+    # this, pre-fill contained the whole block including "Recommendation: GO"
+    # prefix and Evidence bullets — the stored decision then embedded the
+    # self-referential prefix + all evidence bullets (see T-1388 F4).
     rec_raw = _extract_section(task_body, "Recommendation") or ""
-    # Strip markdown formatting for the textarea hint.
-    # T-1091: No truncation — the human recording the decision needs the full
-    # Recommendation. Prior 500-char cap left the textarea with fragmented rationale
-    # ending in "...". T-1150: approvals.py cap also removed — truncating the pre-fill
-    # truncates the permanent decision rationale.
-    rationale_hint = re_mod.sub(r"\*\*([^*]+)\*\*", r"\1", rec_raw).strip()
+    rationale_hint = _extract_rationale_from_recommendation(rec_raw)
 
     decision_state = _extract_decision(task_body)
+
+    # T-1391 (F3 fix): compute rec_stance + decision_matches_recommendation so
+    # the template can collapse the duplicate Recommendation card when the
+    # human adopted the recommendation, or label both cards when overridden.
+    rec_stance = _extract_recommendation_stance(rec_raw)
+    _dec_norm = (decision_state or "").lower().replace("_", "-")
+    decision_matches_recommendation = (
+        rec_stance is not None
+        and _dec_norm not in ("", "pending")
+        and rec_stance == _dec_norm
+    )
 
     # Load linked assumptions
     assumptions = _load_assumptions()
@@ -343,8 +406,11 @@ def inception_detail(task_id):
     episodic = None
     episodic_file = PROJECT_ROOT / ".context" / "episodic" / f"{task_id}.yaml"
     if episodic_file.exists():
-        from web.search_utils import load_episodic_yaml
-        episodic = load_episodic_yaml(episodic_file)
+        try:
+            with open(episodic_file) as f:
+                episodic = yaml.safe_load(f)
+        except Exception as e:
+            logger.warning("Failed to parse %s: %s", episodic_file, e)
 
     return render_page(
         "inception_detail.html",
@@ -357,6 +423,8 @@ def inception_detail(task_id):
         episodic=episodic,
         task_id=task_id,
         rationale_hint=rationale_hint,
+        rec_stance=rec_stance,
+        decision_matches_recommendation=decision_matches_recommendation,
     )
 
 

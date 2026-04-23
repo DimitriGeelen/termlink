@@ -314,31 +314,20 @@
     <!-- Ambient Status Strip -->
     {% if ambient %}
     <div class="ambient-strip container-fluid">
-        <span>{% if ambient.focus_task %}<a href="{{ url_for('tasks.task_detail', task_id=ambient.focus_task) }}"
-              hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
-              style="color:inherit; text-decoration:none;" title="Open focus task">{{ ambient.focus_task }}</a>{% else %}No focus{% endif %}</span>
+        <span>{{ ambient.focus_task or 'No focus' }}</span>
         <span class="sep">|</span>
-        <span title="{{ ambient.session_id or 'no session' }}">Session: {{ ambient.session_age or 'unknown' }}</span>
+        <span>Session: {{ ambient.session_age or 'unknown' }}</span>
         <span class="sep">|</span>
-        <a href="{{ url_for('quality.quality_gate') }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
-           style="color:inherit; text-decoration:none;" title="Open quality / audit report">Audit:
+        <span>Audit:
             {% if ambient.audit_status == 'PASS' %}<span class="audit-pass">PASS</span>
             {% elif ambient.audit_status == 'WARN' %}<span class="audit-warn">WARN</span>
             {% elif ambient.audit_status == 'FAIL' %}<span class="audit-fail">FAIL</span>
             {% else %}{{ ambient.audit_status or 'unknown' }}{% endif %}
-        </a>
+        </span>
         <span class="sep">|</span>
-        <a href="{{ url_for('tasks.tasks') }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
-           style="color:inherit; text-decoration:none;" title="Open tasks board"><strong>{{ ambient.attention_count or 0 }}</strong> items need attention</a>
-        <span class="sep">|</span>
-        <a href="{{ url_for('fleet.fleet_dashboard') }}" id="ambient-fleet" style="display:none; text-decoration:none; color:inherit;"
-           hx-target="#content" hx-swap="innerHTML" hx-push-url="true" title="Fleet status — click for details">
-            <span id="ambient-fleet-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#9e9e9e; vertical-align:middle; margin-right:0.3rem;"></span>
-            <span id="ambient-fleet-text">…</span>
-        </a>
+        <span><strong>{{ ambient.attention_count or 0 }}</strong> items need attention</span>
         <span style="flex:1"></span>
-        <a href="{{ url_for('core.project') }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true"
-           title="{{ project_root }} — open project docs" style="color:inherit; text-decoration:none; opacity:0.7;"><strong>{{ project_root.split('/')[-1] }}</strong></a>
+        <span title="{{ project_root }}" style="opacity:0.7"><strong>{{ project_root.split('/')[-1] }}</strong></span>
     </div>
     {% endif %}
 
@@ -445,6 +434,20 @@
             }
         });
 
+        // fetch() wrapper that auto-attaches X-CSRF-Token (T-1343 / G-048 Option A)
+        window.fetchWithCsrf = function(url, options) {
+            options = options || {};
+            var method = (options.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta) {
+                    options.headers = options.headers || {};
+                    options.headers['X-CSRF-Token'] = meta.getAttribute('content');
+                }
+            }
+            return fetch(url, options);
+        };
+
         // Update active nav after htmx navigation
         document.body.addEventListener('htmx:afterSwap', function(event) {
             document.querySelectorAll('nav.site-nav [aria-current]').forEach(function(el) {
@@ -518,28 +521,6 @@
                 hljs.highlightElement(block);
             });
         });
-
-        // Ambient fleet indicator — async load to avoid blocking page render
-        function wtLoadAmbientFleet() {
-            var el = document.getElementById('ambient-fleet');
-            if (!el) return;
-            fetch('/api/fleet/status').then(function(r){return r.json();}).then(function(d){
-                var s = d.summary || {};
-                var total = s.total || 0, up = s.up || 0, down = s.down || 0, af = s.auth_fail || 0;
-                if (total === 0) { el.style.display = 'none'; return; }
-                var txt = up + '/' + total + ' up';
-                if (down) txt += ' · ' + down + ' down';
-                if (af) txt += ' · ' + af + ' auth-fail';
-                document.getElementById('ambient-fleet-text').textContent = txt;
-                var dot = document.getElementById('ambient-fleet-dot');
-                if (up === total) dot.style.background = '#4CAF50';
-                else if (up > 0) dot.style.background = '#ff9800';
-                else dot.style.background = '#f44336';
-                el.style.display = 'inline-flex';
-                el.style.alignItems = 'center';
-            }).catch(function(){ el.style.display = 'none'; });
-        }
-        wtLoadAmbientFleet();
 
         // Theme toggle
         function wtUpdateThemeIcons() {

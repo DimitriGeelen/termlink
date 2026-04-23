@@ -17,6 +17,7 @@ Environment:
 """
 
 import argparse
+import datetime
 import logging
 import os
 import secrets
@@ -32,44 +33,33 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Secret key resolution (T-1125)
-# ---------------------------------------------------------------------------
-
-def _resolve_secret_key() -> tuple[str, str]:
-    """Return (secret_key_hex, source_label).
-
-    Order: FW_SECRET_KEY env > .context/working/.fw-secret-key > generate+persist.
-    Never logs the key itself; callers log the source label only.
-    """
-    if Config.SECRET_KEY:
-        return Config.SECRET_KEY, "env:FW_SECRET_KEY"
-
-    key_file = PROJECT_ROOT / ".context" / "working" / ".fw-secret-key"
-    if key_file.is_file():
-        try:
-            key = key_file.read_text().strip()
-            if len(key) == 64 and all(c in "0123456789abcdef" for c in key):
-                return key, f"file:{key_file}"
-        except OSError as exc:
-            log.warning("Could not read %s: %s — regenerating", key_file, exc)
-
-    key = secrets.token_hex(32)
-    try:
-        key_file.parent.mkdir(parents=True, exist_ok=True)
-        key_file.write_text(key + "\n")
-        key_file.chmod(0o600)
-        return key, f"generated+persisted:{key_file}"
-    except OSError as exc:
-        log.warning(
-            "Could not persist secret key to %s: %s — using in-memory key",
-            key_file, exc,
-        )
-        return key, "generated:in-memory"
-
-
-# ---------------------------------------------------------------------------
 # Application factory
 # ---------------------------------------------------------------------------
+
+def _resolve_secret_key(project_root) -> tuple[str, str]:
+    """Three-source resolver: env → file → generate-and-persist.
+
+    Returns (key, source_label) so the caller can log the provenance
+    without logging the key itself. Persisted file is chmod 0600.
+
+    T-1302/T-1306: prevents CSRF breakage after every Watchtower restart.
+    """
+    if Config.SECRET_KEY:
+        return Config.SECRET_KEY, "env"
+
+    from pathlib import Path as _Path
+    key_file = _Path(project_root) / ".context" / "working" / ".fw-secret-key"
+    if key_file.is_file():
+        key = key_file.read_text().strip()
+        if key:
+            return key, "file"
+
+    key = secrets.token_hex(32)
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    key_file.write_text(key)
+    os.chmod(key_file, 0o600)
+    return key, "generated"
+
 
 def create_app() -> Flask:
     """Create and configure the Watchtower Flask application."""
@@ -79,12 +69,15 @@ def create_app() -> Flask:
         static_folder=str(APP_DIR / "static"),
     )
 
-    # Secret key resolution order:
-    #   1. FW_SECRET_KEY env var (production deployments, gunicorn)
-    #   2. $PROJECT_ROOT/.context/working/.fw-secret-key (persistent dev default, T-1125)
-    #   3. Generate fresh, persist to the file, chmod 600
-    app.secret_key, _key_source = _resolve_secret_key()
-    log.warning("Flask secret_key source: %s", _key_source)
+    # Secret key: env wins; else persisted file; else generate+persist (T-1306)
+    app.secret_key, _key_source = _resolve_secret_key(PROJECT_ROOT)
+    if _key_source != "env":
+        log.warning(
+            "FW_SECRET_KEY not set — using %s key at "
+            "PROJECT_ROOT/.context/working/.fw-secret-key. "
+            "Set FW_SECRET_KEY for production deployment.",
+            _key_source,
+        )
 
     # -------------------------------------------------------------------
     # CSRF protection
@@ -100,12 +93,16 @@ def create_app() -> Flask:
     def csrf_protect():
         """Validate CSRF token on state-changing requests."""
         if request.method in ("POST", "PATCH", "PUT", "DELETE"):
-            # Skip CSRF for health, API, and search JSON endpoints
-            if request.endpoint == "health" or request.path.startswith("/api/"):
+            # Skip CSRF for health endpoint only
+            if request.endpoint == "health":
                 return
             # T-409: Search endpoints use JSON + fetch (same-origin only)
             if request.path.startswith("/search/") and request.is_json:
                 return
+            # T-1343 / G-048: /api/* blanket exemption removed. State-mutating
+            # /api/* endpoints now require X-CSRF-Token header or _csrf_token
+            # form field (read-only GET /api/* are untouched — CSRF only fires
+            # on POST/PATCH/PUT/DELETE).
             token = (
                 request.form.get("_csrf_token")
                 or request.headers.get("X-CSRF-Token")
@@ -319,6 +316,21 @@ def create_app() -> Flask:
 
         code = 200 if healthy else 503
         return jsonify(result), code
+
+    # -------------------------------------------------------------------
+    # Identity endpoint (T-1284 B1)
+    # -------------------------------------------------------------------
+
+    _started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    @app.route("/api/_identity")
+    def identity():
+        return jsonify({
+            "service": "watchtower",
+            "version": _ver,
+            "project_root": str(PROJECT_ROOT),
+            "started_at": _started_at,
+        })
 
     # -------------------------------------------------------------------
     # Error handlers
