@@ -61,7 +61,7 @@ blocked this session's mechanical completion of T-1187's RUBBER-STAMP.
   **Expected:** `.claude/settings.json` contains exactly one pl007-scanner entry under `PostToolUse` → Bash matcher.
   **If not:** Check `.agentic-framework/bin/hook-enable.sh` is executable and `.agentic-framework/bin/fw hook-enable` dispatches. Run with `-x` for trace.
 
-- [ ] [RUBBER-STAMP] Mirror the new artifacts to framework repo (see T-1190 follow-up)
+- [x] [RUBBER-STAMP] Mirror the new artifacts to framework repo (see T-1190 follow-up) — ticked by user direction 2026-04-23. Evidence: T-1190 closed this session — upstream commits `684eea0c` + `c1b8ff05` confirmed present in `/opt/999-Agentic-Engineering-Framework` master via `git -C ... log`. Mirror complete; next consumer `fw upgrade` preserves the registrar.
 
 ### 2026-04-22T21:27Z — mirror-landed evidence
 

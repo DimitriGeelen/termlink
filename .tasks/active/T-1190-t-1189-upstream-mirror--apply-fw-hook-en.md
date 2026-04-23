@@ -44,7 +44,7 @@ RUBBER-STAMP (same pattern as T-1188).
 - [x] T-1189 produced a working script locally (verification block passed 3/3)
 
 ### Human
-- [ ] [RUBBER-STAMP] Copy hook-enable.sh and patch bin/fw in framework repo
+- [x] [RUBBER-STAMP] Copy hook-enable.sh and patch bin/fw in framework repo — ticked by user direction 2026-04-23. Evidence: upstream mirrored 2026-04-22T21:15Z via T-1192 Channel 1. Both commits confirmed present in `/opt/999-Agentic-Engineering-Framework` master: `684eea0c` ("T-1190 upstream mirror: fw hook-enable command from termlink") + `c1b8ff05` ("T-1190 follow-up: wire bin/fw dispatcher to hook-enable.sh"). Verified via `git -C ... log --oneline 684eea0c c1b8ff05`. sha256 match recorded in evidence block above.
   **Steps:**
   1. In a session rooted at `/opt/999-Agentic-Engineering-Framework` (NOT from /opt/termlink):
      ```
