@@ -34,7 +34,7 @@ Pickup to framework from termlink T-1175. T-1175 landed a Rust detector in the v
 - [x] Ownership set to framework so it surfaces in cross-project review queue
 
 ### Human
-- [ ] [RUBBER-STAMP] Paste the patch into the framework repo and commit
+- [x] [RUBBER-STAMP] Paste the patch into the framework repo and commit — ticked by user direction 2026-04-23. Evidence: upstream mirrored 2026-04-22T21:22Z via T-1192 Channel 1; commit `636b309b` ("T-1176 upstream mirror: Rust detector for fabric enrich (from termlink T-1175)") confirmed present in `/opt/999-Agentic-Engineering-Framework` master via `git -C ... log --oneline 636b309b`. sha256 of `agents/fabric/lib/enrich.py` upstream === termlink-vendored (recorded in evidence block above).
   **Steps:**
   1. `cd /opt/999-Agentic-Engineering-Framework`
   2. Copy the `detect_rust_deps` function + `RUST_SKIP_CRATES` set from the termlink-local enrich.py (or apply the embedded patch below)
