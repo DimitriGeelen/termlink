@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1188: T-1187 upstream mirror — apply pl007-scanner patch in framework repo
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:27:42Z
+# ============================================================================
+
+task_id: T-1188
+task_name: "T-1187 upstream mirror — apply pl007-scanner patch in framework repo"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-22T11:18:03Z
+completed: 2026-04-23T17:27:14Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-22T13:26:41+02:00
+last_commit: 2026-04-23T19:27:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Enrich upstream-mirror task — embed scanner sha256 + full Human steps. completion-gate move to completed/ (G-008: 41→40). Tick [RUBBER-STAMP] — upstream mirror commit 25718851 verified
+
+# Key outcomes
+outcomes:
+  - "Pickup task self-contained — scanner source, sha256, verification plan all embedded"
+  - "`.agentic-framework/agents/context/pl007-scanner.sh` exists in the termlink vendored"
+  - "G-015 registered in `.context/project/concerns.yaml` documenting the"
+  - "[RUBBER-STAMP] Apply the scanner to the framework repo and commit — ticked by user direction 2026-04-23. Evidence: upstream mirrored 2026-04-22T21:14Z via T-1192 Channel 1; commit `25718851` (\"T-1188 upstream mirror: pl007-scanner PostToolUse hook from termlink\") confirmed present in `/opt/999-Agentic-Engineering-Framework` master via `git -C ... log --oneline 25718851`. sha256 of upstream `agents/context/pl007-scanner.sh` === termlink-vendored source."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1188-t-1187-upstream-mirror--apply-pl007-scan.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-22T13:26:41"
+    action: "T-1188: Enrich upstream-mirror task — embed scanner sha256 + full Human steps"
+  - time: "2026-04-23T19:27:14"
+    action: "T-1188: completion-gate move to completed/ (G-008: 41→40)"
+  - time: "2026-04-23T19:27:41"
+    action: "T-1188: Tick [RUBBER-STAMP] — upstream mirror commit 25718851 verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1809 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1809
+  commits: 3
+  files_changed: 1
+  lines_added: 64
+  lines_removed: 27
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1188-t-1187-upstream-mirror--apply-pl007-scan.md
+generated_by: context-agent-hybrid
