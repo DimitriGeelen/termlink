@@ -238,9 +238,9 @@ concerns:
   mitigation_candidate: "Ship T-1054 (fleet reauth Tier-1) and T-1055 (fleet reauth --bootstrap-from, Tier-2)."
   status: watching
   created: 2026-04-22
-  last_reviewed: 2026-04-22
-  last_observation: "2026-04-22T18:47Z: hub is reachable (ping 0.152ms; TCP 9100 + SSH 22 both accept). Failure is PURELY auth-drift — secret on hub has rotated and local cache is stale. T-1054 reauth Tier-1 prints the heal plan successfully (ssh 192.168.10.121 + file write). T-1055 --bootstrap-from ssh:192.168.10.121 fails in this env because SSH needs password/key; either human completes the SSH handshake interactively OR the heal runs via the Tier-1 printed sequence where the human supplies the out-of-band channel."
-  related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055]
+  last_reviewed: 2026-04-23
+  last_observation: "2026-04-23T13:45Z: still failing with `Token validation failed: invalid signature`. Host reachable (ping 0.278ms). SSH from /opt/termlink returns `Permission denied (publickey,password)` — no trusted key, Tier-2 --bootstrap-from blocked at OOB gate by design. T-1198 rendered the Tier-1 heal plan and added [REVIEW] Human AC with copy-paste steps. Awaiting human OOB SSH."
+  related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055, T-1198]
 
 - id: G-014
   type: gap
