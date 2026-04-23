@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-04-13T09:19:15Z
-last_update: 2026-04-15T13:47:19Z
+last_update: 2026-04-23T17:22:31Z
 date_finished: 2026-04-13T09:22:37Z
 ---
 

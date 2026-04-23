@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1093: Add CLI tests for remote profile and fleet reauth commands
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:22:37Z
+# ============================================================================
+
+task_id: T-1093
+task_name: "Add CLI tests for remote profile and fleet reauth commands"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T21:26:47Z
+completed: 2026-04-16T21:29:48Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-16T23:29:43+02:00
+last_commit: 2026-04-16T23:29:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 6 CLI tests for remote profile CRUD and fleet reauth
+
+# Key outcomes
+outcomes:
+  - "Tests for `remote profile list` (empty, after add)"
+  - "Tests for `remote profile add` (add + verify in list)"
+  - "Tests for `remote profile remove` (existing removed, nonexistent reports not found)"
+  - "Tests for `fleet reauth` (no config → error, valid profile → heal steps)"
+  - "All 6 new tests pass, zero clippy warnings"
+  - "[RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 8 passed for remote_profile/fleet_reauth tests. Verified live via cargo test 2026-04-23T17:25Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-1093-add-cli-tests-for-remote-profile-and-fle.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T23:29:43"
+    action: "T-1093: Add 6 CLI tests for remote profile CRUD and fleet reauth"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 9
+  lines_added: 305
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1093-add-cli-tests-for-remote-profile-and-fle.md
+generated_by: context-agent-hybrid
