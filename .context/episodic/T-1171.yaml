@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1171: Add fw doctor check for local hub secret cache drift (G-011)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:26:26Z
+# ============================================================================
+
+task_id: T-1171
+task_name: "Add fw doctor check for local hub secret cache drift (G-011)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T20:08:57Z
+completed: 2026-04-20T20:26:51Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-20T22:19:30+02:00
+last_commit: 2026-04-22T10:00:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fill real ACs + verification for doctor secret-cache check. Add fw doctor secret_cache check — G-011 prevention loop. Capture PL-042 — project-boundary hook fuzzy path-match false-positive. Capture PL-043 — pair rule-learnings with structural checks. T-1182: Batch-evidence 3 Human ACs via live termlink commands (T-1099/T-1132/T-1171)
+
+# Key outcomes
+outcomes:
+  - "`cmd_doctor` in `crates/termlink-cli/src/commands/infrastructure.rs` gains a `secret_cache` check block"
+  - "Perms audit: scans `~/.termlink/secrets/*.hex` (excluding `*.bak`). For any file whose mode != 0o600, emits `warn` listing the path and actual mode"
+  - "Freshness heuristic: when `resolve_hub_paths().parent()/hub.secret` exists and is readable, compares mtime against each `.hex` cache file. For any cache older than the hub secret, emits `warn` listing the stale file(s) with both mtimes"
+  - "Missing `~/.termlink/secrets/` directory is a `pass` (no cache, nothing to drift) — not a warn"
+  - "JSON output (`--json`) includes the `secret_cache` check entries in the `checks` array with the same `{check, status, message}` shape as the existing checks"
+  - "Unit test: one test writes a tmp `.hex` with mode 0o644 and asserts the perms branch is taken (use existing test pattern in the crate; if none, table-test the helper function) — 5 tests added in `tests` mod"
+  - "`cargo build -p termlink` succeeds"
+  - "`cargo test -p termlink` succeeds (all existing tests + new test) — 168 + 5"
+  - "`cargo clippy -p termlink -- -D warnings` succeeds (fixed pre-existing collapsible_if in remote.rs:2065 as a precondition)"
+  - "[RUBBER-STAMP] Run `termlink doctor` on this box and confirm the `secret_cache` check appears in the output — ticked by user direction 2026-04-23. Evidence: Live: `cargo run -- doctor` shows '✓ secret_cache: all cached secrets look healthy' between inbox and version checks. The check is wired and reporting. Verified 2026-04-23T17:40Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1099-fix-remote-doctor-session-check--use-ses.md"
+  - ".tasks/active/T-1132-fleet-doctor-reports-fleet-wide-version-.md"
+  - ".tasks/active/T-1171-add-fw-doctor-check-for-local-hub-secret.md"
+  - ".tasks/active/T-1181-fix-fleet-doctor-error-classification--p.md"
+  - ".tasks/active/T-1182-batch-evidence-t-1099t-1132t-1171--local.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-20T22:19:30"
+    action: "T-1171: Fill real ACs + verification for doctor secret-cache check"
+  - time: "2026-04-20T22:24:01"
+    action: "T-1171: Add fw doctor secret_cache check — G-011 prevention loop"
+  - time: "2026-04-20T22:25:59"
+    action: "T-1171: Capture PL-042 — project-boundary hook fuzzy path-match false-positive"
+  - time: "2026-04-20T22:26:51"
+    action: "T-1171: Capture PL-043 — pair rule-learnings with structural checks"
+  - time: "2026-04-22T10:00:11"
+    action: "T-1182: Batch-evidence 3 Human ACs via live termlink commands (T-1099/T-1132/T-1171)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 7 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 7
+  files_changed: 10
+  lines_added: 481
+  lines_removed: 44
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1171-add-fw-doctor-check-for-local-hub-secret.md
+generated_by: context-agent-hybrid
