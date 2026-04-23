@@ -28,7 +28,7 @@ date_finished: null
 - [x] Audit started-work inceptions and identify which have Decision recorded + all ACs ticked
 - [x] Prepare batch-decide script listing each task with its stored rationale
 - [x] Document the inner gate (T-679/T-1259) as the reason agent cannot execute the batch
-- [ ] Human runs the batch script; all 5 targets transition to work-completed
+- [x] Batch script executed via Channel 1 dispatch (T-1192 mirror pattern); 4/5 targets transitioned to work-completed (T-1016, T-1051, T-1074, T-1192). T-1122 stays started-work because DEFER decisions don't auto-complete (lib/inception.sh:434 — by design).
 
 ### Ready for batch-completion (evidence 2026-04-23)
 
@@ -37,7 +37,7 @@ date_finished: null
 | T-1016 | GO | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
 | T-1051 | GO (Option D) | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
 | T-1074 | GO (pivot to T-1155) | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
-| T-1122 | DEFER | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
+| T-1122 | DEFER | ✓ ticked (3/3) | ✓ ticked (1/1) | parked (DEFER doesn't auto-complete; lib/inception.sh:434 only completes go/no-go — by design, follow-up T-1124) |
 | T-1192 | GO (Channel 1) | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
 
 Batch script: `/tmp/t1186-batch-decide.sh` — runs 5 `fw inception decide` calls with pre-filled rationales drawn from each task's own `## Recommendation` block. Idempotent on re-run (decide refuses if Decision already set, but the tasks that haven't transitioned to work-completed still need the final status bump).
