@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1033: Add tests for resolve_hub_paths — split-brain runtime dir logic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:22:33Z
+# ============================================================================
+
+task_id: T-1033
+task_name: "Add tests for resolve_hub_paths — split-brain runtime dir logic"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T18:22:06Z
+completed: 2026-04-15T13:47:09Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-04-13T20:28:55+02:00
+last_commit: 2026-04-13T20:30:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add tests for resolve_hub_paths and connect_addr_raw — 5 new tests for split-brain runtime dir logic. Fix verification command — use substring match for test filter
+
+# Key outcomes
+outcomes:
+  - "Integration test: hub status --short returns \"not_running\" when no hub in isolated dir"
+  - "Integration test: hub status --json with isolated TERMLINK_RUNTIME_DIR does not discover /var/lib/termlink hub"
+  - "Integration test: hub status --json detects stale pidfile correctly"
+  - "Integration test: hub status --check + --short combined works"
+  - "Unit test: connect_addr_raw creates working client for Unix socket connections"
+  - "All new tests pass alongside existing test suite (0 failures)"
+  - "[RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: 3 cli_integration tests pass: cli_hub_status_short / cli_hub_status_isolated / cli_hub_status_stale (1 each). Verified live via cargo test 2026-04-23T17:25Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix verification command — use substring match for test filter"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-session/src/client.rs"
+  - ".tasks/active/T-1033-add-tests-for-resolvehubpaths--split-bra.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T20:28:55"
+    action: "T-1033: Add tests for resolve_hub_paths and connect_addr_raw — 5 new tests for split-brain runtime dir logic"
+  - time: "2026-04-13T20:30:31"
+    action: "T-1033: Fix verification command — use substring match for test filter"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2605 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2605
+  commits: 3
+  files_changed: 10
+  lines_added: 203
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1033-add-tests-for-resolvehubpaths--split-bra.md
+generated_by: context-agent-hybrid

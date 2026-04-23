@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1095: Add CLI tests for fleet doctor with profiles and fleet reauth bootstrap
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:22:38Z
+# ============================================================================
+
+task_id: T-1095
+task_name: "Add CLI tests for fleet doctor with profiles and fleet reauth bootstrap"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T21:45:25Z
+completed: 2026-04-16T21:48:47Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-16T23:48:39+02:00
+last_commit: 2026-04-16T23:48:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 3 CLI tests for fleet doctor profiles + reauth bootstrap
+
+# Key outcomes
+outcomes:
+  - "Test: fleet doctor with unreachable profile shows error in JSON (ok=false, status=error)"
+  - "Test: fleet reauth --bootstrap-from file:<path> reads and writes secret (heal complete confirmed)"
+  - "Test: fleet reauth --bootstrap-from file:<nonexistent> fails gracefully (exit 1, file not found)"
+  - "All 3 new tests pass"
+  - "[RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 3 passed for fleet_doctor_unreachable/fleet_reauth_bootstrap tests. Verified live via cargo test 2026-04-23T17:25Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-1095-add-cli-tests-for-fleet-doctor-with-prof.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T23:48:39"
+    action: "T-1095: Add 3 CLI tests for fleet doctor profiles + reauth bootstrap"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 9
+  lines_added: 245
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1095-add-cli-tests-for-fleet-doctor-with-prof.md
+generated_by: context-agent-hybrid

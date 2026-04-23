@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1092: Add CLI tests for dispatch-status and mcp commands
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:22:35Z
+# ============================================================================
+
+task_id: T-1092
+task_name: "Add CLI tests for dispatch-status and mcp commands"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-16T21:23:16Z
+completed: 2026-04-16T21:25:52Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-16T23:25:43+02:00
+last_commit: 2026-04-16T23:25:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add 4 CLI tests for dispatch-status and mcp serve error paths
+
+# Key outcomes
+outcomes:
+  - "Tests for `dispatch-status` (no manifest, --check exit 0, --json with expected fields)"
+  - "Tests for `mcp serve` error path (stdin closed → connection closed)"
+  - "All 4 new tests pass, zero clippy warnings"
+  - "[RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 4 passed for dispatch_status/mcp_serve tests. Verified live via cargo test 2026-04-23T17:25Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Add 4 CLI tests for dispatch-status and mcp serve error paths"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-1092-add-cli-tests-for-dispatch-status-and-mc.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-16T23:25:43"
+    action: "T-1092: Add 4 CLI tests for dispatch-status and mcp serve error paths"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 9
+  lines_added: 163
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1092-add-cli-tests-for-dispatch-status-and-mc.md
+generated_by: context-agent-hybrid
