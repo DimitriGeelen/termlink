@@ -89,6 +89,31 @@ pub(crate) fn compute_layout(n: usize, term_cols: u16, term_rows: u16) -> Vec<Pa
     out
 }
 
+/// Paint a 1-row status footer at the bottom of the host terminal.
+/// Reverse-video: "N live / M total — Ctrl+C to exit".
+fn draw_status_footer(
+    out: &mut impl Write,
+    term_cols: u16,
+    term_rows: u16,
+    live_count: usize,
+    total_count: usize,
+) -> io::Result<()> {
+    let text = format!(
+        " {} live / {} total — Ctrl+C to exit",
+        live_count, total_count
+    );
+    let truncated: String = text.chars().take(term_cols as usize).collect();
+    let pad = (term_cols as usize).saturating_sub(truncated.chars().count());
+    out.write_all(format!("\x1b[{};1H", term_rows).as_bytes())?;
+    out.write_all(b"\x1b[7m")?;
+    out.write_all(truncated.as_bytes())?;
+    for _ in 0..pad {
+        out.write_all(b" ")?;
+    }
+    out.write_all(b"\x1b[0m")?;
+    Ok(())
+}
+
 /// Draw the label bar for one panel at its top row. Simple reverse-video
 /// text showing `[index] name (id)` truncated to panel width.
 fn draw_panel_label(
@@ -151,7 +176,7 @@ pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<(
     }
 
     // 2. Compute layout.
-    let (term_cols, term_rows) = terminal_size();
+    let (mut term_cols, mut term_rows) = terminal_size();
     let layouts = compute_layout(sessions.len(), term_cols.max(1u16), term_rows.max(1u16));
 
     eprintln!(
@@ -288,8 +313,12 @@ pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<(
             _ = ticker.tick() => {
                 let stdout = std::io::stdout();
                 let mut out = stdout.lock();
+                let mut live_count = 0usize;
                 for (i, (panel_arc, layout)) in panels.iter().zip(ok_layouts.iter()).enumerate() {
                     let mut p = panel_arc.lock().await;
+                    if !p.closed {
+                        live_count += 1;
+                    }
                     if !p.dirty {
                         continue;
                     }
@@ -303,6 +332,7 @@ pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<(
                     }
                     p.dirty = false;
                 }
+                let _ = draw_status_footer(&mut out, term_cols, term_rows, live_count, panels.len());
                 let _ = out.flush();
             }
             _ = sigwinch.recv() => {
@@ -310,6 +340,8 @@ pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<(
                 // and repaint everything. render_diff_at auto-falls-back to render_full_at
                 // when the cell-buffer length changes, so no explicit full-flag needed.
                 let (new_cols, new_rows) = terminal_size();
+                term_cols = new_cols;
+                term_rows = new_rows;
                 let new_layouts = compute_layout(panels.len(), new_cols.max(1u16), new_rows.max(1u16));
                 if new_layouts.len() == ok_layouts.len() {
                     for (i, new_layout) in new_layouts.iter().enumerate() {
