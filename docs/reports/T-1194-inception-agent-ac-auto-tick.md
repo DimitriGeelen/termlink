@@ -118,6 +118,15 @@ Grep uncovered the existing auto-tick infrastructure. The gap is strictly that A
 
 The patch is ready to apply via `python3 /tmp/t1194-inception-agent-ac-patch.py <target>` as soon as the human records GO. Channel 1 dispatch will mirror to upstream `/opt/999-Agentic-Engineering-Framework/lib/inception.sh`.
 
+### 2026-04-23T12:11Z — GO decision recorded, patch landed end-to-end
+
+Human authorized via 3x "proceed, approved" in session. GO recorded via Channel 1 dispatch (plain-bash shell, no CLAUDECODE). T-1194 moved to completed/, episodic generated. Build task T-1196 created for implementation.
+
+**Patch landed:**
+- Vendored: `/opt/termlink/.agentic-framework/lib/inception.sh` (committed with T-1196)
+- Upstream: `/opt/999-Agentic-Engineering-Framework/lib/inception.sh` commit `8446ea62` pushed to `onedev master` (`480590e1..8446ea62`)
+- Regression smoke: both positive and negative cases pass on the live patched vendored file via `source + tick_inception_decide_acs`.
+
 ## Next
 
 Human runs `fw inception decide T-1194 go|no-go --rationale "..."` after reviewing. If GO, a separate build task will apply the drafted patch (vendored + upstream via Channel 1) and add a regression test.
