@@ -408,6 +408,111 @@ impl Grid {
         self.prev_cursor = (self.cursor_row, self.cursor_col);
         self.prev_cursor_visible = self.cursor_visible;
     }
+
+    /// Viewport-aware full repaint. Does NOT clear the host screen (would wipe
+    /// sibling panels). Emits every cell into the rectangle at
+    /// (offset_row, offset_col). Offsets are 0-based; CUP is 1-based per ANSI.
+    pub fn render_full_at(
+        &mut self,
+        offset_row: u16,
+        offset_col: u16,
+        out: &mut impl Write,
+    ) -> io::Result<()> {
+        let mut last_sgr = SgrState::default();
+        out.write_all(b"\x1b[0m")?;
+        for r in 0..self.rows {
+            out.write_all(
+                format!("\x1b[{};{}H", offset_row + r + 1, offset_col + 1).as_bytes(),
+            )?;
+            let mut c = 0u16;
+            while c < self.cols {
+                let cell = self.cells[self.idx(r, c)];
+                if cell.width == 0 {
+                    c += 1;
+                    continue;
+                }
+                if cell.sgr != last_sgr {
+                    write_sgr(out, &cell.sgr)?;
+                    last_sgr = cell.sgr;
+                }
+                let mut buf = [0u8; 4];
+                out.write_all(cell.ch.encode_utf8(&mut buf).as_bytes())?;
+                c += cell.width.max(1) as u16;
+            }
+        }
+        out.write_all(b"\x1b[0m")?;
+        out.flush()?;
+        self.snapshot_as_prev();
+        Ok(())
+    }
+
+    /// Viewport-aware dirty-cell diff. Does NOT move the host cursor at end —
+    /// the composite renderer decides final cursor placement (typically on the
+    /// focused panel). Falls back to `render_full_at` on first call.
+    pub fn render_diff_at(
+        &mut self,
+        offset_row: u16,
+        offset_col: u16,
+        out: &mut impl Write,
+    ) -> io::Result<()> {
+        let need_full = match &self.prev_cells {
+            None => true,
+            Some(prev) => prev.len() != self.cells.len(),
+        };
+        if need_full {
+            return self.render_full_at(offset_row, offset_col, out);
+        }
+        let prev = self.prev_cells.as_ref().unwrap();
+        for r in 0..self.rows {
+            let mut c = 0u16;
+            while c < self.cols {
+                let idx = self.idx(r, c);
+                let cur = self.cells[idx];
+                let old = prev[idx];
+                if cur.width == 0 {
+                    c += 1;
+                    continue;
+                }
+                if cur != old {
+                    let start = c;
+                    out.write_all(
+                        format!(
+                            "\x1b[{};{}H",
+                            offset_row + r + 1,
+                            offset_col + start + 1
+                        )
+                        .as_bytes(),
+                    )?;
+                    let mut last_sgr = SgrState { bold: !cur.sgr.bold, ..cur.sgr };
+                    while c < self.cols {
+                        let i = self.idx(r, c);
+                        let cc = self.cells[i];
+                        let oo = prev[i];
+                        if cc.width == 0 {
+                            c += 1;
+                            continue;
+                        }
+                        if cc == oo {
+                            break;
+                        }
+                        if cc.sgr != last_sgr {
+                            write_sgr(out, &cc.sgr)?;
+                            last_sgr = cc.sgr;
+                        }
+                        let mut buf = [0u8; 4];
+                        out.write_all(cc.ch.encode_utf8(&mut buf).as_bytes())?;
+                        c += cc.width.max(1) as u16;
+                    }
+                } else {
+                    c += cur.width.max(1) as u16;
+                }
+            }
+        }
+        out.write_all(b"\x1b[0m")?;
+        out.flush()?;
+        self.snapshot_as_prev();
+        Ok(())
+    }
 }
 
 fn write_sgr(out: &mut impl Write, s: &SgrState) -> io::Result<()> {
@@ -714,6 +819,28 @@ mod tests {
         // A/C/D are NOT re-emitted as standalone chars (we only wrote the changed cell).
         // Sanity: diff output is smaller than full output for a 1-cell change.
         assert!(out2.len() < out1.len(), "diff output should be smaller than full");
+    }
+
+    #[test]
+    fn render_diff_at_applies_offset() {
+        let mut g = Grid::new(3, 1);
+        feed(&mut g, b"ABC");
+        // First call primes prev_cells via render_full_at.
+        let mut out1 = Vec::new();
+        g.render_diff_at(10, 20, &mut out1).unwrap();
+        let s1 = String::from_utf8_lossy(&out1);
+        // CUP should be offset by (10, 20): row 11 col 21 (1-based).
+        assert!(s1.contains("\x1b[11;21H"), "full-at should CUP to offset row/col: got {:?}", s1);
+        // No host-screen clear — composite viewport must not wipe siblings.
+        assert!(!s1.contains("\x1b[2J"));
+
+        feed(&mut g, b"\x1b[1;2HX");
+        let mut out2 = Vec::new();
+        g.render_diff_at(10, 20, &mut out2).unwrap();
+        let s2 = String::from_utf8_lossy(&out2);
+        // Diff at offset: change at cell (0,1) maps to CUP(11, 22).
+        assert!(s2.contains("\x1b[11;22H"), "diff-at should offset dirty run CUP: got {:?}", s2);
+        assert!(s2.contains("X"));
     }
 
     #[test]

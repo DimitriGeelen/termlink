@@ -397,6 +397,10 @@ pub(crate) enum Command {
         /// Use legacy byte-passthrough path (no grid emulation)
         #[arg(long)]
         raw: bool,
+
+        /// Mirror all sessions with this tag in a grid layout (mutually exclusive with target)
+        #[arg(long, conflicts_with = "target")]
+        tag: Option<String>,
     },
 
     // === Hidden backward-compat aliases for Event commands ===
@@ -2126,6 +2130,10 @@ pub(crate) enum PtyCommand {
         /// Use legacy byte-passthrough path (no grid emulation)
         #[arg(long)]
         raw: bool,
+
+        /// Mirror all sessions with this tag in a grid layout (mutually exclusive with target)
+        #[arg(long, conflicts_with = "target")]
+        tag: Option<String>,
     },
 }
 
