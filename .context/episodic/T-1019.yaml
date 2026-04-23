@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1019: Add musl static build target to CI/release pipeline
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T18:41:44Z
+# ============================================================================
+
+task_id: T-1019
+task_name: "Add musl static build target to CI/release pipeline"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T12:01:23Z
+completed: 2026-04-15T13:47:08Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-04-13T14:12:29+02:00
+last_commit: 2026-04-23T20:41:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add musl static build to CI — termlink-linux-x86_64-static in releases. Tick [RUBBER-STAMP] — musl binary verified in v0.9.1 GitHub release
+
+# Key outcomes
+outcomes:
+  - "release.yml includes x86_64-unknown-linux-musl in the Linux build matrix"
+  - "musl build installs musl-tools and uses the musl target"
+  - "Release job includes termlink-linux-x86_64-static in the artifacts list"
+  - "YAML is valid"
+  - "[RUBBER-STAMP] Verify musl binary appears in next release after tagging — ticked by user direction 2026-04-23. Evidence: live curl of GitHub release v0.9.1 checksums.txt returns sha256 e5e0ded0...288 for termlink-linux-x86_64-static. musl variant is published. Verified 2026-04-23T17:50Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.edit-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".github/workflows/release.yml"
+  - ".tasks/active/T-1019-add-musl-static-build-target-to-cireleas.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T14:12:29"
+    action: "T-1019: Add musl static build to CI — termlink-linux-x86_64-static in releases"
+  - time: "2026-04-23T20:41:43"
+    action: "T-1019: Tick [RUBBER-STAMP] — musl binary verified in v0.9.1 GitHub release"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2985 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2985
+  commits: 2
+  files_changed: 7
+  lines_added: 36
+  lines_removed: 31
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1019-add-musl-static-build-target-to-cireleas.md
+generated_by: context-agent-hybrid
