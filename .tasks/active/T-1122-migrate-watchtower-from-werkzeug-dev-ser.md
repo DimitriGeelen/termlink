@@ -71,7 +71,7 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 - [x] Recommendation written with rationale — see ## Recommendation
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -148,11 +148,9 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 
 **Decision**: DEFER
 
-**Rationale**: Recommendation: DEFER on WSGI swap; GO on systemd wrapping (the actual root cause).
+**Rationale**: DEFER — Flask-SocketIO + async_mode=threading constrains WSGI choice; spikes needed first (captured as T-1124).
 
-Rationale: Re-reading the problem statement, the failure mode that matters ("restart races during this session") is a process-management problem, not a WSGI-server problem. Swapping Werkzeug for gunicorn does not fix restart races; systemd does. The Werkzeug warning is aesthetic on a single-host LAN tool. Adding gunicorn + gevent + flask-socketio_websocket adds dependency surface without proportional benefit.
-
-**Date**: 2026-04-18T20:48:03Z
+**Date**: 2026-04-23T12:10:46Z
 
 ## Updates
 
@@ -172,3 +170,8 @@ Rationale: Re-reading the problem statement, the failure mode that matters ("res
 - **Rationale:** Recommendation: DEFER on WSGI swap; GO on systemd wrapping (the actual root cause).
 
 Rationale: Re-reading the problem statement, the failure mode that matters ("restart races during this session") is a process-management problem, not a WSGI-server problem. Swapping Werkzeug for gunicorn does not fix restart races; systemd does. The Werkzeug warning is aesthetic on a single-host LAN tool. Adding gunicorn + gevent + flask-socketio_websocket adds dependency surface without proportional benefit.
+
+### 2026-04-23T12:10:46Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** DEFER — Flask-SocketIO + async_mode=threading constrains WSGI choice; spikes needed first (captured as T-1124).

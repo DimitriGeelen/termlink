@@ -29,11 +29,11 @@
       "last_failure_at": null
     },
     "ring20-dashboard": {
-      "concern_registered": false,
-      "consecutive_failures": 5,
+      "concern_registered": true,
+      "consecutive_failures": 17,
       "first_failure_at": "2026-04-19T16:03:47Z",
       "last_class": "auth-mismatch",
-      "last_failure_at": "2026-04-20T14:41:04Z"
+      "last_failure_at": "2026-04-22T19:41:12Z"
     },
     "ring20-management": {
       "concern_registered": false,

@@ -213,3 +213,10 @@ decisions:
     date: 2026-04-20
     task: T-1174
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-010
+    decision: "systemd restart via `remote exec "systemctl restart termlink-hub"`"
+    scope: project
+    date: 2026-04-23
+    task: T-1016
+    rationale: "Auto-captured from task file on completion"
