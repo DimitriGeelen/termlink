@@ -1,0 +1,12 @@
+# Audit Results - 2026-04-23-2030
+timestamp: 2026-04-23T18:30:01Z
+sections: "oe-hourly"
+summary:
+  pass: 2
+  warn: 0
+  fail: 0
+findings:
+  - level: PASS
+    check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
+  - level: PASS
+    check: "CTL-020: 4 cron audit file(s) in last hour"

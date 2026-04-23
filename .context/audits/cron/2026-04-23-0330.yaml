@@ -1,0 +1,13 @@
+# Audit Results - 2026-04-23-0330
+timestamp: 2026-04-23T01:30:01Z
+sections: "oe-hourly"
+summary:
+  pass: 1
+  warn: 1
+  fail: 0
+findings:
+  - level: WARN
+    check: "CTL-008: Task reference traceability 85% (3/20 without T-XXX)"
+    mitigation: "Ensure all commits use T-XXX prefix (commit-msg hook)"
+  - level: PASS
+    check: "CTL-020: 4 cron audit file(s) in last hour"
