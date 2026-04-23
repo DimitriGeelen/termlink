@@ -148,9 +148,9 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 
 **Decision**: DEFER
 
-**Rationale**: DEFER — Flask-SocketIO + async_mode=threading constrains WSGI choice; spikes needed first (captured as T-1124).
+**Rationale**: DEFER per recommendation: Flask-SocketIO threading constrains WSGI choice; spikes captured as T-1124.
 
-**Date**: 2026-04-23T12:10:46Z
+**Date**: 2026-04-23T12:18:56Z
 
 ## Updates
 
@@ -175,3 +175,13 @@ Rationale: Re-reading the problem statement, the failure mode that matters ("res
 - **Action:** Recorded inception decision
 - **Decision:** DEFER
 - **Rationale:** DEFER — Flask-SocketIO + async_mode=threading constrains WSGI choice; spikes needed first (captured as T-1124).
+
+### 2026-04-23T12:15:19Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** DEFER — Flask-SocketIO threading constrains WSGI; spikes captured as T-1124.
+
+### 2026-04-23T12:18:56Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** DEFER per recommendation: Flask-SocketIO threading constrains WSGI choice; spikes captured as T-1124.
