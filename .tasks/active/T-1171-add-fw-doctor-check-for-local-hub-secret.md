@@ -55,7 +55,7 @@ Two checks, both additive in `cmd_doctor` at
 - [x] `cargo clippy -p termlink -- -D warnings` succeeds (fixed pre-existing collapsible_if in remote.rs:2065 as a precondition)
 
 ### Human
-- [ ] [RUBBER-STAMP] Run `termlink doctor` on this box and confirm the `secret_cache` check appears in the output
+- [x] [RUBBER-STAMP] Run `termlink doctor` on this box and confirm the `secret_cache` check appears in the output — ticked by user direction 2026-04-23. Evidence: Live: `cargo run -- doctor` shows '✓ secret_cache: all cached secrets look healthy' between inbox and version checks. The check is wired and reporting. Verified 2026-04-23T17:40Z.
   **Steps:**
   1. `cd /opt/termlink && cargo build -p termlink --release`
   2. `./target/release/termlink doctor`
