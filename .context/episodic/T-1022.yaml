@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1022: Add termlink fleet-doctor — health check all configured hubs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:04Z
+# ============================================================================
+
+task_id: T-1022
+task_name: "Add termlink fleet-doctor — health check all configured hubs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T12:24:21Z
+completed: 2026-04-19T12:12:00Z
+duration_days: 6
+updates_count: 4
+first_commit: 2026-04-13T14:29:35+02:00
+last_commit: 2026-04-15T21:18:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink fleet doctor — health check all configured hubs at once. Record agent evidence on fleet-doctor [REVIEW] AC
+
+# Key outcomes
+outcomes:
+  - "`termlink fleet doctor` command reads all hubs from hubs.toml"
+  - "Checks each hub sequentially via connect_remote_hub"
+  - "Reports per-hub and aggregate pass/warn/fail"
+  - "JSON output supported"
+  - "Builds and passes clippy"
+  - "[REVIEW] Run `termlink fleet doctor` and verify all hubs checked — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet doctor` returns 'Fleet doctor: 3 hub(s) configured', enumerates each (UP/AUTH/DOWN), shows ACTIONS NEEDED block per hub. Output scannable + actionable. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.edit-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1022-add-termlink-fleet-doctor--health-check-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T14:29:35"
+    action: "T-1022: Add termlink fleet doctor — health check all configured hubs at once"
+  - time: "2026-04-15T21:18:05"
+    action: "T-1022: Record agent evidence on fleet-doctor [REVIEW] AC"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 8627 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8627
+  commits: 2
+  files_changed: 11
+  lines_added: 201
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1022-add-termlink-fleet-doctor--health-check-.md
+generated_by: context-agent-hybrid

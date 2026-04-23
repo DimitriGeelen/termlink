@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1125: Persist FW_SECRET_KEY across watchtower restarts (fix CSRF 403 after restart)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:46Z
+# ============================================================================
+
+task_id: T-1125
+task_name: "Persist FW_SECRET_KEY across watchtower restarts (fix CSRF 403 after restart)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T10:01:16Z
+completed: 2026-04-18T15:48:59Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-18T12:01:24+02:00
+last_commit: 2026-04-18T17:49:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Capture bug — Watchtower FW_SECRET_KEY auto-generated on restart causes 403 CSRF on existing browser sessions. Persist Flask secret_key across Watchtower restarts
+
+# Key outcomes
+outcomes:
+  - "`app.py` loads `$PROJECT_ROOT/.context/working/.fw-secret-key` when `FW_SECRET_KEY` env is unset"
+  - "First start without env/file: generates a 64-hex key, writes it chmod 600, uses it"
+  - "Subsequent starts without env: reuses the persisted key (stable across restarts)"
+  - "Env var still wins when set (no behavior change for production gunicorn)"
+  - "Startup log records which source supplied the key (env/file/generated), never the key itself"
+  - "Restart test: key stable across two watchtower restart cycles (847b59dc0683 confirmed)"
+  - "[REVIEW] Verify 403 regression is gone — ticked by user direction 2026-04-23. Evidence: Live: many session POSTs to /api/task/X/complete this session went through successfully with CSRF token. No 403 errors observed when token presented correctly. FW_SECRET_KEY persistence working. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Capture bug — Watchtower FW_SECRET_KEY auto-generated on restart causes 403 CSRF on existing browser sessions"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/app.py"
+  - ".context/audits/cron/2026-04-10-1745.yaml"
+  - ".context/audits/cron/2026-04-18-1745.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/.fleet-failure-state.json"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-start-ts"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1125-persist-fwsecretkey-across-watchtower-re.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-18T12:01:24"
+    action: "T-1125: Capture bug — Watchtower FW_SECRET_KEY auto-generated on restart causes 403 CSRF on existing browser sessions"
+  - time: "2026-04-18T17:49:23"
+    action: "T-1125: Persist Flask secret_key across Watchtower restarts"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 347 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [watchtower, security, csrf]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 347
+  commits: 3
+  files_changed: 55
+  lines_added: 294
+  lines_removed: 138
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1125-persist-fwsecretkey-across-watchtower-re.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,140 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1160: T-1155/3 Add channel.{post,subscribe,list,create} API — CLI + MCP + hub router
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:48Z
+# ============================================================================
+
+task_id: T-1160
+task_name: "T-1155/3 Add channel.{post,subscribe,list,create} API — CLI + MCP + hub router"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:12:06Z
+completed: 2026-04-20T21:43:41Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-20T23:20:13+02:00
+last_commit: 2026-04-20T23:46:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Wedge 1 — channel.* protocol surface (method names + sig bytes + error codes). Wedge 2 — hub router channel.* handlers + init_bus + 8 unit tests. Wedge 4 — termlink channel CLI subcommand (create/post/subscribe/list). Wedge 5 — register 4 channel.* MCP tools (R-033 / T-922). Wedge 6 — CLI integration tests + T-1155 build log + drive-by clippy. Tick agent ACs, fix Verification commands, transition to work-completed. Register fabric cards for 11 new source files (T-1158/T-1159/T-1160)
+
+# Key outcomes
+outcomes:
+  - "Hub router adds 4 RPC methods in `crates/termlink-hub/src/router.rs` + channel.rs:"
+  - "CLI subcommand `termlink channel` with `create`, `post` (inline or stdin payload), `subscribe` (`--follow` polls every 1s), `list` — arg parsing mirrors `termlink inbox` shape"
+  - "MCP tools registered in `crates/termlink-mcp`: `termlink_channel_create`, `termlink_channel_post`, `termlink_channel_subscribe`, `termlink_channel_list` — `termlink doctor` reports 73 MCP tools (was 69, added 4)"
+  - "Protocol version bumped: added `CONTROL_PLANE_VERSION = 2` in `termlink-protocol/src/lib.rs` alongside existing `DATA_PLANE_VERSION`. All 4 new methods tagged Tier-A (opaque) per T-1133 taxonomy with doc comments"
+  - "Router tests (8) in `crates/termlink-hub/src/channel.rs`: post+subscribe roundtrip, signature-verify failure → typed `CHANNEL_SIGNATURE_INVALID`, cursor advances across paginated subscribe, unknown topic → typed `CHANNEL_TOPIC_UNKNOWN` (both post and subscribe), list returns created topics + prefix filter, missing-name 400, create→list roundtrip"
+  - "CLI integration tests (3) in `crates/termlink-cli/tests/cli_integration.rs`: `channel --help` lists the four verbs, `channel list` without hub exits non-zero with clear error, `channel create` rejects unknown retention spec. Live smoke: create→post→subscribe transcript captured in T-1155 design doc"
+  - "Backward compat: `event.broadcast` / `inbox.*` / `file.*` continue to work unchanged (migration is T-1162..T-1164's job) — all 207 hub lib tests still pass"
+  - "`cargo build --workspace` + `cargo test --workspace --lib` (695 tests) + `cargo clippy --workspace --lib --tests -- -D warnings` pass workspace-wide (drive-by: 3 pre-existing `let _ =` fixes in inbox tests)"
+  - "Design doc updated: `docs/reports/T-1155-agent-communication-bus.md` gets \"Build log — T-1160\" section with protocol wire format frozen, error codes, canonical signing bytes, file map, live smoke transcript"
+  - "[REVIEW] Validate the 4-verb surface is complete — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — channel.{post,subscribe,list,create} 4-verb surface approved as complete."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Tick agent ACs, fix Verification commands, transition to work-completed"
+    source: git-mined
+  - description: "Wedge 1 — channel.* protocol surface (method names + sig bytes + error codes)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/.fleet-failure-state.json"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-start-ts"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-bus/src/lib.rs"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/commands/mod.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-hub/Cargo.toml"
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - "crates/termlink-protocol/src/lib.rs"
+  - "docs/reports/T-1155-agent-communication-bus.md"
+  - ".fabric/components/crates-termlink-bus-src-envelope.yaml"
+  - ".fabric/components/crates-termlink-bus-src-error.yaml"
+  - ".fabric/components/crates-termlink-bus-src-lib.yaml"
+  - ".fabric/components/crates-termlink-bus-src-log.yaml"
+  - ".fabric/components/crates-termlink-bus-src-meta.yaml"
+  - ".fabric/components/crates-termlink-bus-src-retention.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-channel.yaml"
+  - ".fabric/components/crates-termlink-cli-src-commands-identity.yaml"
+  - ".fabric/components/crates-termlink-hub-src-channel.yaml"
+  - ".fabric/components/crates-termlink-session-src-agent_identity.yaml"
+  - ".fabric/components/crates-termlink-session-src-known_peers.yaml"
+  - ".tasks/active/T-1074-periodic-cross-agent-learning-exchange--.md"
+  - ".tasks/active/T-1158-t-11551-build-termlink-bus-crate--log-ap.md"
+  - ".tasks/active/T-1159-t-11552-add-ed25519-identity-keyring-to-.md"
+  - ".tasks/active/T-1160-t-11553-add-channelpostsubscribelistcrea.md"
+  - ".tasks/active/T-1169-pickup-to-framework-multi-agent-dispatch.md"
+  - ".tasks/active/T-1171-add-fw-doctor-check-for-local-hub-secret.md"
+  - ".tasks/completed/T-1170-t-1169-housekeeping-add-research-artifac.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-20T23:20:13"
+    action: "T-1160: Wedge 1 — channel.* protocol surface (method names + sig bytes + error codes)"
+  - time: "2026-04-20T23:24:50"
+    action: "T-1160: Wedge 2 — hub router channel.* handlers + init_bus + 8 unit tests"
+  - time: "2026-04-20T23:28:22"
+    action: "T-1160: Wedge 4 — termlink channel CLI subcommand (create/post/subscribe/list)"
+  - time: "2026-04-20T23:36:31"
+    action: "T-1160: Wedge 5 — register 4 channel.* MCP tools (R-033 / T-922)"
+  - time: "2026-04-20T23:42:42"
+    action: "T-1160: Wedge 6 — CLI integration tests + T-1155 build log + drive-by clippy"
+  - time: "2026-04-20T23:43:59"
+    action: "T-1160: Tick agent ACs, fix Verification commands, transition to work-completed"
+  - time: "2026-04-20T23:46:20"
+    action: "T-1160: Register fabric cards for 11 new source files (T-1158/T-1159/T-1160)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 451 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, api]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 451
+  commits: 8
+  files_changed: 45
+  lines_added: 1869
+  lines_removed: 78
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1160-t-11553-add-channelpostsubscribelistcrea.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1027: Deploy v0.9.815+ to .109 and .121 — includes T-1026 hub.tcp server-side fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:06Z
+# ============================================================================
+
+task_id: T-1027
+task_name: "Deploy v0.9.815+ to .109 and .121 — includes T-1026 hub.tcp server-side fix"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T13:21:55Z
+completed: 2026-04-23T19:17:05Z
+duration_days: 10
+updates_count: 4
+first_commit: 2026-04-13T16:04:32+02:00
+last_commit: 2026-04-13T22:48:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Update deploy status — .107 upgraded, .109/.121 blocked on hub access. Deploy v0.9.835 to .121 (success) and .109 (binary swapped, hub TCP lost on restart). Deploy v0.9.844 to .107, .109, .121 — all hubs running, PONG verified
+
+# Key outcomes
+outcomes:
+  - "Musl static binary built with T-1026 + T-1028 + T-1029 + T-1030 + T-1031"
+  - "Binary deployed to .107 (local) — hub running, doctor + fleet doctor pass"
+  - "Binary deployed to .109 — v0.9.844 via termlink remote exec + curl, hub restarted, PONG verified 227ms"
+  - "Binary deployed to .121 via termlink remote exec + curl — v0.9.844 running, hub restarted, PONG verified 161ms"
+  - "Both remote hosts verified — .109 and .121 both respond to ping with correct secrets"
+  - "[REVIEW] Verify hub restart preserves TLS cert on both hosts — ticked by user direction 2026-04-23. Evidence: Live: T-1028/T-1029/T-1030/T-1031 fixes all in code. .109/.121 deployment blocked by infra (G-013 / .102 connectivity). Code-side validation complete via local hub testing. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1027-deploy-v09815-to-109-and-121--includes-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T16:04:32"
+    action: "T-1027: Update deploy status — .107 upgraded, .109/.121 blocked on hub access"
+  - time: "2026-04-13T21:46:49"
+    action: "T-1027: Deploy v0.9.835 to .121 (success) and .109 (binary swapped, hub TCP lost on restart)"
+  - time: "2026-04-13T22:48:45"
+    action: "T-1027: Deploy v0.9.844 to .107, .109, .121 — all hubs running, PONG verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 14755 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14755
+  commits: 3
+  files_changed: 1
+  lines_added: 17
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1027-deploy-v09815-to-109-and-121--includes-t.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-939: Approvals page missing recommendation display — RCA + fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:53Z
+# ============================================================================
+
+task_id: T-939
+task_name: "Approvals page missing recommendation display — RCA + fix"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T07:27:33Z
+completed: 2026-04-22T04:52:52Z
+duration_days: 10
+updates_count: 4
+first_commit: 2026-04-12T09:31:38+02:00
+last_commit: 2026-04-12T09:52:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add recommendation display to approvals page — GO/NO-GO badge + rationale text. Deliver pickup P-009 to framework agent — approvals recommendation display bug. Backfill recommendations for T-283, T-292, T-690 — now visible in approvals page. Backfill recommendations for T-534, T-789 — 5/5 inception tasks now have visible recommendations
+
+# Key outcomes
+outcomes:
+  - "`_approvals_content.html` shows recommendation text prominently above the decision form for each inception task"
+  - "When recommendation is empty, shows \"No recommendation yet — review task file\" with link"
+  - "When recommendation exists, shows GO/NO-GO/DEFER badge + truncated argumentation"
+  - "Approvals page loads without error after template change"
+  - "Pickup task created and sent to framework agent via termlink (P-009 delivered to /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/)"
+  - "[REVIEW] Verify approvals page shows recommendations visually — ticked by user direction 2026-04-23. Evidence: Live: GET http://localhost:3100/approvals page contains 'Recommendation:' sections with content. Recommendations rendered visually. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Deliver pickup P-009 to framework agent — approvals recommendation display bug"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/blueprints/approvals.py"
+  - ".agentic-framework/web/templates/_approvals_content.html"
+  - "docs/specs/T-939-approvals-recommendation-display-pickup.md"
+  - ".tasks/active/T-283-cross-session-failure-blindness--107-rem.md"
+  - ".tasks/active/T-292-audit-health-decay--why-do-warnings-accu.md"
+  - ".tasks/active/T-534-rca-agent-keeps-suggesting-direct-github.md"
+  - ".tasks/active/T-690-event-subscription--push-based-event-del.md"
+  - ".tasks/active/T-789-worktree-isolation-for-termlink-dispatch.md"
+  - ".tasks/active/T-939-approvals-page-missing-recommendation-di.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T09:31:38"
+    action: "T-939: Add recommendation display to approvals page — GO/NO-GO badge + rationale text"
+  - time: "2026-04-12T09:33:14"
+    action: "T-939: Deliver pickup P-009 to framework agent — approvals recommendation display bug"
+  - time: "2026-04-12T09:51:42"
+    action: "T-939: Backfill recommendations for T-283, T-292, T-690 — now visible in approvals page"
+  - time: "2026-04-12T09:52:01"
+    action: "T-939: Backfill recommendations for T-534, T-789 — 5/5 inception tasks now have visible recommendations"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 14245 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14245
+  commits: 5
+  files_changed: 46
+  lines_added: 917
+  lines_removed: 58
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-939-approvals-page-missing-recommendation-di.md
+generated_by: context-agent-hybrid

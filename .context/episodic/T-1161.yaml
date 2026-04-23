@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1161: T-1155/4 Add client-side offline queue (SQLite) + flush task to termlink-session
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:49Z
+# ============================================================================
+
+task_id: T-1161
+task_name: "T-1155/4 Add client-side offline queue (SQLite) + flush task to termlink-session"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:12:08Z
+completed: 2026-04-20T22:20:19Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-21T00:19:13+02:00
+last_commit: 2026-04-21T00:20:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Client-side offline queue + flush task (termlink-session). Close wedge — fabric cards, T-1172 follow-up, work-completed
+
+# Key outcomes
+outcomes:
+  - "Add `rusqlite = \"0.33\"` with `bundled` feature to `crates/termlink-session/Cargo.toml`"
+  - "New module `crates/termlink-session/src/offline_queue.rs` exposes:"
+  - "Queue cap: default `1000`; env override `TERMLINK_OUTBOUND_CAP`; `QueueFull` is a typed error (loud-fail per R3)"
+  - "Flush task: `BusClient::connect_with_interval(socket, queue_path, flush_interval)` spawns a tokio task that drains the queue every `flush_interval` (default 5s). Cancel-safe via `oneshot` sender held by the client — dropping the `Arc<BusClient>` fires shutdown before the next tick"
+  - "`BusClient::post()` transparently routes: direct `rpc_call(channel.post)` → `PostOutcome::Delivered { offset }`; on transport error → enqueue + `PostOutcome::Queued { queue_id }`. Hub-level errors (post rejected) bump attempts and break the flush loop so poison messages don't busy-loop"
+  - "Unit tests in `offline_queue.rs` (7): open-empty, enqueue/peek/pop roundtrip, FIFO order, cap enforcement, survives-reopen, bump-attempts persistence, concurrent enqueue from 3 threads × 20 posts preserves per-topic FIFO"
+  - "Unit tests in `bus_client.rs` (3): queues on unreachable socket, flush-with-hub-down breaks at first failure leaving queue intact, drop-on-Arc notifies the flush task"
+  - "Integration test `tests/bus_client_integration.rs`: minimal fake-hub (Unix socket + JSON-RPC) accepts `channel.post`; post 10 while up (delivered) → stop hub (socket removed) → post 5 (queued) → restart hub → verify the 5 flushed entries arrive in order (FIFO markers 10..14)"
+  - "`cargo test -p termlink-session --lib` passes (283 tests, was 274); `cargo test --workspace --lib` 704 green"
+  - "`cargo clippy --workspace --lib --tests -- -D warnings` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "`BusClient::flush() -> FlushReport` owns the flush loop; `OfflineQueue` exposes only `peek_oldest` / `pop` / `bump_attempts` primitives"
+    rationale: "The client holds the socket path + RPC machinery; routing flush through the queue would force `OfflineQueue` to take a `&BusClient` (or equivalent trait object), creating a dependency inversion with no real payoff. Keeps each type's responsibility crisp: queue is dumb storage, client is the transport + retry policy"
+    alternatives_rejected: ["The AC-literal shape `queue.flush(&client)` — functionally equivalent, worse layering"]
+    chose: "`oneshot::Sender<()>` stored in `BusClient::shutdown_tx` (behind `Mutex<Option<_>>`); `Drop` takes the sender and drops it, which completes the receiver side in the spawned task"
+    rationale: "`tokio::sync::Notify::notify_waiters()` only wakes *currently registered* waiters — when `Drop` fires immediately after `tokio::spawn`, the task may not yet have polled `.notified()`, so the signal is lost. Oneshot has no such race: recv completes whether polled first or last"
+    alternatives_rejected: ["`Notify` (race, observed as a failing `drop_notifies_flush_task` test); `CancellationToken` from tokio-util (extra dep for the same guarantee)"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "Cargo.lock"
+  - "crates/termlink-session/Cargo.toml"
+  - "crates/termlink-session/src/bus_client.rs"
+  - "crates/termlink-session/src/lib.rs"
+  - "crates/termlink-session/src/offline_queue.rs"
+  - "crates/termlink-session/tests/bus_client_integration.rs"
+  - ".fabric/components/crates-termlink-session-src-bus_client.yaml"
+  - ".fabric/components/crates-termlink-session-src-offline_queue.yaml"
+  - ".fabric/components/crates-termlink-session-tests-bus_client_integration.yaml"
+  - ".tasks/active/T-1161-t-11554-add-client-side-offline-queue-sq.md"
+  - ".tasks/active/T-1172-t-1161-follow-up-termlink-channel-queue-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-21T00:19:13"
+    action: "T-1161: Client-side offline queue + flush task (termlink-session)"
+  - time: "2026-04-21T00:20:19"
+    action: "T-1161: Close wedge — fabric cards, T-1172 follow-up, work-completed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 488 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, offline-tolerance]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 488
+  commits: 3
+  files_changed: 14
+  lines_added: 1315
+  lines_removed: 31
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1161-t-11554-add-client-side-offline-queue-sq.md
+generated_by: context-agent-hybrid

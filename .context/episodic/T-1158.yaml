@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1158: T-1155/1 Build termlink-bus crate — log-append + cursor + subscribe + retention
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:47Z
+# ============================================================================
+
+task_id: T-1158
+task_name: "T-1155/1 Build termlink-bus crate — log-append + cursor + subscribe + retention"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:11:33Z
+completed: 2026-04-20T20:38:03Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-20T22:32:16+02:00
+last_commit: 2026-04-20T22:37:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Wedge 1 — termlink-bus crate skeleton (envelope, retention, meta). Wedge 2 — post + subscribe with length-prefix framing. Wedge 3 — cursor store + retention sweep, all agent ACs met
+
+# Key outcomes
+outcomes:
+  - "New crate `crates/termlink-bus/` exists with `Cargo.toml`, `src/lib.rs`, registered as workspace member in root `Cargo.toml`"
+  - "Public API exposes: `Bus::open(path)`, `bus.post(topic, envelope) -> Offset`, `bus.subscribe(topic, cursor) -> Iterator<(Offset, Envelope)>`, `bus.list_topics()`, `bus.create_topic(name, retention)` + cursor APIs + sweep"
+  - "Append-only per-channel log on disk: one log file per topic under `<path>/topics/<sha256-of-topic>.log`, records framed with 8-byte big-endian length prefix + payload (JSON-encoded envelope)"
+  - "SQLite sidecar at `<path>/meta.db` tracks: `topics`, `cursors(subscriber_id, topic, last_offset)`, `offsets(topic, next_offset)`, and a `records(topic, offset, byte_pos, length, ts_unix_ms)` index that makes subscribe reads and sweep trivial"
+  - "Retention engine: per-topic policy `{Forever, Days(u32), Messages(u64)}`; `bus.sweep(topic, now_unix_ms)` deletes index rows outside the policy (log-file compaction is a follow-up). Explicit — no background thread."
+  - "Envelope type carries `{topic, sender_id, msg_type, payload: Vec<u8>, artifact_ref: Option<String>, ts_unix_ms}` — no signature/identity fields yet (T-1159 adds those)"
+  - "Concurrent-safe: post() serializes on `tokio::sync::Mutex<File>`; subscribe path opens a read-only fd and uses positional reads (no shared lock across reads)"
+  - "Unit tests cover: append+replay round-trip, cursor advance, empty-topic subscribe, retention trim by count, retention trim by age, topic creation idempotence — 12 tests, all pass"
+  - "`cargo build -p termlink-bus` passes from workspace root"
+  - "`cargo test -p termlink-bus` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Wedge 2 — post + subscribe with length-prefix framing"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "Cargo.toml"
+  - "crates/termlink-bus/Cargo.toml"
+  - "crates/termlink-bus/src/envelope.rs"
+  - "crates/termlink-bus/src/error.rs"
+  - "crates/termlink-bus/src/lib.rs"
+  - "crates/termlink-bus/src/log.rs"
+  - "crates/termlink-bus/src/meta.rs"
+  - "crates/termlink-bus/src/retention.rs"
+  - ".tasks/active/T-1158-t-11551-build-termlink-bus-crate--log-ap.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-20T22:32:16"
+    action: "T-1158: Wedge 1 — termlink-bus crate skeleton (envelope, retention, meta)"
+  - time: "2026-04-20T22:34:27"
+    action: "T-1158: Wedge 2 — post + subscribe with length-prefix framing"
+  - time: "2026-04-20T22:37:56"
+    action: "T-1158: Wedge 3 — cursor store + retention sweep, all agent ACs met"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 386 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, foundation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 386
+  commits: 4
+  files_changed: 12
+  lines_added: 1029
+  lines_removed: 62
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1158-t-11551-build-termlink-bus-crate--log-ap.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1018: file receive assembles stale transfer events — picks up old chunks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:03Z
+# ============================================================================
+
+task_id: T-1018
+task_name: "file receive assembles stale transfer events — picks up old chunks"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T12:01:14Z
+completed: 2026-04-15T13:47:08Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-04-13T14:11:04+02:00
+last_commit: 2026-04-13T14:11:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix stale transfer events — file receive defaults to fresh-only mode, --replay for history
+
+# Key outcomes
+outcomes:
+  - "`file receive` defaults to skipping historical events (fresh-only mode)"
+  - "`--replay` flag enables old behavior (process all historical events for inbox pickup)"
+  - "CLI help text documents the behavior change"
+  - "Builds and passes clippy"
+  - "[REVIEW] Test send-file + receive with --replay vs default on a live hub — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — file receive --replay flag in code (T-1018). Live test deferred."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix stale transfer events — file receive defaults to fresh-only mode, --replay for history"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.edit-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/file.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1018-file-receive-assembles-stale-transfer-ev.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T14:11:04"
+    action: "T-1018: Fix stale transfer events — file receive defaults to fresh-only mode, --replay for history"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2985 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2985
+  commits: 2
+  files_changed: 12
+  lines_added: 87
+  lines_removed: 38
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1018-file-receive-assembles-stale-transfer-ev.md
+generated_by: context-agent-hybrid

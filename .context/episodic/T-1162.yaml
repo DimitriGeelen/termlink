@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1162: T-1155/5 Migrate event.broadcast callers → channel.post(topic=broadcast:global)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:49Z
+# ============================================================================
+
+task_id: T-1162
+task_name: "T-1155/5 Migrate event.broadcast callers → channel.post(topic=broadcast:global)"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:12:10Z
+completed: 2026-04-20T22:31:41Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-21T00:31:37+02:00
+last_commit: 2026-04-21T00:54:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Dual-write event.broadcast → channel:broadcast:global (server shim). Add agent smoke-test evidence to Human REVIEW AC
+
+# Key outcomes
+outcomes:
+  - "Audit `event.broadcast` call sites (recorded in Context above)"
+  - "Topic `broadcast:global` auto-created at hub startup with `Retention::Messages(1000)` via `channel::init_bus` (idempotent on name+policy)"
+  - "Hub-side shim: `handle_event_broadcast` dual-writes each payload into `broadcast:global` via a new `channel::mirror_event_broadcast(topic, payload)` helper. Best-effort — logs on error, never blocks the existing fanout"
+  - "Envelope shape for mirrored broadcasts: `sender_id = \"hub:event.broadcast\"`, `msg_type = <event-topic>`, `payload = serde_json::to_vec(&payload)`, no signature (hub-originated internal mirror — signature enforcement is on the `channel.post` RPC path only)"
+  - "Router test `event_broadcast_mirrors_to_bus_topic`: call `handle_event_broadcast` with no targets → verify one envelope lands in `broadcast:global` with matching topic + payload"
+  - "Router test `event_broadcast_mirror_is_non_blocking`: call shim with bus initialised, confirm mirror succeeds; no regression for the two existing broadcast router tests"
+  - "`cargo build --workspace` + `cargo test -p termlink-hub --lib` (207+ tests) + `cargo clippy --workspace --lib --tests -- -D warnings` pass"
+  - "[REVIEW] Smoke-test a real dispatch cycle after the migration — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — event.broadcast → channel.post(broadcast:global) migration approved; smoke-test deferred to follow-up implementation."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - ".tasks/active/T-1162-t-11555-migrate-eventbroadcast-callers--.md"
+  - ".tasks/active/T-1173-t-1162-follow-up-migrate-eventcollecteve.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-21T00:31:37"
+    action: "T-1162: Dual-write event.broadcast → channel:broadcast:global (server shim)"
+  - time: "2026-04-21T00:54:22"
+    action: "T-1162: Add agent smoke-test evidence to Human REVIEW AC"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 499 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 499
+  commits: 2
+  files_changed: 4
+  lines_added: 257
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1162-t-11555-migrate-eventbroadcast-callers--.md
+generated_by: context-agent-hybrid

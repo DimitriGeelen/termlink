@@ -1,0 +1,112 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1128: Watchtower load_latest_audit picks upgrades.yaml — needs date-prefix filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:46Z
+# ============================================================================
+
+task_id: T-1128
+task_name: "Watchtower load_latest_audit picks upgrades.yaml — needs date-prefix filter"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T18:39:00Z
+completed: 2026-04-18T18:40:30Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-18T20:40:35+02:00
+last_commit: 2026-04-18T20:40:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Audit loader filters date-prefixed files
+
+# Key outcomes
+outcomes:
+  - "`load_latest_audit()` filters glob to date-prefixed files only (`[0-9][0-9][0-9][0-9]-*.yaml`)"
+  - "After fix, ambient strip on `/` shows `Audit: WARN` (verified)"
+  - "No regression: load_latest_audit still returns `(None, {}, [])` when no audit files exist (early-return preserved)"
+  - "[REVIEW] Verify ambient strip shows real audit status — ticked by user direction 2026-04-23. Evidence: Live: `fw audit` ran successfully this session, generated .context/audits/2026-04-23.yaml; load_latest_audit code uses date-prefix filter per T-1128 fix. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Audit loader filters date-prefixed files"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/shared.py"
+  - ".context/audits/2026-04-18.yaml"
+  - ".context/audits/cron/2026-04-10-1800.yaml"
+  - ".context/audits/cron/2026-04-10-1815.yaml"
+  - ".context/audits/cron/2026-04-10-1830.yaml"
+  - ".context/audits/cron/2026-04-10-1845.yaml"
+  - ".context/audits/cron/2026-04-10-1900.yaml"
+  - ".context/audits/cron/2026-04-10-1915.yaml"
+  - ".context/audits/cron/2026-04-10-1930.yaml"
+  - ".context/audits/cron/2026-04-10-1945.yaml"
+  - ".context/audits/cron/2026-04-10-2000.yaml"
+  - ".context/audits/cron/2026-04-10-2015.yaml"
+  - ".context/audits/cron/2026-04-10-2030.yaml"
+  - ".context/audits/cron/2026-04-18-1800.yaml"
+  - ".context/audits/cron/2026-04-18-1815.yaml"
+  - ".context/audits/cron/2026-04-18-1830.yaml"
+  - ".context/audits/cron/2026-04-18-1845.yaml"
+  - ".context/audits/cron/2026-04-18-1900.yaml"
+  - ".context/audits/cron/2026-04-18-1915.yaml"
+  - ".context/audits/cron/2026-04-18-1930.yaml"
+  - ".context/audits/cron/2026-04-18-1945.yaml"
+  - ".context/audits/cron/2026-04-18-2000.yaml"
+  - ".context/audits/cron/2026-04-18-2015.yaml"
+  - ".context/audits/cron/2026-04-18-2030.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1128-watchtower-loadlatestaudit-picks-upgrade.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-18T20:40:35"
+    action: "T-1128: Audit loader filters date-prefixed files"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 36
+  lines_added: 561
+  lines_removed: 664
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1128-watchtower-loadlatestaudit-picks-upgrade.md
+generated_by: context-agent-hybrid

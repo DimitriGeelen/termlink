@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-970: fw task review UX overhaul — dynamic port, browser open, push-based delivery
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:53Z
+# ============================================================================
+
+task_id: T-970
+task_name: "fw task review UX overhaul — dynamic port, browser open, push-based delivery"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T09:50:48Z
+completed: 2026-04-22T04:52:53Z
+duration_days: 10
+updates_count: 4
+first_commit: 2026-04-12T11:51:49+02:00
+last_commit: 2026-04-12T11:53:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — fw task review UX overhaul (dynamic port, browser open, inject notification). Fix review.sh port detection — probe for project-specific Watchtower, auto-open browser
+
+# Key outcomes
+outcomes:
+  - "Port detection probes for project-specific Watchtower (review.sh)"
+  - "Browser auto-opens via xdg-open/open (review.sh)"
+  - "fw inception decide auto-invokes fw task review when marker missing (inception.sh)"
+  - "PL-007 codified in CLAUDE.md"
+  - "Pickup P-019 sent to framework agent"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — fw task review UX overhaul GO."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix review.sh port detection — probe for project-specific Watchtower, auto-open browser"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/lib/review.sh"
+  - ".tasks/active/T-969-structural-enforcement-block-bare-fw-inc.md"
+  - ".tasks/active/T-970-fw-task-review-ux-overhaul--dynamic-port.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T11:51:49"
+    action: "T-970: Inception — fw task review UX overhaul (dynamic port, browser open, inject notification)"
+  - time: "2026-04-12T11:53:55"
+    action: "T-970: Fix review.sh port detection — probe for project-specific Watchtower, auto-open browser"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 14102 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14102
+  commits: 4
+  files_changed: 41
+  lines_added: 435
+  lines_removed: 49
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-970-fw-task-review-ux-overhaul--dynamic-port.md
+generated_by: context-agent-hybrid

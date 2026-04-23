@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1123: Make Watchtower auto-discover PROJECT_ROOT (don't require env var)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:45Z
+# ============================================================================
+
+task_id: T-1123
+task_name: "Make Watchtower auto-discover PROJECT_ROOT (don't require env var)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T09:49:49Z
+completed: 2026-04-18T15:52:31Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-18T11:49:56+02:00
+last_commit: 2026-04-18T17:52:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Capture follow-up — Watchtower auto-discover PROJECT_ROOT. Auto-discover PROJECT_ROOT in Watchtower Python side
+
+# Key outcomes
+outcomes:
+  - "`shared.py` has `_discover_project_root()` that walks up from CWD for `.framework.yaml`"
+  - "Resolution order: env `PROJECT_ROOT` > walk-up from CWD > FRAMEWORK_ROOT fallback"
+  - "Discovery stops at filesystem root without looping"
+  - "Log line at import records which source supplied PROJECT_ROOT"
+  - "Discovery from `/opt/termlink/somedir` finds `/opt/termlink` (verified)"
+  - "Discovery from `/tmp` (no marker) falls back to FRAMEWORK_ROOT (verified)"
+  - "Env var overrides discovery (verified)"
+  - "[REVIEW] Confirm ambient strip shows correct project — ticked by user direction 2026-04-23. Evidence: Live: watchtower running with PROJECT_ROOT=/opt/termlink (confirmed via subprocess_utils env). Auto-discovery code path active. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/shared.py"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1123-make-watchtower-auto-discover-projectroo.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-18T11:49:56"
+    action: "T-1123: Capture follow-up — Watchtower auto-discover PROJECT_ROOT"
+  - time: "2026-04-18T17:52:41"
+    action: "T-1123: Auto-discover PROJECT_ROOT in Watchtower Python side"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 362 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 362
+  commits: 2
+  files_changed: 8
+  lines_added: 142
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1123-make-watchtower-auto-discover-projectroo.md
+generated_by: context-agent-hybrid

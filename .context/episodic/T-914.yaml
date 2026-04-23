@@ -1,0 +1,119 @@
+# ============================================================================
+# EPISODIC MEMORY - T-914: Fix termlink dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:52Z
+# ============================================================================
+
+task_id: T-914
+task_name: "Fix termlink dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T12:30:39Z
+completed: 2026-04-22T04:52:51Z
+duration_days: 11
+updates_count: 5
+first_commit: 2026-04-11T15:01:59+02:00
+last_commit: 2026-04-22T13:24:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix dispatch wait-for-registrar hang on fast-failing user_cmd (G-002). Mark agent ACs complete; human smoke-test pending. Smoke-test exposed orthogonal hub-down hang; file T-916. Close G-002 — dispatch hang fix verified end-to-end (0.5s, crashed_workers populated). Complete dispatch hang fix — all verification passes (build + 2 unit tests). T-914/T-916: Add agent smoke-test + code-level evidence for Human REVIEW
+
+# Key outcomes
+outcomes:
+  - "`dispatch.rs` worker shell template captures user_cmd exit code via `$?` after user_cmd runs"
+  - "Template explicitly terminates the registrar (`kill $TL_PID`) after user_cmd finishes — both success and fail paths"
+  - "Worker exits with user_cmd's exit code (`exit $USER_RC`), not the registrar's"
+  - "Shell-template construction is extracted into a unit-testable helper (`build_worker_shell_cmd`)"
+  - "Unit test asserts the helper output contains `USER_RC=$?`, `kill $TL_PID`, and `exit $USER_RC`"
+  - "Unit test asserts the helper output's last line is `exit $USER_RC` (regression for the `wait $TL_PID` hang)"
+  - "`cargo build --workspace` succeeds"
+  - "`cargo test --package termlink --bin termlink commands::dispatch::tests` passes (11/11)"
+  - "[REVIEW] Smoke-test the fix end-to-end with a fast-failing user_cmd (REQUIRES T-916 fix or healthy hub) — ticked by user direction 2026-04-23. Evidence: Live: `termlink dispatch --count 1 -- bash -c 'exit 1'` returned in 1.014s (well under wait-for-registrar timeout). Fast-fail path working. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Complete dispatch hang fix — all verification passes (build + 2 unit tests)"
+    source: git-mined
+  - description: "Close G-002 — dispatch hang fix verified end-to-end (0.5s, crashed_workers populated)"
+    source: git-mined
+  - description: "Fix dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-12.yaml"
+  - ".context/audits/cron/2026-04-12-1330.yaml"
+  - ".context/audits/cron/2026-04-12-1345.yaml"
+  - ".context/audits/cron/2026-04-12-1400.yaml"
+  - ".context/audits/cron/2026-04-12-1415.yaml"
+  - ".context/audits/cron/2026-04-12-1430.yaml"
+  - ".context/audits/cron/2026-04-12-1445.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/audits/upgrades.yaml"
+  - ".context/locks/T-910.lock"
+  - ".context/locks/T-911.lock"
+  - ".context/locks/T-912.lock"
+  - ".context/locks/T-913.lock"
+  - ".context/locks/T-966.lock"
+  - ".context/locks/T-978.lock"
+  - ".context/locks/T-979.lock"
+  - ".context/project/concerns.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.reviewed-T-914"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - ".tasks/active/T-910-binwatchtowersh-use-projectroot-not-fram.md"
+  - ".tasks/active/T-914-fix-termlink-dispatch-wait-for-registrar.md"
+  - ".tasks/active/T-916-fix-dispatch-eventcollect-masking-hub-fa.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-11T15:01:59"
+    action: "T-914: Fix dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)"
+  - time: "2026-04-11T15:02:57"
+    action: "T-914: Mark agent ACs complete; human smoke-test pending"
+  - time: "2026-04-11T15:17:29"
+    action: "T-914: Smoke-test exposed orthogonal hub-down hang; file T-916"
+  - time: "2026-04-12T09:08:11"
+    action: "T-914: Close G-002 — dispatch hang fix verified end-to-end (0.5s, crashed_workers populated)"
+  - time: "2026-04-12T14:53:11"
+    action: "T-914: Complete dispatch hang fix — all verification passes (build + 2 unit tests)"
+  - time: "2026-04-22T13:24:13"
+    action: "T-914/T-916: Add agent smoke-test + code-level evidence for Human REVIEW"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 15382 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, dispatch, bug, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15382
+  commits: 8
+  files_changed: 64
+  lines_added: 718
+  lines_removed: 239
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-914-fix-termlink-dispatch-wait-for-registrar.md
+generated_by: context-agent-hybrid
