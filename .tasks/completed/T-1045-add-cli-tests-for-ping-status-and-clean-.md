@@ -4,16 +4,16 @@ name: "Add CLI tests for ping, status, and clean error paths"
 description: >
   Add CLI integration tests for ping/status on nonexistent session and clean with no sessions.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T22:31:37Z
-last_update: 2026-04-13T22:33:04Z
-date_finished: null
+last_update: 2026-04-23T16:56:56Z
+date_finished: 2026-04-23T16:54:43Z
 ---
 
 # T-1045: Add CLI tests for ping, status, and clean error paths
@@ -60,3 +60,7 @@ bash -c 'cargo test --test cli_integration -- cli_ping_nonexistent cli_status_no
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1045-add-cli-tests-for-ping-status-and-clean-.md
 - **Context:** Initial task creation
+
+### 2026-04-23T16:54:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

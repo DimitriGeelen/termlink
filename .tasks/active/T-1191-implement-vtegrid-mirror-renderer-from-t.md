@@ -12,7 +12,7 @@ tags: [termlink, mirror, rendering, vte]
 components: []
 related_tasks: [T-235, T-234, T-236]
 created: 2026-04-22T18:41:26Z
-last_update: 2026-04-23T13:49:19Z
+last_update: 2026-04-23T14:32:32Z
 date_finished: null
 ---
 

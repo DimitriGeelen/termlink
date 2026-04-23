@@ -4,7 +4,7 @@ name: "Add CLI tests for hub restart and fleet doctor error paths"
 description: >
   Add CLI integration tests for hub restart (not running, stale pid) and fleet doctor (no hubs configured). Follows T-1033 pattern.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T20:53:38Z
-last_update: 2026-04-17T08:11:24Z
-date_finished: null
+last_update: 2026-04-23T17:06:08Z
+date_finished: 2026-04-23T17:06:08Z
 ---
 
 # T-1041: Add CLI tests for hub restart and fleet doctor error paths
@@ -61,3 +61,7 @@ bash -c 'cargo test --test cli_integration -- hub_restart fleet_doctor_no 2>&1 |
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1041-add-cli-tests-for-hub-restart-and-fleet-.md
 - **Context:** Initial task creation
+
+### 2026-04-23T17:06:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

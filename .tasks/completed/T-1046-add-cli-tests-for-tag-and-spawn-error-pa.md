@@ -4,16 +4,16 @@ name: "Add CLI tests for tag and spawn error paths"
 description: >
   Add CLI integration tests for tag/spawn commands on nonexistent sessions and invalid args.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T22:33:55Z
-last_update: 2026-04-13T22:35:03Z
-date_finished: null
+last_update: 2026-04-23T16:56:56Z
+date_finished: 2026-04-23T16:54:54Z
 ---
 
 # T-1046: Add CLI tests for tag and spawn error paths
@@ -60,3 +60,7 @@ bash -c 'cargo test --test cli_integration -- cli_tag_add_nonexistent cli_tag_re
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1046-add-cli-tests-for-tag-and-spawn-error-pa.md
 - **Context:** Initial task creation
+
+### 2026-04-23T16:54:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

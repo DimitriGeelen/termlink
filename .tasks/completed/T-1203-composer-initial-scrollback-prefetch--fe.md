@@ -4,16 +4,16 @@ name: "Composer initial-scrollback prefetch — feed query.output into each pane
 description: >
   Composer initial-scrollback prefetch — feed query.output into each panel before first frame (T-236 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/mirror_grid_composer.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-23T14:44:26Z
-last_update: 2026-04-23T14:44:26Z
-date_finished: null
+last_update: 2026-04-23T14:46:15Z
+date_finished: 2026-04-23T14:46:15Z
 ---
 
 # T-1203: Composer initial-scrollback prefetch — feed query.output into each panel before first frame (T-236 follow-up)
@@ -85,3 +85,6 @@ cargo test -p termlink --bin termlink mirror_grid_composer 2>&1 | tail -5 | grep
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1203-composer-initial-scrollback-prefetch--fe.md
 - **Context:** Initial task creation
+
+### 2026-04-23T14:46:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
