@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-22T10:19:43Z
-last_update: 2026-04-22T10:58:13Z
+last_update: 2026-04-22T18:43:16Z
 date_finished: null
 ---
 
@@ -25,9 +25,26 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Audit started-work inceptions and identify which have Decision recorded + all ACs ticked
+- [x] Prepare batch-decide script listing each task with its stored rationale
+- [x] Document the inner gate (T-679/T-1259) as the reason agent cannot execute the batch
+- [ ] Human runs the batch script; all 5 targets transition to work-completed
+
+### Ready for batch-completion (evidence 2026-04-23)
+
+| Task | Decision | Agent ACs | Human ACs | Ready |
+|------|----------|-----------|-----------|-------|
+| T-1016 | GO | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
+| T-1051 | GO (Option D) | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
+| T-1074 | GO (pivot to T-1155) | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
+| T-1122 | DEFER | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
+| T-1192 | GO (Channel 1) | ✓ ticked (3/3) | ✓ ticked (1/1) | yes |
+
+Batch script: `/tmp/t1186-batch-decide.sh` — runs 5 `fw inception decide` calls with pre-filled rationales drawn from each task's own `## Recommendation` block. Idempotent on re-run (decide refuses if Decision already set, but the tasks that haven't transitioned to work-completed still need the final status bump).
+
+### Why not agent-executed
+
+The inner gate at `.agentic-framework/lib/inception.sh:do_inception_decide` refuses to run when `CLAUDECODE=1` is in the environment (T-679/T-1259). This is correct governance — an agent inside Claude Code should not be able to approve its own exploration tasks. The batch script must be run from a plain shell.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
