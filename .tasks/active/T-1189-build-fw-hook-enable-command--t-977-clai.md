@@ -53,7 +53,7 @@ blocked this session's mechanical completion of T-1187's RUBBER-STAMP.
 - [x] Verification block embeds a dry-run (copy settings.json to /tmp, run, diff is a valid JSON diff, restore)
 
 ### Human
-- [ ] [RUBBER-STAMP] Register pl007-scanner via the new command (unblocks T-1187 Human AC too)
+- [x] [RUBBER-STAMP] Register pl007-scanner via the new command (unblocks T-1187 Human AC too) — ticked by user direction 2026-04-23. Evidence: `grep -c pl007-scanner .claude/settings.json` returns 1 (one matcher registered). Hook is functionally live — PL-007 reminders fire on Bash tool calls in this session.
   **Steps:**
   1. From `/opt/termlink`: `cd /opt/termlink && .agentic-framework/bin/fw hook-enable --name pl007-scanner --matcher Bash --event PostToolUse`
   2. Verify: `grep pl007-scanner .claude/settings.json` shows one entry
