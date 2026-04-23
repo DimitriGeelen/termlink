@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1009: Add termlink remote inbox — query inbox on remote hubs via RPC
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:25:31Z
+# ============================================================================
+
+task_id: T-1009
+task_name: "Add termlink remote inbox — query inbox on remote hubs via RPC"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T09:34:58Z
+completed: 2026-04-15T13:47:07Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-04-13T11:43:13+02:00
+last_commit: 2026-04-13T11:43:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink remote inbox — status/list/clear on remote hubs via RPC
+
+# Key outcomes
+outcomes:
+  - "Add RemoteInboxAction enum with Status, List, Clear variants"
+  - "Wire Inbox into RemoteAction enum in cli.rs"
+  - "Add cmd_remote_inbox (status/list/clear) in remote.rs"
+  - "All three subcommands call the hub's inbox.status/inbox.list/inbox.clear RPC"
+  - "cargo clippy --workspace passes (0 warnings)"
+  - "cargo test --workspace passes (1003 tests)"
+  - "`termlink remote inbox ring20-management status` connects and calls RPC (remote hub needs inbox routes for full E2E)"
+  - "[RUBBER-STAMP] Verify `termlink remote inbox --help` shows all three subcommands — ticked by user direction 2026-04-23. Evidence: Live: `termlink remote inbox --help` shows status/list/clear subcommands with descriptions. Verified 2026-04-23T17:35Z."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1009-add-termlink-remote-inbox--query-inbox-o.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T11:43:13"
+    action: "T-1009: Add termlink remote inbox — status/list/clear on remote hubs via RPC"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3132 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3132
+  commits: 2
+  files_changed: 8
+  lines_added: 252
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1009-add-termlink-remote-inbox--query-inbox-o.md
+generated_by: context-agent-hybrid
