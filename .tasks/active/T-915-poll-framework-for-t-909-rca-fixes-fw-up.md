@@ -5,12 +5,12 @@ description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (sym
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: later
 tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-22T04:52:51Z
+last_update: 2026-04-23T15:46:34Z
 date_finished: null
 ---
 
@@ -61,6 +61,15 @@ Periodic check: have upstream fixes landed for F1-F4?
 - `CLAUDE.md` edits: T-1325 added `fw prompt` to Quick Reference. No `fw vendor` doc addition (F4 still open).
 - No commits touching F2 (consumer path `.agentic-framework/bin/fw` in task-review output) or F3 (episodic deferral).
 - **Decision:** leave horizon=later. No `fw upgrade` warranted. Next poll in ~3 days.
+
+**Poll results (2026-04-23):**
+- Framework activity since 2026-04-21: T-1268 inception → 5 build units shipped (`fw pending` registry, doctor surfacing, Watchtower /pending page, `fw pending remind`, B3 nav follow-on); T-1394 audit trend windowing; T-1395 TASKS_DIR/CONTEXT_DIR env-inheritance trap; T-1396 pre-push hook prefers `agents/` over vendored; T-1402 audit.sh null-timestamp crash + fabric edge enrichment.
+- **F1 (decide --force bypass):** T-1194 added "extend tick_inception_decide_acs to tick ceremonial Agent ACs" — adjacent (auto-tick of ceremonial ACs reduces some legitimate `--force` use) but does NOT block `--force` from bypassing G-020/P-010. Still open.
+- **F2 (consumer path in task-review prompt):** No commits touching this. Still open.
+- **F3 (episodic ordering):** No commits. Still open.
+- **F4 (`fw vendor` undocumented in CLAUDE.md):** **FIXED upstream.** `grep "fw vendor" /opt/999-Agentic-Engineering-Framework/CLAUDE.md` → 1 match in Quick Reference: `| Vendor framework | fw vendor | Copy framework for full isolation |`. Local `/opt/termlink/CLAUDE.md` does not yet have it (will pick up on next vendor sync).
+- Adjacent observation: T-1396 (`Prefer source-of-truth agents/ over vendored .agentic-framework/ in pre-push hook`) is in the same neighborhood as F2 (consumer-path correctness) — worth re-checking F2 next poll.
+- **Decision:** leave horizon=later. F4 is fixed but does not warrant a `fw upgrade` cycle on its own (purely cosmetic doc fix); will be picked up automatically when next sync runs. F1-F3 still open. Next poll in ~3 days.
 
 ## Verification
 
@@ -117,3 +126,6 @@ Periodic check: have upstream fixes landed for F1-F4?
 
 ### 2026-04-22T04:52:51Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-23T15:46:34Z — status-update [task-update-agent]
+- **Change:** horizon: next → later
