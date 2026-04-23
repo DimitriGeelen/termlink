@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1146: Batch-evidence 4 code-grep Human ACs for T-1131/1133/1135/1136 (G-008 remediation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:13:59Z
+# ============================================================================
+
+task_id: T-1146
+task_name: "Batch-evidence 4 code-grep Human ACs for T-1131/1133/1135/1136 (G-008 remediation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-19T17:51:51Z
+completed: 2026-04-19T17:53:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-19T19:53:17+02:00
+last_commit: 2026-04-19T19:53:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Batch-evidence 4 code-grep Human ACs for T-1131/1133/1135/1136 (G-008 remediation)
+
+# Key outcomes
+outcomes:
+  - "T-1131: `grep -nE \"protocol_version\" crates/termlink-hub/src/router.rs` shows extraction at line 654 + storage at 670 — confirms hub reads protocol_version (scope fence to router — Tier-B handlers remain opaque, per T-1131 acknowledged scope)"
+  - "T-1133: `grep -nE \"Tier-A\|Tier-B\" crates/termlink-protocol/src/control.rs` shows taxonomy doc comments at lines 7-25"
+  - "T-1135: `homebrew/Formula/termlink.rb` line 32 URL = `termlink-linux-x86_64-static` (musl variant)"
+  - "T-1136: `README.md` line 17 contains `curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh | sh`"
+  - "Evidence injected into 4 task files before `## Verification`"
+  - "`grep -l \"G-008 remediation, code-grep\" .tasks/active/T-11*.md | wc -l` reports 4+ (includes this meta-task)"
+  - "[RUBBER-STAMP] Glance at 1-2 evidence blocks and confirm they reference real file:line locations — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged; agent batch-evidence cited code grep file:line locations."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1131-wire-protocolversion-enforcement-at-hub-.md"
+  - ".tasks/active/T-1133-resilience-tier-taxonomy--tag-each-rpc-m.md"
+  - ".tasks/active/T-1135-add-musl-variant-to-homebrew-formula--re.md"
+  - ".tasks/active/T-1136-update-readme-one-liner-install--replace.md"
+  - ".tasks/active/T-1146-batch-evidence-4-code-grep-human-acs-for.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T19:53:17"
+    action: "T-1146: Batch-evidence 4 code-grep Human ACs for T-1131/1133/1135/1136 (G-008 remediation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 5
+  lines_added: 76
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1146-batch-evidence-4-code-grep-human-acs-for.md
+generated_by: context-agent-hybrid

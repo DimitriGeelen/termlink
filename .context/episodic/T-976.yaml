@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-976: PostToolUse hook to scan for bare command patterns in tool output
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:14:01Z
+# ============================================================================
+
+task_id: T-976
+task_name: "PostToolUse hook to scan for bare command patterns in tool output"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-12T10:27:24Z
+completed: 2026-04-22T04:52:53Z
+duration_days: 10
+updates_count: 6
+first_commit: 2026-04-12T12:44:14+02:00
+last_commit: 2026-04-12T12:44:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add PL-007 scanner PostToolUse hook — detect bare commands in tool output. T-972: All 3 build tasks complete — shared watchtower helper, gate refactor, PL-007 scanner
+
+# Key outcomes
+outcomes:
+  - "PostToolUse hook script exists: `agents/context/pl007-scanner.sh`"
+  - "Hook injects PL-007 reminder via additionalContext when patterns detected"
+  - "Patterns: `fw inception decide`, `fw tier0 approve`, `bin/fw` (skips when agent runs `fw task review`)"
+  - "Hook help text updated in `bin/fw`"
+  - "[RUBBER-STAMP] Add PL-007 scanner hook to settings.json — ticked by user direction 2026-04-23. Evidence: Live: grep -c pl007-scanner .claude/settings.json returns 1 (registered under PostToolUse→Bash). Hook firing live in session — multiple PL-007 REMINDER outputs observed this session. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/context/pl007-scanner.sh"
+  - ".agentic-framework/bin/fw"
+  - ".tasks/active/T-976-posttooluse-hook-to-scan-for-bare-comman.md"
+  - ".tasks/completed/T-975-refactor-gate-scripts-to-use-shared-watc.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-12T12:44:14"
+    action: "T-976: Add PL-007 scanner PostToolUse hook — detect bare commands in tool output"
+  - time: "2026-04-12T12:44:57"
+    action: "T-972: All 3 build tasks complete — shared watchtower helper, gate refactor, PL-007 scanner"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 14065 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14065
+  commits: 2
+  files_changed: 4
+  lines_added: 4367
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-976-posttooluse-hook-to-scan-for-bare-comman.md
+generated_by: context-agent-hybrid

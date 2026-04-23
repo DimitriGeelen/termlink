@@ -1,0 +1,69 @@
+# ============================================================================
+# EPISODIC MEMORY - T-922: Codify MCP auto-exposure — every new CLI command must be MCP-reachable
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:14:00Z
+# ============================================================================
+
+task_id: T-922
+task_name: "Codify MCP auto-exposure — every new CLI command must be MCP-reachable"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T19:33:14Z
+completed: 2026-04-22T04:52:52Z
+duration_days: 11
+updates_count: 5
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (MCP tools exist for active commands)"
+  - "Assumptions tested (process improvement, not code fix)"
+  - "Recommendation written with rationale (DEFER: process improvement)"
+  - "[RUBBER-STAMP] Record go/no-go decision — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — GO. MCP auto-exposure codified via this and prior sessions; new tools are MCP-reachable per project policy."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14959 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14959
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-922-codify-mcp-auto-exposure--every-new-cli-.md
+generated_by: context-agent-hybrid

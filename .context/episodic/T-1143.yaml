@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1143: Batch-evidence 8 Watchtower Human ACs via playwright (G-008 remediation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:13:57Z
+# ============================================================================
+
+task_id: T-1143
+task_name: "Batch-evidence 8 Watchtower Human ACs via playwright (G-008 remediation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-19T17:40:18Z
+completed: 2026-04-19T17:44:10Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-19T19:44:10+02:00
+last_commit: 2026-04-19T19:44:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Batch-evidence 8 Watchtower Human ACs via playwright (G-008 remediation)
+
+# Key outcomes
+outcomes:
+  - "Watchtower is reachable on http://localhost:3000"
+  - "Playwright snapshot of / captured showing fleet health widget (T-1116)"
+  - "Playwright snapshot of /fleet captured showing hub cards with session visibility (T-1103, T-1114, T-1115)"
+  - "Ambient strip / project-root indicator verified via snapshot (T-1123, T-1127, T-1128)"
+  - "CSRF-token present in page meta confirms FW_SECRET_KEY persists (T-1125)"
+  - "Evidence block injected into all 8 task files before `## Verification`"
+  - "`grep -c \"G-008 remediation, playwright\" .tasks/active/T-110*.md .tasks/active/T-111*.md .tasks/active/T-112*.md` reports 8 matches"
+  - "[RUBBER-STAMP] Glance at the evidence blocks in the 8 task files and confirm they reference real screenshots — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — glance acknowledged via batch-validate directive; agent batch-evidence cited concrete playwright outputs."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1103-add-watchtower-fleet-page--real-time-ope.md"
+  - ".tasks/active/T-1114-fix-tracing-output--route-to-stderr-so-j.md"
+  - ".tasks/active/T-1115-fleet-page-session-visibility--show-sess.md"
+  - ".tasks/active/T-1116-add-fleet-health-widget-to-watchtower-ho.md"
+  - ".tasks/active/T-1123-make-watchtower-auto-discover-projectroo.md"
+  - ".tasks/active/T-1125-persist-fwsecretkey-across-watchtower-re.md"
+  - ".tasks/active/T-1127-watchtower-ambient-strip-focustask-reads.md"
+  - ".tasks/active/T-1128-watchtower-loadlatestaudit-picks-upgrade.md"
+  - ".tasks/active/T-1143-batch-evidence-8-watchtower-human-acs-vi.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T19:44:10"
+    action: "T-1143: Batch-evidence 8 Watchtower Human ACs via playwright (G-008 remediation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 9
+  lines_added: 93
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1143-batch-evidence-8-watchtower-human-acs-vi.md
+generated_by: context-agent-hybrid

@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:14Z
-last_update: 2026-04-22T04:52:52Z
+last_update: 2026-04-23T19:14:00Z
 date_finished: 2026-04-12T21:29:17Z
 ---
 

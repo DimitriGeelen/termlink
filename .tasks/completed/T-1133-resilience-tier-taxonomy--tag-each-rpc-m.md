@@ -12,7 +12,7 @@ tags: [termlink, protocol, taxonomy, documentation, T-1071]
 components: [crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-18T23:00:36Z
-last_update: 2026-04-19T14:00:56Z
+last_update: 2026-04-23T19:13:57Z
 date_finished: 2026-04-19T14:00:56Z
 ---
 

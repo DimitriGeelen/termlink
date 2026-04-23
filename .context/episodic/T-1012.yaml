@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1012: Fix MCP remote tools to resolve hub profile names
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:13:55Z
+# ============================================================================
+
+task_id: T-1012
+task_name: "Fix MCP remote tools to resolve hub profile names"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T10:04:14Z
+completed: 2026-04-15T13:47:07Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-04-13T12:07:11+02:00
+last_commit: 2026-04-13T12:07:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix MCP remote tools to resolve hub profile names from ~/.termlink/hubs.toml
+
+# Key outcomes
+outcomes:
+  - "connect_remote_hub_mcp resolves profile names from ~/.termlink/hubs.toml"
+  - "Profile secret_file/secret are used when MCP params don't provide them"
+  - "Direct host:port still works (backward compatible)"
+  - "cargo clippy --workspace passes (0 warnings)"
+  - "cargo test --workspace passes (1003 tests)"
+  - "[RUBBER-STAMP] Verify via MCP that profile resolution works — ticked by user direction 2026-04-23. Evidence: Profile resolution code path verified previously (PONG from ring20-management 192.168.10.122:9100). Code: same resolver shared between MCP and CLI. Ring20 currently unreachable due to G-013 IP rotation, not the resolver itself. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix MCP remote tools to resolve hub profile names from ~/.termlink/hubs.toml"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1012-fix-mcp-remote-tools-to-resolve-hub-prof.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T12:07:11"
+    action: "T-1012: Fix MCP remote tools to resolve hub profile names from ~/.termlink/hubs.toml"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3102 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3102
+  commits: 2
+  files_changed: 19
+  lines_added: 139
+  lines_removed: 23
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1012-fix-mcp-remote-tools-to-resolve-hub-prof.md
+generated_by: context-agent-hybrid
