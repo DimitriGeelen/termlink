@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
             PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
             PtyCommand::Resize { target, cols, rows, json, timeout } => commands::pty::cmd_resize(&target, cols, rows, json, timeout).await,
             PtyCommand::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
-            PtyCommand::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
+            PtyCommand::Mirror { target, scrollback, raw } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback, raw).await,
         },
 
         // Event subcommand group
@@ -145,7 +145,7 @@ async fn main() -> Result<()> {
         Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
         Command::Resize { target, cols, rows, json, timeout } => commands::pty::cmd_resize(&target, cols, rows, json, timeout).await,
         Command::Stream { target } => commands::pty::cmd_stream(&resolve_target(target)?).await,
-        Command::Mirror { target, scrollback } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback).await,
+        Command::Mirror { target, scrollback, raw } => commands::pty::cmd_mirror(&resolve_target(target)?, scrollback, raw).await,
 
         // Hidden backward-compat aliases (Event)
         Command::Events { target, since, topic, json, timeout, payload_only } => {

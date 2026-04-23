@@ -1,5 +1,6 @@
 pub(crate) mod session;
 pub(crate) mod pty;
+pub(crate) mod mirror_grid;
 pub(crate) mod events;
 pub(crate) mod metadata;
 pub(crate) mod execution;
