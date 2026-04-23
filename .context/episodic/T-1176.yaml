@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1176: T-1175 upstream mirror — apply Rust detector patch in framework repo
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:19:51Z
+# ============================================================================
+
+task_id: T-1176
+task_name: "T-1175 upstream mirror — apply Rust detector patch in framework repo"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T23:34:23Z
+completed: 2026-04-23T17:19:49Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-04-21T01:37:09+02:00
+last_commit: 2026-04-22T23:23:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Pickup to framework — mirror T-1175 Rust detector patch upstream. Record Rust detector mirror evidence (Channel 1 end-to-end)
+
+# Key outcomes
+outcomes:
+  - "Termlink-side T-1175 closed with the fix live in `.agentic-framework/agents/fabric/lib/enrich.py` (commit `d4c2485c`)"
+  - "This pickup task records the diff + motivation + verification plan self-contained (below)"
+  - "Ownership set to framework so it surfaces in cross-project review queue"
+  - "[RUBBER-STAMP] Paste the patch into the framework repo and commit — ticked by user direction 2026-04-23. Evidence: upstream mirrored 2026-04-22T21:22Z via T-1192 Channel 1; commit `636b309b` (\"T-1176 upstream mirror: Rust detector for fabric enrich (from termlink T-1175)\") confirmed present in `/opt/999-Agentic-Engineering-Framework` master via `git -C ... log --oneline 636b309b`. sha256 of `agents/fabric/lib/enrich.py` upstream === termlink-vendored (recorded in evidence block above)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1192-dispatched-claude-root-block.md"
+  - ".tasks/active/T-1176-t-1175-upstream-mirror--apply-rust-detec.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-21T01:37:09"
+    action: "T-1176: Pickup to framework — mirror T-1175 Rust detector patch upstream"
+  - time: "2026-04-22T23:23:14"
+    action: "T-1176: Record Rust detector mirror evidence (Channel 1 end-to-end)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 3945 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3945
+  commits: 4
+  files_changed: 5
+  lines_added: 119
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1176-t-1175-upstream-mirror--apply-rust-detec.md
+generated_by: context-agent-hybrid

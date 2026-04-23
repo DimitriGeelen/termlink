@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1041: Add CLI tests for hub restart and fleet doctor error paths
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:06:13Z
+# ============================================================================
+
+task_id: T-1041
+task_name: "Add CLI tests for hub restart and fleet doctor error paths"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T20:53:38Z
+completed: 2026-04-23T17:06:08Z
+duration_days: 10
+updates_count: 2
+first_commit: 2026-04-13T22:57:50+02:00
+last_commit: 2026-04-17T10:11:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add CLI tests for hub restart and fleet doctor error paths. Housekeeping — enrich episodics for T-1088, T-1094, T-1100
+
+# Key outcomes
+outcomes:
+  - "Test: hub restart when no hub running reports error (not-running text and JSON)"
+  - "Test: hub restart with stale pidfile reports stale error (text and JSON)"
+  - "Test: fleet doctor with no hubs.toml reports empty config (JSON)"
+  - "Test: fleet doctor JSON output has expected structure (ok=true, hubs=[])"
+  - "All 5 new tests pass, zero clippy warnings"
+  - "[RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23 (verification command exit 0)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Add CLI tests for hub restart and fleet doctor error paths"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1088.yaml"
+  - ".context/episodic/T-1094.yaml"
+  - ".context/episodic/T-1100.yaml"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - ".tasks/active/T-1041-add-cli-tests-for-hub-restart-and-fleet-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T22:57:50"
+    action: "T-1041: Add CLI tests for hub restart and fleet doctor error paths"
+  - time: "2026-04-17T10:11:22"
+    action: "T-1041: Housekeeping — enrich episodics for T-1088, T-1094, T-1100"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 14172 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14172
+  commits: 3
+  files_changed: 9
+  lines_added: 388
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1041-add-cli-tests-for-hub-restart-and-fleet-.md
+generated_by: context-agent-hybrid

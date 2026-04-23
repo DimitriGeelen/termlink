@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-236: Multi-session mirror — termlink mirror --tag with TUI grid
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T14:24:08Z
+# ============================================================================
+
+task_id: T-236
+task_name: "Multi-session mirror — termlink mirror --tag with TUI grid"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-23T09:09:59Z
+completed: 2026-04-23T14:24:01Z
+duration_days: 30
+updates_count: 6
+first_commit: 2026-04-23T16:23:56+02:00
+last_commit: 2026-04-23T16:23:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  multi-session mirror — termlink mirror --tag with TUI grid
+
+# Key outcomes
+outcomes:
+  - "`termlink mirror --tag <TAG>` CLI surface exists (option added to both `mirror` and `pty mirror` enum variants, mutually exclusive with positional target)"
+  - "Tag discovery uses `manager::list_sessions` + existing tag filter; errors cleanly when 0 sessions match"
+  - "New module `crates/termlink-cli/src/commands/mirror_grid_composer.rs` contains: layout planner (N → rows × cols grid), `PanelLayout { row, col, cols, rows, label }`, composite dispatch loop"
+  - "`Grid::render_diff_at(offset_row, offset_col, out)` + `Grid::render_full_at(...)` added to `mirror_grid.rs`; existing `render_diff`/`render_full` delegate to the `_at` variants with (0,0) offsets OR remain and `_at` siblings coexist — existing 11 tests must still pass"
+  - "Layout planner unit tests: `compute_layout(1) == 1×1`, `compute_layout(4) == 2×2`, `compute_layout(6) == 3×2`, `compute_layout(9) == 3×3`"
+  - "At least 2 additional tests: `render_diff_at_applies_offset`, `layout_divides_terminal_without_overlap`"
+  - "Binary compiles clean on `cargo build -p termlink` (no new warnings introduced in composer or mirror_grid)"
+  - "All existing tests still green: `cargo test -p termlink --bin termlink mirror_grid` passes 11/11"
+  - "New tests green: composer tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/mirror_grid_composer.rs"
+  - "crates/termlink-cli/src/commands/mirror_grid.rs"
+  - "crates/termlink-cli/src/commands/mod.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".fabric/components/crates-termlink-cli-src-commands-mirror_grid_composer.yaml"
+  - ".tasks/active/T-236-multi-session-mirror--termlink-mirror---.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-23T16:23:56"
+    action: "T-236: multi-session mirror — `termlink mirror --tag` with TUI grid"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 44954 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 44954
+  commits: 1
+  files_changed: 7
+  lines_added: 567
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-236-multi-session-mirror--termlink-mirror---.md
+generated_by: context-agent-hybrid

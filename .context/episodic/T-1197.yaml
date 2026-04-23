@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1197: Backfill ceremonial Agent AC ticks on 13 work-completed inceptions (post-T-1194 cleanup)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T12:31:55Z
+# ============================================================================
+
+task_id: T-1197
+task_name: "Backfill ceremonial Agent AC ticks on 13 work-completed inceptions (post-T-1194 cleanup)"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-23T12:29:52Z
+completed: 2026-04-23T12:31:54Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-23T14:31:50+02:00
+last_commit: 2026-04-23T14:31:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  backfill ceremonial Agent AC ticks on 12 completed inceptions
+
+# Key outcomes
+outcomes:
+  - "Identify all inception tasks with `## Recommendation` present and unticked ceremonial Agent ACs (13 candidates initially, 12 touched after guard)"
+  - "Apply `tick_inception_decide_acs` (T-1194-patched) to each — idempotent. Touched: T-909, T-930, T-940, T-947, T-950, T-952, T-953, T-956, T-957, T-959, T-967, T-972 (each: 3/3 ceremonial Agent ACs ticked)"
+  - "Verify: `fw audit` now reports `[PASS] CTL-012: All 825 completed tasks have checked ACs`"
+  - "Commit backfill with N-file summary"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1122-migrate-watchtower-from-werkzeug-dev-ser.md"
+  - ".tasks/active/T-1197-backfill-ceremonial-agent-ac-ticks-on-13.md"
+  - ".tasks/active/T-909-fix-agentic-framework-symlink--replace-w.md"
+  - ".tasks/active/T-930-should-termlink-hub-run-under-a-supervis.md"
+  - ".tasks/active/T-940-rca-unify-termlink-runtime-dir--split-br.md"
+  - ".tasks/active/T-947-pickup-canary-30s-pickup-processor-smoke.md"
+  - ".tasks/active/T-950-pickup-30-second-pickup-processor-cycle-.md"
+  - ".tasks/active/T-952-pickup-l-004-termlink-inject-vs-push--in.md"
+  - ".tasks/active/T-953-pickup-l-006-termlink-send-file-oktrue-m.md"
+  - ".tasks/active/T-956-pickup-pickup-envelopes--messaging-chann.md"
+  - ".tasks/active/T-957-pickup-cross-host-agent-access-requires-.md"
+  - ".tasks/active/T-959-pickup-two-pool-architecture-persistent-.md"
+  - ".tasks/active/T-967-persistent-agent-sessions--mark-protect-.md"
+  - ".tasks/active/T-972-deep-rca-agent-command-amnesia--why-do-a.md"
+  - ".tasks/completed/T-1186-batch-approve-36-inception-tasks-with-de.md"
+  - ".tasks/completed/T-1193-claudecode-unset-follow-up-to-db8b39d1--.md"
+  - ".tasks/completed/T-1195-surface--recommendation-on-watchtower-re.md"
+  - ".tasks/completed/T-1196-apply-t-1194-tickinceptiondecideacs-agen.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-23T14:31:50"
+    action: "T-1197: backfill ceremonial Agent AC ticks on 12 completed inceptions"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 18
+  lines_added: 348
+  lines_removed: 41
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1197-backfill-ceremonial-agent-ac-ticks-on-13.md
+generated_by: context-agent-hybrid

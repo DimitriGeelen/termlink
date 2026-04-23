@@ -4,7 +4,7 @@ name: "Build fw hook-enable command — T-977 claimed complete but bin/hook-enab
 description: >
   T-977 closed 2026-04-12 with 4 Agent AC [x] claiming bin/hook-enable.sh exists and fw hook-enable route was added. G-015 audit confirmed both are missing. Build honest deliverable in vendored .agentic-framework/ copy, create follow-up upstream-mirror task (T-1188 pattern).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [framework, hook, g-015-repair]
 components: []
 related_tasks: [T-977, T-1187, T-1188]
 created: 2026-04-22T18:33:20Z
-last_update: 2026-04-22T18:38:08Z
-date_finished: null
+last_update: 2026-04-23T17:19:51Z
+date_finished: 2026-04-23T17:19:51Z
 ---
 
 # T-1189: Build fw hook-enable command — T-977 claimed complete but bin/hook-enable.sh missing (G-015 Hit #2)
@@ -98,3 +98,7 @@ bash -c 'cp /opt/termlink/.claude/settings.json /tmp/t1189-before.json && /opt/t
 - **RUBBER-STAMP 1 satisfied:** Human registered pl007-scanner via `fw hook-enable`. `.claude/settings.json` diff committed as 0a047eab. `grep pl007-scanner .claude/settings.json` returns 1 entry under PostToolUse→Bash. Hook is firing live in session S-2026-0422-2100.
 - **RUBBER-STAMP 2 pending:** Upstream mirror (T-1190) — cross-project work, operator territory.
 - **Human can tick RUBBER-STAMP 1** when ready. See T-1187 Updates 2026-04-22T19:03Z for the 4/4 smoke battery.
+
+### 2026-04-23T17:19:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

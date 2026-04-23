@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1032: Fix hub status — use resolve_hub_paths for split-brain runtime dir
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:05:50Z
+# ============================================================================
+
+task_id: T-1032
+task_name: "Fix hub status — use resolve_hub_paths for split-brain runtime dir"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T14:07:16Z
+completed: 2026-04-23T17:05:29Z
+duration_days: 10
+updates_count: 2
+first_commit: 2026-04-13T16:08:29+02:00
+last_commit: 2026-04-13T16:20:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix hub status — use resolve_hub_paths for split-brain runtime dir. Also fix inbox commands to use resolve_hub_paths. Comprehensive hub socket path fix — all commands use resolve_hub_paths(). Guard /var/lib/termlink fallback — skip when TERMLINK_RUNTIME_DIR is set (fixes test isolation). Add connect_addr_raw for internal router forwarding — router uses plain TCP, external clients always use TLS
+
+# Key outcomes
+outcomes:
+  - "`cmd_hub_status` uses `resolve_hub_paths()` instead of default paths"
+  - "Shows correct PID and runtime dir for systemd-managed hubs"
+  - "Builds and passes clippy"
+  - "[RUBBER-STAMP] Verify `termlink hub status` shows systemd hub — ticked by user direction 2026-04-23. Live: PID 1718329, runtime dir /var/lib/termlink, socket /var/lib/termlink/hub.sock — systemd path resolved correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Guard /var/lib/termlink fallback — skip when TERMLINK_RUNTIME_DIR is set (fixes test isolation)"
+    source: git-mined
+  - description: "Comprehensive hub socket path fix — all commands use resolve_hub_paths()"
+    source: git-mined
+  - description: "Also fix inbox commands to use resolve_hub_paths"
+    source: git-mined
+  - description: "Fix hub status — use resolve_hub_paths for split-brain runtime dir"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/dispatch.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/commands/file.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/commands/session.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-session/src/client.rs"
+  - ".tasks/active/T-1032-fix-hub-status--use-resolvehubpaths-for-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T16:08:29"
+    action: "T-1032: Fix hub status — use resolve_hub_paths for split-brain runtime dir"
+  - time: "2026-04-13T16:09:55"
+    action: "T-1032: Also fix inbox commands to use resolve_hub_paths"
+  - time: "2026-04-13T16:12:28"
+    action: "T-1032: Comprehensive hub socket path fix — all commands use resolve_hub_paths()"
+  - time: "2026-04-13T16:15:54"
+    action: "T-1032: Guard /var/lib/termlink fallback — skip when TERMLINK_RUNTIME_DIR is set (fixes test isolation)"
+  - time: "2026-04-13T16:20:44"
+    action: "T-1032: Add connect_addr_raw for internal router forwarding — router uses plain TCP, external clients always use TLS"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 14578 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14578
+  commits: 6
+  files_changed: 12
+  lines_added: 126
+  lines_removed: 34
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1032-fix-hub-status--use-resolvehubpaths-for-.md
+generated_by: context-agent-hybrid

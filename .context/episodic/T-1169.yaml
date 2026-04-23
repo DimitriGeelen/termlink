@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1169: Pickup to framework: multi-agent dispatch safety model (isolation + coordination for parallel agent work)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T04:47:46Z
+# ============================================================================
+
+task_id: T-1169
+task_name: "Pickup to framework: multi-agent dispatch safety model (isolation + coordination for parallel agent work)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T18:56:49Z
+completed: 2026-04-20T19:05:28Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-20T21:01:18+02:00
+last_commit: 2026-04-20T21:05:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Formulate + deliver multi-agent dispatch safety pickup to framework. Close — pickup delivered (framework T-1365 created); T-1170 research artifact + PL-040
+
+# Key outcomes
+outcomes:
+  - "Pickup envelope YAML drafted at `/tmp/P-T-1169-framework-dispatch-safety.yaml`, valid YAML, includes summary + detail + proposed scope + acceptance criteria"
+  - "Envelope delivered to framework inbox via `termlink file send` to framework-agent session (with ok:true observed)"
+  - "Envelope present in `/opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/` OR already moved to `processed/` (belt-and-suspenders direct drop if file send didn't deliver)"
+  - "Framework-side auto-created task visible (check `/opt/999-Agentic-Engineering-Framework/.tasks/active/` for a T-13XX referencing T-1169 after processor cycle)"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - "docs/reports/T-1169-framework-dispatch-safety-pickup.md"
+  - ".tasks/active/T-1169-pickup-to-framework-multi-agent-dispatch.md"
+  - ".tasks/active/T-1170-t-1169-housekeeping-add-research-artifac.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-20T21:01:18"
+    action: "T-1169: Formulate + deliver multi-agent dispatch safety pickup to framework"
+  - time: "2026-04-20T21:05:28"
+    action: "T-1169: Close — pickup delivered (framework T-1365 created); T-1170 research artifact + PL-040"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, framework, dispatch, multi-agent, worktree, T-789, T-1155]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 2
+  files_changed: 4
+  lines_added: 284
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1169-pickup-to-framework-multi-agent-dispatch.md
+generated_by: context-agent-hybrid

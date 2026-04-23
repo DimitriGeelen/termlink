@@ -1,0 +1,132 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1186: Batch-approve 36 inception tasks with Decision already recorded (human authorized via Tier 2: batch approve them)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T12:20:15Z
+# ============================================================================
+
+task_id: T-1186
+task_name: "Batch-approve 36 inception tasks with Decision already recorded (human authorized via Tier 2: batch approve them)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-22T10:19:43Z
+completed: 2026-04-23T12:20:14Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-22T12:58:13+02:00
+last_commit: 2026-04-23T14:20:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Batch-approve 20 inceptions with Decisions already recorded. audit + batch-script for 5 ready-to-complete inceptions. batch landed via Channel 1 (4/5 complete; T-1122 DEFER parked by design)
+
+# Key outcomes
+outcomes:
+  - "Audit started-work inceptions and identify which have Decision recorded + all ACs ticked"
+  - "Prepare batch-decide script listing each task with its stored rationale"
+  - "Document the inner gate (T-679/T-1259) as the reason agent cannot execute the batch"
+  - "Batch script executed via Channel 1 dispatch (T-1192 mirror pattern); 4/5 targets transitioned to work-completed (T-1016, T-1051, T-1074, T-1192). T-1122 stays started-work because DEFER decisions don't auto-complete (lib/inception.sh:434 — by design)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1025.yaml"
+  - ".context/episodic/T-1070.yaml"
+  - ".context/episodic/T-1101.yaml"
+  - ".context/episodic/T-283.yaml"
+  - ".context/episodic/T-912.yaml"
+  - ".context/episodic/T-936.yaml"
+  - ".context/episodic/T-937.yaml"
+  - ".context/episodic/T-942.yaml"
+  - ".context/episodic/T-945.yaml"
+  - ".context/episodic/T-946.yaml"
+  - ".context/episodic/T-951.yaml"
+  - ".context/episodic/T-954.yaml"
+  - ".context/episodic/T-955.yaml"
+  - ".context/episodic/T-958.yaml"
+  - ".context/episodic/T-980.yaml"
+  - ".context/episodic/T-984.yaml"
+  - ".tasks/active/T-1016-termlink-deploy--atomic-binary-deploymen.md"
+  - ".tasks/active/T-1051-termlink-authconnect-reliability--antifr.md"
+  - ".tasks/active/T-1074-periodic-cross-agent-learning-exchange--.md"
+  - ".tasks/active/T-1186-batch-approve-36-inception-tasks-with-de.md"
+  - ".tasks/active/T-235-research-clean-terminal-output-rendering.md"
+  - ".tasks/active/T-909-fix-agentic-framework-symlink--replace-w.md"
+  - ".tasks/active/T-921-full-cross-host-parity--every-termlink-c.md"
+  - ".tasks/active/T-940-rca-unify-termlink-runtime-dir--split-br.md"
+  - ".tasks/active/T-947-pickup-canary-30s-pickup-processor-smoke.md"
+  - ".tasks/active/T-950-pickup-30-second-pickup-processor-cycle-.md"
+  - ".tasks/active/T-952-pickup-l-004-termlink-inject-vs-push--in.md"
+  - ".tasks/active/T-953-pickup-l-006-termlink-send-file-oktrue-m.md"
+  - ".tasks/active/T-956-pickup-pickup-envelopes--messaging-chann.md"
+  - ".tasks/active/T-957-pickup-cross-host-agent-access-requires-.md"
+  - ".tasks/active/T-959-pickup-two-pool-architecture-persistent-.md"
+  - ".tasks/active/T-967-persistent-agent-sessions--mark-protect-.md"
+  - ".tasks/active/T-972-deep-rca-agent-command-amnesia--why-do-a.md"
+  - ".tasks/completed/T-1025-hub-restart-tcp-detection--server-side-h.md"
+  - ".tasks/completed/T-1070-consumer-installupdate-ux--why-cargo-bui.md"
+  - ".tasks/completed/T-1101-deep-value-assessment--what-does-termlin.md"
+  - ".tasks/completed/T-283-cross-session-failure-blindness--107-rem.md"
+  - ".tasks/completed/T-292-audit-health-decay--why-do-warnings-accu.md"
+  - ".tasks/completed/T-690-event-subscription--push-based-event-del.md"
+  - ".tasks/completed/T-789-worktree-isolation-for-termlink-dispatch.md"
+  - ".tasks/completed/T-908-api-relay-governance--local-proxy-for-de.md"
+  - ".tasks/completed/T-912-define-vendor-refresh-workflow--fw-upgra.md"
+  - ".tasks/completed/T-936-migrate-termlink-cron-from-hand-written-.md"
+  - ".tasks/completed/T-937-pickup-termlink-cleanup-kills-active-dis.md"
+  - ".tasks/completed/T-942-pickup-hub-should-scan-multiple-session-.md"
+  - ".tasks/completed/T-945-pickup-u-001-tls-cert-regenerates-on-eve.md"
+  - ".tasks/completed/T-946-pickup-u-002-hub-level-inbox--store-file.md"
+  - ".tasks/completed/T-951-pickup-u-003-send-file-reports-ok-on-hub.md"
+  - ".tasks/completed/T-954-pickup-partial-migrations-are-a-recurrin.md"
+  - ".tasks/completed/T-955-pickup-dry-run-saved-us-from-silent-data.md"
+  - ".tasks/completed/T-958-pickup-inception-decide-codepath-has-4-s.md"
+  - ".tasks/completed/T-980-tier-0-self-approval-bypass--agent-can-c.md"
+  - ".tasks/completed/T-984-fw-upgrade-silently-reverts-local-patche.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-22T12:58:13"
+    action: "T-1186: Batch-approve 20 inceptions with Decisions already recorded"
+  - time: "2026-04-23T14:05:37"
+    action: "T-1186: audit + batch-script for 5 ready-to-complete inceptions"
+  - time: "2026-04-23T14:20:14"
+    action: "T-1186: batch landed via Channel 1 (4/5 complete; T-1122 DEFER parked by design)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1560 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1560
+  commits: 3
+  files_changed: 53
+  lines_added: 4705
+  lines_removed: 36
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1186-batch-approve-36-inception-tasks-with-de.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1193: CLAUDECODE-unset follow-up to db8b39d1 — approvals auto-execute must strip CLAUDECODE from subprocess env
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-22T21:56:00Z
+# ============================================================================
+
+task_id: T-1193
+task_name: "CLAUDECODE-unset follow-up to db8b39d1 — approvals auto-execute must strip CLAUDECODE from subprocess env"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-22T21:52:21Z
+completed: 2026-04-22T21:55:58Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-22T23:55:56+02:00
+last_commit: 2026-04-22T23:55:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  strip CLAUDECODE in approvals.py auto-execute subprocess env (vendored)
+
+# Key outcomes
+outcomes:
+  - "`/opt/termlink/.agentic-framework/web/blueprints/approvals.py` — `_execute_inception_decide()` subprocess.run uses an env dict that does NOT contain `CLAUDECODE` (line 423: `{k: v for k, v in os.environ.items() if k != \"CLAUDECODE\"}`)"
+  - "`/opt/999-Agentic-Engineering-Framework/web/blueprints/approvals.py` — same patch mirrored upstream via Channel 1 dispatch, committed, pushed (upstream commit `f398d004`, pushed to onedev master `db8b39d1..f398d004`)"
+  - "Both files still set `TIER0_AUTOEXEC=1` in the subprocess env (outer-hook contract preserved)"
+  - "`python3 -c \"import ast; ast.parse(...)\"` parses clean on both files (verified)"
+  - "No other callers of approvals.py subprocess pattern regressed (only `_execute_inception_decide` path changed; unrelated `subprocess.run` call at line 475+ batch work-completed is untouched)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1192-dispatched-claude-workers-blocked-as-roo.md"
+  - ".tasks/active/T-1193-claudecode-unset-follow-up-to-db8b39d1--.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-22T23:55:56"
+    action: "T-1193: strip CLAUDECODE in approvals.py auto-execute subprocess env (vendored)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, watchtower, structural-fix]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 100
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1193-claudecode-unset-follow-up-to-db8b39d1--.md
+generated_by: context-agent-hybrid
