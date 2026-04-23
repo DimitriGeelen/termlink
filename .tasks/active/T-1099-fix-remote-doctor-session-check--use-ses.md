@@ -31,7 +31,7 @@ date_finished: 2026-04-16T23:41:52Z
 - [x] All 1,121 tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Run `termlink remote doctor local-test` and verify sessions shows PASS
+- [x] [RUBBER-STAMP] Run `termlink remote doctor local-test` and verify sessions shows PASS — ticked by user direction 2026-04-23. Evidence: Live: `termlink remote doctor local-test` returns 3 PASS / 0 fail. sessions check: '4 session(s): framework-agent, termlink-agent, ntb-dev-test, email-archive' — uses session.discover (display names), not session.list (metadata-only). Verified 2026-04-23T17:35Z.
   **Steps:** `cd /opt/termlink && termlink remote doctor local-test`
   **Expected:** sessions check shows [PASS] with count
   **If not:** Check router method name

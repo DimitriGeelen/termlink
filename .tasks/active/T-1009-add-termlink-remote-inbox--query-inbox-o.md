@@ -34,7 +34,7 @@ Add `termlink remote inbox` subcommand (status/list/clear) that queries inbox on
 - [x] `termlink remote inbox ring20-management status` connects and calls RPC (remote hub needs inbox routes for full E2E)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify `termlink remote inbox --help` shows all three subcommands
+- [x] [RUBBER-STAMP] Verify `termlink remote inbox --help` shows all three subcommands — ticked by user direction 2026-04-23. Evidence: Live: `termlink remote inbox --help` shows status/list/clear subcommands with descriptions. Verified 2026-04-23T17:35Z.
   **Steps:**
   1. `cd /opt/termlink && cargo run -- remote inbox --help`
   **Expected:** Shows status, list, clear subcommands

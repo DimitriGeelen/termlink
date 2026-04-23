@@ -32,7 +32,7 @@ Consumer on .107 hit 3 failures in 4 attempts trying `termlink remote inbox stat
 - [x] `cargo clippy` clean
 
 ### Human
-- [ ] [RUBBER-STAMP] Consumer-friendly syntax verified
+- [x] [RUBBER-STAMP] Consumer-friendly syntax verified — ticked by user direction 2026-04-23. Evidence: Live: `termlink remote inbox local-test` and `termlink remote inbox local-test status` both return 'Inbox on 127.0.0.1:9100: empty' (no argument-parsing errors, default subcommand works). Verified 2026-04-23T17:35Z.
   **Steps:**
   1. Run: `cd /opt/termlink && termlink remote inbox local-test status`
   2. Run: `cd /opt/termlink && termlink remote inbox local-test`

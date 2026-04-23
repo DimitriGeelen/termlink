@@ -47,7 +47,7 @@ verbatim to the user.
 - [x] Gap registered (G-015, false-completion class)
 
 ### Human
-- [ ] [RUBBER-STAMP] Add pl007-scanner to `.claude/settings.json` `PostToolUse` array
+- [x] [RUBBER-STAMP] Add pl007-scanner to `.claude/settings.json` `PostToolUse` array — ticked by user direction 2026-04-23. Evidence: Live: `grep -c pl007-scanner .claude/settings.json` returns 1 entry under PostToolUse→Bash matcher. Hook firing live in this session — PL-007 reminders fire on every Bash tool call. Verified 2026-04-23T17:35Z.
   **Steps:**
   1. Open `.claude/settings.json`
   2. In the `PostToolUse` → `Bash` matcher block, add an entry:
