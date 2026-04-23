@@ -32,7 +32,7 @@ MCP auto-exposure pattern: wrap `termlink remote doctor` as MCP tool. Follows T-
 - [x] Builds and passes clippy
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify MCP tool count in `termlink doctor`
+- [x] [RUBBER-STAMP] Verify MCP tool count in `termlink doctor` — ticked by user direction 2026-04-23. Evidence: Live: cargo run -- doctor reports 75 MCP tools (≥ 62 baseline). Verified live 2026-04-23T17:30Z (termlink 0.9.354, 3387b084).
   **Steps:**
   1. `cd /opt/termlink && cargo run -- doctor --json | python3 -c "import sys,json; print(json.load(sys.stdin)['checks'][-1]['message'])"`
   **Expected:** Shows "62 MCP tools"
