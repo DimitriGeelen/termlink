@@ -93,8 +93,8 @@ pub async fn dispatch_mut(req: &Request, ctx: &mut SessionContext) -> Option<Rpc
     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
     let response = match req.method.as_str() {
         control::method::SESSION_UPDATE => handle_session_update(id, &req.params, ctx),
-        control::method::KV_SET => handle_kv_set(id, &req.params, ctx),
-        control::method::KV_DELETE => handle_kv_delete(id, &req.params, ctx),
+        control::method::KV_SET => handle_kv_set(id, &req.params, ctx).await,
+        control::method::KV_DELETE => handle_kv_delete(id, &req.params, ctx).await,
         _ => {
             // Fall through to immutable dispatch for anything else
             return dispatch(req, ctx).await;
@@ -875,7 +875,7 @@ async fn handle_event_topics(
 }
 
 /// Handle `kv.set` — set a key-value pair in the session's KV store.
-fn handle_kv_set(
+async fn handle_kv_set(
     id: serde_json::Value,
     params: &serde_json::Value,
     ctx: &mut SessionContext,
@@ -894,7 +894,20 @@ fn handle_kv_set(
         }
     };
 
-    let replaced = ctx.kv.insert(key.clone(), value).is_some();
+    let replaced = ctx.kv.insert(key.clone(), value.clone()).is_some();
+
+    {
+        let mut bus = ctx.events.lock().await;
+        bus.emit(
+            "kv.change",
+            json!({
+                "key": key,
+                "value": value,
+                "op": "set",
+                "replaced": replaced,
+            }),
+        );
+    }
 
     Response::success(
         id,
@@ -960,7 +973,7 @@ fn handle_kv_list(id: serde_json::Value, ctx: &SessionContext) -> RpcResponse {
 }
 
 /// Handle `kv.delete` — delete a key from the session's KV store.
-fn handle_kv_delete(
+async fn handle_kv_delete(
     id: serde_json::Value,
     params: &serde_json::Value,
     ctx: &mut SessionContext,
@@ -973,6 +986,19 @@ fn handle_kv_delete(
     };
 
     let deleted = ctx.kv.remove(&key).is_some();
+
+    {
+        let mut bus = ctx.events.lock().await;
+        bus.emit(
+            "kv.change",
+            json!({
+                "key": key,
+                "value": serde_json::Value::Null,
+                "op": "delete",
+                "deleted": deleted,
+            }),
+        );
+    }
 
     Response::success(
         id,

@@ -4,15 +4,15 @@ name: "Add termlink_kv_watch MCP tool — watch for key-value changes on a sessi
 description: >
   Add termlink_kv_watch MCP tool — watch for key-value changes on a session
 
-status: issues
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-05T07:27:29Z
-last_update: 2026-04-22T04:52:51Z
+last_update: 2026-04-23T15:26:33Z
 date_finished: null
 ---
 
@@ -20,40 +20,34 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Existing KV store (`kv.set`, `kv.get`, `kv.list`, `kv.delete` in `handler.rs`)
+has no change notification. Consumers must poll. The session already has an
+EventBus with `event.subscribe` long-poll support. Approach: emit `kv.change`
+events from `handle_kv_set`/`handle_kv_delete`, then expose a thin MCP wrapper
+`termlink_kv_watch` that calls `event.subscribe` with `topic="kv.change"`. No
+new RPC method — reuses existing subscribe infrastructure.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `handle_kv_set` emits `kv.change` event with payload `{key, value, op:"set", replaced}` on the session EventBus
+- [x] `handle_kv_delete` emits `kv.change` event with payload `{key, value:null, op:"delete", deleted}` on the session EventBus
+- [x] Events only emitted on actual state change (kv.delete on missing key still emits with deleted=false — keep simple, symmetrical with set)
+- [x] New MCP tool `termlink_kv_watch` in `crates/termlink-mcp/src/tools.rs` calls `event.subscribe` with `topic="kv.change"`; accepts `target`, optional `timeout_ms`, optional `since`
+- [x] `termlink_kv_watch` appears in help-text category `kv`
+- [x] Integration test in `crates/termlink-session/tests/integration.rs`: kv.set emits kv.change event observable via event.subscribe
+- [x] Integration test: kv.delete emits kv.change event with op=delete
+- [x] `cargo build --workspace` and `cargo test --workspace` succeed
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+<!-- Agent-only task; no human verification required -->
 
 ## Verification
 
-<!-- Shell commands that MUST pass before work-completed. One per line.
-     Lines starting with # are comments. Empty lines ignored.
-     The completion gate runs each command — if any exits non-zero, completion is blocked.
-     Examples:
-       python3 -c "import yaml; yaml.safe_load(open('path/to/file.yaml'))"
-       curl -sf http://localhost:3000/page
-       grep -q "expected_string" output_file.txt
--->
+cargo build --workspace --quiet
+cargo test --workspace --quiet --lib
+grep -q "kv\.change" crates/termlink-session/src/handler.rs
+grep -q "termlink_kv_watch" crates/termlink-mcp/src/tools.rs
 
 ## Decisions
 
@@ -82,3 +76,7 @@ date_finished: null
 
 ### 2026-04-22T04:52:51Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-23T15:26:33Z — status-update [task-update-agent]
+- **Change:** status: issues → started-work
+- **Change:** horizon: next → now (auto-sync)
