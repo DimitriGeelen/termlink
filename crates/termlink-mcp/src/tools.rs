@@ -673,6 +673,18 @@ pub struct KvDelParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct KvWatchParams {
+    /// Session ID or display name
+    pub target: String,
+    /// Max milliseconds to block waiting for a change (default: 5000)
+    pub timeout_ms: Option<u64>,
+    /// Replay historical changes with seq > since, then stream live ones
+    pub since: Option<u64>,
+    /// Cap on number of events returned (default: 100)
+    pub max_events: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct BroadcastParams {
     /// Event topic
     pub topic: String,
@@ -1722,6 +1734,36 @@ impl TermLinkTools {
                     }))
                     .unwrap_or_else(json_err)
                 }
+                Err(e) => json_err(e),
+            },
+            Err(e) => json_err(format!("connection failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_kv_watch",
+        description = "Watch for key-value changes on a session. Blocks until a kv.set or kv.delete occurs, or timeout_ms elapses. Reuses event.subscribe with topic=kv.change. Optional 'since' replays historical changes before streaming live ones."
+    )]
+    async fn termlink_kv_watch(&self, Parameters(p): Parameters<KvWatchParams>) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
+        };
+
+        let mut params = serde_json::json!({ "topic": "kv.change" });
+        if let Some(timeout_ms) = p.timeout_ms {
+            params["timeout_ms"] = serde_json::json!(timeout_ms);
+        }
+        if let Some(since) = p.since {
+            params["since"] = serde_json::json!(since);
+        }
+        if let Some(max_events) = p.max_events {
+            params["max_events"] = serde_json::json!(max_events);
+        }
+
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
@@ -3574,6 +3616,7 @@ impl TermLinkTools {
                 ("termlink_kv_get", "Get value from session store"),
                 ("termlink_kv_list", "List all keys in session store"),
                 ("termlink_kv_del", "Delete key from session store"),
+                ("termlink_kv_watch", "Watch for key-value changes (long-poll)"),
             ]),
             ("files", vec![
                 ("termlink_file_send", "Send file to a session"),

@@ -770,6 +770,87 @@ async fn kv_get_nonexistent_returns_not_found() {
     handle.abort();
 }
 
+#[tokio::test]
+async fn kv_set_emits_kv_change_event() {
+    let dir = TestDir::new("kv-watch-set");
+    let (handle, reg) = start_session(&dir.sessions_dir(), "kvwatch", vec![]).await;
+
+    // Prime one kv.set so the next event will have seq >= 1.
+    client::rpc_call(
+        reg.socket_path(),
+        "kv.set",
+        json!({ "key": "prime", "value": 0 }),
+    )
+    .await
+    .unwrap();
+
+    client::rpc_call(
+        reg.socket_path(),
+        "kv.set",
+        json!({ "key": "theme", "value": "dark" }),
+    )
+    .await
+    .unwrap();
+
+    // since=0 replays events with seq > 0 (i.e., the second kv.set onward)
+    let resp = client::rpc_call(
+        reg.socket_path(),
+        "event.subscribe",
+        json!({ "topic": "kv.change", "since": 0, "timeout_ms": 500 }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    let events = result["events"].as_array().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["topic"], "kv.change");
+    assert_eq!(events[0]["payload"]["key"], "theme");
+    assert_eq!(events[0]["payload"]["value"], "dark");
+    assert_eq!(events[0]["payload"]["op"], "set");
+    assert_eq!(events[0]["payload"]["replaced"], false);
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn kv_delete_emits_kv_change_event() {
+    let dir = TestDir::new("kv-watch-del");
+    let (handle, reg) = start_session(&dir.sessions_dir(), "kvwatch", vec![]).await;
+
+    client::rpc_call(
+        reg.socket_path(),
+        "kv.set",
+        json!({ "key": "theme", "value": "dark" }),
+    )
+    .await
+    .unwrap();
+    client::rpc_call(
+        reg.socket_path(),
+        "kv.delete",
+        json!({ "key": "theme" }),
+    )
+    .await
+    .unwrap();
+
+    // since=0 skips seq=0 (the kv.set), captures seq=1 (the kv.delete)
+    let resp = client::rpc_call(
+        reg.socket_path(),
+        "event.subscribe",
+        json!({ "topic": "kv.change", "since": 0, "timeout_ms": 500 }),
+    )
+    .await
+    .unwrap();
+    let result = client::unwrap_result(resp).unwrap();
+    let events = result["events"].as_array().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["payload"]["op"], "delete");
+    assert_eq!(events[0]["payload"]["key"], "theme");
+    assert_eq!(events[0]["payload"]["deleted"], true);
+    assert!(events[0]["payload"]["value"].is_null());
+
+    handle.abort();
+}
+
 // ─── Agent Message Protocol Integration Test ──────────────────────────
 
 #[tokio::test]
