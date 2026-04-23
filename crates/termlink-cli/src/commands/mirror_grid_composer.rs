@@ -243,6 +243,8 @@ pub(crate) async fn cmd_mirror_tag(tag: &str) -> Result<()> {
     // 6. Render tick loop: every ~33ms, paint dirty panels to stdout.
     let mut sigint = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())
         .context("Failed to register SIGINT handler")?;
+    let mut sigwinch = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::window_change())
+        .context("Failed to register SIGWINCH handler")?;
     let mut ticker = tokio::time::interval(Duration::from_millis(33));
     loop {
         tokio::select! {
@@ -265,6 +267,35 @@ pub(crate) async fn cmd_mirror_tag(tag: &str) -> Result<()> {
                     p.dirty = false;
                 }
                 let _ = out.flush();
+            }
+            _ = sigwinch.recv() => {
+                // Viewer terminal resized — recompute layout, resize each panel's grid,
+                // and repaint everything. render_diff_at auto-falls-back to render_full_at
+                // when the cell-buffer length changes, so no explicit full-flag needed.
+                let (new_cols, new_rows) = terminal_size();
+                let new_layouts = compute_layout(panels.len(), new_cols.max(1u16), new_rows.max(1u16));
+                if new_layouts.len() == ok_layouts.len() {
+                    for (i, new_layout) in new_layouts.iter().enumerate() {
+                        let mut p = panels[i].lock().await;
+                        p.grid.resize(new_layout.grid_cols, new_layout.grid_rows);
+                        p.dirty = true;
+                    }
+                    ok_layouts = new_layouts;
+                    // Clear host screen and redraw all labels; grids repaint next tick.
+                    let stdout = std::io::stdout();
+                    let mut out = stdout.lock();
+                    let _ = out.write_all(b"\x1b[2J\x1b[H\x1b[0m");
+                    for (i, layout) in ok_layouts.iter().enumerate() {
+                        let p = panels[i].lock().await;
+                        let label = if p.closed {
+                            format!("{} [CLOSED]", p.label)
+                        } else {
+                            p.label.clone()
+                        };
+                        let _ = draw_panel_label(&mut out, layout, i, &label);
+                    }
+                    let _ = out.flush();
+                }
             }
             _ = sigint.recv() => {
                 eprintln!("\nMirror stopped.");
@@ -366,5 +397,18 @@ mod tests {
     #[test]
     fn layout_zero_panels_is_empty() {
         assert_eq!(compute_layout(0, 80, 24).len(), 0);
+    }
+
+    #[test]
+    fn layout_recomputes_on_size_change() {
+        let small = compute_layout(4, 80, 24);
+        let large = compute_layout(4, 120, 40);
+        // Same arrangement (2×2) but larger panel dimensions.
+        assert_eq!(small.len(), large.len());
+        assert!(large[0].grid_cols > small[0].grid_cols);
+        assert!(large[0].grid_rows > small[0].grid_rows);
+        // Panel 3 (bottom-right) must shift to new offset.
+        assert_ne!(small[3].col, large[3].col);
+        assert_ne!(small[3].row, large[3].row);
     }
 }
