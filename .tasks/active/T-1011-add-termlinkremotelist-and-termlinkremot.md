@@ -32,7 +32,7 @@ Add termlink_remote_list (discover sessions on remote hub) and termlink_remote_e
 - [x] cargo test --workspace passes (1003 tests)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify MCP tool count in `termlink doctor`
+- [x] [RUBBER-STAMP] Verify MCP tool count in `termlink doctor` — ticked by user direction 2026-04-23. Evidence: Live: cargo run -- doctor reports 75 MCP tools (≥ 61 baseline). Verified live 2026-04-23T17:30Z (termlink 0.9.354, 3387b084).
   **Steps:**
   1. `cd /opt/termlink && cargo run -- doctor`
   **Expected:** Shows 61 MCP tools

@@ -31,7 +31,7 @@ T-922 codification: every CLI command should be MCP-reachable. T-1035 added `ter
 - [x] Builds with zero clippy warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify MCP tool count increased in `termlink doctor`
+- [x] [RUBBER-STAMP] Verify MCP tool count increased in `termlink doctor` — ticked by user direction 2026-04-23. Evidence: Live: cargo run -- doctor reports 75 MCP tools (T-1038 added 2 tofu tools; subsequent additions push count well above original +2 target). Verified live 2026-04-23T17:30Z (termlink 0.9.354, 3387b084).
   **Steps:** `cd /opt/termlink && cargo run -- doctor --json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin))"`
   **Expected:** Tool count increased by 2
   **If not:** Check MCP tool registration
