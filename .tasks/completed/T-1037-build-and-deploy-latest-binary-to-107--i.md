@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T18:52:30Z
-last_update: 2026-04-15T13:47:09Z
+last_update: 2026-04-23T19:26:45Z
 date_finished: 2026-04-13T19:02:33Z
 ---
 
@@ -33,7 +33,7 @@ Build musl static binary with all improvements from T-1033 through T-1036 and up
 - [x] `termlink fleet doctor` shows new diagnostic output (secret source + hints)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify installed version
+- [x] [RUBBER-STAMP] Verify installed version — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:** `termlink --version`
   **Expected:** Version >= 0.9.833
   **If not:** Check if binary was correctly swapped

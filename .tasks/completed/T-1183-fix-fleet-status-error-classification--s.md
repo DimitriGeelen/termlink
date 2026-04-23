@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-22T08:01:16Z
-last_update: 2026-04-22T08:11:12Z
+last_update: 2026-04-23T19:26:47Z
 date_finished: 2026-04-22T08:10:55Z
 ---
 
@@ -36,7 +36,7 @@ G-014 covered `cmd_fleet_doctor` specifically. This is the same class at a sibli
 - [x] G-014 entry updated with second-call-site resolution
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify fleet-status output against a real TOFU-rotated hub
+- [x] [RUBBER-STAMP] Verify fleet-status output against a real TOFU-rotated hub — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. `cd /opt/termlink && ./target/release/termlink fleet status`
   2. For .102 (or any TOFU-rotated hub), confirm line reads `AUTH` (yellow) not `DOWN` (red)

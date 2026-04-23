@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-22T05:26:15Z
-last_update: 2026-04-22T05:41:36Z
+last_update: 2026-04-23T19:26:46Z
 date_finished: 2026-04-22T05:28:30Z
 ---
 
@@ -36,7 +36,7 @@ Registered as G-014 in concerns.yaml (this session).
 - [x] PL-045 (or next ID) recorded: anyhow::Error → Display drops chain by default; use `{:#}` or walk `e.chain()` when string-matching inner causes
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify fleet-doctor output against a real TOFU-rotated hub
+- [x] [RUBBER-STAMP] Verify fleet-doctor output against a real TOFU-rotated hub — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)
   **Steps:**
   1. `cd /opt/termlink && cargo build -p termlink --release`
   2. `./target/release/termlink fleet doctor`
