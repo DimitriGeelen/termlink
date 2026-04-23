@@ -577,10 +577,13 @@ generate_claude_code_config() {
     mkdir -p "$dir/.claude/commands"
 
     # T-663/T-662: Detect framework-mode vs consumer-mode for fw path
-    # Framework repo uses bin/fw (project-relative), consumers use .agentic-framework/bin/fw (vendored)
-    local fw_prefix=".agentic-framework/bin/fw"
+    # T-1364 (G-053-A): Emit ABSOLUTE paths — Claude Code resolves hook commands
+    # against CWD, and CWD drift (test fixtures, subdir navigation) otherwise
+    # cascades into hook-cannot-find-fw tool-blocks. $dir is canonicalized by
+    # the caller (init.sh line 58, upgrade.sh line 58 via `cd && pwd`).
+    local fw_prefix="$dir/.agentic-framework/bin/fw"
     if [ -x "$dir/bin/fw" ] && [ -f "$dir/FRAMEWORK.md" ]; then
-        fw_prefix="bin/fw"
+        fw_prefix="$dir/bin/fw"
     fi
 
     if [ ! -f "$dir/.claude/settings.json" ] || [ "${force:-false}" = true ]; then
@@ -769,17 +772,19 @@ SJSON
     if [ ! -f "$dir/.mcp.json" ] || [ "${force:-false}" = true ]; then
         cat > "$dir/.mcp.json" << 'MCPJSON'
 {
-  "context7": {
-    "command": "npx",
-    "args": ["-y", "@upstash/context7-mcp"]
-  },
-  "playwright": {
-    "command": "npx",
-    "args": ["@playwright/mcp@latest", "--no-sandbox"]
-  },
-  "termlink": {
-    "command": "termlink",
-    "args": ["mcp", "serve"]
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--no-sandbox"]
+    },
+    "termlink": {
+      "command": "termlink",
+      "args": ["mcp", "serve"]
+    }
   }
 }
 MCPJSON
@@ -789,7 +794,14 @@ MCPJSON
     fi
 
     # --- .claude/commands/resume.md (project-specific /resume) ---
+    # T-1383 (closes G-056): prefer shared template at lib/templates/resume-md.md
+    # so upgrade.sh can detect drift and refresh existing consumers.
+    local resume_tmpl="$FRAMEWORK_ROOT/lib/templates/resume-md.md"
     if [ ! -f "$dir/.claude/commands/resume.md" ] || [ "${force:-false}" = true ]; then
+        if [ -f "$resume_tmpl" ]; then
+            cp "$resume_tmpl" "$dir/.claude/commands/resume.md"
+            echo -e "  ${GREEN}OK${NC}  .claude/commands/resume.md"
+        else
         cat > "$dir/.claude/commands/resume.md" << 'RESUME'
 # /resume - Context Recovery for Agentic Engineering Framework
 
@@ -803,7 +815,8 @@ Run these in parallel:
 2. Run `git status --short` and `git log --oneline -5`
 3. List `.tasks/active/` and extract task IDs, names, and statuses from frontmatter
 4. Check tool counter: `cat .context/working/.tool-counter`
-5. Check web server: `curl -sf http://localhost:3000/ > /dev/null && echo "running" || echo "stopped"`
+5. Check web server: `WURL=$(cat .context/working/watchtower.url 2>/dev/null || echo "http://localhost:$(bin/fw config get PORT 2>/dev/null || echo 3000)"); curl -sf "$WURL/" > /dev/null && echo "running at $WURL" || echo "stopped"`
+   (Never hard-code `:3000` — the triple file `.context/working/watchtower.{pid,port,url}` is the single source of truth for Watchtower's current port. See `bin/fw doctor` for diagnostics.)
 
 ## Step 2: Summarize
 
@@ -824,7 +837,7 @@ Present this format (fill from gathered data):
 
 ### Current State
 - Git: {clean/N uncommitted files}
-- Web UI: {running on :3000 / stopped}
+- Web UI: {running at {URL from .context/working/watchtower.url} / stopped}
 - Tool counter: {N} (P-009)
 
 ### Suggested Action
@@ -848,6 +861,7 @@ Then ask: "What would you like to work on?"
 - If tool counter > 0 at session start, the PostToolUse hook is working
 RESUME
         echo -e "  ${GREEN}OK${NC}  .claude/commands/resume.md"
+        fi
     else
         echo -e "  ${YELLOW}SKIP${NC}  .claude/commands/resume.md already exists"
     fi

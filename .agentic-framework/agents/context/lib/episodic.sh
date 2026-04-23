@@ -85,10 +85,6 @@ do_generate_episodic() {
     local last_update=$(grep "^last_update:" "$task_file" | sed 's/last_update: //')
     local tags=$(grep "^tags:" "$task_file" | sed 's/tags: //' | tr -d '[]')
     local description=$(grep "^description:" "$task_file" | sed 's/description: //' | sed 's/^> //')
-    # Strip bare YAML fold/literal markers (description: > or description: |) — they leave just '>' or '|'
-    if [ "$description" = ">" ] || [ "$description" = "|" ]; then
-        description=""
-    fi
 
     # Parse Updates section for count
     local updates_section=$(sed -n '/^## Updates/,/^## /p' "$task_file" | head -n -1)
@@ -220,15 +216,7 @@ do_generate_episodic() {
     fi
     # Fall back to description if no git summary
     if [ -z "$summary_text" ]; then
-        summary_text="$description"
-    fi
-    # Guard against YAML fold/literal markers leaking through as pseudo-summary
-    if [ "$summary_text" = ">" ] || [ "$summary_text" = "|" ]; then
-        summary_text=""
-    fi
-    # Final fallback to task name — never emit a summary that's just a fold marker
-    if [ -z "$summary_text" ]; then
-        summary_text="${task_name:-[TODO: No git commits found. Summarize manually.]}"
+        summary_text="${description:-[TODO: No git commits found. Summarize manually.]}"
     fi
 
     # =========================================================================

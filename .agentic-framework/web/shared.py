@@ -21,39 +21,42 @@ APP_DIR = Path(__file__).resolve().parent
 FRAMEWORK_ROOT = APP_DIR.parent
 
 
-def _discover_project_root(start: Path | None = None) -> Path | None:
-    """Walk up from `start` (CWD if None) looking for `.framework.yaml`.
+def _discover_project_root(start: Path) -> Path | None:
+    """Walk up from `start` looking for `.framework.yaml` (consumer marker).
 
-    Returns the directory containing `.framework.yaml`, or None if none
-    is found before reaching the filesystem root.
+    Returns the first ancestor containing `.framework.yaml`, or None if
+    filesystem root is reached. Matches bash `paths.sh` behaviour (T-1310).
     """
-    current = (start or Path.cwd()).resolve()
-    root = Path(current.root)
+    try:
+        cur = Path(start).resolve()
+    except OSError:
+        return None
     while True:
-        if (current / ".framework.yaml").is_file():
-            return current
-        if current == root or current.parent == current:
+        if (cur / ".framework.yaml").is_file():
+            return cur
+        if cur.parent == cur:
             return None
-        current = current.parent
+        cur = cur.parent
 
 
 def _resolve_project_root() -> tuple[Path, str]:
-    """Return (project_root, source_label). T-1123.
+    """Resolve PROJECT_ROOT from (in order): env var, discovered, FRAMEWORK_ROOT.
 
-    Order: PROJECT_ROOT env > walk-up from CWD for .framework.yaml
-    > FRAMEWORK_ROOT fallback.
+    Returns (path, source_label) where source ∈ {'env', 'discovered', 'framework'}.
+    Env wins unconditionally — operators and `bin/fw` rely on it.
     """
     env_val = os.environ.get("PROJECT_ROOT")
     if env_val:
-        return Path(env_val), "env:PROJECT_ROOT"
-    discovered = _discover_project_root()
-    if discovered is not None and discovered != FRAMEWORK_ROOT:
-        return discovered, f"discovered:{discovered}"
-    return FRAMEWORK_ROOT, f"fallback:FRAMEWORK_ROOT={FRAMEWORK_ROOT}"
+        return Path(env_val), "env"
+    discovered = _discover_project_root(Path.cwd())
+    if discovered is not None:
+        return discovered, "discovered"
+    return FRAMEWORK_ROOT, "framework"
 
 
 PROJECT_ROOT, _PROJECT_ROOT_SOURCE = _resolve_project_root()
-logger.warning("PROJECT_ROOT source: %s", _PROJECT_ROOT_SOURCE)
+if _PROJECT_ROOT_SOURCE != "env":
+    logger.debug("PROJECT_ROOT resolved via %s: %s", _PROJECT_ROOT_SOURCE, PROJECT_ROOT)
 
 
 def task_id_sort_key(value):
@@ -75,6 +78,7 @@ NAV_GROUPS = [
         ("Inception",   "inception.inception_list",  None),
         ("Assumptions", "inception.assumptions_list", None),
         ("Timeline",    "timeline.timeline",         None),
+        ("Prompts",     "prompts.prompts_list",      None),
     ]),
     ("Knowledge", [
         ("Learnings",   "discovery.learnings",   None),
@@ -83,7 +87,6 @@ NAV_GROUPS = [
         ("Decisions",   "discovery.decisions",    None),
     ]),
     ("Architecture", [
-        ("Fleet",       "fleet.fleet_dashboard",     None),
         ("Fabric",      "fabric.fabric_overview",   None),
         ("Explorer",    "fabric.fabric_graph",      None),
         ("Terminal",    "terminal.terminal_page",    None),
@@ -101,6 +104,7 @@ NAV_GROUPS = [
         ("Costs",         "costs.costs_dashboard",                 None),
         ("Config",        "config.config_page",                    None),
         ("Cron",          "cron.cron_registry",                    None),
+        ("Pending",       "pending.pending_page",                  None),
     ]),
 ]
 
@@ -123,33 +127,30 @@ def build_ambient():
         "attention_count": 0,
     }
 
-    # Focus task — prefer focus.yaml, fall back to first active (T-1127)
-    focus_file = PROJECT_ROOT / ".context" / "working" / "focus.yaml"
-    if focus_file.is_file():
-        try:
-            focus_data = yaml.safe_load(focus_file.read_text()) or {}
-            ct = focus_data.get("current_task")
-            if isinstance(ct, str) and re_mod.match(r"^T-\d{3,}$", ct):
-                ambient["focus_task"] = ct
-        except (OSError, yaml.YAMLError):
-            pass
-
+    # Focus task — prefer .context/working/focus.yaml (T-1308), fall back to
+    # first active task alphabetically when focus is null/missing/malformed.
     active_dir = PROJECT_ROOT / ".tasks" / "active"
+    focus_file = PROJECT_ROOT / ".context" / "working" / "focus.yaml"
+    focus_data = load_yaml(focus_file, label="focus.yaml") if focus_file.exists() else {}
+    current = (focus_data or {}).get("current_task")
+    if current and re_mod.match(r"^T-\d{3,}$", str(current)):
+        ambient["focus_task"] = str(current)
     if active_dir.exists():
         active_tasks = sorted(active_dir.glob("T-*.md"), key=task_id_sort_key)
-        ambient["attention_count"] = len(active_tasks)
-        if ambient["focus_task"] is None and active_tasks:
-            stem = active_tasks[0].stem
-            match = re_mod.match(r"(T-\d{3,})", stem)
-            if match:
-                ambient["focus_task"] = match.group(1)
+        if active_tasks:
+            if not ambient["focus_task"]:
+                # Fallback: first active task alphabetically.
+                stem = active_tasks[0].stem
+                match = re_mod.match(r"(T-\d{3,})", stem)
+                if match:
+                    ambient["focus_task"] = match.group(1)
+            ambient["attention_count"] = len(active_tasks)
 
     # Session age — from latest handover
     handovers_dir = PROJECT_ROOT / ".context" / "handovers"
     if handovers_dir.exists():
         sessions = sorted(handovers_dir.glob("S-*.md"), reverse=True)
         if sessions:
-            ambient["session_id"] = sessions[0].stem
             content = sessions[0].read_text(errors="replace")
             ts_match = re_mod.search(r"timestamp:\s*(\S+)", content)
             if ts_match:
@@ -306,14 +307,17 @@ def get_episodic_tags():
     if _task_cache["tags"] is not None and (now - _task_cache["ts"]) < _TASK_CACHE_TTL:
         return _task_cache["tags"]
 
-    from web.search_utils import load_episodic_yaml
     tags = {}
     episodic_dir = PROJECT_ROOT / ".context" / "episodic"
     if episodic_dir.exists():
         for f in episodic_dir.glob("T-*.yaml"):
-            edata = load_episodic_yaml(f)
-            if isinstance(edata, dict):
-                tags[edata.get("task_id", f.stem)] = edata.get("tags", [])
+            try:
+                with open(f) as fh:
+                    edata = yaml.safe_load(fh)
+                if isinstance(edata, dict):
+                    tags[edata.get("task_id", f.stem)] = edata.get("tags", [])
+            except yaml.YAMLError:
+                continue
 
     _task_cache["tags"] = tags
     return tags
@@ -339,7 +343,8 @@ def load_latest_audit():
     audit_dir = PROJECT_ROOT / ".context" / "audits"
     if not audit_dir.exists():
         return None, {}, []
-    # Date-prefixed files only — skip upgrades.yaml and other sidecars (T-1128)
+    # T-1307: filter to date-named audits only so stray non-date YAML
+    # (e.g. upgrades.yaml) can't win the reverse-sort.
     audit_files = sorted(audit_dir.glob("[0-9][0-9][0-9][0-9]-*.yaml"), reverse=True)
     if not audit_files:
         return None, {}, []

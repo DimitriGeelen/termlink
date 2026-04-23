@@ -162,12 +162,12 @@ else:
 PYINCEPTION
 }
 
-# T-1324 (ex-P-039): Tick the Human AC that authorizes the inception decision.
+# T-1324: Tick the Human AC that authorizes the inception decision.
 # After `fw inception decide` writes the Decision block, the templated
 # `[REVIEW] Review exploration findings and approve go/no-go decision`
 # (or `[RUBBER-STAMP] Record ... decision`) Human AC is structurally
 # satisfied by the same command — leaving it unchecked keeps the task
-# in partial-complete forever (G-008 contributor).
+# in partial-complete forever (G-008 contributor; T-1322 / P-039).
 #
 # Idempotent. Only ticks ACs whose text matches the templated predicate
 # under the `### Human` subsection — never touches custom ACs or `### Agent`.
@@ -402,10 +402,9 @@ with open(task_file, 'w') as f:
     f.write('\n'.join(new_lines))
 PYDECIDE
 
-    # T-1324 (ex-P-039): Tick the Human AC that authorizes go/no-go BEFORE
-    # update-task.sh's work-completed gate runs — otherwise the AC stays
-    # unchecked and the gate keeps the task in partial-complete forever
-    # (G-008 contributor).
+    # T-1324: Tick the Human AC that authorizes go/no-go BEFORE update-task.sh's
+    # work-completed gate runs — otherwise the AC stays unchecked and the gate
+    # keeps the task in partial-complete forever (G-008 contributor; P-039).
     tick_inception_decide_acs "$task_file"
 
     # Add update entry

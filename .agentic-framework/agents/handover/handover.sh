@@ -522,10 +522,8 @@ fi
 
 # Step 2.1: Surface partial-complete tasks (T-372 — blind completion anti-pattern)
 # Tasks that are work-completed but have unchecked Human ACs
-# T-1068: enhanced — sort by date_finished ASC, tag RUBBER-STAMP/REVIEW/MIXED/UNTAGGED, summary counts
 PARTIAL_COMPLETE_SECTION=$(python3 << 'PCEOF'
 import glob, re, os
-from datetime import datetime
 
 tasks_dir = os.environ.get("TASKS_DIR", ".tasks")
 partial = []
@@ -534,6 +532,7 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, "active", "*.md"))):
         content = fh.read()
     if "status: work-completed" not in content:
         continue
+    # Find ### Human section
     human_match = re.search(r'### Human\n(.*?)(?=\n### |\n## |\Z)', content, re.DOTALL)
     if not human_match:
         continue
@@ -543,51 +542,21 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, "active", "*.md"))):
         continue
     tid = re.search(r'^id:\s*(\S+)', content, re.M)
     tname = re.search(r'^name:\s*"?(.+?)"?\s*$', content, re.M)
-    df = re.search(r'^date_finished:\s*(\S+)', content, re.M)
-    if not tid:
-        continue
-    first_ac = re.search(r'^\s*-\s*\[ \]\s*(.+)', human_section, re.M)
-    ac_preview = first_ac.group(1)[:60] if first_ac else "?"
-    has_rubber = '[RUBBER-STAMP]' in human_section
-    has_review = '[REVIEW]' in human_section
-    if has_rubber and not has_review: tag = 'RUBBER-STAMP'
-    elif has_review and not has_rubber: tag = 'REVIEW'
-    elif has_rubber and has_review: tag = 'MIXED'
-    else: tag = 'UNTAGGED'
-    date_finished = df.group(1) if df else ''
-    age_days = None
-    if date_finished and date_finished.startswith('20'):
-        try:
-            d = datetime.fromisoformat(date_finished.replace('Z', '+00:00'))
-            age_days = (datetime.now(d.tzinfo) - d).days
-        except Exception:
-            pass
-    partial.append({
-        'id': tid.group(1),
-        'name': tname.group(1) if tname else "?",
-        'unchecked': unchecked,
-        'preview': ac_preview,
-        'tag': tag,
-        'date_finished': date_finished,
-        'age_days': age_days,
-    })
-
-partial.sort(key=lambda r: r['date_finished'] or '9999')
+    if tid:
+        # Extract first unchecked AC text (truncated)
+        first_ac = re.search(r'^\s*-\s*\[ \]\s*(.+)', human_section, re.M)
+        ac_preview = first_ac.group(1)[:60] if first_ac else "?"
+        partial.append((tid.group(1), tname.group(1) if tname else "?", unchecked, ac_preview))
 
 if partial:
     print("## Awaiting Your Action (Human)")
     print()
-    counts = {}
-    for r in partial:
-        counts[r['tag']] = counts.get(r['tag'], 0) + 1
-    summary = ', '.join(f"{k}: {v}" for k, v in sorted(counts.items()))
-    print(f"**{len(partial)} task(s) with unchecked Human ACs** ({summary}). Sorted oldest first.")
-    print("Review when ready — no urgency implied. Use `fw task review-queue` for the live list.")
+    print(f"**{len(partial)} task(s) with unchecked Human ACs.** These are waiting for you — not for agent cleanup.")
+    print("Review each when ready. No urgency implied.")
     print()
-    for r in partial:
-        age = f" ({r['age_days']}d old)" if r['age_days'] is not None else ""
-        print(f"- `[{r['tag']}]` **{r['id']}**: {r['name']} ({r['unchecked']} unchecked{age})")
-        print(f"  - e.g.: {r['preview']}")
+    for tid, tname, count, preview in partial:
+        print(f"- **{tid}**: {tname} ({count} unchecked)")
+        print(f"  - e.g.: {preview}")
     print()
 PCEOF
 )
@@ -782,15 +751,26 @@ if [ "$AUTO_COMMIT" = true ]; then
         PROJECT_ROOT="$PROJECT_ROOT" "$GIT_AGENT" commit -m "$COMMIT_TASK: Session handover $SESSION_ID"
 
         # Push to all remotes (T-1144: prevent unpushed commit accumulation)
+        # T-1277: bound the push so an unreachable remote (e.g. onedev behind a
+        # down VPN) cannot stall the auto-handover hook for hours.
+        # T-1341 (L-019): default raised 15s → 60s because pre-push hook runs
+        # fw audit (~10s), leaving too little headroom for the actual push at 15s.
+        # Override via FW_HANDOVER_PUSH_TIMEOUT.
         echo ""
         echo -e "${CYAN}Pushing to remotes...${NC}"
         _push_failed=false
+        _push_timeout="${FW_HANDOVER_PUSH_TIMEOUT:-60}"
         while IFS= read -r remote_name; do
             [ -z "$remote_name" ] && continue
-            if git -C "$PROJECT_ROOT" push --follow-tags "$remote_name" HEAD 2>&1; then
+            if timeout "$_push_timeout" git -C "$PROJECT_ROOT" push --follow-tags "$remote_name" HEAD 2>&1; then
                 echo -e "  ${GREEN}Pushed to $remote_name ✓${NC}"
             else
-                echo -e "  ${YELLOW}WARNING: Push to $remote_name failed (non-blocking)${NC}" >&2
+                _exit=$?
+                if [ "$_exit" -eq 124 ]; then
+                    echo -e "  ${YELLOW}WARNING: Push to $remote_name timed out after ${_push_timeout}s (non-blocking, T-1277)${NC}" >&2
+                else
+                    echo -e "  ${YELLOW}WARNING: Push to $remote_name failed (non-blocking)${NC}" >&2
+                fi
                 _push_failed=true
             fi
         done < <(git -C "$PROJECT_ROOT" remote 2>/dev/null)

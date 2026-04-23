@@ -220,7 +220,10 @@ print(text)
         # Run in subshell with framework path derivatives unset so child
         # processes re-derive TASKS_DIR/CONTEXT_DIR from their own PROJECT_ROOT.
         # Prevents bats tests from inheriting the parent's stale TASKS_DIR (T-739).
-        if (unset TASKS_DIR CONTEXT_DIR _FW_PATHS_LOADED; eval "$cmd") > /tmp/verify-$$.out 2>&1; then
+        # T-1317: cd to PROJECT_ROOT first so relative paths in verification
+        # commands resolve consistently regardless of caller CWD (Watchtower
+        # launches from FRAMEWORK_ROOT, CLI from PROJECT_ROOT).
+        if (unset TASKS_DIR CONTEXT_DIR _FW_PATHS_LOADED; cd "$PROJECT_ROOT" && eval "$cmd") > /tmp/verify-$$.out 2>&1; then
             echo -e "  ${GREEN}PASS${NC}: $display_cmd"
             verify_pass=$((verify_pass + 1))
         else
@@ -763,13 +766,18 @@ if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] && [ "$OLD_STATU
         TASK_COMMITS=$(git log --all --oneline --grep="$TASK_ID" 2>/dev/null | awk '{print $1}')
         RESOLVED_COMPONENTS=""
         if [ -n "$TASK_COMMITS" ]; then
-            ALL_PATHS=$(for c in $TASK_COMMITS; do git diff --name-only "${c}~1" "$c" 2>/dev/null; done | sort -u)
+            # T-1374: `|| true` — root commits have no parent; `git diff ${c}~1` exits 128,
+            # and under pipefail+set -e that kills the script before the Episodic block.
+            ALL_PATHS=$(for c in $TASK_COMMITS; do git diff --name-only "${c}~1" "$c" 2>/dev/null || true; done | sort -u)
             for path in $ALL_PATHS; do
                 # Skip metadata paths
                 case "$path" in
                     .context/*|.tasks/*|.fabric/*|docs/*) continue ;;
                 esac
-                comp_id=$(grep "^${path}=" "$LOC_TO_ID_FILE" 2>/dev/null | head -1 | cut -d= -f2-)
+                # T-1374 (G-054 root cause): `|| true` prevents the pipeline's grep-no-match
+                # exit 1 (under pipefail) from killing the script via set -e, which otherwise
+                # aborted before the Episodic Generation block ran.
+                comp_id=$(grep "^${path}=" "$LOC_TO_ID_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)
                 if [ -n "$comp_id" ]; then
                     RESOLVED_COMPONENTS="${RESOLVED_COMPONENTS:+$RESOLVED_COMPONENTS, }${comp_id}"
                 fi
@@ -841,11 +849,32 @@ components: [$RESOLVED_COMPONENTS]" "$TASK_FILE"
 
         CONTEXT_AGENT="$FRAMEWORK_ROOT/agents/context/context.sh"
         if [ -x "$CONTEXT_AGENT" ]; then
-            PROJECT_ROOT="$PROJECT_ROOT" "$CONTEXT_AGENT" generate-episodic "$TASK_ID" || true
+            # T-1371 (G-054): Capture stdout/stderr/exit-code to diagnose silent failures.
+            # Log every invocation (not only on failure) so the forensic context (PROJECT_ROOT,
+            # CONTEXT_DIR, env) is captured when the next silent failure occurs.
+            EPISODIC_LOG="$CONTEXT_DIR/working/.last-episodic-gen.log"
+            mkdir -p "$(dirname "$EPISODIC_LOG")" 2>/dev/null || true
+            {
+                echo "=== episodic-gen invocation: $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+                echo "task_id: $TASK_ID"
+                echo "FRAMEWORK_ROOT: $FRAMEWORK_ROOT"
+                echo "PROJECT_ROOT: $PROJECT_ROOT"
+                echo "CONTEXT_DIR: $CONTEXT_DIR"
+                echo "CONTEXT_AGENT: $CONTEXT_AGENT"
+                echo "cwd: $(pwd)"
+                echo "--- context.sh output ---"
+            } > "$EPISODIC_LOG" 2>&1
+            set +e
+            PROJECT_ROOT="$PROJECT_ROOT" "$CONTEXT_AGENT" generate-episodic "$TASK_ID" >> "$EPISODIC_LOG" 2>&1
+            EPISODIC_EXIT=$?
+            set -e
+            echo "--- exit code: $EPISODIC_EXIT ---" >> "$EPISODIC_LOG"
+            cat "$EPISODIC_LOG"
             # Verify episodic was created (T-1169: silent failure detection)
             EPISODIC_FILE="$CONTEXT_DIR/episodic/$TASK_ID.yaml"
             if [ ! -f "$EPISODIC_FILE" ]; then
                 echo -e "  ${YELLOW}WARNING: Episodic not created for $TASK_ID — generation may have failed silently${NC}" >&2
+                echo -e "  Log: $EPISODIC_LOG (exit=$EPISODIC_EXIT)" >&2
                 echo -e "  Run manually: $(_emit_user_command "context generate-episodic $TASK_ID")" >&2
             fi
         else

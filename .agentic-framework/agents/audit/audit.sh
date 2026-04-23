@@ -482,6 +482,52 @@ else
          "Copy zzz-default.md to .tasks/templates/default.md"
 fi
 
+# T-1279 (G-052): Detect duplicate task IDs across active/ and completed/.
+# ID collisions are silent downstream failures (episodic confusion, fabric
+# ambiguity, commit traceability loss). Any two files sharing `id: T-NNNN`
+# in their frontmatter should fail the audit.
+dup_output=$(python3 -c "
+import os, re, sys
+from collections import defaultdict
+tasks_dir = os.environ.get('TASKS_DIR', '.tasks')
+id_to_files = defaultdict(list)
+for sub in ('active', 'completed'):
+    d = os.path.join(tasks_dir, sub)
+    if not os.path.isdir(d):
+        continue
+    for f in sorted(os.listdir(d)):
+        if not f.startswith('T-') or not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        try:
+            with open(path) as fh:
+                for i, line in enumerate(fh):
+                    if i > 30:
+                        break
+                    m = re.match(r'^id:\s*(T-\d+)\s*$', line)
+                    if m:
+                        id_to_files[m.group(1)].append(path)
+                        break
+        except Exception:
+            pass
+dups = {k: v for k, v in id_to_files.items() if len(v) > 1}
+if dups:
+    print('DUPLICATE_IDS_FOUND')
+    for task_id, files in sorted(dups.items()):
+        print(f'  {task_id}:')
+        for f in files:
+            print(f'    - {f}')
+    sys.exit(1)
+print('OK')
+" 2>&1)
+if [ $? -eq 0 ]; then
+    pass "No duplicate task IDs across active/ and completed/"
+else
+    fail "Duplicate task IDs detected (G-052)" \
+         "$dup_output" \
+         "Rename one of each pair: edit filename AND 'id:' frontmatter to a fresh T-NNNN"
+fi
+
 # Validate all project YAML files parse correctly (T-207 regression test)
 yaml_fail_count=0
 yaml_pass_count=0
@@ -768,14 +814,27 @@ if git -C "$PROJECT_ROOT" rev-parse --git-dir > /dev/null 2>&1; then
         fi
     fi
 
-    # Check for uncommitted changes
-    if [ -n "$(git -C "$PROJECT_ROOT" status --porcelain)" ]; then
-        warn "Uncommitted changes present" \
-             "Working directory has modifications" \
-             "Commit changes with task reference or stash"
+    # Check for uncommitted changes (T-1392: filter session-state noise)
+    # Session-state files (watchtower logs/pid, audits, monitors, focus, metrics
+    # history, ephemeral approvals, counters) churn under normal operation and
+    # would otherwise drown out signal from real source/code changes.
+    _SESSION_STATE_FILTER='^\.context/(working/(watchtower\.|session\.yaml|focus\.yaml|\.session-metrics\.yaml|\.tool-counter|\.edit-counter|\.budget-status|\.gate-bypass-log\.yaml|\.approval-notified|\.restart-requested|\.dispatch-approval)|audits/|monitors/|approvals/(pending|resolved)-|project/metrics-history\.yaml)'
+    _ALL_DIRTY=$(git -C "$PROJECT_ROOT" status --porcelain | awk '{print $2}')
+    if [ -n "$_ALL_DIRTY" ]; then
+        _REAL_DIRTY=$(printf '%s\n' "$_ALL_DIRTY" | grep -Ev "$_SESSION_STATE_FILTER" || true)
+        _NOISE_COUNT=$(printf '%s\n' "$_ALL_DIRTY" | grep -Ec "$_SESSION_STATE_FILTER" || true)
+        if [ -n "$_REAL_DIRTY" ]; then
+            _REAL_COUNT=$(printf '%s\n' "$_REAL_DIRTY" | wc -l | tr -d ' ')
+            warn "Uncommitted changes present" \
+                 "$_REAL_COUNT real file(s) modified ($_NOISE_COUNT session-state file(s) ignored)" \
+                 "Commit changes with task reference or stash"
+        else
+            pass "Working directory clean ($_NOISE_COUNT session-state file(s) churning, ignored)"
+        fi
     else
         pass "Working directory clean"
     fi
+    unset _SESSION_STATE_FILTER _ALL_DIRTY _REAL_DIRTY _NOISE_COUNT _REAL_COUNT
 
     # Quality Check: Verify task refs in commits exist as actual tasks
     orphan_refs=0
@@ -1697,7 +1756,7 @@ for task_file in "$TASKS_DIR/active"/*.md "$TASKS_DIR/completed"/*.md; do
     task_commits=$(git -C "$PROJECT_ROOT" log --oneline --all --grep="$task_id" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$task_commits" -gt 2 ]; then
         # Check for decision
-        has_decision=$(grep -c "inception-decision\|fw inception decide\|Decision:.*GO\|Decision:.*NO-GO" "$task_file" 2>/dev/null || true)
+        has_decision=$(grep -c "inception-decision\|fw inception decide\|Decision:.*GO\|Decision:.*NO-GO\|Decision\*\*: DEFER\|Decision: DEFER" "$task_file" 2>/dev/null || true)
         has_decision=$(echo "$has_decision" | tr -d '[:space:]')
         # Check for bypass log entries
         has_bypass=$(grep -c "$task_id" "$CONTEXT_DIR/bypass-log.yaml" 2>/dev/null || true)
@@ -1842,6 +1901,9 @@ for task_file in $recent_completed; do
                 cmd_pass=$((cmd_pass + 1))
             else
                 cmd_fail=$((cmd_fail + 1))
+                # FW_AUDIT_VERIFY_DEBUG=1 surfaces the failing command for diagnosis
+                # (T-1395: surface which CTL-013 verification step is failing).
+                [ -n "${FW_AUDIT_VERIFY_DEBUG:-}" ] && echo "DEBUG ($task_id) FAIL: $cmd" >&2
             fi
         done
         if [ "$cmd_fail" -eq 0 ]; then
@@ -2910,13 +2972,28 @@ shopt -s nullglob
 previous_audits=("$AUDITS_DIR"/*.yaml)
 shopt -u nullglob
 
-# Filter to only files before today
+# T-1394: rolling window — exclude audits older than FW_AUDIT_TREND_WINDOW_DAYS
+# (default 14). Without this, resolved issues stay flagged forever (e.g.
+# "Uncommitted changes present (39 times)" persists after T-1392 fixed it).
+TREND_WINDOW_DAYS="${FW_AUDIT_TREND_WINDOW_DAYS:-14}"
+TREND_WINDOW_CUTOFF=$(date -d "${TREND_WINDOW_DAYS} days ago" +%Y-%m-%d 2>/dev/null \
+    || date -v-${TREND_WINDOW_DAYS}d +%Y-%m-%d 2>/dev/null \
+    || echo "1970-01-01")
+
+# Filter to only files before today and within window
 past_audits=()
 for f in "${previous_audits[@]}"; do
     fname=$(basename "$f" .yaml)
-    if [ "$fname" != "$AUDIT_DATE" ] && [ -f "$f" ]; then
-        past_audits+=("$f")
-    fi
+    # Skip cron/, discoveries/ subdir entries — only date-named files
+    case "$fname" in
+        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*) fname="${fname:0:10}" ;;
+        *) continue ;;
+    esac
+    if [ "$fname" = "$AUDIT_DATE" ]; then continue; fi
+    # Lexicographic compare works for YYYY-MM-DD
+    if [[ "$fname" < "$TREND_WINDOW_CUTOFF" ]]; then continue; fi
+    [ -f "$f" ] && past_audits+=("$f")
 done
 
 if [ ${#past_audits[@]} -eq 0 ]; then
@@ -2948,7 +3025,7 @@ else
     rm -f "$ISSUE_COUNTS_FILE"
 
     if [ ${#repeated_issues[@]} -gt 0 ]; then
-        echo -e "${YELLOW}Repeated issues detected (candidates for practice):${NC}"
+        echo -e "${YELLOW}Repeated issues detected in last ${TREND_WINDOW_DAYS} days (candidates for practice):${NC}"
         for issue in "${repeated_issues[@]}"; do
             echo "  - $issue"
         done
@@ -2956,12 +3033,12 @@ else
         echo -e "${CYAN}Consider creating a practice to address these recurring issues.${NC}"
         echo "Run: fw context add-learning \"description\" --task T-XXX"
     else
-        echo -e "${GREEN}No repeated issues detected across ${#past_audits[@]} previous audit(s).${NC}"
+        echo -e "${GREEN}No repeated issues in last ${TREND_WINDOW_DAYS} days (across ${#past_audits[@]} audits).${NC}"
     fi
 
     # Show trend summary
     echo ""
-    echo "Audit history: ${#past_audits[@]} previous audit(s) + today"
+    echo "Audit history: ${#past_audits[@]} audit(s) in last ${TREND_WINDOW_DAYS} days + today"
 fi
 
 echo ""
@@ -3087,12 +3164,13 @@ entries.append(entry)
 cutoff_30d = datetime.now(timezone.utc) - timedelta(days=30)
 pruned = []
 for e in entries:
-    ts_str = e.get("timestamp", "")
+    # .get("timestamp", "") returns None when YAML has an explicit null value (T-1402)
+    ts_str = e.get("timestamp") or ""
     try:
         ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
         if ts >= cutoff_30d:
             pruned.append(e)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         pruned.append(e)  # keep unparseable entries
 
 # Downsample: for entries older than 7 days, keep only 1 per calendar day (T-431/A3)
@@ -3100,7 +3178,7 @@ cutoff_7d = datetime.now(timezone.utc) - timedelta(days=7)
 recent = []
 old_by_day = {}
 for e in pruned:
-    ts_str = e.get("timestamp", "")
+    ts_str = e.get("timestamp") or ""
     try:
         ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
         if ts >= cutoff_7d:
@@ -3109,10 +3187,10 @@ for e in pruned:
             day_key = ts.strftime("%Y-%m-%d")
             if day_key not in old_by_day:
                 old_by_day[day_key] = e  # keep first (oldest) per day
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         recent.append(e)
 
-pruned = sorted(old_by_day.values(), key=lambda x: x.get("timestamp", "")) + recent
+pruned = sorted(old_by_day.values(), key=lambda x: x.get("timestamp") or "") + recent
 
 data["entries"] = pruned
 

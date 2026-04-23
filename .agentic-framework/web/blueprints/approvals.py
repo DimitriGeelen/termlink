@@ -7,6 +7,7 @@ Shows three urgency-ordered sections:
 """
 
 import os
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -341,9 +342,6 @@ def decide_approval():
         # Self-consuming execution for idempotent bookkeeping commands that
         # would otherwise be orphaned if no agent retries (T-1192 structural
         # fix). Scope: `fw inception decide T-XXX go|no-go --rationale "..."`.
-        # These are well-defined, side-effect-bounded (write to task file),
-        # and expected to run exactly once. Other Tier 0 commands still
-        # require agent retry (token semantics preserved for safety).
         command_preview = data.get("command_preview", "")
         if _is_inception_decide(command_preview):
             exec_result = _execute_inception_decide(command_preview)
@@ -382,38 +380,25 @@ def decide_approval():
 
 def _is_inception_decide(command_preview: str) -> bool:
     """Detect `fw inception decide T-XXX go|no-go --rationale ...` shape."""
-    import re
-    # Normalize leading path (fw, bin/fw, .agentic-framework/bin/fw)
-    return bool(re.search(r"(?:^|/|\s)fw inception decide T-\d+ (?:go|no-go)\b", command_preview))
+    return bool(re.search(r"(?:^|/|\\s)fw inception decide T-\\d+ (?:go|no-go)\\b", command_preview))
 
 
 def _execute_inception_decide(command_preview: str) -> dict:
-    """Run the approved `fw inception decide` command and return a status dict.
-
-    Returns: {"ok": bool, "summary": str, "error": str|None, "stdout_tail": str}
-    """
-    import re
+    """Run the approved `fw inception decide` command and return a status dict."""
     import shlex
     import subprocess
 
-    # Extract task id, go|no-go, and --rationale value from the preview.
-    # Preview may be multi-line (YAML block); reconstruct as a single command line.
     cmd_str = " ".join(command_preview.split())
-    m = re.search(r"fw inception decide (T-\d+) (go|no-go)", cmd_str)
+    m = re.search(r"fw inception decide (T-\\d+) (go|no-go)", cmd_str)
     if not m:
         return {"ok": False, "error": "could not parse command", "summary": "", "stdout_tail": ""}
     task_id, verdict = m.group(1), m.group(2)
-
-    # Extract the --rationale "..." value. yaml block-scalars wrap long lines,
-    # so we accept whatever is inside the outermost double-quotes after --rationale.
-    rat_m = re.search(r'--rationale\s+"(.*)"(?:\s|$)', cmd_str, re.DOTALL)
+    rat_m = re.search(r'--rationale\\s+"(.*)"(?:\\s|$)', cmd_str, re.DOTALL)
     rationale = rat_m.group(1) if rat_m else "Approved via Watchtower (no rationale captured)"
-    # yaml preview often ends mid-string when the file truncates long previews;
-    # that is fine — the fw CLI accepts partial rationales.
 
     fw_bin = str(PROJECT_ROOT / ".agentic-framework" / "bin" / "fw")
     if not Path(fw_bin).exists():
-        fw_bin = "fw"  # fall back to PATH
+        fw_bin = "fw"
 
     argv = [fw_bin, "inception", "decide", task_id, verdict, "--rationale", rationale]
     try:
@@ -423,27 +408,14 @@ def _execute_inception_decide(command_preview: str) -> dict:
         subproc_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         subproc_env["TIER0_AUTOEXEC"] = "1"
         proc = subprocess.run(
-            argv,
-            cwd=str(PROJECT_ROOT),
+            argv, cwd=str(PROJECT_ROOT),
             env=subproc_env,
-            capture_output=True,
-            text=True,
-            timeout=30,
+            capture_output=True, text=True, timeout=30,
         )
         stdout_tail = (proc.stdout or "")[-400:]
         if proc.returncode == 0:
-            return {
-                "ok": True,
-                "summary": f"{task_id} decided {verdict}",
-                "error": None,
-                "stdout_tail": stdout_tail,
-            }
-        return {
-            "ok": False,
-            "error": (proc.stderr or "").strip()[:400] or f"exit {proc.returncode}",
-            "summary": "",
-            "stdout_tail": stdout_tail,
-        }
+            return {"ok": True, "summary": f"{task_id} decided {verdict}", "error": None, "stdout_tail": stdout_tail}
+        return {"ok": False, "error": (proc.stderr or "").strip()[:400] or f"exit {proc.returncode}", "summary": "", "stdout_tail": stdout_tail}
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "timeout (30s)", "summary": "", "stdout_tail": ""}
     except Exception as e:
