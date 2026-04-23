@@ -31,7 +31,7 @@ date_finished: 2026-04-16T21:48:47Z
 - [x] All 3 new tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 3 passed for fleet_doctor_unreachable/fleet_reauth_bootstrap tests. Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- fleet_doctor fleet_reauth 2>&1 | grep "passed"`
   **Expected:** Additional tests beyond baseline
   **If not:** Check test names

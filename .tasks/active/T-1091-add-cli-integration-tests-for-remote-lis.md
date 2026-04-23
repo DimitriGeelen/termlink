@@ -32,7 +32,7 @@ date_finished: 2026-04-16T21:22:23Z
 - [x] All 8 new tests pass, zero clippy warnings on the test crate
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 8 passed for remote_list/remote_exec/remote_doctor/remote_push tests; clippy clean. Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- remote 2>&1 | grep "passed"`
   **Expected:** Additional tests passing beyond baseline
   **If not:** Check test names

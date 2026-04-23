@@ -32,7 +32,7 @@ date_finished: 2026-04-16T21:29:48Z
 - [x] All 6 new tests pass, zero clippy warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 8 passed for remote_profile/fleet_reauth tests. Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- remote_profile fleet_reauth 2>&1 | grep "passed"`
   **Expected:** New tests passing
   **If not:** Check test names
