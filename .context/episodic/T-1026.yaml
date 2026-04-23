@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1026: Move hub.tcp write to server layer — fix hub restart TCP detection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:05Z
+# ============================================================================
+
+task_id: T-1026
+task_name: "Move hub.tcp write to server layer — fix hub restart TCP detection"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T13:08:20Z
+completed: 2026-04-15T13:47:09Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-04-13T15:11:38+02:00
+last_commit: 2026-04-13T15:11:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Move hub.tcp to server layer — write after bind, remove on shutdown
+
+# Key outcomes
+outcomes:
+  - "`hub.tcp` written in server.rs after TcpListener::bind() using local_addr()"
+  - "`hub.tcp` removed on clean shutdown alongside socket and pidfile"
+  - "CLI-layer hub.tcp write removed from infrastructure.rs"
+  - "hub restart still reads hub.tcp correctly (no change to restart code)"
+  - "Builds and passes clippy (1003 tests passing)"
+  - "[REVIEW] Test hub restart preserves TCP — ticked by user direction 2026-04-23. Evidence: Per T-1026 fix: hub.tcp write moved to server layer (verified in router.rs). Subcommand `termlink hub restart` exists and uses zero-downtime fork-exec pattern. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-13.yaml"
+  - ".context/audits/cron/2026-04-13-1500.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/locks/T-1025.lock"
+  - ".context/locks/T-1026.lock"
+  - ".context/project/decisions.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-status"
+  - ".context/working/.edit-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.gate-bypass-log.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.reviewed-T-1025"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - ".tasks/active/T-1026-move-hubtcp-write-to-server-layer--fix-h.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T15:11:38"
+    action: "T-1026: Move hub.tcp to server layer — write after bind, remove on shutdown"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2918 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2918
+  commits: 1
+  files_changed: 19
+  lines_added: 199
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1026-move-hubtcp-write-to-server-layer--fix-h.md
+generated_by: context-agent-hybrid

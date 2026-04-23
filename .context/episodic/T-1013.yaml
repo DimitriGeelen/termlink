@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1013: Create termlink deploy script for remote hosts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:02Z
+# ============================================================================
+
+task_id: T-1013
+task_name: "Create termlink deploy script for remote hosts"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T10:20:14Z
+completed: 2026-04-15T13:47:08Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-04-13T12:22:38+02:00
+last_commit: 2026-04-13T12:22:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add deploy-remote.sh — automated termlink deployment to remote hosts via SSH
+
+# Key outcomes
+outcomes:
+  - "Script at scripts/deploy-remote.sh"
+  - "Accepts HOST, PROFILE_NAME, and optional PORT (default 9100) args"
+  - "Copies the local termlink binary via scp"
+  - "Creates systemd service on remote (matching .109 pattern)"
+  - "Generates hub secret on remote"
+  - "Copies secret back and creates local profile in hubs.toml"
+  - "Runs termlink remote ping to verify connectivity"
+  - "Script is idempotent (can re-run to update binary)"
+  - "Script passes shellcheck (1 intentional SC2087 info — client-side heredoc expansion is desired)"
+  - "[REVIEW] Run script against .121 after authorizing SSH key — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — termlink-deploy.sh script exists in repo. .121 deployment blocked by G-013 infra; script-itself code-validated."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/deploy-remote.sh"
+  - ".tasks/active/T-1013-create-termlink-deploy-script-for-remote.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T12:22:38"
+    action: "T-1013: Add deploy-remote.sh — automated termlink deployment to remote hosts via SSH"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3086 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3086
+  commits: 2
+  files_changed: 39
+  lines_added: 254
+  lines_removed: 39
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1013-create-termlink-deploy-script-for-remote.md
+generated_by: context-agent-hybrid

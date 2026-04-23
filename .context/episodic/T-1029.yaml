@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1029: Fix local TCP fallback — use TOFU when pinned cert missing, never plaintext
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:25Z
+# ============================================================================
+
+task_id: T-1029
+task_name: "Fix local TCP fallback — use TOFU when pinned cert missing, never plaintext"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T13:38:42Z
+completed: 2026-04-23T19:17:16Z
+duration_days: 10
+updates_count: 2
+first_commit: 2026-04-13T15:40:12+02:00
+last_commit: 2026-04-13T15:40:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix local TCP fallback — use TOFU when pinned cert missing, never plaintext
+
+# Key outcomes
+outcomes:
+  - "Plaintext TCP fallback removed from connect_addr"
+  - "Local connections without pinned cert use TOFU instead"
+  - "Existing TLS tests pass (18/18 + 1 doctest)"
+  - "Builds and passes clippy"
+  - "[REVIEW] Verify `termlink remote ping local-test` works — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet doctor` shows local-test PASS (connected 80ms, version 0.9.0). TOFU fallback path exercised. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix local TCP fallback — use TOFU when pinned cert missing, never plaintext"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/lib/inception.sh"
+  - ".agentic-framework/VERSION"
+  - ".agentic-framework/web/blueprints/inception.py"
+  - "crates/termlink-session/src/client.rs"
+  - ".tasks/active/T-1029-fix-local-tcp-fallback--use-tofu-when-pi.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T15:40:12"
+    action: "T-1029: Fix local TCP fallback — use TOFU when pinned cert missing, never plaintext"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14738 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14738
+  commits: 1
+  files_changed: 5
+  lines_added: 83
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1029-fix-local-tcp-fallback--use-tofu-when-pi.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1017: send-file reports success when no receiver is running — silent data loss
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:03Z
+# ============================================================================
+
+task_id: T-1017
+task_name: "send-file reports success when no receiver is running — silent data loss"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T12:01:07Z
+completed: 2026-04-15T13:47:08Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-04-13T14:01:32+02:00
+last_commit: 2026-04-13T14:06:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Create 3 bug tasks from prior session — send-file data loss, stale events, musl CI. Fix send-file silent data loss — distinguish spooled vs delivered, warn about receiver
+
+# Key outcomes
+outcomes:
+  - "JSON output includes `\"spooled\": true/false` to distinguish inbox spool from live delivery"
+  - "Human-readable output warns \"receiver must run 'termlink file receive' to assemble\" when spooled"
+  - "Direct delivery JSON passes through actual session response instead of hardcoded `{\"delivered\": true}`"
+  - "Tests pass (`cargo test -p termlink`)"
+  - "No clippy warnings on changed files"
+  - "[REVIEW] Test send-file to offline target and verify warning appears — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — send-file warning fix in code (T-1017). Live test against offline target deferred (would disrupt session)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix send-file silent data loss — distinguish spooled vs delivered, warn about receiver"
+    source: git-mined
+  - description: "Create 3 bug tasks from prior session — send-file data loss, stale events, musl CI"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/.edit-counter"
+  - ".context/working/focus.yaml"
+  - ".context/working/.new-file-counter"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.reviewed-T-1017"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-start-ts"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/commands/file.rs"
+  - ".tasks/active/T-1017-send-file-reports-success-when-no-receiv.md"
+  - ".tasks/active/T-1018-file-receive-assembles-stale-transfer-ev.md"
+  - ".tasks/active/T-1019-add-musl-static-build-target-to-cireleas.md"
+  - ".termlink-task"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T14:01:32"
+    action: "T-1017: Create 3 bug tasks from prior session — send-file data loss, stale events, musl CI"
+  - time: "2026-04-13T14:06:04"
+    action: "T-1017: Fix send-file silent data loss — distinguish spooled vs delivered, warn about receiver"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2986 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2986
+  commits: 3
+  files_changed: 18
+  lines_added: 299
+  lines_removed: 68
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1017-send-file-reports-success-when-no-receiv.md
+generated_by: context-agent-hybrid

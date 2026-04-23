@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1102: Add termlink fleet status — one-screen operational overview
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:17:44Z
+# ============================================================================
+
+task_id: T-1102
+task_name: "Add termlink fleet status — one-screen operational overview"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-17T08:42:26Z
+completed: 2026-04-22T08:12:24Z
+duration_days: 5
+updates_count: 2
+first_commit: 2026-04-17T11:02:17+02:00
+last_commit: 2026-04-22T10:12:24+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink fleet status — one-screen operational overview with colored output, session counts, and actionable fix steps. Agent evidence — fleet status renders single-screen overview w/ actionable heals (post T-1183 fix)
+
+# Key outcomes
+outcomes:
+  - "`termlink fleet status` subcommand exists and compiles"
+  - "Shows colored status per hub: UP (green), DOWN (red), AUTH-FAIL (yellow)"
+  - "Shows session count and latency for reachable hubs"
+  - "Shows ACTIONS NEEDED section with actionable fix steps for broken hubs"
+  - "`termlink fleet status --json` returns structured JSON"
+  - "Test: fleet status with no hubs.toml returns empty/helpful message"
+  - "MCP tool `termlink_fleet_status` added (68 MCP tools total)"
+  - "1,124 tests pass, zero warnings"
+  - "[REVIEW] Run `termlink fleet status` and verify the output is scannable and useful — ticked by user direction 2026-04-23. Evidence: Live: `termlink fleet status` returns one-screen dashboard: 3 hubs in colored UP/AUTH/DOWN, latencies, FLEET summary line, ACTIONS NEEDED block with copy-pasteable reauth commands. Scannable + useful. User direction 2026-04-23."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Agent evidence — fleet status renders single-screen overview w/ actionable heals (post T-1183 fix)"
+    source: git-mined
+  - description: "Add termlink fleet status — one-screen operational overview with colored output, session counts, and actionable fix steps"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-cli/tests/cli_integration.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1102-add-termlink-fleet-status--one-screen-op.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-17T11:02:17"
+    action: "T-1102: Add termlink fleet status — one-screen operational overview with colored output, session counts, and actionable fix steps"
+  - time: "2026-04-22T10:12:24"
+    action: "T-1102: Agent evidence — fleet status renders single-screen overview w/ actionable heals (post T-1183 fix)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7169 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7169
+  commits: 2
+  files_changed: 6
+  lines_added: 474
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1102-add-termlink-fleet-status--one-screen-op.md
+generated_by: context-agent-hybrid
