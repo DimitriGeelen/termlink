@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1204: Composer status footer — show N live / M total panels at bottom (T-236 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T15:08:31Z
+# ============================================================================
+
+task_id: T-1204
+task_name: "Composer status footer — show N live / M total panels at bottom (T-236 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-23T15:06:38Z
+completed: 2026-04-23T15:08:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-23T17:08:23+02:00
+last_commit: 2026-04-23T17:08:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Composer status footer — show N live / M total panels
+
+# Key outcomes
+outcomes:
+  - "New helper `draw_status_footer(out, term_rows, live_count, total_count)` writes a reverse-video status bar at row `term_rows` (1-based)"
+  - "`cmd_mirror_tag` tracks `term_rows` (from the existing `terminal_size()` call, also recomputed on SIGWINCH), and each tick counts live panels via `!p.closed`"
+  - "Footer is repainted once per tick (cheap — ≤80 bytes per frame) after all panel paints complete"
+  - "Binary builds clean (`cargo build -p termlink` no new warnings)"
+  - "All 10 composer tests still pass"
+  - "Live smoke test: spawn 2 tagged sessions, run `mirror --tag`, confirm footer text \"2 live / 2 total\" appears in stdout bytes"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/mirror_grid_composer.rs"
+  - ".tasks/active/T-1204-composer-status-footer--show-n-live--m-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-23T17:08:23"
+    action: "T-1204: Composer status footer — show N live / M total panels"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 114
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1204-composer-status-footer--show-n-live--m-t.md
+generated_by: context-agent-hybrid

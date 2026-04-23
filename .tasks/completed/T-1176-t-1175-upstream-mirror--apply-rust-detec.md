@@ -4,7 +4,7 @@ name: "T-1175 upstream mirror — apply Rust detector patch in framework repo"
 description: >
   T-1175 upstream mirror — apply Rust detector patch in framework repo
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-20T23:34:23Z
-last_update: 2026-04-20T23:36:40Z
-date_finished: null
+last_update: 2026-04-23T17:19:49Z
+date_finished: 2026-04-23T17:19:49Z
 ---
 
 # T-1176: T-1175 upstream mirror — apply Rust detector patch in framework repo
@@ -97,3 +97,7 @@ grep -q "RUST_SKIP_CRATES" .agentic-framework/agents/fabric/lib/enrich.py
 
 ### 2026-04-20T23:36:40Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-04-23T17:19:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

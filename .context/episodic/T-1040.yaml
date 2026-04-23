@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1040: Add termlink_hub_restart and termlink_events MCP tools — T-922 codification
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T17:06:08Z
+# ============================================================================
+
+task_id: T-1040
+task_name: "Add termlink_hub_restart and termlink_events MCP tools — T-922 codification"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T20:23:42Z
+completed: 2026-04-23T17:05:50Z
+duration_days: 10
+updates_count: 2
+first_commit: 2026-04-13T22:34:53+02:00
+last_commit: 2026-04-13T22:34:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink_hub_restart and termlink_events MCP tools — T-922 codification
+
+# Key outcomes
+outcomes:
+  - "`termlink_hub_restart` MCP tool restarts the local hub and returns JSON status"
+  - "`termlink_events` MCP tool queries event history from a named session"
+  - "MCP unit tests for both tools (params parsing, missing required fields)"
+  - "Builds with zero clippy warnings"
+  - "[RUBBER-STAMP] Verify MCP tool count increased in `termlink doctor` — ticked by user direction 2026-04-23. Live: doctor reports `75 MCP tools` (was 69 at task-time, +6 since: hub_restart, events, kv_watch, etc.)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1040-add-termlinkhubrestart-and-termlinkevent.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T22:34:53"
+    action: "T-1040: Add termlink_hub_restart and termlink_events MCP tools — T-922 codification"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 14202 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14202
+  commits: 2
+  files_changed: 6
+  lines_added: 303
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1040-add-termlinkhubrestart-and-termlinkevent.md
+generated_by: context-agent-hybrid

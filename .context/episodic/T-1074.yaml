@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1074: Periodic cross-agent learning exchange — 15-min cron asks every reachable peer what they learned
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T12:10:45Z
+# ============================================================================
+
+task_id: T-1074
+task_name: "Periodic cross-agent learning exchange — 15-min cron asks every reachable peer what they learned"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-15T21:32:59Z
+completed: 2026-04-23T12:10:44Z
+duration_days: 8
+updates_count: 5
+first_commit: 2026-04-15T23:35:16+02:00
+last_commit: 2026-04-20T16:47:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — periodic cross-agent learning exchange (15-min cron). Finish inception spikes S-1..S-5 + pivot recommendation to T-1155 bus. Capture PL-039 — revisit pending inception recommendations after related GO
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1155.yaml"
+  - ".context/project/learnings.yaml"
+  - "docs/reports/T-1074-cross-agent-learning-exchange-inception.md"
+  - ".tasks/active/T-1074-periodic-cross-agent-learning-exchange--.md"
+  - ".tasks/active/T-1168-t-1074-follow-up-channellearnings-publis.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-15T23:35:16"
+    action: "T-1074: Inception — periodic cross-agent learning exchange (15-min cron)"
+  - time: "2026-04-20T16:44:20"
+    action: "T-1074: Finish inception spikes S-1..S-5 + pivot recommendation to T-1155 bus"
+  - time: "2026-04-20T16:47:17"
+    action: "T-1074: Capture PL-039 — revisit pending inception recommendations after related GO"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 10957 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10957
+  commits: 3
+  files_changed: 5
+  lines_added: 451
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1074-periodic-cross-agent-learning-exchange--.md
+generated_by: context-agent-hybrid

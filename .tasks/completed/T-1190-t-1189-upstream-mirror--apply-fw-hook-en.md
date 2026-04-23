@@ -4,7 +4,7 @@ name: "T-1189 upstream mirror — apply fw hook-enable patch in framework repo"
 description: >
   T-1189 built hook-enable.sh + bin/fw route in termlink-vendored copy at .agentic-framework/ (gitignored). Mirror the patch into /opt/999-Agentic-Engineering-Framework/ and commit there. Use cross-project human step per T-559 boundary policy (agent sessions rooted in /opt/termlink are blocked from cd'ing into the framework repo).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [framework, upstream-mirror, g-015-repair]
 components: []
 related_tasks: [T-977, T-1187, T-1188, T-1189]
 created: 2026-04-22T18:35:47Z
-last_update: 2026-04-22T18:35:47Z
-date_finished: null
+last_update: 2026-04-23T17:19:53Z
+date_finished: 2026-04-23T17:19:53Z
 ---
 
 # T-1190: T-1189 upstream mirror — apply fw hook-enable patch in framework repo
@@ -104,3 +104,7 @@ test -f /opt/termlink/.tasks/active/T-1190-t-1189-upstream-mirror--apply-fw-hook
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1190-t-1189-upstream-mirror--apply-fw-hook-en.md
 - **Context:** Initial task creation
+
+### 2026-04-23T17:19:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

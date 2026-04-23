@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1196: Apply T-1194 tick_inception_decide_acs Agent extension (vendored + upstream mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T12:13:10Z
+# ============================================================================
+
+task_id: T-1196
+task_name: "Apply T-1194 tick_inception_decide_acs Agent extension (vendored + upstream mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-23T12:11:32Z
+completed: 2026-04-23T12:13:08Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-23T14:13:05+02:00
+last_commit: 2026-04-23T14:13:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  apply T-1194 tick_inception_decide_acs Agent extension
+
+# Key outcomes
+outcomes:
+  - "Vendored `.agentic-framework/lib/inception.sh` has AGENT_PATTERNS block + has_recommendation guard (patch applied 2026-04-23T12:11Z)"
+  - "`bash -n .agentic-framework/lib/inception.sh` passes"
+  - "Upstream `/opt/999-AEF/lib/inception.sh` mirrored via Channel 1 dispatch (commit 8446ea62)"
+  - "Upstream push lands on `onedev master` (480590e1..8446ea62)"
+  - "Regression smoke: /tmp/test-rec-live.md → 3 ceremonial ticked + custom untouched; /tmp/test-norec-live.md → no Agent ticks"
+  - "T-1194 research artifact updated with landed commit hashes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1194-inception-agent-ac-auto-tick.md"
+  - ".tasks/active/T-1186-batch-approve-36-inception-tasks-with-de.md"
+  - ".tasks/active/T-1196-apply-t-1194-tickinceptiondecideacs-agen.md"
+  - ".tasks/completed/T-1016-termlink-deploy--atomic-binary-deploymen.md"
+  - ".tasks/completed/T-1051-termlink-authconnect-reliability--antifr.md"
+  - ".tasks/completed/T-1074-periodic-cross-agent-learning-exchange--.md"
+  - ".tasks/completed/T-1192-dispatched-claude-workers-blocked-as-roo.md"
+  - ".tasks/completed/T-1194-inception-agent-acs-never-auto-tick-when.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-23T14:13:05"
+    action: "T-1196: apply T-1194 tick_inception_decide_acs Agent extension"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 8
+  lines_added: 896
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1196-apply-t-1194-tickinceptiondecideacs-agen.md
+generated_by: context-agent-hybrid

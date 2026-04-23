@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1016: termlink deploy — atomic binary deployment to remote hosts via termlink (no SSH)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T12:10:16Z
+# ============================================================================
+
+task_id: T-1016
+task_name: "termlink deploy — atomic binary deployment to remote hosts via termlink (no SSH)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-13T11:23:11Z
+completed: 2026-04-23T12:10:14Z
+duration_days: 10
+updates_count: 6
+first_commit: 2026-04-13T15:45:28+02:00
+last_commit: 2026-04-13T15:45:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — termlink deploy command (GO recommendation)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (T-1023 + T-1027 incidents)"
+  - "Assumptions tested (all 5 validated)"
+  - "Recommendation written with rationale (GO)"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "systemd restart via `remote exec \"systemctl restart termlink-hub\"`"
+    rationale: "Atomic lifecycle management, handles cleanup, auto-restart on failure"
+    alternatives_rejected: ["fork-exec self-restart (complex), manual restart (slow), two-phase (too slow)"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1016-termlink-deploy.md"
+  - ".tasks/active/T-1016-termlink-deploy--atomic-binary-deploymen.md"
+  - ".tasks/active/T-1027-deploy-v09815-to-109-and-121--includes-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-13T15:45:28"
+    action: "T-1016: Inception — termlink deploy command (GO recommendation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14447 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14447
+  commits: 1
+  files_changed: 3
+  lines_added: 177
+  lines_removed: 62
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1016-termlink-deploy--atomic-binary-deploymen.md
+generated_by: context-agent-hybrid
