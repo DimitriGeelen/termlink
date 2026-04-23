@@ -31,7 +31,7 @@ date_finished: 2026-04-16T23:34:47Z
 - [x] All 6 new tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 6 passed for mirror_no_hub/mirror_scrollback/interact_missing/interact_nonexistent_session_with_cmd/agent_listen_no_hub/agent_ask_no_hub tests. Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- mirror interact agent_listen 2>&1 | grep "passed"`
   **Expected:** Additional tests passing
   **If not:** Check test names

@@ -31,7 +31,7 @@ date_finished: 2026-04-16T21:58:34Z
 - [x] All 3 new tests pass
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 3 passed for inbox_status_json/inbox_clear_json/token_create_no tests. Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- inbox_status_json inbox_clear_json token_create_custom 2>&1 | grep "passed"`
   **Expected:** New tests passing
   **If not:** Check test names

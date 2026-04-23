@@ -35,7 +35,7 @@ Add error-path and edge-case router tests for hub RPC methods that currently lac
 - [x] All tests pass: cargo test -p termlink-hub (198 passed)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased in Watchtower
+- [x] [RUBBER-STAMP] Verify test count increased in Watchtower — ticked by user direction 2026-04-23. Evidence: termlink-hub crate: 210 tests passing (router tests for session.update/event.poll included). Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:**
   1. `cd /opt/termlink && cargo test -p termlink-hub 2>&1 | grep "test result"`
   **Expected:** More tests than before (was 35+12=47 router tests)

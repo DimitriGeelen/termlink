@@ -33,7 +33,7 @@ resolve_hub_paths() in infrastructure.rs (T-1031/T-1032) has zero test coverage.
 - [x] All new tests pass alongside existing test suite (0 failures)
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: 3 cli_integration tests pass: cli_hub_status_short / cli_hub_status_isolated / cli_hub_status_stale (1 each). Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:** `cd /opt/termlink && cargo test --workspace 2>&1 | grep "test result:" | head -10`
   **Expected:** Total test count higher than previous (was ~1002)
   **If not:** Check for compilation errors

@@ -30,7 +30,7 @@ date_finished: 2026-04-16T21:25:52Z
 - [x] All 4 new tests pass, zero clippy warnings
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify test count increased
+- [x] [RUBBER-STAMP] Verify test count increased — ticked by user direction 2026-04-23. Evidence: cli_integration: 4 passed for dispatch_status/mcp_serve tests. Verified live via cargo test 2026-04-23T17:25Z.
   **Steps:** `cd /opt/termlink && cargo test -p termlink -- dispatch_status mcp 2>&1 | grep "passed"`
   **Expected:** New tests passing
   **If not:** Check test names
