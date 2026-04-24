@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1221: Fix 4 pre-existing clippy errors in termlink-cli mirror_grid
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-24T15:27:36Z
+# ============================================================================
+
+task_id: T-1221
+task_name: "Fix 4 pre-existing clippy errors in termlink-cli mirror_grid"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T15:23:16Z
+completed: 2026-04-24T15:27:30Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`mirror_grid.rs:279` SGR 38 nested `if` collapsed into single `if` with `&&` chain. Semantically identical — Rust `&&` short-circuits just like nested `if`."
+  - "`mirror_grid.rs:289` SGR 48 nested `if` collapsed (same pattern as 279)."
+  - "`mirror_grid.rs:564` `0x0A | 0x0B | 0x0C` replaced with `0x0A..=0x0C` match arm. All three bytes still match (LF, VT, FF)."
+  - "`mirror_grid_composer.rs:222` nested `if let Some(output) / if !output.is_empty()` collapsed into single `if let Some(output) = … && !output.is_empty()`."
+  - "`crates/termlink-mcp/tests/mcp_integration.rs:309` `.expect(&format!(...))` replaced with `.unwrap_or_else(|| panic!(...))` — surfaces under `-D warnings` as `clippy::expect_fun_call`. Found while verifying scope; same class (mechanical lint fix, no behavior change)."
+  - "`cargo clippy --workspace --tests -- -D warnings` exits 0 — full workspace clean. Verified 2026-04-24."
+  - "`cargo test -p termlink` — no regressions (no mirror_grid-specific unit tests exist; module covered by integration tests, 4 ignored pre-existing). All 4 fixes are semantics-preserving per clippy's own help text."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [clippy, tech-debt, termlink-cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1221-fix-4-pre-existing-clippy-errors-in-term.md
+generated_by: context-agent-hybrid

@@ -276,21 +276,23 @@ impl Grid {
                 27 => self.sgr.reverse = false,
                 30..=37 => self.sgr.fg = Some((p - 30) as u8),
                 38 => {
-                    if i + 1 < collected.len() && collected[i + 1] == 5 {
-                        if i + 2 < collected.len() {
-                            self.sgr.fg = Some(collected[i + 2] as u8);
-                            i += 2;
-                        }
+                    if i + 1 < collected.len()
+                        && collected[i + 1] == 5
+                        && i + 2 < collected.len()
+                    {
+                        self.sgr.fg = Some(collected[i + 2] as u8);
+                        i += 2;
                     }
                 }
                 39 => self.sgr.fg = None,
                 40..=47 => self.sgr.bg = Some((p - 40) as u8),
                 48 => {
-                    if i + 1 < collected.len() && collected[i + 1] == 5 {
-                        if i + 2 < collected.len() {
-                            self.sgr.bg = Some(collected[i + 2] as u8);
-                            i += 2;
-                        }
+                    if i + 1 < collected.len()
+                        && collected[i + 1] == 5
+                        && i + 2 < collected.len()
+                    {
+                        self.sgr.bg = Some(collected[i + 2] as u8);
+                        i += 2;
                     }
                 }
                 49 => self.sgr.bg = None,
@@ -561,7 +563,7 @@ impl Perform for Grid {
                 let next_tab = ((self.cursor_col / 8) + 1) * 8;
                 self.cursor_col = next_tab.min(self.cols.saturating_sub(1));
             }
-            0x0A | 0x0B | 0x0C => {
+            0x0A..=0x0C => {
                 if self.cursor_row == self.scroll_bottom {
                     self.scroll_up_region();
                 } else {
