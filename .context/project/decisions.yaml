@@ -220,3 +220,24 @@ decisions:
     date: 2026-04-23
     task: T-1016
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-011
+    decision: "GO — proceed with hook audit"
+    scope: project
+    date: 2026-04-23
+    task: T-176
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-012
+    decision: "Restore from `git checkout HEAD~1` rather than re-vendor with `--exclude` flags"
+    scope: project
+    date: 2026-04-23
+    task: T-1206
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-013
+    decision: "Ship only B1 in T-1168: publisher hook + helper script that posts `channel:learnings` envelopes when `fw context add-learning` succeeds. Subscriber daemon (B2), Watchtower panel (B3), and install-bump coordination (B4) are deferred to **T-1217**."
+    scope: project
+    date: 2026-04-24
+    task: T-1168
+    rationale: "Auto-captured from task file on completion"

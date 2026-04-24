@@ -1,0 +1,32 @@
+pickup_id: P-040
+version: 1
+type: feature-proposal
+source:
+  project: "999-Agentic-Engineering-Framework"
+  task_id: "T-1332"
+  agent: "claude-code"
+  timestamp: "2026-04-24T09:31:24Z"
+payload:
+  summary: "Prioritise T-1054 (fleet reauth tier-1) and T-1055 (bootstrap-from) — framework G-045 has fired 5+ times this week on .121"
+  detail: "Framework (999-Agentic-Engineering-Framework) T-1332 inception decided GO today to surface the fleet cert/secret co-rotation pain upstream. Request: please prioritise T-1054 (fleet reauth tier-1, one-command heal) and T-1055 (fleet reauth --bootstrap-from, tier-2).
+
+**Evidence from framework side:**
+
+- G-045 concern (.context/project/concerns.yaml, framework): widened from .122-only to fleet-wide on 2026-04-19 after .121 also rotated TLS fingerprints AND shared secrets within 24h windows.
+- .fleet-failure-state.json (2026-04-24): ring20-dashboard (.121) has 5 consecutive auth-mismatch failures since 2026-04-23T17:17:01Z. ring20-management (.122) recovered but still has a rotating history (cbc43af8 → 5198d1fb → b90adf25 over prior week).
+- Current operational cost: ≥3 cross-agent round-trips per incident to relay new 64-hex secrets out-of-band. Three incidents in April = ~9 round-trips burned on what should be a one-command heal.
+- Per T-1051 Option D heal path, the steps the agents run today are already mechanical: termlink remote ping <ip>:9100 from trusted anchor, then manual scp of /var/lib/termlink/hub.secret. A CLI wrapper that does both steps + updates TOFU in one command would eliminate the round-trips entirely.
+
+**What we're NOT asking for:**
+
+- Full identity/zero-trust redesign (explicit OUT of T-1332 scope-fence).
+- Framework-side changes (we already ship the hint via fw doctor / fleet-doctor classification).
+- A new dependency / protocol — T-1054/T-1055 are already on termlink's roadmap per previous convos.
+
+**Why now:**
+
+Three triggers in April with escalating frequency. Every framework-consuming project on the fleet pays the coordination cost. Shipping T-1054 at tier-1 (framework-agent can invoke via `termlink fleet reauth <host>`) closes the loop without requiring a full identity redesign.
+
+See framework concerns.yaml G-045 for the full timeline + related_tasks [T-1051, T-1052, T-1053, T-1054, T-1055, T-1326]."
+  priority: high
+  tags: [fleet, auth, g-045, termlink]

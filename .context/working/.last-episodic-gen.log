@@ -1,0 +1,21 @@
+=== episodic-gen invocation: 2026-04-24T16:21:40Z ===
+task_id: T-1223
+FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
+PROJECT_ROOT: /opt/termlink
+CONTEXT_DIR: /opt/termlink/.context
+CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
+cwd: /opt/termlink/.agentic-framework
+--- context.sh output ---
+Episodic generated: /opt/termlink/.context/episodic/T-1223.yaml
+
+  Status: ✓ complete (Auto-generated)
+  Task: G-016 root cause: find DRY_RUN=0 bootstrap source
+  Duration: 0 days (32 min)
+  Updates: 3
+  Commits: 0
+  Lines: +0 -0 across 0 files
+  Outcomes: 4 AC checked
+  Decisions: recorded from task file
+
+Source: /opt/termlink/.tasks/completed/T-1223-g-016-root-cause-find-dryrun0-bootstrap-.md
+--- exit code: 0 ---
