@@ -68,6 +68,7 @@ Design source: `docs/reports/T-1214-fleet-diagnosis.md` §"Scope of B".
       3. Verify response JSON contains `result.methods` array including `channel.post`, `hub.capabilities`, `session.discover`
       **Expected:** ≥10 methods returned, sorted, `hub_version` matches `git describe`.
       **If not:** check hub log for handler dispatch error; confirm router.rs has the new match arm.
+      **Evidence (2026-04-24T16:45Z, agent probe):** Running hub at 127.0.0.1:9100 is a stale binary (pid 1718329, `/opt/termlink/target/debug/termlink hub start --tcp` started Apr20 — pre-dates this task's landing). Probe via `termlink_remote_call` hit the fallback path: with scope=control → `-32010 requires 'execute' scope`; with scope=execute → `-32001 Missing 'target' in params` (i.e., request fell through to `forward_to_target` because the running binary lacks the T-1215 match arm at router.rs:89). Conclusion: rebuild + restart the hub (`pkill -HUP` or `systemctl restart` path) before the live probe will succeed. Build + unit-test ACs already green; this is a deployment-freshness issue, not a code issue.
 
 ## Verification
 
