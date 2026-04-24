@@ -4,16 +4,16 @@ name: "Hub capabilities method + client-side cache (T-1214 follow-up)"
 description: >
   Per T-1214 federate recommendation: add a 'hub.capabilities' JSON-RPC method to the hub so clients can discover which methods (channel.post, command.exec, etc.) a peer supports at connect time. Client-side: cache supported-method list per peer. Enables T-1165 bridge to gracefully fall back to event.broadcast when channel.* is absent. See docs/reports/T-1214-fleet-diagnosis.md 'Scope of B'.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [fleet, federation, capability-probe]
 components: []
 related_tasks: [T-1214, T-1165]
 created: 2026-04-24T10:35:19Z
-last_update: 2026-04-24T11:55:02Z
-date_finished: null
+last_update: 2026-04-24T12:01:48Z
+date_finished: 2026-04-24T12:01:48Z
 ---
 
 # T-1215: Hub capabilities method + client-side cache (T-1214 follow-up)
@@ -96,3 +96,6 @@ cargo test -p termlink-session hub_capabilities 2>&1 | tail -15
 ### 2026-04-24T11:55:02Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-24T12:01:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

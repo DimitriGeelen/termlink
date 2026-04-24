@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1165: T-1155/8 Build shell pickup → channel bridge adapter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-24T12:16:50Z
+# ============================================================================
+
+task_id: T-1165
+task_name: "T-1155/8 Build shell pickup → channel bridge adapter"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:12:17Z
+completed: 2026-04-24T12:16:49Z
+duration_days: 4
+updates_count: 4
+first_commit: 2026-04-24T11:03:15+02:00
+last_commit: 2026-04-24T11:03:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Prerequisite audit — hook point, channel CLI status, install gap
+
+# Key outcomes
+outcomes:
+  - "New framework bash script `lib/pickup-channel-bridge.sh` — invoked by the pickup processor after moving an envelope to `processed/`. Upstream commit `1231dba2`."
+  - "Bridge reads the processed envelope → capability-probes `termlink channel post` (Tier-A, T-1160) and uses it when available; falls back to `termlink event broadcast` topic=`framework:pickup` when `channel` subcmd is absent (T-1214 federation-tolerance). Payload carries `msg_type`, `sha`, `basename`, and full envelope when `jq` is present; ref-only otherwise."
+  - "Graceful degradation: bridge exits 0 on missing termlink, missing `sha256sum`/`shasum`, failed channel.post, or failed event.broadcast. Each path logs to `.context/working/.pickup-bridge.log` for audit. Smoke-tested locally against termlink 0.9.206 — event.broadcast fallback path posted to local hub successfully."
+  - "Idempotence: SHA-256 of envelope contents is the dedup key; stored at `.context/pickup/.bridge-posted/<sha>`. Smoke-verified — second invocation on same envelope emits `dedup` log and skips post."
+  - "Opt-out: `FW_PICKUP_CHANNEL_BRIDGE=0` short-circuits at the top of the script. Smoke-verified — log file receives no new entries when opt-out is set."
+  - "Hook in `lib/pickup.sh::pickup_process_one` at line ~302 (post-mv, pre-return) with a 2-line comment citing T-1165 and the portability contract. Bridge script's own header documents the env-var knob, topic, and fallback chain."
+  - "Integration-test surrogate: invoked bridge directly against a minimal envelope against the local hub — observed `posted via=event.broadcast topic=framework:pickup msg_type=pickup-learning sha=<…>`. Full inbox→processor→subscribe loop deferred until a consumer project has termlink ≥ 0.9.380 (per Context 'Recommended split' step 3)."
+  - "Bridge is one-way: the script only writes OUT (post/broadcast); no inbound code path reads channels or creates inbox envelopes. Reaffirmed by design."
+  - "No changes to pickup envelope schema, processor logic, or closed vocabulary. Only additions: bridge script + hook line + header comment."
+  - "Updated `docs/reports/T-1155-agent-communication-bus.md` Phase-3 entry: records the 2026-04-24 ship, capability-probe + fallback design, and the one-way decision referencing T-956."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1165-t-11558-build-shell-pickup--channel-brid.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T11:03:15"
+    action: "T-1165: Prerequisite audit — hook point, channel CLI status, install gap"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5644 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, pickup, framework-bridge]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5644
+  commits: 2
+  files_changed: 2
+  lines_added: 25
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1165-t-11558-build-shell-pickup--channel-brid.md
+generated_by: context-agent-hybrid

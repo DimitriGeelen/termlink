@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1216: Handover RECOVERED banner (T-1212 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-24T12:08:06Z
+# ============================================================================
+
+task_id: T-1216
+task_name: "Handover RECOVERED banner (T-1212 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T12:03:15Z
+completed: 2026-04-24T12:08:03Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`.agentic-framework/agents/handover/handover.sh` detects `RECOVERED=1`"
+  - "Heredoc interpolates `${RECOVERED_BANNER}` immediately after the"
+  - "Banner uses blockquote markdown (`> `) so it renders distinctively in"
+  - "Smoke test from CLI: running `RECOVERED=1 RECOVERED_SESSION_ID=test-id"
+  - "Smoke test: current `.context/handovers/LATEST.md` (generated"
+  - "Upstream mirror via termlink dispatch: commit `8df5c484` on upstream"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [hook, handover, framework-bridge, antifragility]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1216-handover-recovered-banner-t-1212-follow-.md
+generated_by: context-agent-hybrid
