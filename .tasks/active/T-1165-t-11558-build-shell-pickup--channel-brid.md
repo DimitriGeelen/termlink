@@ -39,6 +39,14 @@ Depends on: T-1160 (channel API shipped). Referenced in PL-040 (pickup type clos
 
 **Note on boundary:** Bridge script lives in `/opt/999-Agentic-Engineering-Framework/lib/`, not in termlink repo. T-559 boundary hook will block direct Edit/Write — must use `/tmp` staging + `cp` + cross-repo commit via `termlink dispatch --workdir` (same pattern as T-1206 fleet.py mirror).
 
+**Approach update (2026-04-24, per T-1214 fleet-diagnosis):** Build against the
+JSON-RPC layer (`channel.post` method), NOT the `termlink channel` CLI. Rationale:
+T-1214 S1 probe confirmed even the local install lags source by 192 commits and
+.122 is stranger-lineage (0.9.844, no `channel` subcmd). The bridge must be
+federation-tolerant: capability-probe the hub, use `channel.post` RPC when
+available, fall back to `event.broadcast` + `inbox.post` (universally supported)
+otherwise. See `docs/reports/T-1214-fleet-diagnosis.md`.
+
 ## Acceptance Criteria
 
 ### Agent
