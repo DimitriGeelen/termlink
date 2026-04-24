@@ -113,6 +113,7 @@ concerns:
   notes:
   - 2026-04-20: Upstream pickup filed (P-T-1157) from termlink project; framework created T-1358 in their inception queue. Termlink-side task T-1157 closed with 4/4 verification. Waiting on framework to land the hooks.sh fix (delete 3 lines writing to .agentic-framework/VERSION).
   - 2026-04-22T19:07Z: Bug still present. Auto-handover commit 0c19bd6c (2026-04-22T18:59Z) ran pre-push audit which stamped both `VERSION` and `.agentic-framework/VERSION` to 0.9.303. Upstream fix (T-1358) remains unmerged. No termlink-side action available — keep watching.
+  - 2026-04-24T10:45Z: Still present. `.agentic-framework/VERSION` now reads `0.9.398` (termlink version) vs. `.framework.yaml` pinned `1.5.16`. `fw doctor` flags `Version mismatch: pinned=1.5.16 installed=0.9.398`. Upstream fix T-1358 still not landed — keep watching.
 
 - id: G-007
   type: gap
