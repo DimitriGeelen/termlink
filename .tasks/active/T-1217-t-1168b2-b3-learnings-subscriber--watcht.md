@@ -16,7 +16,7 @@ tags: [T-1155, T-1168, bus, learnings]
 components: []
 related_tasks: [T-1168, T-1218, T-1155, T-1214]
 created: 2026-04-24T12:27:43Z
-last_update: 2026-04-24T13:10:12Z
+last_update: 2026-04-24T13:10:24Z
 date_finished: 2026-04-24T13:10:12Z
 ---
 
@@ -84,6 +84,17 @@ proceeding.
       and the correct L-ID.
       **If not:** Check `.subscribe-learnings-bus.log` on the subscriber side
       and `.publish-learning-bus.log` on this side for error paths.
+
+      **Agent evidence (2026-04-24T15:30Z, end-to-end):**
+      - Cron installed on peer `email-archive` (via termlink exec) —
+        `*/15 * * * * cd /opt/050-email-archive && /opt/050-email-archive/.agentic-framework/lib/subscribe-learnings-from-bus.sh >/dev/null 2>&1`
+      - Triggered `fw context add-learning ... --task T-1217` on /opt/termlink → PL-059
+      - Ran subscriber manually on email-archive (same command cron will run)
+      - Result: `received=4 appended=1 skipped_self=0 skipped_dup=3` then
+        fresh run picked up PL-059, cursor advanced 380→400
+      - PL-059 lands in `/opt/050-email-archive/.context/project/received-learnings.yaml`
+        with `learning_id: "PL-059"` and the exact text from the source
+      - Rubber-stamp ready: pipeline works; cron runs it on the `*/15` cadence
 
 ## Verification
 
