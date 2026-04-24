@@ -12,7 +12,7 @@ tags: [hook, dispatch, bus, framework-bridge]
 components: []
 related_tasks: [T-1209, T-175]
 created: 2026-04-24T10:05:14Z
-last_update: 2026-04-24T10:33:26Z
+last_update: 2026-04-24T10:41:53Z
 date_finished: null
 ---
 
@@ -72,6 +72,10 @@ Parent research: `docs/reports/T-1209-subagentstop-hook-inception.md`.
       post invoked with T-STUB task id) paths.
       `.agentic-framework/agents/context/tests/subagent-stop-stub-test.sh`
       → "All stub tests PASS".
+- [x] Upstream mirror — handler + stub test landed in
+      `/opt/999-Agentic-Engineering-Framework` via termlink dispatch --workdir.
+      Commit `a5c4fe85` pushed to both onedev and github (all 3 refs aligned).
+      Next `fw upgrade` will preserve the handler across vendored copies.
 - [ ] **DEFERRED** `check-dispatch.sh` retirement — hold until the new handler
       has one live session of telemetry. Follow-up removes the
       `Task|TaskOutput` matcher from PostToolUse in settings.json. See patch doc.
@@ -127,6 +131,19 @@ test -f docs/T-1213-settings-patch.md
 ### 2026-04-24T10:31:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-24T10:55Z — upstream mirror [agent]
+- **Action:** `termlink dispatch --workdir /opt/999-Agentic-Engineering-Framework`
+  ran `/tmp/T-1213-mirror.sh` which cp'd both files, ran the stub test in the
+  upstream location (PASS), and pushed to onedev + github.
+- **Result:** commit `a5c4fe85` "T-1213: SubagentStop hook handler + stub test
+  (mirrored from termlink)" — all three refs (local master, onedev/master,
+  github/master) aligned.
+- **Note:** the dispatch wrapper's task.completed event did not fire (bash command
+  rather than claude worker), but the underlying mirror succeeded. Verified via
+  direct read of `/opt/999-Agentic-Engineering-Framework/.git/logs/HEAD` and
+  refs. Future runs: emit a task.completed event from the mirror script to close
+  the dispatch loop cleanly.
 
 ### 2026-04-24T10:50Z — handler build complete [agent]
 - **Built:** `.agentic-framework/agents/context/subagent-stop.sh` (capture-and-log,
