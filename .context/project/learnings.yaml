@@ -660,3 +660,10 @@ learnings:
   date: 2026-04-24
   context: Added via context agent
   application: TBD
+- id: PL-060
+  learning: "Framework hooks/scanners that iterate discovered work items with no cap can produce commit storms when bootstrap runs with destructive flags. Always add per-invocation cap + age ceiling for scanner-style tooling that triggers git ops."
+  source: G-016
+  task: T-1222
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
