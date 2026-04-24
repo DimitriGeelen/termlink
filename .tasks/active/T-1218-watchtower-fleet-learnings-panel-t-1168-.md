@@ -49,9 +49,19 @@ than adding a new route. New route is overkill for a read-only list.
 
 ### Human
 - [ ] [REVIEW] Render quality of the Received section.
-      **Steps:**
-      1. Open http://localhost:3000/learnings in browser
-      2. Look at the "Received from peers" section if present
+      **Prerequisites (agent-verified 2026-04-24T16:55Z):**
+      - T-1218 template/blueprint changes landed in /opt/999-AEF (commit 9bfdc5d5)
+        but are NOT yet in termlink's vendored `.agentic-framework/web/`.
+      - `grep -c "received_learnings" .agentic-framework/web/context_loader.py` returns 0.
+      - Running Watchtower (pid 3689280, started 2026-04-23 20:53, port 3100) serves
+        the stale vendored copy. `curl http://localhost:3100/learnings | grep -c "from peers"` returns 0.
+      - `.context/project/received-learnings.yaml` has 1 seeded entry (L-0001 from peer-alpha)
+        ready to render once the upgrade+restart happens.
+      **Steps (updated for this project):**
+      1. Sync vendored framework: `fw upgrade` (brings in T-1218's web/ changes)
+      2. Restart Watchtower: kill pid 3689280 → `PROJECT_ROOT=/opt/termlink python3 -m web.app --port 3100 &`
+      3. Open http://localhost:3100/learnings in browser (not :3000 — that's the AEF-framework Watchtower)
+      4. Look at the "Received from peers" section (the seeded L-0001 should appear)
       **Expected:** Table renders cleanly, aligns with existing learnings
       table style, long learning text wraps sensibly
       **If not:** Screenshot + note what's misaligned
