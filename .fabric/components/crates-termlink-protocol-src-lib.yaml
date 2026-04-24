@@ -87,4 +87,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/src/transport.rs
   type: called_by
-last_enriched: '2026-04-21'
+- target: crates/termlink-cli/src/commands/mirror_grid_composer.rs
+  type: called_by
+- target: crates/termlink-session/src/hub_capabilities.rs
+  type: called_by
+last_enriched: '2026-04-24'

@@ -1,0 +1,16 @@
+id: crates/termlink-session/src/hub_capabilities.rs
+name: hub_capabilities
+type: script
+subsystem: session
+location: crates/termlink-session/src/hub_capabilities.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_verified: 2026-04-24
+created_by: unknown
+last_enriched: '2026-04-24'
