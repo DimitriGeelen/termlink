@@ -4,15 +4,15 @@ name: "T-1163 follow-up: CLI/MCP inbox receiver migration to channel.{subscribe,
 description: >
   Receiver-side migration following T-1163's hub dual-write shim. CLI verbs 'inbox {list,status,clear}' + MCP tools termlink_inbox_* + remote inbox verbs switch to channel.{subscribe,list} on topic 'inbox:<target>' with capabilities fallback to legacy inbox.* when peer lacks channel API.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [T-1155, bus, migration, T-1163-followup]
 components: []
 related_tasks: []
 created: 2026-04-24T15:10:01Z
-last_update: 2026-04-24T15:32:30Z
+last_update: 2026-04-24T15:36:42Z
 date_finished: null
 ---
 
@@ -72,3 +72,7 @@ grep -q "Go.*No-Go" docs/reports/T-1220-inception.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1220-t-1163-follow-up-climcp-inbox-receiver-m.md
 - **Context:** Initial task creation
+
+### 2026-04-24T15:36:42Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
