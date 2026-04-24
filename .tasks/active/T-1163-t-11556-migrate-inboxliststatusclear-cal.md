@@ -24,10 +24,36 @@ Second migration in the T-1155 bus rollout: `inbox.{list, status, clear}` move t
 
 Depends on: T-1162 done (proves migration pattern). Legacy `inbox.*` stays working until T-1166 retires it.
 
+**Call sites (audited 2026-04-24, 82 raw matches across 6 files):**
+
+*Hub-side handlers (where dual-write shim goes — follow T-1162 pattern):*
+- `crates/termlink-hub/src/router.rs` dispatcher `@73-75`
+- `handle_inbox_list @1425`, `handle_inbox_status @1448`, `handle_inbox_clear @1467`
+
+*CLI producers (local hub):*
+- `crates/termlink-cli/src/commands/infrastructure.rs::cmd_inbox_status @766`, `cmd_inbox_clear @802`, `cmd_inbox_list @839`
+- `crates/termlink-cli/src/main.rs @332-334` (CLI dispatch only)
+
+*CLI producers (remote hub via rpc_client):*
+- `crates/termlink-cli/src/commands/remote.rs @1255/1288/1328` (remote inbox verbs)
+- `@2810` (fleet doctor inbox check)
+
+*MCP producers (local + remote):*
+- `crates/termlink-mcp/src/tools.rs::termlink_inbox_{status,clear,list} @4518/4537/4564`
+- `termlink_remote_inbox_{status,list,clear} @4684/4719/4754`
+
+*Tests (verification surface):*
+- `crates/termlink-hub/src/router.rs` tests `@3047/3063/3080/3111/3123/3234/3254/3264/3285/3295` (10)
+- `crates/termlink-cli/tests/cli_integration.rs` (6)
+
+**Summary:** 12 real entry points (3 hub handlers + 3 CLI local + 3 CLI remote + 3 MCP local + 3 MCP remote) + 1 dispatcher + 16 tests. Matches original T-1155 §Subsumption estimate of ~18 producer/handler sites.
+
+**Migration pattern (from T-1162):** T-1162 was scope-reduced to "hub-side dual-write shim only — zero producer/receiver churn; pure additive". Recommend applying same discipline here: split this task into (a) hub shim in router.rs handlers (mirror into `channel:inbox:<target>`), (b) receiver rewrite follow-up (CLI/MCP switch to channel.subscribe), (c) capabilities handshake. ACs below currently bundle all three — suggest scope-reduction at task-start time.
+
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Audit all current callers of `inbox.list`, `inbox.status`, `inbox.clear` — `grep -rn "inbox\.\(list\|status\|clear\)\|inbox_list\|inbox_status\|inbox_clear" crates/ lib/` produces the exhaustive list; capture in this task file under "Call sites"
+- [x] Audit all current callers of `inbox.list`, `inbox.status`, `inbox.clear` — captured above under "Call sites (audited 2026-04-24)". 82 raw matches, 12 real entry points + 1 dispatcher + 16 tests.
 - [ ] Topic naming convention: per-recipient topic `inbox:<session-id>` — auto-created when first message is posted to it
 - [ ] Each `inbox.list(target)` caller rewritten to `channel.subscribe(topic="inbox:"+target, cursor=last_cursor_for_this_caller)` — read cursor stored client-side
 - [ ] `inbox.status(target)` → `channel.list(prefix="inbox:"+target)` + count since cursor
