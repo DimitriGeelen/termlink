@@ -329,7 +329,7 @@ Proposed follow-up tasks to create after decision:
 - **T-11XX** Migrate `event.broadcast` callers → `channel.post(topic="broadcast:global")`
 - **T-11XX** Migrate `inbox.*` callers → `channel.{post, subscribe}` to recipient channel
 - **T-11XX** Migrate `file.send/receive` → `channel.post {type: artifact}` with chunked artifact transport
-- **T-11XX** Shell pickup → channel bridge (one adapter) — keeps framework portability
+- **T-1165** Shell pickup → channel bridge (one adapter) — keeps framework portability. **Shipped 2026-04-24.** `lib/pickup-channel-bridge.sh` invoked from `pickup_process_one` after envelope moves to `processed/`. Capability-probes `termlink channel post` (Tier-A, T-1160) first; falls back to `termlink event broadcast` (present in all known lineages) when `channel` subcmd is absent. Silent no-op when termlink is missing or hub unreachable. SHA-256 dedup + `FW_PICKUP_CHANNEL_BRIDGE=0` opt-out. **Decision: one-way by design** — bus subscribers observe pickups but cannot inject new pickups via the bus (per T-956 pickup-distinct guidance). If bidirectional ever becomes desirable, open a separate task; doing it here would blur pickup-semantics with channel-semantics.
 - **T-11XX** Retire legacy primitives after N months (separate decommission task)
 
 ### Open questions deferred to build phase (not blocking decision)

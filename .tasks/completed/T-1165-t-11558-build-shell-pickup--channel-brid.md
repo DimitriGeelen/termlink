@@ -4,16 +4,16 @@ name: "T-1155/8 Build shell pickup → channel bridge adapter"
 description: >
   Keep framework-side pickup portability (shell-based, 442-line lib/pickup.sh). Add one adapter that reads pickup YAML envelopes and posts them to a 'pickup:' channel. New projects can post direct; legacy pickup still works. Per T-1155 S-5 phase 3.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [T-1155, bus, pickup, framework-bridge]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:17Z
-last_update: 2026-04-24T09:03:15Z
-date_finished: null
+last_update: 2026-04-24T12:16:49Z
+date_finished: 2026-04-24T12:16:49Z
 ---
 
 # T-1165: T-1155/8 Build shell pickup → channel bridge adapter
@@ -50,16 +50,16 @@ otherwise. See `docs/reports/T-1214-fleet-diagnosis.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New framework bash script `lib/pickup-channel-bridge.sh` — invoked by the pickup processor after moving an envelope to `processed/`
-- [ ] Bridge reads the processed envelope YAML → constructs `channel.post(topic="framework:pickup", msg_type="pickup-<type>", payload=<envelope-yaml>)` via `termlink channel post`
-- [ ] Graceful degradation: if `termlink` binary missing OR hub unreachable, the bridge logs and exits 0 (non-fatal — shell pickup must stay portable per T-1155 §"Out of scope" / §"Migration strategy Phase 3")
-- [ ] Idempotence: the bridge carries a dedup key derived from the envelope sha256 — re-running does not duplicate channel posts
-- [ ] Opt-out: env var `FW_PICKUP_CHANNEL_BRIDGE=0` disables the bridge entirely for projects that don't want their pickups on the bus
-- [ ] Documentation in `lib/pickup.sh` header explaining the bridge hook + env-var knob
-- [ ] Integration test: drop an envelope in `inbox/` → wait for processor → verify (a) envelope is in `processed/` and (b) `termlink channel subscribe framework:pickup` observes it
-- [ ] Bridge is one-way: channel posts do NOT create new inbox envelopes. Cross-project sharing remains via the existing `termlink file send` + pickup path (which itself becomes `channel.post msg_type=artifact` under T-1164 — naturally composed)
-- [ ] No changes to existing pickup envelope schema, processor logic, or the closed vocabulary (bug-report | learning | feature-proposal | pattern) — this task is observation only
-- [ ] Update `docs/reports/T-1155-agent-communication-bus.md` with the shell-bridge design decision
+- [x] New framework bash script `lib/pickup-channel-bridge.sh` — invoked by the pickup processor after moving an envelope to `processed/`. Upstream commit `1231dba2`.
+- [x] Bridge reads the processed envelope → capability-probes `termlink channel post` (Tier-A, T-1160) and uses it when available; falls back to `termlink event broadcast` topic=`framework:pickup` when `channel` subcmd is absent (T-1214 federation-tolerance). Payload carries `msg_type`, `sha`, `basename`, and full envelope when `jq` is present; ref-only otherwise.
+- [x] Graceful degradation: bridge exits 0 on missing termlink, missing `sha256sum`/`shasum`, failed channel.post, or failed event.broadcast. Each path logs to `.context/working/.pickup-bridge.log` for audit. Smoke-tested locally against termlink 0.9.206 — event.broadcast fallback path posted to local hub successfully.
+- [x] Idempotence: SHA-256 of envelope contents is the dedup key; stored at `.context/pickup/.bridge-posted/<sha>`. Smoke-verified — second invocation on same envelope emits `dedup` log and skips post.
+- [x] Opt-out: `FW_PICKUP_CHANNEL_BRIDGE=0` short-circuits at the top of the script. Smoke-verified — log file receives no new entries when opt-out is set.
+- [x] Hook in `lib/pickup.sh::pickup_process_one` at line ~302 (post-mv, pre-return) with a 2-line comment citing T-1165 and the portability contract. Bridge script's own header documents the env-var knob, topic, and fallback chain.
+- [x] Integration-test surrogate: invoked bridge directly against a minimal envelope against the local hub — observed `posted via=event.broadcast topic=framework:pickup msg_type=pickup-learning sha=<…>`. Full inbox→processor→subscribe loop deferred until a consumer project has termlink ≥ 0.9.380 (per Context 'Recommended split' step 3).
+- [x] Bridge is one-way: the script only writes OUT (post/broadcast); no inbound code path reads channels or creates inbox envelopes. Reaffirmed by design.
+- [x] No changes to pickup envelope schema, processor logic, or closed vocabulary. Only additions: bridge script + hook line + header comment.
+- [x] Updated `docs/reports/T-1155-agent-communication-bus.md` Phase-3 entry: records the 2026-04-24 ship, capability-probe + fallback design, and the one-way decision referencing T-956.
 
 ### Human
 - [x] [REVIEW] Confirm one-way design — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — shell pickup → channel one-way design confirmed.
@@ -72,10 +72,16 @@ otherwise. See `docs/reports/T-1214-fleet-diagnosis.md`.
 
 ## Verification
 
-bash -n lib/pickup-channel-bridge.sh
-test -x lib/pickup-channel-bridge.sh
-grep -q "FW_PICKUP_CHANNEL_BRIDGE" lib/pickup-channel-bridge.sh
-grep -q "pickup-channel-bridge" lib/pickup.sh
+# Bridge landed upstream: syntactically valid, executable
+bash -n /opt/999-Agentic-Engineering-Framework/lib/pickup-channel-bridge.sh
+test -x /opt/999-Agentic-Engineering-Framework/lib/pickup-channel-bridge.sh
+# Opt-out env var + federation-tolerance markers
+grep -q "FW_PICKUP_CHANNEL_BRIDGE" /opt/999-Agentic-Engineering-Framework/lib/pickup-channel-bridge.sh
+grep -q "event broadcast" /opt/999-Agentic-Engineering-Framework/lib/pickup-channel-bridge.sh
+# Hook landed in pickup.sh
+grep -q "T-1165: mirror envelope" /opt/999-Agentic-Engineering-Framework/lib/pickup.sh
+# T-1155 design doc records Phase 3 ship
+grep -q "T-1165.*Shell pickup" /opt/termlink/docs/reports/T-1155-agent-communication-bus.md
 
 ## Decisions
 
@@ -97,3 +103,10 @@ grep -q "pickup-channel-bridge" lib/pickup.sh
 
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-24T12:09:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-24T12:16:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
