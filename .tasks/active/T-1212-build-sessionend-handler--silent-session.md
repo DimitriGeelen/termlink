@@ -12,7 +12,7 @@ tags: [hook, handover, framework-bridge, antifragility]
 components: []
 related_tasks: [T-1208, T-174]
 created: 2026-04-24T10:05:10Z
-last_update: 2026-04-24T11:35:52Z
+last_update: 2026-04-24T11:46:06Z
 date_finished: null
 ---
 

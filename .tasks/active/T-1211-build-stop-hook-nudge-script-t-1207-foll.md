@@ -12,7 +12,7 @@ tags: [hook, governance, framework-bridge]
 components: []
 related_tasks: [T-1207, T-173]
 created: 2026-04-24T10:04:49Z
-last_update: 2026-04-24T11:30:16Z
+last_update: 2026-04-24T11:35:02Z
 date_finished: null
 ---
 

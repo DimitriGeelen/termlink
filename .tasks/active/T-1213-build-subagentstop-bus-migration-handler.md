@@ -12,7 +12,7 @@ tags: [hook, dispatch, bus, framework-bridge]
 components: []
 related_tasks: [T-1209, T-175]
 created: 2026-04-24T10:05:14Z
-last_update: 2026-04-24T10:41:53Z
+last_update: 2026-04-24T10:53:43Z
 date_finished: null
 ---
 

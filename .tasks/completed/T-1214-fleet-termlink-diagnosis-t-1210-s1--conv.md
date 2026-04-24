@@ -4,7 +4,7 @@ name: "Fleet termlink diagnosis (T-1210 S1) + converge-vs-federate decision"
 description: >
   Execute T-1210 S1: probe every reachable peer for termlink binary lineage (version, subcommand list, mtime, source path if discoverable). Classify as same-lineage-older / same-lineage-newer / forked / stranger. Preliminary finding from T-1210 probe: .122 has 0.9.844 install with no channel subcommand and no /opt/termlink source → stranger lineage. After S1 complete, produce converge-vs-federate recommendation. Pilot S2 (unified install) or S3 (capability probe) depending on direction. See .tasks/completed/T-1210-fleet-termlink-version-divergence--unifi.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [fleet, install, capability-probe]
 components: []
 related_tasks: [T-1210, T-1165, T-1168]
 created: 2026-04-24T10:05:17Z
-last_update: 2026-04-24T10:25:40Z
-date_finished: null
+last_update: 2026-04-24T10:28:11Z
+date_finished: 2026-04-24T10:28:11Z
 ---
 
 # T-1214: Fleet termlink diagnosis (T-1210 S1) + converge-vs-federate decision
@@ -40,7 +40,7 @@ Output is a capability matrix and a converge-vs-federate recommendation written 
 - [x] Classify each peer (same-lineage / forked / stranger) with evidence
 - [x] Write `docs/reports/T-1214-fleet-diagnosis.md` containing the capability matrix
       and converge-vs-federate recommendation (GO one path, defer the other)
-- [ ] Commit probe findings under T-1214
+- [x] Commit probe findings under T-1214 — commit 1a432356
 
 ## Verification
 
@@ -84,3 +84,6 @@ grep -q "Recommendation" docs/reports/T-1214-fleet-diagnosis.md
 - **Artifact:** docs/reports/T-1214-fleet-diagnosis.md
 - **Immediate follow-up:** rebuild local termlink from source so `channel` subcommand is present where T-1155 is being developed.
 - **Deferred follow-ups:** hub.capabilities method + client cache (capture new task); update T-1165 description to reference Option B.
+
+### 2026-04-24T10:28:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
