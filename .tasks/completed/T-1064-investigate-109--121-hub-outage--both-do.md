@@ -4,16 +4,16 @@ name: "Investigate .109 + .121 hub outage — both down 2026-04-15 ~15:50Z"
 description: >
   ring20-management (.109) and ring20-dashboard (.121) both fail termlink fleet doctor as of 2026-04-15 ~15:50Z. Diagnostics: ping OK on both, but port 9100 connection refused on .121 and timing-out on .109. T-1027 reported both running at session-start two days ago. Operator action: SSH in, check systemd hub service status on both hosts. If restart policy not deployed there, see T-931..T-935. Registered from T-1061 housekeeping session. No code fix needed — this is operational.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-04-15T17:09:39Z
-last_update: 2026-04-19T08:45:25Z
-date_finished: null
+last_update: 2026-04-24T08:50:16Z
+date_finished: 2026-04-24T08:50:16Z
 ---
 
 # T-1064: Investigate .109 + .121 hub outage — both down 2026-04-15 ~15:50Z
@@ -45,7 +45,7 @@ date_finished: null
 ### Human
 - [x] [REVIEW] Heal .121 (ring20-dashboard) auth — **healed 2026-04-24** via T-1055 `--bootstrap-from file:` path. Agent on .121 (via operator's console) read `/tmp/termlink-0/hub.secret` (hub uses tmpfs runtime_dir, not /var/lib), reported hex + fingerprint `e4530da253d0` + 5-day-stable mtime (rotation was unidirectional — .107 cache was the stale side). Operator relayed hex; staged to `/tmp/ring20-dashboard-new-secret.hex`; `termlink fleet reauth ring20-dashboard --bootstrap-from file:...` atomically wrote to `/root/.termlink/secrets/ring20-dashboard.hex` at chmod 600. `termlink fleet doctor` → **[PASS] 43ms**.
 
-- [ ] [REVIEW] Start hub on .122 (ring20-management)
+- [x] [REVIEW] Start hub on .122 (ring20-management) — resolved 2026-04-24 via cross-agent heal. Root causes: (1) hubs.toml was stale — ring20-management moved .102 → .122 (re-pointed), (2) HMAC secret rotated 2026-04-22, (3) TLS cert rotated since last TOFU pin (cleared + auto-trusted new fingerprint). .122 agent confirmed always-on hub via ring20-watchdog. Fleet doctor → [PASS] 42ms
   **Steps:**
   1. SSH to .122: `ssh 192.168.10.122`
   2. Check hub service: `systemctl status termlink-hub.service`
@@ -124,3 +124,7 @@ ring20-dashboard .121 is the exact symptom this task targets (secret rotation, T
   ```
 - **Why termlink-side healing keeps losing:** cert persistence (T-1028) and TOFU re-pin (T-1064/T-1055) are the right fixes in the common case, but they assume the container *stays up long enough for a client to trust the new cert*. When the container reboots every ~60 min, no amount of client-side healing catches up. The structural fix lives on the host, not in termlink.
 - **Status transition candidate:** once G-009's mitigation lands (operator truncates .180's access.log) **and** T-1137's structural fix (logrotate) is installed, this task's remaining work (heal .122) becomes trivial — wait for one stable hour, then re-run `termlink tofu clear 192.168.10.122:9100` and re-bootstrap. Not setting work-completed yet; heal hasn't occurred.
+
+### 2026-04-24T08:50:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
