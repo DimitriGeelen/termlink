@@ -66,7 +66,7 @@ See full research: `docs/reports/T-196-macos-bsd-gnu-compat-research.md`
 
 - [x] Problem statement validated (26+ GNU-isms, 12 critical)
 - [x] Assumptions tested (A1-A5 all validated)
-- [ ] Go/No-Go decision made
+- [x] Go/No-Go decision made (decision: GO — recorded via inception decide; backfill tick 2026-04-24)
 
 ## Go/No-Go Criteria
 

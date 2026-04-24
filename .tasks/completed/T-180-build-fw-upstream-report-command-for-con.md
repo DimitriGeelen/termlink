@@ -66,7 +66,7 @@ See full research: `docs/reports/T-180-upstream-reporting-design.md`
 
 - [x] Problem statement validated
 - [x] Assumptions tested (A-001 through A-004 all validated)
-- [ ] Go/No-Go decision made
+- [x] Go/No-Go decision made (decision: GO — recorded via inception decide; backfill tick 2026-04-24)
 
 ## Go/No-Go Criteria
 
