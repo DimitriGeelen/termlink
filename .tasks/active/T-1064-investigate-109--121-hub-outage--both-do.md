@@ -43,13 +43,7 @@ date_finished: null
 - [x] Ran `termlink fleet reauth ring20-dashboard` — printed heal steps
 
 ### Human
-- [ ] [REVIEW] Heal .121 (ring20-dashboard) auth — fetch new secret via SSH
-  **Steps:**
-  1. `ssh 192.168.10.121 -- sudo cat /var/lib/termlink/hub.secret`
-  2. `echo "<hex>" > /root/.termlink/secrets/ring20-dashboard.hex && chmod 600 /root/.termlink/secrets/ring20-dashboard.hex`
-  3. `cd /opt/termlink && termlink fleet doctor`
-  **Expected:** ring20-dashboard shows [PASS]
-  **If not:** Check if hub uses different runtime_dir (`termlink doctor` on .121)
+- [x] [REVIEW] Heal .121 (ring20-dashboard) auth — **healed 2026-04-24** via T-1055 `--bootstrap-from file:` path. Agent on .121 (via operator's console) read `/tmp/termlink-0/hub.secret` (hub uses tmpfs runtime_dir, not /var/lib), reported hex + fingerprint `e4530da253d0` + 5-day-stable mtime (rotation was unidirectional — .107 cache was the stale side). Operator relayed hex; staged to `/tmp/ring20-dashboard-new-secret.hex`; `termlink fleet reauth ring20-dashboard --bootstrap-from file:...` atomically wrote to `/root/.termlink/secrets/ring20-dashboard.hex` at chmod 600. `termlink fleet doctor` → **[PASS] 43ms**.
 
 - [ ] [REVIEW] Start hub on .122 (ring20-management)
   **Steps:**
