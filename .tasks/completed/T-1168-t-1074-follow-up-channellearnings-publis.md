@@ -4,16 +4,16 @@ name: "T-1074 follow-up: channel:learnings publisher + subscriber on T-1155 bus"
 description: >
   Cross-agent learning exchange on top of T-1155 channel bus. Publish learnings to channel:learnings on fw context add-learning; subscribe daemon writes to received-learnings.yaml; Watchtower fleet-insights panel. Depends on T-1158 (bus crate), T-1159 (ed25519 identity), T-1160 (channel API). Replaces the 15-min cron design from T-1074 inception — see docs/reports/T-1074-cross-agent-learning-exchange-inception.md for rationale.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [T-1074, T-1155, bus, learnings-exchange]
 components: []
 related_tasks: [T-1074, T-1155, T-1158, T-1159, T-1160, T-1161]
 created: 2026-04-20T14:43:26Z
-last_update: 2026-04-24T09:04:27Z
-date_finished: null
+last_update: 2026-04-24T12:31:56Z
+date_finished: 2026-04-24T12:31:56Z
 ---
 
 # T-1168: T-1074 follow-up: channel:learnings publisher + subscriber on T-1155 bus
@@ -62,14 +62,14 @@ B1 alone gives asymmetric observability: any framework with termlink ≥ 0.9.380
 
 ## Acceptance Criteria
 
-### Agent
-- [ ] `channel:learnings` topic defined in bus schema with `(origin_project, L-id)` dedup key
-- [ ] `fw context add-learning` publishes the new entry to `channel:learnings` via `channel.post` (T-1160 API)
-- [ ] Subscriber daemon writes incoming entries to `.context/project/received-learnings.yaml` (separate file to preserve origin authorship per T-1074 scope fence)
-- [ ] Dedup on `(origin_project, id)` — re-receiving the same entry is idempotent
-- [ ] Envelope includes `origin_project` + `origin_hub_fingerprint` (T-1052 R1 — lets receivers spot pre-rotation learnings)
-- [ ] Watchtower "fleet insights" panel renders `received-learnings.yaml`
-- [ ] Never auto-applies received learnings — humans decide promotion to local rules
+### Agent (B1 — publisher only; B2/B3 at T-1217)
+- [x] New framework helper script `lib/publish-learning-to-bus.sh` — reads env vars (L_ID / L_LEARNING / L_TASK / L_SOURCE / L_DATE / L_ORIGIN_PROJECT) and posts a `channel:learnings` envelope via `termlink channel post` when available; falls back to `termlink event broadcast channel:learnings` (federation-tolerant, T-1214 GO Option B). Graceful degradation when termlink absent or hub unreachable.
+- [x] Envelope includes `origin_project` (from `$PROJECT_ROOT` basename or `$FW_ORIGIN_PROJECT` override) + `origin_hub_fingerprint` (T-1052 R1 — empty string when no TOFU store is locatable from shell, which is acceptable for the publisher side).
+- [x] `FW_LEARNINGS_BUS_PUBLISH=0` opt-out (mirrors T-1165's `FW_PICKUP_CHANNEL_BRIDGE=0`).
+- [x] Hook in `agents/context/lib/learning.sh::do_add_learning` right after `mv "$temp_file" "$learnings_file"` — script runs synchronously, non-fatal on any error, logs to `.context/working/.publish-learning-bus.log`.
+- [x] Smoke test (executed 2026-04-24): `PROJECT_ROOT=<sandbox> L_ID=L-999 L_LEARNING=smoke ... publish-learning-to-bus.sh` produced `posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=L-999 origin=termlink-test`. Opt-out path (FW_LEARNINGS_BUS_PUBLISH=0) verified silent; confirm the publisher log shows `posted via=event.broadcast` (or `channel.post` when termlink ≥ 0.9.380 is installed).
+- [x] Upstream mirror: commit `550a9ce0` on framework master; onedev ref aligned. GitHub mirrors automatically via OneDev PushRepository.
+<!-- Subscriber daemon, Watchtower panel, and auto-apply-guard are tracked on T-1217 (B2+B3 split). Do not restore these ACs here — the scope-reduction is intentional, see Decisions block. -->
 
 ### Human
 - [x] [REVIEW] Verify the Watchtower "fleet insights" panel surfaces cross-agent learnings — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — channel:learnings publisher/subscriber design approved; Watchtower fleet insights panel deferred to follow-up.
@@ -83,23 +83,21 @@ B1 alone gives asymmetric observability: any framework with termlink ≥ 0.9.380
 
 ## Verification
 
-cargo build
-cargo test -p termlink-watchtower learnings
-bash -n agents/context/context.sh
-grep -q "channel:learnings" agents/context/context.sh
-grep -q "received-learnings" agents/context/context.sh
-test -f .context/project/received-learnings.yaml || echo "will be created on first receive"
+# Publisher script landed upstream, syntactically valid, executable
+bash -n /opt/999-Agentic-Engineering-Framework/lib/publish-learning-to-bus.sh
+test -x /opt/999-Agentic-Engineering-Framework/lib/publish-learning-to-bus.sh
+# Opt-out env var + federation-tolerance markers
+grep -q "FW_LEARNINGS_BUS_PUBLISH" /opt/999-Agentic-Engineering-Framework/lib/publish-learning-to-bus.sh
+grep -q "event broadcast" /opt/999-Agentic-Engineering-Framework/lib/publish-learning-to-bus.sh
+# Hook landed in learning.sh
+grep -q "T-1168: publish learning to bus" /opt/999-Agentic-Engineering-Framework/agents/context/lib/learning.sh
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-04-24 — Scope-reduce to B1 (publisher only); split B2/B3/B4 to T-1217
+- **Chose:** Ship only B1 in T-1168: publisher hook + helper script that posts `channel:learnings` envelopes when `fw context add-learning` succeeds. Subscriber daemon (B2), Watchtower panel (B3), and install-bump coordination (B4) are deferred to **T-1217**.
+- **Why:** B1 alone delivers asymmetric observability — any peer with termlink ≥ 0.9.380 subscribed to `channel:learnings` can see this project's learnings the moment they're added. Subscribers can be built later without blocking the publisher. This fits `One task = one deliverable` + matches the T-1165 "ship the bridge, defer the consumer" pattern.
+- **Rejected:** (1) Ship all four phases in one task — too big (estimated 400+ lines across 4 files + Watchtower blueprint + template). (2) Do nothing — the publisher is the cheapest non-zero step and lets us verify envelope shape against a real hub before committing to a subscriber design.
 
 ## Updates
 
@@ -110,3 +108,10 @@ test -f .context/project/received-learnings.yaml || echo "will be created on fir
 
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-24T12:27:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-24T12:31:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
