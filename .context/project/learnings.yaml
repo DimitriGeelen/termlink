@@ -611,3 +611,17 @@ learnings:
   date: 2026-04-24
   context: Added via context agent
   application: TBD
+- id: PL-053
+  learning: "Hook-in-framework build pattern: (1) write handler to .agentic-framework/agents/context/<name>.sh + stub test under tests/; (2) verify fw hook <name> dispatcher (auto-resolves, no bin/fw patch needed); (3) write docs/T-XXX-settings-patch.md for B-005-gated .claude/settings.json activation; (4) stage files in /tmp then termlink_dispatch --workdir /opt/999-AEF with a bash mirror script that cp + git commit + git push both remotes. Validated on T-1213 (SubagentStop) + T-1211 (Stop) in one session. B-005 always stops the agent at settings.json — leave the patch doc for the human."
+  source: unknown
+  task: T-1211
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
+- id: PL-054
+  learning: "Destructive-smoke-test hazard: scripts that invoke 'fw handover' (or any auto-committing command) MUST default to DRY_RUN=1 so development smoke tests don't accidentally commit + push against real state. T-1212 session-silent-scanner.sh smoke-tested with the real dispatcher (.agentic-framework/bin/fw hook session-silent-scanner) accidentally scanned /root/.claude/projects/ (25-day-old sessions), triggered fw handover 3 times = 3 generated handovers, each of which committed + pushed, generating further handover commits on top. 8 spurious commits landed on main. Fixed by DRY_RUN=1 default in the scanner; stub test explicitly sets DRY_RUN=0 in its sandbox. The broader class: any handler written for the 'hook + stub + mirror' pattern (PL-053) must audit whether its dispatcher-level smoke-test can reach production state."
+  source: PL-053 extension
+  task: T-1212
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
