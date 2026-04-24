@@ -71,6 +71,15 @@ Periodic check: have upstream fixes landed for F1-F4?
 - Adjacent observation: T-1396 (`Prefer source-of-truth agents/ over vendored .agentic-framework/ in pre-push hook`) is in the same neighborhood as F2 (consumer-path correctness) — worth re-checking F2 next poll.
 - **Decision:** leave horizon=later. F4 is fixed but does not warrant a `fw upgrade` cycle on its own (purely cosmetic doc fix); will be picked up automatically when next sync runs. F1-F3 still open. Next poll in ~3 days.
 
+**Poll results (2026-04-24):**
+- Framework activity since 2026-04-23: T-1404/T-1405/T-1406/T-1407 housekeeping + inceptions; T-1281 E2E inception decide via Watchtower → fw; T-1282 E2E inception decide on vendored consumer; G-058 register + 6 fixes (T-1409..T-1414 for verification-script bugs falsely blocking AC close); T-1408 csrf_exempt test alignment. T-1206 mirror landed today as 8b5395c4.
+- **F1 (decide --force bypass):** T-1281 + T-1282 added E2E tests covering `inception decide` via Watchtower. Adjacent but does NOT add a build-readiness / AC gate to `--force`. Still open.
+- **F2 (consumer path in task-review prompt):** No commits. Still open.
+- **F3 (episodic ordering):** No structural deferral commits. Still open.
+- **F4 (`fw vendor` CLAUDE.md):** Remains fixed upstream (framework CLAUDE.md). Consumer `/opt/termlink/CLAUDE.md` is project-level (not vendored — `.agentic-framework/CLAUDE.md` does not exist here), so this is a content-drift consumers manage themselves, not a sync issue.
+- Adjacent observation: G-058 (verification-script bugs falsely blocking AC close) is conceptually in the same neighborhood as F1 — the framework is now self-diagnosing structural completion-gate bugs. F1 remediation may ride on that wave.
+- **Decision:** leave horizon=later. F1-F3 still open; F4 reclassified as consumer-content (not sync). Next poll in ~3 days.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
