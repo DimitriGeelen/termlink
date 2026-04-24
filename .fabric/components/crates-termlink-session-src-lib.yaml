@@ -73,6 +73,8 @@ depends_on:
   type: calls
 - target: crates/termlink-session/src/transport.rs
   type: calls
+- target: crates/termlink-session/src/hub_capabilities.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -132,4 +134,6 @@ depended_by:
   type: called_by
 - target: crates/termlink-test-utils/src/lib.rs
   type: called_by
-last_enriched: '2026-04-21'
+- target: crates/termlink-cli/src/commands/mirror_grid_composer.rs
+  type: called_by
+last_enriched: '2026-04-24'
