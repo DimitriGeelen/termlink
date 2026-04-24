@@ -1,0 +1,71 @@
+# ============================================================================
+# EPISODIC MEMORY - T-180: Build fw upstream report command for consumer-to-framework bug reports
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:29:58Z
+# ============================================================================
+
+task_id: T-180
+task_name: "Build fw upstream report command for consumer-to-framework bug reports"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-18T22:25:12Z
+completed: 2026-04-23T19:29:57Z
+duration_days: 35
+updates_count: 6
+first_commit: 2026-03-19T07:04:15+01:00
+last_commit: 2026-03-19T07:04:15+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception research — dual-path upstream reporting (GO)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested (A-001 through A-004 all validated)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-180-upstream-reporting-design.md"
+  - ".tasks/active/T-180-build-fw-upstream-report-command-for-con.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-19T07:04:15"
+    action: "T-180: Inception research — dual-path upstream reporting (GO)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 51664 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, cli, upstream]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 51664
+  commits: 2
+  files_changed: 7
+  lines_added: 282
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-180-build-fw-upstream-report-command-for-con.md
+generated_by: context-agent-hybrid

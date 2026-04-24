@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-234: termlink mirror — read-only terminal mirroring (single session, local+remote)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:34:26Z
+# ============================================================================
+
+task_id: T-234
+task_name: "termlink mirror — read-only terminal mirroring (single session, local+remote)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-23T09:09:49Z
+completed: 2026-04-23T19:34:25Z
+duration_days: 30
+updates_count: 6
+first_commit: 2026-03-23T10:13:25+01:00
+last_commit: 2026-03-23T11:24:23+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink mirror command — read-only data plane streaming. Add mirror mode test — verify multi-subscriber read-only data plane. Update ACs — all agent criteria met. Add agents/audit symlink to gitignore for local pre-push hook. Fix audit CTL-002/005/026 — add framework agent symlinks + gitignore. Close 7 remote tasks (T-197–T-204) — verified via localhost TCP hub
+
+# Key outcomes
+outcomes:
+  - "Data plane supports read-only \"mirror\" connection mode (client-enforced: no Input/Signal/Resize sent)"
+  - "CLI command `termlink mirror <session>` streams terminal output read-only"
+  - "Mirror works via local Unix socket data plane"
+  - "Observe permission scope grants data plane read-only access (data plane is open, same as stream)"
+  - "Multiple mirror clients can connect simultaneously to same session"
+  - "Initial scrollback catch-up on connect (shows recent output before streaming)"
+  - "Ctrl+C cleanly disconnects mirror without affecting mirrored session"
+  - "Unit tests for mirror mode (multi-subscriber verified)"
+  - "`termlink mirror --help` shows usage"
+  - "[REVIEW] Test mirror on a live agent session"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix audit CTL-002/005/026 — add framework agent symlinks + gitignore"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/pty.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-session/src/data_server.rs"
+  - ".gitignore"
+  - ".tasks/active/T-233-specialist-agent-orchestration--delegate.md"
+  - ".tasks/active/T-234-termlink-mirror--read-only-terminal-mirr.md"
+  - ".tasks/completed/T-197-termlink-remote-send-file--cross-machine.md"
+  - ".tasks/completed/T-198-fix-file-receive-replaying-stale-events-.md"
+  - ".tasks/completed/T-199-termlink-remote-liststatus--discover-ses.md"
+  - ".tasks/completed/T-201-termlink-remote-ping--quick-hub-connecti.md"
+  - ".tasks/completed/T-202-termlink-remote-exec--execute-commands-o.md"
+  - ".tasks/completed/T-203-termlink-remote-events--watch-events-on-.md"
+  - ".tasks/completed/T-204-termlink-hub-profiles--save-remote-hub-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T10:13:25"
+    action: "T-234: Add termlink mirror command — read-only data plane streaming"
+  - time: "2026-03-23T10:15:09"
+    action: "T-234: Add mirror mode test — verify multi-subscriber read-only data plane"
+  - time: "2026-03-23T10:15:44"
+    action: "T-234: Update ACs — all agent criteria met"
+  - time: "2026-03-23T10:18:42"
+    action: "T-234: Add agents/audit symlink to gitignore for local pre-push hook"
+  - time: "2026-03-23T10:56:10"
+    action: "T-234: Fix audit CTL-002/005/026 — add framework agent symlinks + gitignore"
+  - time: "2026-03-23T11:24:23"
+    action: "T-234: Close 7 remote tasks (T-197–T-204) — verified via localhost TCP hub"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 45264 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 45264
+  commits: 6
+  files_changed: 8
+  lines_added: 213
+  lines_removed: 28
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-234-termlink-mirror--read-only-terminal-mirr.md
+generated_by: context-agent-hybrid

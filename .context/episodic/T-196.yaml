@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-196: Architectural mitigation for macOS BSD/GNU shell incompatibilities
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:30:02Z
+# ============================================================================
+
+task_id: T-196
+task_name: "Architectural mitigation for macOS BSD/GNU shell incompatibilities"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-20T20:19:57Z
+completed: 2026-04-23T19:30:01Z
+duration_days: 33
+updates_count: 5
+first_commit: 2026-03-20T21:25:19+01:00
+last_commit: 2026-03-20T21:36:48+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception GO — architectural mitigation for macOS BSD/GNU compat. Pickup prompt for framework compat.sh expansion
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (26+ GNU-isms, 12 critical)"
+  - "Assumptions tested (A1-A5 all validated)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-196-macos-bsd-gnu-compat-research.md"
+  - "docs/specs/T-196-compat-sh-expansion-pickup.md"
+  - ".tasks/active/T-196-architectural-mitigation-for-macos-bsdgn.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-20T21:25:19"
+    action: "T-196: Inception GO — architectural mitigation for macOS BSD/GNU compat"
+  - time: "2026-03-20T21:36:48"
+    action: "T-196: Pickup prompt for framework compat.sh expansion"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 48910 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, macos-compat, portability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 48910
+  commits: 2
+  files_changed: 3
+  lines_added: 855
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-196-architectural-mitigation-for-macos-bsdgn.md
+generated_by: context-agent-hybrid

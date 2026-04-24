@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1134: Ship install.sh at repo root — curl-pipe bootstrap (auto-detect triple, checksum-verify, install to /usr/local/bin) (from T-1070 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:26:46Z
+# ============================================================================
+
+task_id: T-1134
+task_name: "Ship install.sh at repo root — curl-pipe bootstrap (auto-detect triple, checksum-verify, install to /usr/local/bin) (from T-1070 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T23:02:15Z
+completed: 2026-04-19T16:11:30Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-04-19T15:54:33+02:00
+last_commit: 2026-04-19T18:11:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add install.sh — curl-pipe bootstrap installer. Add agent evidence — install.sh works end-to-end on glibc x86_64
+
+# Key outcomes
+outcomes:
+  - "`install.sh` exists at repo root and is executable"
+  - "Script passes `sh -n` syntax check (POSIX-portable)"
+  - "Script passes `shellcheck` (skipped — not installed in this env; sh -n passes)"
+  - "Auto-detects `darwin-aarch64`, `darwin-x86_64`, `linux-x86_64`, `linux-x86_64-static` (musl), and `linux-aarch64` based on `uname -s` + `uname -m` + libc check"
+  - "Refuses unknown target with clear error pointing to supported list"
+  - "Downloads artifact + `checksums.txt` from `https://github.com/DimitriGeelen/termlink/releases/latest/download/` (overridable via `TERMLINK_VERSION` env)"
+  - "Verifies sha256 checksum; aborts on mismatch"
+  - "Installs to `/usr/local/bin/termlink` (uses `sudo` only if required; honors `PREFIX` env)"
+  - "Dry-run mode (`--dry-run`) prints what would be done without network writes"
+  - "[REVIEW] Run on a fresh host and verify the install works end-to-end — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "install.sh"
+  - ".tasks/active/T-1134-ship-installsh-at-repo-root--curl-pipe-b.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T15:54:33"
+    action: "T-1134: Add install.sh — curl-pipe bootstrap installer"
+  - time: "2026-04-19T18:11:30"
+    action: "T-1134: Add agent evidence — install.sh works end-to-end on glibc x86_64"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1029 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [install, ux, T-1070, distribution]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1029
+  commits: 2
+  files_changed: 2
+  lines_added: 199
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1134-ship-installsh-at-repo-root--curl-pipe-b.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1071: Framework improvements from termlink protocol-skew + event.broadcast workaround pattern
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:30:27Z
+# ============================================================================
+
+task_id: T-1071
+task_name: "Framework improvements from termlink protocol-skew + event.broadcast workaround pattern"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-15T21:18:07Z
+completed: 2026-04-18T23:01:00Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-04-15T23:19:09+02:00
+last_commit: 2026-04-19T01:00:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — framework learnings from termlink protocol-skew + event.broadcast resilience. Create 3 follow-up build tasks from GO decision
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated — KeyEntry adjacently-tagged enum at `crates/termlink-protocol/src/control.rs:65-74`, introduced via T-768 (commit 8ea9fa06). Older clients sending bare String fail deserialization on newer hubs."
+  - "Assumptions tested — A1/A2/A3/A4 all confirmed; see \"Findings\" below."
+  - "Recommendation written with rationale — see ## Recommendation"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1071-framework-improvements-from-termlink-pro.md"
+  - ".tasks/active/T-1131-wire-protocolversion-enforcement-at-hub-.md"
+  - ".tasks/active/T-1132-fleet-doctor-reports-fleet-wide-version-.md"
+  - ".tasks/active/T-1133-resilience-tier-taxonomy--tag-each-rpc-m.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-15T23:19:09"
+    action: "T-1071: Inception — framework learnings from termlink protocol-skew + event.broadcast resilience"
+  - time: "2026-04-19T01:00:59"
+    action: "T-1071: Create 3 follow-up build tasks from GO decision"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 4422 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4422
+  commits: 3
+  files_changed: 133
+  lines_added: 4069
+  lines_removed: 2857
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1071-framework-improvements-from-termlink-pro.md
+generated_by: context-agent-hybrid

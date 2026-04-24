@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-289: Push T-287 findings to fw-agent
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:34:07Z
+# ============================================================================
+
+task_id: T-289
+task_name: "Push T-287 findings to fw-agent"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-25T22:16:19Z
+completed: 2026-04-23T19:34:06Z
+duration_days: 28
+updates_count: 6
+first_commit: 2026-03-26T22:25:34+01:00
+last_commit: 2026-03-26T22:25:34+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Push T-287 findings and T-160 pickup to fw-agent via TermLink file send
+
+# Key outcomes
+outcomes:
+  - "T-287 findings pushed to fw-agent via `termlink file send` (1048 bytes, SHA-256: 6177eaf8)"
+  - "T-160 pickup prompt pushed to fw-agent via `termlink file send` (4465 bytes, SHA-256: 3b84ce31)"
+  - "Push delivery confirmed (non-zero bytes written)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-289-push-t-287-findings-to-fw-agent.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-26T22:25:34"
+    action: "T-289: Push T-287 findings and T-160 pickup to fw-agent via TermLink file send"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 41597 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 41597
+  commits: 2
+  files_changed: 3
+  lines_added: 168
+  lines_removed: 30
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-289-push-t-287-findings-to-fw-agent.md
+generated_by: context-agent-hybrid

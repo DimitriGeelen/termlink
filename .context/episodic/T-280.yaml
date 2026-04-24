@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-280: Dispatch readiness — structural completion signaling for TermLink agent orchestration
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:30:05Z
+# ============================================================================
+
+task_id: T-280
+task_name: "Dispatch readiness — structural completion signaling for TermLink agent orchestration"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-25T14:27:11Z
+completed: 2026-04-23T19:30:04Z
+duration_days: 28
+updates_count: 6
+first_commit: 2026-03-25T15:28:27+01:00
+last_commit: 2026-03-25T15:28:27+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — dispatch readiness, structural completion signaling
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (5-agent RCA complete)"
+  - "Assumptions documented"
+  - "Go/No-Go decision made"
+  - "[REVIEW] Review 5-agent research synthesis and agree with recommended path"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-280-dispatch-readiness--structural-completio.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T15:28:27"
+    action: "T-280: Inception — dispatch readiness, structural completion signaling"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 42062 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [dispatch, orchestration, lifecycle, mcp]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 42062
+  commits: 1
+  files_changed: 1
+  lines_added: 161
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-280-dispatch-readiness--structural-completio.md
+generated_by: context-agent-hybrid
