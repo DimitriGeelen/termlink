@@ -67,4 +67,6 @@ Mechanism (works within Claude Code semantics):
 ### 2026-04-24 — inception kickoff + direction received
 - **Agent:** Drafted exploration plan with nag/warn/block ladder.
 - **Human:** No block. Use a y/n user-question pattern. Agent should pick up the nudge autonomously and ensure conversation is captured. That's the ultimate goal.
-- **Agent:** Redesigned per direction — Stop hook becomes a passive observer that emits an agent-visible nudge; agent owns the user-prompt; capture-or-dismiss is the only outcome. Updated spike plan: S1 unchanged, S2 = passive 1-week threshold-tuning, S3 → S3' = agent prompt template. Pending: confirm 1-week passive observation period is right before issuing real nudges, or do you want nudges live from day 1 with looser threshold?
+- **Agent:** Redesigned per direction — Stop hook becomes a passive observer that emits an agent-visible nudge; agent owns the user-prompt; capture-or-dismiss is the only outcome. Updated spike plan: S1 unchanged, S2 = passive 1-week threshold-tuning, S3 → S3' = agent prompt template. Pending: live nudges from day 1 with conservative threshold, OR passive observation first?
+- **Human (2026-04-24):** Option B — live from day 1.
+- **Agent:** Locked in. Initial threshold N=15 exchanges with 0 tools AND 0 commits AND no focus.yaml. Self-tunes via dismissal rate. S2 reframed: instead of passive logging, S2 deploys live nudges + collects dismissal markers as the tuning data. S1 still runs first to confirm `.tool-counter` / `.last-commit-hash` are reliable signals.
