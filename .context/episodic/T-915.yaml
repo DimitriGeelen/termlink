@@ -1,0 +1,149 @@
+# ============================================================================
+# EPISODIC MEMORY - T-915: Poll framework for T-909 RCA fixes; fw upgrade when landed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-24T16:15:20Z
+# ============================================================================
+
+task_id: T-915
+task_name: "Poll framework for T-909 RCA fixes; fw upgrade when landed"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-11T12:47:25Z
+completed: 2026-04-24T16:15:18Z
+duration_days: 13
+updates_count: 12
+first_commit: 2026-04-11T14:47:32+02:00
+last_commit: 2026-04-24T18:15:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Capture poll-and-upgrade task for T-909 RCA findings (F1-F4). Poll result — no framework fixes for F1-F4 yet, keep horizon=later. Framework F1-F4 poll — no relevant fixes landed, stay captured/later. Poll datapoint 2026-04-21 — framework F1-F4 still open. 3rd poll for T-909 RCA fixes — F4 fixed upstream, F1-F3 still open. Vendor framework refresh — sync .agentic-framework/ from upstream master. Restore termlink-local fleet.py wiped by vendor refresh. Poll 2026-04-24 — F1-F3 still open, F4 reclassified. Confirm F1-F3 fixes present in vendored framework (landed 2026-04-12). Close F4 — add 'fw vendor' row to CLAUDE.md Quick Reference
+
+# Key outcomes
+outcomes:
+  - "Polled framework git log since 2026-04-11 for F1-F4 keywords"
+  - "Findings recorded below; no direct F1 (build readiness) hit — leave horizon=later"
+  - "**2026-04-24 poll: F1/F2/F3 all landed upstream and present in vendored .agentic-framework/**"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Confirm F1-F3 fixes present in vendored framework (landed 2026-04-12)"
+    source: git-mined
+  - description: "3rd poll for T-909 RCA fixes — F4 fixed upstream, F1-F3 still open"
+    source: git-mined
+  - description: "Framework F1-F4 poll — no relevant fixes landed, stay captured/later"
+    source: git-mined
+  - description: "Poll result — no framework fixes for F1-F4 yet, keep horizon=later"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/audit/audit.sh"
+  - ".agentic-framework/agents/context/checkpoint.sh"
+  - ".agentic-framework/agents/context/check-project-boundary.sh"
+  - ".agentic-framework/agents/context/lib/episodic.sh"
+  - ".agentic-framework/agents/context/lib/learning.sh"
+  - ".agentic-framework/agents/fabric/lib/drift.sh"
+  - ".agentic-framework/agents/fabric/lib/register.sh"
+  - ".agentic-framework/agents/git/lib/hooks.sh"
+  - ".agentic-framework/agents/handover/handover.sh"
+  - ".agentic-framework/agents/task-create/create-task.sh"
+  - ".agentic-framework/agents/task-create/update-task.sh"
+  - ".agentic-framework/bin/fw"
+  - ".agentic-framework/bin/fw-shim"
+  - ".agentic-framework/bin/watchtower.sh"
+  - ".agentic-framework/docs/generated/components/bin-fw.md"
+  - ".agentic-framework/docs/generated/components/bin-watchtower.md"
+  - ".agentic-framework/docs/generated/components/lib-inception.md"
+  - ".agentic-framework/docs/generated/components/lib-watchtower.md"
+  - ".agentic-framework/docs/generated/components/web-blueprints-__init__.md"
+  - ".agentic-framework/docs/generated/components/web-shared.md"
+  - ".agentic-framework/lib/inception.sh"
+  - ".agentic-framework/lib/init.sh"
+  - ".agentic-framework/lib/keylock.sh"
+  - ".agentic-framework/lib/pickup.sh"
+  - ".agentic-framework/lib/task-audit.sh"
+  - ".agentic-framework/lib/templates/claude-project.md"
+  - ".agentic-framework/lib/upgrade.sh"
+  - ".agentic-framework/lib/watchtower.sh"
+  - ".agentic-framework/VERSION"
+  - ".agentic-framework/web/app.py"
+  - ".agentic-framework/web/blueprints/approvals.py"
+  - ".agentic-framework/web/blueprints/cron.py"
+  - ".agentic-framework/web/blueprints/fabric.py"
+  - ".agentic-framework/web/blueprints/fleet.py"
+  - ".agentic-framework/web/blueprints/inception.py"
+  - ".agentic-framework/web/blueprints/__init__.py"
+  - ".agentic-framework/web/blueprints/tasks.py"
+  - ".agentic-framework/web/search_utils.py"
+  - ".agentic-framework/web/shared.py"
+  - ".agentic-framework/web/templates/base.html"
+  - ".agentic-framework/web/templates/cron.html"
+  - ".agentic-framework/web/templates/fleet.html"
+  - ".agentic-framework/web/templates/inception_detail.html"
+  - ".agentic-framework/web/templates/index.html"
+  - ".agentic-framework/web/templates/sessions.html"
+  - ".agentic-framework/web/templates/task_detail.html"
+  - "CLAUDE.md"
+  - ".tasks/active/T-915-poll-framework-for-t-909-rca-fixes-fw-up.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-11T14:47:32"
+    action: "T-915: Capture poll-and-upgrade task for T-909 RCA findings (F1-F4)"
+  - time: "2026-04-11T21:27:44"
+    action: "T-915: Poll result — no framework fixes for F1-F4 yet, keep horizon=later"
+  - time: "2026-04-18T17:55:10"
+    action: "T-915: Framework F1-F4 poll — no relevant fixes landed, stay captured/later"
+  - time: "2026-04-21T13:02:45"
+    action: "T-915: Poll datapoint 2026-04-21 — framework F1-F4 still open"
+  - time: "2026-04-23T17:46:46"
+    action: "T-915: 3rd poll for T-909 RCA fixes — F4 fixed upstream, F1-F3 still open"
+  - time: "2026-04-23T20:51:24"
+    action: "T-915: Vendor framework refresh — sync .agentic-framework/ from upstream master"
+  - time: "2026-04-23T20:53:14"
+    action: "T-915: Restore termlink-local fleet.py wiped by vendor refresh"
+  - time: "2026-04-24T07:04:26"
+    action: "T-915: Poll 2026-04-24 — F1-F3 still open, F4 reclassified"
+  - time: "2026-04-24T18:11:31"
+    action: "T-915: Confirm F1-F3 fixes present in vendored framework (landed 2026-04-12)"
+  - time: "2026-04-24T18:15:08"
+    action: "T-915: Close F4 — add 'fw vendor' row to CLAUDE.md Quick Reference"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 11 commit(s), 18927 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, upgrade, rca, polling]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 18927
+  commits: 11
+  files_changed: 52
+  lines_added: 2105
+  lines_removed: 1237
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-915-poll-framework-for-t-909-rca-fixes-fw-up.md
+generated_by: context-agent-hybrid
