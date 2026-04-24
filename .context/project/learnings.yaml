@@ -604,3 +604,10 @@ learnings:
   date: 2026-04-23
   context: Added via context agent
   application: TBD
+- id: PL-052
+  learning: "Cross-agent hub heal via termlink works: when a hub shows auth-mismatch after client-side cache drift (secret rotation or container renumber), use termlink to dispatch a read-only diagnostic prompt to the peer agent (hex digest + fingerprint + mtime + ss + ps + journalctl tail), relay the hex via user paste, then 'termlink fleet reauth <profile> --bootstrap-from file:/tmp/hex' to atomically rewrite local secret (bypasses boundary hooks). Separately, if TLS cert rotated too, 'termlink tofu clear <addr:port>' first. Three drift components are independent: hubs.toml address, HMAC secret, TLS fingerprint — check all three. Hub runtime_dir is tmpfs /tmp/termlink-0/, not /var/lib. Source: T-1064 closed G-013 with 3/3 PASS in one session."
+  source: P-001
+  task: T-1064
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
