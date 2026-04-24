@@ -86,6 +86,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
             crate::channel::handle_channel_list(id, &req.params).await
         }
         "hub.version" => handle_hub_version(id),
+        control::method::HUB_CAPABILITIES => handle_hub_capabilities(id),
         _ => forward_to_target(req, id).await,
     };
 
@@ -712,6 +713,56 @@ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
     Response::success(
         id,
         json!({
+            "hub_version": env!("CARGO_PKG_VERSION"),
+            "protocol_version": termlink_protocol::DATA_PLANE_VERSION,
+        }),
+    )
+    .into()
+}
+
+/// Handle `hub.capabilities` — return the list of JSON-RPC methods this hub
+/// serves directly (T-1215 / T-1214 GO Option B). Enables federating clients
+/// to detect stranger-lineage peers that lack `channel.*` and fall back to
+/// `event.broadcast` without probing each method individually.
+///
+/// Response shape:
+/// ```json
+/// { "methods": ["channel.list", ..., "session.discover"], "hub_version": "...", "protocol_version": "..." }
+/// ```
+/// `methods` is sorted. Only methods recognized by `route()`'s explicit match
+/// arms are listed — forwarded session methods are intentionally excluded.
+fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
+    // Kept in sync with the match arms in `route()`. Excludes the `_ =>
+    // forward_to_target` catchall and hub.auth (which is handled at the TLS
+    // frame layer, not by this router).
+    let mut methods: Vec<&'static str> = vec![
+        control::method::SESSION_DISCOVER,
+        control::method::EVENT_BROADCAST,
+        control::method::EVENT_COLLECT,
+        control::method::EVENT_SUBSCRIBE,
+        control::method::EVENT_EMIT_TO,
+        control::method::ORCHESTRATOR_ROUTE,
+        control::method::ORCHESTRATOR_BYPASS_STATUS,
+        control::method::ORCHESTRATOR_BYPASS_INVALIDATE,
+        "session.register_remote",
+        "session.heartbeat",
+        "session.deregister_remote",
+        "inbox.list",
+        "inbox.status",
+        "inbox.clear",
+        control::method::CHANNEL_CREATE,
+        control::method::CHANNEL_POST,
+        control::method::CHANNEL_SUBSCRIBE,
+        control::method::CHANNEL_LIST,
+        "hub.version",
+        control::method::HUB_CAPABILITIES,
+    ];
+    methods.sort_unstable();
+
+    Response::success(
+        id,
+        json!({
+            "methods": methods,
             "hub_version": env!("CARGO_PKG_VERSION"),
             "protocol_version": termlink_protocol::DATA_PLANE_VERSION,
         }),
@@ -3314,6 +3365,53 @@ mod tests {
                     r.result["protocol_version"],
                     termlink_protocol::DATA_PLANE_VERSION
                 );
+            }
+            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+        }
+    }
+
+    // T-1215: hub.capabilities method lists directly-handled methods so
+    // federating clients can decide channel.* vs event.broadcast at call time.
+    #[test]
+    fn hub_capabilities_returns_sorted_method_list() {
+        let resp = super::handle_hub_capabilities(json!(9));
+        match resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.id, json!(9));
+                assert_eq!(r.result["hub_version"], env!("CARGO_PKG_VERSION"));
+                assert_eq!(
+                    r.result["protocol_version"],
+                    termlink_protocol::DATA_PLANE_VERSION
+                );
+
+                let methods = r.result["methods"]
+                    .as_array()
+                    .expect("methods should be an array");
+                let names: Vec<&str> = methods.iter().filter_map(|v| v.as_str()).collect();
+
+                for required in [
+                    "channel.post",
+                    "channel.subscribe",
+                    "event.broadcast",
+                    "hub.capabilities",
+                    "hub.version",
+                    "session.discover",
+                ] {
+                    assert!(
+                        names.contains(&required),
+                        "method list missing {required}: {names:?}",
+                    );
+                }
+
+                // Sorted ascending
+                let mut sorted = names.clone();
+                sorted.sort_unstable();
+                assert_eq!(names, sorted, "methods must be sorted");
+
+                // No duplicates
+                let mut dedup = names.clone();
+                dedup.dedup();
+                assert_eq!(dedup.len(), names.len(), "methods must be unique");
             }
             RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
         }

@@ -79,6 +79,11 @@ pub mod method {
     pub const AUTH_TOKEN: &str = "auth.token";
     /// Tier-B — typed hub handshake (nonce, signature).
     pub const HUB_AUTH: &str = "hub.auth";
+    /// Tier-A — opaque list of method names supported by this hub, plus
+    /// `hub_version` and `protocol_version`. Used by federating clients
+    /// (T-1214/T-1215) to decide whether to call `channel.*` methods or
+    /// fall back to `event.broadcast` against a stranger lineage peer.
+    pub const HUB_CAPABILITIES: &str = "hub.capabilities";
     /// Tier-B — typed pty mode params (raw/cooked, tty flags).
     pub const PTY_MODE: &str = "pty.mode";
     /// Tier-B — typed route descriptor.
