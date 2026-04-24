@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1214: Fleet termlink diagnosis (T-1210 S1) + converge-vs-federate decision
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-24T10:28:15Z
+# ============================================================================
+
+task_id: T-1214
+task_name: "Fleet termlink diagnosis (T-1210 S1) + converge-vs-federate decision"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T10:05:17Z
+completed: 2026-04-24T10:28:11Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-24T12:27:59+02:00
+last_commit: 2026-04-24T12:27:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fleet lineage probe + federate recommendation (S1 complete)
+
+# Key outcomes
+outcomes:
+  - "Probe local (.109) termlink: version, `channel -h` exit, binary path + mtime,"
+  - "Probe ring20-management (.122) via hub: version, `channel -h` exit, binary path + mtime"
+  - "Probe ring20-dashboard (.121) via hub: version, `channel -h` exit, binary path + mtime"
+  - "Classify each peer (same-lineage / forked / stranger) with evidence"
+  - "Write `docs/reports/T-1214-fleet-diagnosis.md` containing the capability matrix"
+  - "Commit probe findings under T-1214 — commit 1a432356"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1214-fleet-diagnosis.md"
+  - ".tasks/active/T-1214-fleet-termlink-diagnosis-t-1210-s1--conv.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T12:27:59"
+    action: "T-1214: Fleet lineage probe + federate recommendation (S1 complete)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 22 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [fleet, install, capability-probe]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 22
+  commits: 2
+  files_changed: 5
+  lines_added: 458
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1214-fleet-termlink-diagnosis-t-1210-s1--conv.md
+generated_by: context-agent-hybrid
