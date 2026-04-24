@@ -48,8 +48,20 @@ Fallback needed: even if SessionEnd is wired, agent cannot rely on it as the sol
 
 Framework-side. Wire through `fw hook session-end` dispatcher.
 
+## Direction (per human 2026-04-24)
+
+"Proceed as you see fit, considering framework directives." Agent will run S1+S2+S3 in plan as described, with the following framework-directive alignment:
+
+- **D1 Antifragility:** silent-session cron (S3) is the key antifragility move — every skipped SessionEnd becomes a recovered handover, not a lost session. Without S3 the system is fragile to Claude Code bugs we don't control.
+- **D2 Reliability:** S2 measures wall-clock under both clean exit and simulated kill — the handover MUST complete or fail loudly within 10s.
+- **D3 Usability:** the recovered handover from S3 is best-effort — clearly labeled `[recovered, no agent context]` so future sessions don't trust it as a normal handover.
+- **D4 Portability:** all scripts framework-side, never reach into Claude Code internals beyond documented hook payloads. If `#17885` is fixed upstream, our fallback still does no harm (becomes redundant).
+
+S3 stays in this inception (not split out) — it's the antifragility piece without which the hook itself would be unreliable.
+
 ## Dialogue Log
 
-### 2026-04-24 — inception kickoff
-- **Agent:** Drafted exploration plan before any spikes. Key insight: T-174's own description flags the known Claude Code bugs (#17885, #20197) — the hook CANNOT be the sole trigger. Design must include a silent-session fallback (S3) regardless of whether S1/S2 pass. Pending user direction on whether S3 is in-scope or should become its own follow-up inception.
-- **Human:** (awaiting input)
+### 2026-04-24 — inception kickoff + direction received
+- **Agent:** Drafted plan with S1 (payload survey) + S2 (handover trigger) + S3 (silent-session cron fallback). Asked whether S3 should split into its own inception.
+- **Human:** Proceed as you see fit, considering framework directives.
+- **Agent:** Aligned plan with D1-D4 (above). Keeping S3 in scope as the antifragility piece. Will start with S1 (cheapest — write a no-op SessionEnd logger and let it accumulate reason-field data over real session ends across the next several sessions). S2 and S3 land after S1 confirms baseline behavior on this Claude Code version.

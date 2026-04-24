@@ -42,8 +42,29 @@ Claude Code's `Stop` hook fires after **every assistant response**, with `last_a
 
 Framework-side. New stop-guard script under `agents/context/`, wired through the `fw hook` dispatcher. Consumer project settings.json wires the Stop matcher to the framework wrapper.
 
+## Revised design (per human direction 2026-04-24)
+
+**No block. No silent nag-then-warn-then-block ladder. Pattern = agent-asks-human, with conversation capture as the ultimate goal.**
+
+Mechanism (works within Claude Code semantics):
+1. Stop hook exits 0 (never blocks) but emits stderr text when threshold conditions are met. Stderr from a Stop hook becomes additional context the agent sees on the next turn.
+2. Stderr message says: "Detected N exchanges with 0 tools / 0 commits / no active task. Recommend prompting user to capture this conversation."
+3. Agent on next turn proactively asks user: **"We've been talking for a while without capturing anything. Should I create a task summarizing this conversation so far? (y/n)"**
+4. On `y`: agent runs `fw work-on "summary" --type spec` (or similar), inserts a brief context dump, continues. Conversation is now captured.
+5. On `n`: agent writes a "dismissed" marker (`.context/working/.stop-dismissed-at-N`), counter resumes from there. Same nudge fires again at +N exchanges.
+
+**Ultimate goal:** no conversation produces zero artifacts. Either it's worth capturing (task created) or the user explicitly says "this one isn't" (dismissed marker logged for episodic).
+
+**Threshold (revised, single-step):** N=10 exchanges with 0 tool uses AND 0 commits AND no `.context/working/focus.yaml` set. One nudge, then dismissable. Re-fires at N+10.
+
+**Spike S1-S3 implications:**
+- S1 (payload survey) still needed — confirms `.tool-counter` and `.last-commit-hash` give clean signal.
+- S2 redesigned: implement passive logger (no nudge yet) that records when threshold WOULD have fired across real sessions for 1 week. Refine threshold from data before issuing real nudges.
+- S3 dropped (no escalation ladder). Replaced with **S3' — agent prompt template:** the exact phrasing the agent uses when nudged, so the question is consistent across sessions.
+
 ## Dialogue Log
 
-### 2026-04-24 — inception kickoff
-- **Agent:** Drafted exploration plan before any spikes, per inception discipline. Framework's own settings doc said defer on all three hooks (#Rec 3, #Rec 8); user is overriding that position. Pending user confirmation on the proposed spike order and the warn/block escalation shape before running S1-S3.
-- **Human:** (awaiting input)
+### 2026-04-24 — inception kickoff + direction received
+- **Agent:** Drafted exploration plan with nag/warn/block ladder.
+- **Human:** No block. Use a y/n user-question pattern. Agent should pick up the nudge autonomously and ensure conversation is captured. That's the ultimate goal.
+- **Agent:** Redesigned per direction — Stop hook becomes a passive observer that emits an agent-visible nudge; agent owns the user-prompt; capture-or-dismiss is the only outcome. Updated spike plan: S1 unchanged, S2 = passive 1-week threshold-tuning, S3 → S3' = agent prompt template. Pending: confirm 1-week passive observation period is right before issuing real nudges, or do you want nudges live from day 1 with looser threshold?
