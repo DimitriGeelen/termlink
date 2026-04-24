@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-163: Cross-machine agent communication via TCP hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:29:55Z
+# ============================================================================
+
+task_id: T-163
+task_name: "Cross-machine agent communication via TCP hub"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-18T09:42:29Z
+completed: 2026-04-23T19:29:54Z
+duration_days: 35
+updates_count: 5
+first_commit: 2026-03-18T10:43:28+01:00
+last_commit: 2026-03-18T23:20:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — cross-machine agent communication research artifact. Research findings — TCP hub, security gaps, file transfer, agent protocol. GO decision + create build tasks T-164 through T-169. RCA findings + create T-177, T-178, T-179 from cross-machine testing
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions A1-A6 assessed"
+  - "Security model for LAN TCP hub evaluated"
+  - "File transfer approach recommended"
+  - "Agent message protocol sketched"
+  - "Research artifact written (docs/reports/T-163-*.md)"
+  - "Go/No-Go decision made"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-163-cross-machine-agent-communication.md"
+  - "docs/reports/T-163-cross-machine-rca-findings.md"
+  - ".tasks/active/T-163-cross-machine-agent-communication-via-tc.md"
+  - ".tasks/active/T-164-enforce-token-auth-on-tcp-hub-connection.md"
+  - ".tasks/active/T-165-add-tls-encryption-to-tcp-transport.md"
+  - ".tasks/active/T-166-cross-machine-event-delivery-end-to-end-.md"
+  - ".tasks/active/T-167-agent-message-protocol--requestresponse-.md"
+  - ".tasks/active/T-168-file-transfer-via-base64-chunked-events.md"
+  - ".tasks/active/T-169-cli-commands-for-agent-communication.md"
+  - ".tasks/active/T-173-wire-stop-hook-for-conversation-governan.md"
+  - ".tasks/active/T-177-fix-pty-inject-byteswritten-display-bug-.md"
+  - ".tasks/active/T-178-fix-pty-inject-enter-not-submitting-in-c.md"
+  - ".tasks/active/T-179-cross-hub-tls-trust-via-tofu-trust-on-fi.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-18T10:43:28"
+    action: "T-163: Inception — cross-machine agent communication research artifact"
+  - time: "2026-03-18T10:46:20"
+    action: "T-163: Research findings — TCP hub, security gaps, file transfer, agent protocol"
+  - time: "2026-03-18T11:08:49"
+    action: "T-163: GO decision + create build tasks T-164 through T-169"
+  - time: "2026-03-18T23:20:24"
+    action: "T-163: RCA findings + create T-177, T-178, T-179 from cross-machine testing"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 52427 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [remote-access, tcp, security, cross-machine]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 52427
+  commits: 4
+  files_changed: 13
+  lines_added: 1047
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-163-cross-machine-agent-communication-via-tc.md
+generated_by: context-agent-hybrid

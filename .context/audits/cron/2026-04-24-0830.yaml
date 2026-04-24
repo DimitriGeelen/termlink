@@ -1,0 +1,13 @@
+# Audit Results - 2026-04-24-0830
+timestamp: 2026-04-24T06:30:01Z
+sections: "oe-hourly"
+summary:
+  pass: 1
+  warn: 0
+  fail: 1
+findings:
+  - level: FAIL
+    check: "CTL-008: Task reference traceability 55% (9/20 without T-XXX)"
+    mitigation: "Run: fw git install-hooks"
+  - level: PASS
+    check: "CTL-020: 4 cron audit file(s) in last hour"

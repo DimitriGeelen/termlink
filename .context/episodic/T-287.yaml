@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-287: Cross-project framework upgrade — fw-agent applies and validates governance fixes on .112 via TermLink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:30:07Z
+# ============================================================================
+
+task_id: T-287
+task_name: "Cross-project framework upgrade — fw-agent applies and validates governance fixes on .112 via TermLink"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-25T20:34:23Z
+completed: 2026-04-23T19:30:06Z
+duration_days: 28
+updates_count: 8
+first_commit: 2026-03-25T21:35:54+01:00
+last_commit: 2026-03-27T07:45:19+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception — cross-project framework upgrade via TermLink. Spike results — blocker found: Claude sessions not registered with TermLink. Path isolation gap + root privilege finding. GO — create child tasks T-288 (termlink vendor) and T-289 (push findings to fw-agent). Add .termlink/bin/ to .gitignore, complete T-288. Check agent ACs — research validated, framework blockers T-615/T-617/T-618 confirmed landed
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated (5 spikes completed, bidirectional connectivity proven)"
+  - "Assumptions tested (fw upgrade broken confirmed, T-615/T-617/T-618 now landed in framework)"
+  - "Recommendation written with rationale (GO — see research artifact + decision)"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-287-cross-project-upgrade.md"
+  - ".gitignore"
+  - ".tasks/active/T-287-cross-project-framework-upgrade--fw-agen.md"
+  - ".tasks/active/T-288-termlink-vendor--per-project-binary-isol.md"
+  - ".tasks/active/T-289-push-t-287-findings-to-fw-agent.md"
+  - ".tasks/completed/T-291-housekeeping--fix-all-audit-warnings-bef.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-25T21:35:54"
+    action: "T-287: Inception — cross-project framework upgrade via TermLink"
+  - time: "2026-03-25T23:04:34"
+    action: "T-287: Spike results — blocker found: Claude sessions not registered with TermLink"
+  - time: "2026-03-25T23:12:11"
+    action: "T-287: Path isolation gap + root privilege finding"
+  - time: "2026-03-25T23:16:29"
+    action: "T-287: GO — create child tasks T-288 (termlink vendor) and T-289 (push findings to fw-agent)"
+  - time: "2026-03-25T23:35:37"
+    action: "T-287: Add .termlink/bin/ to .gitignore, complete T-288"
+  - time: "2026-03-27T07:45:19"
+    action: "T-287: Check agent ACs — research validated, framework blockers T-615/T-617/T-618 confirmed landed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 41695 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 41695
+  commits: 6
+  files_changed: 6
+  lines_added: 484
+  lines_removed: 31
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-287-cross-project-framework-upgrade--fw-agen.md
+generated_by: context-agent-hybrid

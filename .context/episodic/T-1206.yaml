@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1206: T-1103 upstream mirror — apply Watchtower /fleet page in framework repo
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:33:38Z
+# ============================================================================
+
+task_id: T-1206
+task_name: "T-1103 upstream mirror — apply Watchtower /fleet page in framework repo"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-23T18:55:00Z
+completed: 2026-04-23T19:33:36Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "T-1103 termlink-side closure verified (fleet.py + fleet.html in `.agentic-framework/web/`)"
+  - "Files registered in `.local-patches` to prevent future vendor wipe"
+  - "This pickup task records the artifacts + apply plan self-contained"
+  - "[RUBBER-STAMP] Mirror fleet.py + fleet.html to framework repo — landed in framework commit 8b5395c4 (pushed to onedev master)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Restore from `git checkout HEAD~1` rather than re-vendor with `--exclude` flags"
+    rationale: "vendor doesn't have a per-file exclude option exposed in CLI; restore is one-shot and reversible"
+    alternatives_rejected: ["Patching upstream framework first then re-vendoring — would have left /fleet broken for the duration"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 38 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, upstream-mirror, vendor-loss-recovery]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 38
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1206-t-1103-upstream-mirror--apply-watchtower-.md
+generated_by: context-agent-hybrid

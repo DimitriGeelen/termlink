@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-176: Audit framework hook config against 24 available Claude Code hooks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:29:57Z
+# ============================================================================
+
+task_id: T-176
+task_name: "Audit framework hook config against 24 available Claude Code hooks"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-18T21:39:25Z
+completed: 2026-04-23T19:29:55Z
+duration_days: 35
+updates_count: 6
+first_commit: 2026-03-27T20:21:57+01:00
+last_commit: 2026-03-27T20:21:57+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Hook audit research — 4/24 types used, Stop and SessionEnd are high-value gaps
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale (see `docs/reports/T-176-hook-audit.md`)"
+  - "[REVIEW] Review hook audit findings and confirm priority order"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "GO — proceed with hook audit"
+    rationale: "Framework now uses 11 hooks (up from 4). Worth auditing remaining 13 for enforcement gaps."
+    alternatives_rejected: ["NO-GO — hooks are sufficient as-is"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-176-hook-audit.md"
+  - ".tasks/active/T-176-audit-framework-hook-config-against-24-a.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-27T20:21:57"
+    action: "T-176: Hook audit research — 4/24 types used, Stop and SessionEnd are high-value gaps"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 51710 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, hooks, audit]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 51710
+  commits: 1
+  files_changed: 2
+  lines_added: 96
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-176-audit-framework-hook-config-against-24-a.md
+generated_by: context-agent-hybrid

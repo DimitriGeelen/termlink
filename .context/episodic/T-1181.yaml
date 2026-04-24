@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1181: Fix fleet-doctor error classification — preserve anyhow context chain so TOFU/auth causes aren't misclassified as 'Cannot connect'
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:26:46Z
+# ============================================================================
+
+task_id: T-1181
+task_name: "Fix fleet-doctor error classification — preserve anyhow context chain so TOFU/auth causes aren't misclassified as 'Cannot connect'"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-22T05:26:15Z
+completed: 2026-04-22T05:41:36Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-22T07:28:45+02:00
+last_commit: 2026-04-22T07:41:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix fleet-doctor error classification + register G-014. Fix PL-046 YAML escaping — re-quote with single quotes. Agent evidence — rebuild validates fleet-doctor fix on live TOFU-rotated .102
+
+# Key outcomes
+outcomes:
+  - "`remote.rs:1646` changes `format!(\"{}\", e)` → `format!(\"{:#}\", e)` in `cmd_fleet_doctor` error branch"
+  - "`cargo build -p termlink` succeeds"
+  - "Add unit test for `classify_fleet_error` with a wrapped-cause sample message to pin behaviour"
+  - "Concerns register carries G-014 marking the detection path"
+  - "PL-045 (or next ID) recorded: anyhow::Error → Display drops chain by default; use `{:#}` or walk `e.chain()` when string-matching inner causes"
+  - "[RUBBER-STAMP] Verify fleet-doctor output against a real TOFU-rotated hub — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Agent evidence — rebuild validates fleet-doctor fix on live TOFU-rotated .102"
+    source: git-mined
+  - description: "Fix PL-046 YAML escaping — re-quote with single quotes"
+    source: git-mined
+  - description: "Fix fleet-doctor error classification + register G-014"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - ".context/project/learnings.yaml"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1181-fix-fleet-doctor-error-classification--p.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-22T07:28:45"
+    action: "T-1181: Fix fleet-doctor error classification + register G-014"
+  - time: "2026-04-22T07:29:39"
+    action: "T-1181: Fix PL-046 YAML escaping — re-quote with single quotes"
+  - time: "2026-04-22T07:41:36"
+    action: "T-1181: Agent evidence — rebuild validates fleet-doctor fix on live TOFU-rotated .102"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 3
+  files_changed: 4
+  lines_added: 185
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1181-fix-fleet-doctor-error-classification--p.md
+generated_by: context-agent-hybrid

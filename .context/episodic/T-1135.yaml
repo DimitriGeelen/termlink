@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1135: Add musl variant to Homebrew formula — replace or supplement linux-gnu for LXC compatibility (from T-1070 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:26:46Z
+# ============================================================================
+
+task_id: T-1135
+task_name: "Add musl variant to Homebrew formula — replace or supplement linux-gnu for LXC compatibility (from T-1070 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-18T23:02:30Z
+completed: 2026-04-19T13:58:20Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-19T15:58:15+02:00
+last_commit: 2026-04-19T15:58:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Homebrew — point linux x86_64 at musl static variant
+
+# Key outcomes
+outcomes:
+  - "Formula on_linux x86_64 branch points at `termlink-linux-x86_64-static` (musl, T-1019 artifact)"
+  - "Formula aarch64 branch remains gnu (no musl aarch64 artifact is released yet)"
+  - "`scripts/update-homebrew-sha.sh` hashes and writes the `-static` sha256 for the linux x86_64 entry"
+  - "No formula sha256 or url line references `termlink-linux-x86_64` (non-static) for x86_64 Linux anymore"
+  - "[REVIEW] `brew install termlink` works inside a fresh LXC — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "homebrew/Formula/termlink.rb"
+  - "scripts/update-homebrew-sha.sh"
+  - ".tasks/active/T-1135-add-musl-variant-to-homebrew-formula--re.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-19T15:58:15"
+    action: "T-1135: Homebrew — point linux x86_64 at musl static variant"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 895 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [homebrew, install, T-1070, distribution]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 895
+  commits: 1
+  files_changed: 3
+  lines_added: 47
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1135-add-musl-variant-to-homebrew-formula--re.md
+generated_by: context-agent-hybrid

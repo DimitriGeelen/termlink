@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-186: termlink inject-remote — standard command for cross-machine prompt injection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:29:59Z
+# ============================================================================
+
+task_id: T-186
+task_name: "termlink inject-remote — standard command for cross-machine prompt injection"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-18T23:28:42Z
+completed: 2026-04-23T19:29:58Z
+duration_days: 35
+updates_count: 6
+first_commit: 2026-03-19T00:47:58+01:00
+last_commit: 2026-03-19T00:47:58+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception research — inject-remote CLI design (4 variants, Variant D recommended)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested (A-001 through A-004 all validated)"
+  - "Go/No-Go decision made (GO — all primitives proven, Variant D chosen)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-186-inject-remote-cli-design.md"
+  - ".tasks/active/T-186-termlink-inject-remote--standard-command.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-19T00:47:58"
+    action: "T-186: Inception research — inject-remote CLI design (4 variants, Variant D recommended)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 51601 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, cross-machine, ux]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 51601
+  commits: 2
+  files_changed: 7
+  lines_added: 326
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-186-termlink-inject-remote--standard-command.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-207: Fix phantom aef binary name in installer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:30:04Z
+# ============================================================================
+
+task_id: T-207
+task_name: "Fix phantom aef binary name in installer"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-21T15:32:44Z
+completed: 2026-04-23T19:30:03Z
+duration_days: 32
+updates_count: 7
+first_commit: 2026-03-21T11:31:49+01:00
+last_commit: 2026-03-21T11:31:49+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Generate 10 missing episodic summaries (T-124, T-126, T-127, T-156, T-158, T-178, T-188, T-191, T-200, T-205)
+
+# Key outcomes
+outcomes:
+  - "Zero \"aef\" references in installer and documentation (upstream fix)"
+  - "Post-install verification checks: `command -v fw`, `fw version`, `fw doctor` (upstream T-515)"
+  - "Each verification failure prints the specific manual fix command (upstream install.sh lines 224-267)"
+  - "Go/No-Go decision made (GO)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-124.yaml"
+  - ".context/episodic/T-126.yaml"
+  - ".context/episodic/T-127.yaml"
+  - ".context/episodic/T-156.yaml"
+  - ".context/episodic/T-158.yaml"
+  - ".context/episodic/T-178.yaml"
+  - ".context/episodic/T-188.yaml"
+  - ".context/episodic/T-191.yaml"
+  - ".context/episodic/T-200.yaml"
+  - ".context/episodic/T-205.yaml"
+  - ".tasks/active/T-207-generate-10-missing-episodic-summaries.md"
+  - ".tasks/completed/T-206-register-fabric-cards-for-14-new-cli-mod.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-21T11:31:49"
+    action: "T-207: Generate 10 missing episodic summaries (T-124, T-126, T-127, T-156, T-158, T-178, T-188, T-191, T-200, T-205)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 47757 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 47757
+  commits: 2
+  files_changed: 15
+  lines_added: 958
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-207-fix-phantom-aef-binary-name-in-installer.md
+generated_by: context-agent-hybrid

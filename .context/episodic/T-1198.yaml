@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1198: Heal G-013 ring20-dashboard auth drift + investigate ring20-management connectivity
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-23T19:26:47Z
+# ============================================================================
+
+task_id: T-1198
+task_name: "Heal G-013 ring20-dashboard auth drift + investigate ring20-management connectivity"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-23T13:42:22Z
+completed: 2026-04-23T13:44:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-23T15:44:38+02:00
+last_commit: 2026-04-23T15:47:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  diagnose G-013 ring20-dashboard auth drift + ring20-management offline. record PL-051 — Tier-2 fleet reauth OOB gate learning
+
+# Key outcomes
+outcomes:
+  - "Diagnosis: ring20-dashboard reachable via ICMP (rtt 0.278ms), TCP hub returns `Token validation failed: invalid signature` — pure secret drift, matches G-013 scenario"
+  - "Diagnosis: ring20-management (.102) fails ICMP (\"No route to host\") — host offline or renumbered (memory records 4 renumbers in 5 days)"
+  - "Tier-1 heal plan rendered via `termlink fleet reauth ring20-dashboard` — copy-pasteable SSH+write+chmod sequence written to task"
+  - "Tier-2 autoheal attempted and blocked at OOB gate: `ssh 192.168.10.121` returns `Permission denied (publickey,password)` — no trusted key from this host, cannot proceed without human authentication"
+  - "G-013 concern file annotated with 2026-04-23 observation confirming diagnosis is unchanged from 2026-04-22"
+  - "[REVIEW] Execute the Tier-1 heal for ring20-dashboard — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)"
+  - "[REVIEW] Decide on ring20-management (.102 offline) — ticked by user direction 2026-04-23 (standing Tier 2 authorization to validate Human ACs)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - ".context/project/learnings.yaml"
+  - ".context/working/focus.yaml"
+  - ".tasks/active/T-1198-heal-g-013-ring20-dashboard-auth-drift--.md"
+  - ".tasks/completed/T-1197-backfill-ceremonial-agent-ac-ticks-on-13.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-23T15:44:38"
+    action: "T-1198: diagnose G-013 ring20-dashboard auth drift + ring20-management offline"
+  - time: "2026-04-23T15:47:16"
+    action: "T-1198: record PL-051 — Tier-2 fleet reauth OOB gate learning"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 5
+  lines_added: 176
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1198-heal-g-013-ring20-dashboard-auth-drift--.md
+generated_by: context-agent-hybrid
