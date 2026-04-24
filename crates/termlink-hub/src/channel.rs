@@ -84,6 +84,70 @@ pub(crate) async fn mirror_event_broadcast_with(bus: &Bus, topic: &str, payload:
     }
 }
 
+/// T-1163: Mirror a successful `inbox::deposit` into the per-target
+/// `inbox:<target>` channel topic. Best-effort — never fails the caller;
+/// logs on error. The topic is auto-created on first deposit via the
+/// idempotent `Bus::create_topic` (Retention::Messages(1000)).
+/// No signature required (hub-originated envelope; `sender_id` marks origin).
+pub async fn mirror_inbox_deposit(
+    target: &str,
+    topic: &str,
+    payload: &Value,
+    from: Option<&str>,
+) {
+    let Some(bus) = bus() else {
+        tracing::debug!("T-1163 mirror: bus not initialised — skipping");
+        return;
+    };
+    mirror_inbox_deposit_with(bus, target, topic, payload, from).await;
+}
+
+/// Test-friendly variant: post into the supplied `Bus` instead of the
+/// process-global one so unit tests can verify mirror behaviour against
+/// an isolated tempdir-rooted bus.
+pub(crate) async fn mirror_inbox_deposit_with(
+    bus: &Bus,
+    target: &str,
+    topic: &str,
+    payload: &Value,
+    from: Option<&str>,
+) {
+    let topic_name = format!("inbox:{target}");
+    if let Err(e) = bus.create_topic(&topic_name, Retention::Messages(1000)) {
+        tracing::warn!(
+            topic = %topic_name,
+            error = %e,
+            "T-1163 mirror: create_topic failed — will still try bus.post"
+        );
+    }
+    let mirror_payload = json!({
+        "from": from,
+        "payload": payload,
+    });
+    let payload_bytes = match serde_json::to_vec(&mirror_payload) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(error = %e, "T-1163 mirror: failed to serialize payload");
+            return;
+        }
+    };
+    let ts_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let env = Envelope {
+        topic: topic_name.clone(),
+        sender_id: "hub:inbox.deposit".to_string(),
+        msg_type: topic.to_string(),
+        payload: payload_bytes,
+        artifact_ref: None,
+        ts_unix_ms,
+    };
+    if let Err(e) = bus.post(&topic_name, &env).await {
+        tracing::warn!(topic = %topic_name, error = %e, "T-1163 mirror: bus.post failed");
+    }
+}
+
 pub(crate) fn bus() -> Option<&'static Bus> {
     BUS.get()
 }
@@ -658,6 +722,98 @@ mod tests {
         // Calling the public entry point with no process-global bus set
         // must not panic or error — the shim is best-effort.
         mirror_event_broadcast("x.y", &json!({})).await;
+    }
+
+    // === T-1163: inbox.deposit → channel:inbox:<target> mirror ===
+
+    #[tokio::test]
+    async fn mirror_inbox_deposit_lands_envelope_in_target_topic() {
+        let (_d, bus) = tmp_bus();
+        // Note: no pre-create — the mirror helper creates the per-target topic
+        // itself on first deposit (idempotent via Bus::create_topic).
+
+        mirror_inbox_deposit_with(
+            &bus,
+            "test-target",
+            "file.init",
+            &json!({"transfer_id": "xfer-1", "filename": "doc.pdf", "size": 1024}),
+            Some("sender-session"),
+        )
+        .await;
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!("sub-1"),
+            &json!({ "topic": "inbox:test-target" }),
+        )
+        .await;
+        let result = unwrap_success(resp);
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1, "expected 1 mirrored envelope");
+        let env = &messages[0];
+        assert_eq!(env["topic"], "inbox:test-target");
+        assert_eq!(env["msg_type"], "file.init");
+        assert_eq!(env["sender_id"], "hub:inbox.deposit");
+        let b64 = env["payload_b64"].as_str().unwrap();
+        let bytes = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
+        let decoded: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(decoded["from"], "sender-session");
+        assert_eq!(decoded["payload"]["transfer_id"], "xfer-1");
+        assert_eq!(decoded["payload"]["filename"], "doc.pdf");
+    }
+
+    #[tokio::test]
+    async fn mirror_inbox_deposit_without_bus_is_noop() {
+        // Public entry with no process-global bus set must not panic.
+        mirror_inbox_deposit("any-target", "file.init", &json!({}), None).await;
+    }
+
+    #[tokio::test]
+    async fn mirror_inbox_deposit_per_target_isolation() {
+        let (_d, bus) = tmp_bus();
+
+        mirror_inbox_deposit_with(&bus, "alice", "file.init", &json!({"n": 1}), None).await;
+        mirror_inbox_deposit_with(&bus, "bob", "file.init", &json!({"n": 2}), None).await;
+        mirror_inbox_deposit_with(&bus, "alice", "file.chunk", &json!({"n": 3}), None).await;
+
+        let resp_alice = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({ "topic": "inbox:alice", "limit": 100u64 }),
+        )
+        .await;
+        let alice_msgs = unwrap_success(resp_alice)["messages"].as_array().unwrap().len();
+        assert_eq!(alice_msgs, 2, "alice should see her 2 deposits only");
+
+        let resp_bob = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({ "topic": "inbox:bob", "limit": 100u64 }),
+        )
+        .await;
+        let bob_msgs = unwrap_success(resp_bob)["messages"].as_array().unwrap().len();
+        assert_eq!(bob_msgs, 1, "bob should see his 1 deposit only");
+    }
+
+    #[tokio::test]
+    async fn mirror_inbox_deposit_null_from_serializes_correctly() {
+        let (_d, bus) = tmp_bus();
+
+        mirror_inbox_deposit_with(&bus, "anon-target", "file.init", &json!({"x": 1}), None).await;
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({ "topic": "inbox:anon-target" }),
+        )
+        .await;
+        let result = unwrap_success(resp);
+        let env = &result["messages"].as_array().unwrap()[0];
+        let b64 = env["payload_b64"].as_str().unwrap();
+        let bytes = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
+        let decoded: Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(decoded["from"].is_null(), "from should serialize as null when None");
+        assert_eq!(decoded["payload"]["x"], 1);
     }
 
     #[tokio::test]

@@ -338,6 +338,10 @@ async fn handle_event_emit_to(
 
             // T-988: For file events, spool to inbox instead of erroring
             if let Ok(true) = crate::inbox::deposit(target, topic, &payload, from) {
+                // T-1163: dual-write into channel:inbox:<target> so subscribers can
+                // migrate to the channel.* surface without waiting for legacy inbox.*
+                // callers. Best-effort; never blocks the deposit response.
+                crate::channel::mirror_inbox_deposit(target, topic, &payload, from).await;
                 return Response::success(id, json!({
                     "ok": true,
                     "spooled": true,

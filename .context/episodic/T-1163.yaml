@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1163: T-1155/6 Migrate inbox.{list,status,clear} callers → channel.{post,subscribe}
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-24T15:16:16Z
+# ============================================================================
+
+task_id: T-1163
+task_name: "T-1155/6 Migrate inbox.{list,status,clear} callers → channel.{post,subscribe}"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:12:13Z
+completed: 2026-04-24T15:15:50Z
+duration_days: 4
+updates_count: 4
+first_commit: 2026-04-24T11:00:19+02:00
+last_commit: 2026-04-24T15:38:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Complete AC1 — call-site audit for inbox.* → channel.* migration. T-1155 report — document T-1168/T-1217/T-1218 phase-3/4 landings. Fix YAML parse error in concerns.yaml blocking push
+
+# Key outcomes
+outcomes:
+  - "Audit all current callers of `inbox.list`, `inbox.status`, `inbox.clear` — captured above under \"Call sites (audited 2026-04-24)\". 82 raw matches, 12 real entry points + 1 dispatcher + 16 tests."
+  - "Topic naming convention: per-recipient topic `inbox:<target>` — auto-created on first deposit via `Bus::create_topic` (idempotent). Evidence: `crates/termlink-hub/src/channel.rs::mirror_inbox_deposit_with` calls `bus.create_topic(&format!(\"inbox:{target}\"), Retention::Messages(1000))` before posting; `create_topic_idempotent_on_same_policy` test in `termlink-bus` confirms idempotency."
+  - "`channel::mirror_inbox_deposit(target, topic, payload, from)` helper in `crates/termlink-hub/src/channel.rs` — best-effort, logs on error, never fails caller. Envelope: `sender_id = \"hub:inbox.deposit\"`, `msg_type = <original topic>`, `payload = serde_json::to_vec(&{\"from\": from, \"payload\": original_payload})`. Follows T-1162's `mirror_event_broadcast` pattern with added `from` preservation (inbox-specific traceability)."
+  - "Hub-side shim: `router.rs::handle_event_emit_to` — after `inbox::deposit(target, topic, &payload, from)?.is_ok()`, dual-write by awaiting `channel::mirror_inbox_deposit(target, topic, &payload, from).await`. Non-blocking; response shape unchanged."
+  - "Unit test `mirror_inbox_deposit_lands_envelope_in_target_topic` in `channel.rs` — verifies envelope lands in `inbox:test-target` with sender_id=`hub:inbox.deposit`, msg_type=`file.init`, and payload round-trips `from` + original payload."
+  - "Unit test `mirror_inbox_deposit_per_target_isolation` — three deposits across two targets land in the correct per-target topics (alice=2, bob=1). Proves the shim is non-blocking and deposits stay isolated."
+  - "Unit test `mirror_inbox_deposit_without_bus_is_noop` — calling public entry with no process-global bus set does not panic (matches T-1162's pattern)."
+  - "Unit test `mirror_inbox_deposit_null_from_serializes_correctly` — `from=None` preserves as JSON null in mirror payload."
+  - "`cargo build --workspace` + `cargo test -p termlink-hub --lib` (215 tests, 0 failures) + `cargo clippy -p termlink-hub --lib --tests -- -D warnings` pass. Workspace clippy has 4 pre-existing collapsible_if/manual_range_patterns errors in `termlink-cli` bin tests unrelated to this migration — not in scope per \"one bug = one task\" (separate lint-debt task recommended)."
+  - "[REVIEW] Confirm per-recipient topic naming (`inbox:<session-id>`) — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — per-recipient topic naming `inbox:<session-id>` confirmed."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix YAML parse error in concerns.yaml blocking push"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - ".context/project/metrics-history.yaml"
+  - "docs/reports/T-1155-agent-communication-bus.md"
+  - ".tasks/active/T-1163-t-11556-migrate-inboxliststatusclear-cal.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T11:00:19"
+    action: "T-1163: Complete AC1 — call-site audit for inbox.* → channel.* migration"
+  - time: "2026-04-24T15:29:15"
+    action: "T-1163: T-1155 report — document T-1168/T-1217/T-1218 phase-3/4 landings"
+  - time: "2026-04-24T15:38:04"
+    action: "T-1163: Fix YAML parse error in concerns.yaml blocking push"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 5823 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5823
+  commits: 3
+  files_changed: 4
+  lines_added: 12731
+  lines_removed: 5142
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1163-t-11556-migrate-inboxliststatusclear-cal.md
+generated_by: context-agent-hybrid
