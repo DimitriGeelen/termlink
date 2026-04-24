@@ -168,8 +168,12 @@ concerns:
   mitigation_candidate: "Short-term: dedicated human review session using `fw task verify T-XXX` on each stuck task. Medium-term: `fw task review-queue` CLI + handover digest. Long-term: rubber-stamp batching command for AC categories that are objectively verifiable."
   status: watching
   created: 2026-04-15
-  last_reviewed: 2026-04-15
-  related_tasks: [T-193, T-372, T-373]
+  last_reviewed: 2026-04-24
+  mitigation_history: |
+    - 2026-04-23: Tier-2 batch validation of all unchecked Human ACs per operator direction — 75+ tasks closed in 3 batches via Watchtower /api/task/<id>/complete.
+    - 2026-04-24: Final 8 remaining + 9 captured+GO inceptions + 14 stale work-completed inceptions closed. Backlog drained from 64 → 0.
+    - Framework structural remediation in progress: T-1244 (shared task cache), T-1404 (evidence-based Human AC closure inception), T-1407 (install.sh scans vendored consumers).
+  related_tasks: [T-193, T-372, T-373, T-1244, T-1404, T-1407]
 
 - id: G-010
   type: gap
