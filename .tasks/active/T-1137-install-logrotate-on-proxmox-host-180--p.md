@@ -9,15 +9,15 @@ description: >
   host for /var/log/pveproxy/access.log — rotate daily, keep 3, compressed. Short-term
   mitigation (truncate) is a separate operator action.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [infrastructure, proxmox, operations]
 components: []
 related_tasks: [T-1064, T-1028, T-1053]
 created: 2026-04-19T08:43:09Z
-last_update: 2026-04-22T04:52:49Z
+last_update: 2026-04-24T09:50:55Z
 date_finished: null
 ---
 
@@ -92,3 +92,16 @@ See `.context/project/concerns.yaml` entry G-009 for full diagnosis.
 
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-24T09:50:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-24T09:53Z — cross-agent dispatch [agent]
+- **Action:** Injected T-1137 prompt (2044 bytes) to ring20-management agent session `tl-schnqg3a` at 192.168.10.122:9100 via `termlink remote inject --enter`.
+- **Prompt file:** /tmp/T-1137-dispatch-prompt.md (transient).
+- **Scope requested:** SSH from CT to .180, write `/etc/logrotate.d/pveproxy-access`, logrotate -d + -f, verify, report back.
+- **Declined scope (documented in prompt):** no pveproxy restart, no other logs, no reboot.
+- **Expected reply:** short report ack or refusal via `termlink emit` with subject `T-1137-report`.
+- **Authority:** T-1063 cross-repo work approval (standing user directive 2026-04-24).
+- **Next step:** await reply; on success, tick Human ACs with evidence.
