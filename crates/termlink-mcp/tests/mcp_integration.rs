@@ -306,7 +306,7 @@ async fn test_kv_watch_observes_change() {
     let text = call(&client, "termlink_kv_watch",
         json!({"target": "mcp-kv-watch-tgt", "since": 0, "timeout_ms": 500})).await;
     let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
-    let events = parsed["events"].as_array().expect(&format!("watch result missing events array: {text}"));
+    let events = parsed["events"].as_array().unwrap_or_else(|| panic!("watch result missing events array: {text}"));
     assert_eq!(events.len(), 1, "expected 1 event, got {}: {text}", events.len());
     assert_eq!(events[0]["topic"], "kv.change");
     assert_eq!(events[0]["payload"]["key"], "color");

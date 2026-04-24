@@ -219,10 +219,10 @@ pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<(
                 {
                     Ok(resp) => match client::unwrap_result(resp) {
                         Ok(result) => {
-                            if let Some(output) = result["output"].as_str() {
-                                if !output.is_empty() {
-                                    panel.feed(output.as_bytes());
-                                }
+                            if let Some(output) = result["output"].as_str()
+                                && !output.is_empty()
+                            {
+                                panel.feed(output.as_bytes());
                             }
                         }
                         Err(e) => {
