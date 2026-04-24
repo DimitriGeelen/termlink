@@ -2,16 +2,16 @@
 id: T-915
 name: "Poll framework for T-909 RCA fixes; fw upgrade when landed"
 description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (symlink fix, 2026-04-11). When upstream fixes land, run fw upgrade from termlink and re-verify. If no fixes available, leave on horizon: later and recheck periodically. See body for findings + check procedure."
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-24T16:11:08Z
-date_finished: null
+last_update: 2026-04-24T16:15:18Z
+date_finished: 2026-04-24T16:15:18Z
 ---
 
 ## Findings
@@ -151,3 +151,10 @@ Periodic check: have upstream fixes landed for F1-F4?
 ### 2026-04-24T16:11:08Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-04-24T16:15:18Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-24T16:15:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
