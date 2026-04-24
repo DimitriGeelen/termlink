@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1222: G-016 fix: cap + rate-limit silent-session scanner to prevent handover storm
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-24T15:49:10Z
+# ============================================================================
+
+task_id: T-1222
+task_name: "G-016 fix: cap + rate-limit silent-session scanner to prevent handover storm"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T15:44:57Z
+completed: 2026-04-24T15:49:09Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-24T17:45:57+02:00
+last_commit: 2026-04-24T17:45:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fill real ACs for G-016 scanner-cap fix (captured, horizon next)
+
+# Key outcomes
+outcomes:
+  - "`SESSION_SILENT_MAX_RECOVERIES` env var added (default 10) — python inner loop breaks after this many successful `fw handover` invocations per run."
+  - "`SESSION_SILENT_MAX_AGE_DAYS` env var added (default 7) — matches with `age > MAX_AGE_DAYS*86400` skipped pre-queue AND logged as `skip-too-old`. Also emits `skip-too-old-total count=<n>` summary."
+  - "Cap log line `cap-reached N=<count> remaining=<n> max=<max>` emitted on break. DRY_RUN variant mirrors the same with `cap-would-hit`."
+  - "Verified: `SESSION_SILENT_MAX_RECOVERIES=2 SESSION_SILENT_MAX_AGE_DAYS=7 DRY_RUN=1` → log shows `skip-too-old-total count=829 max-age-days=7`, then 2 `DRY-RUN would-recover` lines, then `cap-would-hit candidates=17 max=2 remaining=15`. Behavior matches design."
+  - "Upstream mirror landed: `/opt/999-AEF/agents/context/session-silent-scanner.sh` at commit `2199ccba` on framework master, pushed to onedev. Direct bash run (no termlink dispatch — same machine)."
+  - "Root-cause investigation of the 13:38 DRY_RUN=0 bootstrap — deferred to follow-up task T-1223. Deliverable for THIS task = the cap fix + the follow-up task capturing the open question."
+  - "`bash -n .agentic-framework/agents/context/session-silent-scanner.sh` clean. shellcheck not available locally; bash -n is the floor."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fill real ACs for G-016 scanner-cap fix (captured, horizon next)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1222-g-016-fix-cap--rate-limit-silent-session.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T17:45:57"
+    action: "T-1222: Fill real ACs for G-016 scanner-cap fix (captured, horizon next)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [G-016, T-1212, framework-health, safety]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 1
+  lines_added: 63
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1222-g-016-fix-cap--rate-limit-silent-session.md
+generated_by: context-agent-hybrid
