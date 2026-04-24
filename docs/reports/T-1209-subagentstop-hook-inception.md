@@ -44,8 +44,27 @@ Rec #8 says "Verdict: Explore in future. Could solve G-015". User has now direct
 
 Framework-side `agents/context/subagent-stop.sh`, wired through `fw hook subagent-stop`. Retire `check-dispatch.sh` when SubagentStop mode is GO.
 
+## Revised goal (per human direction 2026-04-24)
+
+**Goal restated: do not lose information.** Hard-blocking actually LOSES information (orchestrator never sees the sub-agent output if hook exits non-zero). The right pattern is **Mode B — advisory + auto-migrate to fw bus**. Information is preserved on disk; orchestrator gets a pointer; nothing is dropped.
+
+**What's needed for "no information loss":**
+
+1. **Capture before truncation.** SubagentStop receives `agent_transcript_path` natively — full transcript is on disk before the orchestrator ingests the response. Hook reads from disk, not from a streaming buffer. ✓
+2. **Persistent storage path.** `fw bus` already does this — typed YAML envelopes, blobs ≥2KB auto-moved to `.context/bus/blobs/`. Already designed for sub-agent results (per CLAUDE.md). ✓
+3. **Pointer in the orchestrator's view.** Hook rewrites the agent's return such that the orchestrator sees `R-NNN: 1-line summary @ /path/to/blob` instead of 25KB of raw content. Question: **can SubagentStop modify the message Claude Code passes to the orchestrator, or is the message already locked in by hook-fire time?** This is the key unknown — must spike (S1' below).
+4. **Discoverability.** The orchestrator needs to know the full content exists and how to read it. Standard `fw bus read T-XXX R-NNN` pattern. Already implemented.
+5. **Threshold tuning.** Don't migrate everything — only over-threshold returns. Otherwise legitimate small returns get extra indirection. S2 (size survey) decides the threshold.
+
+**Revised spike plan:**
+
+- **S1' — message-mutation semantics (1h, gates everything):** can SubagentStop rewrite the orchestrator-visible response, or is it post-hoc only? Test: emit a stderr message + post-process the transcript file; observe what the orchestrator sees. **If mutation is impossible**, the bus-migration becomes "agent gets nudged in stderr to read the bus next turn" — still preserves information, just adds one round-trip.
+- **S2 — size-distribution survey (2h, unchanged):** histogram of `last_assistant_message` bytes across 1 week. Pick threshold T from data.
+- **S3 — bus-migration handler (2h):** when over-threshold detected, post the full transcript-derived summary to `fw bus`, write the agent-visible nudge. Test with one synthetic large-return dispatch.
+
 ## Dialogue Log
 
-### 2026-04-24 — inception kickoff
-- **Agent:** Drafted exploration plan with S1 (exit-code semantics) as the gate for all other work — if non-zero exit doesn't block ingestion, design shape changes fundamentally. Noted that this inception also closes G-015 structurally. Pending user direction: is "advisory + auto-bus-migration" (GO mode B) acceptable, or is this inception only valid if S1 proves hard-blocking is possible?
-- **Human:** (awaiting input)
+### 2026-04-24 — inception kickoff + direction received
+- **Agent:** Drafted plan with S1 (exit-code semantics test) as the gate. Asked whether Mode B (advisory + auto-migrate) is acceptable.
+- **Human:** We want not to lose information. What's needed for that?
+- **Agent:** Mode B is the answer — hard-blocking would actually lose information. Re-stated goal as "no information loss" and enumerated the 5 prerequisites (capture, storage, pointer, discoverability, threshold). 4 of 5 are already in place via `fw bus`. The one unknown is whether SubagentStop can mutate the orchestrator-visible message — that's S1'. Pending user direction on the threshold-tuning approach (1-week passive observation before migration kicks in, OR migrate-from-day-1 with a conservative initial threshold like 8KB).
