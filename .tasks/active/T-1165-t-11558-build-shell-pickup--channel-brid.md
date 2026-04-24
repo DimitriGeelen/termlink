@@ -24,6 +24,21 @@ Fourth migration in the T-1155 bus rollout: the shell-based pickup system (inbox
 
 Depends on: T-1160 (channel API shipped). Referenced in PL-040 (pickup type closed vocabulary) — this task does not change that vocabulary, only mirrors envelopes to the bus.
 
+**Prerequisite audit (2026-04-24):**
+
+*Hook point identified:* `lib/pickup.sh::pickup_process_one @302` — immediately after `mv "$file" "$PICKUP_PROCESSED/"`, before the `return 0`. This is the one clean site where a processed envelope exists on disk at a known path.
+
+*Channel CLI status:* `termlink channel {post,subscribe,list,create,queue-status}` verbs exist in source (`crates/termlink-cli/src/main.rs @374/386/392` + `commands::channel::cmd_channel_*`). Verified via `cargo run -- channel --help` in the termlink workspace. **BUT** the currently-installed `termlink` on this host is v0.9.206 (source is 0.9.385) — installed CLI does NOT recognize the `channel` subcommand.
+
+*Implication:* the bridge script itself can be written now, but it cannot run end-to-end until a consumer project runs `cargo install --path crates/termlink-cli`. The "graceful degradation" AC (exit 0 if termlink missing or old) covers this — the bridge will silently no-op on pre-0.9.380ish installs.
+
+*Recommended split:*
+1. Write the bridge script (`lib/pickup-channel-bridge.sh`), install the hook line in pickup.sh, add the env-var opt-out, add header doc. Test with `bash -n` + a staged envelope + mocked `termlink` stub.
+2. Cross-project installation step — ensure termlink ≥ 0.9.380 is deployed to framework consumers that want the bridge live.
+3. Integration test (requires step 2 complete on at least one peer).
+
+**Note on boundary:** Bridge script lives in `/opt/999-Agentic-Engineering-Framework/lib/`, not in termlink repo. T-559 boundary hook will block direct Edit/Write — must use `/tmp` staging + `cp` + cross-repo commit via `termlink dispatch --workdir` (same pattern as T-1206 fleet.py mirror).
+
 ## Acceptance Criteria
 
 ### Agent
