@@ -2,15 +2,15 @@
 id: T-915
 name: "Poll framework for T-909 RCA fixes; fw upgrade when landed"
 description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (symlink fix, 2026-04-11). When upstream fixes land, run fw upgrade from termlink and re-verify. If no fixes available, leave on horizon: later and recheck periodically. See body for findings + check procedure."
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-23T18:52:38Z
+last_update: 2026-04-24T16:11:08Z
 date_finished: null
 ---
 
@@ -41,6 +41,11 @@ Periodic check: have upstream fixes landed for F1-F4?
 ### Agent
 - [x] Polled framework git log since 2026-04-11 for F1-F4 keywords
 - [x] Findings recorded below; no direct F1 (build readiness) hit — leave horizon=later
+- [x] **2026-04-24 poll: F1/F2/F3 all landed upstream and present in vendored .agentic-framework/**
+  - F1 → `db235e13 T-1142` decomposed --force into narrow --skip-* flags (verified: 3 hits in lib/inception.sh)
+  - F2 → `6915a597 T-1143` added _fw_cmd helper for consumer paths (verified: 8 hits in update-task.sh)
+  - F3 → `62c6caff T-1160` guards episodic gen on partial-complete (verified: update-task.sh lines 166/664/673/712)
+  - F4 still open: `fw vendor` not in /opt/termlink/CLAUDE.md (0 matches)
 
 **Poll results (2026-04-18):**
 - T-1259 (framework): Added CLAUDECODE guard to `fw inception decide` — adjacent but not F1
@@ -142,3 +147,7 @@ Periodic check: have upstream fixes landed for F1-F4?
 ### 2026-04-23T18:52:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-04-24T16:11:08Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
