@@ -244,7 +244,7 @@ concerns:
   status: watching
   created: 2026-04-22
   last_reviewed: 2026-04-24
-  last_observation: "2026-04-24T16:15Z (T-1223 session re-probe): Second clean fleet-doctor pass — ring20-dashboard OK (43 ms). Auth-mismatch streak broken; two clean observations span ~6h (10:30Z → 16:15Z), short of the >24h closure bar. Adjacent finding: .122 (ring20-management) surfaced a new TOFU fingerprint violation in the same probe — separate concern (likely container renumber/cert regen), operator judgment needed. Previous (2026-04-24T10:30Z, T-1214 S1): first clean observation after 6+ consecutive auth-mismatch failures starting 2026-04-19T16:03:47Z."
+  last_observation: "2026-04-24T16:40Z (post-compact re-probe): Third consecutive clean fleet-doctor pass — ring20-dashboard OK (43 ms). Clean streak now 10:30Z → 16:40Z (~6h 10m), still short of the >24h closure bar. .122 (ring20-management) TOFU violation unchanged (fingerprint sha256:883055...8526f6 vs expected sha256:405d14...be23e) — operator judgment still pending. Previous (2026-04-24T16:15Z): Second clean pass. Earlier (2026-04-24T10:30Z, T-1214 S1): first clean observation after 6+ consecutive auth-mismatch failures starting 2026-04-19T16:03:47Z."
   related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055, T-1198, T-1214]
 
 - id: G-014
