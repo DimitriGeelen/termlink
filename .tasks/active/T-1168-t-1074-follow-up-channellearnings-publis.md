@@ -26,6 +26,40 @@ Cross-agent learning exchange on top of the T-1155 channel bus. Replaces the 15-
 
 **Scope:** one topic + one publisher hook + one subscriber daemon + one Watchtower panel. Designed to fit one session once dependencies are in place.
 
+**Dependency + hook-point audit (2026-04-24):**
+
+*All three deps landed:* `T-1158`, `T-1159`, `T-1160` are in `.tasks/completed/`. This task is unblocked.
+
+*Same install gap as T-1165:* `termlink channel {post,subscribe,list,create}` verbs exist in termlink source (v0.9.385) but installed CLI is v0.9.206. Both the publisher hook AND the subscriber daemon need `termlink ≥ 0.9.380` deployed to every participating project.
+
+*Publisher hook point (framework side):* `agents/context/lib/learning.sh::do_add_learning @97-103` — after the `mv "$temp_file" "$learnings_file"` that persists the entry, before `return 0`. One-liner addition: `publish_learning_to_bus "$id" "$learning" "$task" "$source" "$date" 2>/dev/null || true` (graceful degradation mirrors T-1165 pattern).
+
+*Subscriber daemon (new component):* runs `termlink channel subscribe channel:learnings --follow` (assuming `--follow` exists; otherwise polled subscribe with cursor). Appends each envelope to `<project>/.context/project/received-learnings.yaml`. Dedup on `(origin_project, L-id)` per AC. Deployment options: (a) systemd service per project, (b) framework-scoped watchtower background thread, (c) cron polling. T-1074 inception rejected cron — pick (a) or (b).
+
+*Watchtower panel (framework side):* new blueprint `web/blueprints/fleet_insights.py` + template `web/templates/fleet_insights.html`. Follow pattern of `fleet.py` (just mirrored upstream in T-1206). Register in `web/blueprints/__init__.py` alongside `fleet_bp`. Reads `.context/project/received-learnings.yaml`, groups by origin_project, renders table.
+
+*Schema / envelope design needed:*
+```yaml
+# channel:learnings envelope payload
+origin_project: termlink            # identity string (per PL-021)
+origin_hub_fingerprint: sha256:... # T-1052 R1 — pre-rotation detection
+learning_id: L-052                  # scoped to origin_project
+learning: "text"
+source: "P-001"
+task: "T-1064"
+date: "2026-04-24"
+```
+
+*Boundary:* framework-side files (learning.sh, new blueprint, new daemon script) live in `/opt/999-Agentic-Engineering-Framework/`. T-559 hook blocks direct Write — need `/tmp` staging + `cp` + cross-repo commit pattern (T-1206 established).
+
+**Recommended build split:**
+- B1: publisher hook (smallest; just a bash helper function call in learning.sh)
+- B2: subscriber daemon + received-learnings.yaml schema
+- B3: Watchtower fleet_insights panel
+- B4: install-bump coordination (every participating project upgrades termlink)
+
+B1 alone gives asymmetric observability: any framework with termlink ≥ 0.9.380 can see learnings from this project land on the bus. Subscribers follow later.
+
 ## Acceptance Criteria
 
 ### Agent
