@@ -4,7 +4,7 @@ name: "Fleet termlink version divergence — unified install or federated lineag
 description: >
   Inception: Fleet termlink version divergence — unified install or federated lineages
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-24T09:59:44Z
-last_update: 2026-04-24T10:00:00Z
-date_finished: null
+last_update: 2026-04-24T10:02:31Z
+date_finished: 2026-04-24T10:02:31Z
 ---
 
 # T-1210: Fleet termlink version divergence — unified install or federated lineages
@@ -60,12 +60,12 @@ This blocks the T-1165 bridge runtime (needs `termlink channel post`) and T-1168
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -121,7 +121,22 @@ This blocks the T-1165 bridge runtime (needs `termlink channel post`) and T-1168
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO — preliminary (direction depends on S1 diagnosis)
+
+Rationale: The divergence is a real blocker, not a cosmetic one. Any future feature that depends on a CLI verb (T-1165 bridge, T-1168 publisher, any cross-project tool) will silently no-op on peers where that verb is missing, with no single source of truth for "who has what". This is G-011 territory for version drift. The right move is to diagnose first (S1 — 1h, cheap, non-destructive), then choose between convergence and federation based on what S1 shows. Preliminary GO authorizes S1 only; the S2/S3 branch decision comes back for re-review. Skipping this inception means every future cross-fleet feature has to re-discover the divergence independently, wasting sessions.
+
+Evidence:
+- .122 observed 2026-04-24: `termlink --version` = 0.9.844 (numerically ahead of our 0.9.385) but `termlink channel` is not recognized. Version numbers alone don't indicate capability.
+- This host observed: installed 0.9.206, source 0.9.385 — we ourselves have an install/source gap.
+- Memory entry `reference_ring20_infrastructure` notes 4 renumbers in 5 days for ring20-management — fleet is volatile enough that manual per-peer install coordination is fragile.
+- Framework CLAUDE.md §CI/Release Flow already describes a GitHub Actions binary pipeline (onedev → github → release) — if convergence wins, binary download is likely the portable install mechanism rather than cargo install.
+- T-1155 bus rollout (T-1162/T-1163/T-1164/T-1165/T-1168) leans heavily on CLI-verb availability being uniform — this inception unblocks that whole wave.
+
+Human direction (2026-04-24): captured as follow-up inception after the .122 probe surfaced the divergence. Scope: diagnose + decide direction, not ship the converged fleet.
+
+**Date**: 2026-04-24T10:02:31Z
 
 ## Updates
 
@@ -130,3 +145,23 @@ This blocks the T-1165 bridge runtime (needs `termlink channel post`) and T-1168
 
 ### 2026-04-24T10:00:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-24T10:02:31Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO — preliminary (direction depends on S1 diagnosis)
+
+Rationale: The divergence is a real blocker, not a cosmetic one. Any future feature that depends on a CLI verb (T-1165 bridge, T-1168 publisher, any cross-project tool) will silently no-op on peers where that verb is missing, with no single source of truth for "who has what". This is G-011 territory for version drift. The right move is to diagnose first (S1 — 1h, cheap, non-destructive), then choose between convergence and federation based on what S1 shows. Preliminary GO authorizes S1 only; the S2/S3 branch decision comes back for re-review. Skipping this inception means every future cross-fleet feature has to re-discover the divergence independently, wasting sessions.
+
+Evidence:
+- .122 observed 2026-04-24: `termlink --version` = 0.9.844 (numerically ahead of our 0.9.385) but `termlink channel` is not recognized. Version numbers alone don't indicate capability.
+- This host observed: installed 0.9.206, source 0.9.385 — we ourselves have an install/source gap.
+- Memory entry `reference_ring20_infrastructure` notes 4 renumbers in 5 days for ring20-management — fleet is volatile enough that manual per-peer install coordination is fragile.
+- Framework CLAUDE.md §CI/Release Flow already describes a GitHub Actions binary pipeline (onedev → github → release) — if convergence wins, binary download is likely the portable install mechanism rather than cargo install.
+- T-1155 bus rollout (T-1162/T-1163/T-1164/T-1165/T-1168) leans heavily on CLI-verb availability being uniform — this inception unblocks that whole wave.
+
+Human direction (2026-04-24): captured as follow-up inception after the .122 probe surfaced the divergence. Scope: diagnose + decide direction, not ship the converged fleet.
+
+### 2026-04-24T10:02:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

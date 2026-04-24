@@ -4,7 +4,7 @@ name: "Stop hook design — conversation governance enforcement (T-173 parent)"
 description: >
   Inception: Stop hook design — conversation governance enforcement (T-173 parent)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-24T09:14:17Z
-last_update: 2026-04-24T09:24:51Z
-date_finished: null
+last_update: 2026-04-24T09:44:39Z
+date_finished: 2026-04-24T09:44:39Z
 ---
 
 # T-1207: Stop hook design — conversation governance enforcement (T-173 parent)
@@ -52,12 +52,12 @@ Full research: `docs/reports/T-1207-stop-hook-inception.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -109,7 +109,11 @@ Full research: `docs/reports/T-1207-stop-hook-inception.md`.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The framework has carried G-005 as a known gap for 6+ months. Every session that happens to involve long chat-then-edit cycles is an enforcement blind spot. The human's stated ultimate goal is "ensure conversation is captured" — that goal is incompatible with a week-long passive observation before real nudges start. Option B closes G-005 immediately; false positives self-correct via the y/n mechanism (each `n` is training data that tunes future behavior). The agent-asks-human pattern is lower friction than any block-based design — one keystroke, no surprise state changes. No block anywhere in the design, so worst case is an occasional unnecessary question.
+
+**Date**: 2026-04-24T09:44:39Z
 
 ## Updates
 
@@ -118,3 +122,12 @@ Full research: `docs/reports/T-1207-stop-hook-inception.md`.
 
 ### 2026-04-24T09:15:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-24T09:44:39Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The framework has carried G-005 as a known gap for 6+ months. Every session that happens to involve long chat-then-edit cycles is an enforcement blind spot. The human's stated ultimate goal is "ensure conversation is captured" — that goal is incompatible with a week-long passive observation before real nudges start. Option B closes G-005 immediately; false positives self-correct via the y/n mechanism (each `n` is training data that tunes future behavior). The agent-asks-human pattern is lower friction than any block-based design — one keystroke, no surprise state changes. No block anywhere in the design, so worst case is an occasional unnecessary question.
+
+### 2026-04-24T09:44:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

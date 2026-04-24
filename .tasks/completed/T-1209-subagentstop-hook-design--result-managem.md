@@ -4,7 +4,7 @@ name: "SubagentStop hook design — result-management enforcement (T-175 parent)
 description: >
   Inception: SubagentStop hook design — result-management enforcement (T-175 parent)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-24T09:14:28Z
-last_update: 2026-04-24T09:16:48Z
-date_finished: null
+last_update: 2026-04-24T09:44:59Z
+date_finished: 2026-04-24T09:44:59Z
 ---
 
 # T-1209: SubagentStop hook design — result-management enforcement (T-175 parent)
@@ -51,12 +51,12 @@ Full research: `docs/reports/T-1209-subagentstop-hook-inception.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -108,7 +108,11 @@ Full research: `docs/reports/T-1209-subagentstop-hook-inception.md`.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The human's framing ("do not lose information") is decisive. Hard-blocking loses information (orchestrator never sees the output); the framework's prior position ("Explore in future") is too passive given the current footgun cost (a single 25KB return pollutes the orchestrator for the rest of the session). Mode B — auto-migrate to `fw bus` on over-threshold detect — preserves information on disk AND keeps orchestrator context clean. 4 of the 5 prerequisites (capture, storage, pointer, discoverability, threshold) are already built into the framework via `fw bus`. Only the threshold is unknown, and 8KB is a safe initial guess that S2's histogram will refine inside a week. S1' tests the mutation-semantics question, but EITHER outcome (mutation or stderr-nudge) preserves information — the GO is viable in both branches.
+
+**Date**: 2026-04-24T09:44:59Z
 
 ## Updates
 
@@ -117,3 +121,12 @@ Full research: `docs/reports/T-1209-subagentstop-hook-inception.md`.
 
 ### 2026-04-24T09:16:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-24T09:44:59Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The human's framing ("do not lose information") is decisive. Hard-blocking loses information (orchestrator never sees the output); the framework's prior position ("Explore in future") is too passive given the current footgun cost (a single 25KB return pollutes the orchestrator for the rest of the session). Mode B — auto-migrate to `fw bus` on over-threshold detect — preserves information on disk AND keeps orchestrator context clean. 4 of the 5 prerequisites (capture, storage, pointer, discoverability, threshold) are already built into the framework via `fw bus`. Only the threshold is unknown, and 8KB is a safe initial guess that S2's histogram will refine inside a week. S1' tests the mutation-semantics question, but EITHER outcome (mutation or stderr-nudge) preserves information — the GO is viable in both branches.
+
+### 2026-04-24T09:44:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
