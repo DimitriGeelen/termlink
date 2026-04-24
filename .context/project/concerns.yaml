@@ -284,3 +284,21 @@ concerns:
   last_observation: "2026-04-22T21:25Z: All 3 pending cross-project mirrors (T-1188, T-1190, T-1176) applied and pushed to framework onedev master (commits 25718851, 684eea0c, c1b8ff05, 636b309b) via T-1192 Channel 1 (termlink dispatch --workdir + plain bash, no claude). Both G-015 hits have their upstream artifacts live, closing the silent-revert failure mode that would otherwise restore the phantom state on next fw upgrade. Channel 1 validated end-to-end on four real commits across two projects in one session."
   blast_radius_audit_2026-04-22: "164 [x] ACs with path-bearing tokens scanned across .tasks/ — 2 true false-completes (T-976, T-977), 9 false-positives (user-home paths like ~/.termlink/hubs.toml, URL fragments, PROJECT_ROOT placeholders). Both true hits now have work-completed repair tasks."
   related_tasks: [T-976, T-977, T-1187, T-1188, T-1189, T-1190, T-1192]
+
+- id: G-016
+  type: gap
+  title: "Silent-session scanner (T-1212) has no rate limit or per-invocation cap — backlog of stale sessions drives runaway handover commit storm"
+  description: "Running invocation of `fw hook session-silent-scanner` (parent PID 1315768 started 2026-04-24T13:38Z via a `claude-b781-cwd` env bootstrap, DRY_RUN=0) processed 757 recovered stale sessions over ~4 hours, generating 92+ commits in the final 30-min window alone. Each stale session triggers `fw handover` which commits + pushes to origin — 92 spurious 'T-012: Session handover S-2026-0424-1XXX' commits pollute git history, consume OneDev push cycles, and trigger the pre-push audit on every iteration. The scanner script has no cap on number of sessions processed per invocation, no rate limit, and no per-session-age cutoff. Stale agent-acompact-* sessions from 12+ days ago (age-min=17548..36000) are still being 'recovered' with banner handovers that carry zero context."
+  spec_reference: ".agentic-framework/agents/context/session-silent-scanner.sh (python inner loop iterates all matches; no break/rate-limit), T-1212 design"
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-04-24T17:42Z: Observed 92 handover commits in last 30 min (vs 6 real T-* commits across 4 hours of active work). Scanner log (.context/working/.session-silent-scanner.log) showed continuous recovery of agent-acompact-* sessions aged 12+ days. Scanner killed manually at 2026-04-24T17:42Z (PIDs 1315768/1315901/1315953); 757 log lines at kill time."
+  detection_lag_days: "0 (caught same-session by direct observation; scanner had run ~4h before notice)"
+  what_works_now: "Kill stops the bleeding. `DRY_RUN=1` default is safe — only `DRY_RUN=0` bootstrap triggers the storm. Scanner is idempotent (re-checking same session skips it) but not rate-limited (all N matches processed in one invocation)."
+  what_remains: "1. Add per-invocation cap (e.g., MAX_RECOVERIES=10) to session-silent-scanner.sh. 2. Add age ceiling (e.g., skip sessions >7d old — they carry zero useful context). 3. Optional: rate-limit between handover invocations (e.g., 30s between). 4. Root cause: the DRY_RUN=0 bootstrap that started the 13:38 run — was it intentional? If a shell snapshot carries DRY_RUN=0, every claude session does this on startup. 5. Clean up polluted git history (force-push? No — gap stays open until a cleanup tool exists or we accept the pollution as historical)."
+  mitigation_candidate: "Per-invocation cap is cheap (1-line code). Age ceiling needs design (threshold depends on how old is 'too old'). Kill performed 2026-04-24T17:42Z. Scanner remains callable manually — next scheduled cron (if any) will run under DRY_RUN=1 default and be safe."
+  status: watching
+  created: 2026-04-24
+  last_reviewed: 2026-04-24
+  last_observation: "2026-04-24T17:42Z: Manual kill + gap registration. 92 spurious handover commits from this runaway landed on origin/main and cannot be removed without force-push."
+  related_tasks: [T-1208, T-1212]
