@@ -1,0 +1,15 @@
+command_hash: 7f3cce4779411ed4031b3336113df6b36face0988e8232339cc7bd1f41ad1e57
+command_preview: '.agentic-framework/bin/fw inception decide T-1223 no-go --rationale
+  "Root cause traced: smoke-test dispatcher command ''fw hook session-silent-scanner
+  2>&1 | head -3'' at 2026-04-24T11:38:22Z ran destru'
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: approved
+timestamp: '2026-04-24T16:06:40Z'
+type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-24T16:21:10Z'
+  mechanism: watchtower

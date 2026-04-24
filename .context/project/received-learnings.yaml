@@ -1,0 +1,11 @@
+# Received learnings mirrored from channel:learnings topic (T-1217).
+# Managed by lib/subscribe-learnings-from-bus.sh — do not hand-edit.
+received:
+- origin_project: "peer-alpha"
+  origin_hub_fingerprint: ""
+  learning_id: "L-0001"
+  learning: "Smoke seed — verify Watchtower /learnings renders received section"
+  task: "T-1218"
+  source: "P-001"
+  date: "2026-04-24"
+  received_at: "2026-04-24T13:14:00Z"

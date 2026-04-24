@@ -1,5 +1,5 @@
-# Audit Results - 2026-04-16-1800
-timestamp: 2026-04-16T16:00:01Z
+# Audit Results - 2026-04-24-1200
+timestamp: 2026-04-24T10:00:01Z
 sections: "observations,gaps"
 summary:
   pass: 2
@@ -9,4 +9,4 @@ findings:
   - level: PASS
     check: "No observation inbox (not yet initialized)"
   - level: PASS
-    check: "Gaps register: 3 watching, no triggers fired"
+    check: "Gaps register: 8 watching, no triggers fired"

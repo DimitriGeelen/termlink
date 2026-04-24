@@ -1,30 +1,23 @@
-timestamp: 2026-04-24T08:00:01Z
+timestamp: 2026-04-24T16:30:01Z
 findings:
-  - id: D4
+  - id: D1
     level: PASS
-    check: "D4: Audit trend — insufficient history (<3 entries)"
-  - id: D5
-    level: WARN
-    check: "D5: Task lifecycle — 21 anomaly(s): T-1020(4min,human) T-1182(2min,human) T-1145(2min,human) T-1184(0min,human) T-1021(3min,human) T-1024(5min,human) T-1146(1min,human) T-978(3min,human) T-1026(3min,human) T-272(0min,human) (+11 more)"
-    mitigation: "Review flagged tasks for process issues"
-  - id: D3
+    check: "D1: Episodic quality — 0% [TODO] (8/969)"
+  - id: D2
     level: PASS
-    check: "D3: Commit velocity — insufficient data"
-  - id: D7
+    check: "D2: Human review queue — 3 task(s) awaiting human action (normal)"
+  - id: D8
     level: PASS
-    check: "D7: Commit bunching — none (PASS no_recent_commits)"
-  - id: D6
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
+  - id: D10
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=20.0 earlier=16.1)"
-  - id: D12
+    check: "D10: Decision-without-dialogue — none detected"
+  - id: D11
     level: PASS
-    check: "D12: Bypass log — no log file"
-  - id: D9
-    level: PASS
-    check: "D9: Control drift — normal (PASS 10_audits_checked)"
+    check: "D11: Gap register staleness — all gaps fresh"
 
 summary:
-  pass: 6
-  warn: 1
+  pass: 5
+  warn: 0
   fail: 0
-  total: 7
+  total: 5

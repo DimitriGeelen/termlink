@@ -491,7 +491,13 @@
       "Bash(./.agentic-framework/agents/task-create/update-task.sh T-1116 --status work-completed)",
       "Bash(/root/.cargo/bin/termlink version:*)",
       "mcp__termlink__termlink_fleet_doctor",
-      "mcp__playwright__browser_navigate"
+      "mcp__playwright__browser_navigate",
+      "mcp__termlink__termlink_remote_exec",
+      "mcp__termlink__termlink_events",
+      "mcp__termlink__termlink_remote_inbox_list",
+      "mcp__termlink__termlink_remote_inbox_status",
+      "mcp__termlink__termlink_dispatch",
+      "mcp__termlink__termlink_fleet_status"
     ]
   },
   "enabledMcpjsonServers": [
