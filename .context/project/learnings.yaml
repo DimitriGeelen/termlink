@@ -625,3 +625,38 @@ learnings:
   date: 2026-04-24
   context: Added via context agent
   application: TBD
+- id: PL-055
+  learning: "T-1217 cross-project mirror validation — triggered from /opt/termlink, expect email-archive to receive"
+  source: P-001
+  task: T-1217
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
+- id: PL-056
+  learning: "T-1217 cross-project mirror validation 2 — hooks now installed both sides"
+  source: P-001
+  task: T-1217
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
+- id: PL-057
+  learning: "T-1219 end-to-end validation — subscriber now uses event poll, this entry should propagate to email-archive"
+  source: P-001
+  task: T-1219
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
+- id: PL-058
+  learning: "T-1219 post-fix live test — expect subscriber to receive this entry"
+  source: P-001
+  task: T-1219
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
+- id: PL-059
+  learning: "T-1217 cron install: end-to-end cross-project learnings mirror works with */15 cron on email-archive peer; subscriber uses event poll --since on framework-agent bus; PL-055..PL-058 test debris pre-existing"
+  source: P-001
+  task: T-1217
+  date: 2026-04-24
+  context: Added via context agent
+  application: TBD
