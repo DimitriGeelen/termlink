@@ -6,13 +6,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [hook, dispatch, bus, framework-bridge]
 components: []
 related_tasks: [T-1209, T-175]
 created: 2026-04-24T10:05:14Z
-last_update: 2026-04-24T10:53:43Z
+last_update: 2026-04-24T16:08:28Z
 date_finished: null
 ---
 
@@ -175,3 +175,6 @@ test -f docs/T-1213-settings-patch.md
   migration when over threshold. Stub test for both paths. Install into hook
   dispatcher + settings.json.
 - **Artifact:** no separate spike artifact — finding captured here + in Decisions.
+
+### 2026-04-24T16:08:28Z — status-update [task-update-agent]
+- **Change:** owner: agent → human

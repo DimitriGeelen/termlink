@@ -6,13 +6,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [hook, governance, framework-bridge]
 components: []
 related_tasks: [T-1207, T-173]
 created: 2026-04-24T10:04:49Z
-last_update: 2026-04-24T11:35:02Z
+last_update: 2026-04-24T16:07:59Z
 date_finished: null
 ---
 
@@ -116,3 +116,6 @@ test -f docs/T-1211-settings-patch.md
 - **Pattern note:** This is the second instance of the "handler + stub + mirror
   via dispatch" pattern (first: T-1213 SubagentStop). Pattern now validated
   across two independent hooks — worth codifying as a workflow practice.
+
+### 2026-04-24T16:07:59Z — status-update [task-update-agent]
+- **Change:** owner: agent → human

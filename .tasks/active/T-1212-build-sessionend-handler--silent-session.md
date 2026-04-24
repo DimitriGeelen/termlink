@@ -6,13 +6,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [hook, handover, framework-bridge, antifragility]
 components: []
 related_tasks: [T-1208, T-174]
 created: 2026-04-24T10:05:10Z
-last_update: 2026-04-24T11:46:06Z
+last_update: 2026-04-24T16:08:28Z
 date_finished: null
 ---
 
@@ -157,3 +157,6 @@ test -f docs/T-1212-settings-patch.md
   `/etc/cron.d/fw-session-silent` install. Both documented in
   `docs/T-1212-settings-patch.md` with explicit DRY_RUN=0 opt-in on the cron
   stanza.
+
+### 2026-04-24T16:08:28Z — status-update [task-update-agent]
+- **Change:** owner: agent → human
