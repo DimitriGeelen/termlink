@@ -231,10 +231,11 @@ concerns:
   what_works_now: "1. Profiles like [hubs.local-test] that point secret_file directly at <runtime_dir>/hub.secret always see live state (no cache layer). 2. fleet doctor detects downstream symptoms (auth-mismatch on peer connection). 3. Tier-1 reauth printer (T-1054) gives operators the incantation once the problem is identified. 4. Tier-2 --bootstrap-from ssh: (T-1055) heals cleanly when SSH is available."
   what_remains: "1. Pre-handoff freshness check — when an agent reads ~/.termlink/secrets/<ip>.hex to share with a peer, warn if its mtime predates <runtime_dir>/hub.secret's mtime. 2. Deprecate IP-keyed cache for self-hub lookups in favor of direct reads from <runtime_dir>/hub.secret (profile-level: secret_file should point at the live file, not a copy). 3. fw doctor check comparing mtime of every ~/.termlink/secrets/*.hex entry against the corresponding hub's authoritative file (where locally resolvable). 4. Separately: audit file perms on ~/.termlink/secrets/*.hex — at least one file (proxmox4.hex) observed at chmod 644 (world-readable) which is a distinct security smell this gap surfaced."
   mitigation_candidate: "Short-term: document the 'read-live, not cache, for own hub' pattern in CLAUDE.md §Hub Auth Rotation Protocol. Medium-term: add fw doctor freshness/perms check. Long-term: structural deprecation of IP-keyed caches for same-host self-hub access; the authoritative <runtime_dir>/hub.secret becomes the canonical read path and IP-keyed caches are only for remote hubs where the operator has explicitly chosen to cache."
+  mitigation_progress: "2026-04-25 — Short-term mitigation shipped: documented as rule R3 in CLAUDE.md §Hub Auth Rotation Protocol (T-1260). Medium-term (fw doctor freshness/perms check) and long-term (IP-keyed cache deprecation) still pending."
   status: watching
   created: 2026-04-20
-  last_reviewed: 2026-04-20
-  related_tasks: [T-1051, T-933, T-1028, T-1052, T-1053, T-1054, T-1055]
+  last_reviewed: 2026-04-25
+  related_tasks: [T-1051, T-933, T-1028, T-1052, T-1053, T-1054, T-1055, T-1260]
 
 - id: G-012
   type: gap
