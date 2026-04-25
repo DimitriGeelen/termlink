@@ -276,3 +276,16 @@ practices:
   promoted_from: L-003
   status: active
   applications: 4
+- id: PP-011
+  name: Snapshot next_seq on startup for event-driven receivers
+  derived_from: D2
+  description: Event-driven receivers must snapshot next_seq on startup and poll only
+    from that point — polling from seq 0 replays stale events from the ring buffer,
+    causing ghost triggers from old transfers.
+  anti_pattern: file receive picked up 30-min-old FileInit events
+  scope: project
+  origin_task: T-198
+  origin_date: '2026-03-26'
+  promoted_from: L-020
+  status: active
+  applications: 4
