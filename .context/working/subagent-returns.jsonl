@@ -1,2 +1,7 @@
 {"ts": "2026-04-24T10:40:38Z", "session_id": "y", "agent_type": "stub", "agent_id": "x", "bytes": 0, "threshold": 8192, "migrated": false, "bus_ref": null}
 {"ts": "2026-04-25T14:06:57Z", "session_id": "x", "agent_type": "unknown", "agent_id": "", "bytes": 0, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-25T18:53:39Z", "session_id": "", "agent_type": "unknown", "agent_id": "", "bytes": 0, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-25T18:59:51Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "adba7ac6a75737a1b", "bytes": 260, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-25T19:19:56Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "ada77b9c4b7bd17b2", "bytes": 260, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-25T19:47:13Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a43195baddde88cc3", "bytes": 1376, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-25T20:11:05Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "acfb9b597b64385d7", "bytes": 1542, "threshold": 8192, "migrated": false, "bus_ref": null}
