@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1217: T-1168/B2 Learnings subscriber (poller script)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T18:37:57Z
+# ============================================================================
+
+task_id: T-1217
+task_name: "T-1168/B2 Learnings subscriber (poller script)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T12:27:43Z
+completed: 2026-04-25T16:28:37Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-24T15:10:23+02:00
+last_commit: 2026-04-25T18:28:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  subscriber poller shipped; T-1218 captured (Watchtower panel split). End-to-end evidence — cron installed on email-archive peer, PL-059 mirrored. re-verified end-to-end mirror at 2026-04-25T16:27Z
+
+# Key outcomes
+outcomes:
+  - "**Discovery spike:** confirmed `event collect --topic channel:learnings"
+  - "New framework helper `lib/subscribe-learnings-from-bus.sh` — landed at"
+  - "Dedup key: composite `(origin_project, learning_id)` — smoke-tested"
+  - "Self-learning skip via `${FW_ORIGIN_PROJECT:-$(basename PROJECT_ROOT)}`"
+  - "Opt-out env `FW_LEARNINGS_BUS_SUBSCRIBE=0` — tested, exits 0 silently."
+  - "Silent no-op paths: missing termlink (command -v check), hub unreachable"
+  - "Audit log `.context/working/.subscribe-learnings-bus.log` — smoke-tested,"
+  - "Upstream-mirrored via termlink dispatch → 87d2ca2d pushed to onedev/master"
+  - "[RUBBER-STAMP] Install cron entry (e.g. `*/15 * * * *"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "`termlink event collect --topic channel:learnings --payload-only"
+    chose: "no `--since` cursor; rely on (origin_project, learning_id) dedup"
+    alternatives_rejected: ["long-running daemon (systemd). Cron keeps the consumer"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1168.yaml"
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-1217-t-1168b2-b3-learnings-subscriber--watcht.md"
+  - ".tasks/active/T-1218-watchtower-fleet-learnings-panel-t-1168-.md"
+  - ".tasks/completed/T-1168-t-1074-follow-up-channellearnings-publis.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T15:10:23"
+    action: "T-1217: subscriber poller shipped; T-1218 captured (Watchtower panel split)"
+  - time: "2026-04-24T17:31:22"
+    action: "T-1217: End-to-end evidence — cron installed on email-archive peer, PL-059 mirrored"
+  - time: "2026-04-25T18:28:37"
+    action: "T-1217: re-verified end-to-end mirror at 2026-04-25T16:27Z"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1680 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, T-1168, bus, learnings]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1680
+  commits: 3
+  files_changed: 5
+  lines_added: 370
+  lines_removed: 27
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1217-t-1168b2-b3-learnings-subscriber--watcht.md
+generated_by: context-agent-hybrid

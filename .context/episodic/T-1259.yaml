@@ -1,0 +1,156 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1259: Commit vendor framework upgrade 1.5.16→1.5.307 + preserve CLAUDE.md consumer path note
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T18:07:15Z
+# ============================================================================
+
+task_id: T-1259
+task_name: "Commit vendor framework upgrade 1.5.16→1.5.307 + preserve CLAUDE.md consumer path note"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T18:03:23Z
+completed: 2026-04-25T18:07:14Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T20:06:38+02:00
+last_commit: 2026-04-25T20:06:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Vendor framework upgrade 1.5.16→1.5.307 + preserve CLAUDE.md consumer-path note
+
+# Key outcomes
+outcomes:
+  - "CLAUDE.md restored to consumer wording (`.agentic-framework/bin/fw`)."
+  - "T-1255 G-007 fix verified intact in vendored handover.sh + audit.sh."
+  - "Stale active/ task files (T-1164, T-1253, T-1256, T-1257, T-1258) committed as deletions; counterparts present in completed/."
+  - "`.framework.yaml` records upgrade 1.5.16 → 1.5.307."
+  - "Single commit referencing T-1259."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/agents/audit/audit.sh"
+  - ".agentic-framework/agents/context/pl007-scanner.sh"
+  - ".agentic-framework/agents/context/session-end.sh"
+  - ".agentic-framework/agents/context/session-silent-scanner.sh"
+  - ".agentic-framework/agents/context/stop-guard.sh"
+  - ".agentic-framework/agents/context/subagent-stop.sh"
+  - ".agentic-framework/agents/handover/handover.sh"
+  - ".agentic-framework/agents/observe/observe.sh"
+  - ".agentic-framework/bin/fw"
+  - ".agentic-framework/docs/reports/T-1443-independent-reviewer-agent.md"
+  - ".agentic-framework/docs/reports/T-1455-pickup-importer-mapping.md"
+  - ".agentic-framework/lib/reviewer/audit.py"
+  - ".agentic-framework/lib/reviewer/override_cli.py"
+  - ".agentic-framework/lib/reviewer/overrides.py"
+  - ".agentic-framework/lib/reviewer/__pycache__/static_scan.cpython-312.pyc"
+  - ".agentic-framework/lib/reviewer/static_scan.py"
+  - ".agentic-framework/VERSION"
+  - ".agentic-framework/web/blueprints/inception.py"
+  - ".agentic-framework/web/blueprints/__init__.py"
+  - ".agentic-framework/web/blueprints/__pycache__/api.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/approvals.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/cockpit.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/config.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/core.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/costs.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/cron.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/discoveries.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/discovery.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/docs.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/enforcement.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/fabric.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/fleet.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/inception.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/__init__.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/metrics.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/pending.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/prompts.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/quality.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/review.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/risks.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/session.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/sessions.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/settings.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/tasks.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/terminal.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/__pycache__/timeline.cpython-312.pyc"
+  - ".agentic-framework/web/blueprints/reviewer.py"
+  - ".agentic-framework/web/__pycache__/app.cpython-312.pyc"
+  - ".agentic-framework/web/__pycache__/config.cpython-312.pyc"
+  - ".agentic-framework/web/__pycache__/context_loader.cpython-312.pyc"
+  - ".agentic-framework/web/__pycache__/search_utils.cpython-312.pyc"
+  - ".agentic-framework/web/__pycache__/shared.cpython-312.pyc"
+  - ".agentic-framework/web/__pycache__/subprocess_utils.cpython-312.pyc"
+  - ".agentic-framework/web/shared.py"
+  - ".agentic-framework/web/static/csrf-htmx.js"
+  - ".agentic-framework/web/templates/base.html"
+  - ".agentic-framework/web/templates/inception_detail.html"
+  - ".agentic-framework/web/templates/reviewer_overrides.html"
+  - ".agentic-framework/web/templates/review.html"
+  - ".agentic-framework/web/terminal/adapters/__pycache__/claude_code.cpython-312.pyc"
+  - ".agentic-framework/web/terminal/adapters/__pycache__/__init__.cpython-312.pyc"
+  - ".agentic-framework/web/terminal/adapters/__pycache__/local_shell.cpython-312.pyc"
+  - ".agentic-framework/web/terminal/__pycache__/__init__.cpython-312.pyc"
+  - ".agentic-framework/web/terminal/__pycache__/profiles.cpython-312.pyc"
+  - ".agentic-framework/web/terminal/__pycache__/registry.cpython-312.pyc"
+  - ".agentic-framework/web/terminal/__pycache__/session.cpython-312.pyc"
+  - ".context/episodic/T-1256.yaml"
+  - ".context/episodic/T-1257.yaml"
+  - ".context/episodic/T-1258.yaml"
+  - ".framework.yaml"
+  - ".tasks/active/T-1164-t-11557-migrate-filesendreceive--channel.md"
+  - ".tasks/active/T-1215-hub-capabilities-method--client-side-cac.md"
+  - ".tasks/active/T-1217-t-1168b2-b3-learnings-subscriber--watcht.md"
+  - ".tasks/active/T-1253-g-007-mirror-anomaly--github-ahead-of-on.md"
+  - ".tasks/active/T-1255-implement-t-1253-go-handoversh-push-only.md"
+  - ".tasks/active/T-1256-vendor-framework-refresh--sync-agentic-f.md"
+  - ".tasks/active/T-1259-commit-vendor-framework-upgrade-15161530.md"
+  - ".tasks/completed/T-1257-backfill-t-1253-inception-research-artif.md"
+  - ".tasks/completed/T-1258-backfill-t-922--t-1223-inception-researc.md"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T20:06:38"
+    action: "T-1259: Vendor framework upgrade 1.5.16→1.5.307 + preserve CLAUDE.md consumer-path note"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 79
+  lines_added: 1509
+  lines_removed: 452
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1259-commit-vendor-framework-upgrade-15161530.md
+generated_by: context-agent-hybrid
