@@ -12,7 +12,7 @@ tags: [fleet, federation, capability-probe]
 components: []
 related_tasks: [T-1214, T-1165]
 created: 2026-04-24T10:35:19Z
-last_update: 2026-04-25T14:05:14Z
+last_update: 2026-04-25T15:27:10Z
 date_finished: 2026-04-24T12:01:48Z
 ---
 
