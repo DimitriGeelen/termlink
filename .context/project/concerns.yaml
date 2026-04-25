@@ -12,12 +12,14 @@ concerns:
   trigger_event: "2026-04-25 ~10:00Z: User attempted to record T-1229 / T-1230 GO decisions per agent's recommendation. The Watchtower /inception/T-1229 form's rationale textarea was empty despite docs/reports/T-1229-inception.md containing a 7000-word recommendation. User reported: 'again missing rationale .. please record that rationale should be filled in'. The friction discourages thorough inception artifacts because the work doesn't carry through to the recorded decision."
   detection_lag_days: "0 (caught on first cross-session inception decision after artifact pattern was established)"
   what_works_now: "The form correctly accepts a typed rationale and persists it to the task file's ## Decision section. The list view correctly shows pending inceptions with PENDING badges. The detail page correctly surfaces the artifact's Open Design Questions section."
-  what_remains: "1. Form should default the rationale textarea to the contents of the artifact's 'Recommendation' or 'Decision' section (parse docs/reports/T-XXX-inception.md). 2. List view (/inception?decision=pending) should expose inline GO / NO-GO / DEFER buttons on each pending card to avoid the click-into-detail-then-back round trip. 3. If artifact is missing entirely, form should warn ('No research artifact at docs/reports/T-XXX-inception.md — recommend writing one before deciding') rather than silently accept an empty rationale."
-  mitigation_candidate: "Single template+route change in Watchtower: read docs/reports/T-{task_id}-inception.md, extract section between '## Recommendation' and the next '##' marker, populate the textarea's default value. Inline buttons on list view is a separate template change. Both are pure-template fixes — no schema or storage change needed."
-  status: watching
+  what_remains: "PARTIAL CLOSURE (T-1246): Item 1 (rationale prefill from artifact) is FIXED — when the task body lacks a Recommendation section, the form now reads docs/reports/T-{id}-inception.md (or T-{id}-*-inception.md for older descriptive names) and extracts Recommendation->Rationale via the existing T-1390 pipeline. Verified on T-1122 — prefilled 409 chars from artifact. Items 2 (inline GO/NO-GO buttons on list view) and 3 (warn on missing artifact) remain — separate template change, lower urgency."
+  mitigation_candidate: "FIXED (item 1) via T-1246: blueprints/inception.py now falls back to docs/reports artifact when task body has no Recommendation. Items 2-3 deferred to follow-up if surfaced."
+  status: closed
   created: 2026-04-25
   last_reviewed: 2026-04-25
-  related_tasks: [T-1229, T-1230]
+  closed: 2026-04-25
+  closure_evidence: "T-1246 commit landed; manual probe of /inception/T-1122 returned 409-char rationale prefill from docs/reports/T-1122-watchtower-production-server-inception.md (artifact had no task-file Recommendation). Items 2 (inline buttons) and 3 (missing-artifact warn) descope to follow-up if needed."
+  related_tasks: [T-1229, T-1230, T-1246]
 
 - id: G-003
   type: gap
