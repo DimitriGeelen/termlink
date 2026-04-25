@@ -4,16 +4,16 @@ name: "T-1220 follow-up: extend list_with_fallback to accept authenticated Clien
 description: >
   Refactor T-1225 inbox_channel helper so the dispatch body operates on `&mut Client` (works equally for unauth Unix/TCP and post-auth Client). Add public entry `list_with_fallback_with_client(client, host_port, target, cache, ctx)` for callers who already authenticated. Original `list_with_fallback(addr, ...)` becomes a thin wrapper. Unblocks T-1227 (CLI remote) and remote half of T-1228 (MCP).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1155, bus, migration, T-1220, T-1225-followup]
-components: []
+components: [crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1220, T-1225, T-1227, T-1228]
 created: 2026-04-25T08:27:29Z
-last_update: 2026-04-25T08:35:00Z
-date_finished: null
+last_update: 2026-04-25T08:33:32Z
+date_finished: 2026-04-25T08:33:32Z
 ---
 
 # T-1231: extend list_with_fallback to accept authenticated Client
@@ -85,3 +85,6 @@ grep -q "list_with_fallback_with_client" crates/termlink-session/src/inbox_chann
 ### 2026-04-25T08:35:00Z — scope-and-acs [agent]
 - **Change:** Wrote real Agent ACs + verification commands
 - **Change:** Recorded refactor strategy in Decisions
+
+### 2026-04-25T08:33:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

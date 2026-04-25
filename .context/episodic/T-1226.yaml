@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1226: T-1220b: CLI local cmd_inbox_list migration (T-1220 wedge b, narrowed)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T08:26:23Z
+# ============================================================================
+
+task_id: T-1226
+task_name: "T-1220b: CLI local cmd_inbox_list migration (T-1220 wedge b, narrowed)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T07:00:11Z
+completed: 2026-04-25T08:26:14Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-25T10:26:11+02:00
+last_commit: 2026-04-25T10:26:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cmd_inbox_list migrates to list_with_fallback (T-1220 wedge b)
+
+# Key outcomes
+outcomes:
+  - "cmd_inbox_list calls `inbox_channel::list_with_fallback` instead of `rpc_call(\"inbox.list\", ...)`"
+  - "Uses `TransportAddr::unix(&hub_socket)` for the local hub socket"
+  - "Uses `hub_capabilities::shared_cache()` so cache is shared with future call sites"
+  - "Passes a fresh `FallbackCtx` (CLI process is short-lived; no need for persistence)"
+  - "Display path (`{id} {file} ({size} bytes, {status})`) preserved — uses InboxEntry fields directly"
+  - "JSON output path preserved — serializes `Vec<InboxEntry>` under a `transfers` key for backward compat"
+  - "No edits to cmd_inbox_status or cmd_inbox_clear (out of scope, see Decisions)"
+  - "`cargo build -p termlink` clean"
+  - "`cargo clippy -p termlink -- -D warnings` clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Migrate only `cmd_inbox_list` under T-1226. Capture"
+    rationale: ""
+    alternatives_rejected: ["Bundling all 3 in one commit — violates \"one task = one"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - ".tasks/active/T-1226-t-1220b-cli-local-cmdinboxliststatusclea.md"
+  - ".tasks/active/T-1229-t-1220b-follow-up-cmdinboxstatus-migrati.md"
+  - ".tasks/active/T-1230-t-1220b-follow-up-cmdinboxclear-semantic.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T10:26:11"
+    action: "T-1226: cmd_inbox_list migrates to list_with_fallback (T-1220 wedge b)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 86 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration, T-1220, wedge-b]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 86
+  commits: 1
+  files_changed: 4
+  lines_added: 208
+  lines_removed: 68
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1226-t-1220b-cli-local-cmdinboxliststatusclea.md
+generated_by: context-agent-hybrid

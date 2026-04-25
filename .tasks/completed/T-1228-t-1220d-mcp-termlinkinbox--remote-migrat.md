@@ -4,16 +4,16 @@ name: "T-1220d: MCP termlink_inbox_list migration (T-1220 wedge d, narrowed)"
 description: >
   Migrate termlink_inbox_list MCP tool in crates/termlink-mcp/src/tools.rs (@4564) to use T-1225's list_with_fallback helper. termlink_inbox_status / termlink_inbox_clear (Q4 split) and termlink_remote_inbox_* (need auth-client helper extension, see T-1231) deferred — see Decisions.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1155, bus, migration, T-1220, wedge-d]
-components: []
+components: [crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-1220, T-1225, T-1226, T-1231]
 created: 2026-04-25T07:00:17Z
-last_update: 2026-04-25T08:30:00Z
-date_finished: null
+last_update: 2026-04-25T08:29:14Z
+date_finished: 2026-04-25T08:29:14Z
 ---
 
 # T-1228: T-1220d MCP termlink_inbox_list migration
@@ -74,3 +74,6 @@ grep -q "list_with_fallback" crates/termlink-mcp/src/tools.rs
 - **Change:** Renamed task to "termlink_inbox_list migration" (was 6-site bundle)
 - **Change:** Wrote real Agent ACs + verification commands
 - **Reason:** Same semantic split as T-1226 (status aggregation, clear deletion). Remote variants additionally blocked on helper extension (T-1231).
+
+### 2026-04-25T08:29:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

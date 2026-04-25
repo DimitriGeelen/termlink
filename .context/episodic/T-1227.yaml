@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1227: T-1220c: CLI remote cmd_remote_inbox_list migration (T-1220 wedge c, narrowed)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T08:35:24Z
+# ============================================================================
+
+task_id: T-1227
+task_name: "T-1220c: CLI remote cmd_remote_inbox_list migration (T-1220 wedge c, narrowed)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T07:00:14Z
+completed: 2026-04-25T08:35:14Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-25T10:35:10+02:00
+last_commit: 2026-04-25T10:35:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cmd_remote_inbox List arm migrates to list_with_fallback_with_client
+
+# Key outcomes
+outcomes:
+  - "List arm calls `inbox_channel::list_with_fallback_with_client(&mut rpc_client, conn.hub, target, cache, ctx)`"
+  - "Uses `hub_capabilities::shared_cache()` so the cache is shared with local CLI calls"
+  - "Passes a fresh `FallbackCtx` (CLI process is short-lived)"
+  - "`conn.hub` (profile name or host:port) used as the cache key"
+  - "Display path preserved: `{id} — {filename} ({size} bytes)` per remote inbox formatting"
+  - "JSON path preserves `{transfers: [...]}` wrapper for backward compat"
+  - "No edits to Status arm, Clear arm, or fleet-doctor inbox.status (out of scope, see Decisions)"
+  - "`cargo build -p termlink` clean"
+  - "`cargo clippy -p termlink -- -D warnings` clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Migrate only the List arm under T-1227. Status / Clear arms +"
+    rationale: ""
+    alternatives_rejected: ["Bundling all 4 sites — same \"one task = one deliverable\""]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1227-t-1220c-cli-remote-cmdremoteinbox--fleet.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T10:35:10"
+    action: "T-1227: cmd_remote_inbox List arm migrates to list_with_fallback_with_client"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 95 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration, T-1220, wedge-c]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 95
+  commits: 1
+  files_changed: 2
+  lines_added: 71
+  lines_removed: 66
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1227-t-1220c-cli-remote-cmdremoteinbox--fleet.md
+generated_by: context-agent-hybrid
