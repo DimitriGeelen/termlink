@@ -4,7 +4,7 @@ name: "Extend fw promote to accept PL- prefix for consumer-namespace learnings"
 description: >
   Extend fw promote to accept PL- prefix for consumer-namespace learnings
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T21:47:26Z
-last_update: 2026-04-25T21:51:34Z
-date_finished: null
+last_update: 2026-04-25T21:52:52Z
+date_finished: 2026-04-25T21:52:52Z
 ---
 
 # T-1283: Extend fw promote to accept PL- prefix for consumer-namespace learnings
@@ -67,3 +67,9 @@ test -n "$(grep promoted_from: PL-007 .context/project/practices.yaml)"
 ### 2026-04-25T21:51:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T21:52:52Z — status-update [task-update-agent]
+- **Change:** horizon: now → now
+
+### 2026-04-25T21:52:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

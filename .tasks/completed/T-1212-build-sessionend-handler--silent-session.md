@@ -4,16 +4,16 @@ name: "Build SessionEnd handler + silent-session cron (T-1208 follow-up)"
 description: >
   Implement per T-1208 GO: (S1) no-op SessionEnd logger for reason-field baseline; (S2) handover-trigger with idempotency guard (session_id match); (S3) 15-min silent-session cron scanning .claude/sessions/*.jsonl for sessions idle >30min with no handover, generating recovery handover marked [recovered, no agent context]. S3 is the antifragility piece — do not ship S2 without S3. See docs/reports/T-1208-sessionend-hook-inception.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [hook, handover, framework-bridge, antifragility]
 components: []
 related_tasks: [T-1208, T-174]
 created: 2026-04-24T10:05:10Z
-last_update: 2026-04-24T16:08:28Z
-date_finished: null
+last_update: 2026-04-25T21:53:21Z
+date_finished: 2026-04-25T21:53:21Z
 ---
 
 # T-1212: Build SessionEnd handler + silent-session cron (T-1208 follow-up)
@@ -160,3 +160,9 @@ test -f docs/T-1212-settings-patch.md
 
 ### 2026-04-24T16:08:28Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-04-25T21:53:21Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-04-25T21:53:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

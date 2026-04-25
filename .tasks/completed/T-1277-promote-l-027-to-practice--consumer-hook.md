@@ -4,7 +4,7 @@ name: "Promote L-027 to practice — consumer hooks pass PROJECT_ROOT explicitly
 description: >
   Promote L-027 to practice — consumer hooks pass PROJECT_ROOT explicitly
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T21:13:07Z
-last_update: 2026-04-25T21:13:07Z
-date_finished: null
+last_update: 2026-04-25T21:14:54Z
+date_finished: 2026-04-25T21:14:54Z
 ---
 
 # T-1277: Promote L-027 to practice — consumer hooks pass PROJECT_ROOT explicitly
@@ -25,16 +25,16 @@ L-027 (Consumer project hooks must pass PROJECT_ROOT explicitly) has 15 document
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `fw promote L-027 --name "..." --directive D2` exits 0
-- [ ] New PP-XXX entry exists in `.context/project/practices.yaml`
-- [ ] L-027 `application` field updated with promotion reference
+- [x] `fw promote L-027 --name "..." --directive D2` exits 0 (created PP-008)
+- [x] New PP-008 entry exists in `.context/project/practices.yaml`
+- [x] L-027 `application` field updated with promotion reference (T-1277, D2)
 
 ## Verification
 
-# PP entry exists referencing L-027
-test -n "$(grep -B1 'L-027' .context/project/practices.yaml | grep -E '^\s*-\s*id:\s*PP-')"
-# L-027 application field is no longer TBD
-test -n "$(awk '/^- id: L-027/,/^- id: /' .context/project/learnings.yaml | grep 'application:' | head -1 | grep -v 'TBD')"
+# PP entry created for L-027
+test -n "$(grep 'promoted_from: L-027' .context/project/practices.yaml)"
+# L-027 application field references PP-008
+test -n "$(grep -A6 '^- id: L-027' .context/project/learnings.yaml | grep 'application:' | grep PP-008)"
 
 ## Decisions
 
@@ -53,3 +53,6 @@ test -n "$(awk '/^- id: L-027/,/^- id: /' .context/project/learnings.yaml | grep
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1277-promote-l-027-to-practice--consumer-hook.md
 - **Context:** Initial task creation
+
+### 2026-04-25T21:14:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

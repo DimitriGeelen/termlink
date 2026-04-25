@@ -4,16 +4,16 @@ name: "Build Stop-hook nudge script (T-1207 follow-up)"
 description: >
   Implement the Stop hook per T-1207 GO: framework-side agents/context/stop-guard.sh that reads .tool-counter + .last-commit-hash + focus.yaml, counts exchanges since last productive signal, and emits stderr nudge at N=15 with 0 tools AND 0 commits AND no focus. Non-blocking (exit 0). Wire in consumer .claude/settings.json. Agent owns the y/n user prompt; dismissal writes .context/working/.stop-dismissed-at-N. See docs/reports/T-1207-stop-hook-inception.md for design.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [hook, governance, framework-bridge]
 components: []
 related_tasks: [T-1207, T-173]
 created: 2026-04-24T10:04:49Z
-last_update: 2026-04-24T16:07:59Z
-date_finished: null
+last_update: 2026-04-25T21:53:15Z
+date_finished: 2026-04-25T21:53:15Z
 ---
 
 # T-1211: Build Stop-hook nudge script (T-1207 follow-up)
@@ -119,3 +119,9 @@ test -f docs/T-1211-settings-patch.md
 
 ### 2026-04-24T16:07:59Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-04-25T21:53:15Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-04-25T21:53:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

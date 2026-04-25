@@ -4,7 +4,7 @@ name: "Build SubagentStop bus-migration handler (T-1209 follow-up)"
 description: >
   Implement per T-1209 GO: S1' spike first (test if non-zero SubagentStop exit mutates orchestrator-visible response); then bus-migration handler — over-threshold (T=8KB) returns auto-migrate to fw bus, orchestrator sees R-NNN pointer. Retires advisory check-dispatch.sh when live. Goal is no information loss. See docs/reports/T-1209-subagentstop-hook-inception.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [hook, dispatch, bus, framework-bridge]
 components: []
 related_tasks: [T-1209, T-175]
 created: 2026-04-24T10:05:14Z
-last_update: 2026-04-24T16:08:28Z
-date_finished: null
+last_update: 2026-04-25T21:53:39Z
+date_finished: 2026-04-25T21:53:39Z
 ---
 
 # T-1213: Build SubagentStop bus-migration handler (T-1209 follow-up)
@@ -178,3 +178,9 @@ test -f docs/T-1213-settings-patch.md
 
 ### 2026-04-24T16:08:28Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-04-25T21:53:34Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-04-25T21:53:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
