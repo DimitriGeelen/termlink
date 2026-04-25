@@ -251,3 +251,17 @@ practices:
   promoted_from: L-006
   status: active
   applications: 4
+- id: PP-008
+  name: Pass PROJECT_ROOT explicitly to framework scripts from consumer hooks
+  derived_from: D2
+  description: Consumer project hooks must pass PROJECT_ROOT explicitly when invoking
+    framework scripts — framework scripts fall back to git rev-parse which resolves
+    to the framework repo, not the consumer project.
+  anti_pattern: Pre-push audit blocked git push because it checked framework tasks
+    dir instead of termlink tasks dir
+  scope: project
+  origin_task: T-290
+  origin_date: '2026-03-26'
+  promoted_from: L-027
+  status: active
+  applications: 16

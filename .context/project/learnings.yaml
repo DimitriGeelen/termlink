@@ -189,7 +189,7 @@ learnings:
   task: T-290
   date: 2026-03-26
   context: Pre-push audit blocked git push because it checked framework tasks dir instead of termlink tasks dir
-  application: TBD
+  application: Promoted to PP-008 via T-1277 (2026-04-25, D2) after 16 applications
 - id: L-028
   learning: "Ephemeral session-state files (focus, budget-status, counters) must be gitignored from the start — tracking them causes merge conflicts, corrupted JSON, and false audit failures on every stash/rebase."
   source: P-001
