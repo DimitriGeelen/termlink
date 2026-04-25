@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1224: Compose response to .122 G-029 finding
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T06:04:17Z
+# ============================================================================
+
+task_id: T-1224
+task_name: "Compose response to .122 G-029 finding"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T06:02:44Z
+completed: 2026-04-25T06:04:15Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Compose response message to .122 covering: (a) acknowledgement of G-029/G-028/PL-092 findings, (b) corrected mental model (G-029 cause / G-016 cap), (c) summary of local commits/learnings landed in response, (d) explicit suggested-action ask with 3-4 ranked options"
+  - "Save composed message to a relayable artifact: `/tmp/T-1224-message-to-122.md` (2415 B, 59 lines)"
+  - "Verify message preserves silence-as-signal norm: explicit \"no urgency\", \"defer is a perfectly good answer\""
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Save to `/tmp/T-1224-message-to-122.md` for the human to relay (send-file via .107 or paste into .122 session)."
+    rationale: "This client lacks `.107` profile in `hubs.toml` and `.122` direct connect TOFU-violates. No transport-direct option. File artifact is the lowest-friction handoff."
+    chose: "Real ACs from the start, not placeholders."
+    rationale: "check-active-task fired three times during this task before G-020 fired once on placeholder ACs. Lesson: a write to /tmp is still \"work\" under framework governance — pre-create the task with real ACs to avoid the gate cascade."
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1224-compose-response-to-122-g-029-finding.md
+generated_by: context-agent-hybrid
