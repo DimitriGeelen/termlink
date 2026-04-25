@@ -4,7 +4,7 @@ name: "D5 audit detector: skip Batch-evidence build tasks (false-positive lifecy
 description: >
   D5 audit detector: skip Batch-evidence build tasks (false-positive lifecycle anomalies)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T18:22:34Z
-last_update: 2026-04-25T18:22:34Z
-date_finished: null
+last_update: 2026-04-25T18:25:32Z
+date_finished: 2026-04-25T18:25:32Z
 ---
 
 # T-1262: D5 audit detector: skip Batch-evidence build tasks (false-positive lifecycle anomalies)
@@ -74,3 +74,6 @@ bash -n /opt/termlink/.agentic-framework/agents/audit/audit.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1262-d5-audit-detector-skip-batch-evidence-bu.md
 - **Context:** Initial task creation
+
+### 2026-04-25T18:25:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
