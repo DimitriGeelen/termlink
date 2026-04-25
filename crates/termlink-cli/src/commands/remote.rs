@@ -1251,35 +1251,27 @@ async fn cmd_remote_inbox_inner(
 
     match action {
         RemoteInboxAction::Status { json } => {
-            let resp = rpc_client
-                .call("inbox.status", serde_json::json!("inbox-s"), serde_json::json!({}))
-                .await
-                .context("inbox.status RPC failed")?;
-            match resp {
-                termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&r.result)?);
-                    } else {
-                        let total = r.result["total_transfers"].as_u64().unwrap_or(0);
-                        if total == 0 {
-                            println!("Inbox on {}: empty (no pending transfers)", conn.hub);
-                        } else {
-                            let targets = r.result["targets"].as_array();
-                            println!("Inbox on {}: {} pending transfer(s)", conn.hub, total);
-                            if let Some(targets) = targets {
-                                for t in targets {
-                                    println!(
-                                        "  {} — {} transfer(s)",
-                                        t["target"].as_str().unwrap_or("?"),
-                                        t["transfer_count"].as_u64().unwrap_or(0),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-                termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
-                    anyhow::bail!("inbox.status error: {}", e.error.message);
+            let cache = termlink_session::hub_capabilities::shared_cache();
+            let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+            let status = termlink_session::inbox_channel::status_with_fallback_with_client(
+                &mut rpc_client,
+                conn.hub,
+                cache,
+                &mut ctx,
+            )
+            .await
+            .context("inbox.status (channel-aware) failed")?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&status)?);
+            } else if status.total_transfers == 0 {
+                println!("Inbox on {}: empty (no pending transfers)", conn.hub);
+            } else {
+                println!(
+                    "Inbox on {}: {} pending transfer(s)",
+                    conn.hub, status.total_transfers
+                );
+                for t in &status.targets {
+                    println!("  {} — {} transfer(s)", t.target, t.pending);
                 }
             }
         }
