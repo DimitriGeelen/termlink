@@ -119,6 +119,23 @@ pub mod method {
     /// Pairs with `cursor.advance` (forthcoming) for per-subscriber semantics.
     /// Params: `{ topic, before_offset? }` → `{ ok, deleted, topic }`. T-1234 / T-1230a.
     pub const CHANNEL_TRIM: &str = "channel.trim";
+
+    // --- T-1248 / T-1164a: artifact blob store. Tier-A. ---
+
+    /// Tier-A — upload bytes into the hub's content-addressed artifact store.
+    /// Streaming chunked path: `{ staging_id, offset, chunk_b64, is_final, expected_sha256? }`
+    /// → on non-final chunk: `{ ok: true, in_progress: true, bytes_received }`;
+    /// on final chunk: `{ ok: true, in_progress: false, sha256, total_bytes }`.
+    /// Idempotent on the final sha256 — re-uploading already-stored bytes is a no-op.
+    /// Pairs with `channel.post { msg_type: "artifact", artifact_ref: <sha256> }`. T-1164a.
+    pub const ARTIFACT_PUT: &str = "artifact.put";
+
+    /// Tier-A — fetch bytes from the hub's content-addressed artifact store.
+    /// Streaming chunked path: `{ sha256, offset, max_bytes }` →
+    /// `{ chunk_b64, bytes_returned, eof, total_bytes }`. Caller iterates until
+    /// `eof: true`. Returns `CHANNEL_TOPIC_UNKNOWN`-style error code if the
+    /// sha256 isn't present in the store. T-1164a.
+    pub const ARTIFACT_GET: &str = "artifact.get";
 }
 
 /// T-1160 channel.* canonical signing bytes.
@@ -464,6 +481,12 @@ mod tests {
         assert_eq!(method::CHANNEL_SUBSCRIBE, "channel.subscribe");
         assert_eq!(method::CHANNEL_LIST, "channel.list");
         assert_eq!(method::CHANNEL_TRIM, "channel.trim");
+    }
+
+    #[test]
+    fn artifact_method_constants_are_stable() {
+        assert_eq!(method::ARTIFACT_PUT, "artifact.put");
+        assert_eq!(method::ARTIFACT_GET, "artifact.get");
     }
 
     #[test]

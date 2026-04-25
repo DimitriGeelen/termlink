@@ -19,4 +19,13 @@ pub enum BusError {
 
     #[error("topic {0:?} not found")]
     UnknownTopic(String),
+
+    #[error("artifact {0:?} not found")]
+    UnknownArtifact(String),
+
+    #[error("artifact streaming offset mismatch: expected {expected}, got {got}")]
+    ArtifactOffsetMismatch { expected: u64, got: u64 },
+
+    #[error("artifact hash mismatch: declared {expected}, computed {got}")]
+    ArtifactHashMismatch { expected: String, got: String },
 }
