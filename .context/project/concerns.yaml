@@ -171,13 +171,15 @@ concerns:
   mitigation_candidate: "Short-term: truncate access.log (operator, host-side SSH). Medium-term: logrotate config on .180. Long-term: cross-host health check that detects disk pressure before cascade."
   status: watching
   created: 2026-04-19
-  last_reviewed: 2026-04-22
+  last_reviewed: 2026-04-25
   observations:
     - date: 2026-04-22
       note: "Fleet-doctor from .107 shows ring20-management at 192.168.10.102:9100 unreachable ('No route to host' — network layer, not auth). TOFU pin for .102 last_seen 2026-04-21T13:15Z — hub was reachable yesterday. Possible G-009 cascade recurrence OR 5th container renumber (see ring20-management memory: 4 renumbers in 5 days as of 2026-04-20). Note: G-009's original title still references .122; the container has since renumbered through .102 and possibly beyond. Title drift — broaden 'CT 200 / ring20-management / <current-IP>' when refreshing."
     - date: 2026-04-22T18:48Z
       note: "Re-confirmed cascade still active. ICMP ping .102: 100% packet loss. Proxmox host .180 ITSELF is up (ping 0.117ms) with services :22, :80, :8006 (PVE UI), :9100 (Prometheus Node Exporter — confirmed by HTTP title tag). So cascade chain: .180 up → container CT 200 down at .102 → hub appears network-unreachable to fleet-doctor. Container is either rebooting, powered off, or 5th renumber. No change from earlier 2026-04-22 observation — still operator territory (logrotate on .180 + container revival)."
-  related_tasks: [T-1064, T-1028, T-1053]
+    - date: 2026-04-25T19:55Z
+      note: "Fleet-doctor TOFU VIOLATION on 192.168.10.122:9100 (ring20-management). Expected sha256:883055063bd299d4c9b597a24e32dbbab7c15ecc97e27b4cce2a044c1e8526f6, got sha256:663a7a10d1b19caa4d598fe838c1f0c982d8a81a2d3c8cf57c577a6546f1e27b. Cert rotated again — consistent with cascade. Container is currently REACHABLE (network up) but identity changed since last pin. Fleet summary: 3 hubs, 2 ok, 1 fail. .121 (ring20-dashboard) and 127.0.0.1 (local-test) PASS. Heal path: `termlink tofu clear 192.168.10.122:9100` accepts new fingerprint; but root cause (logrotate on .180) still pending — cascade will recur. Operator territory unchanged."
+  related_tasks: [T-1064, T-1028, T-1053, T-1265]
 
 - id: G-008
   type: gap
