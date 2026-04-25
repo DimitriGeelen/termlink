@@ -8,7 +8,7 @@ description: >
   block, causing fw doctor to warn "version mismatch pinned=1.5.307
   installed=0.9.1294". Reinstall hook + restore VERSION to upstream pin.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,8 +16,8 @@ tags: [hooks, version, framework-drift]
 components: []
 related_tasks: [T-1252]
 created: 2026-04-25T20:17:05Z
-last_update: 2026-04-25T20:17:05Z
-date_finished: null
+last_update: 2026-04-25T20:20:41Z
+date_finished: 2026-04-25T20:20:41Z
 ---
 
 # T-1269: Investigate framework VERSION drift — handover stamps .agentic-framework/VERSION with consumer version
@@ -69,7 +69,7 @@ date_finished: null
 
 test "$(grep -cE '> .*agentic-framework/VERSION' .git/hooks/pre-push)" = "0"
 test "$(cat .agentic-framework/VERSION)" = "$(grep '^version:' .framework.yaml | awk '{print $2}')"
-.agentic-framework/bin/fw doctor 2>&1 | grep -v 'Version mismatch' >/dev/null && ! .agentic-framework/bin/fw doctor 2>&1 | grep -q 'Version mismatch'
+! .agentic-framework/bin/fw doctor 2>&1 | grep -q 'Version mismatch'
 grep -A 6 '^- id: PL-075' .context/project/learnings.yaml | grep -q 'T-1269'
 
 ## Recommendation
@@ -103,3 +103,6 @@ grep -A 6 '^- id: PL-075' .context/project/learnings.yaml | grep -q 'T-1269'
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-25T20:20:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
