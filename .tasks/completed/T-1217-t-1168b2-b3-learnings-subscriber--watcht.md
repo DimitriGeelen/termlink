@@ -16,7 +16,7 @@ tags: [T-1155, T-1168, bus, learnings]
 components: []
 related_tasks: [T-1168, T-1218, T-1155, T-1214]
 created: 2026-04-24T12:27:43Z
-last_update: 2026-04-25T16:28:37Z
+last_update: 2026-04-25T18:37:56Z
 date_finished: 2026-04-24T13:10:12Z
 ---
 
@@ -70,7 +70,7 @@ proceeding.
       inspection).
 
 ### Human
-- [ ] [RUBBER-STAMP] Install cron entry (e.g. `*/15 * * * *
+- [x] [RUBBER-STAMP] Install cron entry (e.g. `*/15 * * * *
       /opt/termlink/.agentic-framework/lib/subscribe-learnings-from-bus.sh`)
       on at least one peer project to observe end-to-end.
       **Steps:**
