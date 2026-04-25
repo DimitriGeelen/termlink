@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [fleet, federation, capability-probe]
 components: []
 related_tasks: [T-1214, T-1165]
 created: 2026-04-24T10:35:19Z
-last_update: 2026-04-25T15:27:10Z
+last_update: 2026-04-25T21:54:32Z
 date_finished: 2026-04-24T12:01:48Z
 ---
 
@@ -115,3 +115,6 @@ cargo test -p termlink-session hub_capabilities 2>&1 | tail -15
 
 ### 2026-04-24T12:01:48Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-04-25T21:54:32Z — status-update [task-update-agent]
+- **Change:** owner: human → agent

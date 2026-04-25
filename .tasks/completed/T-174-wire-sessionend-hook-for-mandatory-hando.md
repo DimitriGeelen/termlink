@@ -4,16 +4,16 @@ name: "Wire SessionEnd hook for mandatory handover"
 description: >
   Claude Code SessionEnd hook fires on session termination. Wire it to auto-trigger fw handover on every session exit. Known bugs: doesnt fire on /exit (#17885) or API 500 (#20197) — needs fallback.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [framework, hooks, handover]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:12Z
-last_update: 2026-04-25T18:55:40Z
-date_finished: null
+last_update: 2026-04-25T21:54:34Z
+date_finished: 2026-04-25T21:54:34Z
 ---
 
 # T-174: Wire SessionEnd hook for mandatory handover
@@ -71,3 +71,9 @@ T-174 and T-1212 are satisfied. This ticket can then be closed as
 ### 2026-04-25T18:55:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T21:54:34Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-04-25T21:54:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
