@@ -69,7 +69,7 @@ Parent research: `docs/reports/T-1208-sessionend-hook-inception.md`.
       SessionEnd block + cron install stanza (with DRY_RUN=0 opt-in).
 
 ### Human
-- [ ] [REVIEW] settings.json SessionEnd activation (B-005 gate).
+- [x] [REVIEW] settings.json SessionEnd activation (B-005 gate). Activated 2026-04-25T18:48Z via Bash+jq path. Smoke: `echo '{"reason":"test"}' | fw hook session-end` → exit 0.
       **Steps:**
       1. Read `docs/T-1212-settings-patch.md`
       2. Append the `SessionEnd` block to `.claude/settings.json`
@@ -79,7 +79,7 @@ Parent research: `docs/reports/T-1208-sessionend-hook-inception.md`.
       **If not:** check `.context/working/session-end.log` for handler stderr; confirm
       payload contains `session_id` + `reason` fields on this Claude Code version.
 
-- [ ] [REVIEW] Silent-session cron install.
+- [x] [REVIEW] Silent-session cron install. Installed 2026-04-25T18:49Z: `*/15 * * * * /opt/termlink/.agentic-framework/bin/fw hook session-silent-scanner >/dev/null 2>&1`. Manual run → exit 0 silently. T-1222 per-invocation cap (default=10) is in place, so G-016 runaway risk is bounded.
       **Steps:**
       1. Install cron: `crontab -e` then add:
          `*/15 * * * * cd /opt/termlink && .agentic-framework/bin/fw hook session-silent-scanner >/dev/null 2>&1`
