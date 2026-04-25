@@ -994,6 +994,36 @@ mod tests {
         assert_eq!(topics_with_inbox_prefix(&resp), vec!["inbox:alice"]);
     }
 
+    /// T-1229g regression: channel.list returns ALL `inbox:` topics from the
+    /// hub bus records — including topics whose target is offline (no live
+    /// subscriber). The aggregator must surface those, since fleet-doctor's
+    /// G-013 invariant counts pending-for-offline-targets too. Legacy
+    /// `inbox.status` had the same property; this test prevents regression.
+    #[test]
+    fn aggregate_status_includes_offline_targets() {
+        // Synthesize a channel.list reply where:
+        //  - "alice" is a live target (count 2)
+        //  - "bob-offline" target has 5 pending transfers but no subscriber —
+        //    its topic exists because the hub mirrored deposits via T-1163.
+        //  - "carol" is empty live (count 0).
+        let resp = json!({
+            "topics": [
+                {"name": "inbox:alice", "retention": {}, "count": 2},
+                {"name": "inbox:bob-offline", "retention": {}, "count": 5},
+                {"name": "inbox:carol", "retention": {}, "count": 0},
+            ]
+        });
+        let s = aggregate_status_from_channel_list(&resp);
+        assert_eq!(s.total_transfers, 7, "offline target's count must be summed");
+        let names: Vec<&str> = s.targets.iter().map(|t| t.target.as_str()).collect();
+        assert!(
+            names.contains(&"bob-offline"),
+            "offline target must appear in InboxStatus — fleet-doctor depends on this"
+        );
+        let bob = s.targets.iter().find(|t| t.target == "bob-offline").unwrap();
+        assert_eq!(bob.pending, 5);
+    }
+
     #[test]
     fn fallback_ctx_warn_once_keys_distinguish_clear_from_status() {
         let mut ctx = FallbackCtx::new();
