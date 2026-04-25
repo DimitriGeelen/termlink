@@ -129,8 +129,8 @@ concerns:
   mitigation_candidate: "Short-term: operator checks OneDev buildspec output for the failing mirror job. Medium-term (T-1140, IMPLEMENTED 2026-04-19): scripts/check-mirror-freshness.sh compares origin and GitHub HEADs on demand; exits 0 synced, 1 drift, 2 tooling error; supports --json/--quiet for cron integration. Long-term: decide whether the buildspec mirror is worth keeping vs. just pushing to both remotes from `git push` (simpler, no lag, no silent-stuck-mirror failure mode)."
   status: watching
   created: 2026-04-15
-  last_reviewed: 2026-04-22
-  last_observation: "2026-04-22T19:00Z: Mirror caught up. OneDev and GitHub both at 0c19bd6c (last session's auto-handover commit S-2026-0422-2059). `git ls-remote origin main` and `git ls-remote github main` agree. The 7-hour lag window seen at 18:44Z self-resolved when the pre-push audit hook's two-stage push landed the handover on both remotes. Keep watching — this is a recurring intermittent, not a one-off fix."
+  last_reviewed: 2026-04-25
+  last_observation: "2026-04-25T05:30Z: Mirror healthy. OneDev and GitHub both at c7466e35 (T-1218 [REVIEW] prereq evidence) — agent-only push to origin (no direct github push) propagated within seconds via the OneDev PushRepository job. Pre-push hook still pushes to both remotes when triggered, but agent-mode pushes (origin-only per memory rule) now confirm the mirror path works for the pure-OneDev case. Previous (2026-04-22T19:00Z): Mirror caught up after 7h lag. Pattern: intermittent stalls then self-resolves; no consistent reproducer."
   related_tasks: [T-1062, T-1140]
 
 - id: G-009
