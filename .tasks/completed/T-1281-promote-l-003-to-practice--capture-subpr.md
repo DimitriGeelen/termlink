@@ -4,7 +4,7 @@ name: "Promote L-003 to practice — capture subprocess exit codes explicitly"
 description: >
   Promote L-003 to practice — capture subprocess exit codes explicitly
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T21:32:44Z
-last_update: 2026-04-25T21:32:44Z
-date_finished: null
+last_update: 2026-04-25T21:33:33Z
+date_finished: 2026-04-25T21:33:33Z
 ---
 
 # T-1281: Promote L-003 to practice — capture subprocess exit codes explicitly
@@ -50,3 +50,6 @@ test -n "$(grep -A6 '^- id: L-003' .context/project/learnings.yaml | grep 'appli
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1281-promote-l-003-to-practice--capture-subpr.md
 - **Context:** Initial task creation
+
+### 2026-04-25T21:33:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

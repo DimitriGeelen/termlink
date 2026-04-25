@@ -4,7 +4,7 @@ name: "Promote L-021 to practice — clippy --all-targets in CI catches await_ho
 description: >
   Promote L-021 to practice — clippy --all-targets in CI catches await_holding_lock
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T21:20:52Z
-last_update: 2026-04-25T21:20:52Z
-date_finished: null
+last_update: 2026-04-25T21:22:40Z
+date_finished: 2026-04-25T21:22:40Z
 ---
 
 # T-1280: Promote L-021 to practice — clippy --all-targets in CI catches await_holding_lock
@@ -52,3 +52,6 @@ test -n "$(grep -A6 '^- id: L-021' .context/project/learnings.yaml | grep 'appli
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1280-promote-l-021-to-practice--clippy---all-.md
 - **Context:** Initial task creation
+
+### 2026-04-25T21:22:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
