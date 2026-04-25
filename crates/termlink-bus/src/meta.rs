@@ -116,6 +116,26 @@ impl Meta {
         Ok(current as u64)
     }
 
+    /// Delete records from `topic`. `before_offset=Some(N)` removes
+    /// records with offset strictly less than N; `before_offset=None`
+    /// removes ALL records for the topic. Returns count deleted.
+    /// Index-only delete (log file bytes remain — same convention as
+    /// `sweep_records`). Unknown topic returns `Ok(0)`. T-1234 / T-1230a.
+    pub(crate) fn trim_records(&self, topic: &str, before_offset: Option<u64>) -> Result<u64> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let removed = match before_offset {
+            Some(off) => conn.execute(
+                "DELETE FROM records WHERE topic = ?1 AND offset < ?2",
+                params![topic, off as i64],
+            )?,
+            None => conn.execute(
+                "DELETE FROM records WHERE topic = ?1",
+                params![topic],
+            )?,
+        };
+        Ok(removed as u64)
+    }
+
     /// Count records currently indexed for `topic`. Records pruned by
     /// `sweep_records` are not counted even if their bytes remain in the
     /// log file. Unknown topic returns `Ok(0)` rather than an error so
