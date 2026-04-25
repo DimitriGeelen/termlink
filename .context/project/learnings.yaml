@@ -294,7 +294,7 @@ learnings:
   task: T-967
   date: 2026-04-12
   context: Added via context agent
-  application: TBD
+  application: Promoted to PP-012 via T-1283 (2026-04-25, D2) after 12 applications
 - id: PL-008
   learning: "Hook registration needs a CLI command (fw hook-enable), not manual JSON editing. B-005 blocks agents from settings.json, and asking humans to edit JSON is poor UX. Every new hook must ship with a registration path."
   source: PL-007

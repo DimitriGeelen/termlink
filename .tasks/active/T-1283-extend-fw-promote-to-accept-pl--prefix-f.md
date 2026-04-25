@@ -4,15 +4,15 @@ name: "Extend fw promote to accept PL- prefix for consumer-namespace learnings"
 description: >
   Extend fw promote to accept PL- prefix for consumer-namespace learnings
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T21:47:26Z
-last_update: 2026-04-25T21:47:56Z
+last_update: 2026-04-25T21:51:34Z
 date_finished: null
 ---
 
@@ -31,15 +31,16 @@ Park as `next` for a future session that can do the upstream patch + mirror disp
 ## Acceptance Criteria
 
 ### Agent
-- [ ] /opt/999-Agentic-Engineering-Framework/lib/promote.sh case at line 22 accepts `PL-*` alongside `L-*`
-- [ ] Handler check at line 213 accepts `subcmd.startswith('PL-')` too
-- [ ] Vendored copy synced
-- [ ] `fw promote PL-007 --name "..." --directive Dx` exits 0 and creates a PP-XXX
-- [ ] Upstream commit pushed to onedev master
+- [x] /opt/999-Agentic-Engineering-Framework/lib/promote.sh case at line 22 accepts `PL-*` alongside `L-*`
+- [x] Handler check at line 213 accepts `subcmd.startswith('PL-')` too
+- [x] Vendored copy synced
+- [x] `fw promote PL-007 ...` exits 0 and created PP-012
+- [x] Upstream commit pushed to onedev master (949bd3ec)
 
 ## Verification
 
-# Pending — to be filled when the upstream patch is built.
+test -n "$(grep 'PL-\*' .agentic-framework/lib/promote.sh)"
+test -n "$(grep promoted_from: PL-007 .context/project/practices.yaml)"
 
 ## Decisions
 
@@ -62,3 +63,7 @@ Park as `next` for a future session that can do the upstream patch + mirror disp
 ### 2026-04-25T21:47:56Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Change:** horizon: now → next
+
+### 2026-04-25T21:51:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

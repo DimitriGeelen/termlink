@@ -289,3 +289,17 @@ practices:
   promoted_from: L-020
   status: active
   applications: 4
+- id: PP-012
+  name: Never output bare terminal commands — use push-based delivery
+  derived_from: D2
+  description: Never output bare terminal commands for the user — always use fw task
+    review for inception decisions, termlink inject for results. The user built the
+    tooling for push-based delivery; dumping commands is a P-002 violation (aspirational
+    rule without structural enforcement). This feedback has been given 3+ times.
+  anti_pattern: Added via context agent
+  scope: project
+  origin_task: T-967
+  origin_date: '2026-04-12'
+  promoted_from: PL-007
+  status: active
+  applications: 12
