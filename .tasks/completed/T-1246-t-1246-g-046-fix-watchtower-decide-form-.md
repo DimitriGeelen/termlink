@@ -4,7 +4,7 @@ name: "T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX
 description: >
   T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md when task body lacks Recommendation section
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T10:48:31Z
-last_update: 2026-04-25T10:48:31Z
-date_finished: null
+last_update: 2026-04-25T10:53:56Z
+date_finished: 2026-04-25T10:53:56Z
 ---
 
 # T-1246: T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md when task body lacks Recommendation section
@@ -73,3 +73,6 @@ curl -sf http://localhost:3100/inception/T-1229 > /dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1246-t-1246-g-046-fix-watchtower-decide-form-.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:53:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
