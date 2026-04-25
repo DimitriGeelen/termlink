@@ -4521,12 +4521,12 @@ impl TermLinkTools {
             return json_err("Hub is not running (no socket found)");
         }
 
-        match termlink_session::client::rpc_call(&hub_socket, "inbox.status", serde_json::json!({})).await {
-            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
-                Err(e) => json_err(format!("inbox.status error: {e}")),
-            },
-            Err(e) => json_err(format!("RPC call failed: {e}")),
+        let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
+        let cache = termlink_session::hub_capabilities::shared_cache();
+        let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+        match termlink_session::inbox_channel::status_with_fallback(&addr, cache, &mut ctx).await {
+            Ok(status) => serde_json::to_string_pretty(&status).unwrap_or_else(json_err),
+            Err(e) => json_err(format!("inbox.status error: {e}")),
         }
     }
 
