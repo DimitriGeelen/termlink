@@ -154,7 +154,7 @@ learnings:
   task: T-244
   date: 2026-03-26
   context: attach output froze when scrollback exceeded 8192 bytes
-  application: TBD
+  application: "Promoted to PP-005 via T-1273 (2026-04-25, D2)"
 - id: L-023
   learning: "File-based registries (JSON/YAML) under concurrent access need atomic write (write-to-temp + rename) and advisory file locking — truncate+write races silently lose data under parallel calls."
   source: P-001
