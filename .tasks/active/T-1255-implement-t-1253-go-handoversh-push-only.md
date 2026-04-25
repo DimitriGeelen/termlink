@@ -77,6 +77,13 @@ Channel 1 dispatch pattern (workflow_channel1_upstream_mirror memory).
       **Expected:** Output shows ONLY origin push (not github); ls-remote shows matching SHAs.
       **If not:** check handover.sh logic preserved correct behavior for single-remote case.
 
+      **Agent evidence (2026-04-25T18:25Z, post-S-2026-0425-1958 handover):**
+      - Auto-handover commit `e0c4b131` ran at 17:58Z. Captured output verbatim:
+        `Pushing to remotes...` followed by `Skipping github (mirrored from origin via PushRepository)` and `Pushed to origin ✓`. No direct github push attempted.
+      - Mirror sync verified at 18:25Z: `git ls-remote github main` and `git ls-remote origin main` both report `7ecce13c…` (HEAD) — zero drift.
+      - Audit GIT TRACEABILITY check now reports `OneDev → GitHub mirror in sync (origin=github=…)` on every run.
+      - **Pipeline behaving as designed.** Human can rubber-stamp.
+
 ## Verification
 
 grep -q "Skipping" /opt/termlink/.agentic-framework/agents/handover/handover.sh
