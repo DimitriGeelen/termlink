@@ -225,3 +225,16 @@ practices:
   promoted_from: L-022
   status: active
   applications: 6
+- id: PP-006
+  name: Distinguish None-default from zero-default in CLI parameters
+  derived_from: D2
+  description: 'CLI parameter defaults: None (omitted) and zero-value are semantically
+    different. since=0 means ''after event 0'' not ''from the start''. Test boundary
+    conditions explicitly.'
+  anti_pattern: Added via context agent
+  scope: project
+  origin_task: T-056
+  origin_date: '2026-03-19'
+  promoted_from: L-011
+  status: active
+  applications: 6

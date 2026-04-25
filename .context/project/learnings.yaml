@@ -77,7 +77,7 @@ learnings:
   task: T-056
   date: 2026-03-19
   context: Added via context agent
-  application: TBD
+  application: "Promoted to PP-006 via T-1274 (2026-04-25, D2)"
 - id: L-012
   learning: "Framework hook paths must reference final installation directory (symlinks), not version-specific paths. Test hook paths immediately after tool upgrades."
   source: P-001

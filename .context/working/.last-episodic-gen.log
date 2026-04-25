@@ -1,15 +1,15 @@
-=== episodic-gen invocation: 2026-04-25T20:36:39Z ===
-task_id: T-1273
+=== episodic-gen invocation: 2026-04-25T20:37:58Z ===
+task_id: T-1274
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1273.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1274.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: Promote L-022 to practice — scrollback buffer wraparound handling
+  Task: Promote L-011 to practice — CLI parameter defaults None vs zero
   Duration: 0 days (1 min)
   Updates: 2
   Commits: 0
@@ -17,5 +17,5 @@ Episodic generated: /opt/termlink/.context/episodic/T-1273.yaml
   Outcomes: 2 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1273-promote-l-022-to-practice--scrollback-bu.md
+Source: /opt/termlink/.tasks/completed/T-1274-promote-l-011-to-practice--cli-parameter.md
 --- exit code: 0 ---
