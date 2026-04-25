@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T09:59:44Z
-last_update: 2026-04-22T04:52:49Z
+last_update: 2026-04-25T13:42:06Z
 date_finished: null
 ---
 
@@ -20,7 +20,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**OBVIATED 2026-04-25** — T-1122 inception decided DEFER (2026-04-23) per `docs/reports/T-1122-watchtower-wsgi-migration-recommendation.md`. The follow-up spikes captured here are not needed; root cause of restart races was process management (systemd), not WSGI server choice. Parking at horizon=later. If T-1122 is ever reopened (e.g., LAN exposure, real production load, multi-host federation), this task is ready to pick up.
 
 ## Acceptance Criteria
 
@@ -70,3 +70,6 @@ date_finished: null
 
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-25T13:42:06Z — status-update [task-update-agent]
+- **Change:** horizon: next → later
