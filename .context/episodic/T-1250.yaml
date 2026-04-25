@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1250: T-1164c Receiver migration: file.receive → channel.subscribe artifact
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T13:26:03Z
+# ============================================================================
+
+task_id: T-1250
+task_name: "T-1164c Receiver migration: file.receive → channel.subscribe artifact"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T11:43:51Z
+completed: 2026-04-25T13:25:48Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T14:13:29+02:00
+last_commit: 2026-04-25T15:25:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add recv_artifacts_via_client + download helpers (T-1164c checkpoint). Migrate cmd_file_receive + termlink_file_receive (T-1164c complete)
+
+# Key outcomes
+outcomes:
+  - "`crates/termlink-session/src/artifact.rs` gains `recv_artifacts_via_client(client, host_port, target_self, since_offset, cache, ctx) -> io::Result<RecvOutcome>` that does `channel.subscribe(inbox:<target_self>, cursor=since_offset)`, filters `msg_type == \"artifact\"`, parses each manifest, and returns `Vec<RecvArtifact>` + `next_cursor`. Plus `download_artifact_via_client(client, sha256) -> io::Result<Vec<u8>>` that drives chunked `artifact.get` until eof and verifies the sha matches the requested key."
+  - "Capability gate: probes `channel.subscribe`. On absent, returns `RecvOutcome::LegacyOnly`. (Inline-only artifacts don't need `artifact.get`; chunked artifacts also need `artifact.get`, checked when downloading.)"
+  - "CLI `cmd_file_receive` (`crates/termlink-cli/src/commands/file.rs`) tries the new path first when local hub is up. For each artifact envelope: if inline, use the payload bytes; else download via `artifact.get`. Verify sha256 against the artifact_ref/manifest. Write to `<output_dir>/<filename>`. Idempotent on sha256: skip if file already exists with matching hash. On `LegacyOnly`, falls through to existing event-stream reassembly."
+  - "MCP `termlink_file_receive` (`crates/termlink-mcp/src/tools.rs`) uses the same helpers; legacy fallback preserved."
+  - "Unit tests in `termlink-session::artifact`: receive-side fake hub serves channel.subscribe with one inline + one chunked artifact; helper parses both correctly; download_artifact_via_client retrieves chunked bytes; LegacyOnly when channel.subscribe absent from caps."
+  - "`cargo build && cargo test --workspace --lib && cargo clippy --workspace --tests -- -D warnings` all pass. Zero regressions."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/file.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-session/src/artifact.rs"
+  - ".tasks/active/T-1250-t-1164c-receiver-migration-filereceive--.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T14:13:29"
+    action: "T-1250: Add recv_artifacts_via_client + download helpers (T-1164c checkpoint)"
+  - time: "2026-04-25T15:25:45"
+    action: "T-1250: Migrate cmd_file_receive + termlink_file_receive (T-1164c complete)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 101 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1164, T-1155, bus, artifact]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 101
+  commits: 2
+  files_changed: 4
+  lines_added: 736
+  lines_removed: 35
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1250-t-1164c-receiver-migration-filereceive--.md
+generated_by: context-agent-hybrid

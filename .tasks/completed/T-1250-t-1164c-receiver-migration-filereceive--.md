@@ -4,16 +4,16 @@ name: "T-1164c Receiver migration: file.receive → channel.subscribe artifact"
 description: >
   Migrate all receivers to channel.subscribe + artifact download. Implements termlink-session::artifact receive helper used by CLI cmd_file_receive and MCP termlink_file_receive. Idempotent on sha256. Depends on T-1164a.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
 tags: [T-1164, T-1155, bus, artifact]
-components: []
+components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/artifact.rs]
 related_tasks: [T-1164, T-1164a, T-1155]
 created: 2026-04-25T11:43:51Z
-last_update: 2026-04-25T12:13:29Z
-date_finished: null
+last_update: 2026-04-25T13:25:48Z
+date_finished: 2026-04-25T13:25:48Z
 ---
 
 # T-1250: T-1164c Receiver migration: file.receive → channel.subscribe artifact
@@ -66,3 +66,6 @@ grep -q "download_artifact_via_client" /opt/termlink/crates/termlink-session/src
 ### 2026-04-25T12:09:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T13:25:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
