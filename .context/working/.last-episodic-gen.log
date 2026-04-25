@@ -1,15 +1,15 @@
-=== episodic-gen invocation: 2026-04-25T20:24:01Z ===
-task_id: T-1270
+=== episodic-gen invocation: 2026-04-25T20:29:29Z ===
+task_id: T-1271
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1270.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1271.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: Mirror PL-075 fix to upstream framework + bump hooks version marker to force consumer redeploy
+  Task: Cleanup stale settings.json.bak.T-1211 + add .bak.* to .gitignore (prevent future accidental commits)
   Duration: 0 days (2 min)
   Updates: 2
   Commits: 0
@@ -17,5 +17,5 @@ Episodic generated: /opt/termlink/.context/episodic/T-1270.yaml
   Outcomes: 3 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1270-mirror-pl-075-fix-to-upstream-framework-.md
+Source: /opt/termlink/.tasks/completed/T-1271-cleanup-stale-settingsjsonbakt-1211--add.md
 --- exit code: 0 ---

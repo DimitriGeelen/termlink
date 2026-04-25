@@ -20,8 +20,9 @@ Thumbs.db
 # Vendored TermLink binary (machine-specific, per-project isolation)
 .termlink/bin/
 
-# Claude Code backup
+# Claude Code backup (T-1271: include .bak.T-XXX suffix variants)
 .claude/settings.json.bak
+.claude/settings.json.bak.*
 
 # Playwright MCP dev artifacts (L-028)
 .playwright-mcp/
