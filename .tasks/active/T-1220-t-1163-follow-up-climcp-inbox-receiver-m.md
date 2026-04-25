@@ -55,6 +55,41 @@ capabilities-gated fallback to legacy for peers that predate `channel.*`.
 test -f docs/reports/T-1220-inception.md
 grep -q "Go.*No-Go" docs/reports/T-1220-inception.md
 
+## Recommendation
+
+**Recommendation:** CONDITIONAL GO — pending human Q1-Q5 answers.
+
+**Rationale:** Inception artifact `docs/reports/T-1220-inception.md` (192 lines)
+explored Q1-Q5 (cursor persistence, capabilities probe timing, fallback
+semantics, `inbox.clear` semantics, mixed-mode rollout) and recommends a
+4-wedge split (T-1220a helper → T-1220b CLI local / T-1220c CLI remote /
+T-1220d MCP, parallelizable after a). GO is contingent on the human
+ratifying answers to Q1-Q5; otherwise defer until T-1164 ships (its
+file.send/receive migration will reveal whether these patterns generalize).
+NO-GO if the T-1166 retirement date drops below 2 weeks — wait for legacy
+to go away and avoid transition-mode complexity entirely.
+
+**Evidence:**
+- Q1 (cursor): in-memory cursor (D) sized for current usage; persistence
+  (A/B/C) deferred until a real "missed during downtime" complaint surfaces.
+- Q2 (probe timing): per-session-per-target cache (B) with explicit
+  invalidate on hub-version change (D); piggybacks on T-1215's
+  `HubCapabilitiesCache`.
+- Q3 (fallback): warn-once per `(caller, peer, method)` (B) + flag peer as
+  legacy-only in cache (C); silent fallback masks rotation drift.
+- Q4 (clear semantics): channel-backed clear advances local cursor only
+  (no hub mutation); doc-string update warning that legacy-style spool
+  deletion does not occur. Hub-side `channel.trim` RPC is a future task.
+- Q5 (mixed-mode): dual-read during transition (channel + legacy `inbox.list`,
+  merged + deduped). Drop legacy read leg when T-1166 retires.
+
+**Wedge split:**
+1. T-1220a — `termlink-session` helper `inbox_channel::list_with_fallback`
+   (~100 LOC + tests). Blocks 2/3/4.
+2. T-1220b — CLI local (`cmd_inbox_{list,status,clear}`, 3 sites).
+3. T-1220c — CLI remote (`cmd_remote_inbox_*` + fleet-doctor, 4 sites).
+4. T-1220d — MCP (`termlink_inbox_*` + remote, 6 sites).
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -66,6 +101,45 @@ grep -q "Go.*No-Go" docs/reports/T-1220-inception.md
      - **Rejected:** [alternatives and why not]
 -->
 
+## Decision
+
+**Decision**: GO
+
+**Rationale**: Recommendation: CONDITIONAL GO — pending human Q1-Q5 answers.
+
+Rationale: Inception artifact `docs/reports/T-1220-inception.md` (192 lines)
+explored Q1-Q5 (cursor persistence, capabilities probe timing, fallback
+semantics, `inbox.clear` semantics, mixed-mode rollout) and recommends a
+4-wedge split (T-1220a helper → T-1220b CLI local / T-1220c CLI remote /
+T-1220d MCP, parallelizable after a). GO is contingent on the human
+ratifying answers to Q1-Q5; otherwise defer until T-1164 ships (its
+file.send/receive migration will reveal whether these patterns generalize).
+NO-GO if the T-1166 retirement date drops below 2 weeks — wait for legacy
+to go away and avoid transition-mode complexity entirely.
+
+Evidence:
+- Q1 (cursor): in-memory cursor (D) sized for current usage; persistence
+  (A/B/C) deferred until a real "missed during downtime" complaint surfaces.
+- Q2 (probe timing): per-session-per-target cache (B) with explicit
+  invalidate on hub-version change (D); piggybacks on T-1215's
+  `HubCapabilitiesCache`.
+- Q3 (fallback): warn-once per `(caller, peer, method)` (B) + flag peer as
+  legacy-only in cache (C); silent fallback masks rotation drift.
+- Q4 (clear semantics): channel-backed clear advances local cursor only
+  (no hub mutation); doc-string update warning that legacy-style spool
+  deletion does not occur. Hub-side `channel.trim` RPC is a future task.
+- Q5 (mixed-mode): dual-read during transition (channel + legacy `inbox.list`,
+  merged + deduped). Drop legacy read leg when T-1166 retires.
+
+Wedge split:
+1. T-1220a — `termlink-session` helper `inbox_channel::list_with_fallback`
+   (~100 LOC + tests). Blocks 2/3/4.
+2. T-1220b — CLI local (`cmd_inbox_{list,status,clear}`, 3 sites).
+3. T-1220c — CLI remote (`cmd_remote_inbox_` + fleet-doctor, 4 sites).
+4. T-1220d — MCP (`termlink_inbox_` + remote, 6 sites).
+
+**Date**: 2026-04-25T06:59:13Z
+
 ## Updates
 
 ### 2026-04-24T15:10:01Z — task-created [task-create-agent]
@@ -76,3 +150,39 @@ grep -q "Go.*No-Go" docs/reports/T-1220-inception.md
 ### 2026-04-24T15:36:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T06:59:13Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: CONDITIONAL GO — pending human Q1-Q5 answers.
+
+Rationale: Inception artifact `docs/reports/T-1220-inception.md` (192 lines)
+explored Q1-Q5 (cursor persistence, capabilities probe timing, fallback
+semantics, `inbox.clear` semantics, mixed-mode rollout) and recommends a
+4-wedge split (T-1220a helper → T-1220b CLI local / T-1220c CLI remote /
+T-1220d MCP, parallelizable after a). GO is contingent on the human
+ratifying answers to Q1-Q5; otherwise defer until T-1164 ships (its
+file.send/receive migration will reveal whether these patterns generalize).
+NO-GO if the T-1166 retirement date drops below 2 weeks — wait for legacy
+to go away and avoid transition-mode complexity entirely.
+
+Evidence:
+- Q1 (cursor): in-memory cursor (D) sized for current usage; persistence
+  (A/B/C) deferred until a real "missed during downtime" complaint surfaces.
+- Q2 (probe timing): per-session-per-target cache (B) with explicit
+  invalidate on hub-version change (D); piggybacks on T-1215's
+  `HubCapabilitiesCache`.
+- Q3 (fallback): warn-once per `(caller, peer, method)` (B) + flag peer as
+  legacy-only in cache (C); silent fallback masks rotation drift.
+- Q4 (clear semantics): channel-backed clear advances local cursor only
+  (no hub mutation); doc-string update warning that legacy-style spool
+  deletion does not occur. Hub-side `channel.trim` RPC is a future task.
+- Q5 (mixed-mode): dual-read during transition (channel + legacy `inbox.list`,
+  merged + deduped). Drop legacy read leg when T-1166 retires.
+
+Wedge split:
+1. T-1220a — `termlink-session` helper `inbox_channel::list_with_fallback`
+   (~100 LOC + tests). Blocks 2/3/4.
+2. T-1220b — CLI local (`cmd_inbox_{list,status,clear}`, 3 sites).
+3. T-1220c — CLI remote (`cmd_remote_inbox_` + fleet-doctor, 4 sites).
+4. T-1220d — MCP (`termlink_inbox_` + remote, 6 sites).
