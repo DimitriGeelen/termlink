@@ -4,16 +4,16 @@ name: "T-1164b Sender migration: file.send → channel.post artifact"
 description: >
   Migrate all senders to artifact-store + channel.post. Implements termlink-session::artifact send helper used by CLI cmd_file_send, remote.rs (6 call sites), and MCP termlink_file_send. Depends on T-1164a.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
 horizon: now
 tags: [T-1164, T-1155, bus, artifact]
-components: []
+components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/artifact.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-1164, T-1164a, T-1155]
 created: 2026-04-25T11:43:48Z
-last_update: 2026-04-25T12:04:58Z
-date_finished: null
+last_update: 2026-04-25T12:08:53Z
+date_finished: 2026-04-25T12:08:53Z
 ---
 
 # T-1249: T-1164b Sender migration: file.send → channel.post artifact
@@ -67,3 +67,6 @@ grep -q "send_artifact" /opt/termlink/crates/termlink-cli/src/commands/file.rs
 ### 2026-04-25T11:55:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T12:08:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

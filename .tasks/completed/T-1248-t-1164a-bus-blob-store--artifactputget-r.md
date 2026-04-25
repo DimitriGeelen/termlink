@@ -4,16 +4,16 @@ name: "T-1164a Bus blob store + artifact.put/get RPC"
 description: >
   Foundational blob store primitive for T-1164. Implements <bus-path>/artifacts/<sha256> content-addressed storage + artifact.put / artifact.get RPC methods. Unblocks T-1164b (sender) and T-1164c (receiver).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1164, T-1155, bus, artifact]
-components: []
+components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: [T-1164, T-1155, T-1158]
 created: 2026-04-25T11:43:45Z
-last_update: 2026-04-25T11:45:13Z
-date_finished: null
+last_update: 2026-04-25T11:53:33Z
+date_finished: 2026-04-25T11:53:33Z
 ---
 
 # T-1248: T-1164a Bus blob store + artifact.put/get RPC
@@ -73,3 +73,6 @@ grep -q "ARTIFACT_GET" /opt/termlink/crates/termlink-protocol/src/control.rs
 ### 2026-04-25T11:45:13Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T11:53:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
