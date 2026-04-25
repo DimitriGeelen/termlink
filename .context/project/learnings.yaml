@@ -731,7 +731,14 @@ learnings:
   context: Added via context agent
   application: TBD
 - id: PL-070
-  learning: "Adding new hx-post forms in Watchtower? They MUST include <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"> immediately after the opening <form>. The /api/* blanket CSRF exemption was removed in T-1343/G-048 — every state-changing POST now requires the token, or 403. Match inception_detail.html:349 pattern. The 403 surfaces as 'POST /endpoint HTTP/1.1 403' in /tmp/wt.log; the page shows raw 403 HTML body with leaked theme JavaScript."
+  learning: |
+    Adding new hx-post forms in Watchtower? They MUST include
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    immediately after the opening <form>. The /api/* blanket CSRF exemption
+    was removed in T-1343/G-048 — every state-changing POST now requires
+    the token, or 403. Match inception_detail.html:349 pattern. The 403
+    surfaces as 'POST /endpoint HTTP/1.1 403' in /tmp/wt.log; the page
+    shows raw 403 HTML body with leaked theme JavaScript.
   source: P-001
   task: T-1254
   date: 2026-04-25
