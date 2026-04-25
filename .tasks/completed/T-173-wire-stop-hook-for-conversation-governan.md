@@ -4,16 +4,16 @@ name: "Wire Stop hook for conversation governance (G-005)"
 description: >
   Claude Code Stop hook fires after every response with last_assistant_message. Wire it into framework to enforce N-exchange guard and close G-005 (pure conversation sessions bypass enforcement).
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [framework, hooks, governance]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:06Z
-last_update: 2026-04-25T18:55:39Z
-date_finished: null
+last_update: 2026-04-25T21:54:33Z
+date_finished: 2026-04-25T21:54:33Z
 ---
 
 # T-173: Wire Stop hook for conversation governance (G-005)
@@ -76,3 +76,9 @@ ticket can then be closed as "shipped via T-1211" without further work.
 ### 2026-04-25T18:55:39Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T21:54:33Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-04-25T21:54:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

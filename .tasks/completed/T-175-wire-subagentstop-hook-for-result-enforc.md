@@ -4,16 +4,16 @@ name: "Wire SubagentStop hook for result enforcement"
 description: >
   Replace advisory check-dispatch.sh PostToolUse guard with SubagentStop hook. SubagentStop provides agent_transcript_path and last_assistant_message natively — better enforcement point for fw bus result management.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [framework, hooks, dispatch]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:19Z
-last_update: 2026-04-25T18:55:40Z
-date_finished: null
+last_update: 2026-04-25T21:54:36Z
+date_finished: 2026-04-25T21:54:36Z
 ---
 
 # T-175: Wire SubagentStop hook for result enforcement
@@ -71,3 +71,9 @@ can then be closed as "shipped via T-1213" without further work.
 ### 2026-04-25T18:55:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T21:54:36Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+### 2026-04-25T21:54:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
