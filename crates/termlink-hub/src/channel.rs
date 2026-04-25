@@ -424,7 +424,11 @@ pub(crate) async fn handle_channel_list_with(
                 .ok()
                 .flatten()
                 .unwrap_or(Retention::Forever);
-            json!({"name": name, "retention": retention_to_json(ret)})
+            // T-1233 / T-1229a: count enables single-round-trip aggregation
+            // (e.g. inbox.status replacement). Per-topic count error degrades
+            // to 0 rather than failing the whole list.
+            let count = bus.topic_record_count(&name).unwrap_or(0);
+            json!({"name": name, "retention": retention_to_json(ret), "count": count})
         })
         .collect();
     Response::success(id, json!({"topics": filtered})).into()
@@ -559,6 +563,35 @@ mod tests {
         let topics = v["topics"].as_array().unwrap();
         assert_eq!(topics.len(), 1);
         assert_eq!(topics[0]["name"], "a:x");
+    }
+
+    #[tokio::test]
+    async fn list_includes_count_per_topic() {
+        // T-1233 / T-1229a: channel.list returns count alongside name + retention
+        // so callers can replace inbox.status (server-side aggregation, single round-trip).
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:alice", Retention::Forever).unwrap();
+        bus.create_topic("inbox:bob", Retention::Forever).unwrap();
+        bus.create_topic("event:noise", Retention::Forever).unwrap();
+        let key = signing_key();
+        for n in 0..3u32 {
+            let p = post_params(&key, "inbox:alice", "note", &n.to_le_bytes(), 1_000 + n as i64);
+            let _ = handle_channel_post_with(&bus, json!(n), &p).await;
+        }
+        let resp = handle_channel_list_with(
+            &bus,
+            json!(7),
+            &json!({"prefix": "inbox:"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let topics = v["topics"].as_array().unwrap();
+        let alice = topics.iter().find(|t| t["name"] == "inbox:alice").unwrap();
+        let bob = topics.iter().find(|t| t["name"] == "inbox:bob").unwrap();
+        assert_eq!(alice["count"], 3, "alice should have 3 posted records");
+        assert_eq!(bob["count"], 0, "bob should have 0 records");
+        // Prefix filter excludes event:noise
+        assert!(topics.iter().all(|t| t["name"] != "event:noise"));
     }
 
     #[tokio::test]

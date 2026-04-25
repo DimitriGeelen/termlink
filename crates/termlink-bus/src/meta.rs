@@ -116,6 +116,21 @@ impl Meta {
         Ok(current as u64)
     }
 
+    /// Count records currently indexed for `topic`. Records pruned by
+    /// `sweep_records` are not counted even if their bytes remain in the
+    /// log file. Unknown topic returns `Ok(0)` rather than an error so
+    /// callers can aggregate over a prefix without per-topic existence
+    /// checks (T-1233 / T-1229a).
+    pub(crate) fn count_records(&self, topic: &str) -> Result<u64> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM records WHERE topic = ?1",
+            params![topic],
+            |r| r.get(0),
+        )?;
+        Ok(count as u64)
+    }
+
     /// Fetch record locators for `topic` with `offset >= cursor`, ordered.
     pub(crate) fn records_from(&self, topic: &str, cursor: u64) -> Result<Vec<RecordLoc>> {
         let conn = self.conn.lock().expect("meta mutex poisoned");
