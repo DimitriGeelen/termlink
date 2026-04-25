@@ -4,16 +4,16 @@ name: "T-1230d migrate cmd_inbox_clear to clear_with_fallback"
 description: >
   T-1230d migrate cmd_inbox_clear to clear_with_fallback
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-25T10:40:05Z
-last_update: 2026-04-25T10:40:52Z
-date_finished: null
+last_update: 2026-04-25T10:47:10Z
+date_finished: 2026-04-25T10:47:10Z
 ---
 
 # T-1242: T-1230d migrate cmd_inbox_clear to clear_with_fallback
@@ -67,3 +67,6 @@ cargo build -p termlink 2>&1 | tail -3 | grep -q "Finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1242-t-1230d-migrate-cmdinboxclear-to-clearwi.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:47:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

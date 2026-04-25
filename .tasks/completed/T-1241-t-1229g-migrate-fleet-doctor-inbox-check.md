@@ -4,16 +4,16 @@ name: "T-1229g migrate fleet-doctor inbox check + offline-target visibility regr
 description: >
   T-1229g migrate fleet-doctor inbox check + offline-target visibility regression test
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
 created: 2026-04-25T10:38:33Z
-last_update: 2026-04-25T10:39:49Z
-date_finished: null
+last_update: 2026-04-25T10:47:08Z
+date_finished: 2026-04-25T10:47:08Z
 ---
 
 # T-1241: T-1229g migrate fleet-doctor inbox check + offline-target visibility regression test
@@ -76,3 +76,6 @@ cargo test -p termlink-session --lib inbox_channel:: 2>&1 | tail -3 | grep -q "t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1241-t-1229g-migrate-fleet-doctor-inbox-check.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:47:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -716,3 +716,17 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-068
+  learning: "When an inception research artifact at docs/reports/T-XXX-inception.md contains a Recommendation section, the human's Watchtower decide form should pre-populate the rationale textarea with that text rather than starting empty. Empty-default is anti-incentive: punishes thorough artifacts because the human must re-paste analysis to record it as the decision rationale. Pattern: agent writes artifact + Recommendation, framework form reads artifact, human reviews and clicks GO. Anti-pattern: agent writes artifact, human re-types rationale from scratch into empty form, audit trail loses the actual analysis. Tracked as G-046."
+  source: P-001
+  task: T-1230
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-069
+  learning: "Channel-aware migration helpers (T-1235 status_with_fallback, T-1236 clear_with_fallback) silently fall back to legacy when running hub binary is older than client. Verified in production: ring20-dashboard fell back to inbox.status at 2026-04-25T10:45Z with no errors. To exercise channel.* path: restart hub with new binary (Tier-0 — needs operator approval since other sessions depend on it)."
+  source: P-001
+  task: T-1241
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD

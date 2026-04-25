@@ -1,35 +1,34 @@
 ---
-id: T-1240
-name: "T-1229f migrate termlink_remote_inbox_status MCP to status_with_fallback_with_client"
+id: T-1243
+name: "T-1230e migrate termlink_inbox_clear MCP to clear_with_fallback"
 description: >
-  T-1229f migrate termlink_remote_inbox_status MCP to status_with_fallback_with_client
+  T-1230e migrate termlink_inbox_clear MCP to clear_with_fallback
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
-created: 2026-04-25T10:37:27Z
-last_update: 2026-04-25T10:38:18Z
-date_finished: null
+created: 2026-04-25T10:40:59Z
+last_update: 2026-04-25T10:47:11Z
+date_finished: 2026-04-25T10:47:11Z
 ---
 
-# T-1240: T-1229f migrate termlink_remote_inbox_status MCP to status_with_fallback_with_client
+# T-1243: T-1230e migrate termlink_inbox_clear MCP to clear_with_fallback
 
 ## Context
 
-T-1229f per inception (`docs/reports/T-1229-inception.md`): migrate
-`termlink_remote_inbox_status` MCP tool (`crates/termlink-mcp/src/tools.rs:4685`)
-from legacy `inbox.status` RPC to `status_with_fallback_with_client` helper
-(T-1235). Sibling of T-1239 (CLI remote).
+T-1230e per inception: migrate `termlink_inbox_clear` MCP tool
+(`crates/termlink-mcp/src/tools.rs:4537`) to `clear_with_fallback` (T-1236).
+Sibling of T-1242 (CLI local).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] MCP tool calls `status_with_fallback_with_client(&mut rpc_client, &p.hub, cache, &mut ctx)`
-- [x] JSON `{ok, hub, result}` envelope preserved (typed InboxStatus serializes to same shape)
+- [x] MCP tool calls `clear_with_fallback(&addr, scope, cache, &mut ctx)`
+- [x] JSON output uses serde Serialize on InboxClearResult
 - [x] cargo build -p termlink-mcp clean
 
 ### Human
@@ -63,7 +62,10 @@ cargo build -p termlink-mcp 2>&1 | tail -3 | grep -q "Finished"
 
 ## Updates
 
-### 2026-04-25T10:37:27Z — task-created [task-create-agent]
+### 2026-04-25T10:40:59Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1240-t-1229f-migrate-termlinkremoteinboxstatu.md
+- **Output:** /opt/termlink/.tasks/active/T-1243-t-1230e-migrate-termlinkinboxclear-mcp-t.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:47:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
