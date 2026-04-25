@@ -800,29 +800,25 @@ pub(crate) async fn cmd_inbox_clear(target: Option<&str>, all: bool, json_output
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
 
-    let params = if all {
-        json!({"all": true})
+    let scope = if all {
+        termlink_session::inbox_channel::ClearScope::All
     } else {
-        json!({"target": target.unwrap()})
+        termlink_session::inbox_channel::ClearScope::Target(target.unwrap().to_string())
     };
 
-    let resp = termlink_session::client::rpc_call(&hub_socket, "inbox.clear", params)
+    let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
+    let cache = termlink_session::hub_capabilities::shared_cache();
+    let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+    let result = termlink_session::inbox_channel::clear_with_fallback(&addr, scope, cache, &mut ctx)
         .await
         .context("Failed to clear inbox via hub")?;
 
-    let result = termlink_session::client::unwrap_result(resp)
-        .map_err(|e| anyhow::anyhow!("Hub returned error for inbox.clear: {e}"))?;
-
     if json_output {
         println!("{}", serde_json::to_string_pretty(&result)?);
+    } else if result.cleared == 0 {
+        println!("No transfers to clear for '{}'", result.target);
     } else {
-        let cleared = result["cleared"].as_u64().unwrap_or(0);
-        let target_name = result["target"].as_str().unwrap_or("?");
-        if cleared == 0 {
-            println!("No transfers to clear for '{target_name}'");
-        } else {
-            println!("Cleared {cleared} transfer(s) for '{target_name}'");
-        }
+        println!("Cleared {} transfer(s) for '{}'", result.cleared, result.target);
     }
     Ok(())
 }
