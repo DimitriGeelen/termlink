@@ -746,3 +746,10 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-071
+  learning: "T-1217 cross-project mirror end-to-end test from /opt/termlink at 2026-04-25T162718Z"
+  source: P-001
+  task: T-1217
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
