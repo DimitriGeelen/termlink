@@ -1,0 +1,935 @@
+generated: '2026-04-25T05:31:56Z'
+threshold: 0.35
+sources:
+  learnings: /opt/termlink/.context/project/learnings.yaml
+  patterns: /opt/termlink/.context/project/patterns.yaml
+summary:
+  total_learnings: 96
+  total_patterns: 12
+  duplicate_clusters_learnings: 3
+  duplicate_entries_learnings: 11
+  duplicate_clusters_patterns: 0
+  duplicate_entries_patterns: 0
+  stale_entries: 89
+duplicate_clusters:
+  learnings:
+  - - id: L-027
+      text: Consumer project hooks must pass PROJECT_ROOT explicitly when invoking framework scripts — framework scripts fall
+        back to git rev-parse which resolves to the framework repo, not the consumer project.
+      similarity: 1.0
+      is_richest: true
+      token_count: 27
+    - id: L-030
+      text: 'Pre-push hooks that invoke audit in consumer projects need isolation: the hook must set PROJECT_ROOT to the consumer
+        repo and source paths.sh from the correct location, not fall back to framework defaults.'
+      similarity: 0.35
+      is_richest: false
+      token_count: 27
+  - - id: PL-034
+      text: Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-19T16:03:47Z
+        hub_fingerprint=sha256:7f927cc0c6ee272caa06033c8964a952616da736b92b90f1fd7e1b5a4420d10e. T-1051 Option D auto-registration
+        — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted
+        on.
+      similarity: 1.0
+      is_richest: true
+      token_count: 40
+    - id: PL-045
+      text: Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-22T05:00:44Z
+        hub_fingerprint=sha256:7f927cc0c6ee272caa06033c8964a952616da736b92b90f1fd7e1b5a4420d10e. T-1051 Option D auto-registration
+        — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted
+        on.
+      similarity: 0.905
+      is_richest: false
+      token_count: 40
+    - id: PL-047
+      text: Fleet doctor observed tofu-violation on hub 'ring20-management' (192.168.10.102:9100). date_observed=2026-04-22T05:41:05Z
+        hub_fingerprint=sha256:bd00d548d81e833316e8b487e7989603729a3fd1c9344687e73c74be3de45496. T-1051 Option D auto-registration
+        — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted
+        on.
+      similarity: 0.702
+      is_richest: false
+      token_count: 40
+    - id: PL-050
+      text: Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-23T13:42:02Z
+        hub_fingerprint=sha256:7f927cc0c6ee272caa06033c8964a952616da736b92b90f1fd7e1b5a4420d10e. T-1051 Option D auto-registration
+        — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted
+        on.
+      similarity: 0.905
+      is_richest: false
+      token_count: 40
+    - id: PL-024
+      text: Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-16T05:21:53Z
+        hub_fingerprint=sha256:9d14057d957d954f1095325fc3669fa58ffea6c28653909279b5b0701358f3e8. T-1051 Option D auto-registration
+        — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted
+        on.
+      similarity: 0.86
+      is_richest: false
+      token_count: 40
+    - id: PL-025
+      text: Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-16T21:16:08Z
+        hub_fingerprint=sha256:f75cd394003e3ae382bdc80b826d0547c896466800fcd6c8dd7ef5eed5721c76. T-1051 Option D auto-registration
+        — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted
+        on.
+      similarity: 0.86
+      is_richest: false
+      token_count: 40
+    - id: PL-019
+      text: Fleet doctor observed auth-mismatch on hub 'probe-105' (192.168.10.105:9100). date_observed=2026-04-15T17:30:52Z
+        hub_fingerprint=sha256:d4f764eff58787d822c5c554bd2921daa7a20ca6f683716051094dc56010efc1. T-1051 Option D auto-registration
+        — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted
+        on.
+      similarity: 0.756
+      is_richest: false
+      token_count: 39
+  - - id: PL-055
+      text: T-1217 cross-project mirror validation — triggered from /opt/termlink, expect email-archive to receive
+      similarity: 1.0
+      is_richest: true
+      token_count: 16
+    - id: PL-056
+      text: T-1217 cross-project mirror validation 2 — hooks now installed both sides
+      similarity: 0.45
+      is_richest: false
+      token_count: 13
+  patterns: []
+stale_entries:
+- id: L-001
+  text: Component fabric requires explicit initialization per project — no structural gate catches empty fabric. When starting
+    a
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (48d) with no promotion candidates
+- id: L-002
+  text: Always run fw fix-learned after completing bugfix tasks — captures the root cause and mitigation as a pattern for
+    future
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (46d) with no promotion candidates
+- id: L-003
+  text: 'Watcher scripts must capture subprocess exit codes explicitly — the || pattern swallows non-zero exits and causes
+    false '
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (46d) with no promotion candidates
+- id: L-004
+  text: Shell commands accepting user input must escape arguments before passing to sh -c — use single-quote wrapping with
+    inter
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (46d) with no promotion candidates
+- id: L-005
+  text: CLI field name must match RPC response field exactly — bytes_written vs bytes_len mismatch caused silent display bug
+    (al
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (38d) with no promotion candidates
+- id: L-006
+  text: Hub tests that set TERMLINK_RUNTIME_DIR must use ENV_LOCK and isolated temp dirs — without isolation, TLS cert from
+    anot
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (38d) with no promotion candidates
+- id: L-007
+  text: Newer Rust editions require unsafe block around std::env::set_var — test code that sets env vars needs explicit unsafe
+    w
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (38d) with no promotion candidates
+- id: L-008
+  text: ink TUI (React terminal) treats multi-byte writes as paste — Enter (0x0D) must be sent as separate pty.write() with
+    dela
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (38d) with no promotion candidates
+- id: L-009
+  text: Framework task gate check-active-task.sh blocks worker agents in mesh dispatch — workers need bypass or separate task
+    as
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (38d) with no promotion candidates
+- id: L-010
+  text: Cross-machine prompt injection via TermLink TOFU is the preferred path for consumer-to-framework upstream reports
+    — fast
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (38d) with no promotion candidates
+- id: L-011
+  text: 'CLI parameter defaults: None (omitted) and zero-value are semantically different. since=0 means ''after event 0''
+    not ''fro'
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (37d) with no promotion candidates
+- id: L-012
+  text: Framework hook paths must reference final installation directory (symlinks), not version-specific paths. Test hook
+    paths
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (37d) with no promotion candidates
+- id: L-013
+  text: Add state transition guards to prevent invalid state changes. Always implement Drop for resource cleanup. Document
+    known
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (37d) with no promotion candidates
+- id: L-014
+  text: Avoid hardcoding context window thresholds. Use configurable environment variables (CONTEXT_WINDOW, THRESHOLD_LEVELS)
+    so
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (37d) with no promotion candidates
+- id: L-015
+  text: 'PTY tests under parallel execution: always implement Drop for PTY devices and child processes. Reduce timeouts to
+    free r'
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (37d) with no promotion candidates
+- id: L-016
+  text: Delegate complex platform-specific logic (osascript, tmux, background PTY) to a single source of truth (termlink spawn).
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (37d) with no promotion candidates
+- id: L-017
+  text: When renaming CLI tools or binaries, grep all config files, hooks, and CI workflows for old name references — stale
+    refe
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-018
+  text: Event poll cursors must start as None (meaning 'give me everything'), not 0. Passing since=0 to an exclusive-lower-bound
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-019
+  text: Read-list commands must not have destructive side effects. termlink list auto-cleaned sessions it considered stale,
+    maki
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-020
+  text: Event-driven receivers must snapshot next_seq on startup and poll only from that point — polling from seq 0 replays
+    stal
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-021
+  text: 'Run clippy in CI with --all-targets to catch await_holding_lock warnings in test code — holding std::sync::Mutex
+    guards '
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-022
+  text: 'Scrollback buffer delta calculations must handle wraparound: when delta >= buffer length, send the full buffer instead
+    o'
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-023
+  text: File-based registries (JSON/YAML) under concurrent access need atomic write (write-to-temp + rename) and advisory
+    file l
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-024
+  text: CI workflow package names must match Cargo.toml [package] name exactly — cargo -p uses the package name, not the directo
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-025
+  text: 'Clap positional arguments: optional positional args must come AFTER required ones. An Option<String> before a required
+    S'
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-026
+  text: When the same bug pattern appears in multiple subcommands (T-284 and T-286 had identical clap positional arg bugs),
+    grep
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-027
+  text: Consumer project hooks must pass PROJECT_ROOT explicitly when invoking framework scripts — framework scripts fall
+    back t
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-028
+  text: 'Ephemeral session-state files (focus, budget-status, counters) must be gitignored from the start — tracking them
+    causes '
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-029
+  text: Cargo.toml repository URLs, README references, and CI config must all reference the same canonical repo URL — mismatches
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-030
+  text: 'Pre-push hooks that invoke audit in consumer projects need isolation: the hook must set PROJECT_ROOT to the consumer
+    rep'
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-031
+  text: When adding new subsystems or capabilities to a fabric registry, update all summary metadata (counts, descriptions)
+    in t
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-032
+  text: Deprecated API imports in test code emit warnings that pollute CI output and can mask real issues. Pin to non-deprecated
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-033
+  text: All clippy warnings across workspace should be fixed in bulk periodically and enforced via CI deny — letting warnings
+    ac
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-034
+  text: 'After fixing remaining clippy warnings, add clippy::all deny attribute or CI --deny warnings flag to prevent regression '
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: L-035
+  text: Flaky tests that pass locally but fail in CI often need ENV_LOCK guards — tests that mutate shared state (env vars,
+    glob
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (30d) with no promotion candidates
+- id: PL-001
+  text: 'Rust println! to piped stdout is block-buffered. std::process::exit(1) does not flush Rust buffers. Always flush
+    stdout '
+  reasons:
+  - application field is TBD or empty
+  - older than 14 days (27d) with no promotion candidates
+- id: PL-002
+  text: Pre-flight liveness checks must verify the service responds, not just that the socket file exists. Stale Unix socket
+    fil
+  reasons:
+  - application field is TBD or empty
+- id: PL-003
+  text: 'Subagent dispatch outputs must be verified against scope — a backfill agent told to ''only edit ## Recommendation''
+    change'
+  reasons:
+  - application field is TBD or empty
+- id: PL-004
+  text: When generating files for framework consumption (episodics, audits, reports), check the existing format convention
+    first
+  reasons:
+  - application field is TBD or empty
+- id: PL-005
+  text: Concerns register (gaps.yaml) should be reviewed for closure when related tasks complete — G-001/G-002/G-003 were
+    all re
+  reasons:
+  - application field is TBD or empty
+- id: PL-006
+  text: Dog-food Watchtower features after building them — the approvals page had 3 compound bugs (no recommendation display,
+    un
+  reasons:
+  - application field is TBD or empty
+- id: PL-007
+  text: Never output bare terminal commands for the user — always use fw task review for inception decisions, termlink inject
+    fo
+  reasons:
+  - application field is TBD or empty
+- id: PL-008
+  text: Hook registration needs a CLI command (fw hook-enable), not manual JSON editing. B-005 blocks agents from settings.json,
+  reasons:
+  - application field is TBD or empty
+- id: PL-009
+  text: 30-second pickup processor cycle is sustainable — zero errors, zero resource concerns in production
+  reasons:
+  - application field is TBD or empty
+- id: PL-010
+  text: 'TermLink inject is for interactive prompt injection, push is for async file delivery — different channels for different '
+  reasons:
+  - application field is TBD or empty
+- id: PL-011
+  text: termlink send-file ok:true means hub accepted, NOT delivered — verify receipt independently for critical deliveries
+  reasons:
+  - application field is TBD or empty
+- id: PL-012
+  text: Pickup envelopes are a messaging channel, termlink sessions are an execution channel — agents must know the distinction
+  reasons:
+  - application field is TBD or empty
+- id: PL-013
+  text: 'Cross-host agent access requires three things aligned: hub + named sessions + shared runtime dir'
+  reasons:
+  - application field is TBD or empty
+- id: PL-014
+  text: 'Two-pool architecture (persistent /var/lib + ephemeral /tmp) is a valid design for TermLink sessions — codify it,
+    don''t '
+  reasons:
+  - application field is TBD or empty
+- id: PL-015
+  text: Always use termlink for cross-machine operations, never default to SSH. The agent asked for SSH keys twice before
+    the us
+  reasons:
+  - application field is TBD or empty
+- id: PL-016
+  text: 'Cross-host binary deployment requires musl static build. .107 (Ubuntu) has glibc 2.39, .109/.121 (Debian 12) have
+    2.36. '
+  reasons:
+  - application field is TBD or empty
+- id: PL-017
+  text: Pinning a direct dep does not constrain its transitive deps. rmcp = "~1.3" blocked rmcp 1.4+ but rmcp 1.3.0's own
+    Cargo.
+  reasons:
+  - application field is TBD or empty
+- id: PL-018
+  text: fw doctor Doc-drift check reads the FRAMEWORK-level CLAUDE.md at /root/.agentic-framework/CLAUDE.md (the global install)
+  reasons:
+  - application field is TBD or empty
+- id: PL-020
+  text: 'ring20 container IPs change without DNS updating — plain-hostname ping gives stale or hypervisor-level results, not
+    the '
+  reasons:
+  - application field is TBD or empty
+- id: PL-021
+  text: 'When a remote hub rotates BOTH secret and TLS cert (container nuke / clean runtime_dir), reauth requires TWO steps:
+    (1) '
+  reasons:
+  - application field is TBD or empty
+- id: PL-022
+  text: fw upgrade clobbers local patches to .agentic-framework/* — re-apply after every upgrade from docs/patches/T-XXX-*.md
+    re
+  reasons:
+  - application field is TBD or empty
+- id: PL-023
+  text: 'Clap nested subcommands with parent-scoped options: use #[arg(global = true)] so options work at any position. Make
+    subc'
+  reasons:
+  - application field is TBD or empty
+- id: PL-026
+  text: Layered connectivity diagnostics (TCP → TLS → auth → RPC ping) distinguish failure classes that single-attempt checks
+    (l
+  reasons:
+  - application field is TBD or empty
+- id: PL-027
+  text: 'When a Watchtower blueprint shells out to the termlink CLI, sanitize user-controlled args (profile names: alnum/dash/und'
+  reasons:
+  - application field is TBD or empty
+- id: PL-028
+  text: When fw task create is invoked via a backgrounded bash command, the --name/--description args from a later invocation
+    ma
+  reasons:
+  - application field is TBD or empty
+- id: PL-029
+  text: Watchtower started without PROJECT_ROOT env defaults PROJECT_ROOT to FRAMEWORK_ROOT (.agentic-framework), making the
+    amb
+  reasons:
+  - application field is TBD or empty
+- id: PL-030
+  text: When restarting Watchtower from within a Claude Code session, must use 'setsid python3 -m web.app < /dev/null &' (not
+    ju
+  reasons:
+  - application field is TBD or empty
+- id: PL-031
+  text: Flask production mode caches compiled Jinja2 templates in memory. Editing a .html file is NOT picked up until the
+    Python
+  reasons:
+  - application field is TBD or empty
+- id: PL-032
+  text: Flask secret_key must be persistent across app restarts — auto-generating on every start invalidates all existing
+    browse
+  reasons:
+  - application field is TBD or empty
+- id: PL-033
+  text: 'Cross-project pickup loop works end-to-end: termlink pickup send creates P-NNN envelope in target .context/pickup/inbox/'
+  reasons:
+  - application field is TBD or empty
+- id: PL-035
+  text: When Human ACs include external-world deliverables (GitHub repo exists, DNS resolves, service deployed), verify the
+    exte
+  reasons:
+  - application field is TBD or empty
+- id: PL-036
+  text: fw handover --commit pushes directly to both origin (OneDev) and github, bypassing the broken OneDev buildspec mirror
+    (G
+  reasons:
+  - application field is TBD or empty
+- id: PL-037
+  text: Episodic YAML parser must tolerate format drift — 3 legacy formats (pure yaml, jekyll frontmatter, yaml+markdown body)
+    c
+  reasons:
+  - application field is TBD or empty
+- id: PL-038
+  text: Episodic generator fallback must strip YAML fold markers (>|) when pulling description text — sed extraction in shell
+    le
+  reasons:
+  - application field is TBD or empty
+- id: PL-039
+  text: Inception tasks whose 'pending' recommendations predate a newer related inception should be revisited, not ignored.
+    T-10
+  reasons:
+  - application field is TBD or empty
+- id: PL-040
+  text: 'Pickup envelope ''type:'' field is a closed vocabulary (bug-report | learning | feature-proposal | pattern). Semantically '
+  reasons:
+  - application field is TBD or empty
+- id: PL-041
+  text: 'Before sharing local hub secret with a peer, read from the live authoritative runtime file, not from the IP-keyed
+    cache '
+  reasons:
+  - application field is TBD or empty
+- id: PL-042
+  text: Project-boundary hook does fuzzy path-matching on argv; text containing slash-separated tokens that resemble absolute
+    pa
+  reasons:
+  - application field is TBD or empty
+- id: PL-043
+  text: When a rule is codified as a learning (e.g., PL-041 read-live-not-cache), also add a structural check that surfaces
+    viol
+  reasons:
+  - application field is TBD or empty
+- id: PL-044
+  text: Fabric subsystem-rules.yaml is the canonical way to classify component cards — extend the glob rules and re-register,
+    do
+  reasons:
+  - application field is TBD or empty
+- id: PL-046
+  text: anyhow::Error Display ("{}") prints only the top-level message — the .context() chain is dropped. Inner causes (TOFU
+    VIO
+  reasons:
+  - application field is TBD or empty
+- id: PL-048
+  text: 'R-033 sovereignty gate blocks agents from completing human-owned tasks — even mechanical status-flips from started-work '
+  reasons:
+  - application field is TBD or empty
+- id: PL-049
+  text: 'False-complete repair pattern: when a task closed with Agent AC [x] turns out to lie about a file artifact, the repair
+    i'
+  reasons:
+  - application field is TBD or empty
+- id: PL-051
+  text: 'Tier-2 fleet reauth --bootstrap-from ssh: requires a trusted SSH key from the caller host; without one, the autoheal
+    is '
+  reasons:
+  - application field is TBD or empty
+- id: PL-052
+  text: 'Cross-agent hub heal via termlink works: when a hub shows auth-mismatch after client-side cache drift (secret rotation
+    o'
+  reasons:
+  - application field is TBD or empty
+- id: PL-053
+  text: 'Hook-in-framework build pattern: (1) write handler to .agentic-framework/agents/context/<name>.sh + stub test under
+    test'
+  reasons:
+  - application field is TBD or empty
+- id: PL-054
+  text: 'Destructive-smoke-test hazard: scripts that invoke ''fw handover'' (or any auto-committing command) MUST default
+    to DRY_RU'
+  reasons:
+  - application field is TBD or empty
+- id: PL-055
+  text: T-1217 cross-project mirror validation — triggered from /opt/termlink, expect email-archive to receive
+  reasons:
+  - application field is TBD or empty
+- id: PL-056
+  text: T-1217 cross-project mirror validation 2 — hooks now installed both sides
+  reasons:
+  - application field is TBD or empty
+- id: PL-057
+  text: T-1219 end-to-end validation — subscriber now uses event poll, this entry should propagate to email-archive
+  reasons:
+  - application field is TBD or empty
+- id: PL-058
+  text: T-1219 post-fix live test — expect subscriber to receive this entry
+  reasons:
+  - application field is TBD or empty
+- id: PL-059
+  text: 'T-1217 cron install: end-to-end cross-project learnings mirror works with */15 cron on email-archive peer; subscriber
+    us'
+  reasons:
+  - application field is TBD or empty
+- id: PL-060
+  text: Framework hooks/scanners that iterate discovered work items with no cap can produce commit storms when bootstrap runs
+    wi
+  reasons:
+  - application field is TBD or empty
+- id: PL-061
+  text: 'Dispatcher pass-through hazard: agent dispatchers like ''fw hook <name>'' that exec child scripts do NOT sandbox
+    by defaul'
+  reasons:
+  - application field is TBD or empty
+recommendations:
+- action: merge
+  target: learnings
+  keep: L-027
+  remove:
+  - L-030
+  reason: 'Duplicate cluster: keep L-027 (richest), remove L-030'
+- action: merge
+  target: learnings
+  keep: PL-034
+  remove:
+  - PL-045
+  - PL-047
+  - PL-050
+  - PL-024
+  - PL-025
+  - PL-019
+  reason: 'Duplicate cluster: keep PL-034 (richest), remove PL-045, PL-047, PL-050, PL-024, PL-025, PL-019'
+- action: merge
+  target: learnings
+  keep: PL-055
+  remove:
+  - PL-056
+  reason: 'Duplicate cluster: keep PL-055 (richest), remove PL-056'
+- action: enrich_or_prune
+  target: learnings
+  id: L-001
+  reason: L-001 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-002
+  reason: L-002 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-003
+  reason: L-003 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-004
+  reason: L-004 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-005
+  reason: L-005 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-006
+  reason: L-006 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-007
+  reason: L-007 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-008
+  reason: L-008 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-009
+  reason: L-009 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-010
+  reason: L-010 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-011
+  reason: L-011 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-012
+  reason: L-012 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-013
+  reason: L-013 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-014
+  reason: L-014 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-015
+  reason: L-015 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-016
+  reason: L-016 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-017
+  reason: L-017 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-018
+  reason: L-018 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-019
+  reason: L-019 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-020
+  reason: L-020 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-021
+  reason: L-021 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-022
+  reason: L-022 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-023
+  reason: L-023 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-024
+  reason: L-024 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-025
+  reason: L-025 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-026
+  reason: L-026 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-027
+  reason: L-027 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-028
+  reason: L-028 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-029
+  reason: L-029 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-030
+  reason: L-030 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-031
+  reason: L-031 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-032
+  reason: L-032 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-033
+  reason: L-033 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-034
+  reason: L-034 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: L-035
+  reason: L-035 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-001
+  reason: PL-001 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-002
+  reason: PL-002 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-003
+  reason: PL-003 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-004
+  reason: PL-004 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-005
+  reason: PL-005 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-006
+  reason: PL-006 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-007
+  reason: PL-007 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-008
+  reason: PL-008 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-009
+  reason: PL-009 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-010
+  reason: PL-010 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-011
+  reason: PL-011 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-012
+  reason: PL-012 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-013
+  reason: PL-013 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-014
+  reason: PL-014 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-015
+  reason: PL-015 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-016
+  reason: PL-016 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-017
+  reason: PL-017 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-018
+  reason: PL-018 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-020
+  reason: PL-020 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-021
+  reason: PL-021 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-022
+  reason: PL-022 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-023
+  reason: PL-023 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-026
+  reason: PL-026 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-027
+  reason: PL-027 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-028
+  reason: PL-028 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-029
+  reason: PL-029 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-030
+  reason: PL-030 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-031
+  reason: PL-031 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-032
+  reason: PL-032 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-033
+  reason: PL-033 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-035
+  reason: PL-035 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-036
+  reason: PL-036 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-037
+  reason: PL-037 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-038
+  reason: PL-038 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-039
+  reason: PL-039 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-040
+  reason: PL-040 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-041
+  reason: PL-041 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-042
+  reason: PL-042 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-043
+  reason: PL-043 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-044
+  reason: PL-044 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-046
+  reason: PL-046 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-048
+  reason: PL-048 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-049
+  reason: PL-049 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-051
+  reason: PL-051 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-052
+  reason: PL-052 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-053
+  reason: PL-053 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-054
+  reason: PL-054 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-055
+  reason: PL-055 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-056
+  reason: PL-056 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-057
+  reason: PL-057 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-058
+  reason: PL-058 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-059
+  reason: PL-059 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-060
+  reason: PL-060 has TBD application — enrich with context or prune
+- action: enrich_or_prune
+  target: learnings
+  id: PL-061
+  reason: PL-061 has TBD application — enrich with context or prune
