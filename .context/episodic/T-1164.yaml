@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1164: T-1155/7 Migrate file.send/receive → channel.post {type: artifact}
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T13:57:03Z
+# ============================================================================
+
+task_id: T-1164
+task_name: "T-1155/7 Migrate file.send/receive → channel.post {type: artifact}"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:12:15Z
+completed: 2026-04-25T13:57:00Z
+duration_days: 5
+updates_count: 4
+first_commit: 2026-04-24T11:01:18+02:00
+last_commit: 2026-04-24T11:01:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Complete AC1 — call-site audit, documented architectural correction (events not RPC)
+
+# Key outcomes
+outcomes:
+  - "Audit all callers of `file.send`, `file.receive`, `file_send`, `termlink file send` — captured above. Key finding: protocol is event-based (file.init/chunk/complete), not RPC. No handler shim possible; migration is materially bigger than T-1163."
+  - "Artifact storage: large payloads (>64KB) stored as blobs under `<bus-path>/artifacts/<sha256>`; `artifact_ref` in channel message carries the sha256; small payloads inline in channel.post — **shipped T-1248** (sharded `<root>/<2-hex>/<sha256>` layout, `ARTIFACT_INLINE_THRESHOLD = 64KB`)"
+  - "`termlink file send <target> <path>` rewrites to: upload blob → `channel.post(topic=\"inbox:\"+target, msg_type=\"artifact\", payload=manifest, artifact_ref=sha256)` — no more manual chunking at CLI layer — **shipped T-1249** via `send_artifact_via_client` helper (`crates/termlink-session/src/artifact.rs:926,934`)"
+  - "`termlink file receive` subscribes to `inbox:<self>`, filters `msg_type==\"artifact\"`, downloads blob, writes to disk; idempotent on sha256 (dedup) — **shipped T-1250** (`recv_artifacts_via_client` + `download_artifact_via_client`; receiver skips redownload if dest sha matches)"
+  - "PL-011 resolved: `termlink file send` returns `{ok:true, offset:N, artifact_sha256: ...}` — caller can verify delivery by checking the channel log at `offset N` exists — **shipped T-1251** (`SendOutcome::Sent { sha256, channel_offset, total_bytes, path }`)"
+  - "Legacy `file.send` / `file.receive` router methods remain as shims; `#[deprecated(note = \"migrate to channel.post msg_type=artifact (T-1164)\")]` — **N/A: audit (line 28-29) found `file.*` are EVENT names not RPC methods, no Rust handler to annotate.** Shipped equivalent via T-1251: warn-once-per-process `tracing::info!` in `inbox.rs::deposit` when legacy `file.*` events arrive (`crates/termlink-hub/src/inbox.rs`)."
+  - "Integration test: send a 5MB binary file via new path; receive; verify sha256 matches — **shipped T-1248** (`put_chunked_5mb_roundtrip` in `artifact_store.rs` tests, currently passing)"
+  - "`cargo build && cargo test && cargo clippy -- -D warnings` pass workspace-wide — verified 2026-04-25 (build 5.33s clean; 4/4 artifact tests pass; clippy 12.53s clean)"
+  - "Artifact blob cleanup: retention policy on `inbox:<session>` channel also triggers blob GC (blob without any channel message referencing it is deletable) — **GC primitive shipped T-1251** (`ArtifactStore::sweep(&referenced) -> u64` with 3 tests). Hub-side periodic scheduling deferred (depends on bus topic-iterator that termlink-bus retention engine doesn't expose) — captured for T-1166 follow-up."
+  - "PL-011 learning updated in `.context/project/learnings.yaml` noting the structural fix landed under T-1164 — entry at line 319-325 with `application:` field naming SendOutcome::Sent fields as proof"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Split T-1164 into T-1248 (blob store + artifact.put/get RPC), T-1249 (sender migration), T-1250 (receiver migration), T-1251 (legacy deprecation + inbox.rs cleanup + PL-011 closure). T-1164 becomes the umbrella tracker."
+    rationale: "Audit (2026-04-24) in this task body explicitly recommended a 4-way split. Per CLAUDE.md Task Sizing (\"One task = one deliverable\") and Pickup Message Handling (>3 new files / new subsystem → decompose), the 4 sub-tasks each represent one independent deliverable with its own ACs and verification. T-1248 is foundational; T-1249/T-1250 depend on it; T-1251 depends on b+c."
+    alternatives_rejected: ["Treating T-1164 as a single task — would have aggregated 4 different deliverables under one AC list and one verification gate, making partial progress invisible and triggering G-020 build-readiness false-completes."]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1164-t-11557-migrate-filesendreceive--channel.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T11:01:18"
+    action: "T-1164: Complete AC1 — call-site audit, documented architectural correction (events not RPC)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7184 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7184
+  commits: 1
+  files_changed: 1
+  lines_added: 25
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1164-t-11557-migrate-filesendreceive--channel.md
+generated_by: context-agent-hybrid
