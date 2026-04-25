@@ -2,8 +2,14 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
+use termlink_session::artifact::{
+    send_artifact_via_client, ArtifactManifest, SendOutcome, SendPath,
+};
 use termlink_session::client;
+use termlink_session::hub_capabilities::HubCapabilitiesCache;
+use termlink_session::inbox_channel::FallbackCtx;
 use termlink_session::manager;
+use termlink_protocol::TransportAddr;
 
 use termlink_protocol::events::{
     file_topic, FileInit, FileChunk, FileComplete, SCHEMA_VERSION,
@@ -85,6 +91,71 @@ pub(crate) fn calculate_chunks(file_size: usize, chunk_size: usize) -> (usize, u
     (effective, total)
 }
 
+/// T-1249: Try to send via the new `channel.post` + `artifact.put` path.
+///
+/// Returns:
+/// - `Ok(Some((offset, path)))` — sent successfully on the new path.
+/// - `Ok(None)` — peer hub advertises neither artifact.put nor channel.post
+///   in a way the helper can use; caller should fall back to the legacy
+///   3-phase event-emit path.
+/// - `Err(_)` — transport/connect/auth error talking to the local hub
+///   socket; caller may also fall back.
+async fn try_send_via_artifact(
+    hub_socket: &std::path::Path,
+    target: &str,
+    payload: &[u8],
+    filename: &str,
+    size: u64,
+    expected_sha256: &str,
+) -> Result<Option<(i64, SendPath)>> {
+    let identity = super::channel::load_identity_or_create()?;
+    let addr = TransportAddr::unix(hub_socket);
+    let mut client = client::Client::connect_addr(&addr)
+        .await
+        .with_context(|| format!("connect hub at {}", hub_socket.display()))?;
+    let host_port = format!("local:{}", hub_socket.display());
+    let cache = HubCapabilitiesCache::new();
+    let mut ctx = FallbackCtx::new();
+    let manifest = ArtifactManifest {
+        filename: filename.to_string(),
+        size,
+        from: format!("cli-{}", std::process::id()),
+        transfer_id: None,
+        content_type: None,
+    };
+    let outcome = send_artifact_via_client(
+        &mut client,
+        &host_port,
+        target,
+        payload,
+        &manifest,
+        &identity,
+        &cache,
+        &mut ctx,
+    )
+    .await
+    .with_context(|| "send_artifact_via_client failed")?;
+    match outcome {
+        SendOutcome::LegacyOnly => Ok(None),
+        SendOutcome::Sent {
+            sha256,
+            channel_offset,
+            path,
+            ..
+        } => {
+            // Defensive sanity: helper hashes itself; the caller-computed sha256
+            // and the helper-returned sha256 must agree. Mismatch would indicate
+            // a sha2 implementation bug — surface loudly.
+            if sha256 != expected_sha256 {
+                anyhow::bail!(
+                    "artifact sha256 mismatch (helper={sha256}, caller={expected_sha256})"
+                );
+            }
+            Ok(Some((channel_offset, path)))
+        }
+    }
+}
+
 pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool, timeout_secs: u64) -> Result<()> {
     use base64::Engine;
     use sha2::{Digest, Sha256};
@@ -136,6 +207,67 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     let mut hasher = Sha256::new();
     hasher.update(&file_data);
     let sha256 = format!("{:x}", hasher.finalize());
+
+    // T-1249: Prefer the new channel.post + artifact.put path if a hub is
+    // up and advertises both methods. On `LegacyOnly` (older hub) or no hub
+    // socket at all, fall through to the legacy 3-phase event-emit below.
+    let (_, hub_socket_for_artifact) = super::infrastructure::resolve_hub_paths();
+    if hub_socket_for_artifact.exists() {
+        match try_send_via_artifact(
+            &hub_socket_for_artifact,
+            target,
+            &file_data,
+            &filename,
+            size,
+            &sha256,
+        )
+        .await
+        {
+            Ok(Some((channel_offset, used_path))) => {
+                let path_label = match used_path {
+                    SendPath::Inline => "channel.inline",
+                    SendPath::Chunked => "channel.artifact",
+                };
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "ok": true,
+                            "filename": filename,
+                            "size": size,
+                            "via": path_label,
+                            "spooled": false,
+                            "chunks": total_chunks,
+                            "transfer_id": transfer_id,
+                            "sha256": sha256,
+                            "target": target,
+                            "channel_offset": channel_offset,
+                            "artifact_sha256": sha256,
+                        })
+                    );
+                } else {
+                    eprintln!(
+                        "Sent '{}' ({} bytes) via {} → channel.offset={}, sha256={}",
+                        filename, size, path_label, channel_offset, sha256
+                    );
+                }
+                return Ok(());
+            }
+            Ok(None) => {
+                tracing::debug!(
+                    target = %target,
+                    "T-1249: hub doesn't advertise artifact.put — falling back to legacy events"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target = %target,
+                    error = %e,
+                    "T-1249: new-path send failed — falling back to legacy events"
+                );
+            }
+        }
+    }
 
     // Emit file.init
     let init = FileInit {

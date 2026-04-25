@@ -22,7 +22,7 @@ fn identity_base_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(home).join(".termlink"))
 }
 
-fn load_identity_or_create() -> Result<Identity> {
+pub(crate) fn load_identity_or_create() -> Result<Identity> {
     let base = identity_base_dir()?;
     let path = identity_path(&base);
     if !path.exists() {
