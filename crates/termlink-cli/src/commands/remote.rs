@@ -2791,22 +2791,27 @@ async fn cmd_remote_doctor_inner(
         }
     }
 
-    // 3. Inbox status
-    match rpc_client.call("inbox.status", json!("doc-is"), json!({})).await {
-        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-            let total = r.result["total_transfers"].as_u64().unwrap_or(0);
-            if total == 0 {
-                check!("inbox", pass, "no pending transfers");
-            } else {
-                let targets = r.result["targets"].as_array().map(|t| t.len()).unwrap_or(0);
-                check!("inbox", warn, format!("{} pending transfer(s) for {} target(s)", total, targets));
+    // 3. Inbox status (T-1229g: channel-aware, surfaces offline targets)
+    {
+        let cache = termlink_session::hub_capabilities::shared_cache();
+        let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+        match termlink_session::inbox_channel::status_with_fallback_with_client(
+            &mut rpc_client, conn.hub, cache, &mut ctx,
+        ).await {
+            Ok(status) => {
+                if status.total_transfers == 0 {
+                    check!("inbox", pass, "no pending transfers");
+                } else {
+                    check!("inbox", warn, format!(
+                        "{} pending transfer(s) for {} target(s)",
+                        status.total_transfers,
+                        status.targets.len()
+                    ));
+                }
             }
-        }
-        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            check!("inbox", warn, format!("inbox.status error: {}", e.error.message));
-        }
-        Err(e) => {
-            check!("inbox", warn, format!("inbox RPC failed: {}", e));
+            Err(e) => {
+                check!("inbox", warn, format!("inbox.status error: {}", e));
+            }
         }
     }
 
