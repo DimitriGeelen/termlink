@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1246: T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md when task body lacks Recommendation section
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T10:53:57Z
+# ============================================================================
+
+task_id: T-1246
+task_name: "T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md when task body lacks Recommendation section"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T10:48:31Z
+completed: 2026-04-25T10:53:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T12:51:32+02:00
+last_commit: 2026-04-25T12:51:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  G-046 partial closure metadata (framework patch follows upstream)
+
+# Key outcomes
+outcomes:
+  - "`inception_detail` route reads `docs/reports/T-{task_id}-inception.md` when `_extract_section(task_body, \"Recommendation\")` returns empty"
+  - "Existing behavior preserved: when task body has Recommendation, that takes precedence (no surprise overrides)"
+  - "Watchtower process restarts cleanly after edit"
+  - "curl /inception/T-1229 returns 200 OK"
+  - "Manual probe via playwright: rationale textarea contains content from docs/reports/ when task file lacks recommendation"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/blueprints/inception.py"
+  - ".context/project/concerns.yaml"
+  - ".tasks/active/T-1246-t-1246-g-046-fix-watchtower-decide-form-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T12:51:32"
+    action: "T-1246: G-046 partial closure metadata (framework patch follows upstream)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 99
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1246-t-1246-g-046-fix-watchtower-decide-form-.md
+generated_by: context-agent-hybrid
