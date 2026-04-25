@@ -21,7 +21,7 @@ learnings:
   task: T-065
   date: 2026-03-10
   context: Added via context agent
-  application: TBD
+  application: Promoted to PP-010 via T-1281 (2026-04-25, D2)
 - id: L-004
   learning: "Shell commands accepting user input must escape arguments before passing to sh -c — use single-quote wrapping with internal quote escaping"
   source: unknown
