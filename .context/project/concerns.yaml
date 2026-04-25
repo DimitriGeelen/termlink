@@ -299,6 +299,9 @@ concerns:
   mitigation_candidate: "Per-invocation cap is cheap (1-line code). Age ceiling needs design (threshold depends on how old is 'too old'). Kill performed 2026-04-24T17:42Z. Scanner remains callable manually — next scheduled cron (if any) will run under DRY_RUN=1 default and be safe."
   status: watching
   created: 2026-04-24
-  last_reviewed: 2026-04-24
-  last_observation: "2026-04-24T17:42Z: Manual kill + gap registration. 92 spurious handover commits from this runaway landed on origin/main and cannot be removed without force-push."
-  related_tasks: [T-1208, T-1212]
+  last_reviewed: 2026-04-25
+  last_observation: "2026-04-25T05:35Z: Cross-project finding from .122 ring20-management session — G-029 registered upstream identifies a SECOND rotation-cascade mechanism: ring20-watchdog.sh status-grep liveness check produced 502/1440 false-positive ticks (35%) under TLS load, ~143 successful 'termlink hub start' invocations displacing the running hub, 3 real secret rotations on 2026-04-24 (08:53/10:58/14:02). Each rotation invalidates every peer's cached hex+TLS fingerprint — produces the symptom class we attributed to G-016 alone. Updated mental model: G-016 (this gap, scanner cap) and G-029 (upstream watchdog liveness check) are sibling failures; G-029 is the rotation source while G-016 caps the post-rotation scanner blast radius. T-1222 fix (cap+DRY_RUN=1) holds independently of G-029. Previous (2026-04-24T17:42Z): Manual kill + gap registration. 92 spurious handover commits from this runaway landed on origin/main and cannot be removed without force-push."
+  related_tasks: [T-1208, T-1212, T-1222, T-1223]
+  cross_project_refs:
+  - "G-029 (999-AEF, filed by .122 session 2026-04-25): ring20-watchdog status-grep false-positive triggers hub restart cascade"
+  - "G-028 (999-AEF, filed by .122 session 2026-04-25): observability gap — watchdog.log binary corruption from race conditions"
