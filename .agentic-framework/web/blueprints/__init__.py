@@ -31,7 +31,7 @@ def register_blueprints(app):
     from web.blueprints.sessions import bp as sessions_page_bp
     from web.blueprints.prompts import bp as prompts_bp
     from web.blueprints.pending import bp as pending_bp
-    from web.blueprints.fleet import bp as fleet_bp  # T-1103 termlink-local
+    from web.blueprints.fleet import bp as fleet_bp
 
     for bp in (
         core_bp, tasks_bp, timeline_bp, discovery_bp, quality_bp,

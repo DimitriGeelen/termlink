@@ -384,11 +384,11 @@ def inception_detail(task_id):
     # self-referential prefix + all evidence bullets (see T-1388 F4).
     # T-1246 (G-046 fix): when the task file lacks a Recommendation section,
     # fall back to docs/reports/T-{task_id}-inception.md (CTL-027 artifact).
-    # This rewards thorough research artifacts instead of punishing them.
+    # Tries canonical name first, then T-{id}-*-inception.md for older
+    # descriptive-slug artifacts. Rewards thorough research artifacts instead
+    # of punishing them with an empty pre-fill.
     rec_raw = _extract_section(task_body, "Recommendation") or ""
     if not rec_raw:
-        # Try canonical name first, then fall back to any T-XXX-*-inception.md
-        # match for older artifacts that include a descriptive slug.
         reports_dir = PROJECT_ROOT / "docs" / "reports"
         candidates = [reports_dir / f"{task_id}-inception.md"]
         candidates.extend(sorted(reports_dir.glob(f"{task_id}-*-inception.md")))

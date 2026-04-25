@@ -15,7 +15,7 @@ from pathlib import Path
 import yaml
 from flask import Blueprint, request
 
-from web.shared import PROJECT_ROOT, render_page, parse_frontmatter, task_id_sort_key
+from web.shared import PROJECT_ROOT, render_page, parse_frontmatter, task_id_sort_key, get_all_task_metadata
 
 bp = Blueprint("approvals", __name__)
 
@@ -75,6 +75,24 @@ def _load_resolved_approvals():
     return resolved[:20]  # Last 20
 
 
+# T-1415 (T-1388 B5 / F2): Count inline `- A\d+:` assumption bullets in task body.
+# Most inception tasks list assumptions inline under ## Assumptions rather than
+# registering via `fw assumption add`, so the /approvals badge read "0" even
+# when the body clearly showed several. Fall back to the body count and mark
+# source=body so the template can render the provenance.
+_INLINE_ASSUMPTION_RE = re.compile(r"^- A\d+:", re.MULTILINE)
+
+
+def _count_body_assumptions(body: str) -> int:
+    """Count inline `- A\\d+:` assumption bullets under the ## Assumptions section."""
+    from web.blueprints.inception import _extract_section
+
+    section = _extract_section(body, "Assumptions")
+    if not section:
+        return 0
+    return len(_INLINE_ASSUMPTION_RE.findall(section))
+
+
 def _load_pending_go_decisions():
     """Scan active inception tasks where decision is still pending.
 
@@ -83,21 +101,26 @@ def _load_pending_go_decisions():
     """
     from web.blueprints.inception import _extract_decision, _extract_section, _load_assumptions
 
-    task_dir = PROJECT_ROOT / ".tasks" / "active"
-    if not task_dir.exists():
-        return []
-
     assumptions = _load_assumptions()
     results = []
 
-    for f in sorted(task_dir.glob("T-*.md"), key=task_id_sort_key):
+    # T-1244: Use shared task metadata cache to filter to active+inception tasks
+    # before reading bodies. Avoids re-globbing 100+ active tasks per request.
+    candidates = [
+        fm for fm in get_all_task_metadata()
+        if fm.get("_location") == "active" and fm.get("workflow_type") == "inception"
+    ]
+    candidates.sort(key=lambda fm: task_id_sort_key(fm.get("_path", "")))
+
+    for fm in candidates:
+        path = fm.get("_path")
+        if not path:
+            continue
         try:
-            content = f.read_text()
+            content = Path(path).read_text()
         except OSError:
             continue
-        fm, body = parse_frontmatter(content)
-        if not fm or fm.get("workflow_type") != "inception":
-            continue
+        _, body = parse_frontmatter(content)
         if _extract_decision(body) != "pending":
             continue
 
@@ -164,16 +187,28 @@ def _load_pending_go_decisions():
         # T-1214: Extract Go/No-Go Criteria for fallback display when recommendation missing
         go_nogo_raw = _extract_section(body, "Go/No-Go Criteria")
 
+        # T-1415 (T-1388 B5 / F2): Fall back to body-inline assumptions when none registered.
+        if linked:
+            assumption_counts = {
+                "total": len(linked),
+                "validated": sum(1 for a in linked if a.get("status") == "validated"),
+                "source": "ledger",
+            }
+        else:
+            body_count = _count_body_assumptions(body)
+            assumption_counts = {
+                "total": body_count,
+                "validated": 0,
+                "source": "body" if body_count else "ledger",
+            }
+
         results.append({
             "task_id": task_id,
             "name": fm.get("name", ""),
             "status": fm.get("status", ""),
             "problem_excerpt": problem_excerpt,
             "problem_full": problem,
-            "assumption_counts": {
-                "total": len(linked),
-                "validated": sum(1 for a in linked if a.get("status") == "validated"),
-            },
+            "assumption_counts": assumption_counts,
             "artifacts": artifacts,
             "rationale_hint": rationale_hint,
             "recommendation": rec_display,
@@ -195,21 +230,26 @@ def _load_pending_human_acs():
 
     from web.blueprints.tasks import _parse_acceptance_criteria
 
-    task_dir = PROJECT_ROOT / ".tasks" / "active"
-    if not task_dir.exists():
-        return []
-
     results = []
     now = time.time()
 
-    for f in sorted(task_dir.glob("T-*.md"), key=task_id_sort_key):
+    # T-1244: Pull active-task frontmatter from shared cache instead of
+    # re-globbing per request. Body still required for AC parse.
+    candidates = [
+        fm for fm in get_all_task_metadata()
+        if fm.get("_location") == "active"
+    ]
+    candidates.sort(key=lambda fm: task_id_sort_key(fm.get("_path", "")))
+
+    for fm in candidates:
+        path = fm.get("_path")
+        if not path:
+            continue
         try:
-            content = f.read_text()
+            content = Path(path).read_text()
         except OSError:
             continue
-        fm, body = parse_frontmatter(content)
-        if not fm:
-            continue
+        _, body = parse_frontmatter(content)
 
         all_acs = _parse_acceptance_criteria(body)
         human_acs = [ac for ac in all_acs if ac.get("section") == "human"]

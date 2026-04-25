@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1248: T-1164a Bus blob store + artifact.put/get RPC
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T11:53:49Z
+# ============================================================================
+
+task_id: T-1248
+task_name: "T-1164a Bus blob store + artifact.put/get RPC"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T11:43:45Z
+completed: 2026-04-25T11:53:33Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T13:53:27+02:00
+last_commit: 2026-04-25T13:53:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Bus artifact store + artifact.put/get RPC (T-1164a)
+
+# Key outcomes
+outcomes:
+  - "New module `crates/termlink-bus/src/artifact_store.rs` exposes `ArtifactStore { fn put, fn get, fn exists, fn path_for, fn put_streaming }`. Sharded layout `artifacts/<first-2-hex>/<full-sha256>`. Idempotent put (same bytes → same sha → no rewrite if exists). Evidence: 264 LOC + 8 unit tests."
+  - "Protocol method constants `ARTIFACT_PUT = \"artifact.put\"` and `ARTIFACT_GET = \"artifact.get\"` added to `crates/termlink-protocol/src/control.rs::method` mod (lines 123-138). Doc comments match the channel.* style. Test `artifact_method_constants_are_stable` asserts the strings."
+  - "Hub-side handlers in `crates/termlink-hub/src/artifact.rs` implement streaming put/get. `artifact.put { staging_id, offset, chunk_b64, is_final, expected_sha256? }` → `{ok, in_progress, sha256?, bytes_received|total_bytes}`. `artifact.get { sha256, offset?, max_bytes? }` → `{chunk_b64, bytes_returned, eof, total_bytes}`. Wired into router.rs match arms (line 91/94) and hub.capabilities reply (line 771/772)."
+  - "Hub advertises new methods in `hub.capabilities` (T-1215 surface) — verified by grepping router.rs:771-772."
+  - "Unit tests in `termlink-bus`: round-trip, idempotent re-put, sha256 mismatch rejection on `expected_sha256`, sharded path layout, streaming chunked + offset-mismatch detection. 8/8 pass."
+  - "Hub-level handler tests in `termlink-hub::artifact`: 5MB chunked round-trip via the JSON-RPC handler signatures, get_unknown_returns_error, hash mismatch rejection. 4/4 pass."
+  - "`cargo build && cargo test -p termlink-bus -p termlink-hub -p termlink-protocol && cargo clippy --workspace -- -D warnings` all pass. Workspace lib tests: 751 passed, 0 failed (up from 738 baseline — delta = 13 new tests)."
+  - "Fabric cards registered: `.fabric/components/crates-termlink-bus-src-artifact_store.yaml` + `crates-termlink-hub-src-artifact.yaml`. `fw fabric drift` reports 0 unregistered."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-bus/src/artifact_store.rs"
+  - "crates/termlink-bus/src/error.rs"
+  - "crates/termlink-bus/src/lib.rs"
+  - "crates/termlink-hub/src/artifact.rs"
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - ".fabric/components/crates-termlink-bus-src-artifact_store.yaml"
+  - ".fabric/components/crates-termlink-hub-src-artifact.yaml"
+  - ".tasks/active/T-1164-t-11557-migrate-filesendreceive--channel.md"
+  - ".tasks/active/T-1248-t-1164a-bus-blob-store--artifactputget-r.md"
+  - ".tasks/active/T-1249-t-1164b-sender-migration-filesend--chann.md"
+  - ".tasks/active/T-1250-t-1164c-receiver-migration-filereceive--.md"
+  - ".tasks/active/T-1251-t-1164d-legacy-file-event-deprecation--i.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T13:53:27"
+    action: "T-1248: Bus artifact store + artifact.put/get RPC (T-1164a)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1164, T-1155, bus, artifact]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 15
+  lines_added: 1132
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1248-t-1164a-bus-blob-store--artifactputget-r.md
+generated_by: context-agent-hybrid

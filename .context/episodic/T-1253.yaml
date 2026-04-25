@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1253: G-007 mirror anomaly — github ahead of onedev despite OneDev being source of truth
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T15:36:24Z
+# ============================================================================
+
+task_id: T-1253
+task_name: "G-007 mirror anomaly — github ahead of onedev despite OneDev being source of truth"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T15:21:42Z
+completed: 2026-04-25T15:36:23Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T17:27:10+02:00
+last_commit: 2026-04-25T17:27:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-1215, T-1253: hub :9100 restart for live probe + G-007 root cause inception
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated — direction-inverted from the original G-007 description (github ahead of onedev rather than the reverse), but same gap."
+  - "Assumptions tested — A-2 confirmed (line 771-790 of handover.sh); A-3 strongly inferred from sequence."
+  - "Recommendation written with rationale — see ## Recommendation below."
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1215-hub-capabilities-method--client-side-cac.md"
+  - ".tasks/active/T-1253-g-007-mirror-anomaly--github-ahead-of-on.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T17:27:10"
+    action: "T-1215, T-1253: hub :9100 restart for live probe + G-007 root cause inception"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 1
+  files_changed: 2
+  lines_added: 162
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1253-g-007-mirror-anomaly--github-ahead-of-on.md
+generated_by: context-agent-hybrid

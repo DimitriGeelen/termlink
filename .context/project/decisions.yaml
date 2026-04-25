@@ -297,3 +297,10 @@ decisions:
     date: 2026-04-25
     task: T-1233
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-022
+    decision: "Split T-1164 into T-1248 (blob store + artifact.put/get RPC), T-1249 (sender migration), T-1250 (receiver migration), T-1251 (legacy deprecation + inbox.rs cleanup + PL-011 closure). T-1164 becomes the umbrella tracker."
+    scope: project
+    date: 2026-04-25
+    task: T-1164
+    rationale: "Auto-captured from task file on completion"

@@ -705,6 +705,38 @@ do_doctor() {
         echo -e "  ${CYAN}SKIP${NC}  .framework.yaml (running from framework repo)"
     fi
 
+    # Check 2b (T-1434): Vendored-source drift — framework repo only.
+    # Consumer projects don't have both copies; their .agentic-framework IS the framework.
+    # Drift = consumers pulling via `fw upgrade` get stale hooks/libs (T-1432, T-1433).
+    if [ "$PROJECT_ROOT" = "$FRAMEWORK_ROOT" ] && [ -d "$FRAMEWORK_ROOT/.agentic-framework" ]; then
+        local _vdrift=0
+        local _vdrift_list=""
+        local _f
+        for _f in "$FRAMEWORK_ROOT"/bin/fw \
+                  "$FRAMEWORK_ROOT"/lib/*.sh \
+                  "$FRAMEWORK_ROOT"/agents/context/*.sh \
+                  "$FRAMEWORK_ROOT"/agents/task-create/*.sh; do
+            [ -f "$_f" ] || continue
+            local _rel="${_f#$FRAMEWORK_ROOT/}"
+            local _v="$FRAMEWORK_ROOT/.agentic-framework/$_rel"
+            [ -f "$_v" ] || continue
+            if ! diff -q "$_f" "$_v" >/dev/null 2>&1; then
+                _vdrift=$((_vdrift + 1))
+                if [ "$_vdrift" -le 5 ]; then
+                    _vdrift_list="$_vdrift_list\n           - $_rel"
+                fi
+            fi
+        done
+        if [ "$_vdrift" -eq 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  No vendored-source drift"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  Vendored-source drift: $_vdrift file(s) out of sync"
+            echo -e "         Run: fw vendor  (sync .agentic-framework/ with source)"
+            [ -n "$_vdrift_list" ] && echo -e "         First $([ $_vdrift -gt 5 ] && echo 5 || echo $_vdrift):$_vdrift_list"
+            warnings=$((warnings + 1))
+        fi
+    fi
+
     # Check 3: Task directories
     if [ -d "$PROJECT_ROOT/.tasks/active" ] && [ -d "$PROJECT_ROOT/.tasks/completed" ]; then
         echo -e "  ${GREEN}OK${NC}  Task directories"
@@ -1472,12 +1504,21 @@ else:
         fi
     fi
 
-    # Doc-drift check: fw subcommands vs CLAUDE.md Quick Reference (T-1147/T-1104)
+    # Doc-drift check: fw subcommands vs CLAUDE.md Quick Reference (T-1147/T-1104/T-1421)
     if [ -f "$FRAMEWORK_ROOT/CLAUDE.md" ]; then
-        local _qr_cmds _fw_cmds _missing _miss_count
-        # Extract commands from Quick Reference table: | `fw cmd` | or | **`fw cmd`** |
-        _qr_cmds=$(grep -oE '`fw [a-z][-a-z]*( [a-z][-a-z]*)?`' "$FRAMEWORK_ROOT/CLAUDE.md" 2>/dev/null \
-            | sed 's/`//g; s/^fw //' | sort -u || true)
+        local _qr_cmds _fw_cmds _missing _miss_count _prose_list
+        # T-1421: extract the verb from any `fw VERB...` backtick context. Old
+        # regex only matched `` `fw x` `` / `` `fw x y` `` with closing backtick,
+        # which missed pipe-joined forms (`fw cron generate|status|list`) and
+        # flag-bearing forms (`fw work-on "name" --type build`). We only need
+        # the verb, so match through opening backtick + `fw ` + verb.
+        _qr_cmds=$(grep -oE '`fw [a-z][-a-z]*' "$FRAMEWORK_ROOT/CLAUDE.md" 2>/dev/null \
+            | sed 's/^`fw //' | sort -u || true)
+        # T-1421: secondary catch — the trimmed Quick Reference ends with a
+        # prose "rarely-used commands (harvest, promote, …)" paragraph listing
+        # verbs without backticks. Parse those too.
+        _prose_list=$(grep -oE 'rarely-used commands \([^)]*\)' "$FRAMEWORK_ROOT/CLAUDE.md" 2>/dev/null \
+            | sed 's/^.*(//; s/).*$//' | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -E '^[a-z][-a-z]*$' || true)
         # Extract top-level routed subcommands from main routing case
         _fw_cmds=$(sed -n '/^case "\$cmd" in/,/^esac/p' "$FRAMEWORK_ROOT/bin/fw" 2>/dev/null \
             | grep -E '^    [a-z][-a-z]*\)' | sed 's/[[:space:]]*//; s/).*//' | sort -u || true)
@@ -1485,7 +1526,7 @@ else:
         _miss_count=0
         while IFS= read -r cmd; do
             [ -z "$cmd" ] && continue
-            if ! echo "$_qr_cmds" | grep -qw "$cmd"; then
+            if ! echo "$_qr_cmds" | grep -qw "$cmd" && ! echo "$_prose_list" | grep -qw "$cmd"; then
                 _missing="${_missing} ${cmd}"
                 _miss_count=$((_miss_count + 1))
             fi
@@ -2281,6 +2322,30 @@ case "$cmd" in
         ;;
     audit)
         exec "$AGENTS_DIR/audit/audit.sh" "$@"
+        ;;
+    reviewer)
+        # T-1443 v1.0–v1.2: machine-reviewer (anti-pattern static-scan + Layer 3 audit)
+        if [ "${1:-}" = "" ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+            echo "Usage:"
+            echo "  fw reviewer T-XXX [--json] [--no-write]   Scan one task"
+            echo "  fw reviewer audit                         Layer 3 daily Pass-B re-scan"
+            echo ""
+            echo "Scan: writes verdict to task body under '## Reviewer Verdict (v1.0)'."
+            echo "  Non-blocking — verdict is recorded, not enforced."
+            echo "  --json      emit machine-readable verdict on stdout"
+            echo "  --no-write  do not modify the task file or feedback stream"
+            echo ""
+            echo "Audit: re-scans every completed task with the current catalogue,"
+            echo "  writes daily summary to .context/audits/reviewer/YYYY-MM-DD.yaml."
+            exit 0
+        fi
+        if [ "${1:-}" = "audit" ]; then
+            shift
+            exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+                python3 -m lib.reviewer.audit "$@"
+        fi
+        exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+            python3 -m lib.reviewer.static_scan "$@"
         ;;
     self-audit)
         exec "$AGENTS_DIR/audit/self-audit.sh" "$@"
@@ -3864,12 +3929,16 @@ PYSEARCH
         # Replaces hardcoded absolute paths in .claude/settings.json (G-021/T-496).
         _hook_name="${1:-}"
         shift 2>/dev/null || true
-        if [ -z "$_hook_name" ]; then
+        # T-1437: --help / -h print usage, not treated as a hook name
+        # (would miss agents/context/--help.sh and log a spurious crash).
+        if [ -z "$_hook_name" ] || [ "$_hook_name" = "--help" ] || [ "$_hook_name" = "-h" ]; then
+            _hook_exit=1
+            [ "${_hook_name:-}" = "--help" ] || [ "${_hook_name:-}" = "-h" ] && _hook_exit=0
             echo "Usage: fw hook <name> [args...]" >&2
             # T-1186/G-042: Generate hook list from filesystem (single source of truth)
             _hooks=$(ls "$AGENTS_DIR/context/"*.sh 2>/dev/null | xargs -I{} basename {} .sh | sort | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
             echo "Available hooks: $_hooks" >&2
-            exit 1
+            exit $_hook_exit
         fi
         _hook_script="$AGENTS_DIR/context/${_hook_name}.sh"
         if [ ! -f "$_hook_script" ]; then

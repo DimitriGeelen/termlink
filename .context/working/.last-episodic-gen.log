@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-24T16:21:40Z ===
-task_id: T-1223
+=== episodic-gen invocation: 2026-04-25T15:44:54Z ===
+task_id: T-1254
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
-cwd: /opt/termlink/.agentic-framework
+cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1223.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1254.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: G-016 root cause: find DRY_RUN=0 bootstrap source
-  Duration: 0 days (32 min)
-  Updates: 3
+  Task: Fix CSRF 403 on Watchtower /approvals page — 5 hx-post forms missing _csrf_token field
+  Duration: 0 days (7 min)
+  Updates: 2
   Commits: 0
   Lines: +0 -0 across 0 files
-  Outcomes: 4 AC checked
+  Outcomes: 6 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1223-g-016-root-cause-find-dryrun0-bootstrap-.md
+Source: /opt/termlink/.tasks/completed/T-1254-fix-csrf-403-on-watchtower-approvals-pag.md
 --- exit code: 0 ---

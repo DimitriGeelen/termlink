@@ -80,3 +80,13 @@ bypasses:
   command_hash: d424eb07cab846fdb9978e26c6de761c6bc981e31e2684b79fab5b9554180c61
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-04-25T09:50:29Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: '.agentic-framework/bin/fw inception decide T-1229 go --rationale
+    "Option A: hub-side channel.list_topics(prefix=\"inbox:'
+  command_hash: bbc913c8260a56618980328a286afb31e3681806036230fc96f8049aa4b50af2
+  authorized_by: human
+  mechanism: fw tier0 approve

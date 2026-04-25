@@ -1,0 +1,15 @@
+command_hash: f710f93d5f3798794ef37cdfc66b003733e75f9a79965b6186c9effc9354a874
+command_preview: .agentic-framework/bin/fw inception decide T-1229 go --rationale
+  "Option A (channel.list_topics(prefix) RPC) preserves fleet-doctor correctness invariant
+  and aligns with T-1166 retirement; Options B (
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: approved
+timestamp: '2026-04-25T09:28:44Z'
+type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-25T09:40:01Z'
+  mechanism: watchtower

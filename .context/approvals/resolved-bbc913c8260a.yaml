@@ -1,0 +1,15 @@
+command_hash: bbc913c8260a56618980328a286afb31e3681806036230fc96f8049aa4b50af2
+command_preview: '.agentic-framework/bin/fw inception decide T-1229 go --rationale
+  "Option A: hub-side channel.list_topics(prefix=\"inbox:\") RPC. Single round-trip
+  aggregation preserves fleet-doctor correctness invari'
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: approved
+timestamp: '2026-04-25T09:48:01Z'
+type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-25T09:50:09Z'
+  mechanism: watchtower
