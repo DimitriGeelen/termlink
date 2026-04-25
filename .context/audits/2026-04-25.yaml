@@ -1,5 +1,5 @@
-# Audit Results - 2026-04-25-2224
-timestamp: 2026-04-25T20:24:34Z
+# Audit Results - 2026-04-25-2231
+timestamp: 2026-04-25T20:31:16Z
 summary:
   pass: 161
   warn: 4
@@ -30,7 +30,7 @@ findings:
   - level: PASS
     check: "All active tasks meet quality thresholds"
   - level: PASS
-    check: "Git traceability: 98% (2788/2830 commits reference tasks)"
+    check: "Git traceability: 98% (2789/2831 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
@@ -51,7 +51,7 @@ findings:
   - level: PASS
     check: "All completed tasks have episodic summaries"
   - level: PASS
-    check: "All 1017 episodic summaries have quality content"
+    check: "All 1018 episodic summaries have quality content"
   - level: PASS
     check: "No orphaned episodic files"
   - level: PASS
@@ -78,7 +78,7 @@ findings:
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 1 (last commit: 67 seconds ago)"
+    check: "CTL-004: Tool counter at 6 (last commit: 3 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"
   - level: PASS
@@ -292,14 +292,14 @@ findings:
   - level: PASS
     check: "CTL-011: pre-push hook installed and executable"
   - level: PASS
-    check: "CTL-012: All 1017 completed tasks have checked ACs"
+    check: "CTL-012: All 1018 completed tasks have checked ACs"
+  - level: PASS
+    check: "CTL-013: T-1271 verification re-run: 3/3 pass"
   - level: WARN
     check: "CTL-013: T-1270 verification re-run: 1 command(s) failing"
     mitigation: "Review T-1270 — environment may have changed"
   - level: PASS
     check: "CTL-013: T-1269 verification re-run: 4/4 pass"
-  - level: PASS
-    check: "CTL-013: T-1268 verification re-run: 1/1 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -311,7 +311,7 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (8/1017)"
+    check: "D1: Episodic quality — 0% [TODO] (8/1018)"
   - level: PASS
     check: "D2: Human review queue — 3 task(s) awaiting human action (normal)"
   - level: PASS
@@ -328,11 +328,11 @@ findings:
     check: "D5: Task lifecycle — 4 anomaly(s): T-174(37d-active) T-173(37d-active) T-212(35d-active) T-175(37d-active)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=105 avg=156 ratio=0.7x)"
+    check: "D3: Commit velocity — normal (PASS today=106 avg=156 ratio=0.7x)"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 105_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 106_commits_24h)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=37.0 earlier=15.3)"
+    check: "D6: Completion velocity — normal (PASS recent=37.3 earlier=15.3)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS
