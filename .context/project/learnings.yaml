@@ -674,3 +674,17 @@ learnings:
   date: 2026-04-24
   context: Added via context agent
   application: TBD
+- id: PL-062
+  learning: "G-029 root cause: ring20-watchdog.sh on .122 uses 'termlink hub status | grep -qi ^Hub: running' as liveness check. Under TLS-failure load from stale-secret peers, status responder is slow → grep no-match → watchdog fires 'termlink hub start' → displaces running hub → triggers secret rotation. Observed 502/1440 false-positive ticks (35%) in one day, ~143 successful displacements, 3 real rotations (08:53/10:58/14:02). Each rotation invalidates every peer's cached hex+TLS — exactly the symptom class in T-1051, G-011, G-016, T-149, T-494. Recommended fix: 'pgrep -f ^termlink hub start && test -S /tmp/termlink-0/hub.sock' — process+socket check is false-positive-resistant."
+  source: G-016
+  task: T-012
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-063
+  learning: "PL-092 / observability blind spot: watchdog.log accumulated binary-garbage bytes during hub-restart races. 'file' reports 'data' not 'ASCII text'. grep silently treats binary as no-match (returns 0 with exit 1, no warning) — the very log used to diagnose hub instability is unreadable by the tool you'd reach for first. Switch to 'awk' or 'grep -a' (ASCII-coerce) when triaging logs that may have been written-to during process race conditions."
+  source: G-029
+  task: T-012
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
