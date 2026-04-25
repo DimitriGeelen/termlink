@@ -212,3 +212,16 @@ practices:
   promoted_from: L-004
   status: active
   applications: 5
+- id: PP-005
+  name: Handle ring-buffer wraparound in delta computations
+  derived_from: D2
+  description: 'Scrollback buffer delta calculations must handle wraparound: when
+    delta >= buffer length, send the full buffer instead of computing a negative or
+    zero-length slice.'
+  anti_pattern: attach output froze when scrollback exceeded 8192 bytes
+  scope: project
+  origin_task: T-244
+  origin_date: '2026-03-26'
+  promoted_from: L-022
+  status: active
+  applications: 6

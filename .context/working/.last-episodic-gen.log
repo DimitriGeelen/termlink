@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-25T20:29:29Z ===
-task_id: T-1271
+=== episodic-gen invocation: 2026-04-25T20:36:39Z ===
+task_id: T-1273
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1271.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1273.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: Cleanup stale settings.json.bak.T-1211 + add .bak.* to .gitignore (prevent future accidental commits)
-  Duration: 0 days (2 min)
+  Task: Promote L-022 to practice — scrollback buffer wraparound handling
+  Duration: 0 days (1 min)
   Updates: 2
   Commits: 0
   Lines: +0 -0 across 0 files
-  Outcomes: 3 AC checked
+  Outcomes: 2 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1271-cleanup-stale-settingsjsonbakt-1211--add.md
+Source: /opt/termlink/.tasks/completed/T-1273-promote-l-022-to-practice--scrollback-bu.md
 --- exit code: 0 ---
