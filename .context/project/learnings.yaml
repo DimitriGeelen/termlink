@@ -810,9 +810,23 @@ learnings:
   context: Added via context agent
   application: TBD
 - id: PL-080
-  learning: "Verification commands using 'cmd | grep -q PATTERN' can return exit 141 (SIGPIPE) when the upstream cmd is interrupted by grep's early exit. update-task.sh treats 141 as failure even though the verification semantically passed. Safer pattern: 'test -n "$(cmd | grep PATTERN)"' captures grep output then tests for non-empty. Avoid bare '| grep -q' in verification commands."
+  learning: "Verification commands using 'cmd | grep -q PATTERN' can return exit 141 (SIGPIPE) when the upstream cmd is interrupted by grep's early exit. update-task.sh treats 141 as failure even though the verification semantically passed. Safer pattern: 'test -n \"$(cmd | grep PATTERN)\"' captures grep output then tests for non-empty. Avoid bare '| grep -q' in verification commands."
   source: D2
   task: T-1272
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-081
+  learning: "fw context add-learning does not escape embedded double-quotes for YAML double-quoted scalars. Input containing inner double-quotes (e.g. test -n quote-dollar-paren-cmd-quote) produces invalid YAML that breaks subsequent parsing. Hit twice (L-275 upstream, PL-080 here). Mitigations: (1) prefer single quotes in learning text where possible, (2) always run python3 -c 'import yaml; yaml.safe_load(open(path))' after add-learning calls with quote-heavy content, (3) consider a framework fix in agents/context/context.sh that escapes double-quotes or auto-switches to single-quoted scalar style when input contains them."
+  source: D2
+  task: T-1272
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-082
+  learning: "Sanity test: inner \"double\" quotes here from T-1276 verification"
+  source: D2
+  task: T-1276
   date: 2026-04-25
   context: Added via context agent
   application: TBD

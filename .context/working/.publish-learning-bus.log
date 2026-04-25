@@ -33,3 +33,7 @@
 2026-04-25T20:32:37Z posted via=event.broadcast topic=channel:learnings msg_type=learning-D2 id=PL-079 origin=termlink
 2026-04-25T20:41:00Z channel.post-failed id=PL-080 — falling back to event.broadcast
 2026-04-25T20:41:00Z posted via=event.broadcast topic=channel:learnings msg_type=learning-D2 id=PL-080 origin=termlink
+2026-04-25T20:43:46Z channel.post-failed id=PL-081 — falling back to event.broadcast
+2026-04-25T20:43:46Z posted via=event.broadcast topic=channel:learnings msg_type=learning-D2 id=PL-081 origin=termlink
+2026-04-25T20:45:53Z channel.post-failed id=PL-082 — falling back to event.broadcast
+2026-04-25T20:45:53Z posted via=event.broadcast topic=channel:learnings msg_type=learning-D2 id=PL-082 origin=termlink
