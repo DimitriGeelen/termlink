@@ -769,31 +769,22 @@ pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
 
-    let resp = termlink_session::client::rpc_call(&hub_socket, "inbox.status", json!({}))
+    let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
+    let cache = termlink_session::hub_capabilities::shared_cache();
+    let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+    let status = termlink_session::inbox_channel::status_with_fallback(&addr, cache, &mut ctx)
         .await
         .context("Failed to query inbox status from hub")?;
 
-    let result = termlink_session::client::unwrap_result(resp)
-        .map_err(|e| anyhow::anyhow!("Hub returned error for inbox.status: {e}"))?;
-
     if json_output {
-        println!("{}", serde_json::to_string_pretty(&result)?);
+        println!("{}", serde_json::to_string_pretty(&status)?);
+    } else if status.total_transfers == 0 {
+        println!("Inbox: empty (no pending transfers)");
     } else {
-        let total = result["total_transfers"].as_u64().unwrap_or(0);
-        let targets = result["targets"].as_array();
-
-        if total == 0 {
-            println!("Inbox: empty (no pending transfers)");
-        } else {
-            println!("Inbox: {} pending transfer(s)", total);
-            if let Some(targets) = targets {
-                println!();
-                for t in targets {
-                    let name = t["target"].as_str().unwrap_or("?");
-                    let pending = t["pending"].as_u64().unwrap_or(0);
-                    println!("  {name}: {pending} transfer(s)");
-                }
-            }
+        println!("Inbox: {} pending transfer(s)", status.total_transfers);
+        println!();
+        for t in &status.targets {
+            println!("  {}: {} transfer(s)", t.target, t.pending);
         }
     }
     Ok(())
