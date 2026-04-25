@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1264: Update G-016 status to mitigated (T-1222 landed) + G-008 progress note (64→3)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T19:53:14Z
+# ============================================================================
+
+task_id: T-1264
+task_name: "Update G-016 status to mitigated (T-1222 landed) + G-008 progress note (64→3)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T19:51:52Z
+completed: 2026-04-25T19:53:12Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "G-016 in `.context/project/concerns.yaml` updated: `status: watching` → `status: mitigated`; `mitigation_progress` lists T-1222 cap + ceiling + DRY_RUN + upstream mirror commit `2199ccba`."
+  - "G-008 in `.context/project/concerns.yaml` `mitigation_progress` records 64 → 3 partial-complete count drop (10-day arc; 3 current tasks named)."
+  - "YAML still parses cleanly — verified `python3 -c \"import yaml; yaml.safe_load(open(...))\"` exit 0."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1264-update-g-016-status-to-mitigated-t-1222-.md
+generated_by: context-agent-hybrid
