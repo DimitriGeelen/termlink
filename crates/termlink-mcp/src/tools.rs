@@ -3333,6 +3333,134 @@ impl TermLinkTools {
             return json_err(format!("output directory '{}' does not exist or is not a directory", p.output_dir));
         }
 
+        // T-1250: Try the new channel.subscribe + artifact.get path first.
+        // Single-shot probe (no waiting): if the hub has a pending artifact for
+        // this target, consume it. On LegacyOnly or empty, fall through to the
+        // legacy event-stream reassembly below.
+        {
+            use termlink_session::artifact::{
+                download_artifact_via_client, recv_artifacts_via_client, RecvOutcome,
+            };
+            use termlink_session::hub_capabilities::shared_cache;
+            use termlink_session::inbox_channel::FallbackCtx;
+            use termlink_protocol::TransportAddr;
+
+            let hub_socket = termlink_hub::server::hub_socket_path();
+            if hub_socket.exists() {
+                let addr = TransportAddr::unix(&hub_socket);
+                match termlink_session::client::Client::connect_addr(&addr).await {
+                    Ok(mut client) => {
+                        let cache = shared_cache();
+                        let mut ctx = FallbackCtx::new();
+                        let host_port = format!("local:{}", hub_socket.display());
+                        match recv_artifacts_via_client(
+                            &mut client, &host_port, &p.target, 0, cache, &mut ctx,
+                        )
+                        .await
+                        {
+                            Ok(RecvOutcome::Received { artifacts, .. }) => {
+                                if let Some(a) = artifacts.into_iter().next() {
+                                    let result: Result<(Vec<u8>, String, String, &'static str), String> =
+                                        if let Some(sha) = a.artifact_ref.clone() {
+                                            let manifest_filename = a
+                                                .manifest
+                                                .as_ref()
+                                                .map(|m| m.filename.clone())
+                                                .unwrap_or_else(|| {
+                                                    format!(
+                                                        "received-{}.bin",
+                                                        &sha[..16.min(sha.len())]
+                                                    )
+                                                });
+                                            // Idempotency: matching sha at dest? skip download.
+                                            let dest = out_path.join(&manifest_filename);
+                                            if dest.exists()
+                                                && let Ok(existing) = std::fs::read(&dest)
+                                            {
+                                                let mut h = Sha256::new();
+                                                h.update(&existing);
+                                                if format!("{:x}", h.finalize()) == sha {
+                                                    Ok((
+                                                        existing,
+                                                        sha.clone(),
+                                                        manifest_filename,
+                                                        "channel.artifact.skip-existing",
+                                                    ))
+                                                } else {
+                                                    download_artifact_via_client(&mut client, &sha)
+                                                        .await
+                                                        .map(|b| (b, sha.clone(), manifest_filename, "channel.artifact"))
+                                                        .map_err(|e| e.to_string())
+                                                }
+                                            } else {
+                                                download_artifact_via_client(&mut client, &sha)
+                                                    .await
+                                                    .map(|b| (b, sha.clone(), manifest_filename, "channel.artifact"))
+                                                    .map_err(|e| e.to_string())
+                                            }
+                                        } else {
+                                            let mut h = Sha256::new();
+                                            h.update(&a.payload);
+                                            let computed = format!("{:x}", h.finalize());
+                                            let filename = format!(
+                                                "received-{}.bin",
+                                                &computed[..16.min(computed.len())]
+                                            );
+                                            Ok((a.payload.clone(), computed, filename, "channel.inline"))
+                                        };
+                                    match result {
+                                        Ok((bytes, sha256_hex, filename, via)) => {
+                                            let dest = out_path.join(&filename);
+                                            if let Err(e) = std::fs::write(&dest, &bytes) {
+                                                return json_err(format!(
+                                                    "failed to write file '{}': {e}",
+                                                    dest.display()
+                                                ));
+                                            }
+                                            let response = serde_json::json!({
+                                                "ok": true,
+                                                "target": p.target,
+                                                "filename": filename,
+                                                "path": dest.display().to_string(),
+                                                "size": bytes.len(),
+                                                "sha256": sha256_hex,
+                                                "via": via,
+                                            });
+                                            return serde_json::to_string_pretty(&response)
+                                                .unwrap_or_else(json_err);
+                                        }
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                target = %p.target,
+                                                error = %e,
+                                                "T-1250: new-path artifact processing failed — using legacy events"
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            Ok(RecvOutcome::LegacyOnly) => {
+                                tracing::debug!(
+                                    target = %p.target,
+                                    "T-1250: hub doesn't advertise channel.subscribe — using legacy events"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    target = %p.target,
+                                    error = %e,
+                                    "T-1250: new-path receive failed — using legacy events"
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::debug!(error = %e, "T-1250: hub connect failed — using legacy events");
+                    }
+                }
+            }
+        }
+
         // Poll all events from the session
         let timeout = std::time::Duration::from_secs(10);
         let poll_result = match tokio::time::timeout(

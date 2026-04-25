@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 
 use termlink_session::artifact::{
-    send_artifact_via_client, ArtifactManifest, SendOutcome, SendPath,
+    download_artifact_via_client, recv_artifacts_via_client, send_artifact_via_client,
+    ArtifactManifest, RecvOutcome, SendOutcome, SendPath,
 };
 use termlink_session::client;
 use termlink_session::hub_capabilities::HubCapabilitiesCache;
@@ -391,6 +392,146 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     Ok(())
 }
 
+struct RecvSummary {
+    filename: String,
+    path: String,
+    size: u64,
+    sha256: String,
+    via: &'static str,
+}
+
+/// T-1250: Try to receive via the new `channel.subscribe` + `artifact.get` path.
+///
+/// Returns:
+/// - `Ok(Some(summary))` — artifact received successfully, written to disk.
+/// - `Ok(None)` — peer hub doesn't advertise `channel.subscribe`; caller
+///   should fall back to the legacy event-stream reassembly path.
+/// - `Err(_)` — transport, protocol, sha-mismatch, or timeout-with-cap-present.
+///
+/// Note: when the hub advertises `channel.subscribe`, this consumes the full
+/// `timeout`. A legacy-only sender concurrent with a new-capable hub will
+/// only be picked up after fallthrough — worst-case 2× wait during migration.
+async fn try_recv_via_artifact(
+    hub_socket: &std::path::Path,
+    target: &str,
+    out_path: &std::path::Path,
+    timeout_secs: u64,
+    interval_ms: u64,
+    replay: bool,
+) -> Result<Option<RecvSummary>> {
+    let addr = TransportAddr::unix(hub_socket);
+    let mut client = client::Client::connect_addr(&addr)
+        .await
+        .with_context(|| format!("connect hub at {}", hub_socket.display()))?;
+    let host_port = format!("local:{}", hub_socket.display());
+    let cache = HubCapabilitiesCache::new();
+    let mut ctx = FallbackCtx::new();
+
+    // Establish starting cursor: replay → 0; fresh-only → take initial next_cursor.
+    let initial = recv_artifacts_via_client(&mut client, &host_port, target, 0, &cache, &mut ctx)
+        .await
+        .with_context(|| "recv_artifacts_via_client (initial)")?;
+    let mut cursor = match initial {
+        RecvOutcome::LegacyOnly => return Ok(None),
+        RecvOutcome::Received { artifacts, next_cursor } => {
+            if replay
+                && let Some(s) = process_artifact_batch(&mut client, &artifacts, out_path).await?
+            {
+                return Ok(Some(s));
+            }
+            next_cursor
+        }
+    };
+
+    let start = std::time::Instant::now();
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    loop {
+        let outcome = recv_artifacts_via_client(
+            &mut client, &host_port, target, cursor, &cache, &mut ctx,
+        )
+        .await
+        .with_context(|| "recv_artifacts_via_client (poll)")?;
+        match outcome {
+            RecvOutcome::LegacyOnly => return Ok(None),
+            RecvOutcome::Received { artifacts, next_cursor } => {
+                cursor = next_cursor;
+                if let Some(s) = process_artifact_batch(&mut client, &artifacts, out_path).await? {
+                    return Ok(Some(s));
+                }
+            }
+        }
+        if start.elapsed() > timeout_dur {
+            anyhow::bail!(
+                "Timeout waiting for artifact via channel.subscribe ({}s)",
+                timeout_secs
+            );
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(interval_ms)).await;
+    }
+}
+
+/// Process a batch of received artifact envelopes; on first writable artifact,
+/// write it to disk and return the summary. Idempotency: if `<out_path>/<filename>`
+/// already exists with matching sha256, skip the download/write and return the
+/// pre-existing file's summary.
+async fn process_artifact_batch(
+    client: &mut client::Client,
+    artifacts: &[termlink_session::artifact::RecvArtifact],
+    out_path: &std::path::Path,
+) -> Result<Option<RecvSummary>> {
+    use sha2::{Digest, Sha256};
+    if let Some(a) = artifacts.first() {
+        let (bytes, sha256_hex, filename, via) = if let Some(sha) = &a.artifact_ref {
+            // Chunked path: manifest carries filename, bytes via artifact.get.
+            let manifest_filename = a
+                .manifest
+                .as_ref()
+                .map(|m| m.filename.clone())
+                .unwrap_or_else(|| format!("received-{}.bin", &sha[..16.min(sha.len())]));
+            let dest = out_path.join(&manifest_filename);
+            // Idempotency check: if dest already has matching sha, skip download.
+            if dest.exists()
+                && let Ok(existing) = std::fs::read(&dest)
+            {
+                let mut h = Sha256::new();
+                h.update(&existing);
+                let existing_sha = format!("{:x}", h.finalize());
+                if existing_sha == *sha {
+                    return Ok(Some(RecvSummary {
+                        filename: manifest_filename,
+                        path: dest.display().to_string(),
+                        size: existing.len() as u64,
+                        sha256: sha.clone(),
+                        via: "channel.artifact.skip-existing",
+                    }));
+                }
+            }
+            let bytes = download_artifact_via_client(client, sha)
+                .await
+                .with_context(|| format!("download_artifact_via_client {sha}"))?;
+            (bytes, sha.clone(), manifest_filename, "channel.artifact")
+        } else {
+            // Inline path: payload IS the bytes; no manifest → synthesize a filename.
+            let mut h = Sha256::new();
+            h.update(&a.payload);
+            let computed = format!("{:x}", h.finalize());
+            let filename = format!("received-{}.bin", &computed[..16.min(computed.len())]);
+            (a.payload.clone(), computed, filename, "channel.inline")
+        };
+        let dest = out_path.join(&filename);
+        std::fs::write(&dest, &bytes)
+            .with_context(|| format!("write {}", dest.display()))?;
+        return Ok(Some(RecvSummary {
+            filename,
+            path: dest.display().to_string(),
+            size: bytes.len() as u64,
+            sha256: sha256_hex,
+            via,
+        }));
+    }
+    Ok(None)
+}
+
 pub(crate) async fn cmd_file_receive(
     target: &str,
     output_dir: &str,
@@ -420,6 +561,55 @@ pub(crate) async fn cmd_file_receive(
             super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to create output directory '{}': {}", output_dir, e)}));
         }
         return Err(e).context(format!("Failed to create output directory: {}", output_dir));
+    }
+
+    // T-1250: Try the new channel.subscribe + artifact.get path first when a
+    // local hub is up. On `LegacyOnly` (no channel.subscribe), fall through to
+    // the existing event-stream reassembly. On transport/timeout, also fall
+    // through (best-effort migration coexistence).
+    let (_, hub_socket_for_artifact) = super::infrastructure::resolve_hub_paths();
+    if hub_socket_for_artifact.exists() {
+        match try_recv_via_artifact(
+            &hub_socket_for_artifact, target, out_path, timeout, interval, replay,
+        )
+        .await
+        {
+            Ok(Some(s)) => {
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "ok": true,
+                            "filename": s.filename,
+                            "path": s.path,
+                            "size": s.size,
+                            "sha256": s.sha256,
+                            "target": target,
+                            "via": s.via,
+                        })
+                    );
+                } else {
+                    eprintln!(
+                        "File saved: {} ({} bytes) via {}", s.path, s.size, s.via
+                    );
+                    eprintln!("SHA-256 verified: {}", s.sha256);
+                }
+                return Ok(());
+            }
+            Ok(None) => {
+                tracing::debug!(
+                    target = %target,
+                    "T-1250: hub doesn't advertise channel.subscribe — falling back to legacy events"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target = %target,
+                    error = %e,
+                    "T-1250: new-path receive failed — falling back to legacy events"
+                );
+            }
+        }
     }
 
     if !json {
