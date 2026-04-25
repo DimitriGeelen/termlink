@@ -4,16 +4,16 @@ name: "T-1164d Legacy file.* event deprecation + inbox.rs cleanup + PL-011 closu
 description: >
   Mark legacy file.init/chunk/complete event-name path as deprecated, integrate blob GC with retention engine (T-1158), close PL-011 (send-file delivery confirmation) with structural-fix evidence pointing at T-1164. Depends on T-1164b + T-1164c.
 
-status: started-work
+status: work-completed
 workflow_type: decommission
 owner: agent
 horizon: now
 tags: [T-1164, T-1155, bus, artifact, PL-011]
-components: []
+components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: [T-1164, T-1164b, T-1164c, T-1158]
 created: 2026-04-25T11:43:54Z
-last_update: 2026-04-25T13:27:54Z
-date_finished: null
+last_update: 2026-04-25T13:30:48Z
+date_finished: 2026-04-25T13:30:48Z
 ---
 
 # T-1251: T-1164d Legacy file.* event deprecation + inbox.rs cleanup + PL-011 closure
@@ -65,3 +65,6 @@ grep -q "Closed by T-1164" /opt/termlink/.context/project/learnings.yaml
 ### 2026-04-25T13:27:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T13:30:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
