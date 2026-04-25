@@ -4,15 +4,15 @@ name: "Wire SessionEnd hook for mandatory handover"
 description: >
   Claude Code SessionEnd hook fires on session termination. Wire it to auto-trigger fw handover on every session exit. Known bugs: doesnt fire on /exit (#17885) or API 500 (#20197) — needs fallback.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [framework, hooks, handover]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:12Z
-last_update: 2026-04-22T04:52:50Z
+last_update: 2026-04-25T18:55:40Z
 date_finished: null
 ---
 
@@ -31,9 +31,7 @@ T-174 and T-1212 are satisfied. This ticket can then be closed as
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] SessionEnd hook wired in `.claude/settings.json` — superseded by T-1212 (handler `session-end.sh` + silent-session cron); hook block installed 2026-04-25T18:48Z, cron at `*/15`. `jq '.hooks.SessionEnd' .claude/settings.json` confirms.
 
 ## Verification
 
@@ -69,3 +67,7 @@ T-174 and T-1212 are satisfied. This ticket can then be closed as
 
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-25T18:55:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

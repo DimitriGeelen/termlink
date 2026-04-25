@@ -4,15 +4,15 @@ name: "Wire SubagentStop hook for result enforcement"
 description: >
   Replace advisory check-dispatch.sh PostToolUse guard with SubagentStop hook. SubagentStop provides agent_transcript_path and last_assistant_message natively — better enforcement point for fw bus result management.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [framework, hooks, dispatch]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:19Z
-last_update: 2026-04-22T04:52:50Z
+last_update: 2026-04-25T18:55:40Z
 date_finished: null
 ---
 
@@ -31,9 +31,7 @@ can then be closed as "shipped via T-1213" without further work.
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] SubagentStop hook wired in `.claude/settings.json` — superseded by T-1213 (handler `subagent-stop.sh`); hook block installed 2026-04-25T18:48Z. `jq '.hooks.SubagentStop' .claude/settings.json` confirms.
 
 ## Verification
 
@@ -69,3 +67,7 @@ can then be closed as "shipped via T-1213" without further work.
 
 ### 2026-04-22T04:52:50Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-25T18:55:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
