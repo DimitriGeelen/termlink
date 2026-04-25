@@ -4,7 +4,7 @@ name: "T-1247 fw-upgrade governance restoration: keep project-specific fw path g
 description: >
   T-1247 fw-upgrade governance restoration: keep project-specific fw path guidance
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T11:04:48Z
-last_update: 2026-04-25T11:04:48Z
-date_finished: null
+last_update: 2026-04-25T11:05:32Z
+date_finished: 2026-04-25T11:05:32Z
 ---
 
 # T-1247: T-1247 fw-upgrade governance restoration: keep project-specific fw path guidance
@@ -72,3 +72,6 @@ rule. Restore.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1247-t-1247-fw-upgrade-governance-restoration.md
 - **Context:** Initial task creation
+
+### 2026-04-25T11:05:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
