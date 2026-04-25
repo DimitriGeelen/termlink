@@ -336,6 +336,208 @@ async fn call_legacy_inbox_status_via_client(
     }
 }
 
+/// Result of an inbox clear operation. Same shape as legacy `inbox.clear`
+/// reply (`{cleared, target}`) so the migration is a drop-in for renderers
+/// that read those two fields. T-1230c.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InboxClearResult {
+    pub cleared: u64,
+    pub target: String,
+}
+
+/// Selector for `clear_with_fallback`: clear one target's spool, or all
+/// inbox targets in one call. T-1230c.
+#[derive(Debug, Clone)]
+pub enum ClearScope {
+    Target(String),
+    All,
+}
+
+/// Probe + dispatch + trim. Single entry point for inbox.clear callers
+/// using an unauthenticated socket (T-1230d local CLI / T-1230e local MCP).
+/// Opens one `Client::connect_addr` for the whole probe→dispatch sequence.
+///
+/// For callers holding an authenticated `Client`, use
+/// `clear_with_fallback_with_client` (T-1230f/g remote variants).
+pub async fn clear_with_fallback(
+    addr: &TransportAddr,
+    scope: ClearScope,
+    cache: &HubCapabilitiesCache,
+    ctx: &mut FallbackCtx,
+) -> io::Result<InboxClearResult> {
+    let host_port = host_port_str(addr);
+    let mut client = Client::connect_addr(addr)
+        .await
+        .map_err(|e| io::Error::other(format!("connect {host_port}: {e}")))?;
+    clear_with_fallback_with_client(&mut client, &host_port, scope, cache, ctx).await
+}
+
+/// T-1230c: Variant for callers who already hold an authenticated `Client`.
+/// Caller supplies `host_port` for cache-key + warn-once dedup.
+pub async fn clear_with_fallback_with_client(
+    client: &mut Client,
+    host_port: &str,
+    scope: ClearScope,
+    cache: &HubCapabilitiesCache,
+    ctx: &mut FallbackCtx,
+) -> io::Result<InboxClearResult> {
+    let use_channel = if ctx.is_legacy_only(host_port) {
+        false
+    } else {
+        let methods = probe_caps_via_client(client, host_port, cache)
+            .await
+            .unwrap_or_default();
+        methods.iter().any(|m| m == control::method::CHANNEL_TRIM)
+    };
+
+    if use_channel {
+        match clear_via_channel_trim(client, &scope).await {
+            Ok(result) => {
+                if ctx.warn_once(host_port, "channel.trim") {
+                    tracing::info!(
+                        host = %host_port,
+                        scope = ?scope,
+                        "T-1230c: using channel.trim (channel.* supported)"
+                    );
+                }
+                return Ok(result);
+            }
+            Err(SubscribeError::MethodNotFound) => {
+                ctx.flag_legacy_only(host_port);
+                if ctx.warn_once(host_port, "channel.trim.missing") {
+                    tracing::warn!(
+                        host = %host_port,
+                        "T-1230c: channel.trim missing despite cap claim — flagging legacy-only"
+                    );
+                }
+            }
+            Err(SubscribeError::Other(e)) => return Err(e),
+        }
+    }
+
+    if ctx.warn_once(host_port, "inbox.clear") {
+        tracing::info!(
+            host = %host_port,
+            scope = ?scope,
+            "T-1230c: using legacy inbox.clear (channel.* unavailable)"
+        );
+    }
+    call_legacy_inbox_clear_via_client(client, &scope).await
+}
+
+/// Channel-side clear: trim one topic, or list+trim every `inbox:*` topic.
+async fn clear_via_channel_trim(
+    client: &mut Client,
+    scope: &ClearScope,
+) -> Result<InboxClearResult, SubscribeError> {
+    match scope {
+        ClearScope::Target(target) => {
+            let topic = format!("{TOPIC_PREFIX}{target}");
+            let value = call_channel_trim_via_client(client, &topic).await?;
+            let deleted = value.get("deleted").and_then(|v| v.as_u64()).unwrap_or(0);
+            Ok(InboxClearResult {
+                cleared: deleted,
+                target: target.clone(),
+            })
+        }
+        ClearScope::All => {
+            let list = call_channel_list_via_client(client, TOPIC_PREFIX).await?;
+            let topics = topics_with_inbox_prefix(&list);
+            let mut total: u64 = 0;
+            for topic in topics {
+                let value = call_channel_trim_via_client(client, &topic).await?;
+                total += value.get("deleted").and_then(|v| v.as_u64()).unwrap_or(0);
+            }
+            Ok(InboxClearResult {
+                cleared: total,
+                target: "all".to_string(),
+            })
+        }
+    }
+}
+
+/// Pure: filter a `channel.list` reply to the topic names that start with
+/// the inbox prefix. Public so dual-read mergers and tests can drive it
+/// without a transport.
+pub fn topics_with_inbox_prefix(channel_list_result: &Value) -> Vec<String> {
+    let mut out = Vec::new();
+    let topics = match channel_list_result.get("topics").and_then(|v| v.as_array()) {
+        Some(arr) => arr,
+        None => return out,
+    };
+    for t in topics {
+        let name = match t.get("name").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        if name.starts_with(TOPIC_PREFIX) && name.len() > TOPIC_PREFIX.len() {
+            out.push(name.to_string());
+        }
+    }
+    out
+}
+
+async fn call_channel_trim_via_client(
+    client: &mut Client,
+    topic: &str,
+) -> Result<Value, SubscribeError> {
+    let resp = client
+        .call(
+            control::method::CHANNEL_TRIM,
+            json!("inbox-clear-trim"),
+            json!({"topic": topic}),
+        )
+        .await
+        .map_err(|e| SubscribeError::Other(map_client_err("channel.trim", e)))?;
+    match resp {
+        RpcResponse::Success(ok) => Ok(ok.result),
+        RpcResponse::Error(e) if e.error.code == RPC_METHOD_NOT_FOUND => {
+            Err(SubscribeError::MethodNotFound)
+        }
+        RpcResponse::Error(e) => Err(SubscribeError::Other(io::Error::other(format!(
+            "channel.trim error {}: {}",
+            e.error.code, e.error.message
+        )))),
+    }
+}
+
+async fn call_legacy_inbox_clear_via_client(
+    client: &mut Client,
+    scope: &ClearScope,
+) -> io::Result<InboxClearResult> {
+    let params = match scope {
+        ClearScope::Target(target) => json!({"target": target}),
+        ClearScope::All => json!({"all": true}),
+    };
+    let resp = client
+        .call("inbox.clear", json!("inbox-cl"), params)
+        .await
+        .map_err(|e| map_client_err("inbox.clear", e))?;
+    match resp {
+        RpcResponse::Success(ok) => {
+            let cleared = ok
+                .result
+                .get("cleared")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let target = ok
+                .result
+                .get("target")
+                .and_then(|v| v.as_str())
+                .unwrap_or(match scope {
+                    ClearScope::Target(t) => t.as_str(),
+                    ClearScope::All => "all",
+                })
+                .to_string();
+            Ok(InboxClearResult { cleared, target })
+        }
+        RpcResponse::Error(e) => Err(io::Error::other(format!(
+            "inbox.clear error {}: {}",
+            e.error.code, e.error.message
+        ))),
+    }
+}
+
 /// Internal error type for the channel-subscribe leg so `list_with_fallback`
 /// can react to method-not-found without parsing strings.
 enum SubscribeError {
@@ -759,5 +961,48 @@ mod tests {
         let s = aggregate_status_from_channel_list(&resp);
         assert_eq!(s.total_transfers, 0);
         assert!(s.targets.is_empty());
+    }
+
+    // === T-1230c: clear_with_fallback aggregation tests ===
+
+    #[test]
+    fn topics_with_inbox_prefix_filters_and_strips_correctly() {
+        let resp = json!({"topics": [
+            {"name": "inbox:alice", "retention": {}},
+            {"name": "inbox:bob", "retention": {}},
+            {"name": "events:other", "retention": {}},
+            {"name": "inbox:", "retention": {}},
+        ]});
+        let topics = topics_with_inbox_prefix(&resp);
+        assert_eq!(topics, vec!["inbox:alice", "inbox:bob"]);
+    }
+
+    #[test]
+    fn topics_with_inbox_prefix_handles_empty() {
+        assert!(topics_with_inbox_prefix(&json!({"topics": []})).is_empty());
+        assert!(topics_with_inbox_prefix(&json!({})).is_empty());
+        assert!(topics_with_inbox_prefix(&json!({"topics": "not-an-array"})).is_empty());
+    }
+
+    #[test]
+    fn topics_with_inbox_prefix_skips_missing_name_field() {
+        let resp = json!({"topics": [
+            {"name": "inbox:alice"},
+            {"retention": {}},
+            {"name": null},
+        ]});
+        assert_eq!(topics_with_inbox_prefix(&resp), vec!["inbox:alice"]);
+    }
+
+    #[test]
+    fn fallback_ctx_warn_once_keys_distinguish_clear_from_status() {
+        let mut ctx = FallbackCtx::new();
+        // T-1235 keys
+        assert!(ctx.warn_once("h:1", "channel.list"));
+        assert!(!ctx.warn_once("h:1", "channel.list"));
+        // T-1230c keys must not be deduped against T-1235 keys
+        assert!(ctx.warn_once("h:1", "channel.trim"));
+        assert!(!ctx.warn_once("h:1", "channel.trim"));
+        assert!(ctx.warn_once("h:1", "inbox.clear"));
     }
 }
