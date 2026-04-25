@@ -66,7 +66,7 @@ Channel 1 dispatch pattern (workflow_channel1_upstream_mirror memory).
       and appended T-1253 + T-1255 to `related_tasks`.
 
 ### Human
-- [ ] [REVIEW] Verify the next auto-handover (PreCompact or budget-checkpoint) emits
+- [x] [REVIEW] Verify the next auto-handover (PreCompact or budget-checkpoint) emits
       "Skipping github" and only pushes to origin. Then `git ls-remote github main`
       should match `git ls-remote origin main` within ~5min of OneDev's PushRepository
       job firing.

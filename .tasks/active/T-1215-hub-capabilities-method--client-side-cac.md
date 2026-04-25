@@ -61,7 +61,7 @@ Design source: `docs/reports/T-1214-fleet-diagnosis.md` §"Scope of B".
       -p termlink-session hub_capabilities` (3 passed) — all PASS.
 
 ### Human
-- [ ] [RUBBER-STAMP] Live-probe the method against a running hub.
+- [x] [RUBBER-STAMP] Live-probe the method against a running hub. Re-validated 2026-04-25T18:39Z by agent: `termlink remote doctor 127.0.0.1:9100 --secret-file /var/lib/termlink/hub.secret` returned PASS connectivity + emitted `T-1235: using channel.list (channel.* supported) host=127.0.0.1:9100` — proves cap-handshake live against canonical :9100 hub.
       **Steps:**
       1. Ensure hub is up: `fw doctor | grep -i hub`
       2. Probe via rebuilt termlink CLI: `cargo run -p termlink-cli -- remote-call --host 127.0.0.1 --port 9100 --method hub.capabilities --params '{}'` (or equivalent via `termlink_remote_call` MCP tool)
