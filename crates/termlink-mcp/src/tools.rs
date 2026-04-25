@@ -4694,16 +4694,15 @@ impl TermLinkTools {
                 Err(e) => return e,
             };
 
-            match rpc_client.call("inbox.status", serde_json::json!("mcp-inbox-s"), serde_json::json!({})).await {
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "ok": true, "hub": p.hub, "result": r.result,
-                    })).unwrap_or_else(json_err)
-                }
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                    json_err(format!("inbox.status error on {}: {}", p.hub, e.error.message))
-                }
-                Err(e) => json_err(format!("RPC failed: {e}")),
+            let cache = termlink_session::hub_capabilities::shared_cache();
+            let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+            match termlink_session::inbox_channel::status_with_fallback_with_client(
+                &mut rpc_client, &p.hub, cache, &mut ctx,
+            ).await {
+                Ok(status) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true, "hub": p.hub, "result": status,
+                })).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("inbox.status error on {}: {}", p.hub, e)),
             }
         };
 
