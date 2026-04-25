@@ -140,7 +140,7 @@ learnings:
   task: T-198
   date: 2026-03-26
   context: file receive picked up 30-min-old FileInit events
-  application: TBD
+  application: Promoted to PP-011 via T-1282 (2026-04-25, D2)
 - id: L-021
   learning: "Run clippy in CI with --all-targets to catch await_holding_lock warnings in test code — holding std::sync::Mutex guards across .await points risks deadlocks that only manifest under load."
   source: P-001
