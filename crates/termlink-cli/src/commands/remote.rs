@@ -1284,35 +1284,28 @@ async fn cmd_remote_inbox_inner(
             }
         }
         RemoteInboxAction::List { target, json } => {
-            let resp = rpc_client
-                .call("inbox.list", serde_json::json!("inbox-l"), serde_json::json!({"target": target}))
-                .await
-                .context("inbox.list RPC failed")?;
-            match resp {
-                termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&r.result)?);
-                    } else {
-                        let transfers = r.result["transfers"].as_array();
-                        if let Some(transfers) = transfers {
-                            if transfers.is_empty() {
-                                println!("No pending transfers for '{}' on {}", target, conn.hub);
-                            } else {
-                                println!("Pending transfers for '{}' on {}:", target, conn.hub);
-                                for t in transfers {
-                                    let id = t["transfer_id"].as_str().unwrap_or("?");
-                                    let filename = t["filename"].as_str().unwrap_or("?");
-                                    let size = t["total_size"].as_u64().unwrap_or(0);
-                                    println!("  {} — {} ({} bytes)", id, filename, size);
-                                }
-                            }
-                        } else {
-                            println!("No transfers for '{}' on {}", target, conn.hub);
-                        }
-                    }
-                }
-                termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
-                    anyhow::bail!("inbox.list error: {}", e.error.message);
+            let cache = termlink_session::hub_capabilities::shared_cache();
+            let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+            let entries = termlink_session::inbox_channel::list_with_fallback_with_client(
+                &mut rpc_client,
+                conn.hub,
+                &target,
+                cache,
+                &mut ctx,
+            )
+            .await
+            .context("inbox.list (channel-aware) failed")?;
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({ "transfers": entries }))?
+                );
+            } else if entries.is_empty() {
+                println!("No pending transfers for '{}' on {}", target, conn.hub);
+            } else {
+                println!("Pending transfers for '{}' on {}:", target, conn.hub);
+                for e in &entries {
+                    println!("  {} — {} ({} bytes)", e.transfer_id, e.filename, e.size);
                 }
             }
         }
