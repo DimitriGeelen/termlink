@@ -241,3 +241,17 @@ decisions:
     date: 2026-04-24
     task: T-1168
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-014
+    decision: "Save to `/tmp/T-1224-message-to-122.md` for the human to relay (send-file via .107 or paste into .122 session)."
+    scope: project
+    date: 2026-04-25
+    task: T-1224
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-015
+    decision: "Real ACs from the start, not placeholders."
+    scope: project
+    date: 2026-04-25
+    task: T-1224
+    rationale: "Auto-captured from task file on completion"
