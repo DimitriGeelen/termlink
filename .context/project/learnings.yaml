@@ -802,3 +802,10 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-079
+  learning: "Verification commands must be temporally idempotent — they should pass at completion AND on re-runs. Antipattern: 'git log -1 | grep -c T-XXX' equals 1' breaks as soon as the next commit lands. CTL-013 detector flags this as a soundness issue. Better patterns: grep recent N commits ('git log --oneline -10 | grep -c T-XXX' >= 1), check file-state directly (grep, test -e), or omit the verification if it's purely about the act of committing (the post-commit hook handles that)."
+  source: D2
+  task: T-1270
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
