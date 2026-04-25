@@ -15,12 +15,13 @@ use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde_json::{json, Value};
 
-use termlink_bus::{Bus, Envelope, Retention};
+use termlink_bus::{ArtifactStore, Bus, Envelope, Retention};
 use termlink_protocol::control::channel::canonical_sign_bytes;
 use termlink_protocol::control::error_code;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
 
 static BUS: OnceLock<Bus> = OnceLock::new();
+static ARTIFACT_STORE: OnceLock<ArtifactStore> = OnceLock::new();
 
 /// The canonical topic T-1162 mirrors `event.broadcast` into so subscribers
 /// can read fan-out events via the new `channel.*` surface without waiting
@@ -43,6 +44,16 @@ pub fn init_bus(root: PathBuf) {
         );
     }
     let _ = BUS.set(bus);
+
+    // T-1248 / T-1164a: Initialize content-addressed artifact store at
+    // <bus-root>/artifacts/. Hub-side handlers in `crate::artifact` use this.
+    let store = ArtifactStore::open(root.join("artifacts")).unwrap_or_else(|e| {
+        panic!(
+            "failed to open artifact store at {}/artifacts: {e}",
+            root.display()
+        )
+    });
+    let _ = ARTIFACT_STORE.set(store);
 }
 
 /// T-1162: Mirror an `event.broadcast` payload into the `broadcast:global`
@@ -150,6 +161,11 @@ pub(crate) async fn mirror_inbox_deposit_with(
 
 pub(crate) fn bus() -> Option<&'static Bus> {
     BUS.get()
+}
+
+/// Access the hub's content-addressed artifact store. T-1248 / T-1164a.
+pub(crate) fn artifact_store() -> Option<&'static ArtifactStore> {
+    ARTIFACT_STORE.get()
 }
 
 fn bus_or_err(id: Value) -> std::result::Result<&'static Bus, RpcResponse> {

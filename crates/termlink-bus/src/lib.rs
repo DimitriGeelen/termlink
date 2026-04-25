@@ -8,12 +8,14 @@
 //! `Bus::open`, `create_topic` + `list_topics` via SQLite metadata.
 //! Log-append + subscribe + retention sweep land in follow-up wedges.
 
+mod artifact_store;
 mod envelope;
 mod error;
 mod log;
 mod meta;
 mod retention;
 
+pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
 pub use envelope::Envelope;
 pub use error::{BusError, Result};
 pub use log::Offset;

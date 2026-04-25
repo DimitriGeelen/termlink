@@ -4,15 +4,15 @@ name: "T-1155/7 Migrate file.send/receive → channel.post {type: artifact}"
 description: >
   ~10 sites in file.rs, remote.rs, main.rs, tools.rs. Artifact becomes typed channel.post; chunked transfer becomes bus implementation detail. Replaces T-1017/T-1018 fix path (silent drop, stale chunks) with channel semantics.
 
-status: captured
+status: started-work
 workflow_type: refactor
 owner: agent
-horizon: next
+horizon: now
 tags: [T-1155, bus, migration]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:15Z
-last_update: 2026-04-24T09:01:18Z
+last_update: 2026-04-25T11:42:28Z
 date_finished: null
 ---
 
@@ -82,14 +82,10 @@ grep -q "msg_type.*artifact" crates/termlink-cli/src/commands/file.rs
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-04-25 — Decompose into 4 build sub-tasks
+- **Chose:** Split T-1164 into T-1248 (blob store + artifact.put/get RPC), T-1249 (sender migration), T-1250 (receiver migration), T-1251 (legacy deprecation + inbox.rs cleanup + PL-011 closure). T-1164 becomes the umbrella tracker.
+- **Why:** Audit (2026-04-24) in this task body explicitly recommended a 4-way split. Per CLAUDE.md Task Sizing ("One task = one deliverable") and Pickup Message Handling (>3 new files / new subsystem → decompose), the 4 sub-tasks each represent one independent deliverable with its own ACs and verification. T-1248 is foundational; T-1249/T-1250 depend on it; T-1251 depends on b+c.
+- **Rejected:** Treating T-1164 as a single task — would have aggregated 4 different deliverables under one AC list and one verification gate, making partial progress invisible and triggering G-020 build-readiness false-completes.
 
 ## Updates
 
@@ -100,3 +96,7 @@ grep -q "msg_type.*artifact" crates/termlink-cli/src/commands/file.rs
 
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-25T11:42:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

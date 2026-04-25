@@ -1,4 +1,5 @@
 pub mod aggregator;
+pub mod artifact;
 pub mod bypass;
 pub mod channel;
 pub mod circuit_breaker;
