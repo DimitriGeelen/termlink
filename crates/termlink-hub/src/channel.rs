@@ -396,6 +396,38 @@ pub(crate) async fn handle_channel_subscribe_with(
     .into()
 }
 
+/// `channel.trim(topic, before_offset?)` → `{ok, deleted, topic}`.
+/// Destructive: removes records from the hub-side log. Affects ALL
+/// subscribers. Mirrors legacy `inbox.clear` semantics. T-1234 / T-1230a.
+pub async fn handle_channel_trim(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_trim_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_trim_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let before_offset = params.get("before_offset").and_then(|v| v.as_u64());
+    let deleted = match bus.trim_topic(topic, before_offset) {
+        Ok(n) => n,
+        Err(e) => return ErrorResponse::internal_error(id, &format!("channel.trim: {e}")).into(),
+    };
+    Response::success(
+        id,
+        json!({"ok": true, "deleted": deleted, "topic": topic}),
+    )
+    .into()
+}
+
 /// `channel.list(prefix?)` → `{topics: [{name, retention}]}`.
 pub async fn handle_channel_list(id: Value, params: &Value) -> RpcResponse {
     let bus = match bus_or_err(id.clone()) {
@@ -563,6 +595,49 @@ mod tests {
         let topics = v["topics"].as_array().unwrap();
         assert_eq!(topics.len(), 1);
         assert_eq!(topics[0]["name"], "a:x");
+    }
+
+    #[tokio::test]
+    async fn trim_topic_full_then_subscribe_empty() {
+        // T-1234 / T-1230a: channel.trim removes hub-side records, affecting all subscribers.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:carol", Retention::Forever).unwrap();
+        let key = signing_key();
+        for n in 0u32..3 {
+            let p = post_params(&key, "inbox:carol", "note", &n.to_le_bytes(), 1_000 + n as i64);
+            let _ = handle_channel_post_with(&bus, json!(n), &p).await;
+        }
+        // Full trim
+        let trim = handle_channel_trim_with(
+            &bus,
+            json!(99),
+            &json!({"topic": "inbox:carol"}),
+        )
+        .await;
+        let v = unwrap_success(trim);
+        assert_eq!(v["ok"], true);
+        assert_eq!(v["deleted"], 3);
+        assert_eq!(v["topic"], "inbox:carol");
+        // Subsequent subscribe returns empty
+        let sub = handle_channel_subscribe_with(
+            &bus,
+            json!(100),
+            &json!({"topic": "inbox:carol", "cursor": 0}),
+        )
+        .await;
+        let v = unwrap_success(sub);
+        let msgs = v["messages"].as_array().unwrap();
+        assert_eq!(msgs.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn trim_missing_topic_returns_invalid_params() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_trim_with(&bus, json!(1), &json!({})).await;
+        match resp {
+            RpcResponse::Error(e) => assert_eq!(e.error.code, -32602),
+            _ => panic!("expected error"),
+        }
     }
 
     #[tokio::test]

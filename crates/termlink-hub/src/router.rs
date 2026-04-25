@@ -85,6 +85,9 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::CHANNEL_LIST => {
             crate::channel::handle_channel_list(id, &req.params).await
         }
+        control::method::CHANNEL_TRIM => {
+            crate::channel::handle_channel_trim(id, &req.params).await
+        }
         "hub.version" => handle_hub_version(id),
         control::method::HUB_CAPABILITIES => handle_hub_capabilities(id),
         _ => forward_to_target(req, id).await,
@@ -758,6 +761,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::CHANNEL_POST,
         control::method::CHANNEL_SUBSCRIBE,
         control::method::CHANNEL_LIST,
+        control::method::CHANNEL_TRIM,
         "hub.version",
         control::method::HUB_CAPABILITIES,
     ];

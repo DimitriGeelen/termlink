@@ -79,6 +79,16 @@ impl Bus {
         self.meta.count_records(topic)
     }
 
+    /// Destructive trim of `topic`. `before_offset=Some(N)` removes
+    /// records with offset < N; `before_offset=None` removes ALL records.
+    /// Returns count deleted. Index-only (log file bytes remain).
+    /// Affects all subscribers — channel-backed equivalent of legacy
+    /// `inbox.clear` semantics (T-1234 / T-1230a). For per-subscriber
+    /// "mark as read" semantics use `advance_cursor` instead.
+    pub fn trim_topic(&self, topic: &str, before_offset: Option<u64>) -> Result<u64> {
+        self.meta.trim_records(topic, before_offset)
+    }
+
     /// Append an envelope to `topic`'s log. Returns the logical offset
     /// (0-based sequence number) assigned to the new record. The topic
     /// must have been registered via `create_topic` first.
@@ -223,6 +233,26 @@ mod tests {
             artifact_ref: None,
             ts_unix_ms: 0,
         }
+    }
+
+    #[tokio::test]
+    async fn trim_topic_before_offset_then_full() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        for i in 0u32..5 {
+            bus.post("t", &env("t", &i.to_le_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.topic_record_count("t").unwrap(), 5);
+        // Trim records with offset < 3 → removes offsets 0,1,2 (3 records)
+        let n = bus.trim_topic("t", Some(3)).unwrap();
+        assert_eq!(n, 3);
+        assert_eq!(bus.topic_record_count("t").unwrap(), 2);
+        // Full trim → removes the remaining 2
+        let n = bus.trim_topic("t", None).unwrap();
+        assert_eq!(n, 2);
+        assert_eq!(bus.topic_record_count("t").unwrap(), 0);
+        // Unknown topic returns 0 (caller-friendly)
+        assert_eq!(bus.trim_topic("nope", None).unwrap(), 0);
     }
 
     #[tokio::test]

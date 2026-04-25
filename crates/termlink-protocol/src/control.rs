@@ -112,6 +112,13 @@ pub mod method {
     /// Tier-A — list existing topics (optional prefix filter).
     /// Params: `{ prefix? }` → `{ topics: [{name, last_offset, retention}] }`.
     pub const CHANNEL_LIST: &str = "channel.list";
+
+    /// Tier-A — destructive trim of a topic. `before_offset=Some(N)` removes
+    /// records with offset < N; `before_offset=None` removes ALL records.
+    /// Affects ALL subscribers. Mirrors legacy `inbox.clear` semantics.
+    /// Pairs with `cursor.advance` (forthcoming) for per-subscriber semantics.
+    /// Params: `{ topic, before_offset? }` → `{ ok, deleted, topic }`. T-1234 / T-1230a.
+    pub const CHANNEL_TRIM: &str = "channel.trim";
 }
 
 /// T-1160 channel.* canonical signing bytes.
@@ -456,6 +463,7 @@ mod tests {
         assert_eq!(method::CHANNEL_POST, "channel.post");
         assert_eq!(method::CHANNEL_SUBSCRIBE, "channel.subscribe");
         assert_eq!(method::CHANNEL_LIST, "channel.list");
+        assert_eq!(method::CHANNEL_TRIM, "channel.trim");
     }
 
     #[test]
