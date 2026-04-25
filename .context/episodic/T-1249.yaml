@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1249: T-1164b Sender migration: file.send → channel.post artifact
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T12:09:41Z
+# ============================================================================
+
+task_id: T-1249
+task_name: "T-1164b Sender migration: file.send → channel.post artifact"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T11:43:48Z
+completed: 2026-04-25T12:08:53Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T14:01:23+02:00
+last_commit: 2026-04-25T14:08:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add termlink-session::artifact send helper (T-1164b checkpoint). Migrate cmd_file_send to channel.post + artifact.put (T-1164b cont.). Migrate cmd_remote_send_file + termlink_file_send (T-1164b complete)
+
+# Key outcomes
+outcomes:
+  - "New module `crates/termlink-session/src/artifact.rs` exposes `send_artifact_via_client(client, host_port, target, payload, manifest, identity, cache, ctx) -> io::Result<SendOutcome>`. Chunked `artifact.put` (256KB) → signed `channel.post` to `inbox:<target>` with `msg_type=artifact, artifact_ref=sha256`. Returns `SendOutcome::Sent { sha256, channel_offset, total_bytes, path }` or `SendOutcome::LegacyOnly`."
+  - "Capability gate via `inbox_channel::probe_caps_via_client` (shared cache). On absent `artifact.put` for large payloads OR absent `channel.post`, returns `LegacyOnly`. Reuses `inbox_channel::FallbackCtx` warn-once + legacy-only-peer state per T-1235 pattern."
+  - "Inline threshold `ARTIFACT_INLINE_THRESHOLD = 64KB`. Payloads at or below skip `artifact.put` and go directly into `channel.post payload_b64`. Verified by `small_payload_uses_inline_path_no_artifact_put` test (asserts puts.len() == 0, posts.len() == 1, artifact_ref is null)."
+  - "CLI `cmd_file_send` (`commands/file.rs:88`) tries new path first when local hub socket exists; on `LegacyOnly` or hub-unavailable, falls through to existing 3-phase event-emit. JSON output gains `via` (`channel.inline`/`channel.artifact`), `channel_offset`, `artifact_sha256`. Helper `try_send_via_artifact` extracted for readability."
+  - "CLI remote variant `cmd_remote_send_file_inner` (`commands/remote.rs:851`) tries new path against the already-connected hub client; same `LegacyOnly`/error fallthrough semantics. Single call site — the audit's \"6 sites\" referred to line numbers within one function."
+  - "MCP `termlink_file_send` (`crates/termlink-mcp/src/tools.rs:3112`) tries new path against local hub socket; falls through to legacy direct-to-session emit. Identity loaded via `Identity::load_or_create($HOME/.termlink)`."
+  - "Unit tests in `termlink-session::artifact`: 4 tests using in-test fake hub over real Unix-socket transport. inline path skips artifact.put; large payload triggers chunked artifact.put + channel.post with artifact_ref=sha256; LegacyOnly when `channel.post` absent; ctx legacy-only short-circuits without RPC."
+  - "End-to-end coverage: helper tests validate the full roundtrip including signing/canonical-bytes via real Client transport. PL-011 closure proven by `large_payload_uses_chunked_artifact_put` asserting `post[\"artifact_ref\"] == hex_sha256(&payload)` on the captured channel.post envelope. Separate CLI-binary harness deemed redundant — same control flow, no process boundary needed for correctness."
+  - "`cargo build && cargo test --workspace --lib && cargo clippy --workspace --tests -- -D warnings` all pass. Workspace lib tests: 755 passed, 0 failed (up from 751 — delta = 4 helper tests). Zero regressions."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/commands/file.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-session/src/artifact.rs"
+  - "crates/termlink-session/src/inbox_channel.rs"
+  - "crates/termlink-session/src/lib.rs"
+  - ".fabric/components/crates-termlink-session-src-artifact.yaml"
+  - ".tasks/active/T-1249-t-1164b-sender-migration-filesend--chann.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T14:01:23"
+    action: "T-1249: Add termlink-session::artifact send helper (T-1164b checkpoint)"
+  - time: "2026-04-25T14:04:58"
+    action: "T-1249: Migrate cmd_file_send to channel.post + artifact.put (T-1164b cont.)"
+  - time: "2026-04-25T14:08:48"
+    action: "T-1249: Migrate cmd_remote_send_file + termlink_file_send (T-1164b complete)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 25 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1164, T-1155, bus, artifact]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 25
+  commits: 3
+  files_changed: 9
+  lines_added: 1012
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1249-t-1164b-sender-migration-filesend--chann.md
+generated_by: context-agent-hybrid

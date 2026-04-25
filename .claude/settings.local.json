@@ -497,7 +497,16 @@
       "mcp__termlink__termlink_remote_inbox_list",
       "mcp__termlink__termlink_remote_inbox_status",
       "mcp__termlink__termlink_dispatch",
-      "mcp__termlink__termlink_fleet_status"
+      "mcp__termlink__termlink_fleet_status",
+      "mcp__termlink__termlink_remote_call",
+      "mcp__termlink__termlink_topics",
+      "mcp__termlink__termlink_file_send",
+      "mcp__termlink__termlink_remote_doctor",
+      "mcp__termlink__termlink_inbox_status",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_evaluate"
     ]
   },
   "enabledMcpjsonServers": [

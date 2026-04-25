@@ -4,3 +4,12 @@
 2026-04-24T15:30:30Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=PL-059 origin=termlink
 2026-04-24T15:49:26Z posted via=event.broadcast topic=channel:learnings msg_type=learning-G-016 id=PL-060 origin=termlink
 2026-04-24T16:06:33Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-011 id=PL-061 origin=termlink
+2026-04-25T05:34:30Z posted via=event.broadcast topic=channel:learnings msg_type=learning-G-016 id=PL-062 origin=termlink
+2026-04-25T05:34:37Z posted via=event.broadcast topic=channel:learnings msg_type=learning-G-029 id=PL-063 origin=termlink
+2026-04-25T09:13:28Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=PL-064 origin=termlink
+2026-04-25T09:13:41Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=PL-065 origin=termlink
+2026-04-25T09:33:38Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-002 id=PL-067 origin=termlink
+2026-04-25T10:04:33Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=PL-068 origin=termlink
+2026-04-25T10:46:42Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=PL-069 origin=termlink
+2026-04-25T15:45:02Z channel.post-failed id=PL-070 — falling back to event.broadcast
+2026-04-25T15:45:02Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=PL-070 origin=termlink
