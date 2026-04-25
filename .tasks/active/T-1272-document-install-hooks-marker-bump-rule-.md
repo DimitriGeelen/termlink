@@ -33,7 +33,7 @@ the rule. Mirror only — fix lives in /opt/999-AEF.
 ### Agent
 - [x] `lib/hooks.sh` upstream contains a comment near the commit-msg `# VERSION=` line referencing PL-078 + the bump-on-any-hook-change rule
 - [x] Comment is BEFORE the HOOK_EOF heredoc-end so it stays in the source file (not embedded into the deployed hook)
-- [ ] Change committed + pushed to onedev (master) — committed locally as 29c10012; push BLOCKED by OneDev 502 (2026-04-25T20:34Z)
+- [x] Change committed + pushed to onedev (master) — pushed at 2026-04-25T20:43Z (after ~9min OneDev outage); refs c9086ea4..29c10012
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
