@@ -4,16 +4,16 @@ name: "T-1163 follow-up: CLI/MCP inbox receiver migration to channel.{subscribe,
 description: >
   Receiver-side migration following T-1163's hub dual-write shim. CLI verbs 'inbox {list,status,clear}' + MCP tools termlink_inbox_* + remote inbox verbs switch to channel.{subscribe,list} on topic 'inbox:<target>' with capabilities fallback to legacy inbox.* when peer lacks channel API.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
 tags: [T-1155, bus, migration, T-1163-followup]
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/mirror_grid_composer.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: []
 created: 2026-04-24T15:10:01Z
-last_update: 2026-04-25T09:33:56Z
-date_finished: null
+last_update: 2026-04-25T10:45:13Z
+date_finished: 2026-04-25T10:45:13Z
 ---
 
 # T-1220: T-1163 follow-up: CLI/MCP inbox receiver migration to channel.{subscribe,list}
@@ -45,10 +45,10 @@ capabilities-gated fallback to legacy for peers that predate `channel.*`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Inception phase: `docs/reports/T-1220-inception.md` written with answers to the 5 open design questions above
-- [ ] Go/No-Go decision recorded: `fw inception decide T-1220 go|no-go --rationale "..."`
-- [ ] If GO: create concrete build sub-tasks per decided wedge split (likely: local CLI inbox verbs → MCP local → remote CLI → remote MCP, with a dedicated capabilities-fallback helper task in termlink-session)
-- [ ] No source edits under this task ID beyond the inception artifact — implementation lands under the build sub-tasks
+- [x] Inception phase: `docs/reports/T-1220-inception.md` written with answers to the 5 open design questions above
+- [x] Go/No-Go decision recorded: `fw inception decide T-1220 go|no-go --rationale "..."`
+- [x] If GO: create concrete build sub-tasks per decided wedge split (likely: local CLI inbox verbs → MCP local → remote CLI → remote MCP, with a dedicated capabilities-fallback helper task in termlink-session)
+- [x] No source edits under this task ID beyond the inception artifact — implementation lands under the build sub-tasks
 
 ## Verification
 
@@ -186,3 +186,6 @@ Wedge split:
 2. T-1220b — CLI local (`cmd_inbox_{list,status,clear}`, 3 sites).
 3. T-1220c — CLI remote (`cmd_remote_inbox_` + fleet-doctor, 4 sites).
 4. T-1220d — MCP (`termlink_inbox_` + remote, 6 sites).
+
+### 2026-04-25T10:45:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
