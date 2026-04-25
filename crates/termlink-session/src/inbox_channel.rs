@@ -177,6 +177,165 @@ pub async fn list_with_fallback_with_client(
     call_legacy_inbox_list_via_client(client, target).await
 }
 
+/// Aggregate inbox status as returned by the legacy `inbox.status` RPC and
+/// rebuilt by the channel path from a `channel.list(prefix="inbox:")` reply.
+/// Same shape as legacy callers expect so the migration is a drop-in
+/// (T-1229b / T-1235).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct InboxStatus {
+    pub total_transfers: u64,
+    pub targets: Vec<InboxStatusTarget>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InboxStatusTarget {
+    pub target: String,
+    pub pending: u64,
+}
+
+/// Probe + dispatch + aggregate. Single entry point for inbox.status callers
+/// using an unauthenticated socket (T-1229c local CLI / T-1229d local MCP).
+/// Opens one `Client::connect_addr` for the whole probe→dispatch sequence.
+///
+/// For callers holding an authenticated `Client`, use
+/// `status_with_fallback_with_client` (T-1229e/f remote variants).
+pub async fn status_with_fallback(
+    addr: &TransportAddr,
+    cache: &HubCapabilitiesCache,
+    ctx: &mut FallbackCtx,
+) -> io::Result<InboxStatus> {
+    let host_port = host_port_str(addr);
+    let mut client = Client::connect_addr(addr)
+        .await
+        .map_err(|e| io::Error::other(format!("connect {host_port}: {e}")))?;
+    status_with_fallback_with_client(&mut client, &host_port, cache, ctx).await
+}
+
+/// T-1235: Variant for callers who already hold an authenticated `Client`.
+/// Caller supplies `host_port` for cache-key + warn-once dedup.
+pub async fn status_with_fallback_with_client(
+    client: &mut Client,
+    host_port: &str,
+    cache: &HubCapabilitiesCache,
+    ctx: &mut FallbackCtx,
+) -> io::Result<InboxStatus> {
+    let use_channel = if ctx.is_legacy_only(host_port) {
+        false
+    } else {
+        let methods = probe_caps_via_client(client, host_port, cache)
+            .await
+            .unwrap_or_default();
+        methods
+            .iter()
+            .any(|m| m == control::method::CHANNEL_LIST)
+    };
+
+    if use_channel {
+        match call_channel_list_via_client(client, TOPIC_PREFIX).await {
+            Ok(value) => {
+                if ctx.warn_once(host_port, "channel.list") {
+                    tracing::info!(
+                        host = %host_port,
+                        "T-1235: using channel.list (channel.* supported)"
+                    );
+                }
+                return Ok(aggregate_status_from_channel_list(&value));
+            }
+            Err(SubscribeError::MethodNotFound) => {
+                ctx.flag_legacy_only(host_port);
+                if ctx.warn_once(host_port, "channel.list.missing") {
+                    tracing::warn!(
+                        host = %host_port,
+                        "T-1235: channel.list missing despite cap claim — flagging legacy-only"
+                    );
+                }
+            }
+            Err(SubscribeError::Other(e)) => return Err(e),
+        }
+    }
+
+    if ctx.warn_once(host_port, "inbox.status") {
+        tracing::info!(
+            host = %host_port,
+            "T-1235: using legacy inbox.status (channel.* unavailable)"
+        );
+    }
+    call_legacy_inbox_status_via_client(client).await
+}
+
+/// Pure aggregation: sum per-topic counts from a `channel.list` reply
+/// (filtered to `inbox:` prefix) into the InboxStatus shape that legacy
+/// `inbox.status` callers expect. Strips the `inbox:` prefix to derive
+/// target names. Public so dual-read mergers and tests can drive it
+/// without a transport.
+pub fn aggregate_status_from_channel_list(channel_list_result: &Value) -> InboxStatus {
+    let topics = channel_list_result
+        .get("topics")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut targets: Vec<InboxStatusTarget> = Vec::new();
+    let mut total: u64 = 0;
+    for t in topics {
+        let name = t.get("name").and_then(|v| v.as_str()).unwrap_or("");
+        let target = match name.strip_prefix(TOPIC_PREFIX) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let pending = t.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+        total += pending;
+        targets.push(InboxStatusTarget { target, pending });
+    }
+    InboxStatus {
+        total_transfers: total,
+        targets,
+    }
+}
+
+async fn call_channel_list_via_client(
+    client: &mut Client,
+    prefix: &str,
+) -> Result<Value, SubscribeError> {
+    let resp = client
+        .call(
+            control::method::CHANNEL_LIST,
+            json!("inbox-status-list"),
+            json!({"prefix": prefix}),
+        )
+        .await
+        .map_err(|e| SubscribeError::Other(map_client_err("channel.list", e)))?;
+    match resp {
+        RpcResponse::Success(ok) => Ok(ok.result),
+        RpcResponse::Error(e) if e.error.code == RPC_METHOD_NOT_FOUND => {
+            Err(SubscribeError::MethodNotFound)
+        }
+        RpcResponse::Error(e) => Err(SubscribeError::Other(io::Error::other(format!(
+            "channel.list error {}: {}",
+            e.error.code, e.error.message
+        )))),
+    }
+}
+
+async fn call_legacy_inbox_status_via_client(
+    client: &mut Client,
+) -> io::Result<InboxStatus> {
+    let resp = client
+        .call("inbox.status", json!("inbox-st"), json!({}))
+        .await
+        .map_err(|e| map_client_err("inbox.status", e))?;
+    match resp {
+        RpcResponse::Success(ok) => {
+            serde_json::from_value::<InboxStatus>(ok.result).map_err(|e| {
+                io::Error::other(format!("inbox.status decode: {e}"))
+            })
+        }
+        RpcResponse::Error(e) => Err(io::Error::other(format!(
+            "inbox.status error {}: {}",
+            e.error.code, e.error.message
+        ))),
+    }
+}
+
 /// Internal error type for the channel-subscribe leg so `list_with_fallback`
 /// can react to method-not-found without parsing strings.
 enum SubscribeError {
@@ -529,5 +688,76 @@ mod tests {
         assert!(ctx.cursor("inbox:t").is_none());
         ctx.set_cursor("inbox:t", 42);
         assert_eq!(ctx.cursor("inbox:t"), Some(42));
+    }
+
+    // T-1235 / T-1229b — channel.list aggregation tests for inbox.status path.
+
+    #[test]
+    fn status_aggregates_two_inbox_topics() {
+        let resp = json!({
+            "topics": [
+                {"name": "inbox:alice", "retention": {"kind": "forever"}, "count": 3},
+                {"name": "inbox:bob",   "retention": {"kind": "forever"}, "count": 1},
+            ]
+        });
+        let s = aggregate_status_from_channel_list(&resp);
+        assert_eq!(s.total_transfers, 4);
+        assert_eq!(s.targets.len(), 2);
+        let alice = s.targets.iter().find(|t| t.target == "alice").unwrap();
+        let bob = s.targets.iter().find(|t| t.target == "bob").unwrap();
+        assert_eq!(alice.pending, 3);
+        assert_eq!(bob.pending, 1);
+    }
+
+    #[test]
+    fn status_skips_non_inbox_prefix_topics_defensively() {
+        // The channel.list call uses prefix=inbox: so the hub *should* only
+        // return inbox: topics, but be defensive against future prefix changes
+        // or a hub that returns extras — only inbox:* contributes to the count.
+        let resp = json!({
+            "topics": [
+                {"name": "inbox:carol", "count": 2},
+                {"name": "event:noise", "count": 99},
+                {"name": "inbox:",      "count": 1},
+            ]
+        });
+        let s = aggregate_status_from_channel_list(&resp);
+        assert_eq!(s.total_transfers, 2, "only inbox:carol contributes");
+        assert_eq!(s.targets.len(), 1);
+        assert_eq!(s.targets[0].target, "carol");
+    }
+
+    #[test]
+    fn status_handles_missing_count_field_as_zero() {
+        // Hub running an older binary that lacks T-1233 won't include count;
+        // helper should degrade gracefully rather than panic.
+        let resp = json!({
+            "topics": [
+                {"name": "inbox:dave"},
+                {"name": "inbox:eve", "count": 5},
+            ]
+        });
+        let s = aggregate_status_from_channel_list(&resp);
+        assert_eq!(s.total_transfers, 5);
+        let dave = s.targets.iter().find(|t| t.target == "dave").unwrap();
+        assert_eq!(dave.pending, 0);
+    }
+
+    #[test]
+    fn status_handles_empty_topics_list() {
+        let resp = json!({"topics": []});
+        let s = aggregate_status_from_channel_list(&resp);
+        assert_eq!(s.total_transfers, 0);
+        assert!(s.targets.is_empty());
+    }
+
+    #[test]
+    fn status_handles_missing_topics_field() {
+        // Defensive: a malformed response with no "topics" key should yield empty
+        // status rather than erroring.
+        let resp = json!({});
+        let s = aggregate_status_from_channel_list(&resp);
+        assert_eq!(s.total_transfers, 0);
+        assert!(s.targets.is_empty());
     }
 }
