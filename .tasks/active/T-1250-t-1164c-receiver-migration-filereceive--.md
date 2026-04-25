@@ -4,15 +4,15 @@ name: "T-1164c Receiver migration: file.receive → channel.subscribe artifact"
 description: >
   Migrate all receivers to channel.subscribe + artifact download. Implements termlink-session::artifact receive helper used by CLI cmd_file_receive and MCP termlink_file_receive. Idempotent on sha256. Depends on T-1164a.
 
-status: captured
+status: started-work
 workflow_type: refactor
 owner: agent
-horizon: next
+horizon: now
 tags: [T-1164, T-1155, bus, artifact]
 components: []
 related_tasks: [T-1164, T-1164a, T-1155]
 created: 2026-04-25T11:43:51Z
-last_update: 2026-04-25T11:43:51Z
+last_update: 2026-04-25T12:09:54Z
 date_finished: null
 ---
 
@@ -20,35 +20,25 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Sub-task of T-1164. Adds `recv_artifacts_via_client` to `termlink-session::artifact` (alongside the T-1249 sender helper) plus `download_artifact_via_client` for chunked blob retrieval. Migrates `cmd_file_receive` (CLI) and `termlink_file_receive` (MCP) to consume `channel.subscribe(inbox:<self>)` filtered on `msg_type=artifact`, then download via `artifact.get` if the envelope carries `artifact_ref`, verify sha256, and write to disk. Reuses `inbox_channel::FallbackCtx` for capability gating + warn-once, mirroring the T-1249 sender pattern.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] `crates/termlink-session/src/artifact.rs` gains `recv_artifacts_via_client(client, host_port, target_self, since_offset, cache, ctx) -> io::Result<RecvOutcome>` that does `channel.subscribe(inbox:<target_self>, cursor=since_offset)`, filters `msg_type == "artifact"`, parses each manifest, and returns `Vec<RecvArtifact>` + `next_cursor`. Plus `download_artifact_via_client(client, sha256) -> io::Result<Vec<u8>>` that drives chunked `artifact.get` until eof and verifies the sha matches the requested key.
+- [ ] Capability gate: probes `channel.subscribe`. On absent, returns `RecvOutcome::LegacyOnly`. (Inline-only artifacts don't need `artifact.get`; chunked artifacts also need `artifact.get`, checked when downloading.)
+- [ ] CLI `cmd_file_receive` (`crates/termlink-cli/src/commands/file.rs`) tries the new path first when local hub is up. For each artifact envelope: if inline, use the payload bytes; else download via `artifact.get`. Verify sha256 against the artifact_ref/manifest. Write to `<output_dir>/<filename>` (or stdout per existing flag). Idempotent on sha256: skip if file already exists with matching hash. On `LegacyOnly`, falls through to existing event-stream reassembly.
+- [ ] MCP `termlink_file_receive` (`crates/termlink-mcp/src/tools.rs`) uses the same helpers; legacy fallback preserved.
+- [ ] Unit tests in `termlink-session::artifact`: receive-side fake hub serves channel.subscribe with one inline + one chunked artifact; helper parses both correctly; download_artifact_via_client retrieves chunked bytes; LegacyOnly when channel.subscribe absent from caps.
+- [ ] `cargo build && cargo test --workspace --lib && cargo clippy --workspace --tests -- -D warnings` all pass. Zero regressions.
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+cargo build
+cargo test -p termlink-session artifact
+cargo clippy --workspace --tests -- -D warnings
+grep -q "recv_artifacts_via_client" /opt/termlink/crates/termlink-session/src/artifact.rs
+grep -q "download_artifact_via_client" /opt/termlink/crates/termlink-session/src/artifact.rs
 
 ## Decisions
 
@@ -67,3 +57,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1250-t-1164c-receiver-migration-filereceive--.md
 - **Context:** Initial task creation
+
+### 2026-04-25T12:09:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

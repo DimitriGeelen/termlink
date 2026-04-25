@@ -95,6 +95,33 @@ pub enum SendPath {
     Chunked,
 }
 
+/// One artifact envelope read from the inbox topic. `payload` is the raw
+/// channel payload (manifest JSON for chunked, file bytes for inline).
+/// `artifact_ref` is `Some(sha256)` for the chunked path; the receiver must
+/// download the bytes via `download_artifact_via_client`. For the inline
+/// path, `artifact_ref` is `None` and `payload` already holds the bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecvArtifact {
+    pub channel_offset: u64,
+    pub artifact_ref: Option<String>,
+    pub manifest: Option<ArtifactManifest>,
+    pub payload: Vec<u8>,
+    pub sender_id: String,
+    pub ts_unix_ms: i64,
+}
+
+/// Outcome of `recv_artifacts_via_client`.
+#[derive(Debug, Clone)]
+pub enum RecvOutcome {
+    /// Hub does not advertise `channel.subscribe`. Caller should fall back
+    /// to the legacy event-stream reassembly path.
+    LegacyOnly,
+    Received {
+        artifacts: Vec<RecvArtifact>,
+        next_cursor: u64,
+    },
+}
+
 #[derive(Debug)]
 enum ArtifactRpcError {
     MethodNotFound,
@@ -334,6 +361,185 @@ fn hex_of(bytes: &[u8]) -> String {
     s
 }
 
+/// Subscribe to `inbox:<target_self>` starting at `since_offset`, return all
+/// envelopes with `msg_type == "artifact"` plus the new cursor. Reusable by
+/// CLI cmd_file_receive and MCP termlink_file_receive (T-1250 / T-1164c).
+pub async fn recv_artifacts_via_client(
+    client: &mut Client,
+    host_port: &str,
+    target_self: &str,
+    since_offset: u64,
+    cache: &HubCapabilitiesCache,
+    ctx: &mut FallbackCtx,
+) -> io::Result<RecvOutcome> {
+    if ctx.is_legacy_only(host_port) {
+        return Ok(RecvOutcome::LegacyOnly);
+    }
+    let methods: Vec<String> =
+        crate::inbox_channel::probe_caps_via_client(client, host_port, cache)
+            .await
+            .unwrap_or_default();
+    let has_subscribe = methods
+        .iter()
+        .any(|m| m == control::method::CHANNEL_SUBSCRIBE);
+    if !has_subscribe {
+        ctx.flag_legacy_only(host_port);
+        if ctx.warn_once(host_port, "artifact.recv.no_subscribe") {
+            tracing::info!(
+                host = %host_port,
+                target = %target_self,
+                "T-1250: peer lacks channel.subscribe — caller falls back to legacy receive"
+            );
+        }
+        return Ok(RecvOutcome::LegacyOnly);
+    }
+
+    let topic = format!("inbox:{target_self}");
+    let resp = client
+        .call(
+            control::method::CHANNEL_SUBSCRIBE,
+            json!("artifact-recv"),
+            json!({
+                "topic": topic,
+                "cursor": since_offset,
+                "limit": 1000,
+            }),
+        )
+        .await
+        .map_err(|e| io::Error::other(format!("channel.subscribe: {e}")))?;
+    let (messages, next_cursor) = match resp {
+        RpcResponse::Success(ok) => {
+            let msgs = ok
+                .result
+                .get("messages")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let next = ok
+                .result
+                .get("next_cursor")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(since_offset);
+            (msgs, next)
+        }
+        RpcResponse::Error(e) if e.error.code == RPC_METHOD_NOT_FOUND => {
+            ctx.flag_legacy_only(host_port);
+            return Ok(RecvOutcome::LegacyOnly);
+        }
+        RpcResponse::Error(e) => {
+            return Err(io::Error::other(format!(
+                "channel.subscribe error {}: {}",
+                e.error.code, e.error.message
+            )));
+        }
+    };
+
+    let mut artifacts = Vec::new();
+    for env in messages {
+        // Channel envelopes: { offset, msg_type, payload_b64, artifact_ref?, ts, sender_id, ... }
+        let msg_type = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if msg_type != MSG_TYPE_ARTIFACT {
+            continue;
+        }
+        let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let artifact_ref = env
+            .get("artifact_ref")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from);
+        let payload_b64 = env
+            .get("payload_b64")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let payload = match B64.decode(payload_b64) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let sender_id = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let ts_unix_ms = env.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
+        let manifest: Option<ArtifactManifest> = if artifact_ref.is_some() {
+            // Chunked: payload is the manifest JSON.
+            serde_json::from_slice(&payload).ok()
+        } else {
+            None
+        };
+        artifacts.push(RecvArtifact {
+            channel_offset: offset,
+            artifact_ref,
+            manifest,
+            payload,
+            sender_id,
+            ts_unix_ms,
+        });
+    }
+
+    Ok(RecvOutcome::Received {
+        artifacts,
+        next_cursor,
+    })
+}
+
+/// Download an artifact's bytes by sha256 via chunked `artifact.get`. Verifies
+/// the returned bytes hash to the requested key; returns an error on mismatch.
+pub async fn download_artifact_via_client(
+    client: &mut Client,
+    sha256: &str,
+) -> io::Result<Vec<u8>> {
+    const CHUNK: usize = 256 * 1024;
+    let mut out: Vec<u8> = Vec::new();
+    let mut offset: u64 = 0;
+    loop {
+        let resp = client
+            .call(
+                control::method::ARTIFACT_GET,
+                json!(format!("artifact-get-{offset}")),
+                json!({
+                    "sha256": sha256,
+                    "offset": offset,
+                    "max_bytes": CHUNK,
+                }),
+            )
+            .await
+            .map_err(|e| io::Error::other(format!("artifact.get: {e}")))?;
+        let result = match resp {
+            RpcResponse::Success(ok) => ok.result,
+            RpcResponse::Error(e) => {
+                return Err(io::Error::other(format!(
+                    "artifact.get error {}: {}",
+                    e.error.code, e.error.message
+                )));
+            }
+        };
+        let chunk_b64 = result
+            .get("chunk_b64")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let bytes = B64
+            .decode(chunk_b64)
+            .map_err(|e| io::Error::other(format!("artifact.get chunk_b64 decode: {e}")))?;
+        out.extend_from_slice(&bytes);
+        offset += bytes.len() as u64;
+        let eof = result.get("eof").and_then(|v| v.as_bool()).unwrap_or(false);
+        if eof {
+            break;
+        }
+        if bytes.is_empty() {
+            return Err(io::Error::other("artifact.get returned 0 bytes without eof"));
+        }
+    }
+    let got = hex_sha256(&out);
+    if got != sha256 {
+        return Err(io::Error::other(format!(
+            "artifact.get sha256 mismatch: requested {sha256}, computed {got}"
+        )));
+    }
+    Ok(out)
+}
+
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -359,8 +565,9 @@ mod tests {
     }
 
     /// In-test fake hub. Serves hub.capabilities (configurable methods),
-    /// artifact.put (delegates to a real ArtifactStore), and channel.post
-    /// (records the envelope + returns an incrementing offset).
+    /// artifact.put (records params + ack), channel.post (records envelope +
+    /// returns incrementing offset), channel.subscribe (returns staged
+    /// envelopes), and artifact.get (returns staged blobs).
     struct FakeHub {
         listener: tokio::net::UnixListener,
         addr: TransportAddr,
@@ -368,6 +575,10 @@ mod tests {
         seen_puts: Arc<Mutex<Vec<Value>>>,
         capabilities: Vec<String>,
         next_offset: Arc<Mutex<i64>>,
+        /// Staged inbox messages to return on channel.subscribe.
+        subscribe_messages: Arc<Mutex<Vec<Value>>>,
+        /// Staged blobs keyed by sha256.
+        blobs: Arc<Mutex<std::collections::HashMap<String, Vec<u8>>>>,
     }
 
     impl FakeHub {
@@ -381,6 +592,8 @@ mod tests {
                 seen_puts: Arc::new(Mutex::new(Vec::new())),
                 capabilities,
                 next_offset: Arc::new(Mutex::new(1)),
+                subscribe_messages: Arc::new(Mutex::new(Vec::new())),
+                blobs: Arc::new(Mutex::new(std::collections::HashMap::new())),
             }
         }
 
@@ -389,6 +602,8 @@ mod tests {
             let puts = self.seen_puts.clone();
             let caps = self.capabilities.clone();
             let next_offset = self.next_offset.clone();
+            let subscribe_messages = self.subscribe_messages.clone();
+            let blobs = self.blobs.clone();
             // Accept one connection, handle frames until peer drops.
             let listener = &self.listener;
             let (mut stream, _) = listener.accept().await.unwrap();
@@ -439,6 +654,46 @@ mod tests {
                                 let cur = *off;
                                 *off += 1;
                                 json!({"ok": true, "offset": cur, "ts": 0})
+                            }
+                            "channel.subscribe" => {
+                                let msgs = subscribe_messages.lock().unwrap().clone();
+                                let next = msgs.len() as u64;
+                                json!({"messages": msgs, "next_cursor": next})
+                            }
+                            "artifact.get" => {
+                                let sha = req
+                                    .params
+                                    .get("sha256")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                let offset = req
+                                    .params
+                                    .get("offset")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0)
+                                    as usize;
+                                let max_bytes = req
+                                    .params
+                                    .get("max_bytes")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(256 * 1024)
+                                    as usize;
+                                let bytes_opt = blobs.lock().unwrap().get(&sha).cloned();
+                                match bytes_opt {
+                                    Some(bytes) => {
+                                        let total = bytes.len();
+                                        let end = (offset + max_bytes).min(total);
+                                        let slice = &bytes[offset..end];
+                                        json!({
+                                            "chunk_b64": base64::engine::general_purpose::STANDARD.encode(slice),
+                                            "bytes_returned": slice.len(),
+                                            "eof": end == total,
+                                            "total_bytes": total,
+                                        })
+                                    }
+                                    None => json!({"error": "unknown blob"}),
+                                }
                             }
                             _ => json!({"unhandled": req.method.clone()}),
                         };
@@ -633,6 +888,135 @@ mod tests {
         .await
         .unwrap();
         assert!(matches!(outcome, SendOutcome::LegacyOnly));
+        drop(client);
+        let _ = server.await;
+    }
+
+    fn b64_str(b: &[u8]) -> String {
+        B64.encode(b)
+    }
+
+    #[tokio::test]
+    async fn recv_returns_inline_and_chunked_artifacts() {
+        let dir = tempfile::tempdir().unwrap();
+        let hub = FakeHub::new_in(
+            dir.path(),
+            vec![
+                "channel.subscribe".into(),
+                "artifact.get".into(),
+                "hub.capabilities".into(),
+            ],
+        );
+        // Stage two envelopes: one inline, one chunked.
+        let inline_payload = b"inline hello".to_vec();
+        let chunked_bytes = vec![0xCDu8; 300 * 1024];
+        let chunked_sha = hex_sha256(&chunked_bytes);
+        let chunked_manifest = ArtifactManifest {
+            filename: "big.bin".into(),
+            size: chunked_bytes.len() as u64,
+            from: "peer".into(),
+            transfer_id: Some("xfer-1".into()),
+            content_type: None,
+        };
+        let chunked_manifest_bytes = serde_json::to_vec(&chunked_manifest).unwrap();
+        {
+            let mut staged = hub.subscribe_messages.lock().unwrap();
+            staged.push(json!({
+                "offset": 1,
+                "msg_type": "artifact",
+                "payload_b64": b64_str(&inline_payload),
+                "artifact_ref": null,
+                "ts": 1,
+                "sender_id": "peer",
+            }));
+            staged.push(json!({
+                "offset": 2,
+                "msg_type": "artifact",
+                "payload_b64": b64_str(&chunked_manifest_bytes),
+                "artifact_ref": chunked_sha.clone(),
+                "ts": 2,
+                "sender_id": "peer",
+            }));
+            staged.push(json!({
+                "offset": 3,
+                "msg_type": "note",
+                "payload_b64": b64_str(b"non-artifact"),
+                "ts": 3,
+                "sender_id": "peer",
+            }));
+            hub.blobs.lock().unwrap().insert(chunked_sha.clone(), chunked_bytes.clone());
+        }
+        let addr = hub.addr.clone();
+
+        let server = tokio::spawn(async move {
+            let _ = hub.run_one().await.await;
+        });
+
+        let mut client = Client::connect_addr(&addr).await.unwrap();
+        let cache = HubCapabilitiesCache::new();
+        let mut ctx = FallbackCtx::new();
+
+        let outcome = recv_artifacts_via_client(
+            &mut client,
+            "fake:recv",
+            "alpha",
+            0,
+            &cache,
+            &mut ctx,
+        )
+        .await
+        .unwrap();
+        let (artifacts, next_cursor) = match outcome {
+            RecvOutcome::Received {
+                artifacts,
+                next_cursor,
+            } => (artifacts, next_cursor),
+            other => panic!("expected Received, got {other:?}"),
+        };
+        assert_eq!(artifacts.len(), 2, "non-artifact filtered out");
+        assert!(next_cursor >= 2);
+        // Inline
+        assert!(artifacts[0].artifact_ref.is_none());
+        assert_eq!(artifacts[0].payload, inline_payload);
+        // Chunked
+        assert_eq!(artifacts[1].artifact_ref.as_deref(), Some(chunked_sha.as_str()));
+        let m = artifacts[1].manifest.as_ref().unwrap();
+        assert_eq!(m.filename, "big.bin");
+
+        // Now download the chunked blob.
+        let bytes = download_artifact_via_client(&mut client, &chunked_sha)
+            .await
+            .unwrap();
+        assert_eq!(bytes.len(), chunked_bytes.len());
+        assert_eq!(hex_sha256(&bytes), chunked_sha);
+
+        drop(client);
+        let _ = server.await;
+    }
+
+    #[tokio::test]
+    async fn recv_legacy_only_when_subscribe_unavailable() {
+        let dir = tempfile::tempdir().unwrap();
+        let hub = FakeHub::new_in(dir.path(), vec!["hub.capabilities".into()]);
+        let addr = hub.addr.clone();
+        let server = tokio::spawn(async move {
+            let _ = hub.run_one().await.await;
+        });
+        let mut client = Client::connect_addr(&addr).await.unwrap();
+        let cache = HubCapabilitiesCache::new();
+        let mut ctx = FallbackCtx::new();
+        let outcome = recv_artifacts_via_client(
+            &mut client,
+            "fake:legacy-recv",
+            "beta",
+            0,
+            &cache,
+            &mut ctx,
+        )
+        .await
+        .unwrap();
+        assert!(matches!(outcome, RecvOutcome::LegacyOnly));
+        assert!(ctx.is_legacy_only("fake:legacy-recv"));
         drop(client);
         let _ = server.await;
     }
