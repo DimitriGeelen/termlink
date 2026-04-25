@@ -4729,16 +4729,17 @@ impl TermLinkTools {
                 Err(e) => return e,
             };
 
-            match rpc_client.call("inbox.list", serde_json::json!("mcp-inbox-l"), serde_json::json!({"target": p.target})).await {
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "ok": true, "hub": p.hub, "result": r.result,
-                    })).unwrap_or_else(json_err)
-                }
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                    json_err(format!("inbox.list error on {}: {}", p.hub, e.error.message))
-                }
-                Err(e) => json_err(format!("RPC failed: {e}")),
+            let cache = termlink_session::hub_capabilities::shared_cache();
+            let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+            match termlink_session::inbox_channel::list_with_fallback_with_client(
+                &mut rpc_client, &p.hub, &p.target, cache, &mut ctx,
+            ).await {
+                Ok(entries) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "hub": p.hub,
+                    "result": { "transfers": entries },
+                })).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("inbox.list (channel-aware) error on {}: {e}", p.hub)),
             }
         };
 
