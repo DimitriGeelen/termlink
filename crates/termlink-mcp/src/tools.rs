@@ -4540,20 +4540,20 @@ impl TermLinkTools {
             return json_err("Hub is not running (no socket found)");
         }
 
-        let params = if p.all.unwrap_or(false) {
-            serde_json::json!({"all": true})
+        let scope = if p.all.unwrap_or(false) {
+            termlink_session::inbox_channel::ClearScope::All
         } else if let Some(ref target) = p.target {
-            serde_json::json!({"target": target})
+            termlink_session::inbox_channel::ClearScope::Target(target.clone())
         } else {
             return json_err("Specify 'target' or set 'all' to true");
         };
 
-        match termlink_session::client::rpc_call(&hub_socket, "inbox.clear", params).await {
-            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
-                Err(e) => json_err(format!("inbox.clear error: {e}")),
-            },
-            Err(e) => json_err(format!("RPC call failed: {e}")),
+        let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
+        let cache = termlink_session::hub_capabilities::shared_cache();
+        let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+        match termlink_session::inbox_channel::clear_with_fallback(&addr, scope, cache, &mut ctx).await {
+            Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+            Err(e) => json_err(format!("inbox.clear error: {e}")),
         }
     }
 
