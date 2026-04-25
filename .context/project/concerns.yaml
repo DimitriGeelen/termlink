@@ -246,7 +246,7 @@ concerns:
   status: watching
   created: 2026-04-22
   last_reviewed: 2026-04-25
-  last_observation: "2026-04-25T06:21Z (5th consecutive clean fleet-doctor probe): ring20-dashboard OK (45 ms). Clean streak now 2026-04-24T10:30Z → 2026-04-25T06:21Z = **~19h51m**, closing on >24h closure bar (~4h remaining). .122 TOFU violation unchanged (sha256:883055...8526f6 vs expected sha256:405d14...be23e) — operator judgment pending. Previous: 05:30Z (4th), 2026-04-24T16:40Z (3rd), 16:15Z (2nd), 10:30Z (1st clean after 6+ auth-mismatch failures starting 2026-04-19T16:03:47Z)."
+  last_observation: "2026-04-25T08:48Z (8th probe; 6 clean, then connectivity OK + auth OK + inbox WARN with 1 pending transfer for target tl-beth3722). Auth mismatch streak still ZERO — the original failure mode (auth) has not recurred since 2026-04-24T10:30Z (~22h25m). The new 'warn' is unrelated to G-013's root cause (auth) — it's an inbox-state observation on a session named tl-beth3722 (likely a stale worker transfer). G-013 closure criterion was 'no auth-mismatch for >24h'; that bar is ~1h35m away as of 08:48Z. Inbox warn does NOT reset auth streak."
   related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055, T-1198, T-1214]
 
 - id: G-014
