@@ -842,40 +842,26 @@ pub(crate) async fn cmd_inbox_list(target: &str, json_output: bool) -> Result<()
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
 
-    let resp = termlink_session::client::rpc_call(
-        &hub_socket,
-        "inbox.list",
-        json!({"target": target}),
-    )
-    .await
-    .context("Failed to query inbox from hub")?;
-
-    let result = termlink_session::client::unwrap_result(resp)
-        .map_err(|e| anyhow::anyhow!("Hub returned error for inbox.list: {e}"))?;
+    let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
+    let cache = termlink_session::hub_capabilities::shared_cache();
+    let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+    let entries = termlink_session::inbox_channel::list_with_fallback(&addr, target, cache, &mut ctx)
+        .await
+        .context("Failed to query inbox from hub")?;
 
     if json_output {
-        println!("{}", serde_json::to_string_pretty(&result)?);
+        println!("{}", serde_json::to_string_pretty(&json!({ "transfers": entries }))?);
+    } else if entries.is_empty() {
+        println!("No pending transfers for '{target}'");
     } else {
-        let transfers = result["transfers"].as_array();
-        match transfers {
-            Some(t) if t.is_empty() => {
-                println!("No pending transfers for '{target}'");
-            }
-            Some(transfers) => {
-                println!("{} pending transfer(s) for '{target}':", transfers.len());
-                println!();
-                for tr in transfers {
-                    let id = tr["transfer_id"].as_str().unwrap_or("?");
-                    let file = tr["filename"].as_str().unwrap_or("?");
-                    let size = tr["size"].as_u64().unwrap_or(0);
-                    let complete = tr["complete"].as_bool().unwrap_or(false);
-                    let status = if complete { "complete" } else { "partial" };
-                    println!("  {id}  {file} ({size} bytes, {status})");
-                }
-            }
-            None => {
-                println!("No pending transfers for '{target}'");
-            }
+        println!("{} pending transfer(s) for '{target}':", entries.len());
+        println!();
+        for tr in &entries {
+            let status = if tr.complete { "complete" } else { "partial" };
+            println!(
+                "  {}  {} ({} bytes, {})",
+                tr.transfer_id, tr.filename, tr.size, status
+            );
         }
     }
     Ok(())
