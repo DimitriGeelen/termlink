@@ -860,6 +860,23 @@ if git -C "$PROJECT_ROOT" rev-parse --git-dir > /dev/null 2>&1; then
     if [ "$orphan_refs" -eq 0 ] && [ "$task_commits" -gt 0 ]; then
         pass "All commit task refs resolve to actual tasks"
     fi
+
+    # T-1255 (G-007): mirror drift check — github vs origin HEAD divergence.
+    # Only runs when both 'origin' and 'github' remotes are configured.
+    if git -C "$PROJECT_ROOT" remote get-url github >/dev/null 2>&1 \
+       && git -C "$PROJECT_ROOT" remote get-url origin >/dev/null 2>&1; then
+        _origin_head=$(timeout 10 git -C "$PROJECT_ROOT" ls-remote origin main 2>/dev/null | awk '"'"'{print $1}'"'"')
+        _github_head=$(timeout 10 git -C "$PROJECT_ROOT" ls-remote github main 2>/dev/null | awk '"'"'{print $1}'"'"')
+        if [ -n "$_origin_head" ] && [ -n "$_github_head" ]; then
+            if [ "$_origin_head" = "$_github_head" ]; then
+                pass "OneDev → GitHub mirror in sync (origin=github=${_origin_head:0:8})"
+            else
+                warn "OneDev → GitHub mirror drift (G-007): origin=${_origin_head:0:8} github=${_github_head:0:8}" \
+                     "Direct push to github (or onedev down at handover time) likely caused divergence" \
+                     "Investigate handover.sh push loop; ensure only origin is pushed (T-1255)"
+            fi
+        fi
+    fi
 else
     warn "Not a git repository" \
          "Git not initialized" \

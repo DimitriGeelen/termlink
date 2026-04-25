@@ -149,11 +149,13 @@ concerns:
   what_works_now: "Tags and release artifacts arrive on GitHub via `fw release`'s direct push path. Commits reachable from tags are accessible on GH as dangling refs. OneDev-to-OneDev push is unaffected. The install-check workflow was added successfully (file is on GH via tag), it just won't fire from main-branch pushes until mirror catches up."
   what_remains: "1. Inspect OneDev's PushRepository buildspec job status (likely requires OneDev UI access — operator action). 2. Verify github-push-token is valid. 3. Check if OneDev mirror is rate-limited or queued. 4. Consider fallback: if mirror is chronically slow, document that `fw release` is the authoritative GitHub path and formalize its direct push, or run a reconciliation cron."
   mitigation_candidate: "Short-term: operator checks OneDev buildspec output for the failing mirror job. Medium-term (T-1140, IMPLEMENTED 2026-04-19): scripts/check-mirror-freshness.sh compares origin and GitHub HEADs on demand; exits 0 synced, 1 drift, 2 tooling error; supports --json/--quiet for cron integration. Long-term: decide whether the buildspec mirror is worth keeping vs. just pushing to both remotes from `git push` (simpler, no lag, no silent-stuck-mirror failure mode)."
-  status: watching
+  status: resolved
   created: 2026-04-15
   last_reviewed: 2026-04-25
-  last_observation: "2026-04-25T06:30Z: Mirror healthy. OneDev and GitHub both at 4426c0a7 (handover S-2026-0425-0816) — pre-push hook propagates to both remotes within seconds. Streak of healthy probes since 2026-04-22T19:00Z (~3.5 days clean). Previous: 2026-04-25T05:30Z (c7466e35), 2026-04-22T19:00Z (caught up after 7h lag). Pattern: intermittent stalls then self-resolves; no consistent reproducer. Closure candidate if streak reaches 7 days clean."
-  related_tasks: [T-1062, T-1140]
+  resolved: 2026-04-25
+  resolution: "Root cause identified by T-1253 inception (2026-04-25): handover.sh:781-794 push loop iterated all configured remotes individually. When OneDev briefly 502'd at handover time, github received the push but origin did not, leaving github AHEAD of origin (the inverse of the original observation but the same divergence). PushRepository's force=false then prevented OneDev from auto-correcting. T-1255 fix (upstream commit 7f84a3ec, 2026-04-25): handover.sh now skips non-origin remotes when >1 remote is configured (mirror remotes get their commits via OneDev's PushRepository, as documented). audit.sh now compares github vs origin HEADs and warns on divergence within one audit cycle."
+  last_observation: "2026-04-25T06:30Z: Mirror healthy. OneDev and GitHub both at 4426c0a7 (handover S-2026-0425-0816) — pre-push hook propagates to both remotes within seconds. Streak of healthy probes since 2026-04-22T19:00Z (~3.5 days clean). Previous: 2026-04-25T05:30Z (c7466e35), 2026-04-22T19:00Z (caught up after 7h lag). Pattern: intermittent stalls then self-resolves; no consistent reproducer."
+  related_tasks: [T-1062, T-1140, T-1253, T-1255]
 
 - id: G-009
   type: gap
