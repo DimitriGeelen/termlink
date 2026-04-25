@@ -264,3 +264,15 @@ practices:
   promoted_from: L-021
   status: active
   applications: 4
+- id: PP-010
+  name: Capture subprocess exit codes explicitly in watcher scripts
+  derived_from: D2
+  description: Watcher scripts must capture subprocess exit codes explicitly — the
+    || pattern swallows non-zero exits and causes false success reporting
+  anti_pattern: Added via context agent
+  scope: project
+  origin_task: T-065
+  origin_date: '2026-03-10'
+  promoted_from: L-003
+  status: active
+  applications: 4
