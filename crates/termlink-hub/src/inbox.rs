@@ -83,6 +83,18 @@ pub fn deposit(target: &str, topic: &str, payload: &Value, from: Option<&str>) -
         return Ok(false);
     }
 
+    // T-1251: warn-once-per-process when legacy file.* events still reach the
+    // inbox. T-1164 has shipped channel.post {msg_type:artifact} as the new
+    // primary path; this deposit indicates a sender that hasn't migrated yet.
+    static LEGACY_WARNED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    if LEGACY_WARNED.set(()).is_ok() {
+        tracing::info!(
+            target = target,
+            topic = topic,
+            "T-1251: legacy file.* events received — sender should migrate to channel.post {{msg_type:artifact}}"
+        );
+    }
+
     let transfer_id = match payload.get("transfer_id").and_then(|v| v.as_str()) {
         Some(id) => id.to_string(),
         None => {

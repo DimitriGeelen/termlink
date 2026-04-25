@@ -322,7 +322,7 @@ learnings:
   task: T-953
   date: 2026-04-12
   context: Added via context agent
-  application: TBD
+  application: "Closed by T-1164: SendOutcome::Sent { sha256, channel_offset } returned by send_artifact_via_client provides structural delivery proof — receiver reads channel at offset to confirm receipt. Inline path returns offset only; chunked path returns offset + sha256 verifiable via artifact.get."
 - id: PL-012
   learning: "Pickup envelopes are a messaging channel, termlink sessions are an execution channel — agents must know the distinction"
   source: P-001
