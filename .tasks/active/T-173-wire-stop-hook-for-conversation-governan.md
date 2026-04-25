@@ -4,15 +4,15 @@ name: "Wire Stop hook for conversation governance (G-005)"
 description: >
   Claude Code Stop hook fires after every response with last_assistant_message. Wire it into framework to enforce N-exchange guard and close G-005 (pure conversation sessions bypass enforcement).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [framework, hooks, governance]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:06Z
-last_update: 2026-04-22T04:52:49Z
+last_update: 2026-04-25T18:55:39Z
 date_finished: null
 ---
 
@@ -30,9 +30,7 @@ ticket can then be closed as "shipped via T-1211" without further work.
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Stop hook wired in `.claude/settings.json` — superseded by T-1211 (handler `stop-guard.sh`); hook block installed 2026-04-25T18:48Z. `jq '.hooks.Stop' .claude/settings.json` confirms.
 
 ## Verification
 
@@ -74,3 +72,7 @@ ticket can then be closed as "shipped via T-1211" without further work.
 
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
+
+### 2026-04-25T18:55:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
