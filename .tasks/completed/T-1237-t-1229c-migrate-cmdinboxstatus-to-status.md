@@ -4,16 +4,16 @@ name: "T-1229c migrate cmd_inbox_status to status_with_fallback"
 description: >
   T-1229c migrate cmd_inbox_status to status_with_fallback
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
 created: 2026-04-25T10:33:32Z
-last_update: 2026-04-25T10:35:06Z
-date_finished: null
+last_update: 2026-04-25T10:46:55Z
+date_finished: 2026-04-25T10:46:55Z
 ---
 
 # T-1237: T-1229c migrate cmd_inbox_status to status_with_fallback
@@ -69,3 +69,6 @@ cargo build -p termlink 2>&1 | tail -3 | grep -q "Finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1237-t-1229c-migrate-cmdinboxstatus-to-status.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:46:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

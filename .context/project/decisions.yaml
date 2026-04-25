@@ -255,3 +255,45 @@ decisions:
     date: 2026-04-25
     task: T-1224
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-016
+    decision: "Migrate only `cmd_inbox_list` under T-1226. Capture"
+    scope: project
+    date: 2026-04-25
+    task: T-1226
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-017
+    decision: "Migrate only `termlink_inbox_list` under T-1228. Defer status /"
+    scope: project
+    date: 2026-04-25
+    task: T-1228
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-018
+    decision: "Factor dispatch into private `*_via_client` helpers that take"
+    scope: project
+    date: 2026-04-25
+    task: T-1231
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-019
+    decision: "Migrate only the List arm under T-1227. Status / Clear arms +"
+    scope: project
+    date: 2026-04-25
+    task: T-1227
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-020
+    decision: "Same scope-narrowing as T-1227 (List arm only). MCP-remote"
+    scope: project
+    date: 2026-04-25
+    task: T-1232
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-021
+    decision: "Add `count` field to each topic entry in existing `channel.list(prefix?)` response."
+    scope: project
+    date: 2026-04-25
+    task: T-1233
+    rationale: "Auto-captured from task file on completion"

@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1245: T-1230g migrate termlink_remote_inbox_clear MCP to clear_with_fallback_with_client
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T10:47:15Z
+# ============================================================================
+
+task_id: T-1245
+task_name: "T-1230g migrate termlink_remote_inbox_clear MCP to clear_with_fallback_with_client"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T10:43:00Z
+completed: 2026-04-25T10:47:14Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T12:43:51+02:00
+last_commit: 2026-04-25T12:43:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-1230g migrate termlink_remote_inbox_clear MCP to clear_with_fallback_with_client
+
+# Key outcomes
+outcomes:
+  - "MCP tool calls `clear_with_fallback_with_client(&mut rpc_client, &p.hub, scope, cache, &mut ctx)`"
+  - "JSON `{ok, hub, result}` envelope preserved"
+  - "cargo build -p termlink-mcp clean"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1245-t-1230g-migrate-termlinkremoteinboxclear.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T12:43:51"
+    action: "T-1245: T-1230g migrate termlink_remote_inbox_clear MCP to clear_with_fallback_with_client"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 80
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1245-t-1230g-migrate-termlinkremoteinboxclear.md
+generated_by: context-agent-hybrid

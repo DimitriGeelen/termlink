@@ -4,16 +4,16 @@ name: "T-1230c clear_with_fallback helper (T-1230c critical dep for migration si
 description: >
   T-1230c clear_with_fallback helper (T-1230c critical dep for migration sites)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
 created: 2026-04-25T10:31:08Z
-last_update: 2026-04-25T10:33:11Z
-date_finished: null
+last_update: 2026-04-25T10:46:52Z
+date_finished: 2026-04-25T10:46:52Z
 ---
 
 # T-1236: T-1230c clear_with_fallback helper (T-1230c critical dep for migration sites)
@@ -65,3 +65,6 @@ cargo test -p termlink-session --lib inbox_channel:: 2>&1 | tail -5 | grep -q "t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1236-t-1230c-clearwithfallback-helper-t-1230c.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:46:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

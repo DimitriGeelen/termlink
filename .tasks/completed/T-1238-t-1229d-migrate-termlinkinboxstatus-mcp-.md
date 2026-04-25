@@ -1,34 +1,35 @@
 ---
-id: T-1245
-name: "T-1230g migrate termlink_remote_inbox_clear MCP to clear_with_fallback_with_client"
+id: T-1238
+name: "T-1229d migrate termlink_inbox_status MCP to status_with_fallback"
 description: >
-  T-1230g migrate termlink_remote_inbox_clear MCP to clear_with_fallback_with_client
+  T-1229d migrate termlink_inbox_status MCP to status_with_fallback
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
-created: 2026-04-25T10:43:00Z
-last_update: 2026-04-25T10:43:51Z
-date_finished: null
+created: 2026-04-25T10:35:16Z
+last_update: 2026-04-25T10:47:04Z
+date_finished: 2026-04-25T10:47:04Z
 ---
 
-# T-1245: T-1230g migrate termlink_remote_inbox_clear MCP to clear_with_fallback_with_client
+# T-1238: T-1229d migrate termlink_inbox_status MCP to status_with_fallback
 
 ## Context
 
-T-1230g per inception: migrate `termlink_remote_inbox_clear` MCP tool
-(`crates/termlink-mcp/src/tools.rs:4755`) to
-`clear_with_fallback_with_client` (T-1236). Final inbox.clear migration site.
+T-1229d per inception (`docs/reports/T-1229-inception.md`): migrate
+`termlink_inbox_status` MCP tool (`crates/termlink-mcp/src/tools.rs:4518`)
+from legacy `inbox.status` RPC to `status_with_fallback` helper (T-1235).
+Sibling of T-1237 (CLI local migration).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] MCP tool calls `clear_with_fallback_with_client(&mut rpc_client, &p.hub, scope, cache, &mut ctx)`
-- [x] JSON `{ok, hub, result}` envelope preserved
+- [x] `termlink_inbox_status` calls `status_with_fallback(&addr, cache, &mut ctx)`
+- [x] JSON output uses serde Serialize on InboxStatus, preserves shape
 - [x] cargo build -p termlink-mcp clean
 
 ### Human
@@ -62,7 +63,10 @@ cargo build -p termlink-mcp 2>&1 | tail -3 | grep -q "Finished"
 
 ## Updates
 
-### 2026-04-25T10:43:00Z — task-created [task-create-agent]
+### 2026-04-25T10:35:16Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1245-t-1230g-migrate-termlinkremoteinboxclear.md
+- **Output:** /opt/termlink/.tasks/active/T-1238-t-1229d-migrate-termlinkinboxstatus-mcp-.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:47:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

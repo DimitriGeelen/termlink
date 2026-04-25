@@ -1,35 +1,35 @@
 ---
-id: T-1243
-name: "T-1230e migrate termlink_inbox_clear MCP to clear_with_fallback"
+id: T-1244
+name: "T-1230f migrate cmd_remote_inbox_inner Clear arm to clear_with_fallback_with_client"
 description: >
-  T-1230e migrate termlink_inbox_clear MCP to clear_with_fallback
+  T-1230f migrate cmd_remote_inbox_inner Clear arm to clear_with_fallback_with_client
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
-created: 2026-04-25T10:40:59Z
-last_update: 2026-04-25T10:41:45Z
-date_finished: null
+created: 2026-04-25T10:41:56Z
+last_update: 2026-04-25T10:47:13Z
+date_finished: 2026-04-25T10:47:13Z
 ---
 
-# T-1243: T-1230e migrate termlink_inbox_clear MCP to clear_with_fallback
+# T-1244: T-1230f migrate cmd_remote_inbox_inner Clear arm to clear_with_fallback_with_client
 
 ## Context
 
-T-1230e per inception: migrate `termlink_inbox_clear` MCP tool
-(`crates/termlink-mcp/src/tools.rs:4537`) to `clear_with_fallback` (T-1236).
-Sibling of T-1242 (CLI local).
+T-1230f per inception: migrate `cmd_remote_inbox_inner` Clear arm
+(`crates/termlink-cli/src/commands/remote.rs:1304`) to
+`clear_with_fallback_with_client` (T-1236). Sibling of T-1242 (CLI local).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] MCP tool calls `clear_with_fallback(&addr, scope, cache, &mut ctx)`
-- [x] JSON output uses serde Serialize on InboxClearResult
-- [x] cargo build -p termlink-mcp clean
+- [x] Clear arm calls `clear_with_fallback_with_client(&mut rpc_client, conn.hub, scope, cache, &mut ctx)`
+- [x] Renderer reads typed `InboxClearResult`
+- [x] cargo build -p termlink clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -47,7 +47,7 @@ Sibling of T-1242 (CLI local).
 -->
 
 ## Verification
-cargo build -p termlink-mcp 2>&1 | tail -3 | grep -q "Finished"
+cargo build -p termlink 2>&1 | tail -3 | grep -q "Finished"
 
 ## Decisions
 
@@ -62,7 +62,10 @@ cargo build -p termlink-mcp 2>&1 | tail -3 | grep -q "Finished"
 
 ## Updates
 
-### 2026-04-25T10:40:59Z — task-created [task-create-agent]
+### 2026-04-25T10:41:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1243-t-1230e-migrate-termlinkinboxclear-mcp-t.md
+- **Output:** /opt/termlink/.tasks/active/T-1244-t-1230f-migrate-cmdremoteinboxinner-clea.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:47:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

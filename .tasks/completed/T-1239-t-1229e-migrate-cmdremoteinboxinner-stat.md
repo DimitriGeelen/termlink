@@ -4,16 +4,16 @@ name: "T-1229e migrate cmd_remote_inbox_inner Status arm to status_with_fallback
 description: >
   T-1229e migrate cmd_remote_inbox_inner Status arm to status_with_fallback_with_client
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
 created: 2026-04-25T10:36:21Z
-last_update: 2026-04-25T10:37:20Z
-date_finished: null
+last_update: 2026-04-25T10:47:05Z
+date_finished: 2026-04-25T10:47:05Z
 ---
 
 # T-1239: T-1229e migrate cmd_remote_inbox_inner Status arm to status_with_fallback_with_client
@@ -71,3 +71,6 @@ cargo build -p termlink 2>&1 | tail -3 | grep -q "Finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1239-t-1229e-migrate-cmdremoteinboxinner-stat.md
 - **Context:** Initial task creation
+
+### 2026-04-25T10:47:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
