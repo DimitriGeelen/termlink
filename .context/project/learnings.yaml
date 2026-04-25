@@ -702,3 +702,17 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-066
+  learning: "Fleet doctor observed auth-mismatch on hub 'ring20-management' (192.168.10.122:9100). date_observed=2026-04-25T09:32:18Z hub_fingerprint=sha256:883055063bd299d4c9b597a24e32dbbab7c15ecc97e27b4cce2a044c1e8526f6. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-25
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-067
+  learning: "Inception Tier-0 gate is structural: agent writes the inception artifact to docs/reports/T-XXX-inception.md including the full rationale + GO recommendation, then injects a termlink notification to the user pointing at the artifact + listing what is blocked, and proceeds to other non-blocked work. The fw inception decide call is human-only — never self-approve, never bypass with --no-verify on commits that depend on the decision. Two-commit ceiling on inception tasks is a feature, not a friction."
+  source: P-002
+  task: T-1230
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
