@@ -1302,30 +1302,31 @@ async fn cmd_remote_inbox_inner(
             }
         }
         RemoteInboxAction::Clear { target, all, json } => {
-            let params = if all {
-                serde_json::json!({"all": true})
+            let scope = if all {
+                termlink_session::inbox_channel::ClearScope::All
             } else if let Some(ref t) = target {
-                serde_json::json!({"target": t})
+                termlink_session::inbox_channel::ClearScope::Target(t.clone())
             } else {
                 anyhow::bail!("Specify a target name or use --all");
             };
-            let resp = rpc_client
-                .call("inbox.clear", serde_json::json!("inbox-c"), params)
-                .await
-                .context("inbox.clear RPC failed")?;
-            match resp {
-                termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&r.result)?);
-                    } else {
-                        let cleared = r.result["cleared"].as_u64().unwrap_or(0);
-                        let tgt = r.result["target"].as_str().unwrap_or("*");
-                        println!("Cleared {} transfer(s) for '{}' on {}", cleared, tgt, conn.hub);
-                    }
-                }
-                termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
-                    anyhow::bail!("inbox.clear error: {}", e.error.message);
-                }
+            let cache = termlink_session::hub_capabilities::shared_cache();
+            let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+            let result = termlink_session::inbox_channel::clear_with_fallback_with_client(
+                &mut rpc_client,
+                conn.hub,
+                scope,
+                cache,
+                &mut ctx,
+            )
+            .await
+            .context("inbox.clear (channel-aware) failed")?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                println!(
+                    "Cleared {} transfer(s) for '{}' on {}",
+                    result.cleared, result.target, conn.hub
+                );
             }
         }
     }
