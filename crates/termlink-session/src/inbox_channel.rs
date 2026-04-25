@@ -28,8 +28,8 @@ use serde_json::{json, Value};
 use termlink_protocol::jsonrpc::RpcResponse;
 use termlink_protocol::{control, TransportAddr};
 
-use crate::client::rpc_call_addr;
-use crate::hub_capabilities::{self, HubCapabilitiesCache};
+use crate::client::{Client, ClientError};
+use crate::hub_capabilities::HubCapabilitiesCache;
 
 const TOPIC_PREFIX: &str = "inbox:";
 const RPC_METHOD_NOT_FOUND: i64 = -32601;
@@ -97,9 +97,12 @@ impl FallbackCtx {
     }
 }
 
-/// Probe + dispatch + reassemble. Single entry point for the wedge-b/c/d
-/// callers. Returns the equivalent of `inbox.list` regardless of which path
-/// served it.
+/// Probe + dispatch + reassemble. Single entry point for the wedge-b/d-local
+/// callers using an unauthenticated socket. Opens one `Client::connect_addr`
+/// for the whole probe→dispatch sequence.
+///
+/// For callers that already hold an authenticated `Client` (CLI remote / MCP
+/// remote), use `list_with_fallback_with_client` instead.
 pub async fn list_with_fallback(
     addr: &TransportAddr,
     target: &str,
@@ -107,12 +110,30 @@ pub async fn list_with_fallback(
     ctx: &mut FallbackCtx,
 ) -> io::Result<Vec<InboxEntry>> {
     let host_port = host_port_str(addr);
+    let mut client = Client::connect_addr(addr)
+        .await
+        .map_err(|e| io::Error::other(format!("connect {host_port}: {e}")))?;
+    list_with_fallback_with_client(&mut client, &host_port, target, cache, ctx).await
+}
+
+/// T-1231: Variant for callers who already hold an authenticated `Client`
+/// (CLI remote `cmd_remote_inbox_*`, MCP remote `termlink_remote_inbox_*`).
+/// Caller supplies the `host_port` string for cache-key + warn-once dedup.
+pub async fn list_with_fallback_with_client(
+    client: &mut Client,
+    host_port: &str,
+    target: &str,
+    cache: &HubCapabilitiesCache,
+    ctx: &mut FallbackCtx,
+) -> io::Result<Vec<InboxEntry>> {
     let topic = format!("{TOPIC_PREFIX}{target}");
 
-    let use_channel = if ctx.is_legacy_only(&host_port) {
+    let use_channel = if ctx.is_legacy_only(host_port) {
         false
     } else {
-        let methods = probe_caps(addr, cache).await.unwrap_or_default();
+        let methods = probe_caps_via_client(client, host_port, cache)
+            .await
+            .unwrap_or_default();
         methods
             .iter()
             .any(|m| m == control::method::CHANNEL_SUBSCRIBE)
@@ -120,9 +141,9 @@ pub async fn list_with_fallback(
 
     if use_channel {
         let saved_cursor = ctx.cursors.get(&topic).copied().unwrap_or(0);
-        match call_channel_subscribe(addr, &topic, saved_cursor).await {
+        match call_channel_subscribe_via_client(client, &topic, saved_cursor).await {
             Ok((messages, next_cursor)) => {
-                if ctx.warn_once(&host_port, "channel.subscribe") {
+                if ctx.warn_once(host_port, "channel.subscribe") {
                     tracing::info!(
                         host = %host_port,
                         target = %target,
@@ -133,8 +154,8 @@ pub async fn list_with_fallback(
                 return Ok(fold_envelopes(&messages));
             }
             Err(SubscribeError::MethodNotFound) => {
-                ctx.flag_legacy_only(&host_port);
-                if ctx.warn_once(&host_port, "channel.subscribe.missing") {
+                ctx.flag_legacy_only(host_port);
+                if ctx.warn_once(host_port, "channel.subscribe.missing") {
                     tracing::warn!(
                         host = %host_port,
                         target = %target,
@@ -146,14 +167,14 @@ pub async fn list_with_fallback(
         }
     }
 
-    if ctx.warn_once(&host_port, "inbox.list") {
+    if ctx.warn_once(host_port, "inbox.list") {
         tracing::info!(
             host = %host_port,
             target = %target,
             "T-1225: using legacy inbox.list (channel.* unavailable)"
         );
     }
-    call_legacy_inbox_list(addr, target).await
+    call_legacy_inbox_list_via_client(client, target).await
 }
 
 /// Internal error type for the channel-subscribe leg so `list_with_fallback`
@@ -163,20 +184,29 @@ enum SubscribeError {
     Other(io::Error),
 }
 
-async fn probe_caps(
-    addr: &TransportAddr,
+fn map_client_err(label: &str, e: ClientError) -> io::Error {
+    io::Error::other(format!("{label}: {e}"))
+}
+
+async fn probe_caps_via_client(
+    client: &mut Client,
+    host_port: &str,
     cache: &HubCapabilitiesCache,
 ) -> io::Result<Vec<String>> {
-    match addr {
-        TransportAddr::Tcp { host, port } => hub_capabilities::probe(host, *port, cache).await,
-        TransportAddr::Unix { .. } => {
-            // Local sockets bypass the host:port-keyed cache; probe directly.
-            let resp = rpc_call_addr(addr, control::method::HUB_CAPABILITIES, json!({}))
-                .await
-                .map_err(|e| io::Error::other(format!("hub.capabilities: {e}")))?;
-            extract_methods(&resp)
-        }
+    if let Some(cached) = cache.get(host_port) {
+        return Ok(cached);
     }
+    let resp = client
+        .call(
+            control::method::HUB_CAPABILITIES,
+            json!("inbox-probe"),
+            json!({}),
+        )
+        .await
+        .map_err(|e| map_client_err("hub.capabilities", e))?;
+    let methods = extract_methods(&resp)?;
+    cache.set(host_port.to_string(), methods.clone());
+    Ok(methods)
 }
 
 fn extract_methods(resp: &RpcResponse) -> io::Result<Vec<String>> {
@@ -198,22 +228,23 @@ fn extract_methods(resp: &RpcResponse) -> io::Result<Vec<String>> {
     }
 }
 
-async fn call_channel_subscribe(
-    addr: &TransportAddr,
+async fn call_channel_subscribe_via_client(
+    client: &mut Client,
     topic: &str,
     cursor: u64,
 ) -> Result<(Vec<Value>, u64), SubscribeError> {
-    let resp = rpc_call_addr(
-        addr,
-        control::method::CHANNEL_SUBSCRIBE,
-        json!({
-            "topic": topic,
-            "cursor": cursor,
-            "limit": 1000,
-        }),
-    )
-    .await
-    .map_err(|e| SubscribeError::Other(io::Error::other(format!("channel.subscribe: {e}"))))?;
+    let resp = client
+        .call(
+            control::method::CHANNEL_SUBSCRIBE,
+            json!("inbox-sub"),
+            json!({
+                "topic": topic,
+                "cursor": cursor,
+                "limit": 1000,
+            }),
+        )
+        .await
+        .map_err(|e| SubscribeError::Other(map_client_err("channel.subscribe", e)))?;
 
     match resp {
         RpcResponse::Success(ok) => {
@@ -240,10 +271,14 @@ async fn call_channel_subscribe(
     }
 }
 
-async fn call_legacy_inbox_list(addr: &TransportAddr, target: &str) -> io::Result<Vec<InboxEntry>> {
-    let resp = rpc_call_addr(addr, "inbox.list", json!({"target": target}))
+async fn call_legacy_inbox_list_via_client(
+    client: &mut Client,
+    target: &str,
+) -> io::Result<Vec<InboxEntry>> {
+    let resp = client
+        .call("inbox.list", json!("inbox-l"), json!({"target": target}))
         .await
-        .map_err(|e| io::Error::other(format!("inbox.list: {e}")))?;
+        .map_err(|e| map_client_err("inbox.list", e))?;
     match resp {
         RpcResponse::Success(ok) => {
             let arr = ok
