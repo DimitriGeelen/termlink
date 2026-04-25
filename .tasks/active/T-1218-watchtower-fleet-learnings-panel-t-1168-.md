@@ -49,19 +49,17 @@ than adding a new route. New route is overkill for a read-only list.
 
 ### Human
 - [ ] [REVIEW] Render quality of the Received section.
-      **Prerequisites (agent-verified 2026-04-24T16:55Z):**
-      - T-1218 template/blueprint changes landed in /opt/999-AEF (commit 9bfdc5d5)
-        but are NOT yet in termlink's vendored `.agentic-framework/web/`.
-      - `grep -c "received_learnings" .agentic-framework/web/context_loader.py` returns 0.
-      - Running Watchtower (pid 3689280, started 2026-04-23 20:53, port 3100) serves
-        the stale vendored copy. `curl http://localhost:3100/learnings | grep -c "from peers"` returns 0.
-      - `.context/project/received-learnings.yaml` has 1 seeded entry (L-0001 from peer-alpha)
-        ready to render once the upgrade+restart happens.
-      **Steps (updated for this project):**
-      1. Sync vendored framework: `fw upgrade` (brings in T-1218's web/ changes)
-      2. Restart Watchtower: kill pid 3689280 → `PROJECT_ROOT=/opt/termlink python3 -m web.app --port 3100 &`
-      3. Open http://localhost:3100/learnings in browser (not :3000 — that's the AEF-framework Watchtower)
-      4. Look at the "Received from peers" section (the seeded L-0001 should appear)
+      **Prerequisites (agent-verified 2026-04-25T14:00Z — NOW SATISFIED):**
+      - Vendored framework HAS T-1218 changes:
+        - `grep -c "received_learnings" .agentic-framework/web/context_loader.py` → 2
+        - `grep -c "received_learnings" .agentic-framework/web/blueprints/discovery.py` → 3
+        - `grep -c "from peers" .agentic-framework/web/templates/learnings.html` → 1
+      - Watchtower at pid 1688944 (started 2026-04-25T11:02Z, port 3100, cwd `/opt/termlink/.agentic-framework`) is serving the upgraded vendored copy.
+      - Live page `curl http://localhost:3100/learnings` returns the section header `<summary><strong>Received from peers (1)</strong></summary>` followed by a `<table role="grid">` with the seeded L-0001 entry.
+      **Steps (just visual review now):**
+      1. Open http://localhost:3100/learnings in browser
+      2. Scroll to the "Received from peers (1)" `<details>` section
+      3. Open it; verify L-0001 row renders with origin/id/learning/task/source/date columns aligned with the existing learnings table
       **Expected:** Table renders cleanly, aligns with existing learnings
       table style, long learning text wraps sensibly
       **If not:** Screenshot + note what's misaligned

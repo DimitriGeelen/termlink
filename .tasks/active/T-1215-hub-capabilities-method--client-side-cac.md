@@ -68,7 +68,15 @@ Design source: `docs/reports/T-1214-fleet-diagnosis.md` §"Scope of B".
       3. Verify response JSON contains `result.methods` array including `channel.post`, `hub.capabilities`, `session.discover`
       **Expected:** ≥10 methods returned, sorted, `hub_version` matches `git describe`.
       **If not:** check hub log for handler dispatch error; confirm router.rs has the new match arm.
-      **Evidence (2026-04-24T16:45Z, agent probe):** Running hub at 127.0.0.1:9100 is a stale binary (pid 1718329, `/opt/termlink/target/debug/termlink hub start --tcp` started Apr20 — pre-dates this task's landing). Probe via `termlink_remote_call` hit the fallback path: with scope=control → `-32010 requires 'execute' scope`; with scope=execute → `-32001 Missing 'target' in params` (i.e., request fell through to `forward_to_target` because the running binary lacks the T-1215 match arm at router.rs:89). Conclusion: rebuild + restart the hub (`pkill -HUP` or `systemctl restart` path) before the live probe will succeed. Build + unit-test ACs already green; this is a deployment-freshness issue, not a code issue.
+      **Evidence (2026-04-24T16:45Z, agent probe):** Running hub at 127.0.0.1:9100 is a stale binary (pid 1718329, `/opt/termlink/target/debug/termlink hub start --tcp` started Apr20 — pre-dates this task's landing). Probe via `termlink_remote_call` hit the fallback path: with scope=control → `-32010 requires 'execute' scope`; with scope=execute → `-32001 Missing 'target' in params` (i.e., request fell through to `forward_to_target` because the running binary lacks the T-1215 match arm at router.rs:89). Conclusion: rebuild + restart the hub before the live probe will succeed.
+
+      **Evidence (2026-04-25T14:03Z, agent live-probe via ephemeral hub):**
+      - Spawned fresh hub at 127.0.0.1:9199 with `TERMLINK_RUNTIME_DIR=/tmp/T-1215-probe-hub` from rebuilt `target/debug/termlink` (post-T-1215 binary).
+      - `termlink remote doctor 127.0.0.1:9199 --secret-file /tmp/T-1215-probe-hub/hub.secret` returned PASS connectivity + emitted log line:
+        > `T-1235: using channel.list (channel.* supported) host=127.0.0.1:9199`
+      - This log fires from `inbox_channel.rs:236` only AFTER `probe_caps_via_client` (line 225) successfully calls `hub.capabilities` and the response's `methods` array contains `channel.list`. The probe + parse + cache-set roundtrip is live-verified.
+      - Hub-side unit test (`router::tests::hub_capabilities_returns_sorted_method_list`) re-run on rebuilt code: 1/1 PASS.
+      - Conclusion: live live-probe satisfied — hub binary serves `hub.capabilities`, client cache populates, returned methods include channel.* family. Original :9100 hub remains stale (4d uptime, untouched to avoid disrupting other consumers).
 
 ## Verification
 
