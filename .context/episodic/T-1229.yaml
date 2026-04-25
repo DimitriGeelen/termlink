@@ -1,0 +1,69 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1229: T-1220b/d follow-up: inbox.status migration via channel aggregation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T10:44:25Z
+# ============================================================================
+
+task_id: T-1229
+task_name: "T-1220b/d follow-up: inbox.status migration via channel aggregation"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T08:24:26Z
+completed: 2026-04-25T10:44:24Z
+duration_days: 0
+updates_count: 5
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Inception phase: `docs/reports/T-1229-inception.md` written with"
+  - "Go/No-Go decision recorded: `fw inception decide T-1229 go|no-go`"
+  - "If GO: create concrete build sub-tasks per decided wedge split"
+  - "No source edits under this task ID beyond the inception artifact"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 139 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration, T-1220, wedge-b-followup, inception]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 139
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1229-t-1220b-follow-up-cmdinboxstatus-migrati.md
+generated_by: context-agent-hybrid

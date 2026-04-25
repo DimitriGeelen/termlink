@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1234: Hub: channel.trim(topic, before_offset?) router method (T-1230a)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T10:18:45Z
+# ============================================================================
+
+task_id: T-1234
+task_name: "Hub: channel.trim(topic, before_offset?) router method (T-1230a)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T10:15:21Z
+completed: 2026-04-25T10:18:42Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T12:18:36+02:00
+last_commit: 2026-04-25T12:18:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel.trim(topic, before_offset?) destructive hub-side delete (T-1230a foundation)
+
+# Key outcomes
+outcomes:
+  - "`Bus::trim_topic(topic, before_offset: Option<u64>) -> Result<u64>` added to `crates/termlink-bus/src/lib.rs` + thin `Meta::trim_records(topic, before_offset)` in `crates/termlink-bus/src/meta.rs`. `before_offset=None` deletes all records; `Some(N)` deletes records with `offset < N`. Returns count deleted. Unknown topic returns `Ok(0)`."
+  - "Protocol constant `CHANNEL_TRIM = \"channel.trim\"` added to `crates/termlink-protocol/src/control.rs`."
+  - "Hub router dispatches `\"channel.trim\"` to `crate::channel::handle_channel_trim` (mirrors existing channel.* dispatch pattern)."
+  - "`handle_channel_trim` in `crates/termlink-hub/src/channel.rs`: requires `topic` param; optional `before_offset` (u64). Returns `{ok: true, deleted: N, topic: \"...\"}`. Missing topic returns `-32602`."
+  - "Hub method registry: add `\"channel.trim\"` to the methods list at router.rs:752+ so `hub.capabilities` advertises it."
+  - "Unit test in `termlink-bus`: post 5 records, trim with `before_offset=Some(3)` → 3 deleted, count=2; trim with `None` → 2 deleted, count=0; trim unknown topic → 0."
+  - "Unit test in `termlink-hub` channel.rs: post 3, full trim, assert response `{ok: true, deleted: 3}`; subsequent subscribe returns empty."
+  - "`cargo build -p termlink-bus -p termlink-hub -p termlink-protocol` clean (0 new warnings)."
+  - "`cargo test -p termlink-bus -p termlink-hub -p termlink-protocol` passes."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-bus/src/lib.rs"
+  - "crates/termlink-bus/src/meta.rs"
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - ".tasks/active/T-1234-hub-channeltrimtopic-beforeoffset-router.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T12:18:36"
+    action: "T-1234: channel.trim(topic, before_offset?) destructive hub-side delete (T-1230a foundation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1230, T-1155, bus, channel, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 6
+  lines_added: 201
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1234-hub-channeltrimtopic-beforeoffset-router.md
+generated_by: context-agent-hybrid

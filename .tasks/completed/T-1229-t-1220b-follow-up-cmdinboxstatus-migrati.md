@@ -4,16 +4,16 @@ name: "T-1220b/d follow-up: inbox.status migration via channel aggregation"
 description: >
   Migrate inbox.status callers (cmd_inbox_status local CLI, termlink_inbox_status MCP, cmd_remote_inbox_status arm, termlink_remote_inbox_status MCP, fleet-doctor inbox check) to channel surface. Needs a new aggregation entry point in inbox_channel — channel.* is per-topic but status returns {total, targets[]}. **Inception-style task: design first, build later.**
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [T-1155, bus, migration, T-1220, wedge-b-followup, inception]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1220, T-1225, T-1231, T-1226, T-1227, T-1228, T-1232]
 created: 2026-04-25T08:24:26Z
-last_update: 2026-04-25T08:55:00Z
-date_finished: null
+last_update: 2026-04-25T10:44:24Z
+date_finished: 2026-04-25T10:44:24Z
 ---
 
 # T-1229: inbox.status channel-aware migration (5 sites, design-first)
@@ -55,16 +55,40 @@ channel surface is per-topic (`channel.subscribe(topic="inbox:<target>")`).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Inception phase: `docs/reports/T-1229-inception.md` written with
+- [x] Inception phase: `docs/reports/T-1229-inception.md` written with
       answers to Q1-Q3 above, particularly Option A vs B vs C decision
-- [ ] Go/No-Go decision recorded: `fw inception decide T-1229 go|no-go`
-- [ ] If GO: create concrete build sub-tasks per decided wedge split
-- [ ] No source edits under this task ID beyond the inception artifact
+- [x] Go/No-Go decision recorded: `fw inception decide T-1229 go|no-go`
+- [x] If GO: create concrete build sub-tasks per decided wedge split
+- [x] No source edits under this task ID beyond the inception artifact
 
 ## Verification
 
 test -f docs/reports/T-1229-inception.md
 grep -q "Go.*No-Go\|GO\|NO-GO" docs/reports/T-1229-inception.md
+
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** Option A — add hub-side `channel.list_topics(prefix="inbox:")` RPC. Single round-trip aggregation that mirrors the existing `inbox::list_all_targets()` spool walk on the channel surface. Preserves fleet-doctor correctness invariant (sees all pending transfers regardless of subscriber online status). Aligns with T-1166 retirement scope: when legacy `inbox.status` is removed, `channel.list_topics` stays.
+
+**Evidence:**
+- Hub `inbox::list_all_targets()` walks the spool directory directly (`crates/termlink-hub/src/inbox.rs`) — this is the data source `inbox.status` exposes today; Option A re-uses it via the channel surface.
+- T-1166 explicitly retires `inbox.status` (`crates/termlink-hub/src/router.rs:74,755` + T-1166 §"Router methods removed"). Option C (keep legacy) is not viable for the long horizon.
+- Option B (client iteration via `session.discover` + `channel.subscribe(limit=0)`) regresses on offline-target visibility — `session.discover` returns active sessions only, but inbox spool holds transfers for any target name including offline / never-registered ones. Fleet-doctor would silently miss the exact failure mode it exists to surface.
+- Full analysis + 7 build sub-task breakdown: `docs/reports/T-1229-inception.md`
+
+## Go/No-Go Criteria
+
+**GO if:**
+- Aggregation source preserves fleet-doctor correctness invariant (no offline-target blind spot)
+- Migration path aligns with T-1166 `inbox.*` retirement scope
+- Implementation cost is bounded (<400 LOC, breakable into ≤8 wedges)
+
+**NO-GO if:**
+- Hub-side aggregation would require unbounded server complexity
+- T-1166 timeline shifts to keep `inbox.status` indefinitely
+- A simpler client-side path emerges that doesn't lose offline-target transfers
 
 ## Decisions
 
@@ -81,3 +105,15 @@ grep -q "Go.*No-Go\|GO\|NO-GO" docs/reports/T-1229-inception.md
 - **Change:** Reclassified workflow_type build → inception
 - **Change:** Captured 5 affected call sites and Q1-Q3 design questions
 - **Reason:** Status aggregation does not map cleanly to per-topic channel surface; needs design discussion before any source edit. Three options (server-side aggregation, client-side enumeration, keep legacy) have different trade-offs.
+
+### 2026-04-25T09:27:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-25T10:08:58Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Option A — add hub-side `channel.list_topics(prefix="inbox:")` RPC. Single round-trip aggregation that mirrors the existing `inbox::list_all_targets()` spool walk on the channel surface. Preserves fleet-doctor correctness invariant (sees all pending transfers regardless of subscriber online status). Aligns with T-1166 retirement scope: when legacy `inbox.status` is removed, `channel.list_topics` stays.
+
+### 2026-04-25T10:44:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
