@@ -2,6 +2,23 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-046
+  type: gap
+  title: "Watchtower inception decide form does not pre-fill rationale from existing research artifact (docs/reports/T-XXX-inception.md)"
+  description: "On /inception/T-XXX detail pages, the 'Record Decision' form has GO/NO-GO/DEFER buttons + an empty 'Rationale for this decision...' textarea. When the inception research artifact at docs/reports/T-XXX-inception.md already contains a Recommendation section (the standard CTL-027 inception template requires this), the human is forced to re-type or copy-paste the rationale into the form. This is friction that punishes the agent for doing the right thing (writing a thorough recommendation up front). Worse — if the human approves without re-pasting, the recorded rationale is empty/sparse and the audit trail loses the analysis. Secondary issue: the /inception?decision=pending list view has no inline GO/NO-GO buttons, so the human must click into each task individually."
+  spec_reference: "Watchtower web/templates/inception_detail.html (form definition), web/routes/inception.py (POST /inception/<id>/decide handler), CTL-027 (inception artifact requirement), docs/reports/T-1229-inception.md + T-1230-inception.md (canonical examples — both have full Recommendation + Go/No-Go sections that the form ignores)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-04-25 ~10:00Z: User attempted to record T-1229 / T-1230 GO decisions per agent's recommendation. The Watchtower /inception/T-1229 form's rationale textarea was empty despite docs/reports/T-1229-inception.md containing a 7000-word recommendation. User reported: 'again missing rationale .. please record that rationale should be filled in'. The friction discourages thorough inception artifacts because the work doesn't carry through to the recorded decision."
+  detection_lag_days: "0 (caught on first cross-session inception decision after artifact pattern was established)"
+  what_works_now: "The form correctly accepts a typed rationale and persists it to the task file's ## Decision section. The list view correctly shows pending inceptions with PENDING badges. The detail page correctly surfaces the artifact's Open Design Questions section."
+  what_remains: "1. Form should default the rationale textarea to the contents of the artifact's 'Recommendation' or 'Decision' section (parse docs/reports/T-XXX-inception.md). 2. List view (/inception?decision=pending) should expose inline GO / NO-GO / DEFER buttons on each pending card to avoid the click-into-detail-then-back round trip. 3. If artifact is missing entirely, form should warn ('No research artifact at docs/reports/T-XXX-inception.md — recommend writing one before deciding') rather than silently accept an empty rationale."
+  mitigation_candidate: "Single template+route change in Watchtower: read docs/reports/T-{task_id}-inception.md, extract section between '## Recommendation' and the next '##' marker, populate the textarea's default value. Inline buttons on list view is a separate template change. Both are pure-template fixes — no schema or storage change needed."
+  status: watching
+  created: 2026-04-25
+  last_reviewed: 2026-04-25
+  related_tasks: [T-1229, T-1230]
+
 - id: G-003
   type: gap
   title: TermLink hub on .107 has no TCP listener by default and no supervisor, breaking cross-host parity work
@@ -243,11 +260,13 @@ concerns:
   what_works_now: "Fleet doctor correctly classifies the error and emits a hint. T-1052 has already recorded an isolated learning. This concern escalates the sustained pattern to Watchtower visibility."
   what_remains: "Operator must refresh the client's cached secret for this hub. Long-term fix: T-1054 (termlink fleet reauth) lands a one-command heal."
   mitigation_candidate: "Ship T-1054 (fleet reauth Tier-1) and T-1055 (fleet reauth --bootstrap-from, Tier-2)."
-  status: watching
+  status: closed
   created: 2026-04-22
   last_reviewed: 2026-04-25
+  closed: 2026-04-25
+  closure_evidence: "2026-04-25T10:45Z (9th probe): connectivity PASS, sessions WARN (no sessions), inbox WARN (1 pending). Zero FAIL. Auth-mismatch streak ZERO since 2026-04-24T10:30Z = >24h clean — closure criterion met. Drive-by validation: T-1235 status_with_fallback helper executed in production and correctly fell back to legacy inbox.status because remote hub does not yet advertise channel.list (older version) — fallback path validated end-to-end."
   last_observation: "2026-04-25T08:48Z (8th probe; 6 clean, then connectivity OK + auth OK + inbox WARN with 1 pending transfer for target tl-beth3722). Auth mismatch streak still ZERO — the original failure mode (auth) has not recurred since 2026-04-24T10:30Z (~22h25m). The new 'warn' is unrelated to G-013's root cause (auth) — it's an inbox-state observation on a session named tl-beth3722 (likely a stale worker transfer). G-013 closure criterion was 'no auth-mismatch for >24h'; that bar is ~1h35m away as of 08:48Z. Inbox warn does NOT reset auth streak."
-  related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055, T-1198, T-1214]
+  related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055, T-1198, T-1214, T-1235]
 
 - id: G-014
   type: gap
