@@ -4,16 +4,16 @@ name: "T-1220a: inbox_channel::list_with_fallback helper (T-1220 wedge a)"
 description: >
   termlink-session helper that wraps capabilities probe + channel.subscribe(topic=inbox:<target>) + legacy inbox.list fallback + dedup-merge. Foundation for T-1220b/c/d migrations. ~100 LOC + tests. Per T-1220 GO inception: in-memory cursor (Q1 D), per-session-per-target cap cache (Q2 B), warn-once + flag-legacy fallback (Q3 B+C), dual-read transition (Q5 A).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1155, bus, migration, T-1220, wedge-a]
-components: []
+components: [crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-1220, T-1215, T-1163]
 created: 2026-04-25T07:00:04Z
-last_update: 2026-04-25T07:00:38Z
-date_finished: null
+last_update: 2026-04-25T07:06:40Z
+date_finished: 2026-04-25T07:06:40Z
 ---
 
 # T-1225: T-1220a: inbox_channel::list_with_fallback helper (T-1220 wedge a)
@@ -104,3 +104,6 @@ grep -q "fold_envelopes" crates/termlink-session/src/inbox_channel.rs
 
 ### 2026-04-25T07:00:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-25T07:06:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
