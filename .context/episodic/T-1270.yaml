@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1270: Mirror PL-075 fix to upstream framework + bump hooks version marker to force consumer redeploy
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T20:24:02Z
+# ============================================================================
+
+task_id: T-1270
+task_name: "Mirror PL-075 fix to upstream framework + bump hooks version marker to force consumer redeploy"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T20:21:43Z
+completed: 2026-04-25T20:24:00Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "/opt/999-AEF deployed pre-push no longer has `> .agentic-framework/VERSION` write"
+  - "`lib/hooks.sh` commit-msg `# VERSION=` marker bumped 1.6 → 1.7"
+  - "Change committed + pushed to onedev (master)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1270-mirror-pl-075-fix-to-upstream-framework-.md
+generated_by: context-agent-hybrid

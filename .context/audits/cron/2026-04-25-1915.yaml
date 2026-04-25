@@ -1,14 +1,13 @@
-# Audit Results - 2026-04-17-1915
-timestamp: 2026-04-17T17:15:02Z
+# Audit Results - 2026-04-25-1915
+timestamp: 2026-04-25T17:15:01Z
 sections: "oe-fast,oe-research"
 summary:
-  pass: 6
-  warn: 2
+  pass: 7
+  warn: 1
   fail: 0
 findings:
-  - level: WARN
-    check: "C-001: Inception T-1071 has no research artifact in docs/reports/"
-    mitigation: "Create docs/reports/T-1071-*.md — the thinking trail IS the artifact"
+  - level: PASS
+    check: "C-001: All 1 active inceptions have research artifacts"
   - level: PASS
     check: "C-002: commit-msg hook has research artifact check"
   - level: PASS
@@ -16,11 +15,11 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-1109)"
+    check: "CTL-001: Focus file empty (no recent activity — expected)"
   - level: WARN
-    check: "CTL-003: Budget status file stale (30min old)"
+    check: "CTL-003: Budget status file stale (46min old)"
     mitigation: "Check PreToolUse hook wiring for budget-gate.sh"
   - level: PASS
-    check: "CTL-004: Tool counter at 24 (last commit: 42 minutes ago)"
+    check: "CTL-004: Tool counter at 2 (last commit: 46 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"

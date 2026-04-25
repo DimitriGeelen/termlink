@@ -795,3 +795,10 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-078
+  learning: "install-hooks short-circuits on commit-msg # VERSION= marker. Pre-push and post-commit changes don't auto-deploy unless commit-msg marker bumps too. When fixing any individual hook content, ALSO bump the commit-msg marker so consumers' install-hooks redeploys all hooks on next run. Without the bump, the fix sits in the template and the deployed hook stays buggy indefinitely (T-1252 fix sat dormant on /opt/termlink and /opt/999-AEF for unknown days)."
+  source: D2
+  task: T-1270
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
