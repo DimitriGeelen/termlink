@@ -49,7 +49,7 @@ learnings:
   task: T-172
   date: 2026-03-18
   context: Added via context agent
-  application: TBD
+  application: Already promoted to PP-002 (back-reference added 2026-04-25 via T-1278; fw promote suggest didn't detect existing promotion — see PL-082)
 - id: L-008
   learning: "ink TUI (React terminal) treats multi-byte writes as paste — Enter (0x0D) must be sent as separate pty.write() with delay for keypress detection"
   source: P-001
@@ -827,6 +827,13 @@ learnings:
   learning: "Sanity test: inner \"double\" quotes here from T-1276 verification"
   source: D2
   task: T-1276
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-083
+  learning: "fw promote suggest detects already-promoted learnings only via the L-XXX application field, not by cross-referencing practices.yaml promoted_from. If the application field stays TBD after promotion (manual update step is easy to skip), the same L-ID is suggested again and a duplicate PP-XXX is created. Cure: (1) suggest should filter against grep promoted_from: practices.yaml, OR (2) fw promote should auto-update application field with PP-XXX reference, OR (3) refuse promotion if promoted_from already exists. Hit on T-1278 — L-007 was already PP-002 since 2026-03-18 but its application field was TBD, so suggest re-recommended it and creating duplicate PP-009 (now reverted)."
+  source: P-001
+  task: T-1278
   date: 2026-04-25
   context: Added via context agent
   application: TBD
