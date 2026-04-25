@@ -97,6 +97,21 @@ deliberately excluded from T-1055 and requires a later task with explicit
 security review before adoption. The operator picks the anchor per incident;
 there is no default.
 
+**R3 — read-live, not cache, for own-hub secret (G-011).** When sharing your
+local hub's secret with a peer (e.g. during heal-after-rotation handoff),
+read directly from the authoritative `<runtime_dir>/hub.secret` file, NOT
+from the IP-keyed convenience cache at `~/.termlink/secrets/<hub-ip>.hex`.
+The cache is written once at heal time and is NOT invalidated when the hub
+regenerates — peers handed a stale cached value will see auth-mismatch
+symptoms but the giving end appears clean, masking the true source of the
+drift. For self-hub access (where `<runtime_dir>/hub.secret` is locally
+readable), point profiles' `secret_file = ...` directly at the live file.
+Reserve IP-keyed caches for remote hubs that the operator has explicitly
+chosen to cache. Mirror-image of T-1051/T-933 (which address receiving-end
+drift); this rule covers giving-end drift. Source incident: 2026-04-20
+peer-share where `~/.termlink/secrets/192.168.10.121.hex` had been stale for
+~1 day after a hub restart.
+
 **R1 — memory-drift detection via `hub_fingerprint`.** Every auto-registered
 learning from T-1052 carries `hub_fingerprint=sha256:<hex>` captured from the
 client's `KnownHubStore` at observation time. A future agent that finds a
