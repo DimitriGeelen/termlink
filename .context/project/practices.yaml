@@ -251,17 +251,16 @@ practices:
   promoted_from: L-006
   status: active
   applications: 4
-- id: PP-008
-  name: Pass PROJECT_ROOT explicitly to framework scripts from consumer hooks
+- id: PP-009
+  name: Run clippy --all-targets in CI to catch await_holding_lock
   derived_from: D2
-  description: Consumer project hooks must pass PROJECT_ROOT explicitly when invoking
-    framework scripts — framework scripts fall back to git rev-parse which resolves
-    to the framework repo, not the consumer project.
-  anti_pattern: Pre-push audit blocked git push because it checked framework tasks
-    dir instead of termlink tasks dir
+  description: Run clippy in CI with --all-targets to catch await_holding_lock warnings
+    in test code — holding std::sync::Mutex guards across .await points risks deadlocks
+    that only manifest under load.
+  anti_pattern: 19 await_holding_lock warnings in router.rs and pty.rs tests
   scope: project
-  origin_task: T-290
+  origin_task: T-230
   origin_date: '2026-03-26'
-  promoted_from: L-027
+  promoted_from: L-021
   status: active
-  applications: 16
+  applications: 4

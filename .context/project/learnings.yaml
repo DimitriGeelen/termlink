@@ -147,7 +147,7 @@ learnings:
   task: T-230
   date: 2026-03-26
   context: 19 await_holding_lock warnings in router.rs and pty.rs tests
-  application: TBD
+  application: Promoted to PP-009 via T-1280 (2026-04-25, D2)
 - id: L-022
   learning: "Scrollback buffer delta calculations must handle wraparound: when delta >= buffer length, send the full buffer instead of computing a negative or zero-length slice."
   source: P-001
@@ -189,7 +189,7 @@ learnings:
   task: T-290
   date: 2026-03-26
   context: Pre-push audit blocked git push because it checked framework tasks dir instead of termlink tasks dir
-  application: Promoted to PP-008 via T-1277 (2026-04-25, D2) after 16 applications
+  application: Already promoted to PP-001 (back-reference added 2026-04-25 via T-1277/T-1280; pre-fix fw promote suggest didn't detect existing promotion — duplicate PP-008 reverted, see PL-083)
 - id: L-028
   learning: "Ephemeral session-state files (focus, budget-status, counters) must be gitignored from the start — tracking them causes merge conflicts, corrupted JSON, and false audit failures on every stash/rebase."
   source: P-001
