@@ -96,6 +96,12 @@ proceeding.
         with `learning_id: "PL-059"` and the exact text from the source
       - Rubber-stamp ready: pipeline works; cron runs it on the `*/15` cadence
 
+      **Re-verified end-to-end (2026-04-25T16:27Z, T-1255 follow-up):**
+      - Cron entry confirmed live: `crontab -l` shows the `*/15` line installed on /opt/050-email-archive.
+      - Independent observation: PL-070 (T-1254 CSRF fix learning) auto-propagated to email-archive at 16:00:02Z (2 cron cycles after publish on /opt/termlink) — no manual run needed.
+      - Fresh test: added PL-071 ("T-1217 cross-project mirror end-to-end test from /opt/termlink at 2026-04-25T162718Z") on /opt/termlink at 16:27:18Z. Triggered subscriber on email-archive via termlink dispatch. PL-071 appeared at 16:27:38Z (~20 seconds end-to-end) in `/opt/050-email-archive/.context/project/received-learnings.yaml` with `origin_project: termlink`, `origin_hub_fingerprint: sha256:4774a193…`, exact text preserved.
+      - **Pipeline is healthy and self-running.** Human can rubber-stamp.
+
 ## Verification
 
 bash -n /opt/999-Agentic-Engineering-Framework/lib/subscribe-learnings-from-bus.sh
