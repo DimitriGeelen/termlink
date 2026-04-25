@@ -125,14 +125,17 @@ concerns:
   what_works_now: "Project VERSION (root) stamps correctly. Framework operates regardless of its VERSION file value (it's metadata only — not loaded by any runtime code path; used by `fw upgrade` to compare vendored vs upstream). T-1061 reverted vendored VERSION to 1.5.587 manually."
   what_remains: "1. Fix hooks.sh to skip the .agentic-framework/VERSION write (or write the actual framework version, not the project's). 2. Verify `fw upgrade` works with restored value. 3. This is upstream framework work — file in /opt/999-Agentic-Engineering-Framework, not termlink."
   mitigation_candidate: "In hooks.sh, replace the write to .agentic-framework/VERSION with: do nothing (let `fw vendor` manage that file). Or: read the framework's actual version from the upstream source if available, otherwise leave the file unchanged."
-  status: watching
+  status: closed
   created: 2026-04-15
-  last_reviewed: 2026-04-20
-  related_tasks: [T-1061, T-606, T-909, T-1157, T-1358]
+  last_reviewed: 2026-04-25
+  closed: 2026-04-25
+  closure_evidence: "T-1252 (2026-04-25): consumer-side fix in /opt/termlink .agentic-framework/agents/git/lib/hooks.sh (this commit) + Channel 1 upstream mirror commit c165e0a4 in /opt/999-Agentic-Engineering-Framework (pushed to onedev/master). Both copies removed the conditional second write to $PROJECT_ROOT/.agentic-framework/VERSION. Future pushes will leave .agentic-framework/VERSION at whatever fw vendor wrote — correct semantics."
+  related_tasks: [T-1061, T-606, T-909, T-1157, T-1358, T-1252]
   notes:
   - 2026-04-20: Upstream pickup filed (P-T-1157) from termlink project; framework created T-1358 in their inception queue. Termlink-side task T-1157 closed with 4/4 verification. Waiting on framework to land the hooks.sh fix (delete 3 lines writing to .agentic-framework/VERSION).
   - 2026-04-22T19:07Z: Bug still present. Auto-handover commit 0c19bd6c (2026-04-22T18:59Z) ran pre-push audit which stamped both `VERSION` and `.agentic-framework/VERSION` to 0.9.303. Upstream fix (T-1358) remains unmerged. No termlink-side action available — keep watching.
   - 2026-04-24T10:45Z: Still present. `.agentic-framework/VERSION` now reads `0.9.398` (termlink version) vs. `.framework.yaml` pinned `1.5.16`. `fw doctor` flags `Version mismatch pinned=1.5.16 installed=0.9.398`. Upstream fix T-1358 still not landed — keep watching.
+  - 2026-04-25T13:40Z: T-1252 closed via Channel 1 (consumer + upstream c165e0a4). Bug resolved.
 
 - id: G-007
   type: gap
