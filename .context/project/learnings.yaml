@@ -809,3 +809,10 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-080
+  learning: "Verification commands using 'cmd | grep -q PATTERN' can return exit 141 (SIGPIPE) when the upstream cmd is interrupted by grep's early exit. update-task.sh treats 141 as failure even though the verification semantically passed. Safer pattern: 'test -n "$(cmd | grep PATTERN)"' captures grep output then tests for non-empty. Avoid bare '| grep -q' in verification commands."
+  source: D2
+  task: T-1272
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD

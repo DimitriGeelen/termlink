@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1272: Document install-hooks marker-bump rule in lib/hooks.sh (PL-078)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T20:40:51Z
+# ============================================================================
+
+task_id: T-1272
+task_name: "Document install-hooks marker-bump rule in lib/hooks.sh (PL-078)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T20:32:50Z
+completed: 2026-04-25T20:40:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T22:34:38+02:00
+last_commit: 2026-04-25T22:40:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add doc comment for PL-078 marker-bump rule (push pending OneDev recovery). Close — upstream push succeeded after OneDev recovery (29c10012)
+
+# Key outcomes
+outcomes:
+  - "`lib/hooks.sh` upstream contains a comment near the commit-msg `# VERSION=` line referencing PL-078 + the bump-on-any-hook-change rule"
+  - "Comment is BEFORE the HOOK_EOF heredoc-end so it stays in the source file (not embedded into the deployed hook)"
+  - "Change committed + pushed to onedev (master) — pushed at 2026-04-25T20:43Z (after ~9min OneDev outage); refs c9086ea4..29c10012"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-25.yaml"
+  - ".context/audits/cron/2026-04-17-2215.yaml"
+  - ".context/audits/cron/2026-04-17-2230.yaml"
+  - ".context/audits/cron/2026-04-25-2230.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.publish-learning-bus.log"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1272-document-install-hooks-marker-bump-rule-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T22:34:38"
+    action: "T-1272: Add doc comment for PL-078 marker-bump rule (push pending OneDev recovery)"
+  - time: "2026-04-25T22:40:12"
+    action: "T-1272: Close — upstream push succeeded after OneDev recovery (29c10012)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 2
+  files_changed: 16
+  lines_added: 174
+  lines_removed: 66
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1272-document-install-hooks-marker-bump-rule-.md
+generated_by: context-agent-hybrid

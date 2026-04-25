@@ -4,7 +4,7 @@ name: "Document install-hooks marker-bump rule in lib/hooks.sh (PL-078)"
 description: >
   Document install-hooks marker-bump rule in lib/hooks.sh (PL-078)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T20:32:50Z
-last_update: 2026-04-25T20:34:38Z
-date_finished: null
+last_update: 2026-04-25T20:40:50Z
+date_finished: 2026-04-25T20:40:50Z
 ---
 
 # T-1272: Document install-hooks marker-bump rule in lib/hooks.sh (PL-078)
@@ -53,7 +53,7 @@ the rule. Mirror only — fix lives in /opt/999-AEF.
 ## Verification
 
 grep -q 'PL-078' /opt/999-Agentic-Engineering-Framework/agents/git/lib/hooks.sh
-git -C /opt/999-Agentic-Engineering-Framework log --oneline -5 | grep -q 'T-1272'
+test -n "$(git -C /opt/999-Agentic-Engineering-Framework log --oneline -5 | grep 'T-1272')"
 
 ## Decisions
 
@@ -72,3 +72,6 @@ git -C /opt/999-Agentic-Engineering-Framework log --oneline -5 | grep -q 'T-1272
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1272-document-install-hooks-marker-bump-rule-.md
 - **Context:** Initial task creation
+
+### 2026-04-25T20:40:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
