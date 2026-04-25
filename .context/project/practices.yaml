@@ -238,3 +238,16 @@ practices:
   promoted_from: L-011
   status: active
   applications: 6
+- id: PP-007
+  name: Isolate hub tests that set TERMLINK_RUNTIME_DIR — ENV_LOCK + temp dir
+  derived_from: D2
+  description: Hub tests that set TERMLINK_RUNTIME_DIR must use ENV_LOCK and isolated
+    temp dirs — without isolation, TLS cert from another test leaks and causes handshake
+    failures
+  anti_pattern: Added via context agent
+  scope: project
+  origin_task: T-172
+  origin_date: '2026-03-18'
+  promoted_from: L-006
+  status: active
+  applications: 4

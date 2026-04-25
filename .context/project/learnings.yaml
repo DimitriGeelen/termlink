@@ -42,7 +42,7 @@ learnings:
   task: T-172
   date: 2026-03-18
   context: Added via context agent
-  application: TBD
+  application: "Promoted to PP-007 via T-1275 (2026-04-25, D2)"
 - id: L-007
   learning: "Newer Rust editions require unsafe block around std::env::set_var — test code that sets env vars needs explicit unsafe with SAFETY comment explaining single-threaded access"
   source: P-001
