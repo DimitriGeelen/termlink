@@ -20,7 +20,12 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Status note (2026-04-25):** Superseded by T-1211, which built the actual
+Stop-hook nudge script (`.agentic-framework/agents/context/stop-guard.sh`).
+T-1211 is currently work-completed awaiting Human ACs (settings.json
+activation via the `update-config` skill). Once the human activates the
+hook in `.claude/settings.json`, both T-173 and T-1211 are satisfied. This
+ticket can then be closed as "shipped via T-1211" without further work.
 
 ## Acceptance Criteria
 

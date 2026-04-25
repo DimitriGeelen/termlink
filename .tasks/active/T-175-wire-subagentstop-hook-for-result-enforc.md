@@ -20,7 +20,13 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Status note (2026-04-25):** Superseded by T-1213, which built the
+SubagentStop bus-migration handler
+(`.agentic-framework/agents/context/subagent-stop.sh`). T-1213 is currently
+work-completed awaiting Human ACs (settings.json activation via the
+`update-config` skill). Once the human activates the hook in
+`.claude/settings.json`, both T-175 and T-1213 are satisfied. This ticket
+can then be closed as "shipped via T-1213" without further work.
 
 ## Acceptance Criteria
 
