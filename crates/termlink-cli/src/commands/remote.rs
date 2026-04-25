@@ -893,6 +893,90 @@ async fn cmd_remote_send_file_inner(
         }
     };
 
+    // T-1249: Try the new channel.post + artifact.put path first against the
+    // remote hub. On LegacyOnly fall through to the 3-phase event-emit below.
+    {
+        use termlink_session::artifact::{
+            send_artifact_via_client, ArtifactManifest, SendOutcome, SendPath,
+        };
+        use termlink_session::hub_capabilities::shared_cache;
+        use termlink_session::inbox_channel::FallbackCtx;
+
+        let identity = super::channel::load_identity_or_create()?;
+        let cache = shared_cache();
+        let mut ctx = FallbackCtx::new();
+        let manifest = ArtifactManifest {
+            filename: filename.clone(),
+            size,
+            from: format!("remote-cli-{}", std::process::id()),
+            transfer_id: Some(transfer_id.clone()),
+            content_type: None,
+        };
+        match send_artifact_via_client(
+            &mut client,
+            conn.hub,
+            session,
+            &file_data,
+            &manifest,
+            &identity,
+            cache,
+            &mut ctx,
+        )
+        .await
+        {
+            Ok(SendOutcome::Sent {
+                channel_offset,
+                path: used_path,
+                ..
+            }) => {
+                let path_label = match used_path {
+                    SendPath::Inline => "channel.inline",
+                    SendPath::Chunked => "channel.artifact",
+                };
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "ok": true,
+                            "filename": filename,
+                            "size": size,
+                            "via": path_label,
+                            "spooled": false,
+                            "chunks": total_chunks,
+                            "transfer_id": transfer_id,
+                            "sha256": sha256,
+                            "target": session,
+                            "channel_offset": channel_offset,
+                            "artifact_sha256": sha256,
+                            "hub": conn.hub,
+                        })
+                    );
+                } else {
+                    eprintln!(
+                        "Sent '{}' ({} bytes) to '{}' on {} via {} → channel.offset={}, sha256={}",
+                        filename, size, session, conn.hub, path_label, channel_offset, sha256
+                    );
+                }
+                return Ok(());
+            }
+            Ok(SendOutcome::LegacyOnly) => {
+                tracing::debug!(
+                    hub = %conn.hub,
+                    target = %session,
+                    "T-1249: remote hub doesn't advertise artifact.put — falling back to legacy events"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    hub = %conn.hub,
+                    target = %session,
+                    error = %e,
+                    "T-1249: remote new-path send failed — falling back to legacy events"
+                );
+            }
+        }
+    }
+
     eprintln!(
         "Sending '{}' ({} bytes, {} chunks) to '{}' on {}",
         filename, size, total_chunks, session, conn.hub

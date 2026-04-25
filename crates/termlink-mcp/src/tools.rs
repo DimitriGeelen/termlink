@@ -3142,6 +3142,105 @@ impl TermLinkTools {
 
         let timeout = std::time::Duration::from_secs(30);
 
+        // T-1249: Try the new channel.post + artifact.put path against the local
+        // hub. On LegacyOnly (older hub) or no hub socket, fall through to the
+        // 3-phase event-emit below directly to the target session.
+        {
+            use termlink_session::artifact::{
+                send_artifact_via_client, ArtifactManifest, SendOutcome, SendPath,
+            };
+            use termlink_session::hub_capabilities::shared_cache;
+            use termlink_session::inbox_channel::FallbackCtx;
+            use termlink_protocol::TransportAddr;
+
+            let hub_socket = termlink_hub::server::hub_socket_path();
+            if hub_socket.exists() {
+                let identity_base = std::env::var("HOME")
+                    .ok()
+                    .map(|h| std::path::PathBuf::from(h).join(".termlink"));
+                let identity = match identity_base {
+                    Some(base) => match termlink_session::agent_identity::Identity::load_or_create(&base) {
+                        Ok(id) => Some(id),
+                        Err(e) => {
+                            tracing::warn!(error = %e, "T-1249: identity load failed — using legacy path");
+                            None
+                        }
+                    },
+                    None => None,
+                };
+                if let Some(identity) = identity {
+                    let addr = TransportAddr::unix(&hub_socket);
+                    match termlink_session::client::Client::connect_addr(&addr).await {
+                        Ok(mut client) => {
+                            let cache = shared_cache();
+                            let mut ctx = FallbackCtx::new();
+                            let manifest = ArtifactManifest {
+                                filename: filename.clone(),
+                                size,
+                                from: format!("mcp-{}", std::process::id()),
+                                transfer_id: Some(transfer_id.clone()),
+                                content_type: None,
+                            };
+                            let host_port = format!("local:{}", hub_socket.display());
+                            match send_artifact_via_client(
+                                &mut client,
+                                &host_port,
+                                &p.target,
+                                &file_data,
+                                &manifest,
+                                &identity,
+                                cache,
+                                &mut ctx,
+                            )
+                            .await
+                            {
+                                Ok(SendOutcome::Sent {
+                                    channel_offset,
+                                    path: used_path,
+                                    ..
+                                }) => {
+                                    let path_label = match used_path {
+                                        SendPath::Inline => "channel.inline",
+                                        SendPath::Chunked => "channel.artifact",
+                                    };
+                                    let response = serde_json::json!({
+                                        "ok": true,
+                                        "target": p.target,
+                                        "filename": filename,
+                                        "size": size,
+                                        "chunks": total_chunks,
+                                        "transfer_id": transfer_id,
+                                        "sha256": sha256,
+                                        "via": path_label,
+                                        "channel_offset": channel_offset,
+                                        "artifact_sha256": sha256,
+                                    });
+                                    return serde_json::to_string_pretty(&response)
+                                        .unwrap_or_else(json_err);
+                                }
+                                Ok(SendOutcome::LegacyOnly) => {
+                                    tracing::debug!(
+                                        target = %p.target,
+                                        "T-1249: hub doesn't advertise artifact.put — using legacy events"
+                                    );
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        target = %p.target,
+                                        error = %e,
+                                        "T-1249: new-path send failed — using legacy events"
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::debug!(error = %e, "T-1249: hub connect failed — using legacy events");
+                        }
+                    }
+                }
+            }
+        }
+
         // Phase 1: file.init
         let init = FileInit {
             schema_version: SCHEMA_VERSION.to_string(),
