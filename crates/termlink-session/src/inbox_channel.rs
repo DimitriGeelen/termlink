@@ -549,7 +549,7 @@ fn map_client_err(label: &str, e: ClientError) -> io::Error {
     io::Error::other(format!("{label}: {e}"))
 }
 
-async fn probe_caps_via_client(
+pub(crate) async fn probe_caps_via_client(
     client: &mut Client,
     host_port: &str,
     cache: &HubCapabilitiesCache,
