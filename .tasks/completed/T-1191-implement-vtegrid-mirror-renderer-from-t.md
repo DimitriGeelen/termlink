@@ -62,7 +62,7 @@ with a grid-aware render path for cursor-addressable TUIs (vim, htop, less).
 ## Verification
 
 cargo build --workspace --quiet
-cargo test --package termlink --test mirror_grid -- --quiet
+cargo test --bin termlink mirror_grid 2>&1 | grep -q "test result: ok"
 grep -q '^vte = "0\.13"' crates/termlink-cli/Cargo.toml
 test -f crates/termlink-cli/src/commands/mirror_grid.rs
 
