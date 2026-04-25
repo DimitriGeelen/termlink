@@ -20,7 +20,13 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Status note (2026-04-25):** Superseded by T-1212, which built the
+SessionEnd handler (`.agentic-framework/agents/context/session-end.sh`)
+plus the silent-session cron scanner. T-1212 is currently work-completed
+awaiting Human ACs (settings.json activation via the `update-config`
+skill). Once the human activates the hook in `.claude/settings.json`, both
+T-174 and T-1212 are satisfied. This ticket can then be closed as
+"shipped via T-1212" without further work.
 
 ## Acceptance Criteria
 
