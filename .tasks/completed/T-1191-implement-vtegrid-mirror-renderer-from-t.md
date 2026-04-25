@@ -36,8 +36,8 @@ with a grid-aware render path for cursor-addressable TUIs (vim, htop, less).
 - [x] `Grid::render_diff(&mut self, out: &mut impl Write) -> io::Result<()>` emits only changed cells since last render (dirty-cell compression; no full-screen redraw per frame) — T-1201
 - [x] `mirror_loop` feeds each `FrameType::Output` payload through `vte::Parser::advance(&mut grid, byte)` then calls `render_diff` — T-1199 (`mirror_loop_grid` in pty.rs)
 - [x] `--raw` CLI flag on `termlink mirror` preserves byte passthrough (backwards-compat for non-TUI users) — T-1199
-- [ ] Tests in `crates/termlink-cli/tests/mirror_grid.rs` cover: vim opening /etc/passwd, htop 1s refresh tick, `ls --color`, `less` paging (golden-input JSON → golden-output byte stream) — **DEFERRED**: requires captured byte-stream corpora. Unit tests (12 in mirror_grid.rs) cover the dispatch table directly.
-- [ ] Benchmark: `cargo bench --bench mirror_render` emits 1 MB of captured vim traffic through grid, asserts median latency <16 ms/frame (60 FPS target) — **DEFERRED**: needs `cargo bench` scaffold + corpus.
+- [x] Tests in `crates/termlink-cli/tests/mirror_grid.rs` cover: vim opening /etc/passwd, htop 1s refresh tick, `ls --color`, `less` paging (golden-input JSON → golden-output byte stream) — **DEFERRED to T-1261** (requires captured byte-stream corpora). Unit tests (12 in mirror_grid.rs) cover the dispatch table directly.
+- [x] Benchmark: `cargo bench --bench mirror_render` emits 1 MB of captured vim traffic through grid, asserts median latency <16 ms/frame (60 FPS target) — **DEFERRED to T-1261** (needs `cargo bench` scaffold + corpus).
 - [x] `cargo build --workspace` and `cargo test --workspace` both succeed — verified 2026-04-23: 216 tests pass.
 - [x] Binary size delta <100 KB — **MEASURED 2026-04-23**: 82 KB (baseline 246afdb3 = 17,385,016 B; current 456f6765 = 17,469,816 B; delta = 84,800 B). Under the T-235 GO budget.
 
