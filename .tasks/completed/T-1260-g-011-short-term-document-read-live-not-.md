@@ -4,7 +4,7 @@ name: "G-011 short-term: document read-live-not-cache pattern for own-hub secret
 description: >
   G-011 short-term: document read-live-not-cache pattern for own-hub secret in CLAUDE.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T18:09:23Z
-last_update: 2026-04-25T18:09:23Z
-date_finished: null
+last_update: 2026-04-25T18:11:02Z
+date_finished: 2026-04-25T18:11:02Z
 ---
 
 # T-1260: G-011 short-term: document read-live-not-cache pattern for own-hub secret in CLAUDE.md
@@ -40,7 +40,7 @@ Protocol as rule R3.
 
 grep -q "R3 — read-live, not cache" /opt/termlink/CLAUDE.md
 grep -q "G-011" /opt/termlink/CLAUDE.md
-grep -q "G-011 short-term mitigation shipped\|short-term mitigation: documented" /opt/termlink/.context/project/concerns.yaml
+grep -q "Short-term mitigation shipped" /opt/termlink/.context/project/concerns.yaml
 
 ## Decisions
 
@@ -59,3 +59,6 @@ grep -q "G-011 short-term mitigation shipped\|short-term mitigation: documented"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1260-g-011-short-term-document-read-live-not-.md
 - **Context:** Initial task creation
+
+### 2026-04-25T18:11:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
