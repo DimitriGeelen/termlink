@@ -12,7 +12,7 @@ tags: [fleet, federation, capability-probe]
 components: []
 related_tasks: [T-1214, T-1165]
 created: 2026-04-24T10:35:19Z
-last_update: 2026-04-24T12:01:48Z
+last_update: 2026-04-25T14:05:14Z
 date_finished: 2026-04-24T12:01:48Z
 ---
 
@@ -77,6 +77,13 @@ Design source: `docs/reports/T-1214-fleet-diagnosis.md` §"Scope of B".
       - This log fires from `inbox_channel.rs:236` only AFTER `probe_caps_via_client` (line 225) successfully calls `hub.capabilities` and the response's `methods` array contains `channel.list`. The probe + parse + cache-set roundtrip is live-verified.
       - Hub-side unit test (`router::tests::hub_capabilities_returns_sorted_method_list`) re-run on rebuilt code: 1/1 PASS.
       - Conclusion: live live-probe satisfied — hub binary serves `hub.capabilities`, client cache populates, returned methods include channel.* family. Original :9100 hub remains stale (4d uptime, untouched to avoid disrupting other consumers).
+
+      **Evidence (2026-04-25T15:25Z, agent live-probe via ORIGINAL :9100 hub — user-authorized restart):**
+      - `cargo install --path crates/termlink-cli --offline` rebuilt + installed `/root/.cargo/bin/termlink` v0.9.206 → v0.9.1262 (release profile, 3m54s, LTO).
+      - `systemctl restart termlink-hub.service` → new pid 3999707 from updated binary.
+      - All 7 dormant sessions (framework-agent, termlink-agent, ntb-dev-test, email-archive, push, push2, g046-mirror) re-enumerated cleanly post-restart.
+      - `termlink remote doctor 127.0.0.1:9100 --secret-file /var/lib/termlink/hub.secret` → `T-1235: using channel.list (channel.* supported) host=127.0.0.1:9100` (was previously `using legacy inbox.status (channel.* unavailable)` on the v0.9.206 binary).
+      - This proves: live probe of `hub.capabilities` against the canonical running :9100 hub returns the methods array with channel.* present, exactly per AC.
 
 ## Verification
 
