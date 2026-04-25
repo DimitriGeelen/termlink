@@ -780,7 +780,7 @@ learnings:
   task: T-1252
   date: 2026-04-25
   context: Added via context agent
-  application: TBD
+  application: "Applied via T-1269 — install-hooks --force redeployed fixed pre-push hook to /opt/termlink, restored .agentic-framework/VERSION from drifted 0.9.1294 back to upstream pin 1.5.307. Latent gap: framework template was fixed in T-1252 but consumer hook only redeploys when its 'VERSION=N.N' marker bumps; stale deployments persisted silently."
 - id: PL-076
   learning: "Fabric enricher must support per-language dependency parsers. Rust mod/use → sibling .rs and crates/<kebab>/src/lib.rs. SKIP_RUST_CRATES list excludes std + common third-party (tokio, serde, etc.). Without it, all Rust crates appeared edgeless in the fabric."
   source: G-012
