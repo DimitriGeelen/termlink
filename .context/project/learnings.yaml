@@ -753,3 +753,45 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-072
+  learning: "Framework-authored CLAUDE.md text doesn't auto-adapt to consumer-vendored paths. Rule said 'use bin/fw' (correct in framework repo) but consumers vendor at .agentic-framework/bin/fw. lib/init.sh substitutes path on init but the template ships unchanged. Fix template to interpolate path."
+  source: D4
+  task: T-1156
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-073
+  learning: "PL-046 generalizes — any format!('{}', e) on anyhow::Error drops the .context() chain. is_auth/is_tofu substring matching against Display output silently misses TOFU markers buried in inner causes. Use {:#} (alternate Display) for full chain. Audit all CLI-crate sites for this pattern."
+  source: D4
+  task: T-1183
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-074
+  learning: "CLI subcommand ergonomics: support both 'cmd <session> --json list' and 'cmd <session> list --json' option positions, AND default to 'list' when no subcommand given. Pattern T-1076 introduced; T-1077 propagates to kv. Apply to all subject-verb CLI groups."
+  source: D4
+  task: T-1077
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-075
+  learning: "Pre-push version-stamp hook stamping vendored $PROJECT_ROOT/.agentic-framework/VERSION caused noise commits on every push (G-006). The vendored VERSION reflects framework-build state, not consumer-build state — must remain owned by fw upgrade, not consumer pre-push. Stamp only $PROJECT_ROOT/VERSION."
+  source: G-006
+  task: T-1252
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-076
+  learning: "Fabric enricher must support per-language dependency parsers. Rust mod/use → sibling .rs and crates/<kebab>/src/lib.rs. SKIP_RUST_CRATES list excludes std + common third-party (tokio, serde, etc.). Without it, all Rust crates appeared edgeless in the fabric."
+  source: G-012
+  task: T-1175
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-077
+  learning: "Plaintext TCP fallback when pinned cert missing was a security bug — silent downgrade. Replace with TOFU fallback (record fingerprint on first contact, refuse subsequent mismatch). Never accept plaintext for any local connection."
+  source: D2
+  task: T-1029
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
