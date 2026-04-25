@@ -167,6 +167,69 @@ impl ArtifactStore {
     fn staging_path(&self, staging_id: &str) -> PathBuf {
         self.root.join(".staging").join(staging_id)
     }
+
+    /// T-1251: Garbage-collect blobs not in the `referenced` set.
+    ///
+    /// Walks `<root>/<2-hex>/<sha256>` and deletes any file whose name (full
+    /// sha256) is not in `referenced`. Skips `.staging` and any prefix dir
+    /// whose name is not exactly 2 hex chars (defensive — we don't recurse
+    /// into unexpected layouts). After pruning, attempts to remove now-empty
+    /// prefix dirs (best-effort; ignores errors).
+    ///
+    /// Returns the count of blobs deleted. Caller is responsible for
+    /// computing `referenced` from current channel logs.
+    pub fn sweep(&self, referenced: &std::collections::HashSet<String>) -> io::Result<u64> {
+        let mut pruned: u64 = 0;
+        let entries = match fs::read_dir(&self.root) {
+            Ok(it) => it,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
+            Err(e) => return Err(e),
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = match entry.file_name().into_string() {
+                Ok(n) => n,
+                Err(_) => continue,
+            };
+            // Skip non-blob entries: staging dir, anything not 2-hex.
+            if name == ".staging" || name.len() != 2 || !name.chars().all(|c| c.is_ascii_hexdigit())
+            {
+                continue;
+            }
+            if !path.is_dir() {
+                continue;
+            }
+            let blobs = match fs::read_dir(&path) {
+                Ok(it) => it,
+                Err(_) => continue,
+            };
+            for blob in blobs.flatten() {
+                let blob_path = blob.path();
+                if !blob_path.is_file() {
+                    continue;
+                }
+                let blob_name = match blob.file_name().into_string() {
+                    Ok(n) => n,
+                    Err(_) => continue,
+                };
+                // Defensive: only remove files whose name looks like a sha256
+                // hex (64 chars all hex). Stray files left alone.
+                if blob_name.len() != 64
+                    || !blob_name.chars().all(|c| c.is_ascii_hexdigit())
+                {
+                    continue;
+                }
+                if !referenced.contains(&blob_name)
+                    && fs::remove_file(&blob_path).is_ok()
+                {
+                    pruned += 1;
+                }
+            }
+            // Best-effort: remove prefix dir if empty now.
+            let _ = fs::remove_dir(&path);
+        }
+        Ok(pruned)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -342,6 +405,46 @@ mod tests {
             }
             other => panic!("expected ArtifactOffsetMismatch, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn sweep_removes_unreferenced_keeps_referenced() {
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let sha_a = store.put(b"alpha").unwrap();
+        let sha_b = store.put(b"bravo").unwrap();
+        let sha_c = store.put(b"charlie").unwrap();
+        let mut keep = std::collections::HashSet::new();
+        keep.insert(sha_b.clone());
+        let pruned = store.sweep(&keep).unwrap();
+        assert_eq!(pruned, 2);
+        assert!(!store.exists(&sha_a));
+        assert!(store.exists(&sha_b));
+        assert!(!store.exists(&sha_c));
+    }
+
+    #[test]
+    fn sweep_empty_set_prunes_all() {
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let sha_a = store.put(b"a").unwrap();
+        let sha_b = store.put(b"b").unwrap();
+        let pruned = store.sweep(&std::collections::HashSet::new()).unwrap();
+        assert_eq!(pruned, 2);
+        assert!(!store.exists(&sha_a));
+        assert!(!store.exists(&sha_b));
+    }
+
+    #[test]
+    fn sweep_skips_staging_dir() {
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let staging = dir.path().join(".staging");
+        fs::create_dir_all(&staging).unwrap();
+        let staging_file = staging.join("partial-upload");
+        fs::write(&staging_file, b"in flight").unwrap();
+        let _ = store.sweep(&std::collections::HashSet::new()).unwrap();
+        assert!(staging_file.is_file(), ".staging contents must survive sweep");
     }
 
     #[test]
