@@ -73,3 +73,13 @@ assumptions:
   linked_task: T-1155
   created: '2026-04-20'
   resolved_date: null
+- id: A-010
+  statement: Auth stability (G-011, hub.secret rotation, TOFU drift) will be solved
+    separately by T-1284 + the existing T-1051..T-1058 line. T-243 multi-turn primitive
+    design assumes a stable auth foundation.
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-243
+  created: '2026-04-25'
+  resolved_date: null
