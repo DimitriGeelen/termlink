@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1232: T-1220d remote half: termlink_remote_inbox_list MCP migration
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T08:37:44Z
+# ============================================================================
+
+task_id: T-1232
+task_name: "T-1220d remote half: termlink_remote_inbox_list MCP migration"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T08:35:43Z
+completed: 2026-04-25T08:37:42Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T10:37:38+02:00
+last_commit: 2026-04-25T10:37:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_remote_inbox_list MCP tool migrates to list_with_fallback_with_client
+
+# Key outcomes
+outcomes:
+  - "termlink_remote_inbox_list calls `inbox_channel::list_with_fallback_with_client(&mut rpc_client, &p.hub, &p.target, cache, ctx)`"
+  - "Uses `hub_capabilities::shared_cache()` so the cache is shared with CLI calls"
+  - "Passes a fresh `FallbackCtx` (MCP tool calls are stateless)"
+  - "`p.hub` (profile name or host:port) used as the cache key"
+  - "JSON output preserves `{ok: true, hub, result: {transfers: [...]}}` envelope shape"
+  - "No edits to termlink_remote_inbox_status or termlink_remote_inbox_clear (out of scope)"
+  - "`cargo build -p termlink-mcp` clean"
+  - "`cargo clippy -p termlink-mcp -- -D warnings` clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Same scope-narrowing as T-1227 (List arm only). MCP-remote"
+    rationale: "Identical reasoning — list maps cleanly, status needs aggregation,"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1232-t-1220d-remote-half-termlinkremoteinboxl.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T10:37:38"
+    action: "T-1232: termlink_remote_inbox_list MCP tool migrates to list_with_fallback_with_client"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration, T-1220, wedge-d-remote]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 74
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1232-t-1220d-remote-half-termlinkremoteinboxl.md
+generated_by: context-agent-hybrid

@@ -4,16 +4,16 @@ name: "T-1220b: CLI local cmd_inbox_list migration (T-1220 wedge b, narrowed)"
 description: >
   Migrate cmd_inbox_list in crates/termlink-cli/src/commands/infrastructure.rs (@839) to use T-1225's list_with_fallback helper. cmd_inbox_status (aggregation) and cmd_inbox_clear (Q4 spool-deletion semantics) split out as follow-ups — see Decisions section.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1155, bus, migration, T-1220, wedge-b]
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-1220, T-1225]
 created: 2026-04-25T07:00:11Z
-last_update: 2026-04-25T08:22:20Z
-date_finished: null
+last_update: 2026-04-25T08:26:14Z
+date_finished: 2026-04-25T08:26:14Z
 ---
 
 # T-1226: T-1220b CLI local cmd_inbox_list migration
@@ -83,3 +83,6 @@ grep -q "list_with_fallback" crates/termlink-cli/src/commands/infrastructure.rs
 - **Change:** Renamed task to "cmd_inbox_list migration" (was "{list,status,clear}")
 - **Change:** Wrote real Agent ACs + verification commands
 - **Reason:** cmd_inbox_status (aggregation) and cmd_inbox_clear (Q4 semantic split) need separate scope discussion. T-1229/T-1230 captured as follow-ups.
+
+### 2026-04-25T08:26:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

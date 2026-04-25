@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1231: T-1220 follow-up: extend list_with_fallback to accept authenticated Client
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T08:33:33Z
+# ============================================================================
+
+task_id: T-1231
+task_name: "T-1220 follow-up: extend list_with_fallback to accept authenticated Client"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T08:27:29Z
+completed: 2026-04-25T08:33:32Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T10:33:27+02:00
+last_commit: 2026-04-25T10:33:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  list_with_fallback accepts authenticated Client
+
+# Key outcomes
+outcomes:
+  - "New public fn `list_with_fallback_with_client(client: &mut Client, host_port: &str, target: &str, cache: &HubCapabilitiesCache, ctx: &mut FallbackCtx) -> io::Result<Vec<InboxEntry>>`"
+  - "Internal `probe_caps_via_client`, `call_channel_subscribe_via_client`, `call_legacy_inbox_list_via_client` private helpers added"
+  - "Probe path checks `cache.get(host_port)` first; on miss, calls `client.call(\"hub.capabilities\", ...)` then `cache.set(host_port, methods)`"
+  - "Channel-subscribe path detects method-not-found via `RpcResponse::Error.code == -32601` (same logic as addr variant)"
+  - "Existing `list_with_fallback(addr, ...)` becomes a thin wrapper: opens `Client::connect_addr(addr)`, derives `host_port_str(addr)`, delegates"
+  - "Existing 7 unit tests still pass (no behavioral regression for the addr entry)"
+  - "No new external dependencies added"
+  - "`cargo build -p termlink-session` clean"
+  - "`cargo test -p termlink-session inbox_channel` — 7 pass"
+  - "`cargo clippy -p termlink-session -- -D warnings` clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Factor dispatch into private `*_via_client` helpers that take"
+    rationale: ""
+    alternatives_rejected: [""]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-session/src/inbox_channel.rs"
+  - ".tasks/active/T-1231-t-1220-follow-up-extend-listwithfallback.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T10:33:27"
+    action: "T-1231: list_with_fallback accepts authenticated Client"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration, T-1220, T-1225-followup]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 130
+  lines_removed: 77
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1231-t-1220-follow-up-extend-listwithfallback.md
+generated_by: context-agent-hybrid

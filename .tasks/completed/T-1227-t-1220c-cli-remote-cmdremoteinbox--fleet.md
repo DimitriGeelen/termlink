@@ -4,16 +4,16 @@ name: "T-1220c: CLI remote cmd_remote_inbox_list migration (T-1220 wedge c, narr
 description: >
   Migrate the List arm of cmd_remote_inbox_inner in crates/termlink-cli/src/commands/remote.rs (@1286) to use T-1231's list_with_fallback_with_client. Status / Clear arms and fleet-doctor inbox.status call deferred (same semantic blockers as T-1229 / T-1230).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1155, bus, migration, T-1220, wedge-c]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-1220, T-1225, T-1226, T-1228, T-1231]
 created: 2026-04-25T07:00:14Z
-last_update: 2026-04-25T08:40:00Z
-date_finished: null
+last_update: 2026-04-25T08:35:14Z
+date_finished: 2026-04-25T08:35:14Z
 ---
 
 # T-1227: T-1220c CLI remote cmd_remote_inbox_list migration
@@ -79,3 +79,6 @@ grep -q "list_with_fallback_with_client" crates/termlink-cli/src/commands/remote
 - **Change:** Renamed task to "cmd_remote_inbox_list migration"
 - **Change:** Wrote real Agent ACs + verification commands
 - **Reason:** Same scope-narrowing pattern as T-1226 / T-1228. T-1231 unblocked the helper-extension prerequisite.
+
+### 2026-04-25T08:35:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
