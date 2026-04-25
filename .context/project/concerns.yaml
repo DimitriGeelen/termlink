@@ -130,7 +130,7 @@ concerns:
   status: watching
   created: 2026-04-15
   last_reviewed: 2026-04-25
-  last_observation: "2026-04-25T05:30Z: Mirror healthy. OneDev and GitHub both at c7466e35 (T-1218 [REVIEW] prereq evidence) — agent-only push to origin (no direct github push) propagated within seconds via the OneDev PushRepository job. Pre-push hook still pushes to both remotes when triggered, but agent-mode pushes (origin-only per memory rule) now confirm the mirror path works for the pure-OneDev case. Previous (2026-04-22T19:00Z): Mirror caught up after 7h lag. Pattern: intermittent stalls then self-resolves; no consistent reproducer."
+  last_observation: "2026-04-25T06:30Z: Mirror healthy. OneDev and GitHub both at 4426c0a7 (handover S-2026-0425-0816) — pre-push hook propagates to both remotes within seconds. Streak of healthy probes since 2026-04-22T19:00Z (~3.5 days clean). Previous: 2026-04-25T05:30Z (c7466e35), 2026-04-22T19:00Z (caught up after 7h lag). Pattern: intermittent stalls then self-resolves; no consistent reproducer. Closure candidate if streak reaches 7 days clean."
   related_tasks: [T-1062, T-1140]
 
 - id: G-009
@@ -169,10 +169,12 @@ concerns:
   mitigation_candidate: "Short-term: dedicated human review session using `fw task verify T-XXX` on each stuck task. Medium-term: `fw task review-queue` CLI + handover digest. Long-term: rubber-stamp batching command for AC categories that are objectively verifiable."
   status: watching
   created: 2026-04-15
-  last_reviewed: 2026-04-24
+  last_reviewed: 2026-04-25
+  last_observation: "2026-04-25T06:30Z: 3 partial-complete tasks (work-completed + owner=human): T-1215 [RUBBER-STAMP] live-probe (blocked on hub rebuild+restart), T-1217 [RUBBER-STAMP] cron entry (already operational on /opt/050-email-archive — agent-evidenced), T-1218 [REVIEW] render quality (blocked on fw upgrade + Watchtower :3100 restart). Backlog stable at 3 since 2026-04-24 drain. Closure candidate: when count stays ≤5 for 7 consecutive days AND structural remediation (T-1244/T-1404/T-1407) lands."
   mitigation_history: |
     - 2026-04-23: Tier-2 batch validation of all unchecked Human ACs per operator direction — 75+ tasks closed in 3 batches via Watchtower /api/task/<id>/complete.
     - 2026-04-24: Final 8 remaining + 9 captured+GO inceptions + 14 stale work-completed inceptions closed. Backlog drained from 64 → 0.
+    - 2026-04-25: New partial-complete tasks (T-1215/1217/1218) all carry agent-gathered evidence in their Human AC blocks; pattern holding — task quality maintained even as backlog refilled to 3.
     - Framework structural remediation in progress: T-1244 (shared task cache), T-1404 (evidence-based Human AC closure inception), T-1407 (install.sh scans vendored consumers).
   related_tasks: [T-193, T-372, T-373, T-1244, T-1404, T-1407]
 
