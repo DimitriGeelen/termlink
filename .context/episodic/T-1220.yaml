@@ -1,0 +1,103 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1220: T-1163 follow-up: CLI/MCP inbox receiver migration to channel.{subscribe,list}
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T10:45:14Z
+# ============================================================================
+
+task_id: T-1220
+task_name: "T-1163 follow-up: CLI/MCP inbox receiver migration to channel.{subscribe,list}"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T15:10:01Z
+completed: 2026-04-25T10:45:13Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-04-24T17:32:30+02:00
+last_commit: 2026-04-25T11:33:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Remove template-default Human AC (agent-only refactor, no UI/UX surface). Recommendation + Decision sections (GO). Create wedge sub-tasks T-1225/1226/1227/1228 per GO decision. PL-067 inception Tier-0 gate workflow + cron audits + checkpoint handover
+
+# Key outcomes
+outcomes:
+  - "Inception phase: `docs/reports/T-1220-inception.md` written with answers to the 5 open design questions above"
+  - "Go/No-Go decision recorded: `fw inception decide T-1220 go|no-go --rationale \"...\"`"
+  - "If GO: create concrete build sub-tasks per decided wedge split (likely: local CLI inbox verbs → MCP local → remote CLI → remote MCP, with a dedicated capabilities-fallback helper task in termlink-session)"
+  - "No source edits under this task ID beyond the inception artifact — implementation lands under the build sub-tasks"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-25-0845.yaml"
+  - ".context/audits/cron/2026-04-25-0900.yaml"
+  - ".context/audits/cron/2026-04-25-0915.yaml"
+  - ".context/audits/cron/2026-04-25-0930.yaml"
+  - ".context/audits/cron/2026-04-25-0945.yaml"
+  - ".context/audits/cron/2026-04-25-1000.yaml"
+  - ".context/audits/cron/2026-04-25-1015.yaml"
+  - ".context/audits/cron/2026-04-25-1030.yaml"
+  - ".context/audits/cron/2026-04-25-1045.yaml"
+  - ".context/audits/cron/2026-04-25-1100.yaml"
+  - ".context/audits/cron/2026-04-25-1115.yaml"
+  - ".context/audits/cron/2026-04-25-1130.yaml"
+  - ".context/handovers/S-2026-0425-1119.md"
+  - ".context/project/learnings.yaml"
+  - ".context/working/consolidation-report.yaml"
+  - "docs/reports/T-1229-inception.md"
+  - "docs/reports/T-1230-inception.md"
+  - ".tasks/active/T-1220-t-1163-follow-up-climcp-inbox-receiver-m.md"
+  - ".tasks/active/T-1225-t-1220a-inboxchannellistwithfallback-hel.md"
+  - ".tasks/active/T-1226-t-1220b-cli-local-cmdinboxliststatusclea.md"
+  - ".tasks/active/T-1227-t-1220c-cli-remote-cmdremoteinbox--fleet.md"
+  - ".tasks/active/T-1228-t-1220d-mcp-termlinkinbox--remote-migrat.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T17:32:30"
+    action: "T-1220: Remove template-default Human AC (agent-only refactor, no UI/UX surface)"
+  - time: "2026-04-25T08:59:37"
+    action: "T-1220: Recommendation + Decision sections (GO)"
+  - time: "2026-04-25T09:00:34"
+    action: "T-1220: Create wedge sub-tasks T-1225/1226/1227/1228 per GO decision"
+  - time: "2026-04-25T11:33:56"
+    action: "T-1220: PL-067 inception Tier-0 gate workflow + cron audits + checkpoint handover"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1175 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, migration, T-1163-followup]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1175
+  commits: 4
+  files_changed: 22
+  lines_added: 2373
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1220-t-1163-follow-up-climcp-inbox-receiver-m.md
+generated_by: context-agent-hybrid
