@@ -71,6 +71,14 @@ impl Bus {
         self.meta.topic_retention(topic)
     }
 
+    /// Count records currently indexed for `topic`. Records pruned by
+    /// `sweep` are not counted. Unknown topic returns `Ok(0)` rather than
+    /// erroring — callers can aggregate over a prefix list without first
+    /// checking existence (T-1233 / T-1229a).
+    pub fn topic_record_count(&self, topic: &str) -> Result<u64> {
+        self.meta.count_records(topic)
+    }
+
     /// Append an envelope to `topic`'s log. Returns the logical offset
     /// (0-based sequence number) assigned to the new record. The topic
     /// must have been registered via `create_topic` first.
@@ -215,6 +223,21 @@ mod tests {
             artifact_ref: None,
             ts_unix_ms: 0,
         }
+    }
+
+    #[tokio::test]
+    async fn topic_record_count_reflects_posts_and_unknown_topics(
+    ) {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("inbox:alice", Retention::Forever).unwrap();
+        bus.create_topic("inbox:bob", Retention::Forever).unwrap();
+        bus.post("inbox:alice", &env("inbox:alice", b"a")).await.unwrap();
+        bus.post("inbox:alice", &env("inbox:alice", b"b")).await.unwrap();
+        bus.post("inbox:alice", &env("inbox:alice", b"c")).await.unwrap();
+        assert_eq!(bus.topic_record_count("inbox:alice").unwrap(), 3);
+        assert_eq!(bus.topic_record_count("inbox:bob").unwrap(), 0);
+        // Unknown topic returns 0, not an error — caller-friendly for prefix aggregation.
+        assert_eq!(bus.topic_record_count("inbox:nobody").unwrap(), 0);
     }
 
     #[tokio::test]
