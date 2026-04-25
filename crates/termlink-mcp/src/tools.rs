@@ -4764,24 +4764,23 @@ impl TermLinkTools {
                 Err(e) => return e,
             };
 
-            let params = if p.all.unwrap_or(false) {
-                serde_json::json!({"all": true})
+            let clear_scope = if p.all.unwrap_or(false) {
+                termlink_session::inbox_channel::ClearScope::All
             } else if let Some(ref target) = p.target {
-                serde_json::json!({"target": target})
+                termlink_session::inbox_channel::ClearScope::Target(target.clone())
             } else {
                 return json_err("Specify 'target' or set 'all' to true");
             };
 
-            match rpc_client.call("inbox.clear", serde_json::json!("mcp-inbox-c"), params).await {
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "ok": true, "hub": p.hub, "result": r.result,
-                    })).unwrap_or_else(json_err)
-                }
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                    json_err(format!("inbox.clear error on {}: {}", p.hub, e.error.message))
-                }
-                Err(e) => json_err(format!("RPC failed: {e}")),
+            let cache = termlink_session::hub_capabilities::shared_cache();
+            let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
+            match termlink_session::inbox_channel::clear_with_fallback_with_client(
+                &mut rpc_client, &p.hub, clear_scope, cache, &mut ctx,
+            ).await {
+                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true, "hub": p.hub, "result": result,
+                })).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("inbox.clear error on {}: {}", p.hub, e)),
             }
         };
 
