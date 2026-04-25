@@ -688,3 +688,17 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-064
+  learning: "Scope-narrow large bundled tasks into single-deliverable wedges before editing source. The T-1226/T-1228 pattern: a captured task says '3 sites' but call sites have divergent semantics (list maps cleanly, status needs aggregation, clear has spool-deletion semantics). Splitting via Decisions section + capturing follow-up task IDs preserves traceability without forcing all-or-nothing decisions. Each shipped wedge then satisfies 'one task = one deliverable' and the build-readiness gate."
+  source: P-001
+  task: T-1226
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
+- id: PL-065
+  learning: "When a helper function needs to support both unauthenticated and authenticated paths, expose two public entry points sharing a private body that takes &mut Client. T-1231 pattern: list_with_fallback(addr, ...) opens Client::connect_addr then delegates; list_with_fallback_with_client(client, host_port, ...) is the direct entry. Avoids trait/closure friction in async Rust, single source of dispatch logic, and gives the addr path a perf bonus (1 connection instead of 3 for probe→dispatch sequence)."
+  source: P-001
+  task: T-1231
+  date: 2026-04-25
+  context: Added via context agent
+  application: TBD
