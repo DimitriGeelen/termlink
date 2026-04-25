@@ -4,16 +4,16 @@ name: "Session: status_with_fallback helper for inbox.status migration (T-1229b)
 description: >
   Add status_with_fallback{,_with_client} helper in inbox_channel.rs that mirrors list_with_fallback (T-1231) for inbox.status. Probes hub.capabilities; uses channel.list(prefix=inbox:) when channel.* is supported, sums per-topic counts; falls back to legacy inbox.status on -32601. Critical dependency for T-1229c/d/e/f/g call-site migrations.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1229, T-1155, bus, channel, session]
-components: []
+components: [crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
 created: 2026-04-25T10:19:41Z
-last_update: 2026-04-25T10:20:12Z
-date_finished: null
+last_update: 2026-04-25T10:21:59Z
+date_finished: 2026-04-25T10:21:59Z
 ---
 
 # T-1235: Session: status_with_fallback helper for inbox.status migration (T-1229b)
@@ -82,3 +82,6 @@ cargo test -p termlink-session inbox_channel 2>&1 | tail -15
 
 ### 2026-04-25T10:20:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-25T10:21:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

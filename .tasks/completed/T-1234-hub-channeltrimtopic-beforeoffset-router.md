@@ -4,16 +4,16 @@ name: "Hub: channel.trim(topic, before_offset?) router method (T-1230a)"
 description: >
   Add hub-side channel.trim(topic, before_offset?) RPC method per T-1230 Option A. Destructive hub-side delete that mirrors legacy inbox.clear semantics (affects ALL subscribers). Replaces inbox.clear under T-1166 retirement. Pairs with channel.cursor.advance (separate sub-task) for the per-subscriber semantic.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1230, T-1155, bus, channel, hub]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-25T10:15:21Z
-last_update: 2026-04-25T10:15:34Z
-date_finished: null
+last_update: 2026-04-25T10:18:42Z
+date_finished: 2026-04-25T10:18:42Z
 ---
 
 # T-1234: Hub: channel.trim(topic, before_offset?) router method (T-1230a)
@@ -62,3 +62,6 @@ cargo test -p termlink-protocol channel_trim 2>&1 | tail -10
 
 ### 2026-04-25T10:15:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-25T10:18:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

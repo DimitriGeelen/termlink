@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1233: Hub: channel.list_topics(prefix) router method + tests (T-1229a)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T10:15:15Z
+# ============================================================================
+
+task_id: T-1233
+task_name: "Hub: channel.list_topics(prefix) router method + tests (T-1229a)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T10:11:10Z
+completed: 2026-04-25T10:15:13Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T12:15:08+02:00
+last_commit: 2026-04-25T12:15:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel.list returns per-topic record count (T-1229a foundation)
+
+# Key outcomes
+outcomes:
+  - "`Bus::topic_record_count(topic) -> Result<u64>` added to `crates/termlink-bus/src/lib.rs` + thin `Meta::count_records(topic) -> Result<u64>` in `crates/termlink-bus/src/meta.rs` using `SELECT COUNT(*) FROM records WHERE topic = ?`."
+  - "`handle_channel_list_with` in `crates/termlink-hub/src/channel.rs` extended: each topic entry now includes a `count` field with the result of `bus.topic_record_count(name)`. Errors counting a topic emit `count: 0` (graceful — never fail the whole list because of one topic)."
+  - "Unit test in `termlink-bus`: `topic_record_count_reflects_posts_and_unknown_topics` — posts 3 to alice, 0 to bob, asserts counts; unknown topic returns 0 not error."
+  - "Unit test in `termlink-hub` channel.rs: `list_includes_count_per_topic` — posts to one prefix, asserts count=3 vs count=0; prefix excludes other prefixes."
+  - "`cargo build -p termlink-bus -p termlink-hub` clean (0 new warnings) — verified."
+  - "`cargo test -p termlink-bus -p termlink-hub` passes — bus 13/13 + hub channel 16/16 tests green."
+  - "Existing `channel.list` callers (`cmd_channel_list`, `termlink_channel_list` MCP tool) still work — they read `name` + `retention` only, ignore extras."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Add `count` field to each topic entry in existing `channel.list(prefix?)` response."
+    rationale: "(1) Existing method already takes the same `prefix?` parameter and returns topics — adding `count` is a single-field extension. (2) Backward-compatible: existing callers (cmd_channel_list, termlink_channel_list MCP) read `name` + `retention` and ignore extras. (3) Keeps T-1166 retirement scope unchanged — no new method to retire later. (4) The inception report's \"channel.list_topics\" was suggestive naming, not normative; the principle (server-side aggregation, single round-trip, preserves fleet-doctor invariant) is satisfied either way."
+    alternatives_rejected: ["New `channel.list_topics` method — adds protocol surface for no functional gain; a method with `prefix?` and topic-list semantics already exists."]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-bus/src/lib.rs"
+  - "crates/termlink-bus/src/meta.rs"
+  - "crates/termlink-hub/src/channel.rs"
+  - ".tasks/active/T-1233-hub-channellisttopicsprefix-router-metho.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T12:15:08"
+    action: "T-1233: channel.list returns per-topic record count (T-1229a foundation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1229, T-1155, bus, channel, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 4
+  lines_added: 129
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1233-hub-channellisttopicsprefix-router-metho.md
+generated_by: context-agent-hybrid

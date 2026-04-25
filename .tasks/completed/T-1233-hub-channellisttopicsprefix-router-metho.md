@@ -4,16 +4,16 @@ name: "Hub: channel.list_topics(prefix) router method + tests (T-1229a)"
 description: >
   Add hub-side channel.list_topics(prefix="inbox:") RPC method per T-1229 Option A. Returns [{topic, count}] for topics matching the prefix, mirroring the existing inbox::list_all_targets() spool walk on the channel surface. Single round-trip aggregation. Preserves fleet-doctor correctness invariant.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-1229, T-1155, bus, channel, hub]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs]
 related_tasks: []
 created: 2026-04-25T10:11:10Z
-last_update: 2026-04-25T10:13:20Z
-date_finished: null
+last_update: 2026-04-25T10:15:13Z
+date_finished: 2026-04-25T10:15:13Z
 ---
 
 # T-1233: Hub: channel.list_topics(prefix) router method + tests (T-1229a)
@@ -55,3 +55,6 @@ cargo test -p termlink-hub channel_list 2>&1 | tail -15
 
 ### 2026-04-25T10:13:20Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-25T10:15:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

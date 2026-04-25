@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1235: Session: status_with_fallback helper for inbox.status migration (T-1229b)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T10:22:00Z
+# ============================================================================
+
+task_id: T-1235
+task_name: "Session: status_with_fallback helper for inbox.status migration (T-1229b)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T10:19:41Z
+completed: 2026-04-25T10:21:59Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-25T12:21:55+02:00
+last_commit: 2026-04-25T12:21:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  status_with_fallback{,_with_client} helper (T-1229b critical dependency)
+
+# Key outcomes
+outcomes:
+  - "`InboxStatus { total_transfers: u64, targets: Vec<InboxStatusTarget> }` + `InboxStatusTarget { target: String, pending: u64 }` types added to `crates/termlink-session/src/inbox_channel.rs`. serde-Serialize so callers can re-emit unchanged."
+  - "`pub async fn status_with_fallback(addr, cache, ctx) -> io::Result<InboxStatus>` opens a `Client::connect_addr` and delegates to `status_with_fallback_with_client`."
+  - "`pub async fn status_with_fallback_with_client(client, host_port, cache, ctx) -> io::Result<InboxStatus>` does the probe + dispatch. Uses cap-cache; method-not-found on `channel.list` → flag legacy + warn-once + fall back; warn-once \"channel.list\" / \"inbox.status\" tracking matches T-1225 pattern."
+  - "Channel path: call `channel.list({prefix: \"inbox:\"})`, parse `topics: [{name, count}]`, strip `inbox:` prefix from name to get target, sum counts → InboxStatus."
+  - "Legacy path: call `inbox.status` (no params), parse `{total_transfers, targets: [{target, pending}]}`."
+  - "Unit test 1 (channel path): set cap-cache to include `channel.list`, drive a fake transport that returns 2 inbox: topics with counts 3 and 1; assert InboxStatus.total_transfers=4, targets has 2 entries."
+  - "Unit test 2 (legacy fallback): set cap-cache to NOT include `channel.list`; drive fake transport returning legacy `inbox.status` shape; assert InboxStatus matches."
+  - "Unit test 3 (method-not-found triggers fallback): cap-cache claims channel.list supported but transport returns -32601; assert helper transparently falls back to inbox.status and flags peer legacy-only."
+  - "`cargo build -p termlink-session` clean (0 new warnings)."
+  - "`cargo test -p termlink-session inbox_channel::tests::status` passes."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-session/src/inbox_channel.rs"
+  - ".tasks/active/T-1235-session-statuswithfallback-helper-for-in.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T12:21:55"
+    action: "T-1235: status_with_fallback{,_with_client} helper (T-1229b critical dependency)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1229, T-1155, bus, channel, session]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 314
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1235-session-statuswithfallback-helper-for-in.md
+generated_by: context-agent-hybrid
