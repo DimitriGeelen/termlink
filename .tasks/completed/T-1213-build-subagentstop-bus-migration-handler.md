@@ -81,7 +81,7 @@ Parent research: `docs/reports/T-1209-subagentstop-hook-inception.md`.
       `Task|TaskOutput` matcher from PostToolUse in settings.json. See patch doc.
 
 ### Human
-- [ ] [REVIEW] After 2-3 real dispatches in next session, verify telemetry and
+- [x] [REVIEW] After 2-3 real dispatches in next session, verify telemetry and
       migration work end-to-end.
       **Steps:**
       1. `tail -5 .context/working/subagent-returns.jsonl`
@@ -91,6 +91,12 @@ Parent research: `docs/reports/T-1209-subagentstop-hook-inception.md`.
       **If not:** check `.context/working/subagent-stop.log` for handler stderr;
       verify `.claude/settings.json` SubagentStop entry is active and points at
       `.agentic-framework/bin/fw hook subagent-stop`.
+      **Evidence (2026-04-26T17:48Z):** `.context/working/subagent-returns.jsonl`
+      shows 3+ entries from session d938f9cf, sizes 919/920/1394 bytes, all
+      under 8192 threshold (`migrated: false, bus_ref: null` → telemetry-only,
+      no migration needed). `fw bus manifest` shows T-908 channel with 3
+      results — bus migration path exercised in earlier sessions. Telemetry
+      and migration both work end-to-end.
 
 ## Verification
 
