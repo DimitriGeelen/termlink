@@ -262,6 +262,9 @@ async fn handle_event_broadcast(
             .into();
         }
     };
+    if let Err(e) = validate_topic_name(topic) {
+        return ErrorResponse::new(id, -32602, &e).into();
+    }
 
     let payload = params
         .get("payload")
@@ -387,6 +390,9 @@ async fn handle_event_emit_to(
             .into();
         }
     };
+    if let Err(e) = validate_topic_name(topic) {
+        return ErrorResponse::new(id, -32602, &e).into();
+    }
 
     let payload = params
         .get("payload")
@@ -1618,6 +1624,38 @@ fn handle_inbox_clear(id: serde_json::Value, params: &serde_json::Value) -> RpcR
         "target": target.unwrap_or("*"),
     }))
     .into()
+}
+
+/// T-1298: validate topic names at hub emit boundaries. The accepted character
+/// set is `[a-z0-9._:-]` (no whitespace, no uppercase, no XML/punctuation),
+/// length-capped at 256 bytes. Returns a descriptive error string on failure
+/// so the caller can echo it via JSON-RPC `-32602` invalid-params.
+///
+/// Discovered need: T-1297 Spike 1 found a topic literally named
+/// `learning.shared</topic>\n<parameter name="from">email-archive` — XML
+/// prompt-interpolation leaked into the topic string and the hub accepted it.
+fn validate_topic_name(topic: &str) -> Result<(), String> {
+    const MAX_LEN: usize = 256;
+    if topic.is_empty() {
+        return Err("Empty topic name".to_string());
+    }
+    if topic.len() > MAX_LEN {
+        return Err(format!(
+            "Topic name too long ({} bytes, max {MAX_LEN})",
+            topic.len()
+        ));
+    }
+    for (i, c) in topic.char_indices() {
+        let ok = matches!(c, 'a'..='z' | '0'..='9' | '.' | ':' | '-');
+        if !ok {
+            // Truncate offending substring to 64 chars in the error
+            let preview: String = topic.chars().take(64).collect();
+            return Err(format!(
+                "Invalid topic name '{preview}': illegal char {c:?} at byte {i} (allowed: a-z 0-9 . : -)"
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -3609,5 +3647,62 @@ mod tests {
             }
             RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
         }
+    }
+
+    // T-1298: topic-name validation at hub emit boundaries.
+    #[test]
+    fn validate_topic_name_accepts_real_topics() {
+        for t in &[
+            "agent.request",
+            "build.done",
+            "inbox:carol",
+            "channel.list",
+            "event.broadcast",
+            "kv.change",
+            "session.exited",
+            "deploy.tcp",
+            "a",
+            "9",
+        ] {
+            assert!(
+                validate_topic_name(t).is_ok(),
+                "expected '{t}' to be valid: {:?}",
+                validate_topic_name(t)
+            );
+        }
+    }
+
+    #[test]
+    fn validate_topic_name_rejects_uppercase() {
+        let err = validate_topic_name("Agent.Request").unwrap_err();
+        assert!(err.contains("illegal char"), "got: {err}");
+        assert!(err.contains("'A'") || err.contains("\"A\""), "should mention offending char, got: {err}");
+    }
+
+    #[test]
+    fn validate_topic_name_rejects_xml_interpolation() {
+        // Real-world example from T-1297 Spike 1.
+        let bad = "learning.shared</topic>\n<parameter name=\"from\">email-archive";
+        let err = validate_topic_name(bad).unwrap_err();
+        assert!(err.contains("Invalid topic name"), "got: {err}");
+    }
+
+    #[test]
+    fn validate_topic_name_rejects_newline_or_whitespace() {
+        assert!(validate_topic_name("foo\nbar").is_err());
+        assert!(validate_topic_name("foo bar").is_err());
+        assert!(validate_topic_name("foo\tbar").is_err());
+    }
+
+    #[test]
+    fn validate_topic_name_rejects_too_long() {
+        let long = "a".repeat(257);
+        let err = validate_topic_name(&long).unwrap_err();
+        assert!(err.contains("too long"), "got: {err}");
+    }
+
+    #[test]
+    fn validate_topic_name_rejects_empty() {
+        assert!(validate_topic_name("").is_err());
     }
 }
