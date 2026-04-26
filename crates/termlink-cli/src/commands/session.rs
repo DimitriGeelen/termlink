@@ -144,7 +144,10 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         session.registration.metadata.data_socket =
             Some(data_path.to_string_lossy().into_owned());
 
-        let pty = match PtySession::spawn(None, 1024 * 1024) {
+        // T-1302: seed TERMLINK_SESSION_ID into the spawned shell so `termlink whoami`
+        // (and any tool inside the shell) can auto-resolve without a flag.
+        let env = vec![("TERMLINK_SESSION_ID".to_string(), session.id().as_str().to_string())];
+        let pty = match PtySession::spawn_with_env(None, 1024 * 1024, &env) {
             Ok(p) => p,
             Err(e) => {
                 if json {
