@@ -8,8 +8,9 @@
 //! envelope is appended to the bus. All four verbs are Tier-A per T-1133:
 //! payloads are opaque `base64(String)` on the wire.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 
 use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -22,6 +23,50 @@ use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
 
 static BUS: OnceLock<Bus> = OnceLock::new();
 static ARTIFACT_STORE: OnceLock<ArtifactStore> = OnceLock::new();
+
+/// T-1286 / T-243 — passive multi-turn dialog presence tracker. Maps
+/// `(conversation_id, agent_id) → last_seen_unix_ms`. Updated by
+/// `handle_channel_post_with` whenever a successful post carries
+/// `metadata.conversation_id`; queried via `dialog.presence`.
+///
+/// Process-global so that the RPC dispatch path and the test path observe
+/// the same tracker; tests that need isolation use `presence_tracker_for_tests`
+/// to inject their own.
+pub(crate) struct PresenceTracker {
+    inner: RwLock<HashMap<(String, String), i64>>,
+}
+
+impl PresenceTracker {
+    pub(crate) fn new() -> Self {
+        Self {
+            inner: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub(crate) fn record(&self, cid: &str, agent_id: &str, last_seen_ms: i64) {
+        if let Ok(mut g) = self.inner.write() {
+            g.insert((cid.to_string(), agent_id.to_string()), last_seen_ms);
+        }
+    }
+
+    pub(crate) fn snapshot(&self, cid: &str) -> Vec<(String, i64)> {
+        let Ok(g) = self.inner.read() else {
+            return Vec::new();
+        };
+        let mut out: Vec<(String, i64)> = g
+            .iter()
+            .filter_map(|((c, a), ts)| if c == cid { Some((a.clone(), *ts)) } else { None })
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    }
+}
+
+static PRESENCE: OnceLock<PresenceTracker> = OnceLock::new();
+
+pub(crate) fn presence() -> &'static PresenceTracker {
+    PRESENCE.get_or_init(PresenceTracker::new)
+}
 
 /// The canonical topic T-1162 mirrors `event.broadcast` into so subscribers
 /// can read fan-out events via the new `channel.*` surface without waiting
@@ -354,7 +399,15 @@ pub(crate) async fn handle_channel_post_with(
         metadata,
     };
     match bus.post(&topic, &env).await {
-        Ok(offset) => Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into(),
+        Ok(offset) => {
+            // T-1286 / T-243: passive presence tracking. When the envelope
+            // carries metadata.conversation_id, record (cid, sender_id) →
+            // ts so dialog.presence can answer "who's active here?"
+            if let Some(cid) = env.metadata.get("conversation_id") {
+                presence().record(cid, &env.sender_id, env.ts_unix_ms);
+            }
+            Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into()
+        }
         Err(termlink_bus::BusError::UnknownTopic(t)) => ErrorResponse::new(
             id,
             error_code::CHANNEL_TOPIC_UNKNOWN,
@@ -480,6 +533,27 @@ pub(crate) async fn handle_channel_subscribe_with(
         json!({"messages": messages, "next_cursor": next_cursor}),
     )
     .into()
+}
+
+/// `dialog.presence(conversation_id)` → `{presences: [{agent_id, last_seen_ms}, ...]}`.
+/// T-1286 / T-243. Hub passively tracks senders per conversation_id by
+/// observing channel.post metadata. Unknown conversation_id returns an
+/// empty list (presence is observational — absence ≠ error).
+pub async fn handle_dialog_presence(id: Value, params: &Value) -> RpcResponse {
+    let cid = match param_str(params, "conversation_id") {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => {
+            return ErrorResponse::new(id, -32602, "Missing 'conversation_id' in params").into()
+        }
+    };
+    let snapshot = presence().snapshot(&cid);
+    let presences: Vec<Value> = snapshot
+        .into_iter()
+        .map(|(agent_id, last_seen_ms)| {
+            json!({"agent_id": agent_id, "last_seen_ms": last_seen_ms})
+        })
+        .collect();
+    Response::success(id, json!({"presences": presences})).into()
 }
 
 /// `channel.trim(topic, before_offset?)` → `{ok, deleted, topic}`.
@@ -1208,6 +1282,106 @@ mod tests {
         let next = v["next_cursor"].as_u64().unwrap();
         let last_offset = msgs[1]["offset"].as_u64().unwrap();
         assert_eq!(next, last_offset + 1, "cursor advances over skipped records");
+    }
+
+    #[tokio::test]
+    async fn dialog_presence_tracks_senders_per_conversation() {
+        // T-1286: post 3 messages on cid=t1286-c1 with sender_ids
+        // alice/bob/alice. dialog.presence("t1286-c1") returns 2 entries
+        // (alice + bob), sorted by agent_id. alice's last_seen_ms is the
+        // ts of the LATER alice post (overwrites earlier).
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:pres", Retention::Forever).unwrap();
+        let key = signing_key();
+
+        // alice's first post — ts 5_001
+        let mut p_a1 = post_params_with_meta(
+            &key, "inbox:pres", "note", b"a1", 5_001,
+            Some(json!({"conversation_id": "t1286-c1"})),
+        );
+        p_a1.as_object_mut().unwrap().insert("sender_id".into(), json!("alice"));
+        let _ = handle_channel_post_with(&bus, json!(1), &p_a1).await;
+        // bob's post — ts 5_002
+        let mut p_b = post_params_with_meta(
+            &key, "inbox:pres", "note", b"b1", 5_002,
+            Some(json!({"conversation_id": "t1286-c1"})),
+        );
+        p_b.as_object_mut().unwrap().insert("sender_id".into(), json!("bob"));
+        let _ = handle_channel_post_with(&bus, json!(2), &p_b).await;
+        // alice's second post — ts 5_003 (must overwrite the 5_001)
+        let mut p_a2 = post_params_with_meta(
+            &key, "inbox:pres", "note", b"a2", 5_003,
+            Some(json!({"conversation_id": "t1286-c1"})),
+        );
+        p_a2.as_object_mut().unwrap().insert("sender_id".into(), json!("alice"));
+        let _ = handle_channel_post_with(&bus, json!(3), &p_a2).await;
+
+        let resp = handle_dialog_presence(
+            json!(4),
+            &json!({"conversation_id": "t1286-c1"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let presences = v["presences"].as_array().unwrap();
+        assert_eq!(presences.len(), 2, "alice + bob, alice deduped");
+
+        // Sorted by agent_id.
+        assert_eq!(presences[0]["agent_id"], "alice");
+        assert_eq!(presences[0]["last_seen_ms"], 5_003i64); // alice's LATER ts
+        assert_eq!(presences[1]["agent_id"], "bob");
+        assert_eq!(presences[1]["last_seen_ms"], 5_002i64);
+    }
+
+    #[tokio::test]
+    async fn dialog_presence_ignores_posts_without_conversation_id() {
+        // T-1286: posts that have no metadata.conversation_id must NOT
+        // appear in any presence query.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:plainpres", Retention::Forever).unwrap();
+        let key = signing_key();
+        // No metadata at all.
+        let p = post_params(&key, "inbox:plainpres", "note", b"x", 6_000);
+        let _ = handle_channel_post_with(&bus, json!(1), &p).await;
+        // Metadata present but no conversation_id key.
+        let p2 = post_params_with_meta(
+            &key, "inbox:plainpres", "note", b"y", 6_001,
+            Some(json!({"event_type": "turn"})),
+        );
+        let _ = handle_channel_post_with(&bus, json!(2), &p2).await;
+
+        // Use a unique cid that no post used so we know any entry would
+        // be from cross-contamination of the global tracker.
+        let resp = handle_dialog_presence(
+            json!(3),
+            &json!({"conversation_id": "t1286-noexist"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["presences"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn dialog_presence_unknown_conversation_returns_empty() {
+        // T-1286: dialog.presence on a conversation_id that's never been
+        // seen returns {presences: []} (not an error) — presence is
+        // observational, absence is information.
+        let resp = handle_dialog_presence(
+            json!(1),
+            &json!({"conversation_id": "t1286-truly-unknown-xyz"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["presences"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn dialog_presence_missing_conversation_id_is_invalid_params() {
+        // T-1286: required param. Missing → -32602.
+        let resp = handle_dialog_presence(json!(1), &json!({})).await;
+        match resp {
+            RpcResponse::Error(e) => assert_eq!(e.error.code, -32602),
+            _ => panic!("expected error"),
+        }
     }
 
     #[tokio::test]

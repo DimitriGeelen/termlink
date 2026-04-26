@@ -120,6 +120,15 @@ pub mod method {
     /// Params: `{ topic, before_offset? }` → `{ ok, deleted, topic }`. T-1234 / T-1230a.
     pub const CHANNEL_TRIM: &str = "channel.trim";
 
+    /// T-1286 / T-243 — query who has been seen in a multi-turn conversation.
+    /// Hub passively tracks `(conversation_id, agent_id) → last_seen_unix_ms`
+    /// by observing every successful `channel.post` whose
+    /// `metadata.conversation_id` is set; `agent_id` is the post's `sender_id`.
+    /// Eviction is implicit — callers compare `last_seen_ms` against now.
+    /// Params: `{ conversation_id }` → `{ presences: [{agent_id, last_seen_ms}, ...] }`,
+    /// sorted by `agent_id`. Unknown conversation_id returns an empty list (not an error).
+    pub const DIALOG_PRESENCE: &str = "dialog.presence";
+
     // --- T-1248 / T-1164a: artifact blob store. Tier-A. ---
 
     /// Tier-A — upload bytes into the hub's content-addressed artifact store.
