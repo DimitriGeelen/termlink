@@ -141,6 +141,26 @@ new file at chmod 600, and prints a 12-char fingerprint preview. Refuses
 profiles that use inline `secret = ...` (migration hint provided).
 Implementation: T-1055, same file, `cmd_fleet_reauth_bootstrap`.
 
+**Heal path — Tier-2 declarative (T-1291).** Once an anchor is known
+correct, declare it on the profile and use `auto`:
+
+```
+# One-time declaration (or pass --bootstrap-from to `profile add`):
+[hubs.ring20-management]
+address        = "192.168.10.122:9100"
+secret_file    = "~/.termlink/secrets/ring20-management.hex"
+bootstrap_from = "ssh:192.168.10.122"
+
+# Per-incident heal:
+termlink fleet reauth ring20-management --bootstrap-from auto
+```
+
+`auto` resolves to the declared `bootstrap_from` and delegates to the
+T-1055 fetch path. Operator types one flag instead of remembering the
+exact OOB incantation per hub. Missing declaration emits a two-option
+hint (declare it, or pass an explicit source). Same R2 rule applies —
+the declared channel must not depend on the auth being healed.
+
 **R2 — out-of-band trust anchor rule.** The `--bootstrap-from` source MUST
 NOT itself depend on the termlink auth being healed (chicken-and-egg).
 `file:` and `ssh:` are safe by construction. `command:<shell>` was
@@ -179,7 +199,9 @@ auto-register, R1) → T-1053 (concern auto-register, G-019) → T-1054 (Tier-1
 heal printer) → T-1055 (Tier-2 `--bootstrap-from`, R2) → T-1056 (rmcp pin,
 unblocks consumer installs of the heal CLI) → T-1057 (build.rs version
 freshness, so operators can confirm they're running the version that has
-these commands). T-1058 added this documentation.
+these commands) → T-1291 (declarative `bootstrap_from` per profile +
+`--bootstrap-from auto`, lowers the floor on every heal). T-1058 added
+this documentation.
 ## Core Principle
 
 **Nothing gets done without a task.** This is enforced structurally by the framework, not by agent discipline.
