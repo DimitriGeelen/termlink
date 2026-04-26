@@ -93,6 +93,30 @@ Locked AFTER spikes 1-3 in T-1297.
 - **Cross-hub topic propagation rules.** Single-hub first.
 - **Hub-driven session capability advertisement.** A larger change that subsumes the topic↔role mapping into a general capability protocol. Worth its own inception if (B) feels too rigid.
 
+## Spike 1 — Quantify (executed 2026-04-26)
+
+**Method.** Used `termlink topics` to enumerate live topics across all 7 sessions on the .107 hub, then `termlink events --target framework-agent --topic <name>` to inspect payloads of suspect topics on the governance session. Each event was classified by inspecting the payload for originator/target markers (`_from`, `from`, `requesting_session`, `needs`, `relay_target`).
+
+**Findings.** Five confirmed misroutes on `framework-agent` (governance session) — events whose payloads explicitly name a non-framework originator AND a non-framework intended destination, yet were emitted on framework-agent's bus:
+
+| seq | topic | originator | declared target | task |
+|---|---|---|---|---|
+| 224 | `infra.qdrant.down` | email-archive | ring20-management-agent | T-1042 |
+| 231 | `infra.qdrant.down` | email-archive | ring20-management-agent@.122 | T-1042 |
+| 688 | `oauth.redirect-uri.help-requested` | email-archive@.107 | ring20-management-agent | T-1184 |
+| 906 | `infra.lxc.delegate` | S-2026-0426-resume-post-1316 (.107) | ring20-management-agent (`relay_target` field) | T-1191 |
+| 907 | `infra.s3.bucket.delegate` | S-2026-0426-resume-post-1316 (.107) | ring20-management-agent (`relay_target` field) | T-1194 |
+
+framework-agent topic catalog (73 topics) also shows pervasive product-prefix leakage — `email-archive.t11{74,77,78,79}.*`, `dashboard.{rekey,sibling,gap}.*`, `penelope.cutover.*`, `gpu.coordination.*`, `outage.qdrant`. Each is a separate originator-confusion case, not counted in the 5 above because they could plausibly be intentional framework-relay broadcasts. Conservative lower bound is what's tabulated.
+
+Volume context: framework-agent next_seq=914 over 8 days (~114 emits/day); 5 confirmed product/infra misroutes is ≥3-incident threshold. Approximate misroute rate among product/infra-prefixed events: 5 / ~30 product-prefixed emits sampled ≈ 17% (very rough — the catalog suggests this is an underestimate).
+
+**Bug bonus.** One topic name on framework-agent is literally `learning.shared</topic>\n<parameter name="from">email-archive` — a malformed XML emit from an agent that interpolated parameter syntax into the topic name. Independent of misrouting, this points to insufficient validation of topic strings on emit. Out-of-scope for T-1297; flag for separate follow-up.
+
+**Verdict.** GO criterion 1 ("≥3 misroute incidents in last 30 days") **satisfied** — 5 distinct events with unambiguous payload-level evidence, spanning 4 distinct topics and 3 distinct originating tasks (T-1042 / T-1184 / T-1191+T-1194). Pre-spike inclination upheld; no surprises that demand redesign.
+
+**Bonus design signal.** Every misrouted event in the table carries a `relay_target` / `needs` / target-naming field in its payload — agents already encode their intended destination at emit time. This means a soft-lint at emit (option 2) has high-quality input data: it can compare `topic_prefix` against `payload.relay_target`/`payload.needs`/payload-declared `from` and warn when they don't reconcile. Strengthens the (1)+(2) pick.
+
 ## Notes for next session
 
 If picking up this inception cold: the dialogue log above captures the conversation that produced the option matrix. Spike 1 is the first hard evidence step — without misroute volume data, the inclination above is just opinion.
