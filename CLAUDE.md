@@ -53,20 +53,56 @@ reports `Token validation failed: invalid signature`**. See
 `docs/reports/T-1051-termlink-auth-reliability-inception.md` for the full
 root-cause analysis and Option D decision.
 
-**Special case — volatile runtime_dir (T-1290).** A degenerate sub-case of
-scenario 2: if the hub is started without `TERMLINK_RUNTIME_DIR` set (legacy
-default `/tmp/termlink-0`) on a host where `/tmp` is tmpfs, every container
-or system reboot wipes the entire runtime_dir. Persist-if-present cannot
-help — there is nothing to find. Symptom: BOTH the TLS fingerprint AND the
-HMAC secret rotate simultaneously after a reboot (cert-only rotation does
-not happen here; persist applies to both equally). When you see PL-021
-("hub rotates BOTH secret and TLS cert") fire, suspect this. Diagnostic:
-on the affected host, `ls -la /tmp/termlink-0/ /var/lib/termlink/` and
-`mount | grep termlink`. Fix: install/repair the systemd unit per
-`docs/operations/termlink-hub-runtime-migration.md` (T-935) so
-`Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink` is set, restart hub
-once, all clients re-pin once. T-1290 confirmed this pattern explained
-recurring rotations on ring20-management (.122).
+**Special case — volatile runtime_dir (T-1290 / T-1294).** A degenerate
+sub-case of scenario 2: if the hub is started without `TERMLINK_RUNTIME_DIR`
+set (legacy default `/tmp/termlink-0`) on a host where `/tmp` contents do
+not survive boot, every container or system reboot wipes the entire
+runtime_dir. Persist-if-present cannot help — there is nothing to find.
+Symptom: BOTH the TLS fingerprint AND the HMAC secret rotate simultaneously
+after a reboot (cert-only rotation does not happen here; persist applies
+to both equally). When you see PL-021 ("hub rotates BOTH secret and TLS
+cert") fire, suspect this.
+
+**Two distinct mechanisms produce volatile /tmp** — check BOTH:
+
+1. **/tmp mounted as tmpfs** — kernel reclaims contents on shutdown.
+   Detect: `mount | grep ' /tmp '` shows a `tmpfs on /tmp` line.
+2. **/tmp on regular disk but wiped by systemd-tmpfiles** — a
+   `D /tmp 1777 root root -` rule in `/usr/lib/tmpfiles.d/tmp.conf` (or
+   any override under `/etc/tmpfiles.d/`) makes `systemd-tmpfiles --boot`
+   delete /tmp contents on every boot. Mount table looks innocent (no
+   tmpfs) but the directory is still volatile. T-1294 confirmed this on
+   ring20-management (.122).
+
+**Diagnostic.** Either of these positive means volatile /tmp:
+
+```
+ls -la /tmp/termlink-0/ /var/lib/termlink/
+mount | grep -E ' /tmp |termlink'
+cat /usr/lib/tmpfiles.d/tmp.conf /etc/tmpfiles.d/tmp.conf 2>/dev/null
+```
+
+If files in `/tmp/termlink-0/` all share the boot-time mtime (compare
+against `systemctl show -p ActiveEnterTimestamp init.scope`), you're
+seeing post-boot regeneration regardless of mechanism.
+
+**Fix.** Move runtime_dir off /tmp permanently. Insertion point depends
+on how the hub is launched:
+
+- **systemd-launched hub:** install/repair the systemd unit per
+  `docs/operations/termlink-hub-runtime-migration.md` (T-935) so
+  `Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink` is set.
+- **watchdog-launched hub** (e.g. ring20-watchdog.sh on the ring20 CTs):
+  `export TERMLINK_RUNTIME_DIR=/var/lib/termlink` near the top of the
+  watchdog script, before any `termlink hub start` invocation. Also
+  update any hardcoded `/tmp/termlink-0/{hub.sock,hub.secret}` references
+  in the same script. T-1294 documented this for ring20-management.
+
+Pre-seed the new path with the existing secret/cert (`cp -a /tmp/termlink-0/.
+/var/lib/termlink/`) so persist-if-present preserves rather than regenerates;
+remove the stale `hub.sock` / `hub.pid` to free TCP bind. Restart hub once,
+all clients re-pin once. The next reboot must NOT trigger rotation — that's
+the persistence ground-truth.
 
 **Symptom recognition.** Any of the following means rotation happened and
 the client needs healing:
