@@ -4,16 +4,16 @@ name: "T-243 dep: Audit + harden channel.* ordered durable delivery"
 description: >
   Verify channel.* guarantees ordered durable delivery under: (a) concurrent multi-publisher writes, (b) hub restart, (c) subscriber reconnect mid-stream. This is Agent A's NO-GO check from T-243 inception and Agent C's crash gap. If gaps found, fix before any dialog.heartbeat or metadata-extension work proceeds — append-only log model collapses without it. Foundation for all other T-243 child tasks.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-243, channel, reliability]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs]
 related_tasks: []
 created: 2026-04-26T09:31:53Z
-last_update: 2026-04-26T09:42:02Z
-date_finished: null
+last_update: 2026-04-26T09:43:20Z
+date_finished: 2026-04-26T09:43:20Z
 ---
 
 # T-1285: T-243 dep: Audit + harden channel.* ordered durable delivery
@@ -120,3 +120,6 @@ cargo test -p termlink-bus --lib 2>&1 | tail -20 | grep -E "test result: ok|test
 
 ### 2026-04-26T09:39:39Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-26T09:43:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

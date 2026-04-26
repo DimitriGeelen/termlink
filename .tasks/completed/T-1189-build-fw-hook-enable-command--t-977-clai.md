@@ -12,7 +12,7 @@ tags: [framework, hook, g-015-repair]
 components: []
 related_tasks: [T-977, T-1187, T-1188]
 created: 2026-04-22T18:33:20Z
-last_update: 2026-04-23T17:19:51Z
+last_update: 2026-04-26T10:55:19Z
 date_finished: 2026-04-23T17:19:51Z
 ---
 

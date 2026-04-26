@@ -4,16 +4,16 @@ name: "T-243 dep: Document multi-turn dialog convention catalog"
 description: >
   Document the convention-layer event types (turn, typing, receipt, presence, member) and recommended subscriber patterns built on channel.post with metadata.conversation_id. Cover: 2-agent dialog, N-agent collaboration, human-in-the-loop, confirmation flows. No code — pure documentation. Output to docs/protocols/multi-turn-dialog.md or similar. Depends on metadata-extension child task being landed.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-243, docs, protocol]
-components: []
+components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-26T09:32:05Z
-last_update: 2026-04-26T11:03:48Z
-date_finished: null
+last_update: 2026-04-26T11:05:37Z
+date_finished: 2026-04-26T11:05:37Z
 ---
 
 # T-1288: T-243 dep: Document multi-turn dialog convention catalog
@@ -81,3 +81,6 @@ But conventions only work if everyone reads the same playbook. This task deliver
 
 ### 2026-04-26T11:03:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-26T11:05:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

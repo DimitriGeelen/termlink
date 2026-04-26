@@ -4,16 +4,16 @@ name: "T-243 dep: Verify push delivery is default for channel.subscribe"
 description: >
   Per T-243 inception (Agent B priority #2): without push, immediate response is structurally impossible. Verify channel.subscribe currently uses push (event-driven WebSocket-style stream) and not poll-on-interval. If poll-based, escalate to a separate enabling task to flip to push. Quick spike — should be hours not days. Independently testable; runs in parallel with other child tasks.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-243, transport, push]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-hub/src/channel.rs]
 related_tasks: []
 created: 2026-04-26T09:32:08Z
-last_update: 2026-04-26T09:43:31Z
-date_finished: null
+last_update: 2026-04-26T09:48:33Z
+date_finished: 2026-04-26T09:48:33Z
 ---
 
 # T-1289: T-243 dep: Verify push delivery is default for channel.subscribe
@@ -85,3 +85,6 @@ cargo test -p termlink-hub --lib subscribe_timeout 2>&1 | tail -5 | grep -E "tes
 
 ### 2026-04-26T09:43:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-26T09:48:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

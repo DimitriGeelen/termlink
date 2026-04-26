@@ -4,16 +4,16 @@ name: "T-243 dep: Extend channel.post with metadata.conversation_id + metadata.e
 description: >
   Per T-243 inception synthesis: one-field code change in channel.post params. Optional metadata.conversation_id (string) — scope events to a conversation. Optional metadata.event_type (turn|typing|receipt|presence|member) — routing/filtering hint, not enforcement. Enables convention-layer multi-turn dialog without new typed-method namespace. Independently testable; can land before or after dialog.heartbeat.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-243, channel, protocol]
-components: []
+components: [crates/termlink-bus/src/envelope.rs, crates/termlink-bus/src/lib.rs, crates/termlink-hub/src/channel.rs]
 related_tasks: []
 created: 2026-04-26T09:32:02Z
-last_update: 2026-04-26T09:51:43Z
-date_finished: null
+last_update: 2026-04-26T10:57:58Z
+date_finished: 2026-04-26T10:57:58Z
 ---
 
 # T-1287: T-243 dep: Extend channel.post with metadata.conversation_id + metadata.event_type
@@ -83,3 +83,6 @@ Backwards compat: Envelope's metadata field uses `#[serde(default)]` — existin
 
 ### 2026-04-26T09:48:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-26T10:57:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

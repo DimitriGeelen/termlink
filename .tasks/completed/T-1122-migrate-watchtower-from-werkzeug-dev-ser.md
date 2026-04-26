@@ -4,7 +4,7 @@ name: "Migrate Watchtower from Werkzeug dev server to production-grade WSGI"
 description: >
   Inception: Migrate Watchtower from Werkzeug dev server to production-grade WSGI
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T09:39:11Z
-last_update: 2026-04-18T20:03:41Z
-date_finished: null
+last_update: 2026-04-26T10:56:45Z
+date_finished: 2026-04-26T10:56:45Z
 ---
 
 # T-1122: Migrate Watchtower from Werkzeug dev server to production-grade WSGI
@@ -146,11 +146,11 @@ Why now: the dev server lacks proper concurrency, graceful reload, signal handli
 
 ## Decision
 
-**Decision**: DEFER
+**Decision**: GO
 
-**Rationale**: DEFER per recommendation: Flask-SocketIO threading constrains WSGI choice; spikes captured as T-1124.
+**Rationale**: Re-reading the problem statement, the failure mode that matters ("restart races during this session") is a process-management problem, not a WSGI-server problem. Swapping Werkzeug for gunicorn does not fix restart races; systemd does. The Werkzeug warning is aesthetic on a single-host LAN tool. Adding gunicorn + gevent + flask-socketio_websocket adds dependency surface without proportional benefit.
 
-**Date**: 2026-04-23T12:18:56Z
+**Date**: 2026-04-26T10:56:45Z
 
 ## Updates
 
@@ -185,3 +185,12 @@ Rationale: Re-reading the problem statement, the failure mode that matters ("res
 - **Action:** Recorded inception decision
 - **Decision:** DEFER
 - **Rationale:** DEFER per recommendation: Flask-SocketIO threading constrains WSGI choice; spikes captured as T-1124.
+
+### 2026-04-26T10:56:45Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Re-reading the problem statement, the failure mode that matters ("restart races during this session") is a process-management problem, not a WSGI-server problem. Swapping Werkzeug for gunicorn does not fix restart races; systemd does. The Werkzeug warning is aesthetic on a single-host LAN tool. Adding gunicorn + gevent + flask-socketio_websocket adds dependency surface without proportional benefit.
+
+### 2026-04-26T10:56:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
