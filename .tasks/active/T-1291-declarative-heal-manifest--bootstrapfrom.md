@@ -44,26 +44,10 @@ Depends on T-1290 in spirit only — if T-1290 eliminates rotations on .122, the
 - [ ] At least 2 unit tests: (1) `auto` resolves to declared channel, (2) `auto` with no declaration emits actionable error
 - [ ] Existing T-1055 test suite still passes
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
-
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+cargo test -p termlink fleet_reauth_bootstrap_from_auto
+cargo test -p termlink fleet_reauth_bootstrap_from_auto_missing_declaration
 
 ## Decisions
 
