@@ -844,3 +844,10 @@ learnings:
   date: 2026-04-26
   context: Added via context agent
   application: TBD
+- id: PL-085
+  learning: "When PL-021 fires (hub rotates BOTH secret AND TLS cert), check TWO mechanisms for volatile /tmp: (1) tmpfs mount via 'mount | grep / tmp ', (2) systemd-tmpfiles 'D /tmp' rule via 'cat /usr/lib/tmpfiles.d/tmp.conf'. Mount-table check alone misses cause #2 — /tmp on regular disk gets wiped at boot by systemd-tmpfiles --boot when the D directive is set. T-1294 caught this on ring20-management (.122) where 'mount | grep tmp' showed innocent output but tmp.conf had 'D /tmp 1777 root root -'. All 6 files in /tmp/termlink-0/ shared boot-time mtime, the boot-time-mtime check proved the wipe regardless of mechanism."
+  source: PL-021
+  task: T-1294
+  date: 2026-04-26
+  context: Added via context agent
+  application: TBD
