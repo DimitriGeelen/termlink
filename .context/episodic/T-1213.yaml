@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1213: Build SubagentStop bus-migration handler (T-1209 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-26T15:24:37Z
+# ============================================================================
+
+task_id: T-1213
+task_name: "Build SubagentStop bus-migration handler (T-1209 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T10:05:14Z
+completed: 2026-04-25T21:53:39Z
+duration_days: 1
+updates_count: 8
+first_commit: 2026-04-24T12:41:53+02:00
+last_commit: 2026-04-24T12:53:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  settings.json patch doc + AC/Updates — handler lives in vendored framework. upstream mirror succeeded — a5c4fe85 on framework master
+
+# Key outcomes
+outcomes:
+  - "S1' spike: determine SubagentStop mutation semantics — **COMPLETE**: hook"
+  - "Telemetry: `agents/context/subagent-stop.sh` appends one JSON line per"
+  - "Bus handler: over-threshold T=8192 bytes triggers `fw bus post --task"
+  - "`fw hook subagent-stop` dispatcher live — bin/fw resolves hook name to"
+  - "**HUMAN-GATED** Hook installed in `.claude/settings.json` SubagentStop"
+  - "Stub test covering under-threshold (500B → migrated=false) and"
+  - "Upstream mirror — handler + stub test landed in"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Handler is capture-and-log only, not response-mutating. Preserve the"
+    rationale: "Claude Code docs (hooks.md) state SubagentStop \"cannot modify subagent"
+    alternatives_rejected: ["\"Mode B mutation\" as originally scoped in T-1209 S3 — rewriting"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/T-1213-settings-patch.md"
+  - ".tasks/active/T-1213-build-subagentstop-bus-migration-handler.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T12:41:53"
+    action: "T-1213: settings.json patch doc + AC/Updates — handler lives in vendored framework"
+  - time: "2026-04-24T12:53:43"
+    action: "T-1213: upstream mirror succeeded — a5c4fe85 on framework master"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 2148 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [hook, dispatch, bus, framework-bridge]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2148
+  commits: 5
+  files_changed: 6
+  lines_added: 279
+  lines_removed: 85
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1213-build-subagentstop-bus-migration-handler.md
+generated_by: context-agent-hybrid
