@@ -4,15 +4,15 @@ name: "Declarative heal manifest — bootstrap_from per profile in hubs.toml"
 description: >
   Extend hubs.toml schema with optional bootstrap_from per profile (e.g. 'ssh:user@host:/path/to/hub.secret'). termlink fleet reauth <profile> --bootstrap-from auto then reads the declared channel and runs the existing T-1055 fetch path. Lowers the floor on heal for every hub: today operator must remember the SSH command per profile; tomorrow it is one declared field. Captured 2026-04-26 after .122 rotation cascade exposed the chicken-and-egg.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [auth, fleet, hub, G-011]
 components: []
 related_tasks: [T-1054, T-1055, T-1284, T-1290, T-1051]
 created: 2026-04-26T11:36:32Z
-last_update: 2026-04-26T11:55:56Z
+last_update: 2026-04-26T15:25:19Z
 date_finished: null
 ---
 
@@ -38,11 +38,11 @@ Depends on T-1290 in spirit only — if T-1290 eliminates rotations on .122, the
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `hubs.toml` schema accepts optional `bootstrap_from = "<source>"` per `[hubs.<name>]` section, with the same source-format vocabulary as T-1055 (`file:`, `ssh:`); unknown schemes rejected with a clear error
-- [ ] `termlink fleet reauth <profile> --bootstrap-from auto` reads the declared `bootstrap_from`, errors clearly if missing, otherwise delegates to the existing T-1055 fetch path
-- [ ] Profiles without `bootstrap_from` keep working unchanged (back-compat)
-- [ ] At least 2 unit tests: (1) `auto` resolves to declared channel, (2) `auto` with no declaration emits actionable error
-- [ ] Existing T-1055 test suite still passes
+- [x] `hubs.toml` schema accepts optional `bootstrap_from = "<source>"` per `[hubs.<name>]` section, with the same source-format vocabulary as T-1055 (`file:`, `ssh:`); unknown schemes rejected with a clear error
+- [x] `termlink fleet reauth <profile> --bootstrap-from auto` reads the declared `bootstrap_from`, errors clearly if missing, otherwise delegates to the existing T-1055 fetch path
+- [x] Profiles without `bootstrap_from` keep working unchanged (back-compat)
+- [x] At least 2 unit tests: (1) `auto` resolves to declared channel, (2) `auto` with no declaration emits actionable error
+- [x] Existing T-1055 test suite still passes
 
 ## Verification
 
@@ -66,3 +66,15 @@ cargo test -p termlink fleet_reauth_bootstrap_from_auto_missing_declaration
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1291-declarative-heal-manifest--bootstrapfrom.md
 - **Context:** Initial task creation
+
+### 2026-04-26T17:25Z — build delivered [agent autonomous pass]
+- **Schema:** `HubEntry` in `crates/termlink-cli/src/config.rs` gained `bootstrap_from: Option<String>` (skip_serializing_if). Default = None preserves back-compat for every existing profile in every operator's `~/.termlink/hubs.toml`.
+- **Wiring:** `cmd_fleet_reauth` in `crates/termlink-cli/src/commands/remote.rs` now resolves `--bootstrap-from auto` to the declared channel before delegating to the existing T-1055 fetch path. Unknown schemes still hard-error inside `fetch_bootstrap_secret` (no semantic change). Missing declaration with `auto` emits an actionable two-option hint (declare it, or pass an explicit source).
+- **Tests:** 2 new unit tests added to the T-1055 block — `fleet_reauth_bootstrap_from_auto_resolves_declared_channel` and `fleet_reauth_bootstrap_from_auto_missing_declaration_errors`. All 7 fleet_reauth_bootstrap tests pass; full termlink suite green (225 unit + 172 integration).
+- **Verification:** `cargo test -p termlink fleet_reauth_bootstrap` → 7/7 ok; `cargo test -p termlink` → 0 fail.
+- **Out of scope (future task):** `termlink profile add --bootstrap-from <source>` CLI plumbing — operator currently edits hubs.toml directly to declare. Note left as a follow-up if friction surfaces.
+- **All Agent ACs ticked.** Owner=human; awaiting operator validation (none captured here yet).
+
+### 2026-04-26T15:25:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

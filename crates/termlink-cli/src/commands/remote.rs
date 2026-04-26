@@ -232,6 +232,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 secret_file,
                 secret,
                 scope,
+                bootstrap_from: None,
             });
             save_hubs_config(&config)?;
             if json {
@@ -2643,7 +2644,29 @@ pub(crate) fn cmd_fleet_reauth(profile: &str, bootstrap_from: Option<&str>) -> R
         }
     };
 
-    match bootstrap_from {
+    // T-1291: resolve `--bootstrap-from auto` to the declared trust anchor on
+    // the profile. Operator types one flag instead of remembering the exact
+    // OOB incantation per hub. Unknown schemes still hard-error inside
+    // `fetch_bootstrap_secret` (back-compat: pre-T-1291 callers explicitly
+    // passing `file:` / `ssh:` continue to work unchanged).
+    let resolved: Option<String> = match bootstrap_from {
+        Some("auto") => match entry.bootstrap_from.as_deref() {
+            Some(declared) => Some(declared.to_string()),
+            None => anyhow::bail!(
+                "Profile '{profile}' has no `bootstrap_from` declared in hubs.toml — \
+                 cannot resolve --bootstrap-from auto. Either:\n\
+                 \n  \
+                 (a) declare it: in ~/.termlink/hubs.toml under [hubs.{profile}] add \
+                 `bootstrap_from = \"ssh:<host>\"` or `bootstrap_from = \"file:<path>\"`, then retry; \
+                 \n  \
+                 (b) pass an explicit source: termlink fleet reauth {profile} --bootstrap-from ssh:<host>"
+            ),
+        },
+        Some(other) => Some(other.to_string()),
+        None => None,
+    };
+
+    match resolved.as_deref() {
         None => {
             // Tier-1 behavior — print the heal incantation.
             print!("{}", render_fleet_reauth_plan(profile, entry));
@@ -3387,6 +3410,7 @@ mod tests {
             secret_file: Some("/root/.termlink/secrets/192.168.10.109.hex".to_string()),
             secret: None,
             scope: Some("execute".to_string()),
+            bootstrap_from: None,
         };
         let out = render_fleet_reauth_plan("ring20-management", &entry);
 
@@ -3419,6 +3443,7 @@ mod tests {
             secret_file: None,
             secret: Some("aa".repeat(32)),
             scope: None,
+            bootstrap_from: None,
         };
         let out = render_fleet_reauth_plan("inline-hub", &entry);
         assert!(out.contains("inline in hubs.toml"), "inline-source label missing: {out}");
@@ -3433,6 +3458,7 @@ mod tests {
             secret_file: None,
             secret: None,
             scope: None,
+            bootstrap_from: None,
         };
         let out = render_fleet_reauth_plan("broken-hub", &entry);
         assert!(out.contains("NONE configured"), "missing-secret warning missing: {out}");
@@ -3699,6 +3725,94 @@ secret_file = "/tmp/other.hex"
         let msg = format!("{err:#}");
         assert!(msg.contains("No hubs configured"), "error shape: {msg}");
         assert!(msg.contains("termlink profile add"), "error must suggest profile add: {msg}");
+    }
+
+    // -------------------------------------------------------------------
+    // T-1291: fleet reauth --bootstrap-from auto (declared trust anchor)
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn fleet_reauth_bootstrap_from_auto_resolves_declared_channel() {
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1291-auto-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(tmp.join(".termlink/secrets")).expect("dirs");
+
+        // Seed bootstrap file + stale secret_file + declared bootstrap_from.
+        let new_secret = "ab".repeat(32);
+        let bootstrap_path = tmp.join("declared-anchor.hex");
+        std::fs::write(&bootstrap_path, format!("{new_secret}\n")).expect("seed bootstrap");
+
+        let secret_path = tmp.join(".termlink/secrets/declared.hex");
+        std::fs::write(&secret_path, "cd".repeat(32)).expect("seed stale");
+
+        std::fs::write(
+            tmp.join(".termlink/hubs.toml"),
+            format!(
+                "[hubs.declared]\naddress = \"h:1\"\nsecret_file = \"{}\"\nbootstrap_from = \"file:{}\"\n",
+                secret_path.display(),
+                bootstrap_path.display(),
+            ),
+        ).expect("seed hubs.toml");
+
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: guarded by CWD_LOCK.
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let result = cmd_fleet_reauth("declared", Some("auto"));
+        let written = std::fs::read_to_string(&secret_path).ok();
+
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        result.expect("auto-resolved heal must succeed");
+        assert_eq!(written.as_deref(), Some(new_secret.as_str()),
+            "secret_file must contain the new secret pulled via declared bootstrap_from");
+    }
+
+    #[test]
+    fn fleet_reauth_bootstrap_from_auto_missing_declaration_errors() {
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1291-auto-missing-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(tmp.join(".termlink")).expect(".termlink");
+
+        // Profile has no bootstrap_from declared.
+        std::fs::write(
+            tmp.join(".termlink/hubs.toml"),
+            "[hubs.bare]\naddress = \"h:1\"\nsecret_file = \"/tmp/whatever.hex\"\n",
+        ).expect("seed");
+
+        let prev_home = std::env::var_os("HOME");
+        // SAFETY: guarded by CWD_LOCK.
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        let result = cmd_fleet_reauth("bare", Some("auto"));
+
+        unsafe {
+            match prev_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let err = result.expect_err("missing bootstrap_from + auto must error");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("no `bootstrap_from` declared"), "error must name the missing field: {msg}");
+        assert!(msg.contains("ssh:<host>") || msg.contains("ssh:"), "error must give actionable example: {msg}");
+        assert!(msg.contains("declared.") || msg.contains("declare it") || msg.contains("--bootstrap-from"), "error must offer alternative: {msg}");
     }
 
     #[test]
