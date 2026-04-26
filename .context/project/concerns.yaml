@@ -14,9 +14,11 @@ concerns:
   what_works_now: "Authors who customize their Human ACs (e.g. T-1290) get correct verify output. Authors who delete the example block early get correct output. Cleanup is one-line: remove the `<!-- ... -->` example."
   what_remains: "1. Make `fw task verify` HTML-comment-aware (skip lines between `<!--` and `-->` markers when counting `- [ ]`). 2. OR: change the default template to put the example outside the AC list as a non-bullet sentence. 3. OR: change the example marker to `- [x]` so it doesn't count as 'unchecked' (wallpaper, not fix)."
   mitigation_candidate: "Tier-1: clean up T-1291 manually 2026-04-26 (done — comment block removed). Tier-3: small parser patch in update-task.sh / fw task verify to track inside-comment state."
-  status: watching
+  status: closed
   created: 2026-04-26
-  related_tasks: [T-1291]
+  closed: 2026-04-26
+  closure_evidence: "T-1293 landed the parser patch in vendored .agentic-framework/bin/fw (consumer commit pending) and mirrored to upstream framework master commit c6efdc0db (verified via termlink exec framework-agent). Awaiting Human Verification queue dropped 5 → 3 — only tasks with real Human ACs (T-1137, T-1290, T-243) now surface; T-1124, T-1261, T-1291, T-1293 (all template-only) cleared. Both Python parser AND bash poll-mode counter patched for consistency."
+  related_tasks: [T-1291, T-1293]
 
 - id: G-046
   type: gap
