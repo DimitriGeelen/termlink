@@ -12,7 +12,7 @@ tags: [auth, infrastructure, ring20-management, G-011, runtime_dir]
 components: []
 related_tasks: [T-1290, T-935, T-931, T-1291, T-1137, T-1051]
 created: 2026-04-26T12:04:17Z
-last_update: 2026-04-26T12:04:17Z
+last_update: 2026-04-26T12:05:15Z
 date_finished: null
 ---
 
@@ -38,22 +38,22 @@ Supersedes: nothing — but it eliminates the upstream cause of every G-011 inci
   **Expected:** live `hub.secret` lives under `/tmp/termlink-0/`, `/tmp` is `tmpfs`, systemd unit lacks `TERMLINK_RUNTIME_DIR=/var/lib/termlink`.
   **If hypothesis disconfirmed (live secret already in `/var/lib/termlink/` and rotation still happens):** stop, re-open T-1290 with the new evidence — recommendation flips and the fix below is wrong.
 
-- [ ] [RUBBER-STAMP] Apply migration: install systemd unit override + persistent runtime_dir
-  **Steps:**
+- [ ] [RUBBER-STAMP] Apply migration: edit watchdog launcher + persistent runtime_dir
+  **Note:** No `termlink-hub.service` exists on this host. The hub is launched by `/root/proxmox-ring20-management/scripts/ring20-watchdog.sh` (T-198), invoked by `/etc/cron.d/ring20-watchdog` every minute and `@reboot`. Persist-if-present cannot help because `/usr/lib/tmpfiles.d/tmp.conf` has `D /tmp` — systemd-tmpfiles wipes `/tmp/` on every boot. So we move runtime_dir off /tmp.
+  **Steps (all inside CT 200 — `pct enter 200`):**
   1. `mkdir -p /var/lib/termlink && chmod 700 /var/lib/termlink`
-  2. `mkdir -p /etc/systemd/system/termlink-hub.service.d`
-  3. Write `/etc/systemd/system/termlink-hub.service.d/override.conf`:
+  2. Edit `/root/proxmox-ring20-management/scripts/ring20-watchdog.sh` — at the top of the script (after the `set -uo pipefail` line) add:
+     ```bash
+     export TERMLINK_RUNTIME_DIR=/var/lib/termlink
+     mkdir -p "$TERMLINK_RUNTIME_DIR" && chmod 700 "$TERMLINK_RUNTIME_DIR"
      ```
-     [Service]
-     Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink
-     ```
-  4. `systemctl daemon-reload`
-  5. `systemctl restart termlink-hub`
-  6. `systemctl status termlink-hub` — Active (running)
-  7. `ls -la /var/lib/termlink/` — `hub.secret`, `hub.cert.pem`, `hub.key.pem`, `hub.sock` all present
-  8. (optional cleanup) `rm -rf /tmp/termlink-0` once the new runtime_dir is confirmed live
-  **Expected:** Hub running, runtime_dir at `/var/lib/termlink/`, secret + cert present and persistent.
-  **If not:** Check service journal `journalctl -u termlink-hub -n 50`.
+  3. In the same file, replace BOTH occurrences of `/tmp/termlink-0/hub.sock` and `/tmp/termlink-0/hub.secret` with `${TERMLINK_RUNTIME_DIR}/hub.sock` and `${TERMLINK_RUNTIME_DIR}/hub.secret` respectively. There are 3 references total: hub-up check (`test -S /tmp/termlink-0/hub.sock`), peer-refresh comment, and the `ssh ... pct exec ... cat /tmp/termlink-0/hub.secret` extraction line.
+  4. Stop the running hub: `pkill -f '^termlink hub start'` and `rm -rf /tmp/termlink-0/` (cleanup the dead path)
+  5. Wait ~70s for the next watchdog cron tick, OR force one: `/root/proxmox-ring20-management/scripts/ring20-watchdog.sh`
+  6. `ls -la /var/lib/termlink/` — `hub.secret`, `hub.cert.pem`, `hub.key.pem`, `hub.sock` all present
+  7. `pgrep -af termlink` — exactly one `termlink hub start` process running
+  **Expected:** Hub running with runtime_dir at `/var/lib/termlink/`, secret + cert present and persistent across the systemd-tmpfiles wipe.
+  **If not:** Check `tail -20 /root/proxmox-ring20-management/.context/working/watchdog.log` and `tail -20 /root/proxmox-ring20-management/.context/working/termlink-hub.log`.
 
 - [ ] [RUBBER-STAMP] Verify persistence across CT reboot (ground truth, NOT just hub restart)
   **Steps:**
@@ -94,3 +94,16 @@ Supersedes: nothing — but it eliminates the upstream cause of every G-011 inci
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1294-migrate-ring20-management-hub-runtimedir.md
 - **Context:** Initial task creation
+
+### 2026-04-26T13:35:00Z — AC 1 spike-1 verification (operator console on .180 → CT 200)
+- **Hypothesis:** CONFIRMED with twist — runtime_dir IS effectively volatile, but mechanism is systemd-tmpfiles, not tmpfs
+- **Evidence:**
+  - Hub launched via `/root/proxmox-ring20-management/scripts/ring20-watchdog.sh` (T-198), wired through `/etc/cron.d/ring20-watchdog` (every minute + `@reboot`). NO `termlink-hub.service` exists.
+  - `/tmp/termlink-0/` exists with hub.cert.pem, hub.key.pem, hub.secret, hub.sock — all mtime `Apr 25 20:34` (boot time exactly: PID 1=20:34:15, hub PID 102=20:34:19, systemd-tmpfiles PID 70=20:34:19).
+  - `/var/lib/termlink/` does NOT exist.
+  - `mount | grep tmp` shows /tmp NOT mounted as tmpfs (only /dev, /dev/shm, /run, /run/lock).
+  - `/usr/lib/tmpfiles.d/tmp.conf` contains `D /tmp 1777 root root -` — the `D` directive cleans /tmp contents on every boot. Confirmed via `systemd-tmpfiles-setup.service` exit at 20:34:19 UTC.
+  - Watchdog launches `nohup termlink hub start --tcp 0.0.0.0:9100` with no env var override → uses default `/tmp/termlink-0` → finds empty dir → regenerates BOTH cert and secret on every boot.
+  - termlink binary is 0.9.844 (well past T-933/T-945 persist-if-present), so persistence WOULD work if runtime_dir survived.
+- **Watchdog peer-refresh path also reads `/tmp/termlink-0/hub.secret` for cross-host extraction (line ~120) — needs same path-substitution as the launch line.**
+- **AC 2 plan revised:** systemd-unit override doesn't apply (no unit). Migration is now an edit to `ring20-watchdog.sh` to set `TERMLINK_RUNTIME_DIR=/var/lib/termlink` before the hub start, and update peer-refresh extraction path. See revised AC 2 above.
