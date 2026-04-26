@@ -377,18 +377,57 @@ pub(crate) async fn handle_channel_subscribe_with(
         .map(|v| v as usize)
         .unwrap_or(100)
         .min(1000);
+    // T-1289: optional long-poll. When `timeout_ms > 0` and no records are
+    // immediately available at `cursor`, block on the bus's per-topic
+    // notifier up to `timeout_ms` for the next post. Capped at 60_000 (60s)
+    // to bound RPC handler lifetime; clients can re-call to extend.
+    let timeout_ms = params
+        .get("timeout_ms")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0)
+        .min(60_000);
 
-    let iter = match bus.subscribe(&topic, cursor) {
-        Ok(i) => i,
-        Err(termlink_bus::BusError::UnknownTopic(t)) => {
-            return ErrorResponse::new(
-                id,
-                error_code::CHANNEL_TOPIC_UNKNOWN,
-                &format!("unknown topic: {t}"),
+    let iter = if timeout_ms > 0 {
+        match bus
+            .subscribe_blocking(
+                &topic,
+                cursor,
+                std::time::Duration::from_millis(timeout_ms),
             )
-            .into();
+            .await
+        {
+            Ok(i) => i,
+            Err(termlink_bus::BusError::UnknownTopic(t)) => {
+                return ErrorResponse::new(
+                    id,
+                    error_code::CHANNEL_TOPIC_UNKNOWN,
+                    &format!("unknown topic: {t}"),
+                )
+                .into();
+            }
+            Err(e) => {
+                return ErrorResponse::internal_error(
+                    id,
+                    &format!("channel.subscribe (long-poll): {e}"),
+                )
+                .into();
+            }
         }
-        Err(e) => return ErrorResponse::internal_error(id, &format!("channel.subscribe: {e}")).into(),
+    } else {
+        match bus.subscribe(&topic, cursor) {
+            Ok(i) => i,
+            Err(termlink_bus::BusError::UnknownTopic(t)) => {
+                return ErrorResponse::new(
+                    id,
+                    error_code::CHANNEL_TOPIC_UNKNOWN,
+                    &format!("unknown topic: {t}"),
+                )
+                .into();
+            }
+            Err(e) => {
+                return ErrorResponse::internal_error(id, &format!("channel.subscribe: {e}")).into();
+            }
+        }
     };
 
     let mut messages: Vec<Value> = Vec::new();
@@ -644,6 +683,58 @@ mod tests {
         let v = unwrap_success(sub);
         let msgs = v["messages"].as_array().unwrap();
         assert_eq!(msgs.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn subscribe_timeout_ms_returns_empty_on_no_records() {
+        // T-1289: long-poll RPC with empty topic + 100ms timeout returns
+        // an empty `messages` array (no error). Proves the timeout_ms path
+        // is wired through and behaves like snapshot when nothing arrives.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:dora", Retention::Forever).unwrap();
+        let start = std::time::Instant::now();
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "inbox:dora", "cursor": 0, "timeout_ms": 100}),
+        )
+        .await;
+        let elapsed = start.elapsed();
+        let v = unwrap_success(resp);
+        assert_eq!(v["messages"].as_array().unwrap().len(), 0);
+        // Must have actually waited (proves long-poll engaged).
+        assert!(
+            elapsed >= std::time::Duration::from_millis(80),
+            "long-poll returned too quickly: {elapsed:?}"
+        );
+        // Sanity bound — should not exceed timeout by more than scheduler slack.
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "long-poll overran timeout: {elapsed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn subscribe_timeout_ms_zero_is_snapshot() {
+        // T-1289: timeout_ms=0 (default) preserves snapshot semantics — no
+        // long-poll, returns immediately even on empty topic.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:eve", Retention::Forever).unwrap();
+        let start = std::time::Instant::now();
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({"topic": "inbox:eve", "cursor": 0}),
+        )
+        .await;
+        let elapsed = start.elapsed();
+        let v = unwrap_success(resp);
+        assert_eq!(v["messages"].as_array().unwrap().len(), 0);
+        // Snapshot path — should be effectively instant.
+        assert!(
+            elapsed < std::time::Duration::from_millis(50),
+            "snapshot path took {elapsed:?}, expected < 50ms"
+        );
     }
 
     #[tokio::test]
