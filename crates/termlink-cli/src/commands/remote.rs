@@ -227,17 +227,17 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
             }
             // T-1291: validate scheme up-front so a typo in `profile add
             // --bootstrap-from foo:bar` fails loud now, not at heal time.
-            if let Some(b) = &bootstrap_from {
-                if !(b.starts_with("file:") || b.starts_with("ssh:")) {
-                    let msg = format!(
-                        "--bootstrap-from must start with 'file:' or 'ssh:' (got: {b}). \
-                         Examples: file:/etc/termlink/hub.secret  |  ssh:192.168.10.122"
-                    );
-                    if json {
-                        super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
-                    }
-                    anyhow::bail!(msg);
+            if let Some(b) = &bootstrap_from
+                && !(b.starts_with("file:") || b.starts_with("ssh:"))
+            {
+                let msg = format!(
+                    "--bootstrap-from must start with 'file:' or 'ssh:' (got: {b}). \
+                     Examples: file:/etc/termlink/hub.secret  |  ssh:192.168.10.122"
+                );
+                if json {
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
                 }
+                anyhow::bail!(msg);
             }
             let mut config = load_hubs_config();
             let is_update = config.hubs.contains_key(&name);
