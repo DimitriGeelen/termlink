@@ -12,7 +12,7 @@ description: >
   identify, fix root cause. Closing this upstream eliminates the heal cycle entirely
   and obviates much of T-1291's value.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -20,7 +20,7 @@ tags: [auth, infrastructure, ring20-management, G-011]
 components: []
 related_tasks: [T-1051, T-1284, T-1137, T-933, T-945, T-1028, T-1031, T-1291]
 created: 2026-04-26T11:36:22Z
-last_update: 2026-04-26T11:36:22Z
+last_update: 2026-04-26T11:48:00Z
 date_finished: null
 ---
 
@@ -62,9 +62,9 @@ Observed evidence (2026-04-26 session): after one CT reboot, both the TLS finger
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated — directly observed in 2026-04-26 session: TLS+secret double-rotation on .122 after CT reboot, while self-hub and .121 preserve.
+- [ ] Assumptions tested — A-3 confirmed (other hubs preserve); A-1/A-2/A-4 pending spike 1 (operator console on .122).
+- [x] Recommendation written with rationale — preliminary GO in `docs/reports/T-1290-ring20-mgmt-secret-rotation-inception.md`, contingent on spike 1 confirmation that `.122`'s runtime_dir is on tmpfs (`/tmp/termlink-0`).
 
 ### Human
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
@@ -123,3 +123,6 @@ Observed evidence (2026-04-26 session): after one CT reboot, both the TLS finger
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-04-26T11:48:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
