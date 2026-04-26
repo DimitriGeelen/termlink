@@ -12,7 +12,7 @@ tags: [T-243, channel, protocol]
 components: []
 related_tasks: []
 created: 2026-04-26T09:32:02Z
-last_update: 2026-04-26T09:48:42Z
+last_update: 2026-04-26T09:51:43Z
 date_finished: null
 ---
 
@@ -36,11 +36,11 @@ Backwards compat: Envelope's metadata field uses `#[serde(default)]` — existin
 - [x] envelope_to_json serializes metadata back to wire format — channel.rs (omitted for empty metadata to preserve legacy wire format)
 - [x] Updated 2 hub-side mirror callers (broadcast, inbox.deposit) with `metadata: Default::default()` — channel.rs
 - [x] Updated bus tests env() helper with empty BTreeMap — lib.rs
-- [ ] **NEXT SESSION:** `handle_channel_subscribe` accepts optional `conversation_id` filter — pre-edit was attempted but blocked by context budget gate; the edit text is preserved in this commit's git history (search for "T-1287: optional conversation_id filter"). Filter MUST apply BEFORE limit, advance last_offset over skipped records.
-- [ ] **NEXT SESSION:** Test: post with metadata, subscribe without filter → metadata intact
-- [ ] **NEXT SESSION:** Test: post 3 messages with mixed conversation_ids, subscribe with filter → only matching, in offset order
-- [ ] **NEXT SESSION:** Test: post without metadata → empty BTreeMap, subscribe omits metadata key
-- [ ] **NEXT SESSION:** cargo test passes for `termlink-bus` and `termlink-hub` — current changes compile (verified via `cargo build -p termlink-bus`); workspace build pending after subscribe filter
+- [x] `handle_channel_subscribe` accepts optional `conversation_id` filter — applies BEFORE limit, advances last_offset over skipped records so next_cursor moves past them (channel.rs `handle_channel_subscribe_with`)
+- [x] Test: post with metadata, subscribe without filter → metadata intact (`post_with_metadata_round_trips_through_subscribe`)
+- [x] Test: post 3 messages with mixed conversation_ids, subscribe with filter → only matching, in offset order, cursor advances past skipped (`subscribe_with_conversation_id_filters_and_advances_cursor`)
+- [x] Test: post without metadata → envelope JSON omits metadata key entirely (`subscribe_without_metadata_omits_field_on_wire`)
+- [x] cargo test passes for `termlink-bus` (31) and `termlink-hub` (227) — full workspace test suite green
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
