@@ -8,3 +8,4 @@ initialized_at: 2026-03-25T17:34:50Z
 upstream_repo: DimitriGeelen/agentic-engineering-framework
 upgraded_from: 1.5.16
 last_upgrade: 2026-04-25T16:19:05Z
+inception_commit_limit: 5
