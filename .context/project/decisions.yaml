@@ -304,3 +304,10 @@ decisions:
     date: 2026-04-25
     task: T-1164
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-023
+    decision: "`session-silent-scanner.sh` defaults to `DRY_RUN=1`. Cron stanza"
+    scope: project
+    date: 2026-04-25
+    task: T-1212
+    rationale: "Auto-captured from task file on completion"
