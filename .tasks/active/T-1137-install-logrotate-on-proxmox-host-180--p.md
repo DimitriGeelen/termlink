@@ -43,7 +43,7 @@ See `.context/project/concerns.yaml` entry G-009 for full diagnosis.
 ## Acceptance Criteria
 
 ### Human
-- [ ] [REVIEW] logrotate config installed on proxmox .180 for /var/log/pveproxy/access.log
+- [x] [REVIEW] logrotate config installed on proxmox .180 for /var/log/pveproxy/access.log
   **Steps:**
   1. `ssh root@192.168.10.180`
   2. Create `/etc/logrotate.d/pveproxy-access` with:
@@ -96,6 +96,16 @@ See `.context/project/concerns.yaml` entry G-009 for full diagnosis.
 ### 2026-04-24T09:50:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-26T11:25Z — installed via console [human + agent]
+- **Action:** Operator pasted one-liner on .180 console (cross-machine SSH/termlink path was blocked: SSH no key from this container, termlink auth broken via cascading TOFU+secret rotation on .122).
+- **Evidence:**
+  * `/etc/logrotate.d/pveproxy-access` written with daily/rotate=3/compress/copytruncate
+  * `logrotate -d` dry-run: no errors (other than already-rotated note from earlier run)
+  * `logrotate -f` force: rotated successfully — access.log → access.log.1.gz (1.8M)
+  * `df -h /var/log`: 117M / 224M = **57%** (down from 100%)
+  * `ls -la /var/log/pveproxy/`: access.log = 133 bytes (truncated), access.log.1.gz present, access.log.3.gz from Apr 25 confirms a daily cron was already running
+- **AC 1 ticked.** AC 2 (<50% after 24h + daily cron active) still pending — currently 57%, will improve as old rotations age out and pre-existing 23M `.backup` rolls off. AC 3 (CT 200 stops rebooting) needs 24h observation; the active TOFU violation we just cleared on .122 suggests it has rebooted recently, so the clock starts now.
 
 ### 2026-04-24T09:53Z — cross-agent dispatch [agent]
 - **Action:** Injected T-1137 prompt (2044 bytes) to ring20-management agent session `tl-schnqg3a` at 192.168.10.122:9100 via `termlink remote inject --enter`.
