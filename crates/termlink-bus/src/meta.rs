@@ -151,6 +151,25 @@ impl Meta {
         Ok(count as u64)
     }
 
+    /// Smallest offset still indexed for `topic`, or `None` if the topic has
+    /// zero live records (either never posted to, or fully swept). Used by
+    /// subscribers to detect that their cursor fell behind the retention
+    /// window and records were silently dropped (T-1285).
+    pub(crate) fn oldest_offset(&self, topic: &str) -> Result<Option<u64>> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let v: rusqlite::Result<Option<i64>> = conn.query_row(
+            "SELECT MIN(offset) FROM records WHERE topic = ?1",
+            params![topic],
+            |r| r.get(0),
+        );
+        match v {
+            Ok(Some(n)) => Ok(Some(n as u64)),
+            Ok(None) => Ok(None),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(BusError::Sqlite(e)),
+        }
+    }
+
     /// Fetch record locators for `topic` with `offset >= cursor`, ordered.
     pub(crate) fn records_from(&self, topic: &str, cursor: u64) -> Result<Vec<RecordLoc>> {
         let conn = self.conn.lock().expect("meta mutex poisoned");

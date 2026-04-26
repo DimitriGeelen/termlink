@@ -12,7 +12,7 @@ tags: [T-243, channel, reliability]
 components: []
 related_tasks: []
 created: 2026-04-26T09:31:53Z
-last_update: 2026-04-26T09:39:39Z
+last_update: 2026-04-26T09:42:02Z
 date_finished: null
 ---
 
@@ -74,9 +74,9 @@ Fixing this needs either (a) write-ahead the SQLite metadata before the file wri
 - [x] Identified missing subscriber gap-detection on retention sweep — must-fix before T-1286 (dialog.heartbeat) lands
 - [x] Identified missing fsync — should-fix, not blocking
 - [x] Audit findings documented in task file
-- [ ] Implement subscriber gap detection (Bus exposes `oldest_offset(topic)` or subscribe returns typed gap-marker)
-- [ ] Add test: post 5, sweep down to 2, subscribe with cursor=0 → must surface gap signal
-- [ ] cargo test passes for `termlink-bus`
+- [x] Implement subscriber gap detection — `Bus::oldest_offset(topic) -> Option<Offset>` exposed (lib.rs); SQLite `MIN(offset)` query in Meta::oldest_offset (meta.rs)
+- [x] Add test: post 5, sweep to 2, oldest_offset reports 3 → cursor=1 detects gap (oldest_offset_reflects_sweep_drops). Plus oldest_offset_unknown_topic_errors for the error path.
+- [x] cargo test passes for `termlink-bus` — 27/27 tests pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
