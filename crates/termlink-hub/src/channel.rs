@@ -517,10 +517,10 @@ pub(crate) async fn handle_channel_subscribe_with(
             Err(e) => return ErrorResponse::internal_error(id, &format!("channel.subscribe decode: {e}")).into(),
         };
         last_offset = Some(offset);
-        if let Some(ref cid) = conversation_id_filter {
-            if env.metadata.get("conversation_id").map(|s| s.as_str()) != Some(cid.as_str()) {
-                continue;
-            }
+        if let Some(ref cid) = conversation_id_filter
+            && env.metadata.get("conversation_id").map(|s| s.as_str()) != Some(cid.as_str())
+        {
+            continue;
         }
         messages.push(envelope_to_json(offset, &env));
         if messages.len() >= limit {
@@ -639,13 +639,13 @@ fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     });
     // T-1287: include metadata when non-empty. Omitted entirely for envelopes
     // that don't use metadata so the wire format stays unchanged for them.
-    if !env.metadata.is_empty() {
-        if let Some(obj) = out.as_object_mut() {
-            obj.insert(
-                "metadata".to_string(),
-                serde_json::to_value(&env.metadata).unwrap_or(Value::Null),
-            );
-        }
+    if !env.metadata.is_empty()
+        && let Some(obj) = out.as_object_mut()
+    {
+        obj.insert(
+            "metadata".to_string(),
+            serde_json::to_value(&env.metadata).unwrap_or(Value::Null),
+        );
     }
     out
 }
