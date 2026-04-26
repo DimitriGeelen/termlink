@@ -136,3 +136,12 @@ Locked once spikes complete.
 
 ### 2026-04-26T20:39:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-26T21:05Z — spike-1 complete (quantify) [agent]
+- **Method:** `termlink topics` (catalog, all 7 sessions) + `termlink events --target framework-agent --topic <name>` (per-topic payloads).
+- **Result:** 5 confirmed misroutes on framework-agent — seq 224/231 (`infra.qdrant.down`, originator email-archive, target ring20-management-agent), seq 688 (`oauth.redirect-uri.help-requested`, originator email-archive@.107, target ring20-management-agent), seq 906 (`infra.lxc.delegate`, T-1191), seq 907 (`infra.s3.bucket.delegate`, T-1194). 4 distinct topics, 3 distinct tasks. Conservative lower bound — does not include 8+ product-prefixed topics (`email-archive.t11*.*`, `dashboard.{rekey,sibling,gap}.*`, `penelope.cutover.*`, `gpu.coordination.*`) where I couldn't unambiguously distinguish misroute from intentional framework-relay broadcast.
+- **Volume context:** framework-agent next_seq=914 over 8d (~114 emits/day). 5/30 sampled product-prefixed emits ≈ 17% misroute rate among that subset.
+- **GO criterion 1 satisfied:** ≥3 misroute incidents in last 30 days — 5 distinct events with payload-level evidence (originator + intended target both named in payload, neither = framework-agent).
+- **Design signal:** every misrouted event carries a `relay_target` / `needs` / `from` field — the originator already encodes the intended destination at emit time. Option 2 soft-lint has high-quality input data: compare `topic_prefix` against `payload.{relay_target,needs}` and warn on mismatch.
+- **Bug bonus (out-of-scope, follow-up needed):** one topic on framework-agent literally named `learning.shared</topic>\n<parameter name="from">email-archive` — XML interpolation leaked into topic string. Indicates insufficient topic-name validation on emit.
+- **Artifact updated:** `docs/reports/T-1297-termlink-agent-routing-discipline.md` § Spike 1.
