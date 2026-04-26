@@ -861,3 +861,10 @@ learnings:
   date: 2026-04-26
   context: Added via context agent
   application: TBD
+- id: PL-087
+  learning: "Cross-project task convergence — when an issue affects a remote node that runs its own agentic-framework instance (e.g. ring20-management on .122), the LOCAL agent on that node may independently capture and fix the same issue via its own task system. T-1294 (fix from /opt/termlink cross-fleet view) and T-519 (fix from /root/proxmox-ring20-management local view) are the same physical change, captured twice. Pattern: before applying a fix on a remote node with its own framework, check if the remote's task system already has it captured via 'termlink remote exec <hub> <session> ...git log --oneline'. Avoids duplicate work and gives provenance for the cross-project trail. Captured 2026-04-26 during T-1294 .122 migration."
+  source: workflow
+  task: T-1294
+  date: 2026-04-26
+  context: Added via context agent
+  application: TBD
