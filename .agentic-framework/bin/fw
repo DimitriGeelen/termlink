@@ -1978,12 +1978,16 @@ if os.path.isdir(active_dir):
             continue
 
         human_block = human_match.group(1)
-        human_total = len(re.findall(r'^\s*-\s*\[[ x]\]', human_block, re.MULTILINE))
-        human_checked = len(re.findall(r'^\s*-\s*\[x\]', human_block, re.MULTILINE))
+        # G-047: strip HTML <!-- ... --> comment blocks before counting ACs.
+        # Default template includes an example "- [ ] [REVIEW] Dashboard renders correctly"
+        # inside a comment that must not register as a real unchecked AC.
+        human_block_uncommented = re.sub(r'<!--.*?-->', '', human_block, flags=re.DOTALL)
+        human_total = len(re.findall(r'^\s*-\s*\[[ x]\]', human_block_uncommented, re.MULTILINE))
+        human_checked = len(re.findall(r'^\s*-\s*\[x\]', human_block_uncommented, re.MULTILINE))
         human_unchecked = human_total - human_checked
 
         if human_unchecked > 0:
-            unchecked_items = re.findall(r'^\s*-\s*\[ \]\s*(.*)', human_block, re.MULTILINE)
+            unchecked_items = re.findall(r'^\s*-\s*\[ \]\s*(.*)', human_block_uncommented, re.MULTILINE)
             results.append({
                 'id': fm.get('id', fn),
                 'name': fm.get('name', ''),
@@ -2053,13 +2057,27 @@ PYTASK_VERIFY
                     sleep 5
                     elapsed=$((elapsed + 5))
                     # Count Human ACs from task file
-                    local human_total=0 human_checked=0 in_human=false
+                    # G-047: track HTML comment state so example ACs inside <!-- ... -->
+                    # do not count as real unchecked Human ACs.
+                    local human_total=0 human_checked=0 in_human=false in_comment=false
                     while IFS= read -r line; do
                         if echo "$line" | grep -q '### Human'; then
                             in_human=true; continue
                         fi
                         if $in_human && echo "$line" | grep -qE '^### |^## '; then
                             break
+                        fi
+                        # Track HTML comment open/close (handle single-line <!--...--> too)
+                        if echo "$line" | grep -q '<!--'; then
+                            in_comment=true
+                        fi
+                        local was_in_comment=$in_comment
+                        if echo "$line" | grep -q -- '-->'; then
+                            in_comment=false
+                        fi
+                        # Skip checkbox lines while inside (or on the boundary of) a comment
+                        if $was_in_comment; then
+                            continue
                         fi
                         if $in_human && echo "$line" | grep -qE '^\- \[[ xX]\]'; then
                             human_total=$((human_total + 1))
