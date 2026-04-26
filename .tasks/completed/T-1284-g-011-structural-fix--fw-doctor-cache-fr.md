@@ -4,16 +4,16 @@ name: "G-011 structural fix — fw doctor cache freshness check + own-hub live-r
 description: >
   Close G-011 (auth cache drift) by implementing the medium-term and long-term mitigations: (1) fw doctor compares ~/.termlink/secrets/<IP>.hex mtime/value against authoritative <runtime_dir>/hub.secret for self-hub profiles and warns on drift, (2) profiles using IP-keyed cache for self-hub read are deprecated with a migration hint to point secret_file directly at <runtime_dir>/hub.secret. Foundation for T-243 multi-turn agent conversation work — flaky auth blocks reliable multi-turn.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [auth, reliability, G-011]
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: []
 created: 2026-04-25T22:31:17Z
-last_update: 2026-04-26T11:08:08Z
-date_finished: null
+last_update: 2026-04-26T11:12:14Z
+date_finished: 2026-04-26T11:12:14Z
 ---
 
 # T-1284: G-011 structural fix — fw doctor cache freshness check + own-hub live-read enforcement
@@ -84,3 +84,6 @@ T-1284 closes the remaining G-011 gap with two structural improvements:
 
 ### 2026-04-26T11:08:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-26T11:12:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

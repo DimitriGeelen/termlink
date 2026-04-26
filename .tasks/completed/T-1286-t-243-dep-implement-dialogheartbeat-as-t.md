@@ -4,16 +4,16 @@ name: "T-243 dep: Implement dialog.heartbeat as typed RPC (or hub-tracked invari
 description: >
   The single must-be-infrastructure piece per T-243 inception (Agent B reframing + Agent C's own conversion trigger). Heartbeat: every ~5s during processing, responding agent emits lightweight signal on conversation channel. Two jobs at once: (a) resets caller's timeout clock — prevents 30s-timeout death of long LLM turns; (b) typing indicator emerges as side effect. Hub tracks last-heartbeat per (conversation_id, agent_id), evicts stale agents, resets request timeouts. Depends on channel-audit child task being clean.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [T-243, heartbeat, reliability]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-26T09:31:58Z
-last_update: 2026-04-26T10:59:36Z
-date_finished: null
+last_update: 2026-04-26T11:03:07Z
+date_finished: 2026-04-26T11:03:07Z
 ---
 
 # T-1286: T-243 dep: Implement dialog.heartbeat as typed RPC (or hub-tracked invariant)
@@ -89,3 +89,6 @@ This task adds the minimum infrastructure piece: hub-side passive presence track
 
 ### 2026-04-26T10:59:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-26T11:03:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
