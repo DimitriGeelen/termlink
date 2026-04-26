@@ -89,6 +89,7 @@ pub(crate) async fn mirror_event_broadcast_with(bus: &Bus, topic: &str, payload:
         payload: payload_bytes,
         artifact_ref: None,
         ts_unix_ms,
+        metadata: Default::default(),
     };
     if let Err(e) = bus.post(BROADCAST_GLOBAL_TOPIC, &env).await {
         tracing::warn!(error = %e, "T-1162 mirror: bus.post failed");
@@ -153,6 +154,7 @@ pub(crate) async fn mirror_inbox_deposit_with(
         payload: payload_bytes,
         artifact_ref: None,
         ts_unix_ms,
+        metadata: Default::default(),
     };
     if let Err(e) = bus.post(&topic_name, &env).await {
         tracing::warn!(topic = %topic_name, error = %e, "T-1163 mirror: bus.post failed");
@@ -329,6 +331,19 @@ pub(crate) async fn handle_channel_post_with(
         .into();
     }
 
+    // T-1287: optional metadata routing-hint map. NOT included in canonical
+    // signed bytes — trusted-mesh threat model treats it as routing only.
+    // Well-known keys: conversation_id, event_type (per T-1288 catalog).
+    let metadata: std::collections::BTreeMap<String, String> = params
+        .get("metadata")
+        .and_then(|v| v.as_object())
+        .map(|obj| {
+            obj.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect()
+        })
+        .unwrap_or_default();
+
     let env = Envelope {
         topic: topic.clone(),
         sender_id,
@@ -336,6 +351,7 @@ pub(crate) async fn handle_channel_post_with(
         payload,
         artifact_ref,
         ts_unix_ms,
+        metadata,
     };
     match bus.post(&topic, &env).await {
         Ok(offset) => Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into(),
@@ -523,7 +539,7 @@ pub(crate) async fn handle_channel_list_with(
 
 fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
-    json!({
+    let mut out = json!({
         "offset": offset,
         "topic": env.topic,
         "sender_id": env.sender_id,
@@ -531,7 +547,18 @@ fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
         "payload_b64": payload_b64,
         "artifact_ref": env.artifact_ref,
         "ts": env.ts_unix_ms,
-    })
+    });
+    // T-1287: include metadata when non-empty. Omitted entirely for envelopes
+    // that don't use metadata so the wire format stays unchanged for them.
+    if !env.metadata.is_empty() {
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert(
+                "metadata".to_string(),
+                serde_json::to_value(&env.metadata).unwrap_or(Value::Null),
+            );
+        }
+    }
+    out
 }
 
 fn parse_pubkey_hex(hex: &str) -> Option<VerifyingKey> {

@@ -329,6 +329,7 @@ mod tests {
             payload: payload.to_vec(),
             artifact_ref: None,
             ts_unix_ms: 0,
+            metadata: std::collections::BTreeMap::new(),
         }
     }
 
