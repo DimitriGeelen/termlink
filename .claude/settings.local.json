@@ -506,7 +506,12 @@
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_type",
       "mcp__playwright__browser_click",
-      "mcp__playwright__browser_evaluate"
+      "mcp__playwright__browser_evaluate",
+      "Bash(rm .claude/settings.json.bak.T-1211)",
+      "Bash(touch .claude/settings.json.bak.test)",
+      "Bash(rm .claude/settings.json.bak.test)",
+      "mcp__termlink__termlink_overview",
+      "mcp__termlink__termlink_batch_run"
     ]
   },
   "enabledMcpjsonServers": [
