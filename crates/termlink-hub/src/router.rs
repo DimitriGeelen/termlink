@@ -58,6 +58,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
 
     let response = match req.method.as_str() {
         control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
+        control::method::SESSION_WHOAMI => handle_whoami(id, &req.params).await,
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
         control::method::EVENT_SUBSCRIBE if is_hub_level(&req.params) => {
@@ -178,6 +179,67 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
         Err(e) => {
             ErrorResponse::internal_error(id, &format!("Discovery failed: {e}")).into()
         }
+    }
+}
+
+/// Handle `session.whoami` — return the caller's session identity card.
+///
+/// T-1299 / T-1297. Disambiguator chain:
+///   1. `session_id` hint (from `$TERMLINK_SESSION_ID`) — exact match.
+///   2. `display_name` hint — exact match (rejects on collision).
+///   3. Neither — return all live candidates so caller can pick.
+///
+/// Source-PID tree-walk disambiguation is deferred to a follow-up; the current
+/// hub does not thread peer credentials through the JSON-RPC dispatch layer.
+fn whoami_card(reg: &termlink_session::Registration) -> serde_json::Value {
+    json!({
+        "id": reg.id.as_str(),
+        "display_name": reg.display_name,
+        "state": reg.state,
+        "capabilities": reg.capabilities,
+        "roles": reg.roles,
+        "tags": reg.tags,
+        "pid": reg.pid,
+        "cwd": reg.metadata.cwd,
+    })
+}
+
+async fn handle_whoami(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let session_id = params.get("session_id").and_then(|v| v.as_str());
+    let display_name = params.get("display_name").and_then(|v| v.as_str());
+
+    if let Some(query) = session_id.or(display_name) {
+        return match manager::find_session(query) {
+            Ok(reg) => Response::success(
+                id,
+                json!({ "ok": true, "session": whoami_card(&reg) }),
+            ).into(),
+            Err(e) => Response::success(
+                id,
+                json!({
+                    "ok": false,
+                    "found": false,
+                    "hint": format!("No session matched '{query}': {e}. Set TERMLINK_SESSION_ID to your session id, or call session.whoami without a hint to list candidates."),
+                }),
+            ).into(),
+        };
+    }
+
+    // No hint — return all live sessions as candidates.
+    match manager::list_sessions(false) {
+        Ok(sessions) => {
+            let candidates: Vec<serde_json::Value> = sessions.iter().map(whoami_card).collect();
+            Response::success(
+                id,
+                json!({
+                    "ok": true,
+                    "ambiguous": true,
+                    "candidates": candidates,
+                    "hint": "Multiple candidates — set TERMLINK_SESSION_ID=<id> to your session id and retry, or pass session.whoami { session_id: '...' }.",
+                }),
+            ).into()
+        }
+        Err(e) => ErrorResponse::internal_error(id, &format!("whoami list failed: {e}")).into(),
     }
 }
 
@@ -753,6 +815,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
     // frame layer, not by this router).
     let mut methods: Vec<&'static str> = vec![
         control::method::SESSION_DISCOVER,
+        control::method::SESSION_WHOAMI,
         control::method::EVENT_BROADCAST,
         control::method::EVENT_COLLECT,
         control::method::EVENT_SUBSCRIBE,
@@ -1899,6 +1962,117 @@ mod tests {
         } else {
             panic!("Expected error response");
         }
+    }
+
+    #[tokio::test]
+    async fn whoami_resolves_by_session_id() {
+        let _lock = ENV_LOCK.lock().await;
+        if let Some(s) = super::remote_store() { s.clear(); }
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+        let (h, r) = start_test_session(&sessions_dir, "whoami-id-target").await;
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let resp = handle_whoami(
+            json!("w-1"),
+            &json!({ "session_id": r.id.as_str() }),
+        ).await;
+
+        if let RpcResponse::Success(r2) = resp {
+            assert_eq!(r2.result["ok"], json!(true));
+            assert_eq!(r2.result["session"]["display_name"], "whoami-id-target");
+            assert_eq!(r2.result["session"]["id"], r.id.as_str());
+        } else {
+            panic!("Expected success");
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        h.abort();
+    }
+
+    #[tokio::test]
+    async fn whoami_resolves_by_display_name() {
+        let _lock = ENV_LOCK.lock().await;
+        if let Some(s) = super::remote_store() { s.clear(); }
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+        let (h, _r) = start_test_session(&sessions_dir, "whoami-name-target").await;
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let resp = handle_whoami(
+            json!("w-2"),
+            &json!({ "display_name": "whoami-name-target" }),
+        ).await;
+
+        if let RpcResponse::Success(r2) = resp {
+            assert_eq!(r2.result["ok"], json!(true));
+            assert_eq!(r2.result["session"]["display_name"], "whoami-name-target");
+        } else {
+            panic!("Expected success");
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        h.abort();
+    }
+
+    #[tokio::test]
+    async fn whoami_no_hint_returns_candidate_list() {
+        let _lock = ENV_LOCK.lock().await;
+        if let Some(s) = super::remote_store() { s.clear(); }
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+        let (h1, _r1) = start_test_session(&sessions_dir, "whoami-cand-a").await;
+        let (h2, _r2) = start_test_session(&sessions_dir, "whoami-cand-b").await;
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let resp = handle_whoami(json!("w-3"), &json!({})).await;
+
+        if let RpcResponse::Success(r2) = resp {
+            assert_eq!(r2.result["ok"], json!(true));
+            assert_eq!(r2.result["ambiguous"], json!(true));
+            let candidates = r2.result["candidates"].as_array().unwrap();
+            assert_eq!(candidates.len(), 2);
+            let names: Vec<&str> = candidates.iter()
+                .map(|c| c["display_name"].as_str().unwrap())
+                .collect();
+            assert!(names.contains(&"whoami-cand-a"));
+            assert!(names.contains(&"whoami-cand-b"));
+            assert!(r2.result["hint"].as_str().unwrap().contains("TERMLINK_SESSION_ID"));
+        } else {
+            panic!("Expected success");
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        h1.abort();
+        h2.abort();
+    }
+
+    #[tokio::test]
+    async fn whoami_unknown_hint_returns_not_found_with_helpful_hint() {
+        let _lock = ENV_LOCK.lock().await;
+        if let Some(s) = super::remote_store() { s.clear(); }
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let resp = handle_whoami(
+            json!("w-4"),
+            &json!({ "session_id": "tl-does-not-exist" }),
+        ).await;
+
+        if let RpcResponse::Success(r2) = resp {
+            assert_eq!(r2.result["ok"], json!(false));
+            assert_eq!(r2.result["found"], json!(false));
+            assert!(r2.result["hint"].as_str().unwrap().contains("TERMLINK_SESSION_ID"));
+        } else {
+            panic!("Expected success (not_found is success-with-payload, not RPC error)");
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
     }
 
     #[tokio::test]

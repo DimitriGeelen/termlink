@@ -35,6 +35,12 @@ pub mod method {
     pub const SESSION_HEARTBEAT: &str = "session.heartbeat";
     /// Tier-B — typed update (tags, focus, metadata); adding fields is a breaking change without a protocol bump.
     pub const SESSION_UPDATE: &str = "session.update";
+    /// T-1299 / T-1297 — Tier-A — caller asks the hub "who am I on this bus?".
+    /// Optional params hint disambiguators: `{ session_id?, display_name? }`.
+    /// When neither is provided, hub returns the candidate list (one entry per live session)
+    /// and the caller picks. Older hubs that don't implement this return JSON-RPC
+    /// `Method not found` (-32601) — a clean upgrade signal.
+    pub const SESSION_WHOAMI: &str = "session.whoami";
     /// Tier-B — typed execute params (command, args, env, timeout) and typed result.
     pub const COMMAND_EXECUTE: &str = "command.execute";
     /// Tier-B — typed injection params (text, session, options).

@@ -273,6 +273,7 @@ fn hub_method_scope(method: &str) -> PermissionScope {
     match method {
         // Observe: read-only hub operations
         control::method::SESSION_DISCOVER
+        | control::method::SESSION_WHOAMI
         | control::method::EVENT_COLLECT
         | "hub.version" => PermissionScope::Observe,
 

@@ -520,3 +520,121 @@ pub(crate) async fn cmd_kv(
 
     Ok(())
 }
+
+/// T-1299 / T-1297 — `termlink whoami`.
+///
+/// Reads the local session registry directly (no hub round-trip) so it
+/// works whether or not the hub is running. Hub-side `session.whoami`
+/// handler exists for cross-host callers (`termlink remote call ...`).
+pub(crate) async fn cmd_whoami(
+    session_hint: Option<String>,
+    name_hint: Option<String>,
+    json: bool,
+) -> Result<()> {
+    let env_hint = std::env::var("TERMLINK_SESSION_ID").ok().filter(|s| !s.is_empty());
+    let query = session_hint.or(env_hint).or(name_hint);
+
+    if let Some(q) = query.as_deref() {
+        match manager::find_session(q) {
+            Ok(reg) => {
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "session": {
+                            "id": reg.id.as_str(),
+                            "display_name": reg.display_name,
+                            "state": reg.state.to_string(),
+                            "pid": reg.pid,
+                            "uid": reg.uid,
+                            "roles": reg.roles,
+                            "tags": reg.tags,
+                            "capabilities": reg.capabilities,
+                            "cwd": reg.metadata.cwd,
+                        }
+                    }))?);
+                } else {
+                    println!("ID:           {}", reg.id.as_str());
+                    println!("Display name: {}", reg.display_name);
+                    println!("State:        {}", reg.state);
+                    println!("PID:          {}", reg.pid);
+                    println!("Roles:        {}", if reg.roles.is_empty() { "(none)".to_string() } else { reg.roles.join(", ") });
+                    println!("Tags:         {}", if reg.tags.is_empty() { "(none)".to_string() } else { reg.tags.join(", ") });
+                    println!("Capabilities: {}", if reg.capabilities.is_empty() { "(none)".to_string() } else { reg.capabilities.join(", ") });
+                    if let Some(cwd) = reg.metadata.cwd.as_deref() {
+                        println!("Cwd:          {cwd}");
+                    }
+                }
+                return Ok(());
+            }
+            Err(e) => {
+                if json {
+                    super::json_error_exit(serde_json::json!({
+                        "ok": false,
+                        "found": false,
+                        "query": q,
+                        "error": format!("{e}"),
+                        "hint": "Set TERMLINK_SESSION_ID to your session id (visible in `termlink list --json`), or run without --session/--name to list candidates.",
+                    }));
+                }
+                anyhow::bail!(
+                    "No session matched '{q}': {e}\n\
+                     Hint: set TERMLINK_SESSION_ID=<id> for your session (see `termlink list`), \
+                     or run `termlink whoami` without --session/--name to list candidates."
+                );
+            }
+        }
+    }
+
+    // No hint — print all candidates so the caller can pick one.
+    let sessions = manager::list_sessions(false).context("Failed to list sessions")?;
+    if sessions.is_empty() {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "ambiguous": false,
+                "candidates": [],
+                "hint": "No live sessions on this hub. Register one with: termlink register --name <name> --shell",
+            }))?);
+        } else {
+            println!("No live sessions on this hub.");
+            println!("Register one with: termlink register --name <name> --shell");
+        }
+        return Ok(());
+    }
+
+    if json {
+        let cards: Vec<_> = sessions.iter().map(|s| serde_json::json!({
+            "id": s.id.as_str(),
+            "display_name": s.display_name,
+            "state": s.state.to_string(),
+            "pid": s.pid,
+            "roles": s.roles,
+            "tags": s.tags,
+            "cwd": s.metadata.cwd,
+        })).collect();
+        println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "ambiguous": true,
+            "candidates": cards,
+            "hint": "Set TERMLINK_SESSION_ID=<id> for your session and rerun, or pass --session <id> / --name <display_name>.",
+        }))?);
+    } else {
+        println!("Multiple candidate sessions on this hub — which one are you?");
+        println!();
+        for s in &sessions {
+            let roles = if s.roles.is_empty() { "-".to_string() } else { s.roles.join(",") };
+            println!(
+                "  {}  {:<24}  pid={:<7}  roles={}  cwd={}",
+                s.id.as_str(),
+                truncate(&s.display_name, 24),
+                s.pid,
+                roles,
+                s.metadata.cwd.as_deref().unwrap_or("-"),
+            );
+        }
+        println!();
+        println!("Hint: set TERMLINK_SESSION_ID=<id> for your session (paste the id from above)");
+        println!("      and rerun `termlink whoami`. Or pass --session <id> / --name <display_name>.");
+    }
+    Ok(())
+}
