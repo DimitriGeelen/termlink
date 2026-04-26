@@ -488,6 +488,25 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
                 }
             }
         }
+
+        // T-1284 / G-011: profile audit — purely lexical, runs even when
+        // secrets_dir doesn't exist (profile may reference a path that
+        // hasn't been populated yet). Flags self-hub profiles using the
+        // IP-keyed cache as secret_file; structural fix is to point
+        // secret_file at the live <runtime_dir>/hub.secret.
+        let hubs_config = crate::config::load_hubs_config();
+        let profile_hints = audit_hubs_for_self_hub_cache(&hubs_config, &secrets_dir);
+        if profile_hints.is_empty() {
+            check!(
+                "secret_cache_profiles",
+                pass,
+                "no self-hub profiles using IP-keyed cache"
+            );
+        } else {
+            for hint in &profile_hints {
+                check!("secret_cache_profiles", warn, hint.clone());
+            }
+        }
     }
 
     // 8. Version + MCP tools
@@ -945,6 +964,17 @@ pub(crate) fn audit_secret_cache(
         Ok(e) => e,
         Err(_) => return issues,
     };
+    // T-1284: read the local hub.secret value once so we can compare each
+    // cache by VALUE, not just by mtime. Value comparison eliminates the
+    // mtime-based false-positive ("cache for remote hub X is older than
+    // local hub.secret"); a cache that matches the local secret is
+    // healthy regardless of mtime, and a cache that diverges + is older
+    // is a real drift candidate (not a heuristic guess).
+    let hub_value: Option<String> = local_hub.and_then(|(p, _)| {
+        std::fs::read_to_string(p)
+            .ok()
+            .map(|s| s.trim().to_lowercase())
+    });
     for entry in entries.flatten() {
         let path = entry.path();
         let name = match path.file_name().and_then(|n| n.to_str()) {
@@ -969,18 +999,114 @@ pub(crate) fn audit_secret_cache(
                 mode
             ));
         }
-        if let Some((hub_path, hub_mtime)) = local_hub
-            && let Ok(cache_mtime) = meta.modified()
-            && cache_mtime < hub_mtime
-        {
-            issues.push(format!(
-                "{} is older than local {} — may be stale if this cache points at the local hub",
-                path.display(),
-                hub_path.display()
-            ));
+        if let Some((hub_path, hub_mtime)) = local_hub {
+            // Try value comparison first — definitive when readable.
+            let cache_value = std::fs::read_to_string(&path)
+                .ok()
+                .map(|s| s.trim().to_lowercase());
+            match (cache_value.as_deref(), hub_value.as_deref()) {
+                (Some(c), Some(h)) if c == h => {
+                    // Match → cache IS the local hub's secret. Healthy
+                    // regardless of mtime ordering. Skip the mtime check.
+                    continue;
+                }
+                (Some(_), Some(_)) => {
+                    // Diverges. Only flag when mtime suggests this cache
+                    // PREDATES the current hub.secret — that's the real
+                    // "stale cache for the local hub" signal. A diverging
+                    // cache that's NEWER than hub.secret is almost
+                    // certainly a cache of a remote hub, not drift.
+                    if let Ok(cache_mtime) = meta.modified()
+                        && cache_mtime < hub_mtime
+                    {
+                        issues.push(format!(
+                            "{} cache value diverges from local hub.secret AND is older than {} — drift candidate; if this cache points at the local hub, refresh it",
+                            path.display(),
+                            hub_path.display()
+                        ));
+                    }
+                    continue;
+                }
+                _ => {
+                    // Value compare unavailable — fall back to mtime-only.
+                }
+            }
+            if let Ok(cache_mtime) = meta.modified()
+                && cache_mtime < hub_mtime
+            {
+                issues.push(format!(
+                    "{} is older than local {} — may be stale if this cache points at the local hub",
+                    path.display(),
+                    hub_path.display()
+                ));
+            }
         }
     }
     issues
+}
+
+/// T-1284 / G-011: Audit `hubs.toml` for profiles that use an IP-keyed
+/// cache file (under `secrets_dir`) for what is structurally a local-hub
+/// address. Such profiles are the giving-end of cache drift: the cache
+/// is written once and silently goes stale on hub restart. Per
+/// CLAUDE.md R3 the fix is to point `secret_file` directly at the live
+/// `<runtime_dir>/hub.secret`.
+///
+/// Returns one migration hint per offending profile. Empty vec means
+/// no profiles need migration. The check is purely lexical/structural —
+/// it does not contact any hub. Address forms recognised as "self":
+/// `127.x.x.x`, `localhost`, `::1`, `0.0.0.0`. Anything else is treated
+/// as remote (where IP-keyed cache is appropriate).
+pub(crate) fn audit_hubs_for_self_hub_cache(
+    config: &crate::config::HubsConfig,
+    secrets_dir: &std::path::Path,
+) -> Vec<String> {
+    let mut hints = Vec::new();
+    // Sort for deterministic output across runs.
+    let mut names: Vec<&String> = config.hubs.keys().collect();
+    names.sort();
+    for name in names {
+        let entry = &config.hubs[name];
+        let Some(secret_file) = entry.secret_file.as_deref() else {
+            continue;
+        };
+        let secret_path = std::path::PathBuf::from(secret_file);
+        if !secret_path.starts_with(secrets_dir) {
+            continue;
+        }
+        if !is_self_hub_address(&entry.address) {
+            continue;
+        }
+        hints.push(format!(
+            "Profile '{name}' uses IP-keyed cache ({sf}) for the local hub at {addr}. Per G-011, point secret_file directly at <runtime_dir>/hub.secret to avoid drift.",
+            name = name,
+            sf = secret_file,
+            addr = entry.address,
+        ));
+    }
+    hints
+}
+
+/// True if `address` (as found in hubs.toml — typically `host:port`)
+/// names a loopback / wildcard interface. Strips the port if present;
+/// any parse failure yields `false` (treat as remote, fail-safe).
+fn is_self_hub_address(address: &str) -> bool {
+    let host = match address.rsplit_once(':') {
+        Some((h, _)) => h,
+        None => address,
+    }
+    .trim_start_matches('[')
+    .trim_end_matches(']');
+    if host == "localhost" || host == "::1" || host == "0.0.0.0" {
+        return true;
+    }
+    if let Some(rest) = host.strip_prefix("127.") {
+        // Any 127.x.y.z is loopback. Coarse check is sufficient — even
+        // garbage-after-127. would only false-positive a profile the
+        // operator clearly meant as local.
+        return rest.split('.').count() == 3;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -1060,6 +1186,182 @@ mod tests {
             Some((hub_secret.as_path(), std::time::SystemTime::now())),
         );
         assert_eq!(issues.len(), 1);
-        assert!(issues[0].contains("older than local"));
+        // T-1284: with value-comparison enabled, the message now leads
+        // with "diverges from local hub.secret" but still mentions
+        // "older than" since both signals fire here.
+        assert!(issues[0].contains("older than"), "got: {}", issues[0]);
+    }
+
+    #[test]
+    fn cache_value_matches_hub_skips_mtime_warning() {
+        // T-1284: a cache whose hex value MATCHES the local hub.secret
+        // is healthy regardless of mtime ordering. Pre-T-1284 mtime-only
+        // logic would have falsely flagged this as "older than local".
+        let d = tmpdir("value-match");
+        let cache = write_hex(&d, "ring20.hex", 0o600);
+        // Backdate cache mtime to 1h ago.
+        let past = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        fs::File::options()
+            .write(true)
+            .open(&cache)
+            .unwrap()
+            .set_modified(past)
+            .unwrap();
+        // hub.secret has the same value as the cache (write_hex writes "deadbeef").
+        let hub_secret = d.join("hub.secret");
+        fs::write(&hub_secret, b"deadbeef").unwrap();
+        let issues = audit_secret_cache(
+            &d,
+            Some((hub_secret.as_path(), std::time::SystemTime::now())),
+        );
+        assert!(
+            issues.is_empty(),
+            "matching value should not flag drift; got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
+    fn cache_value_diverges_and_older_uses_diverges_wording() {
+        // T-1284: when cache value differs AND mtime predates hub.secret,
+        // the message must include "diverges from local hub.secret" so
+        // the operator distinguishes real drift from the legacy mtime
+        // false-positive.
+        let d = tmpdir("value-diverge");
+        let cache = write_hex(&d, "stalehub.hex", 0o600);
+        let past = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        fs::File::options()
+            .write(true)
+            .open(&cache)
+            .unwrap()
+            .set_modified(past)
+            .unwrap();
+        // hub.secret value differs from cache ("deadbeef" vs "cafebabe").
+        let hub_secret = d.join("hub.secret");
+        fs::write(&hub_secret, b"cafebabe").unwrap();
+        let issues = audit_secret_cache(
+            &d,
+            Some((hub_secret.as_path(), std::time::SystemTime::now())),
+        );
+        assert_eq!(issues.len(), 1, "got: {:?}", issues);
+        assert!(
+            issues[0].contains("diverges from local hub.secret"),
+            "expected new wording; got: {}",
+            issues[0]
+        );
+    }
+
+    #[test]
+    fn cache_diverging_but_newer_is_not_flagged() {
+        // T-1284: a cache whose value differs from local hub.secret BUT
+        // is newer is almost certainly a remote-hub cache, not drift.
+        // Don't flag.
+        let d = tmpdir("value-newer-remote");
+        let _ = write_hex(&d, "remotehub.hex", 0o600);
+        // hub.secret backdated → cache (touched at write_hex time) is newer.
+        let hub_secret = d.join("hub.secret");
+        fs::write(&hub_secret, b"different").unwrap();
+        let past = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        fs::File::options()
+            .write(true)
+            .open(&hub_secret)
+            .unwrap()
+            .set_modified(past)
+            .unwrap();
+        let issues = audit_secret_cache(
+            &d,
+            Some((hub_secret.as_path(), past)),
+        );
+        assert!(
+            issues.is_empty(),
+            "newer-than-hub diverging cache should not flag; got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
+    fn audit_hubs_flags_loopback_profile_using_ip_cache() {
+        use super::audit_hubs_for_self_hub_cache;
+        use crate::config::{HubEntry, HubsConfig};
+        let secrets_dir = tmpdir("hubs-loopback");
+        let mut config = HubsConfig::default();
+        config.hubs.insert(
+            "local".to_string(),
+            HubEntry {
+                address: "127.0.0.1:9100".to_string(),
+                secret_file: Some(
+                    secrets_dir
+                        .join("127.0.0.1.hex")
+                        .to_string_lossy()
+                        .to_string(),
+                ),
+                secret: None,
+                scope: None,
+            },
+        );
+        let hints = audit_hubs_for_self_hub_cache(&config, &secrets_dir);
+        assert_eq!(hints.len(), 1);
+        assert!(hints[0].contains("Profile 'local'"), "got: {}", hints[0]);
+        assert!(
+            hints[0].contains("<runtime_dir>/hub.secret"),
+            "migration hint must point at the live secret; got: {}",
+            hints[0]
+        );
+    }
+
+    #[test]
+    fn audit_hubs_does_not_flag_remote_profile_using_ip_cache() {
+        // T-1284: remote-hub profiles legitimately use IP-keyed caches
+        // (the alternative would be SSH-on-every-call). Don't flag.
+        use super::audit_hubs_for_self_hub_cache;
+        use crate::config::{HubEntry, HubsConfig};
+        let secrets_dir = tmpdir("hubs-remote");
+        let mut config = HubsConfig::default();
+        config.hubs.insert(
+            "ring20".to_string(),
+            HubEntry {
+                address: "192.168.10.121:9100".to_string(),
+                secret_file: Some(
+                    secrets_dir
+                        .join("192.168.10.121.hex")
+                        .to_string_lossy()
+                        .to_string(),
+                ),
+                secret: None,
+                scope: None,
+            },
+        );
+        let hints = audit_hubs_for_self_hub_cache(&config, &secrets_dir);
+        assert!(hints.is_empty(), "remote-hub profile must not flag; got: {:?}", hints);
+    }
+
+    #[test]
+    fn audit_hubs_handles_localhost_and_ipv6_loopback() {
+        use super::audit_hubs_for_self_hub_cache;
+        use crate::config::{HubEntry, HubsConfig};
+        let secrets_dir = tmpdir("hubs-named-loop");
+        let mut config = HubsConfig::default();
+        // localhost
+        config.hubs.insert(
+            "localhost-profile".to_string(),
+            HubEntry {
+                address: "localhost:9100".to_string(),
+                secret_file: Some(secrets_dir.join("local.hex").to_string_lossy().to_string()),
+                secret: None,
+                scope: None,
+            },
+        );
+        // IPv6 loopback (bracketed)
+        config.hubs.insert(
+            "v6-profile".to_string(),
+            HubEntry {
+                address: "[::1]:9100".to_string(),
+                secret_file: Some(secrets_dir.join("v6.hex").to_string_lossy().to_string()),
+                secret: None,
+                scope: None,
+            },
+        );
+        let hints = audit_hubs_for_self_hub_cache(&config, &secrets_dir);
+        assert_eq!(hints.len(), 2, "expected both loopback forms to flag; got: {:?}", hints);
     }
 }
