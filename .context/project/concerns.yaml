@@ -212,8 +212,9 @@ concerns:
   spec_reference: "T-212, T-1141, CLAUDE.md Agent/Human AC Split + Human Task Completion Rule"
   severity: low
   trigger_fired: true
-  trigger_event: "2026-04-19: During T-1141 follow-up, `gh repo view DimitriGeelen/homebrew-termlink` returned 'GraphQL: Could not resolve to a Repository'. T-212 shows status=started-work with all Human AC boxes ticked."
-  detection_lag_days: "unknown (T-212 last updated 2026-03-27)"
+  trigger_event: "2026-04-19: During T-1141 follow-up, `gh repo view DimitriGeelen/homebrew-termlink` returned 'GraphQL: Could not resolve to a Repository'. T-212 shows status=started-work with all Human AC boxes ticked. 2026-04-26 re-verified: still 404."
+  detection_lag_days: "34+ (T-212 boxes ticked 2026-03-23, divergence first observed 2026-04-19, still divergent 2026-04-26)"
+  mitigation_landed: "2026-04-26: Added external-world `curl ... = 200` assertion to T-212 ## Verification block. Future completion-gate runs (P-011) cannot pass until the repo actually exists on GitHub. The framework now sees external state for this specific task; broader generalization (gh-repo-exists verifier) still in what_remains."
   what_works_now: "Formula file in this repo has correct v0.9.1 sha256s (T-1141). install.sh curl-pipe (T-1134) bypasses Homebrew entirely — consumers with no tap have a working install path. `cargo install --git` is documented as a fallback in README."
   what_remains: "1. Operator creates `DimitriGeelen/homebrew-termlink` on GitHub, copies homebrew/Formula/termlink.rb + homebrew/README.md into it, pushes. 2. Verify `brew tap DimitriGeelen/termlink && brew install termlink` works on a fresh macOS. 3. Consider: add a verification command to T-212 that calls `gh api repos/DimitriGeelen/homebrew-termlink` and fails if 404 — would catch this class of divergence. 4. More broadly: design a verification-extension that lets tasks assert external-world state (repo exists, release asset uploaded, DNS resolves)."
   mitigation_candidate: "Short-term: operator creates the tap repo. Medium-term: `fw task verify` could accept a `gh-repo-exists:owner/name` verifier and the like. Long-term: rename the Agent/Human AC split to (Verifiable/Unverifiable) or (Local/External) to make explicit what the framework can and cannot attest."

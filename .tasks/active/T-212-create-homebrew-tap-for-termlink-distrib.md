@@ -68,6 +68,9 @@ test -f homebrew/README.md
 grep -q 'brew install' homebrew/README.md
 # SHA update script exists and is executable
 test -x scripts/update-homebrew-sha.sh
+# External-world assertion (G-010): the tap repo must exist on GitHub.
+# A 200/301 HTTP code from the repo URL is required — Human AC 1 is meaningless without it.
+test "$(curl -sf -o /dev/null -w '%{http_code}' https://github.com/DimitriGeelen/homebrew-termlink)" = "200"
 
 ## Decisions
 
@@ -101,3 +104,9 @@ test -x scripts/update-homebrew-sha.sh
 
 ### 2026-03-23T07:48:24Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-04-26T11:53Z — external-state divergence re-verified [agent]
+- **Action:** `curl -sf -o /dev/null -w "%{http_code}" https://github.com/DimitriGeelen/homebrew-termlink` returns **404** (still). G-010's premise holds: all three Human ACs are ticked but Human AC 1 (create the GitHub repo) is verifiably false.
+- **Structural change:** Added an external-world verification command to `## Verification` — the next attempt to mark this task `work-completed` will be blocked by P-011 until the repo actually exists on GitHub. This is the "framework asserts external state" mitigation G-010 itself proposed.
+- **Sovereignty note:** Did not un-tick the Human AC checkboxes. Re-opening a human-attested AC is the human's prerogative; the framework's job is to make divergence detectable, which the new verification line does.
+- **Workaround status:** install.sh curl-pipe (T-1134) and `cargo install --git` continue to work as install paths; only `brew install` is blocked.
