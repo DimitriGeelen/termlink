@@ -69,9 +69,32 @@ impl PtySession {
     ///
     /// If `shell` is None, uses the user's default shell from $SHELL (or /bin/sh).
     pub fn spawn(shell: Option<&str>, scrollback_bytes: usize) -> Result<Self, PtyError> {
+        Self::spawn_with_env(shell, scrollback_bytes, &[])
+    }
+
+    /// Spawn a new PTY session, injecting the given env-var pairs into the child.
+    ///
+    /// Each pair is set via `setenv(KEY, VALUE, overwrite=1)` after `fork()` and before
+    /// `execvp()`, so the child shell (and anything it execs) inherits them. Used by
+    /// `termlink register --shell` to seed `TERMLINK_SESSION_ID` for whoami auto-resolve.
+    pub fn spawn_with_env(
+        shell: Option<&str>,
+        scrollback_bytes: usize,
+        env: &[(String, String)],
+    ) -> Result<Self, PtyError> {
         let shell = shell.map(String::from).unwrap_or_else(|| {
             std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
         });
+
+        // Pre-allocate CStrings for env injection so the child only does signal-safe work.
+        let env_c: Vec<(std::ffi::CString, std::ffi::CString)> = env
+            .iter()
+            .filter_map(|(k, v)| {
+                let kc = std::ffi::CString::new(k.as_str()).ok()?;
+                let vc = std::ffi::CString::new(v.as_str()).ok()?;
+                Some((kc, vc))
+            })
+            .collect();
 
         // Create PTY pair
         let mut master_fd: libc::c_int = 0;
@@ -111,6 +134,10 @@ impl PtySession {
                 libc::dup2(slave_fd, 2);
                 if slave_fd > 2 {
                     libc::close(slave_fd);
+                }
+                // Inject env pairs (T-1302) before exec so the new program sees them.
+                for (k, v) in &env_c {
+                    libc::setenv(k.as_ptr(), v.as_ptr(), 1);
                 }
                 let shell_c = std::ffi::CString::new(shell.as_str()).unwrap();
                 let args = [shell_c.as_ptr(), std::ptr::null()];
@@ -449,6 +476,36 @@ mod tests {
         assert!(
             output_str.contains("TERMLINK_TEST_MARKER"),
             "Scrollback should contain marker, got: {:?}",
+            output_str
+        );
+    }
+
+    /// T-1302: env vars passed to spawn_with_env are visible to the spawned shell.
+    #[tokio::test]
+    async fn spawn_passes_env_to_child() {
+        let _guard = PTY_LOCK.lock().await;
+        let env = vec![("TL_TEST_VAR".to_string(), "hello-1302".to_string())];
+        let session = PtySession::spawn_with_env(Some("/bin/sh"), 4096, &env).unwrap();
+
+        session
+            .write(b"echo VAR_IS=$TL_TEST_VAR\nexit\n")
+            .await
+            .unwrap();
+
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            session.read_loop(),
+        )
+        .await;
+
+        let scrollback = session.scrollback();
+        let sb = scrollback.lock().await;
+        let bytes = sb.last_n_bytes(sb.len());
+        let output_str = String::from_utf8_lossy(&bytes);
+
+        assert!(
+            output_str.contains("VAR_IS=hello-1302"),
+            "Child shell should see injected env, got: {:?}",
             output_str
         );
     }
