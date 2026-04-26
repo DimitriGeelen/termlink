@@ -851,3 +851,10 @@ learnings:
   date: 2026-04-26
   context: Added via context agent
   application: TBD
+- id: PL-086
+  learning: "Fabric drift recurs (4× in 14d) when new source files land without 'fw fabric register <path>' in the same commit. Each instance self-heals on the next 'fw fabric register' run, but the audit warning is noisy and signals creation-time discipline drift. Mitigation: when an Edit/Write creates a brand-new tracked source file (not just modifies an existing one), register the fabric card BEFORE the commit. The PostToolUse hook chain doesn't auto-register because it can't reliably guess subsystem/purpose. A pre-commit hook check could enforce: 'every new file added matches an existing .fabric/components/*.yaml or fw fabric register was called'."
+  source: audit-trend
+  task: T-1294
+  date: 2026-04-26
+  context: Added via context agent
+  application: TBD
