@@ -27,14 +27,22 @@ pub type SubscribeIter = Box<dyn Iterator<Item = Result<(Offset, Envelope)>> + S
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
+
+use tokio::sync::Notify;
+use tokio::time::{timeout, Duration};
 
 /// Channel bus instance. Backed by a per-topic append-only log under
 /// `<root>/topics/` and a SQLite metadata sidecar at `<root>/meta.db`.
 pub struct Bus {
     root: PathBuf,
     meta: meta::Meta,
-    appenders: StdMutex<HashMap<String, std::sync::Arc<log::LogAppender>>>,
+    appenders: StdMutex<HashMap<String, Arc<log::LogAppender>>>,
+    /// Per-topic notify primitive: `post` calls `notify_waiters()` after a
+    /// successful append; `subscribe_blocking` listens on it. Enables
+    /// long-poll without busy polling (T-1289 / T-243 dialog liveness).
+    notifiers: StdMutex<HashMap<String, Arc<Notify>>>,
 }
 
 impl Bus {
@@ -48,7 +56,22 @@ impl Bus {
             root,
             meta,
             appenders: StdMutex::new(HashMap::new()),
+            notifiers: StdMutex::new(HashMap::new()),
         })
+    }
+
+    /// Get or lazily create the per-topic Notify. Cheap — Arc clone, no IO.
+    fn notifier_for(&self, topic: &str) -> Arc<Notify> {
+        let mut guard = self
+            .notifiers
+            .lock()
+            .expect("notifiers mutex poisoned");
+        if let Some(n) = guard.get(topic) {
+            return n.clone();
+        }
+        let n = Arc::new(Notify::new());
+        guard.insert(topic.to_string(), n.clone());
+        n
     }
 
     /// Root directory the bus lives under.
@@ -102,7 +125,63 @@ impl Bus {
         let bytes = log::encode_envelope(env)?;
         let byte_pos = appender.append(&bytes).await?;
         let length = bytes.len() as u64;
-        self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms)
+        let offset = self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms)?;
+        // T-1289: wake any subscribers blocked in `subscribe_blocking` for
+        // this topic. No-op when there are no waiters; cheap atomic.
+        self.notifier_for(topic).notify_waiters();
+        Ok(offset)
+    }
+
+    /// Long-poll variant of `subscribe`. Behaves like `subscribe(topic, cursor)`
+    /// when records >= `cursor` already exist. Otherwise waits up to
+    /// `timeout_dur` for the next `post(topic, _)` to fire and re-checks.
+    /// Returns an empty iterator on timeout (semantically equivalent to a
+    /// snapshot subscribe that found nothing).
+    ///
+    /// Notes:
+    /// - The waiter is registered BEFORE the second SQLite check to avoid
+    ///   the lost-wakeup race (post arriving between first check and notify
+    ///   registration).
+    /// - Multiple concurrent waiters all wake on a single `notify_waiters()`,
+    ///   matching `tokio::sync::Notify` broadcast semantics.
+    ///
+    /// T-1289 / T-243 (dialog liveness — channel.subscribe needs push-like
+    /// latency for heartbeats and turn delivery).
+    pub async fn subscribe_blocking(
+        &self,
+        topic: &str,
+        cursor: Offset,
+        timeout_dur: Duration,
+    ) -> Result<SubscribeIter> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+
+        // Fast path: already-available records.
+        let records = self.meta.records_from(topic, cursor)?;
+        if !records.is_empty() {
+            return self.subscribe(topic, cursor);
+        }
+
+        // Slow path: register a waiter, then re-check (avoids lost-wakeup).
+        let notify = self.notifier_for(topic);
+        let notified = notify.notified();
+        tokio::pin!(notified);
+
+        // Re-check after registration in case `post` raced between the
+        // first check and the `notified()` registration.
+        let records = self.meta.records_from(topic, cursor)?;
+        if !records.is_empty() {
+            return self.subscribe(topic, cursor);
+        }
+
+        // Wait for either a post or the timeout.
+        let _ = timeout(timeout_dur, notified.as_mut()).await;
+
+        // Whether we were notified or timed out, re-read the SQLite index.
+        // (Notify wakes ALL waiters, but a different topic/post may have
+        // been the trigger; we always reconfirm via the durable index.)
+        self.subscribe(topic, cursor)
     }
 
     /// Subscribe to `topic` starting at logical offset `cursor`. Returns
@@ -186,13 +265,13 @@ impl Bus {
         self.meta.sweep_records(topic, keep_after, keep_last)
     }
 
-    fn appender_for(&self, topic: &str) -> Result<std::sync::Arc<log::LogAppender>> {
+    fn appender_for(&self, topic: &str) -> Result<Arc<log::LogAppender>> {
         let mut guard = self.appenders.lock().expect("appenders mutex poisoned");
         if let Some(a) = guard.get(topic) {
             return Ok(a.clone());
         }
         let path = log::topic_log_path(&self.root, topic);
-        let appender = std::sync::Arc::new(log::LogAppender::open(&path)?);
+        let appender = Arc::new(log::LogAppender::open(&path)?);
         guard.insert(topic.to_string(), appender.clone());
         Ok(appender)
     }
@@ -435,6 +514,115 @@ mod tests {
         // After full trim: None signals empty topic, distinct from "no gap".
         bus.trim_topic("t", None).unwrap();
         assert_eq!(bus.oldest_offset("t").unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn subscribe_blocking_returns_existing_records_immediately() {
+        // T-1289: fast path — records already present, return without
+        // touching the Notify.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"a")).await.unwrap();
+        bus.post("t", &env("t", b"b")).await.unwrap();
+
+        let start = std::time::Instant::now();
+        let got: Vec<u64> = bus
+            .subscribe_blocking("t", 0, Duration::from_secs(5))
+            .await
+            .unwrap()
+            .map(|r| r.unwrap().0)
+            .collect();
+        let elapsed = start.elapsed();
+
+        assert_eq!(got, vec![0, 1]);
+        // Should return effectively instantly (well under the 5s timeout).
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "fast path took {elapsed:?}, expected < 500ms"
+        );
+    }
+
+    #[tokio::test]
+    async fn subscribe_blocking_wakes_on_concurrent_post() {
+        // T-1289 core proof: subscriber blocked on empty topic gets woken
+        // when a producer posts. The latency from post to wake should be
+        // small (push-like), nowhere near the timeout.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let bus = std::sync::Arc::new(bus);
+
+        let producer = {
+            let bus = bus.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                bus.post("t", &env("t", b"hello")).await.unwrap();
+            })
+        };
+
+        let start = std::time::Instant::now();
+        let got: Vec<Vec<u8>> = bus
+            .subscribe_blocking("t", 0, Duration::from_secs(5))
+            .await
+            .unwrap()
+            .map(|r| r.unwrap().1.payload)
+            .collect();
+        let elapsed = start.elapsed();
+        producer.await.unwrap();
+
+        assert_eq!(got, vec![b"hello".to_vec()]);
+        // Producer slept 50ms before posting, then wake + read should be
+        // well under 1s — push-like latency.
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "wake-on-post took {elapsed:?}, expected < 1s"
+        );
+        assert!(
+            elapsed >= Duration::from_millis(50),
+            "wake-on-post finished too fast ({elapsed:?}); expected >= 50ms"
+        );
+    }
+
+    #[tokio::test]
+    async fn subscribe_blocking_returns_empty_on_timeout() {
+        // T-1289: timeout case — empty iterator, no error. Caller treats
+        // this identically to a snapshot subscribe with no available records.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+
+        let start = std::time::Instant::now();
+        let count = bus
+            .subscribe_blocking("t", 0, Duration::from_millis(100))
+            .await
+            .unwrap()
+            .count();
+        let elapsed = start.elapsed();
+
+        assert_eq!(count, 0);
+        // Should wait at least the timeout — proves we actually blocked.
+        assert!(
+            elapsed >= Duration::from_millis(100),
+            "timeout fired too early at {elapsed:?}"
+        );
+        // Don't wait far past the timeout (allow ~200ms slack for scheduler).
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "timeout took {elapsed:?}, expected < 500ms"
+        );
+    }
+
+    #[tokio::test]
+    async fn subscribe_blocking_unknown_topic_errors() {
+        let (_dir, bus) = tmp_bus();
+        // SubscribeIter is `Box<dyn Iterator>` which doesn't implement Debug,
+        // so .unwrap_err() can't synthesize a panic message — match instead.
+        match bus
+            .subscribe_blocking("nope", 0, Duration::from_millis(50))
+            .await
+        {
+            Err(BusError::UnknownTopic(_)) => {}
+            Err(e) => panic!("unexpected error variant: {e:?}"),
+            Ok(_) => panic!("expected UnknownTopic error, got iterator"),
+        }
     }
 
     #[tokio::test]
