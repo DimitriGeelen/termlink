@@ -387,11 +387,14 @@ learnings:
   context: Added via context agent
   application: TBD
 - id: PL-021
-  learning: "When a remote hub rotates BOTH secret and TLS cert (container nuke / clean runtime_dir), reauth requires TWO steps: (1) fleet reauth --bootstrap-from file:... for the secret, (2) termlink tofu clear <addr>:<port> to drop the stale cert pin so TOFU re-trusts. fleet reauth alone is not enough — TLS layer still rejects. Observed 2026-04-15 for ring20-management after .122 container came back bare."
+  learning: "When a remote hub rotates BOTH secret and TLS cert (container nuke / clean runtime_dir), reauth requires TWO steps: (1) fleet reauth --bootstrap-from file:... for the secret, (2) termlink tofu clear <addr>:<port> to drop the stale cert pin so TOFU re-trusts. fleet reauth alone is not enough — TLS layer still rejects. Observed 2026-04-15 for ring20-management after .122 container came back bare. UPDATE 2026-04-26 (T-1294, see PL-085): the 'clean runtime_dir' cause is volatile /tmp via TWO mechanisms — tmpfs mount OR systemd-tmpfiles 'D /tmp' rule. Mount-table check alone misses #2. Diagnostic: also cat /usr/lib/tmpfiles.d/tmp.conf. Permanent fix: move runtime_dir off /tmp per CLAUDE.md §Hub Auth Rotation Protocol > Special case — volatile runtime_dir."
   source: unknown
   task: T-1067
   date: 2026-04-15
-  context: Added via context agent
+  last_update: 2026-04-26
+  related_learnings: [PL-085]
+  related_tasks: [T-1067, T-1290, T-1294, T-1295]
+  context: Added via context agent; updated 2026-04-26 to cross-reference T-1294 widened diagnostic
   application: TBD
 - id: PL-022
   learning: "fw upgrade clobbers local patches to .agentic-framework/* — re-apply after every upgrade from docs/patches/T-XXX-*.md recipes. Also: fw upgrade invoked inside a vendored project fails at step 4b/9 (source==target); run from the upstream repo's bin/fw instead"
