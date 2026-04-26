@@ -12,7 +12,7 @@ tags: [T-233, orchestration, error-yielding]
 components: []
 related_tasks: [T-233]
 created: 2026-03-23T13:28:06Z
-last_update: 2026-04-25T22:34:20Z
+last_update: 2026-04-26T09:32:41Z
 date_finished: null
 ---
 
@@ -58,12 +58,12 @@ Research artifact: `docs/reports/T-243-multi-turn-agent-conversation-inception.m
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Research artifact `docs/reports/T-243-multi-turn-agent-conversation-inception.md` created and updated through both dialogues
-- [ ] Concrete failing scenarios captured from operator (Dialogue 1)
-- [ ] Existing-primitive surface review documented (Dialogue 2)
-- [ ] One protocol spike sketched (RPC names, params, state model, yield/resume semantics)
-- [ ] Build-new vs. extend-existing recommendation made with rationale
-- [ ] Go/No-Go decision recorded via `fw inception decide T-243`
+- [x] Research artifact `docs/reports/T-243-multi-turn-agent-conversation-inception.md` created and updated through both dialogues
+- [x] Concrete failing scenarios captured from operator (Dialogue 1) — operator reported characteristic ("send-and-wait instead of immediate response") rather than specific instances ("do not have the instances anymore"); characteristic captured in artifact
+- [x] Existing-primitive surface review documented (Dialogue 2) — Signal/XMPP/IRC/Matrix/MQTT comparison + channel.* / agent.ask / request analysis in artifact
+- [x] One protocol spike sketched (RPC names, params, state model, yield/resume semantics) — synthesis from three-agent inception covers heartbeat RPC, channel.post metadata extension, event-type catalog, layered architecture
+- [x] Build-new vs. extend-existing recommendation made with rationale — thin first-class layer (heartbeat must be infra, everything else convention) per Agent B + Agent C synthesis
+- [x] Go/No-Go decision recorded via `fw inception decide T-243` — GO recorded by operator 2026-04-26
 
 ### Human
 - [ ] Operator confirms the recommendation reflects the actual pain and the chosen direction is buildable
@@ -109,7 +109,13 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Three-agent inception via termlink_batch_run converged on heartbeat-as-infrastructure +
+  everything-else-as-convention. Operator confirmed direction. Five child build tasks T-1285..T-1289 created. Auth foundation deferred to T-1284. Meta data: termlink_spawn for
+  ad-hoc bash failed (registration timeout); termlink_batch_run worked first-try — same shape mismatch T-243 itself addresses, additional evidence for GO.
+
+**Date**: 2026-04-26T09:34:15Z
 
 ## Updates
 
@@ -126,3 +132,10 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 ### 2026-04-25T22:16:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-26T09:34:15Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Three-agent inception via termlink_batch_run converged on heartbeat-as-infrastructure +
+  everything-else-as-convention. Operator confirmed direction. Five child build tasks T-1285..T-1289 created. Auth foundation deferred to T-1284. Meta data: termlink_spawn for
+  ad-hoc bash failed (registration timeout); termlink_batch_run worked first-try — same shape mismatch T-243 itself addresses, additional evidence for GO.
