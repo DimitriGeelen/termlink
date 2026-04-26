@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1279: Fix fw promote dedup: check promoted_from not derived_from (PL-083)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T21:20:30Z
+# ============================================================================
+
+task_id: T-1279
+task_name: "Fix fw promote dedup: check promoted_from not derived_from (PL-083)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T21:18:02Z
+completed: 2026-04-25T21:20:24Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T23:20:00+02:00
+last_commit: 2026-04-25T23:20:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix fw promote dedup (PL-083 root cause) — upstream 84a77e66
+
+# Key outcomes
+outcomes:
+  - "/opt/999-Agentic-Engineering-Framework/lib/promote.sh patched (commit 84a77e66 on master)"
+  - "Vendored /opt/termlink/.agentic-framework/lib/promote.sh updated to match"
+  - "`fw promote suggest` no longer lists L-007 in output (verified)"
+  - "`fw promote L-007 ...` exits with \"Learning L-007 is already promoted to a practice\""
+  - "Upstream commit pushed to onedev master (84a77e66)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix fw promote dedup (PL-083 root cause) — upstream 84a77e66"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/lib/promote.sh"
+  - ".tasks/active/T-1279-fix-fw-promote-dedup-check-promotedfrom-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T23:20:00"
+    action: "T-1279: Fix fw promote dedup (PL-083 root cause) — upstream 84a77e66"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 66
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1279-fix-fw-promote-dedup-check-promotedfrom-.md
+generated_by: context-agent-hybrid

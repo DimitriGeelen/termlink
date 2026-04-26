@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1282: Promote L-020 to practice — event-driven receivers snapshot next_seq on startup
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T21:42:05Z
+# ============================================================================
+
+task_id: T-1282
+task_name: "Promote L-020 to practice — event-driven receivers snapshot next_seq on startup"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T21:41:25Z
+completed: 2026-04-25T21:42:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T23:42:03+02:00
+last_commit: 2026-04-25T23:42:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Promote L-020 → PP-011 (event-receivers snapshot next_seq, D2)
+
+# Key outcomes
+outcomes:
+  - "PP-011 created via `fw promote L-020 --directive D2`"
+  - "L-020 application field references PP-011"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".context/project/practices.yaml"
+  - ".tasks/active/T-1282-promote-l-020-to-practice--event-driven-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T23:42:03"
+    action: "T-1282: Promote L-020 → PP-011 (event-receivers snapshot next_seq, D2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 66
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1282-promote-l-020-to-practice--event-driven-.md
+generated_by: context-agent-hybrid

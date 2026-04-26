@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1215: Hub capabilities method + client-side cache (T-1214 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T21:54:32Z
+# ============================================================================
+
+task_id: T-1215
+task_name: "Hub capabilities method + client-side cache (T-1214 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T10:35:19Z
+completed: 2026-04-25T21:54:32Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-04-24T18:44:10+02:00
+last_commit: 2026-04-25T17:27:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add live-probe evidence — running hub binary is stale (Apr 20 build, pre-dates landing). T-1215, T-1218: stage agent-verified evidence for human review. T-1215, T-1253: hub :9100 restart for live probe + G-007 root cause inception
+
+# Key outcomes
+outcomes:
+  - "Protocol constant `method::HUB_CAPABILITIES = \"hub.capabilities\"` added"
+  - "Hub router dispatches `\"hub.capabilities\"` to a new handler"
+  - "New module `crates/termlink-session/src/hub_capabilities.rs`:"
+  - "`pub fn shared_cache() -> &'static HubCapabilitiesCache` returns a"
+  - "Unit test in hub: constructs `Request` for `hub.capabilities`, calls"
+  - "Unit test for `HubCapabilitiesCache` alone (no network): insert ->"
+  - "`cargo build -p termlink-hub -p termlink-session -p termlink-protocol`"
+  - "`cargo test -p termlink-hub hub_capabilities` (1 passed) + `cargo test"
+  - "[RUBBER-STAMP] Live-probe the method against a running hub. Re-validated 2026-04-25T18:39Z by agent: `termlink remote doctor 127.0.0.1:9100 --secret-file /var/lib/termlink/hub.secret` returned PASS connectivity + emitted `T-1235: using channel.list (channel.* supported) host=127.0.0.1:9100` — proves cap-handshake live against canonical :9100 hub."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "Ship (a) protocol constant, (b) hub method + handler, (c) in-memory process-scoped client cache, (d) tests. Defer auto-probe-on-connect and disk persistence."
+    rationale: "T-1165 is the only consumer needing this; it can call `probe()` explicitly. Auto-probing on every connect adds RTT to every local session connection for no current benefit. File-format changes to `known_hubs` are a bigger change with no current payoff."
+    alternatives_rejected: ["(1) Extend `KnownHub` struct + serializer with capabilities field — unnecessary scope. (2) Call probe from `connect_addr` — latency hit without a user."]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1215-hub-capabilities-method--client-side-cac.md"
+  - ".tasks/active/T-1218-watchtower-fleet-learnings-panel-t-1168-.md"
+  - ".tasks/active/T-1253-g-007-mirror-anomaly--github-ahead-of-on.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T18:44:10"
+    action: "T-1215: Add live-probe evidence — running hub binary is stale (Apr 20 build, pre-dates landing)"
+  - time: "2026-04-25T16:05:14"
+    action: "T-1215, T-1218: stage agent-verified evidence for human review"
+  - time: "2026-04-25T17:27:10"
+    action: "T-1215, T-1253: hub :9100 restart for live probe + G-007 root cause inception"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 2119 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [fleet, federation, capability-probe]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2119
+  commits: 5
+  files_changed: 5
+  lines_added: 256
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1215-hub-capabilities-method--client-side-cac.md
+generated_by: context-agent-hybrid

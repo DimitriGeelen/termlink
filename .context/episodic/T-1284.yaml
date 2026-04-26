@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1284: G-011 structural fix — fw doctor cache freshness check + own-hub live-read enforcement
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-26T11:12:15Z
+# ============================================================================
+
+task_id: T-1284
+task_name: "G-011 structural fix — fw doctor cache freshness check + own-hub live-read enforcement"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T22:31:17Z
+completed: 2026-04-26T11:12:14Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-04-26T13:12:10+02:00
+last_commit: 2026-04-26T13:12:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  G-011 structural fix — value-comparison + self-hub profile audit
+
+# Key outcomes
+outcomes:
+  - "`audit_secret_cache` reads each cache file's hex contents and compares against `hub.secret` contents (when `local_hub` is provided). Matching values short-circuit — cache is healthy regardless of mtime."
+  - "Diverging-value + older-mtime path now uses \"cache value diverges from local hub.secret\" wording instead of legacy \"older than\" alone."
+  - "New function `audit_hubs_for_self_hub_cache(config, secrets_dir)` returns Vec<String> migration hints for self-hub profiles using IP-keyed cache (loopback addresses: `127.x.x.x`, `localhost`, `[::1]`, `0.0.0.0`)."
+  - "`cmd_doctor` calls it; results emitted under check key `secret_cache_profiles` (warn on hint, pass on empty)."
+  - "Test `cache_value_matches_hub_skips_mtime_warning`: matching value, older mtime → 0 issues"
+  - "Test `cache_value_diverges_and_older_uses_diverges_wording`: divergent value, older mtime → 1 issue with new wording"
+  - "Test `cache_diverging_but_newer_is_not_flagged`: divergent but newer (= probably remote-hub cache) → 0 issues"
+  - "Test `audit_hubs_flags_loopback_profile_using_ip_cache`: 127.0.0.1 profile flagged with migration hint pointing at `<runtime_dir>/hub.secret`"
+  - "Test `audit_hubs_does_not_flag_remote_profile_using_ip_cache`: remote IP profile NOT flagged"
+  - "Test `audit_hubs_handles_localhost_and_ipv6_loopback`: `localhost:9100` + `[::1]:9100` both flagged"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "G-011 structural fix — value-comparison + self-hub profile audit"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - ".tasks/active/T-1284-g-011-structural-fix--fw-doctor-cache-fr.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-26T13:12:10"
+    action: "T-1284: G-011 structural fix — value-comparison + self-hub profile audit"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 760 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, reliability, G-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 760
+  commits: 1
+  files_changed: 2
+  lines_added: 335
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1284-g-011-structural-fix--fw-doctor-cache-fr.md
+generated_by: context-agent-hybrid

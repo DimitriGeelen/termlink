@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1218: Watchtower fleet-learnings panel (T-1168 B3)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T21:54:32Z
+# ============================================================================
+
+task_id: T-1218
+task_name: "Watchtower fleet-learnings panel (T-1168 B3)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T13:09:59Z
+completed: 2026-04-25T21:54:32Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-04-24T18:37:39+02:00
+last_commit: 2026-04-25T16:05:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fill task body with completion evidence (T-1168 B3 Watchtower fleet-learnings panel). Document [REVIEW] prerequisites — template lives upstream, vendored copy stale. T-1215, T-1218: stage agent-verified evidence for human review
+
+# Key outcomes
+outcomes:
+  - "New `load_received_learnings()` helper in `web/context_loader.py` —"
+  - "`/learnings` route in `web/blueprints/discovery.py` passes"
+  - "`templates/learnings.html` renders \"Received from peers\" `<details>`"
+  - "Direct render verification (Jinja invoked with seeded 2-entry yaml):"
+  - "Upstream-mirrored to `/opt/999-Agentic-Engineering-Framework/web/*` —"
+  - "[REVIEW] Render quality of the Received section. Re-validated 2026-04-25T18:39Z by agent: `curl http://localhost:3100/learnings` returns the live `<details><summary><strong>Received from peers (1)</strong></summary>` block — section renders as designed; subjective polish accepted on user direction (continue-autonomous mode)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1215-hub-capabilities-method--client-side-cac.md"
+  - ".tasks/active/T-1217-t-1168b2-b3-learnings-subscriber--watcht.md"
+  - ".tasks/active/T-1218-watchtower-fleet-learnings-panel-t-1168-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T18:37:39"
+    action: "T-1218: Fill task body with completion evidence (T-1168 B3 Watchtower fleet-learnings panel)"
+  - time: "2026-04-24T18:48:02"
+    action: "T-1218: Document [REVIEW] prerequisites — template lives upstream, vendored copy stale"
+  - time: "2026-04-25T16:05:14"
+    action: "T-1215, T-1218: stage agent-verified evidence for human review"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1964 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1964
+  commits: 4
+  files_changed: 4
+  lines_added: 82
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1218-watchtower-fleet-learnings-panel-t-1168-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1290: Investigate ring20-management hub.secret rotation root cause (G-011 upstream)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-26T12:03:28Z
+# ============================================================================
+
+task_id: T-1290
+task_name: "Investigate ring20-management hub.secret rotation root cause (G-011 upstream)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T11:36:22Z
+completed: 2026-04-26T12:03:26Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-26T13:49:41+02:00
+last_commit: 2026-04-26T13:50:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Spike 3 evidence + research artifact — A-3 confirmed, hypothesis volatile-runtime_dir on .122. Mirror preliminary Recommendation into task file (Watchtower visibility)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated — directly observed in 2026-04-26 session: TLS+secret double-rotation on .122 after CT reboot, while self-hub and .121 preserve."
+  - "Assumptions tested — A-3 confirmed (other hubs preserve); A-1/A-2/A-4 pending spike 1 (operator console on .122)."
+  - "Recommendation written with rationale — preliminary GO in `docs/reports/T-1290-ring20-mgmt-secret-rotation-inception.md`, contingent on spike 1 confirmation that `.122`'s runtime_dir is on tmpfs (`/tmp/termlink-0`)."
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1290-ring20-mgmt-secret-rotation-inception.md"
+  - ".tasks/active/T-1290-investigate-ring20-management-hubsecret-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-26T13:49:41"
+    action: "T-1290: Spike 3 evidence + research artifact — A-3 confirmed, hypothesis volatile-runtime_dir on .122"
+  - time: "2026-04-26T13:50:12"
+    action: "T-1290: Mirror preliminary Recommendation into task file (Watchtower visibility)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 27 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, infrastructure, ring20-management, G-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 27
+  commits: 2
+  files_changed: 2
+  lines_added: 173
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1290-investigate-ring20-management-hubsecret-.md
+generated_by: context-agent-hybrid

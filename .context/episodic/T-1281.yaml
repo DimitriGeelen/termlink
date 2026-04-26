@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1281: Promote L-003 to practice — capture subprocess exit codes explicitly
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T21:33:34Z
+# ============================================================================
+
+task_id: T-1281
+task_name: "Promote L-003 to practice — capture subprocess exit codes explicitly"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-25T21:32:44Z
+completed: 2026-04-25T21:33:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-25T23:33:33+02:00
+last_commit: 2026-04-25T23:33:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Promote L-003 → PP-010 (capture subprocess exit codes, D2)
+
+# Key outcomes
+outcomes:
+  - "PP-010 entry created via `fw promote L-003 --directive D2`"
+  - "L-003 application field references PP-010"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".context/project/practices.yaml"
+  - ".tasks/active/T-1281-promote-l-003-to-practice--capture-subpr.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-25T23:33:33"
+    action: "T-1281: Promote L-003 → PP-010 (capture subprocess exit codes, D2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 3
+  lines_added: 65
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1281-promote-l-003-to-practice--capture-subpr.md
+generated_by: context-agent-hybrid

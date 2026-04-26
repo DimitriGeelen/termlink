@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1212: Build SessionEnd handler + silent-session cron (T-1208 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-25T21:53:25Z
+# ============================================================================
+
+task_id: T-1212
+task_name: "Build SessionEnd handler + silent-session cron (T-1208 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-24T10:05:10Z
+completed: 2026-04-25T21:53:21Z
+duration_days: 1
+updates_count: 6
+first_commit: 2026-04-24T13:46:06+02:00
+last_commit: 2026-04-24T13:46:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  SessionEnd handler + silent-session scanner built + upstream-mirrored
+
+# Key outcomes
+outcomes:
+  - "Handler `.agentic-framework/agents/context/session-end.sh` exists, is"
+  - "S1 telemetry verified via stub Case A + Case B (JSON lines appended)."
+  - "S2 idempotency verified: stub Case B (matching session_id) logs"
+  - "Scanner `.agentic-framework/agents/context/session-silent-scanner.sh`"
+  - "Scanner skips sessions that already have a handover matching their"
+  - "Scanner generates a recovery handover with `RECOVERED=*` env vars —"
+  - "`fw hook session-end` and `fw hook session-silent-scanner` dispatcher"
+  - "Stub test `session-end-stub-test.sh` (2 cases — new session, existing)"
+  - "Stub test `session-silent-scanner-stub-test.sh` (3 cases — recent, old"
+  - "Upstream mirror — all 4 files landed in"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "`session-silent-scanner.sh` defaults to `DRY_RUN=1`. Cron stanza"
+    rationale: "Initial development version had no DRY_RUN default. Smoke-testing"
+    alternatives_rejected: ["\"Just don't invoke the dispatcher during development.\" Too"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - "docs/T-1212-settings-patch.md"
+  - ".tasks/active/T-1212-build-sessionend-handler--silent-session.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-24T13:46:06"
+    action: "T-1212: SessionEnd handler + silent-session scanner built + upstream-mirrored"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2148 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [hook, handover, framework-bridge, antifragility]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2148
+  commits: 2
+  files_changed: 5
+  lines_added: 246
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1212-build-sessionend-handler--silent-session.md
+generated_by: context-agent-hybrid

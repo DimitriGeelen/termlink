@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1293: Fix G-047: fw task verify counts ACs inside HTML comments
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-26T12:01:19Z
+# ============================================================================
+
+task_id: T-1293
+task_name: "Fix G-047: fw task verify counts ACs inside HTML comments"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T11:57:36Z
+completed: 2026-04-26T12:01:17Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-26T14:01:09+02:00
+last_commit: 2026-04-26T14:01:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix G-047 — fw task verify strips HTML comments before counting ACs
+
+# Key outcomes
+outcomes:
+  - "`fw task verify` Python parser strips HTML `<!--...-->` blocks from each task's `### Human` section before counting `- [ ]` and `- [x]` checkboxes"
+  - "Bash poll-mode counter inside `fw task verify <id> --poll` similarly skips lines that fall between `<!--` and `-->` markers"
+  - "After the patch, `fw task verify` no longer lists T-1124, T-1261, T-1293 (these three have only template-comment ACs); T-1290 (real Human AC) and T-1137 (two real Human ACs) are still listed correctly — verified, queue dropped 5→3, only real-AC tasks remain"
+  - "Vendored `.agentic-framework/bin/fw` carries the patch"
+  - "Upstream framework (`/opt/999-Agentic-Engineering-Framework/bin/fw`) carries the same patch via Channel 1 dispatch — landed as commit `c6efdc0db T-1293/G-047: ...` on master, verified via `termlink exec framework-agent`"
+  - "G-047 closed with `closure_evidence` referencing this task and the upstream commit hash"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Fix G-047 — fw task verify strips HTML comments before counting ACs"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - ".tasks/active/T-1293-fix-g-047-fw-task-verify-counts-acs-insi.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-26T14:01:09"
+    action: "T-1293: Fix G-047 — fw task verify strips HTML comments before counting ACs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 70
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1293-fix-g-047-fw-task-verify-counts-acs-insi.md
+generated_by: context-agent-hybrid
