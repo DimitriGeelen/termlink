@@ -72,7 +72,7 @@ cargo test -p termlink fleet_reauth_bootstrap_from_auto_missing_declaration
 - **Wiring:** `cmd_fleet_reauth` in `crates/termlink-cli/src/commands/remote.rs` now resolves `--bootstrap-from auto` to the declared channel before delegating to the existing T-1055 fetch path. Unknown schemes still hard-error inside `fetch_bootstrap_secret` (no semantic change). Missing declaration with `auto` emits an actionable two-option hint (declare it, or pass an explicit source).
 - **Tests:** 2 new unit tests added to the T-1055 block — `fleet_reauth_bootstrap_from_auto_resolves_declared_channel` and `fleet_reauth_bootstrap_from_auto_missing_declaration_errors`. All 7 fleet_reauth_bootstrap tests pass; full termlink suite green (225 unit + 172 integration).
 - **Verification:** `cargo test -p termlink fleet_reauth_bootstrap` → 7/7 ok; `cargo test -p termlink` → 0 fail.
-- **Out of scope (future task):** `termlink profile add --bootstrap-from <source>` CLI plumbing — operator currently edits hubs.toml directly to declare. Note left as a follow-up if friction surfaces.
+- **Ergonomic follow-up (same session):** `termlink remote profile add --bootstrap-from <source>` plumbing landed in commit follow-up — operator can now declare the channel in one shot without editing hubs.toml. Scheme is validated up-front (only `file:` / `ssh:` accepted), so typos fail loud at add time, not at heal time.
 - **All Agent ACs ticked.** Owner=human; awaiting operator validation (none captured here yet).
 
 ### 2026-04-26T15:25:19Z — status-update [task-update-agent]

@@ -218,12 +218,26 @@ pub(crate) async fn resolve_remote_target(
 
 pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
     match action {
-        ProfileAction::Add { name, address, secret_file, secret, scope, json } => {
+        ProfileAction::Add { name, address, secret_file, secret, scope, bootstrap_from, json } => {
             if !address.contains(':') {
                 if json {
                     super::json_error_exit(serde_json::json!({"ok": false, "error": "Address must be in host:port format (e.g., 192.168.10.107:9100)"}));
                 }
                 anyhow::bail!("Address must be in host:port format (e.g., 192.168.10.107:9100)");
+            }
+            // T-1291: validate scheme up-front so a typo in `profile add
+            // --bootstrap-from foo:bar` fails loud now, not at heal time.
+            if let Some(b) = &bootstrap_from {
+                if !(b.starts_with("file:") || b.starts_with("ssh:")) {
+                    let msg = format!(
+                        "--bootstrap-from must start with 'file:' or 'ssh:' (got: {b}). \
+                         Examples: file:/etc/termlink/hub.secret  |  ssh:192.168.10.122"
+                    );
+                    if json {
+                        super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+                    }
+                    anyhow::bail!(msg);
+                }
             }
             let mut config = load_hubs_config();
             let is_update = config.hubs.contains_key(&name);
@@ -232,7 +246,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 secret_file,
                 secret,
                 scope,
-                bootstrap_from: None,
+                bootstrap_from,
             });
             save_hubs_config(&config)?;
             if json {
