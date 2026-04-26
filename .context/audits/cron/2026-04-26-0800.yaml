@@ -1,0 +1,39 @@
+# Audit Results - 2026-04-26-0800
+timestamp: 2026-04-26T06:00:01Z
+sections: "traceability,episodic,discovery-trends"
+summary:
+  pass: 11
+  warn: 3
+  fail: 0
+findings:
+  - level: PASS
+    check: "Git traceability: 98% (2811/2853 commits reference tasks)"
+  - level: WARN
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
+  - level: PASS
+    check: "All commit task refs resolve to actual tasks"
+  - level: PASS
+    check: "OneDev → GitHub mirror in sync (origin=github=58aa97a2)"
+  - level: WARN
+    check: "Completed task T-1213 has no episodic summary"
+    mitigation: "Run: ./agents/context/context.sh generate-episodic T-1213"
+  - level: PASS
+    check: "All 1038 episodic summaries have quality content"
+  - level: PASS
+    check: "No orphaned episodic files"
+  - level: PASS
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - level: WARN
+    check: "D5: Task lifecycle — 2 anomaly(s): T-243(33d-active) T-212(35d-active)"
+    mitigation: "Review flagged tasks for process issues"
+  - level: PASS
+    check: "D3: Commit velocity — insufficient data"
+  - level: PASS
+    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+  - level: PASS
+    check: "D6: Completion velocity — normal (PASS recent=28.3 earlier=18.6)"
+  - level: PASS
+    check: "D12: Bypass log — no log file"
+  - level: PASS
+    check: "D9: Control drift — normal (PASS 10_audits_checked)"
