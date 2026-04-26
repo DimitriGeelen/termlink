@@ -537,33 +537,7 @@ pub(crate) async fn cmd_whoami(
     if let Some(q) = query.as_deref() {
         match manager::find_session(q) {
             Ok(reg) => {
-                if json {
-                    println!("{}", serde_json::to_string_pretty(&serde_json::json!({
-                        "ok": true,
-                        "session": {
-                            "id": reg.id.as_str(),
-                            "display_name": reg.display_name,
-                            "state": reg.state.to_string(),
-                            "pid": reg.pid,
-                            "uid": reg.uid,
-                            "roles": reg.roles,
-                            "tags": reg.tags,
-                            "capabilities": reg.capabilities,
-                            "cwd": reg.metadata.cwd,
-                        }
-                    }))?);
-                } else {
-                    println!("ID:           {}", reg.id.as_str());
-                    println!("Display name: {}", reg.display_name);
-                    println!("State:        {}", reg.state);
-                    println!("PID:          {}", reg.pid);
-                    println!("Roles:        {}", if reg.roles.is_empty() { "(none)".to_string() } else { reg.roles.join(", ") });
-                    println!("Tags:         {}", if reg.tags.is_empty() { "(none)".to_string() } else { reg.tags.join(", ") });
-                    println!("Capabilities: {}", if reg.capabilities.is_empty() { "(none)".to_string() } else { reg.capabilities.join(", ") });
-                    if let Some(cwd) = reg.metadata.cwd.as_deref() {
-                        println!("Cwd:          {cwd}");
-                    }
-                }
+                print_whoami_card(&reg, json, None)?;
                 return Ok(());
             }
             Err(e) => {
@@ -585,8 +559,18 @@ pub(crate) async fn cmd_whoami(
         }
     }
 
-    // No hint — print all candidates so the caller can pick one.
+    // T-1303: PID-walk fallback. No flag and no env var → walk our own ancestor
+    // chain on Linux and pick the closest registered session that owns one of those PIDs.
     let sessions = manager::list_sessions(false).context("Failed to list sessions")?;
+    let ancestors = walk_ancestor_pids(std::process::id());
+    for ancestor_pid in &ancestors {
+        if let Some(reg) = sessions.iter().find(|s| s.pid == *ancestor_pid) {
+            print_whoami_card(reg, json, Some(*ancestor_pid))?;
+            return Ok(());
+        }
+    }
+
+    // No hint — print all candidates so the caller can pick one.
     if sessions.is_empty() {
         if json {
             println!("{}", serde_json::to_string_pretty(&serde_json::json!({
@@ -637,4 +621,142 @@ pub(crate) async fn cmd_whoami(
         println!("      and rerun `termlink whoami`. Or pass --session <id> / --name <display_name>.");
     }
     Ok(())
+}
+
+/// Print a whoami identity card. When `pid_walked_match` is `Some(pid)`, annotate
+/// the output to show the lookup succeeded via PID-walk (T-1303).
+fn print_whoami_card(
+    reg: &termlink_session::registration::Registration,
+    json: bool,
+    pid_walked_match: Option<u32>,
+) -> Result<()> {
+    if json {
+        let mut card = serde_json::json!({
+            "ok": true,
+            "session": {
+                "id": reg.id.as_str(),
+                "display_name": reg.display_name,
+                "state": reg.state.to_string(),
+                "pid": reg.pid,
+                "uid": reg.uid,
+                "roles": reg.roles,
+                "tags": reg.tags,
+                "capabilities": reg.capabilities,
+                "cwd": reg.metadata.cwd,
+            }
+        });
+        if let Some(p) = pid_walked_match {
+            card["resolved_via"] = serde_json::json!("pid_walk");
+            card["pid_walk_match"] = serde_json::json!(p);
+        }
+        println!("{}", serde_json::to_string_pretty(&card)?);
+    } else {
+        println!("ID:           {}", reg.id.as_str());
+        println!("Display name: {}", reg.display_name);
+        println!("State:        {}", reg.state);
+        println!("PID:          {}", reg.pid);
+        println!("Roles:        {}", if reg.roles.is_empty() { "(none)".to_string() } else { reg.roles.join(", ") });
+        println!("Tags:         {}", if reg.tags.is_empty() { "(none)".to_string() } else { reg.tags.join(", ") });
+        println!("Capabilities: {}", if reg.capabilities.is_empty() { "(none)".to_string() } else { reg.capabilities.join(", ") });
+        if let Some(cwd) = reg.metadata.cwd.as_deref() {
+            println!("Cwd:          {cwd}");
+        }
+        if let Some(p) = pid_walked_match {
+            println!();
+            println!("(matched via PID-walk: ancestor pid={p})");
+        }
+    }
+    Ok(())
+}
+
+/// Walk the process ancestor chain on Linux by parsing `/proc/<pid>/stat`.
+/// Returns the chain starting at `start` and ending at PID 1 (or wherever
+/// the walk fails — non-Linux, missing /proc, malformed stat, cycle).
+///
+/// Used by `cmd_whoami` (T-1303) to find a registered session whose pid is
+/// one of our ancestors when the env-var disambiguator is not set.
+fn walk_ancestor_pids(start: u32) -> Vec<u32> {
+    let mut chain = vec![start];
+    let mut current = start;
+    // Hard cap to avoid pathological loops if /proc is somehow inconsistent.
+    for _ in 0..1024 {
+        if current <= 1 {
+            break;
+        }
+        match read_ppid_from_proc(current) {
+            Some(ppid) if ppid != current && !chain.contains(&ppid) => {
+                chain.push(ppid);
+                current = ppid;
+            }
+            _ => break,
+        }
+    }
+    chain
+}
+
+/// Read field 4 (ppid) from `/proc/<pid>/stat`. Returns None on any failure
+/// (missing /proc, read error, malformed format).
+fn read_ppid_from_proc(pid: u32) -> Option<u32> {
+    let raw = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    parse_ppid_from_stat(&raw)
+}
+
+/// Parse `/proc/<pid>/stat` content into ppid. The comm field (field 2) is
+/// wrapped in parens and may itself contain spaces or parens, so we split on
+/// the LAST `)` and resume from there. ppid is field 4 overall (field 2 in
+/// the post-`)` slice after state).
+fn parse_ppid_from_stat(raw: &str) -> Option<u32> {
+    let close = raw.rfind(')')?;
+    let after = &raw[close + 1..];
+    let parts: Vec<&str> = after.split_whitespace().collect();
+    // After `)` the fields are: state, ppid, pgrp, ...
+    parts.get(1)?.parse::<u32>().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ppid_from_stat_simple() {
+        // /proc/<pid>/stat layout: pid (comm) state ppid pgrp ...
+        let raw = "1234 (bash) S 5678 1234 1234 34816 1234 4194304 ...";
+        assert_eq!(parse_ppid_from_stat(raw), Some(5678));
+    }
+
+    #[test]
+    fn parse_ppid_from_stat_comm_has_paren() {
+        // comm field can contain ')'. The right-most ')' is the closing one.
+        let raw = "42 (foo) bar) S 99 42 42 0 ...";
+        assert_eq!(parse_ppid_from_stat(raw), Some(99));
+    }
+
+    #[test]
+    fn parse_ppid_from_stat_malformed_returns_none() {
+        assert_eq!(parse_ppid_from_stat(""), None);
+        assert_eq!(parse_ppid_from_stat("no parens here"), None);
+        assert_eq!(parse_ppid_from_stat("1234 (bash) S NOT_A_NUMBER 1234"), None);
+    }
+
+    #[test]
+    fn walk_ancestor_pids_self_terminates_at_pid1() {
+        let chain = walk_ancestor_pids(std::process::id());
+        // On Linux this should produce a chain ending at PID 1 (or the
+        // outermost reachable ancestor in this namespace).
+        assert!(!chain.is_empty(), "chain should always include self");
+        assert_eq!(chain[0], std::process::id(), "first entry is self");
+        // Non-fatal: in some sandbox environments /proc may not be readable
+        // for all ancestors, so we just assert no infinite loop and no dups.
+        let mut seen = std::collections::HashSet::new();
+        for p in &chain {
+            assert!(seen.insert(*p), "no duplicate pids in chain");
+        }
+    }
+
+    #[test]
+    fn walk_ancestor_pids_unknown_pid_returns_just_start() {
+        // PID very unlikely to exist
+        let chain = walk_ancestor_pids(999_999_999);
+        assert_eq!(chain, vec![999_999_999]);
+    }
 }
