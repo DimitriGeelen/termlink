@@ -166,3 +166,7 @@ termlink spawn --name reviewer --roles reviewer --wait -- \
 3. **`request_id` enables concurrent delegations.** An orchestrator can delegate to multiple specialists simultaneously and correlate replies.
 4. **`task_id` bridges TermLink and the framework task system.** When present, the specialist should create or work under this framework task.
 5. **Topics are hierarchical by convention.** `task.*` for delegation lifecycle. Future extensions: `session.*` for lifecycle, `health.*` for monitoring.
+
+## See also
+
+- `docs/conventions/multi-turn-dialog.md` — sustained-conversation pattern using `metadata.conversation_id` + `event_type` over `channel.*` (T-243). Use for ongoing dialogs; this doc covers fire-and-collect delegation.
