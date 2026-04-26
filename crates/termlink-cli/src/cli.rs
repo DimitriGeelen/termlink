@@ -1797,6 +1797,11 @@ pub(crate) enum ProfileAction {
         #[arg(long)]
         scope: Option<String>,
 
+        /// T-1291: declared out-of-band trust anchor for `fleet reauth --bootstrap-from auto`.
+        /// Same scheme vocabulary as T-1055: `file:<path>` or `ssh:<host>`.
+        #[arg(long)]
+        bootstrap_from: Option<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
