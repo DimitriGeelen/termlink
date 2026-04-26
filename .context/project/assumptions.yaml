@@ -83,3 +83,40 @@ assumptions:
   linked_task: T-243
   created: '2026-04-25'
   resolved_date: null
+- id: A-011
+  statement: framework-agent will continue to be a multi-purpose session (governance
+    + cross-project learning relay) — destination-side hard rejection cannot be the
+    fix
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1297
+  created: '2026-04-26'
+  resolved_date: null
+- id: A-012
+  statement: Most product topics map stably to a product role; mapping table grows
+    slowly enough to maintain (target <50 entries)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1297
+  created: '2026-04-26'
+  resolved_date: null
+- id: A-013
+  statement: Agents that misroute do so because they lack a cheap self-lookup, not
+    because they bypass routing rules — a whoami-class lookup will be used when available
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1297
+  created: '2026-04-26'
+  resolved_date: null
+- id: A-014
+  statement: Warn-not-reject lint at emit time is enough to catch regressions without
+    breaking legit relay
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1297
+  created: '2026-04-26'
+  resolved_date: null
