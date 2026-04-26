@@ -402,6 +402,16 @@ pub(crate) async fn handle_channel_subscribe_with(
         .and_then(|v| v.as_u64())
         .unwrap_or(0)
         .min(60_000);
+    // T-1287: optional conversation_id filter. When present, only envelopes
+    // whose metadata.conversation_id == filter are included. Filter applies
+    // BEFORE the limit, so a small number of matching messages can be
+    // surfaced even when many non-matching ones precede them. last_offset
+    // still advances over all examined records so the next_cursor moves
+    // past skipped records — clients don't redundantly re-scan them.
+    let conversation_id_filter = params
+        .get("conversation_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     let iter = if timeout_ms > 0 {
         match bus
@@ -448,16 +458,21 @@ pub(crate) async fn handle_channel_subscribe_with(
 
     let mut messages: Vec<Value> = Vec::new();
     let mut last_offset: Option<u64> = None;
-    for (i, item) in iter.enumerate() {
-        if i >= limit {
-            break;
-        }
+    for item in iter {
         let (offset, env) = match item {
             Ok(x) => x,
             Err(e) => return ErrorResponse::internal_error(id, &format!("channel.subscribe decode: {e}")).into(),
         };
         last_offset = Some(offset);
+        if let Some(ref cid) = conversation_id_filter {
+            if env.metadata.get("conversation_id").map(|s| s.as_str()) != Some(cid.as_str()) {
+                continue;
+            }
+        }
         messages.push(envelope_to_json(offset, &env));
+        if messages.len() >= limit {
+            break;
+        }
     }
     let next_cursor = last_offset.map(|o| o + 1).unwrap_or(cursor);
     Response::success(
@@ -623,6 +638,31 @@ mod tests {
             RpcResponse::Error(e) => (e.error.code, e.error.message),
             RpcResponse::Success(_) => panic!("expected error, got success"),
         }
+    }
+
+    fn post_params_with_meta(
+        key: &SigningKey,
+        topic: &str,
+        msg_type: &str,
+        payload: &[u8],
+        ts: i64,
+        metadata: Option<Value>,
+    ) -> Value {
+        let signed = canonical_sign_bytes(topic, msg_type, payload, None, ts);
+        let sig = key.sign(&signed);
+        let mut p = json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "ts": ts,
+            "sender_id": "tester",
+            "sender_pubkey_hex": hex_of(key.verifying_key().as_bytes()),
+            "signature_hex": hex_of(&sig.to_bytes()),
+        });
+        if let (Some(meta), Some(obj)) = (metadata, p.as_object_mut()) {
+            obj.insert("metadata".to_string(), meta);
+        }
+        p
     }
 
     fn post_params(
@@ -1083,5 +1123,117 @@ mod tests {
             let decoded: Value = serde_json::from_slice(&bytes).unwrap();
             assert_eq!(decoded["n"], i as i32);
         }
+    }
+
+    #[tokio::test]
+    async fn post_with_metadata_round_trips_through_subscribe() {
+        // T-1287: post with conversation_id + event_type → subscribe (no
+        // filter) returns metadata intact on the wire.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:meta", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params_with_meta(
+            &key,
+            "inbox:meta",
+            "note",
+            b"hello",
+            2_000,
+            Some(json!({"conversation_id": "c-1", "event_type": "turn"})),
+        );
+        let post = handle_channel_post_with(&bus, json!(1), &p).await;
+        let _ = unwrap_success(post);
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({"topic": "inbox:meta", "cursor": 0}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let msgs = v["messages"].as_array().unwrap();
+        assert_eq!(msgs.len(), 1);
+        let meta = msgs[0]["metadata"].as_object().expect("metadata present");
+        assert_eq!(meta.get("conversation_id").and_then(|x| x.as_str()), Some("c-1"));
+        assert_eq!(meta.get("event_type").and_then(|x| x.as_str()), Some("turn"));
+    }
+
+    #[tokio::test]
+    async fn subscribe_with_conversation_id_filters_and_advances_cursor() {
+        // T-1287: post 3 messages with mixed conversation_ids. Subscribe
+        // with conversation_id filter returns only matching messages, in
+        // offset order. next_cursor advances PAST the skipped non-matching
+        // record so the client doesn't redundantly re-scan it.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:filt", Retention::Forever).unwrap();
+        let key = signing_key();
+
+        let p1 = post_params_with_meta(
+            &key, "inbox:filt", "note", b"a1", 3_001,
+            Some(json!({"conversation_id": "c-A"})),
+        );
+        let _ = handle_channel_post_with(&bus, json!(1), &p1).await;
+        let p2 = post_params_with_meta(
+            &key, "inbox:filt", "note", b"b1", 3_002,
+            Some(json!({"conversation_id": "c-B"})),
+        );
+        let _ = handle_channel_post_with(&bus, json!(2), &p2).await;
+        let p3 = post_params_with_meta(
+            &key, "inbox:filt", "note", b"a2", 3_003,
+            Some(json!({"conversation_id": "c-A"})),
+        );
+        let _ = handle_channel_post_with(&bus, json!(3), &p3).await;
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(4),
+            &json!({"topic": "inbox:filt", "cursor": 0, "conversation_id": "c-A"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let msgs = v["messages"].as_array().unwrap();
+        assert_eq!(msgs.len(), 2, "only c-A messages should be surfaced");
+
+        // In-order, payloads are a1 then a2.
+        let bytes0 = base64::engine::general_purpose::STANDARD
+            .decode(msgs[0]["payload_b64"].as_str().unwrap())
+            .unwrap();
+        let bytes1 = base64::engine::general_purpose::STANDARD
+            .decode(msgs[1]["payload_b64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(&bytes0, b"a1");
+        assert_eq!(&bytes1, b"a2");
+
+        // next_cursor MUST advance past the skipped c-B record (offset 1)
+        // so a follow-up subscribe doesn't re-examine it.
+        let next = v["next_cursor"].as_u64().unwrap();
+        let last_offset = msgs[1]["offset"].as_u64().unwrap();
+        assert_eq!(next, last_offset + 1, "cursor advances over skipped records");
+    }
+
+    #[tokio::test]
+    async fn subscribe_without_metadata_omits_field_on_wire() {
+        // T-1287: posts without metadata produce envelopes whose JSON has
+        // NO `metadata` key — preserves legacy wire format for callers
+        // that don't use the new field.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:plain", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params(&key, "inbox:plain", "note", b"x", 4_000);
+        let _ = handle_channel_post_with(&bus, json!(1), &p).await;
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({"topic": "inbox:plain", "cursor": 0}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let msgs = v["messages"].as_array().unwrap();
+        assert_eq!(msgs.len(), 1);
+        let env = msgs[0].as_object().unwrap();
+        assert!(
+            !env.contains_key("metadata"),
+            "envelope without metadata must omit the key entirely"
+        );
     }
 }
