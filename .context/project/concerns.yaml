@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-047
+  type: gap
+  title: "fw task verify counts AC checkboxes inside HTML <!-- comments --> (template examples appear as real unchecked ACs)"
+  description: "The default task template includes an `<!-- Example: - [ ] [REVIEW] Dashboard renders correctly -->` block under `### Human` to show authors how to write Human ACs. `fw task verify` parses task files line-by-line for `- [ ]` / `- [x]` patterns without HTML-comment awareness, so it counts the example as a real unchecked AC. Result: every freshly-created task with the default template appears in the 'Awaiting Human Verification' list with one fake AC '[REVIEW] Dashboard renders correctly', regardless of whether the task is UI-related. Inflates the G-008 partial-complete signal with false positives and trains the operator to ignore the queue."
+  spec_reference: ".agentic-framework/agents/task-create/zzz-default.md (template), .agentic-framework/agents/task-create/update-task.sh + fw task verify command (parser)"
+  severity: low
+  trigger_fired: true
+  trigger_event: "2026-04-26: After creating T-1291 (Declarative heal manifest) with the default template, `fw task verify` reported it as having an unchecked '[REVIEW] Dashboard renders correctly' Human AC. The actual file had only the template's example comment, no real Human ACs at all. Same false-positive observed on T-1124 and T-1261, both also using the default template with no human-relevant ACs."
+  detection_lag_days: 0
+  what_works_now: "Authors who customize their Human ACs (e.g. T-1290) get correct verify output. Authors who delete the example block early get correct output. Cleanup is one-line: remove the `<!-- ... -->` example."
+  what_remains: "1. Make `fw task verify` HTML-comment-aware (skip lines between `<!--` and `-->` markers when counting `- [ ]`). 2. OR: change the default template to put the example outside the AC list as a non-bullet sentence. 3. OR: change the example marker to `- [x]` so it doesn't count as 'unchecked' (wallpaper, not fix)."
+  mitigation_candidate: "Tier-1: clean up T-1291 manually 2026-04-26 (done — comment block removed). Tier-3: small parser patch in update-task.sh / fw task verify to track inside-comment state."
+  status: watching
+  created: 2026-04-26
+  related_tasks: [T-1291]
+
 - id: G-046
   type: gap
   title: "Watchtower inception decide form does not pre-fill rationale from existing research artifact (docs/reports/T-XXX-inception.md)"
