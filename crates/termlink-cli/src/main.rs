@@ -202,6 +202,9 @@ async fn main() -> Result<()> {
             let opts = commands::metadata::DiscoverOpts { tags: tag, roles: role, caps: cap, name, wait, wait_timeout, id };
             commands::metadata::cmd_discover(opts, &display).await
         }
+        Command::Whoami { session, name, json } => {
+            commands::metadata::cmd_whoami(session, name, json).await
+        }
         Command::Kv { target, json, timeout, raw, keys, hub, secret_file, secret, scope, action } => {
             let action = action.unwrap_or(KvAction::List);
             let opts = target::TargetOpts {

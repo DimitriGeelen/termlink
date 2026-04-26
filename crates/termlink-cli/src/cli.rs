@@ -652,6 +652,26 @@ pub(crate) enum Command {
         no_header: bool,
     },
 
+    /// Identify which session is running this caller (T-1299 / T-1297).
+    ///
+    /// Disambiguator chain:
+    ///   1. `--session` flag, or `$TERMLINK_SESSION_ID` env var → exact match.
+    ///   2. `--name <display_name>` → exact match (rejects on collision).
+    ///   3. Neither → prints all live candidates so you can pick.
+    Whoami {
+        /// Session id hint. Defaults to `$TERMLINK_SESSION_ID` when set.
+        #[arg(long)]
+        session: Option<String>,
+
+        /// Display-name hint (alternative to --session).
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Output as JSON.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Manage key-value metadata on a session
     Kv {
         /// Session ID or display name
