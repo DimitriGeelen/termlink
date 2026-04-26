@@ -25,6 +25,10 @@ pub(crate) struct HubEntry {
     pub secret: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
+    /// T-1291: declared out-of-band trust anchor for `fleet reauth --bootstrap-from auto`.
+    /// Same scheme vocabulary as T-1055 (`file:<path>`, `ssh:<host>`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bootstrap_from: Option<String>,
 }
 
 pub(crate) fn hubs_config_path() -> std::path::PathBuf {
@@ -134,6 +138,7 @@ mod tests {
             secret_file: Some("/etc/termlink/prod.key".to_string()),
             secret: None,
             scope: Some("observe".to_string()),
+            bootstrap_from: None,
         });
 
         let p = resolve_hub_profile_with_config("prod", None, None, "observe", &config).unwrap();
@@ -150,6 +155,7 @@ mod tests {
             secret_file: Some("/default/key".to_string()),
             secret: None,
             scope: Some("observe".to_string()),
+            bootstrap_from: None,
         });
 
         let p = resolve_hub_profile_with_config(
@@ -182,12 +188,14 @@ mod tests {
             secret_file: Some("/keys/staging.key".to_string()),
             secret: None,
             scope: Some("control".to_string()),
+            bootstrap_from: None,
         });
         config.hubs.insert("minimal".to_string(), HubEntry {
             address: "min.local:9100".to_string(),
             secret_file: None,
             secret: None,
             scope: None,
+            bootstrap_from: None,
         });
 
         let toml_str = toml::to_string_pretty(&config).unwrap();
@@ -238,6 +246,7 @@ mod tests {
             secret_file: None,
             secret: Some("s3cret".to_string()),
             scope: None,
+            bootstrap_from: None,
         });
 
         save_hubs_config(&config).unwrap();

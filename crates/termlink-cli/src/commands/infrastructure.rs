@@ -1297,6 +1297,7 @@ mod tests {
                 ),
                 secret: None,
                 scope: None,
+                bootstrap_from: None,
             },
         );
         let hints = audit_hubs_for_self_hub_cache(&config, &secrets_dir);
@@ -1329,6 +1330,7 @@ mod tests {
                 ),
                 secret: None,
                 scope: None,
+                bootstrap_from: None,
             },
         );
         let hints = audit_hubs_for_self_hub_cache(&config, &secrets_dir);
@@ -1349,6 +1351,7 @@ mod tests {
                 secret_file: Some(secrets_dir.join("local.hex").to_string_lossy().to_string()),
                 secret: None,
                 scope: None,
+                bootstrap_from: None,
             },
         );
         // IPv6 loopback (bracketed)
@@ -1359,6 +1362,7 @@ mod tests {
                 secret_file: Some(secrets_dir.join("v6.hex").to_string_lossy().to_string()),
                 secret: None,
                 scope: None,
+                bootstrap_from: None,
             },
         );
         let hints = audit_hubs_for_self_hub_cache(&config, &secrets_dir);
