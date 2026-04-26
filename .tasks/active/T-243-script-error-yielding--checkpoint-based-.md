@@ -12,7 +12,7 @@ tags: [T-233, orchestration, error-yielding]
 components: []
 related_tasks: [T-233]
 created: 2026-03-23T13:28:06Z
-last_update: 2026-04-26T09:32:41Z
+last_update: 2026-04-26T09:37:51Z
 date_finished: null
 ---
 
@@ -139,3 +139,16 @@ _Backfilled 2026-04-19 under T-1139/T-1112 scope — inception decide ran before
 - **Rationale:** Three-agent inception via termlink_batch_run converged on heartbeat-as-infrastructure +
   everything-else-as-convention. Operator confirmed direction. Five child build tasks T-1285..T-1289 created. Auth foundation deferred to T-1284. Meta data: termlink_spawn for
   ad-hoc bash failed (registration timeout); termlink_batch_run worked first-try — same shape mismatch T-243 itself addresses, additional evidence for GO.
+
+### 2026-04-26T11:13Z — readiness-for-closure [agent]
+- **Action:** All five child build tasks now CLOSED. Multi-turn dialog primitive is wired end-to-end.
+- **Evidence (closure-ready for the remaining Human AC):**
+  * T-1285 ✓ `Bus::oldest_offset` for subscriber gap detection — commit `67daa418`
+  * T-1287 ✓ `channel.post` metadata + `channel.subscribe` `conversation_id` filter — commits `acdca538` + `04265ab7`
+  * T-1289 ✓ `channel.subscribe` long-poll via per-topic Notify — commit `1a0160a8`
+  * T-1286 ✓ `dialog.presence` typed RPC + passive presence tracker — commit `5137d5fe`
+  * T-1288 ✓ `docs/conventions/multi-turn-dialog.md` convention catalog — commit `88a13397`
+  * T-1284 ✓ G-011 auth foundation closed (value-comparison + self-hub profile audit) — commit `ab21c26e`
+- **Test coverage:** termlink-bus 31, termlink-hub 231, termlink CLI 223 unit + 172 integration. 0 failed.
+- **Direction-buildable evidence:** Synthesis from inception (Agent C minimal-surface path + Agent B heartbeat-as-infrastructure framing) shipped without hitting design surprises. Each wedge landed in a single session with passing tests on first run, suggesting the design held up under build pressure.
+- **Outstanding Human AC:** "Operator confirms the recommendation reflects the actual pain and the chosen direction is buildable." Operator already recorded GO 2026-04-26T09:34:15Z and stated "its alrady at GO" verbally; with all dependent build tasks now closed, this AC is substantively satisfied. Closure can proceed when operator next reviews active tasks.
