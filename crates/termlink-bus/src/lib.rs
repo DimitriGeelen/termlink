@@ -132,6 +132,22 @@ impl Bus {
         Ok(Box::new(iter))
     }
 
+    /// Smallest offset still live in `topic` (after retention sweeps), or
+    /// `None` if the topic has zero records.
+    ///
+    /// Subscribers use this to detect that their cursor fell behind the
+    /// retention window: if `cursor < oldest_offset(topic)`, the records in
+    /// the gap were swept and the subscriber missed them. T-1285 / T-243
+    /// (dialog.heartbeat reconnect must surface gaps, not silently skip turns).
+    ///
+    /// Returns `BusError::UnknownTopic` if the topic was never registered.
+    pub fn oldest_offset(&self, topic: &str) -> Result<Option<Offset>> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        self.meta.oldest_offset(topic)
+    }
+
     /// Persist a subscriber's cursor. Use this after consuming records so
     /// a crash restart resumes where the subscriber left off.
     pub fn advance_cursor(
@@ -384,6 +400,48 @@ mod tests {
             .map(|r| r.unwrap().1.payload)
             .collect();
         assert_eq!(payloads, vec![b"fresh".to_vec()]);
+    }
+
+    #[tokio::test]
+    async fn oldest_offset_reflects_sweep_drops() {
+        // T-1285: subscribers that disconnect across a retention sweep must
+        // be able to detect that their cursor fell behind. oldest_offset()
+        // is the cheap signal: cursor < oldest_offset == gap.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(2)).unwrap();
+
+        // No records yet — None.
+        assert_eq!(bus.oldest_offset("t").unwrap(), None);
+
+        for i in 0..5 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes()))
+                .await
+                .unwrap();
+        }
+        // 5 posts, offsets 0..=4, oldest = 0.
+        assert_eq!(bus.oldest_offset("t").unwrap(), Some(0));
+
+        // Sweep — Retention::Messages(2) keeps offsets 3,4.
+        let pruned = bus.sweep("t", 0).unwrap();
+        assert_eq!(pruned, 3);
+
+        // Subscriber reconnecting with cursor=1 must be able to see that
+        // oldest live offset is now 3 → records at offsets 1,2 are gone.
+        let oldest = bus.oldest_offset("t").unwrap();
+        assert_eq!(oldest, Some(3));
+        let cursor: u64 = 1;
+        assert!(cursor < oldest.unwrap(), "gap must be detectable");
+
+        // After full trim: None signals empty topic, distinct from "no gap".
+        bus.trim_topic("t", None).unwrap();
+        assert_eq!(bus.oldest_offset("t").unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn oldest_offset_unknown_topic_errors() {
+        let (_dir, bus) = tmp_bus();
+        let err = bus.oldest_offset("nope").unwrap_err();
+        assert!(matches!(err, BusError::UnknownTopic(_)));
     }
 
     #[tokio::test]
