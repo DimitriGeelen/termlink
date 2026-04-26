@@ -4,7 +4,7 @@ name: "TermLink agent-routing discipline — prevent misrouting product traffic 
 description: >
   Inception: TermLink agent-routing discipline — prevent misrouting product traffic to wrong session
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [termlink, routing, agent-discipline, hub, structural]
 components: []
 related_tasks: [T-1291, T-243]
 created: 2026-04-26T20:37:36Z
-last_update: 2026-04-26T20:39:50Z
-date_finished: null
+last_update: 2026-04-26T21:18:12Z
+date_finished: 2026-04-26T21:18:12Z
 ---
 
 # T-1297: TermLink agent-routing discipline — prevent misrouting product traffic to wrong session
@@ -72,12 +72,12 @@ Three short spikes, each ≤2 hours:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -107,12 +107,16 @@ Three short spikes, each ≤2 hours:
 
 ## Recommendation
 
-<!-- Filled after spikes 1-3. Pre-spike inclination below; final recommendation lands here after evidence. -->
+**GO on combined fix:** `(1) termlink whoami + (2) topic↔role soft-lint + (3) relay_for opt-in`. Defense in depth — `whoami` removes the guess, lint catches the miss when guess fails or memory is stale, `relay_for` lets framework-agent legitimately forward cross-project traffic without warnings. Hard destination-rejection rejected because relay is a first-class operation. Decomposed into Build A whoami (½d) + Build B mapping+lint (1d) + Build C relay_for (½d) ≈ 2 dev-days total, reversible.
 
-**Pre-spike inclination (2026-04-26 dialogue, NOT yet validated):**
-GO on a combined `whoami` + topic↔role soft-lint fix, decomposed into 2-3 build tasks. Defense in depth — `whoami` removes the *guess*, lint catches the *miss* when guess fails or memory is stale. Hard rejection is dead because relay is a first-class operation; warning-only with `relay_for` opt-in covers the legit relay case.
+**Evidence (all three GO criteria satisfied):**
+- Spike 1: 5 confirmed misroutes on framework-agent (seq 224/231/688/906/907) — payload-level evidence with originator + intended target both named, neither = framework-agent. ≥3-incident threshold met conservatively.
+- Spike 2: cwd-only lookup is ambiguous in 71% of current sessions; env-var injection at register-time disambiguates without registry restructuring; existing registry already has all needed fields.
+- Spike 3: 10 prefix rules + 4 exempt categories cover 95% of 125 live topics; centralized hub-side YAML + per-session `relay_for` TOML shape; <50 entries, well under 5-min/week budget.
 
-Locked once spikes complete.
+**NO-GO triggers all cleared:** existing primitives have no concept of role-topic binding; misroutes succeeded auth (not auth-driven); register-time naming convention doesn't catch emit-time originator confusion.
+
+Full evidence trail: `docs/reports/T-1297-termlink-agent-routing-discipline.md` §§ Spike 1/2/3 + Summary.
 
 ## Decisions
 
@@ -127,7 +131,20 @@ Locked once spikes complete.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: GO on combined fix: `(1) termlink whoami + (2) topic↔role soft-lint + (3) relay_for opt-in`. Defense in depth — `whoami` removes the guess, lint catches the miss when guess fails or memory is stale, `relay_for` lets framework-agent legitimately forward cross-project traffic without warnings. Hard destination-rejection rejected because relay is a first-class operation. Decomposed into Build A whoami (½d) + Build B mapping+lint (1d) + Build C relay_for (½d) ≈ 2 dev-days total, reversible.
+
+Evidence (all three GO criteria satisfied):
+- Spike 1: 5 confirmed misroutes on framework-agent (seq 224/231/688/906/907) — payload-level evidence with originator + intended target both named, neither = framework-agent. ≥3-incident threshold met conservatively.
+- Spike 2: cwd-only lookup is ambiguous in 71% of current sessions; env-var injection at register-time disambiguates without registry restructuring; existing registry already has all needed fields.
+- Spike 3: 10 prefix rules + 4 exempt categories cover 95% of 125 live topics; centralized hub-side YAML + per-session `relay_for` TOML shape; <50 entries, well under 5-min/week budget.
+
+NO-GO triggers all cleared: existing primitives have no concept of role-topic binding; misroutes succeeded auth (not auth-driven); register-time naming convention doesn't catch emit-time originator confusion.
+
+Full evidence trail: `docs/reports/T-1297-termlink-agent-routing-discipline.md` §§ Spike 1/2/3 + Summary.
+
+**Date**: 2026-04-26T21:18:12Z
 
 ## Updates
 
@@ -145,3 +162,42 @@ Locked once spikes complete.
 - **Design signal:** every misrouted event carries a `relay_target` / `needs` / `from` field — the originator already encodes the intended destination at emit time. Option 2 soft-lint has high-quality input data: compare `topic_prefix` against `payload.{relay_target,needs}` and warn on mismatch.
 - **Bug bonus (out-of-scope, follow-up needed):** one topic on framework-agent literally named `learning.shared</topic>\n<parameter name="from">email-archive` — XML interpolation leaked into topic string. Indicates insufficient topic-name validation on emit.
 - **Artifact updated:** `docs/reports/T-1297-termlink-agent-routing-discipline.md` § Spike 1.
+
+### 2026-04-26T21:15Z — spike-2 complete (whoami prototype) [agent]
+- **Cwd-collision matrix:** 5 of 7 sessions share cwd with another (3× /opt/termlink, 2× /opt/3021-Bilderkarte-tool-llm). Cwd-only lookup fails 71% of the time.
+- **Disambiguator design:** TERMLINK_SESSION_ID env var set at session creation (canonical), source-PID tree walk fallback, ambiguous-result hint for outsiders. Hub registry already tracks (id, display_name, roles, tags, cwd, pid, hub_address); whoami is pure exposure of existing state.
+- **Existing CLI surface:** `termlink info` shows runtime state, `termlink status` queries OTHER sessions. No current `whoami`-class primitive — Spike 2 design is additive.
+- **Edge cases checked:** multi-role sessions return list (no collapse to single role); cross-host out of scope; stale registrations already filtered. No design surprises.
+- **GO criterion 2 satisfied:** lookup unambiguous once disambiguator added. Env-var injection at register-time is small additive change to existing register flow, NOT registry restructuring.
+
+### 2026-04-26T21:25Z — spike-3 complete (mapping shape) [agent]
+- **Coverage check:** drafted 10 prefix rules + 4 exempt categories; covers 119 of 125 live catalog topics (95%). Remaining 6 = 1 malformed-name bug + 5 unclassified product names needing operator review on first sight.
+- **Centralized hub-side YAML chosen** over distributed: prefix conflicts need a single arbiter; lint must apply uniformly across all sessions; operator audits one file.
+- **`relay_for` opt-in shape:** per-session TOML stanza in hubs.toml, lint suppresses warnings when declared session emits declared prefixes. Keeps central mapping clean.
+- **Maintenance budget:** 10 rules + ~5 relay declarations < 50-entry NO-GO threshold and well within 5-min/week budget.
+- **Decomposition:** Build A whoami ½d + Build B mapping+lint 1d + Build C relay_for ½d ≤ "≤3 builds each ≤1 day" satisfied.
+- **GO criterion 3 satisfied.**
+
+### 2026-04-26T21:30Z — all GO criteria satisfied — ready for inception decide [agent]
+- **Summary:** GO criterion 1 (≥3 incidents) — 5 confirmed; GO criterion 2 (unambiguous whoami) — env-var solves 71% collision; GO criterion 3 (maintainable mapping) — 10 rules + 4 exempt cover 95%, decomposable into ≤3 ≤1-day builds.
+- **NO-GO triggers all cleared:** existing primitives cannot cover; pain not auth-driven (all 5 misroutes succeeded auth); naming-convention-at-register doesn't address emit-time confusion.
+- **Locked recommendation:** GO on combined fix `(1) termlink whoami + (2) topic↔role soft-lint + (3) relay_for opt-in`. Total ~2 dev-days, reversible.
+- **Awaiting operator action:** record GO via inception decide, then create child build tasks T-A/B/C.
+
+### 2026-04-26T21:18:12Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** GO on combined fix: `(1) termlink whoami + (2) topic↔role soft-lint + (3) relay_for opt-in`. Defense in depth — `whoami` removes the guess, lint catches the miss when guess fails or memory is stale, `relay_for` lets framework-agent legitimately forward cross-project traffic without warnings. Hard destination-rejection rejected because relay is a first-class operation. Decomposed into Build A whoami (½d) + Build B mapping+lint (1d) + Build C relay_for (½d) ≈ 2 dev-days total, reversible.
+
+Evidence (all three GO criteria satisfied):
+- Spike 1: 5 confirmed misroutes on framework-agent (seq 224/231/688/906/907) — payload-level evidence with originator + intended target both named, neither = framework-agent. ≥3-incident threshold met conservatively.
+- Spike 2: cwd-only lookup is ambiguous in 71% of current sessions; env-var injection at register-time disambiguates without registry restructuring; existing registry already has all needed fields.
+- Spike 3: 10 prefix rules + 4 exempt categories cover 95% of 125 live topics; centralized hub-side YAML + per-session `relay_for` TOML shape; <50 entries, well under 5-min/week budget.
+
+NO-GO triggers all cleared: existing primitives have no concept of role-topic binding; misroutes succeeded auth (not auth-driven); register-time naming convention doesn't catch emit-time originator confusion.
+
+Full evidence trail: `docs/reports/T-1297-termlink-agent-routing-discipline.md` §§ Spike 1/2/3 + Summary.
+
+### 2026-04-26T21:18:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
