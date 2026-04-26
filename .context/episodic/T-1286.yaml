@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1286: T-243 dep: Implement dialog.heartbeat as typed RPC (or hub-tracked invariant)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-26T11:03:08Z
+# ============================================================================
+
+task_id: T-1286
+task_name: "T-243 dep: Implement dialog.heartbeat as typed RPC (or hub-tracked invariant)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T09:31:58Z
+completed: 2026-04-26T11:03:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-26T13:03:03+02:00
+last_commit: 2026-04-26T13:03:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Add dialog.presence — passive multi-turn dialog presence tracker
+
+# Key outcomes
+outcomes:
+  - "Hub gains `PresenceTracker` carrying `(conversation_id, agent_id) → last_seen_ms` map behind `RwLock`, process-global via `OnceLock`. (channel.rs, `pub(crate) struct PresenceTracker`)"
+  - "`handle_channel_post_with` records presence after `bus.post` succeeds when `env.metadata.conversation_id` is present. Posts without conversation_id are no-op."
+  - "New JSON-RPC method `dialog.presence` registered in `route()` dispatch (router.rs) and listed in `hub.capabilities` (sorted, unique). Param: `conversation_id` required. Result: `{presences: [{agent_id, last_seen_ms}, ...]}` sorted by `agent_id`. Method constant: `control::method::DIALOG_PRESENCE`."
+  - "Unknown conversation_id returns `{presences: []}` (not an error)."
+  - "Test: 3 posts on cid=t1286-c1 with alice/bob/alice → presence returns 2 entries, sorted, alice's last_seen_ms = LATER post's ts (overwrites earlier). (`dialog_presence_tracks_senders_per_conversation`)"
+  - "Test: posts with no conversation_id metadata don't appear (`dialog_presence_ignores_posts_without_conversation_id`)"
+  - "Test: unknown conversation_id returns empty list, not error (`dialog_presence_unknown_conversation_returns_empty`)"
+  - "Test: missing conversation_id param → -32602 (`dialog_presence_missing_conversation_id_is_invalid_params`)"
+  - "cargo test passes: 31 (termlink-bus) + 231 (termlink-hub). 0 failed."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - ".tasks/active/T-1286-t-243-dep-implement-dialogheartbeat-as-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-26T13:03:03"
+    action: "T-1286: Add dialog.presence — passive multi-turn dialog presence tracker"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 91 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-243, heartbeat, reliability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 91
+  commits: 2
+  files_changed: 5
+  lines_added: 276
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1286-t-243-dep-implement-dialogheartbeat-as-t.md
+generated_by: context-agent-hybrid

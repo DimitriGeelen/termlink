@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1285: T-243 dep: Audit + harden channel.* ordered durable delivery
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-26T09:43:21Z
+# ============================================================================
+
+task_id: T-1285
+task_name: "T-243 dep: Audit + harden channel.* ordered durable delivery"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T09:31:53Z
+completed: 2026-04-26T09:43:20Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-26T11:42:02+02:00
+last_commit: 2026-04-26T11:43:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Channel.* audit findings — gap detection missing, must-fix for T-1286. Add Bus::oldest_offset for subscriber gap detection (T-243 dep)
+
+# Key outcomes
+outcomes:
+  - "Surveyed `termlink-bus` Bus/LogAppender/Meta + `termlink-hub` channel.rs"
+  - "Verified ordering safety under concurrent writers (offset assignment is monotonic via SQLite transaction)"
+  - "Identified missing subscriber gap-detection on retention sweep — must-fix before T-1286 (dialog.heartbeat) lands"
+  - "Identified missing fsync — should-fix, not blocking"
+  - "Audit findings documented in task file"
+  - "Implement subscriber gap detection — `Bus::oldest_offset(topic) -> Option<Offset>` exposed (lib.rs); SQLite `MIN(offset)` query in Meta::oldest_offset (meta.rs)"
+  - "Add test: post 5, sweep to 2, oldest_offset reports 3 → cursor=1 detects gap (oldest_offset_reflects_sweep_drops). Plus oldest_offset_unknown_topic_errors for the error path."
+  - "cargo test passes for `termlink-bus` — 27/27 tests pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Channel.* audit findings — gap detection missing, must-fix for T-1286"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-bus/src/lib.rs"
+  - "crates/termlink-bus/src/meta.rs"
+  - ".tasks/active/T-1285-t-243-dep-audit--harden-channel-ordered-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-26T11:42:02"
+    action: "T-1285: Channel.* audit findings — gap detection missing, must-fix for T-1286"
+  - time: "2026-04-26T11:43:14"
+    action: "T-1285: Add Bus::oldest_offset for subscriber gap detection (T-243 dep)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-243, channel, reliability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 2
+  files_changed: 3
+  lines_added: 140
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1285-t-243-dep-audit--harden-channel-ordered-.md
+generated_by: context-agent-hybrid
