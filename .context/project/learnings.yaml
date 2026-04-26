@@ -837,3 +837,10 @@ learnings:
   date: 2026-04-25
   context: Added via context agent
   application: TBD
+- id: PL-084
+  learning: "When parsing markdown task files for AC counts, strip HTML <!--...--> blocks first — example ACs inside template comments otherwise count as real ACs. Affects fw task verify, was G-047."
+  source: P-011
+  task: T-1293
+  date: 2026-04-26
+  context: Added via context agent
+  application: TBD
