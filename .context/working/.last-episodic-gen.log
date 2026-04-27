@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T15:23:57Z ===
-task_id: T-1322
+=== episodic-gen invocation: 2026-04-27T15:29:03Z ===
+task_id: T-1323
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1322.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1323.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel redact — Matrix m.redaction analogue (msg_type=redaction + metadata.redacts)
-  Duration: 0 days (5 min)
+  Task: channel describe — set/get topic description (Matrix m.room.topic)
+  Duration: 0 days (4 min)
   Updates: 2
   Commits: 1
-  Lines: +312 -12 across 15 files
+  Lines: +232 -10 across 15 files
   Outcomes: 8 AC checked
   Artifacts: 15 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1322-channel-redact--matrix-mredaction-analog.md
+Source: /opt/termlink/.tasks/completed/T-1323-channel-describe--setget-topic-descripti.md
 --- exit code: 0 ---

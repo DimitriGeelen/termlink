@@ -4,16 +4,16 @@ name: "channel describe — set/get topic description (Matrix m.room.topic)"
 description: >
   channel describe — set/get topic description (Matrix m.room.topic)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T15:24:33Z
-last_update: 2026-04-27T15:24:33Z
-date_finished: null
+last_update: 2026-04-27T15:28:54Z
+date_finished: 2026-04-27T15:28:54Z
 ---
 
 # T-1323: channel describe — set/get topic description (Matrix m.room.topic)
@@ -82,3 +82,6 @@ cargo clippy -p termlink --all-targets -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1323-channel-describe--setget-topic-descripti.md
 - **Context:** Initial task creation
+
+### 2026-04-27T15:28:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
