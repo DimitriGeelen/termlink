@@ -1811,6 +1811,26 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Show unread count for a sender on a topic (T-1332). Looks up the
+    /// sender's latest `m.receipt.up_to`, walks the topic past that offset,
+    /// and counts content envelopes (excludes meta types: receipt, reaction,
+    /// redaction, edit, topic_metadata). Slack-style "3 new" UX.
+    Unread {
+        /// Topic name
+        topic: String,
+
+        /// Sender to compute unread for (default: this identity's fingerprint).
+        #[arg(long)]
+        sender: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Set/update the topic's free-text description (Matrix `m.room.topic`
     /// analogue). Emits a `msg_type=topic_metadata` envelope with
     /// `metadata.description=<text>`; repeat calls add new records and the

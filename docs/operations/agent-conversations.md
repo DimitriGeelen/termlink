@@ -425,6 +425,21 @@ point the CLI transparently falls back to the legacy client-side walker
 (paginated `channel.subscribe` from offset 0). Output is identical
 between the two paths — operators don't need to know which fired.
 
+**Unread count (T-1332).** Companion to receipts — "what's new for me?"
+`channel unread <topic>` resolves the caller's (or `--sender`'s) latest
+receipt up_to, walks the topic past that offset, and counts content
+envelopes (excluding meta types: receipt, reaction, redaction, edit,
+topic_metadata):
+
+```sh
+termlink channel unread dm:alice:bob
+# Topic 'dm:alice:bob': 3 unread for bob (first new offset 7, last 9, last receipt up_to=6)
+```
+
+`--json` emits `{topic, sender_id, up_to, unread_count, first_unread, last_offset}`
+for dashboards. If the sender has never posted a receipt, `up_to=0` —
+i.e., everything counts.
+
 There is no auto-ack on subscribe; agents must explicitly post a receipt
 when they want their progress visible to others.
 

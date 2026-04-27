@@ -1205,6 +1205,135 @@ pub(crate) async fn cmd_channel_info(
     Ok(())
 }
 
+/// T-1332: msg_types that DON'T count toward "unread" — purely meta envelopes
+/// like reactions, edits, redactions, receipts and topic-metadata. The aim is
+/// to mirror what a human would mentally count: "new content I haven't seen."
+const UNREAD_META_TYPES: &[&str] =
+    &["receipt", "reaction", "redaction", "edit", "topic_metadata"];
+
+/// T-1332: pure helper — given a slice of envelopes (sorted by ascending
+/// offset) and the caller's last-acked `up_to`, return (count_unread,
+/// first_unread_offset). "Unread" = offset > up_to AND msg_type not in
+/// `UNREAD_META_TYPES`.
+pub(crate) fn count_unread(msgs: &[Value], up_to: u64) -> (u64, Option<u64>) {
+    let mut count: u64 = 0;
+    let mut first: Option<u64> = None;
+    for m in msgs {
+        let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        if off <= up_to {
+            continue;
+        }
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if UNREAD_META_TYPES.contains(&mt) {
+            continue;
+        }
+        if first.is_none() {
+            first = Some(off);
+        }
+        count += 1;
+    }
+    (count, first)
+}
+
+/// T-1332: `channel unread <topic> [--sender <id>]` — what's new for me?
+pub(crate) async fn cmd_channel_unread(
+    topic: &str,
+    sender: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sender_id: String = match sender {
+        Some(s) => s.to_string(),
+        None => {
+            let id = load_identity_or_create()
+                .context("Loading identity for unread count")?;
+            id.fingerprint().to_string()
+        }
+    };
+    let sock = hub_socket(hub)?;
+
+    // T-1329: prefer hub-side aggregation; fall back gracefully if old hub.
+    let mut up_to: u64 = 0;
+    let server_resp = client::rpc_call(
+        &sock,
+        method::CHANNEL_RECEIPTS,
+        json!({"topic": topic}),
+    )
+    .await
+    .context("Hub rpc_call (channel.receipts) failed")?;
+    if let termlink_protocol::jsonrpc::RpcResponse::Success(r) = server_resp {
+        for entry in r.result["receipts"].as_array().cloned().unwrap_or_default() {
+            if entry.get("sender_id").and_then(|v| v.as_str()) == Some(sender_id.as_str()) {
+                up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                break;
+            }
+        }
+    }
+    // (If the hub returned MethodNotFound or any error, we silently treat
+    //  the sender as having no receipt — equivalent to up_to=0. The unread
+    //  count then defaults to "everything", which is the correct
+    //  conservative answer when receipts are unavailable.)
+
+    // Walk topic from up_to+1 onwards, count content envelopes.
+    let mut total_count: u64 = 0;
+    let mut total_first: Option<u64> = None;
+    let mut last_offset: u64 = 0;
+    let start_cursor: u64 = up_to.saturating_add(1);
+    let mut cursor: u64 = start_cursor;
+    let limit: u64 = 1000;
+    loop {
+        let resp = client::rpc_call(
+            &sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .context("Hub rpc_call (channel.subscribe) failed")?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        if let Some(m) = msgs.last() {
+            last_offset = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(last_offset);
+        }
+        // Same comparator the helper uses, but operating on this batch.
+        let (c, f) = count_unread(&msgs, up_to);
+        total_count += c;
+        if total_first.is_none() {
+            total_first = f;
+        }
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "topic": topic,
+                "sender_id": sender_id,
+                "up_to": up_to,
+                "unread_count": total_count,
+                "first_unread": total_first,
+                "last_offset": last_offset,
+            }))?
+        );
+        return Ok(());
+    }
+    if total_count == 0 {
+        println!("Topic '{topic}': up to date for {sender_id} (last receipt up_to={up_to})");
+    } else {
+        let first = total_first.unwrap_or(up_to + 1);
+        println!(
+            "Topic '{topic}': {total_count} unread for {sender_id} \
+             (first new offset {first}, last {last_offset}, last receipt up_to={up_to})"
+        );
+    }
+    Ok(())
+}
+
 /// T-1323: emit a `msg_type=topic_metadata` envelope carrying a topic
 /// description (`metadata.description=<text>`). Append-only — repeat calls
 /// add new records; the reader picks the latest by ts_ms.
@@ -1985,6 +2114,54 @@ mod tests {
     fn find_my_reaction_offset_filters_by_payload() {
         let msgs = vec![react(2, "alice", "0", "👀")];
         assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    #[test]
+    fn count_unread_empty_returns_zero() {
+        let msgs: Vec<Value> = vec![];
+        let (c, f) = count_unread(&msgs, 0);
+        assert_eq!(c, 0);
+        assert_eq!(f, None);
+    }
+
+    #[test]
+    fn count_unread_skips_at_or_below_bound() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat"}),
+            json!({"offset": 1, "msg_type": "chat"}),
+            json!({"offset": 2, "msg_type": "chat"}),
+        ];
+        let (c, f) = count_unread(&msgs, 1);
+        assert_eq!(c, 1);
+        assert_eq!(f, Some(2));
+    }
+
+    #[test]
+    fn count_unread_excludes_meta_envelopes() {
+        let msgs = vec![
+            json!({"offset": 1, "msg_type": "chat"}),
+            json!({"offset": 2, "msg_type": "reaction"}),
+            json!({"offset": 3, "msg_type": "edit"}),
+            json!({"offset": 4, "msg_type": "redaction"}),
+            json!({"offset": 5, "msg_type": "topic_metadata"}),
+            json!({"offset": 6, "msg_type": "receipt"}),
+            json!({"offset": 7, "msg_type": "chat"}),
+        ];
+        let (c, f) = count_unread(&msgs, 0);
+        assert_eq!(c, 2, "only offsets 1 and 7 are content");
+        assert_eq!(f, Some(1));
+    }
+
+    #[test]
+    fn count_unread_first_is_first_content_above_bound() {
+        let msgs = vec![
+            json!({"offset": 5, "msg_type": "reaction"}), // skipped (meta)
+            json!({"offset": 6, "msg_type": "chat"}),
+            json!({"offset": 7, "msg_type": "chat"}),
+        ];
+        let (c, f) = count_unread(&msgs, 4);
+        assert_eq!(c, 2);
+        assert_eq!(f, Some(6));
     }
 
     #[test]
