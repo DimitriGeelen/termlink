@@ -447,6 +447,9 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Info { topic, hub, json } => {
+                commands::channel::cmd_channel_info(&topic, hub.as_deref(), json).await
+            }
             ChannelAction::Describe {
                 topic,
                 description,
