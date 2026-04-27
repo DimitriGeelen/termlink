@@ -386,7 +386,7 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                None, None, false, hub, json_output,
+                None, None, false, None, hub, json_output,
             )
             .await
         }
@@ -2224,6 +2224,19 @@ pub(crate) fn should_emit_for_since(env: &Value, since: Option<i64>) -> bool {
     }
 }
 
+/// T-1346: pure helper — return the last `n` items from `items` (or all
+/// when `n >= items.len()`, or empty when `n == 0`). When `tail` is `None`,
+/// returns a clone of all items unchanged. Used by `cmd_channel_subscribe`
+/// to slice rendered envelope outputs to the last N before printing.
+pub(crate) fn tail_slice<T: Clone>(items: &[T], tail: Option<usize>) -> Vec<T> {
+    match tail {
+        None => items.to_vec(),
+        Some(0) => Vec::new(),
+        Some(n) if n >= items.len() => items.to_vec(),
+        Some(n) => items[items.len() - n..].to_vec(),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
@@ -2241,9 +2254,17 @@ pub(crate) async fn cmd_channel_subscribe(
     filter_mentions: Option<&str>,
     since: Option<i64>,
     show_parent: bool,
+    tail: Option<usize>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
+    use std::fmt::Write as _;
+    let tail_mode = tail.is_some();
+    // T-1346: when --tail is set, accumulate per-envelope rendered output
+    // here; after the polling loop completes (only reachable when !follow,
+    // which conflicts_with --tail), emit the last N. Each entry is the
+    // complete output for one envelope (1+ lines, with trailing newlines).
+    let mut env_outputs: Vec<String> = Vec::new();
     let sock = hub_socket(hub)?;
     // T-1344: when --show-parent is on, seed an offset-keyed cache by walking
     // the topic once before the streaming loop. Live envelopes seen during
@@ -2370,7 +2391,24 @@ pub(crate) async fn cmd_channel_subscribe(
         // (the next subscribe iteration will rebuild reactions_by_parent
         // with the updated redacted set).
         redacted.extend(&batch_redacted);
+        // T-1346: per-envelope buffered emit. `flush!()` sends the buffered
+        // output for one envelope to either stdout (immediate) or env_outputs
+        // (when --tail is set). Empty buffer is a no-op so we can flush
+        // unconditionally before every `continue`.
         for m in &msgs {
+            let mut env_out = String::new();
+            macro_rules! flush {
+                () => {
+                    if !env_out.is_empty() {
+                        if tail_mode {
+                            env_outputs.push(std::mem::take(&mut env_out));
+                        } else {
+                            print!("{}", env_out);
+                            env_out.clear();
+                        }
+                    }
+                };
+            }
             // T-1343: render-time --since filter. Pure drop — pagination
             // and aggregation passes already ran. Affects both JSON-lines
             // and human output identically.
@@ -2396,30 +2434,12 @@ pub(crate) async fn cmd_channel_subscribe(
                     if let Some(obj) = wrapper.as_object_mut() {
                         obj.insert("parent".to_string(), parent_val);
                     }
-                    println!("{}", serde_json::to_string(&wrapper)?);
+                    let _ = writeln!(env_out, "{}", serde_json::to_string(&wrapper)?);
                 } else {
-                    println!("{}", serde_json::to_string(m)?);
+                    let _ = writeln!(env_out, "{}", serde_json::to_string(m)?);
                 }
+                flush!();
                 continue;
-            }
-            // T-1344: human render — emit a `> [parent] sender msg_type: payload`
-            // quote line BEFORE the main line when --show-parent and this env is
-            // a reply. Reaction/redaction branches below also benefit because
-            // reactions carry in_reply_to and the lookup is the same.
-            if show_parent
-                && let Some(parent_off) = parent_offset_of(m)
-            {
-                match parent_cache.get(&parent_off) {
-                    Some(p) => {
-                        let psender = p.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
-                        let pmsg = p.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
-                        let pp = decode_payload_lossy(p);
-                        println!("> [{parent_off}] {psender} {pmsg}: {pp}");
-                    }
-                    None => {
-                        println!("> [{parent_off} ?] (parent not in cache)");
-                    }
-                }
             }
             if aggregate_reactions && extract_reaction(m).is_some() {
                 continue; // already bucketed in pass 1
@@ -2454,11 +2474,13 @@ pub(crate) async fn cmd_channel_subscribe(
                     .as_deref()
                     .map(|s| format!(" (reason: {s})"))
                     .unwrap_or_default();
-                println!(
+                let _ = writeln!(
+                    env_out,
                     "[{off} redact] {sender} → offset {target}{reason}",
                     sender = r.sender,
                     target = r.target,
                 );
+                flush!();
                 continue;
             }
             let offset = m["offset"].as_u64().unwrap_or(0);
@@ -2501,20 +2523,47 @@ pub(crate) async fn cmd_channel_subscribe(
                     continue;
                 }
             }
+            // T-1344: human render — emit a `> [parent] sender msg_type: payload`
+            // quote line BEFORE the main line when --show-parent and this env is
+            // a reply. Placement AFTER all filter checks so we never emit a
+            // dangling quote for an envelope that is then suppressed (e.g. a
+            // reaction under --reactions, or a non-matching mention filter).
+            if show_parent
+                && let Some(parent_off) = parent_offset_of(m)
+            {
+                match parent_cache.get(&parent_off) {
+                    Some(p) => {
+                        let psender = p.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+                        let pmsg = p.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
+                        let pp = decode_payload_lossy(p);
+                        let _ = writeln!(env_out, "> [{parent_off}] {psender} {pmsg}: {pp}");
+                    }
+                    None => {
+                        let _ = writeln!(env_out, "> [{parent_off} ?] (parent not in cache)");
+                    }
+                }
+            }
             // T-1314: reaction envelopes get a compact non-aggregated render
             // (msg_type prefix dropped; the `react` tag in the bracket is the cue).
             if msg_type == "reaction" {
-                println!("[{offset}{reply_marker}{mention_marker} react] {sender} {payload_str}");
+                let _ = writeln!(
+                    env_out,
+                    "[{offset}{reply_marker}{mention_marker} react] {sender} {payload_str}",
+                );
             } else {
-                println!("[{offset}{reply_marker}{mention_marker}] {sender} {msg_type}: {payload_str}{edited_marker}");
+                let _ = writeln!(
+                    env_out,
+                    "[{offset}{reply_marker}{mention_marker}] {sender} {msg_type}: {payload_str}{edited_marker}",
+                );
                 if aggregate_reactions {
                     let summary = reactions_summary(&reactions_by_parent, offset, by_sender);
                     if !summary.is_empty() {
-                        println!("    └─ reactions: {summary}");
+                        let _ = writeln!(env_out, "    └─ reactions: {summary}");
                     }
                     printed_parents.insert(offset);
                 }
             }
+            flush!();
         }
         // Drop reaction entries whose parent has now been printed so the map
         // doesn't grow unbounded on long --follow runs. Reactions for parents
@@ -2540,6 +2589,16 @@ pub(crate) async fn cmd_channel_subscribe(
             eprintln!("warning: failed to persist cursor: {e}");
         }
         if !follow {
+            // T-1346: when --tail is set, emit only the last N collected
+            // envelope outputs. (--tail conflicts_with --follow at the
+            // clap level, so we only ever reach the slicing path in
+            // single-shot mode.)
+            if tail_mode {
+                let kept = tail_slice(&env_outputs, tail);
+                for chunk in kept {
+                    print!("{}", chunk);
+                }
+            }
             return Ok(());
         }
         cursor = next;
@@ -4146,6 +4205,52 @@ mod tests {
             }),
         ];
         assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    // T-1346: tail_slice
+    #[test]
+    fn tail_slice_none_returns_full_clone() {
+        let v = vec![1, 2, 3];
+        assert_eq!(tail_slice(&v, None), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn tail_slice_zero_returns_empty() {
+        let v = vec![1, 2, 3];
+        assert_eq!(tail_slice(&v, Some(0)), Vec::<i32>::new());
+    }
+
+    #[test]
+    fn tail_slice_n_greater_than_len_returns_all() {
+        let v = vec![1, 2, 3];
+        assert_eq!(tail_slice(&v, Some(99)), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn tail_slice_n_less_than_len_returns_last_n() {
+        let v = vec![1, 2, 3, 4, 5];
+        assert_eq!(tail_slice(&v, Some(3)), vec![3, 4, 5]);
+    }
+
+    #[test]
+    fn tail_slice_n_equal_to_len_returns_all() {
+        let v = vec!["a", "b"];
+        assert_eq!(tail_slice(&v, Some(2)), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn tail_slice_empty_input_yields_empty_for_any_n() {
+        let v: Vec<i32> = Vec::new();
+        assert_eq!(tail_slice(&v, None), Vec::<i32>::new());
+        assert_eq!(tail_slice(&v, Some(0)), Vec::<i32>::new());
+        assert_eq!(tail_slice(&v, Some(5)), Vec::<i32>::new());
+    }
+
+    #[test]
+    fn tail_slice_preserves_order() {
+        let v = vec![10, 20, 30, 40, 50, 60];
+        // Last 4 should be [30, 40, 50, 60] — oldest first.
+        assert_eq!(tail_slice(&v, Some(4)), vec![30, 40, 50, 60]);
     }
 
     #[test]

@@ -584,6 +584,7 @@ async fn main() -> Result<()> {
                 filter_mentions,
                 since,
                 show_parent,
+                tail,
                 hub,
                 json,
             } => {
@@ -603,6 +604,7 @@ async fn main() -> Result<()> {
                     filter_mentions.as_deref(),
                     since,
                     show_parent,
+                    tail,
                     hub.as_deref(),
                     json,
                 )

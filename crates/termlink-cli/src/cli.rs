@@ -2171,6 +2171,14 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         show_parent: bool,
 
+        /// Render only the last N envelopes after all aggregation/filter
+        /// passes (T-1346). Pure render-side slice — pagination behavior is
+        /// unchanged. Conflicts with `--follow` (tail of an unbounded
+        /// stream is ill-defined). Order is preserved (oldest of the
+        /// last-N first).
+        #[arg(long, value_name = "N", conflicts_with = "follow")]
+        tail: Option<usize>,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
