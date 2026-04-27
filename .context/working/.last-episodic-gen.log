@@ -1,23 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T15:50:53Z ===
-task_id: T-1326
+=== episodic-gen invocation: 2026-04-27T15:53:57Z ===
+task_id: T-1327
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1326.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1327.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: fix subscribe --filter-mentions to also suppress redaction explicit-render branch (e2e bug)
-  Duration: 0 days (5 min)
+  Task: persist e2e agent-conversation walkthrough script as repo asset
+  Duration: 0 days (2 min)
   Updates: 2
   Commits: 1
-  Lines: +188 -79 across 19 files
-  Outcomes: 4 AC checked
-  Challenges: 1 detected from git
-  Artifacts: 19 files tracked
+  Lines: +262 -10 across 13 files
+  Outcomes: 6 AC checked
+  Artifacts: 13 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1326-fix-subscribe---filter-mentions-to-also-.md
+Source: /opt/termlink/.tasks/completed/T-1327-persist-e2e-agent-conversation-walkthrou.md
 --- exit code: 0 ---
