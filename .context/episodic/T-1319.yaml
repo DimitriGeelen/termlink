@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1319: channel dm shorthand (auto-resolve dm:<a>:<b> topic + auto-create)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T13:51:49Z
+# ============================================================================
+
+task_id: T-1319
+task_name: "channel dm shorthand (auto-resolve dm:<a>:<b> topic + auto-create)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T13:48:09Z
+completed: 2026-04-27T13:51:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T15:51:19+02:00
+last_commit: 2026-04-27T15:51:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel dm shorthand (auto-resolve dm:<a>:<b> + auto-create)
+
+# Key outcomes
+outcomes:
+  - "CLI `termlink channel dm <peer>` (no flags) subscribes to the canonical DM topic with `--resume` + `--reactions` defaults (the reading mode an agent wants 90% of the time)"
+  - "CLI `termlink channel dm <peer> --send \"<msg>\"` posts the message to the DM topic; auto-creates topic if missing"
+  - "CLI `termlink channel dm <peer> --send \"<msg>\" --reply-to N` posts a threaded reply"
+  - "Topic name is deterministic — both sides resolve to identical topic when peer is the OTHER side's fingerprint (alphabetical sort, joined as `dm:<a>:<b>`)"
+  - "CLI `termlink channel dm <peer> --topic-only` outputs the canonical topic name without doing anything else (helper for scripts)"
+  - "Auto-create uses `forever` retention (DMs are conversational; you usually want full history)"
+  - "CLI build + clippy clean"
+  - "Smoke evidence in task file (--topic-only, --send, default subscribe)"
+  - "Doc updated — Quick start section leads with `channel dm` instead of manual topic construction"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1319-channel-dm-shorthand-auto-resolve-dmab-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T15:51:19"
+    action: "T-1319: channel dm shorthand (auto-resolve dm:<a>:<b> + auto-create)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 5
+  lines_added: 292
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1319-channel-dm-shorthand-auto-resolve-dmab-t.md
+generated_by: context-agent-hybrid

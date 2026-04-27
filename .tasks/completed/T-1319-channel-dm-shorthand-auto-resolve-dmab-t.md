@@ -4,16 +4,16 @@ name: "channel dm shorthand (auto-resolve dm:<a>:<b> topic + auto-create)"
 description: >
   channel dm shorthand (auto-resolve dm:<a>:<b> topic + auto-create)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T13:48:09Z
-last_update: 2026-04-27T13:48:09Z
-date_finished: null
+last_update: 2026-04-27T13:51:39Z
+date_finished: 2026-04-27T13:51:39Z
 ---
 
 # T-1319: channel dm shorthand (auto-resolve dm:<a>:<b> topic + auto-create)
@@ -126,3 +126,6 @@ target/debug/termlink channel dm --help 2>&1 | grep -q topic-only
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1319-channel-dm-shorthand-auto-resolve-dmab-t.md
 - **Context:** Initial task creation
+
+### 2026-04-27T13:51:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
