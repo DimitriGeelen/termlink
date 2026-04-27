@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T15:29:03Z ===
-task_id: T-1323
+=== episodic-gen invocation: 2026-04-27T15:34:27Z ===
+task_id: T-1324
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1323.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1324.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel describe — set/get topic description (Matrix m.room.topic)
+  Task: channel info — synthesized topic view (description + senders + receipts + post count)
   Duration: 0 days (4 min)
   Updates: 2
   Commits: 1
-  Lines: +232 -10 across 15 files
-  Outcomes: 8 AC checked
-  Artifacts: 15 files tracked
+  Lines: +363 -44 across 19 files
+  Outcomes: 7 AC checked
+  Artifacts: 19 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1323-channel-describe--setget-topic-descripti.md
+Source: /opt/termlink/.tasks/completed/T-1324-channel-info--synthesized-topic-view-des.md
 --- exit code: 0 ---

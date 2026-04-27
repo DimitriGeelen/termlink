@@ -4,16 +4,16 @@ name: "channel info — synthesized topic view (description + senders + receipts
 description: >
   channel info — synthesized topic view (description + senders + receipts + post count)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T15:29:19Z
-last_update: 2026-04-27T15:29:19Z
-date_finished: null
+last_update: 2026-04-27T15:34:18Z
+date_finished: 2026-04-27T15:34:18Z
 ---
 
 # T-1324: channel info — synthesized topic view (description + senders + receipts + post count)
@@ -85,3 +85,6 @@ cargo clippy -p termlink --all-targets -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1324-channel-info--synthesized-topic-view-des.md
 - **Context:** Initial task creation
+
+### 2026-04-27T15:34:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
