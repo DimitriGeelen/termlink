@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-243: Multi-turn agent conversation primitive over TermLink (re-scoped from script-error-yielding)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-26T22:26:17Z
+# ============================================================================
+
+task_id: T-243
+task_name: "Multi-turn agent conversation primitive over TermLink (re-scoped from script-error-yielding)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-03-23T13:28:06Z
+completed: 2026-04-26T22:26:15Z
+duration_days: 33
+updates_count: 7
+first_commit: 2026-03-23T14:28:15+01:00
+last_commit: 2026-04-26T19:26:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-233: Create 7 build tasks from inception GO — orchestration decomposition. Re-scope from script-error-yielding to multi-turn agent conversation primitive. Three-agent inception via termlink_batch_run — findings + child tasks. GO recorded — all 6 agent ACs ticked, watchtower triple repaired. Record closure-readiness evidence (5/5 deps + auth foundation done). T-012: tick Human ACs on T-1294 (1/2/4) and T-243 based on captured evidence
+
+# Key outcomes
+outcomes:
+  - "Research artifact `docs/reports/T-243-multi-turn-agent-conversation-inception.md` created and updated through both dialogues"
+  - "Concrete failing scenarios captured from operator (Dialogue 1) — operator reported characteristic (\"send-and-wait instead of immediate response\") rather than specific instances (\"do not have the instances anymore\"); characteristic captured in artifact"
+  - "Existing-primitive surface review documented (Dialogue 2) — Signal/XMPP/IRC/Matrix/MQTT comparison + channel.* / agent.ask / request analysis in artifact"
+  - "One protocol spike sketched (RPC names, params, state model, yield/resume semantics) — synthesis from three-agent inception covers heartbeat RPC, channel.post metadata extension, event-type catalog, layered architecture"
+  - "Build-new vs. extend-existing recommendation made with rationale — thin first-class layer (heartbeat must be infra, everything else convention) per Agent B + Agent C synthesis"
+  - "Go/No-Go decision recorded via `fw inception decide T-243` — GO recorded by operator 2026-04-26"
+  - "Operator confirms the recommendation reflects the actual pain and the chosen direction is buildable"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Re-scope from script-error-yielding to multi-turn agent conversation primitive"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/assumptions.yaml"
+  - ".context/working/watchtower.port"
+  - ".context/working/watchtower.url"
+  - "docs/reports/T-243-multi-turn-agent-conversation-inception.md"
+  - ".tasks/active/T-1284-g-011-structural-fix--fw-doctor-cache-fr.md"
+  - ".tasks/active/T-1285-t-243-dep-audit--harden-channel-ordered-.md"
+  - ".tasks/active/T-1286-t-243-dep-implement-dialogheartbeat-as-t.md"
+  - ".tasks/active/T-1287-t-243-dep-extend-channelpost-with-metada.md"
+  - ".tasks/active/T-1288-t-243-dep-document-multi-turn-dialog-con.md"
+  - ".tasks/active/T-1289-t-243-dep-verify-push-delivery-is-defaul.md"
+  - ".tasks/active/T-1294-migrate-ring20-management-hub-runtimedir.md"
+  - ".tasks/active/T-237-hub-orchestratorroute-rpc--discover-dele.md"
+  - ".tasks/active/T-238-bypass-registry--tier-3-operationalized-.md"
+  - ".tasks/active/T-239-route-cache--cacheroutes-yaml-with-confi.md"
+  - ".tasks/active/T-240-negotiation-protocol--4-phase-format-neg.md"
+  - ".tasks/active/T-241-template-caching--3-layer-agent-local-sh.md"
+  - ".tasks/active/T-242-supervision-integration--trust-assessmen.md"
+  - ".tasks/active/T-243-script-error-yielding--checkpoint-based-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-03-23T14:28:15"
+    action: "T-233: Create 7 build tasks from inception GO — orchestration decomposition"
+  - time: "2026-04-26T00:34:19"
+    action: "T-243: Re-scope from script-error-yielding to multi-turn agent conversation primitive"
+  - time: "2026-04-26T11:32:41"
+    action: "T-243: Three-agent inception via termlink_batch_run — findings + child tasks"
+  - time: "2026-04-26T11:37:51"
+    action: "T-243: GO recorded — all 6 agent ACs ticked, watchtower triple repaired"
+  - time: "2026-04-26T13:13:15"
+    action: "T-243: Record closure-readiness evidence (5/5 deps + auth foundation done)"
+  - time: "2026-04-26T19:26:44"
+    action: "T-012: tick Human ACs on T-1294 (1/2/4) and T-243 based on captured evidence"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 49498 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-233, orchestration, error-yielding]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 49498
+  commits: 6
+  files_changed: 18
+  lines_added: 1311
+  lines_removed: 44
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-243-script-error-yielding--checkpoint-based-.md
+generated_by: context-agent-hybrid

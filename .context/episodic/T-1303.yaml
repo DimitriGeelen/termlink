@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1303: T-1299 follow-up: termlink whoami PID-walk fallback when env var absent
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T06:16:31Z
+# ============================================================================
+
+task_id: T-1303
+task_name: "T-1299 follow-up: termlink whoami PID-walk fallback when env var absent"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T22:13:07Z
+completed: 2026-04-26T22:17:45Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-27T00:17:20+02:00
+last_commit: 2026-04-27T00:17:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink whoami PID-walk fallback when env var absent
+
+# Key outcomes
+outcomes:
+  - "New helper `walk_ancestor_pids(start: u32) -> Vec<u32>` in `crates/termlink-cli/src/commands/metadata.rs` (or a sibling util module) that returns the ancestor chain from `start` up to PID 1, by parsing `/proc/<pid>/stat` field 4. Stops on missing /proc or read error (non-Linux platforms returns just `[start]`)."
+  - "`cmd_whoami` inserts a step between env-var check and ambiguous-list fallback: build ancestor list of `std::process::id()`, check each against `manager::list_sessions()`, return the FIRST session whose `pid` matches an ancestor (closest wins)."
+  - "Successful PID-walk hit prints a one-line note in human mode (e.g. `(matched via PID-walk: ancestor pid=NNN)`) so the operator knows why the lookup succeeded without an explicit hint. JSON mode adds `\"resolved_via\": \"pid_walk\"`."
+  - "Five new unit tests in `commands::metadata::tests` covering: parse_ppid_from_stat (simple, comm-with-paren, malformed); walk_ancestor_pids (self chain, unknown pid). All green."
+  - "Workspace `cargo test --workspace --lib` clean — 230 termlink unit + 172 integration + 4 ignored"
+  - "Workspace `cargo clippy --all-targets -- -D warnings` clean"
+  - "[REVIEW] Smoke test: from a session NOT spawned by `register --shell` (so no env var inherited), run `termlink whoami` — should still resolve via PID-walk"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - ".tasks/active/T-1303-t-1299-follow-up-termlink-whoami-pid-wal.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T00:17:20"
+    action: "T-1303: termlink whoami PID-walk fallback when env var absent"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, routing, whoami, T-1299-followup, cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 229
+  lines_removed: 28
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1303-t-1299-follow-up-termlink-whoami-pid-wal.md
+generated_by: context-agent-hybrid

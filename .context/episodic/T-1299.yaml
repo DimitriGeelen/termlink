@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1299: Build A: termlink whoami RPC + CLI subcommand
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T06:16:15Z
+# ============================================================================
+
+task_id: T-1299
+task_name: "Build A: termlink whoami RPC + CLI subcommand"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T21:19:36Z
+completed: 2026-04-27T06:15:59Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-04-26T23:36:49+02:00
+last_commit: 2026-04-26T23:36:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Ship termlink whoami MVP — RPC + CLI subcommand
+
+# Key outcomes
+outcomes:
+  - "`termlink-protocol`: `session.whoami` method constant added (`crates/termlink-protocol/src/control.rs`)"
+  - "`termlink-hub`: `handle_whoami` resolves by `session_id` or `display_name` hint; returns identity card OR `{ ok: true, ambiguous: true, candidates: [...] }` when no hint OR `{ ok: false, found: false, hint: \"...\" }` when hint is unknown. Wired into `route()` and `hub_method_scope()` (Observe scope) and the `hub.capabilities` listing"
+  - "`termlink-cli`: `termlink whoami` subcommand — reads `$TERMLINK_SESSION_ID` env var when no `--session`/`--name` flag is passed; prints human-readable card (default) or JSON (`--json`); ambiguous-list path prints all candidates with the hint to set the env var"
+  - "Unit tests cover: id-hint match, name-hint match, no-hint candidate list, unknown-hint not-found-with-hint (4 new tests in `crates/termlink-hub/src/router.rs::tests`)"
+  - "Workspace `cargo clippy --all-targets -- -D warnings` clean"
+  - "All existing unit + integration tests still pass (termlink-protocol 100, termlink-hub 235, termlink CLI 225 unit + 172 integration, all green)"
+  - "[RUBBER-STAMP] Smoke test on the local-test hub from different sessions"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "crates/termlink-protocol/src/control.rs"
+  - ".tasks/active/T-1299-build-a-termlink-whoami-rpc--cli-subcomm.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-26T23:36:49"
+    action: "T-1299: Ship termlink whoami MVP — RPC + CLI subcommand"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 536 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, routing, whoami, T-1297-child, hub-rpc]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 536
+  commits: 1
+  files_changed: 7
+  lines_added: 367
+  lines_removed: 23
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1299-build-a-termlink-whoami-rpc--cli-subcomm.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1306: T-1304 end-to-end validation: spawn hub, send RPCs, verify rpc-audit.jsonl + fw metrics api-usage
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T11:41:30Z
+# ============================================================================
+
+task_id: T-1306
+task_name: "T-1304 end-to-end validation: spawn hub, send RPCs, verify rpc-audit.jsonl + fw metrics api-usage"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T11:29:11Z
+completed: 2026-04-27T11:41:29Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-27T13:41:29+02:00
+last_commit: 2026-04-27T13:41:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  e2e validate T-1304 against live hub on :9304
+
+# Key outcomes
+outcomes:
+  - "Release `termlink` binary built (full workspace `cargo build --release` clean; binary mtime 13:36)"
+  - "Hub starts on isolated runtime_dir (`/tmp/T-1306-runtime/`) and writes `hub.secret`, `hub.cert.pem`, `hub.tcp` (port 9304)"
+  - "At least 3 distinct RPC methods recorded in `/tmp/T-1306-runtime/rpc-audit.jsonl` after driving traffic — observed: `event.broadcast` (59), `channel.post` (1), `event.collect` (13229 — the long-poll loops internally)"
+  - "Each line is valid JSON with `ts` (numeric, recent) and `method` (string) fields — verified by `json.loads` over the whole file with no parse errors"
+  - "`fw metrics api-usage --runtime-dir /tmp/T-1306-runtime --last-Nd 1` produces a parseable report with the expected method counts (Top 10 + Legacy primitives summary)"
+  - "Gate behaviour: with `event.broadcast` traffic > 1% of total, default gate exits 1; with `--gate-pct 100` it exits 0 (verified earlier in fixture smoke test under T-1304; identical code path)"
+  - "Hub stopped cleanly at end of test (`termlink hub stop` returns exit 0, pidfile cleaned)"
+  - "**Perf finding (notable):** `event.collect` with a 1s timeout generated 13K audit entries from a single CLI invocation — long-poll subscriber loop fires many sub-RPCs per second. At fleet scale this could dominate disk I/O. Mitigation candidates: (a) skip-list `event.poll`/`event.collect` from audit, (b) batched-writer follow-up. Documented for future T-1304 follow-up."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1306-t-1304-end-to-end-validation-spawn-hub-s.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T13:41:29"
+    action: "T-1306: e2e validate T-1304 against live hub on :9304"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 1
+  lines_added: 85
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1306-t-1304-end-to-end-validation-spawn-hub-s.md
+generated_by: context-agent-hybrid

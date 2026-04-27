@@ -4,16 +4,16 @@ name: "channel reactions (Matrix m.annotation inspired)"
 description: >
   channel reactions (Matrix m.annotation inspired)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T13:28:27Z
-last_update: 2026-04-27T13:28:27Z
-date_finished: null
+last_update: 2026-04-27T13:32:35Z
+date_finished: 2026-04-27T13:32:35Z
 ---
 
 # T-1314: channel reactions (Matrix m.annotation inspired)
@@ -107,3 +107,6 @@ target/debug/termlink channel --help 2>&1 | grep -q react
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1314-channel-reactions-matrix-mannotation-ins.md
 - **Context:** Initial task creation
+
+### 2026-04-27T13:32:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

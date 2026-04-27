@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1312: fw metrics api-usage --json: machine-readable output for dashboards
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T12:50:37Z
+# ============================================================================
+
+task_id: T-1312
+task_name: "fw metrics api-usage --json: machine-readable output for dashboards"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T12:46:13Z
+completed: 2026-04-27T12:50:36Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-27T14:49:52+02:00
+last_commit: 2026-04-27T14:49:52+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw metrics api-usage --json — machine-readable output
+
+# Key outcomes
+outcomes:
+  - "`--json` flag accepted in argument parsing; emits machine-readable output to stdout"
+  - "Trend mode JSON shape: `{ audit_file, mode: \"trend\", gate_pct, malformed_lines, windows[], top_methods[], legacy_callers[], gate{} }`"
+  - "Single-window mode JSON shape: same with `mode: \"single-window\"` and one entry in `windows`"
+  - "Exit code preserved across both human and JSON output paths (0 = passing 60d-or-window, 1 = failing or audit missing)"
+  - "When audit file is missing in `--json` mode, emit `{\"error\": \"audit file not found\", \"audit_file\": \"...\"}` to stdout and exit 1 (human mode behavior unchanged: error to stderr)"
+  - "All Python `print()` calls in human mode are unchanged — JSON path is gated on the `--json` flag, not interleaved"
+  - "At least 1 manual probe with synthetic input shows valid JSON output that `python3 -c \"import sys, json; json.load(sys.stdin)\"` accepts"
+  - "`docs/operations/api-usage-metrics.md` documents the `--json` flag and shape"
+  - "Help text in `usage()` block lists `--json` with one-line description"
+  - "`bash -n .agentic-framework/agents/metrics/api-usage.sh` (syntax check) passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/operations/api-usage-metrics.md"
+  - ".tasks/active/T-1312-fw-metrics-api-usage---json-machine-read.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T14:49:52"
+    action: "T-1312: fw metrics api-usage --json — machine-readable output"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1166, T-1304-followup, metrics, json, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 148
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1312-fw-metrics-api-usage---json-machine-read.md
+generated_by: context-agent-hybrid

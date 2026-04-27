@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1307: T-1304 follow-up: skip-list event.poll/event.collect from rpc-audit (perf)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T11:46:37Z
+# ============================================================================
+
+task_id: T-1307
+task_name: "T-1304 follow-up: skip-list event.poll/event.collect from rpc-audit (perf)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T11:41:48Z
+completed: 2026-04-27T11:46:35Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T13:46:35+02:00
+last_commit: 2026-04-27T13:46:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  skip-list event.poll/event.collect from rpc-audit (246x volume reduction)
+
+# Key outcomes
+outcomes:
+  - "`crates/termlink-hub/src/rpc_audit.rs::record(method)` early-returns for methods in a `SKIP_METHODS` set: at minimum `event.poll`, `event.collect`"
+  - "Set lives as a `const &[&str]` next to `record()` so the list is auditable + grep-friendly"
+  - "Unit test: `record(\"event.poll\")` does NOT append to the file; `record(\"event.broadcast\")` DOES"
+  - "E2E re-validate: drive the same `event collect --timeout 1` traffic; audit-log line count stays < 100 instead of 13K"
+  - "Update `docs/operations/api-usage-metrics.md` \"Performance notes\" section to mention the skip-list and call it out as the v1.5 mitigation"
+  - "`cargo test -p termlink-hub rpc_audit` 0 failures"
+  - "`cargo clippy -p termlink-hub --tests -- -D warnings` clean"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/rpc_audit.rs"
+  - "docs/operations/api-usage-metrics.md"
+  - ".tasks/active/T-1307-t-1304-follow-up-skip-list-eventpolleven.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T13:46:35"
+    action: "T-1307: skip-list event.poll/event.collect from rpc-audit (246x volume reduction)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 132
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1307-t-1304-follow-up-skip-list-eventpolleven.md
+generated_by: context-agent-hybrid

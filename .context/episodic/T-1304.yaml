@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1304: Build T-1166 entry-gate telemetry: fw metrics api-usage --last-Nd surface
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T11:18:59Z
+# ============================================================================
+
+task_id: T-1304
+task_name: "Build T-1166 entry-gate telemetry: fw metrics api-usage --last-Nd surface"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T10:50:25Z
+completed: 2026-04-27T11:18:57Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-27T13:14:50+02:00
+last_commit: 2026-04-27T13:14:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub-side rpc-audit log unblocks T-1166 entry gate
+
+# Key outcomes
+outcomes:
+  - "`crates/termlink-hub/src/rpc_audit.rs` adds: `init(runtime_dir: &Path)` (stores audit-file path in module state), `record(method: &str)` (best-effort append), and tests"
+  - "`record()` writes one JSON line per call: `{\"ts\":<unix_ms>,\"method\":\"<method>\"}` to `<runtime_dir>/rpc-audit.jsonl`"
+  - "Hot-path safety: write failures (full disk, missing dir) are logged at debug and silently dropped — RPC dispatch never fails because of audit"
+  - "Wired into `crates/termlink-hub/src/server.rs` at the JSON-RPC dispatch point so every authenticated request is recorded with its method name (un-authenticated rejections excluded — they're already logged at warn)"
+  - "`init()` called once from server bootstrap alongside `topic_lint::init`"
+  - "`.agentic-framework/agents/metrics/api-usage.sh` (new) reads `$TERMLINK_RUNTIME_DIR/rpc-audit.jsonl` (default `/var/lib/termlink`), filters to last N days by ts, tallies per-method, prints: total calls, top 10 methods + counts + percentages, then a dedicated \"Legacy primitives\" line summing `event.broadcast`/`inbox.list`/`inbox.status`/`inbox.clear`/`file.send`/`file.receive` with percentage, and exits 0 if legacy ≤ 1% of total else exit 1 (so it can be used as a CI gate)"
+  - "`fw metrics api-usage --last-Nd` routed to that script via the `fw` dispatcher"
+  - "`--runtime-dir <path>` override flag for testing on alternate hubs"
+  - "Operator docs at `docs/operations/api-usage-metrics.md` covering: where data lives, how to read it, how T-1166 uses the exit code as an entry gate, retention guidance (no automatic prune yet — operator-cron deletion of files >90d if disk pressure)"
+  - "Unit tests in `rpc_audit.rs`: (1) record creates today's file, (2) two records produce two valid JSON lines, (3) write failure on read-only directory does not panic and returns gracefully"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/bin/fw"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/rpc_audit.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "docs/operations/api-usage-metrics.md"
+  - ".tasks/active/T-1304-build-t-1166-entry-gate-telemetry-fw-met.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T13:14:50"
+    action: "T-1304: hub-side rpc-audit log unblocks T-1166 entry gate"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 28 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 28
+  commits: 1
+  files_changed: 6
+  lines_added: 379
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1304-build-t-1166-entry-gate-telemetry-fw-met.md
+generated_by: context-agent-hybrid
