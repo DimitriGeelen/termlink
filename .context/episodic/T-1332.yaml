@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1332: channel unread <topic> [--sender] — count messages newer than the sender's last receipt
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T17:03:53Z
+# ============================================================================
+
+task_id: T-1332
+task_name: "channel unread <topic> [--sender] — count messages newer than the sender's last receipt"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T16:58:31Z
+completed: 2026-04-27T17:03:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T19:03:44+02:00
+last_commit: 2026-04-27T19:03:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel unread <topic> — what's new for me?
+
+# Key outcomes
+outcomes:
+  - "`cli.rs` has new `Unread { topic, sender, hub, json }` ChannelAction."
+  - "`cmd_channel_unread` resolves sender (override or local identity), calls `channel.receipts` to get up_to, walks topic from up_to+1, counts content envelopes (excludes msg_type in {receipt, reaction, redaction, edit, topic_metadata})."
+  - "Pure helper `count_unread(msgs, up_to) -> (count, Option<first_unread_offset>)` with unit tests: empty input, all before bound returns 0, mixed content+meta only counts content, returns first content offset > up_to."
+  - "Text output: `Topic foo: 3 unread for <sender> (first new offset 7, latest 9)` or `up to date` when 0."
+  - "JSON: `{topic, sender_id, up_to, unread_count, first_unread, last_offset}`."
+  - "`cargo test -p termlink --bins count_unread` passes."
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean."
+  - "Smoke: post 5 messages, ack to offset 2, run `channel unread` for that sender, expect count=2 first_unread=3."
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-19-1845.yaml"
+  - ".context/audits/cron/2026-04-27-1900.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1332-channel-unread-topic---sender--count-mes.md"
+  - ".termlink-task"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T19:03:44"
+    action: "T-1332: channel unread <topic> — what's new for me?"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 17
+  lines_added: 376
+  lines_removed: 55
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1332-channel-unread-topic---sender--count-mes.md
+generated_by: context-agent-hybrid
