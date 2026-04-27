@@ -1826,6 +1826,27 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Render an envelope inline with its parent quoted above it (T-1344).
+    /// If `<offset>` carries `metadata.in_reply_to=<parent>`, the parent
+    /// envelope is fetched and rendered as a `>` quoted block before the
+    /// child line. If `<offset>` is not a reply, the child is rendered alone
+    /// with a "no parent" note. JSON form returns `{topic, child, parent}`
+    /// with `parent: null` for orphans. Walks the topic once. Read-only.
+    Quote {
+        /// Topic name
+        topic: String,
+
+        /// Offset of the envelope to quote-render
+        offset: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `{topic, child: {...}, parent: {...}|null}`
+        #[arg(long)]
+        json: bool,
+    },
     /// Synthesized topic view: description + retention + post count + top
     /// senders + latest receipts in one shot. Read-only, no state mutation.
     /// Walks the topic once and renders a human-readable summary; pass `--json`
@@ -2099,6 +2120,15 @@ pub(crate) enum ChannelAction {
         /// (T-1337). T-1343.
         #[arg(long, value_name = "MS")]
         since: Option<i64>,
+
+        /// Render each reply with its parent quoted on a preceding `>` line
+        /// (T-1344). Seeds an offset-keyed cache from a one-time topic walk
+        /// at startup so existing parents are available; new envelopes during
+        /// `--follow` are added to the cache as they stream. JSON mode adds
+        /// a `parent` field to each emitted envelope (`null` when not a
+        /// reply or parent missing).
+        #[arg(long)]
+        show_parent: bool,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
