@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T15:53:57Z ===
-task_id: T-1327
+=== episodic-gen invocation: 2026-04-27T16:04:22Z ===
+task_id: T-1328
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1327.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1328.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: persist e2e agent-conversation walkthrough script as repo asset
-  Duration: 0 days (2 min)
+  Task: channel thread — recursive Matrix-style thread view (root + descendants)
+  Duration: 0 days (5 min)
   Updates: 2
   Commits: 1
-  Lines: +262 -10 across 13 files
-  Outcomes: 6 AC checked
-  Artifacts: 13 files tracked
+  Lines: +368 -59 across 23 files
+  Outcomes: 10 AC checked
+  Artifacts: 23 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1327-persist-e2e-agent-conversation-walkthrou.md
+Source: /opt/termlink/.tasks/completed/T-1328-channel-thread--recursive-matrix-style-t.md
 --- exit code: 0 ---

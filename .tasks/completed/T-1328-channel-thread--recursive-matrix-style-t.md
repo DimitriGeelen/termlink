@@ -4,16 +4,16 @@ name: "channel thread — recursive Matrix-style thread view (root + descendants
 description: >
   channel thread — recursive Matrix-style thread view (root + descendants)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T15:58:55Z
-last_update: 2026-04-27T15:58:55Z
-date_finished: null
+last_update: 2026-04-27T16:04:13Z
+date_finished: 2026-04-27T16:04:13Z
 ---
 
 # T-1328: channel thread — recursive Matrix-style thread view (root + descendants)
@@ -85,3 +85,6 @@ cargo clippy -p termlink --all-targets -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1328-channel-thread--recursive-matrix-style-t.md
 - **Context:** Initial task creation
+
+### 2026-04-27T16:04:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
