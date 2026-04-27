@@ -1678,6 +1678,38 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Direct-message a peer agent on the canonical `dm:<a>:<b>` topic (T-1319).
+    /// Topic name is auto-resolved from your identity fingerprint plus the
+    /// peer's identifier, sorted alphabetically. Auto-creates the topic with
+    /// `forever` retention on first use. With no flags, opens the conversation
+    /// in read mode (`--resume --reactions`); with `--send`, posts and exits.
+    Dm {
+        /// Peer identifier (typically their identity fingerprint, but any
+        /// stable string works — both ends just need to agree). Used together
+        /// with your own identity fingerprint to derive the topic name.
+        peer: String,
+
+        /// Send a message to this DM and exit (instead of opening read mode)
+        #[arg(long)]
+        send: Option<String>,
+
+        /// Threaded reply — sets metadata.in_reply_to=<offset>. Requires --send.
+        #[arg(long, requires = "send")]
+        reply_to: Option<u64>,
+
+        /// Print the canonical DM topic name and exit (helper for scripts)
+        #[arg(long)]
+        topic_only: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON (read mode → JSON-lines; --send → delivery JSON;
+        /// --topic-only → JSON object)
+        #[arg(long)]
+        json: bool,
+    },
     /// Post a read-receipt (Matrix `m.receipt` analogue) — shorthand for
     /// `channel post --msg-type receipt` carrying `metadata.up_to=<offset>`.
     /// Without `--up-to`, resolves to the topic's current latest offset
