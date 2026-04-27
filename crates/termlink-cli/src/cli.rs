@@ -2179,6 +2179,15 @@ pub(crate) enum ChannelAction {
         #[arg(long, value_name = "N", conflicts_with = "follow")]
         tail: Option<usize>,
 
+        /// Filter envelopes to only those whose `sender_id` is in the CSV
+        /// (T-1347). Strict equality (comma-split + trim, no substring
+        /// match). Empty entries ignored. JSON mode applies the same
+        /// filter. Composes with all other render passes — reactions, edits
+        /// and redactions still process the full set; only the rendered
+        /// subset is filtered.
+        #[arg(long, value_name = "CSV")]
+        senders: Option<String>,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

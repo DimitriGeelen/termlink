@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T20:39:07Z ===
-task_id: T-1345
+=== episodic-gen invocation: 2026-04-27T20:54:27Z ===
+task_id: T-1346
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1345.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1346.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel pin / unpin / pinned — Matrix-style pinned events on a topic
-  Duration: 0 days (9 min)
+  Task: channel subscribe --tail N — render only last N envelopes
+  Duration: 0 days (11 min)
   Updates: 2
   Commits: 1
-  Lines: +430 -47 across 18 files
+  Lines: +205 -89 across 16 files
   Outcomes: 9 AC checked
-  Artifacts: 18 files tracked
+  Artifacts: 16 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1345-channel-pin--unpin--pinned--matrix-style.md
+Source: /opt/termlink/.tasks/completed/T-1346-channel-subscribe---tail-n--render-only-.md
 --- exit code: 0 ---

@@ -386,7 +386,7 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                None, None, false, None, hub, json_output,
+                None, None, false, None, None, hub, json_output,
             )
             .await
         }
@@ -2224,6 +2224,25 @@ pub(crate) fn should_emit_for_since(env: &Value, since: Option<i64>) -> bool {
     }
 }
 
+/// T-1347: pure helper — does `sender` match the comma-separated allowlist?
+/// Strict equality (comma-split + trim). Empty list returns `false` (no
+/// allowed senders means nothing matches). Empty sender returns `false`.
+/// Case-sensitive — sender_ids are fingerprint hashes where case matters.
+pub(crate) fn sender_in_csv(sender: &str, csv: &str) -> bool {
+    if sender.is_empty() {
+        return false;
+    }
+    let parts: Vec<&str> = csv
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if parts.is_empty() {
+        return false;
+    }
+    parts.contains(&sender)
+}
+
 /// T-1346: pure helper — return the last `n` items from `items` (or all
 /// when `n >= items.len()`, or empty when `n == 0`). When `tail` is `None`,
 /// returns a clone of all items unchanged. Used by `cmd_channel_subscribe`
@@ -2255,6 +2274,7 @@ pub(crate) async fn cmd_channel_subscribe(
     since: Option<i64>,
     show_parent: bool,
     tail: Option<usize>,
+    senders_filter: Option<&str>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -2414,6 +2434,16 @@ pub(crate) async fn cmd_channel_subscribe(
             // and human output identically.
             if !should_emit_for_since(m, since) {
                 continue;
+            }
+            // T-1347: render-time --senders <csv> filter. Same shape as
+            // --since: applied to both JSON and human output, after all
+            // reaction/edit/redaction aggregation passes have already run
+            // on the full set.
+            if let Some(csv) = senders_filter {
+                let s = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+                if !sender_in_csv(s, csv) {
+                    continue;
+                }
             }
             // T-1344: keep the parent cache fresh as new envelopes stream in
             // (so a future reply to this offset finds it without a re-walk).
@@ -4205,6 +4235,48 @@ mod tests {
             }),
         ];
         assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    // T-1347: sender_in_csv
+    #[test]
+    fn sender_in_csv_empty_csv_returns_false() {
+        assert!(!sender_in_csv("alice", ""));
+        assert!(!sender_in_csv("alice", "  ,  ,  "));
+    }
+
+    #[test]
+    fn sender_in_csv_empty_sender_returns_false() {
+        assert!(!sender_in_csv("", "alice,bob"));
+    }
+
+    #[test]
+    fn sender_in_csv_single_id_match() {
+        assert!(sender_in_csv("alice", "alice"));
+    }
+
+    #[test]
+    fn sender_in_csv_multi_id_match() {
+        assert!(sender_in_csv("bob", "alice,bob,carol"));
+        assert!(sender_in_csv("alice", "alice,bob"));
+        assert!(sender_in_csv("carol", "alice,bob,carol"));
+    }
+
+    #[test]
+    fn sender_in_csv_no_match() {
+        assert!(!sender_in_csv("dave", "alice,bob,carol"));
+    }
+
+    #[test]
+    fn sender_in_csv_strips_whitespace() {
+        assert!(sender_in_csv("alice", "  alice  ,  bob  "));
+        assert!(sender_in_csv("bob", " alice , bob "));
+    }
+
+    #[test]
+    fn sender_in_csv_case_sensitive() {
+        // sender_ids are fingerprint hashes; case must matter.
+        assert!(!sender_in_csv("Alice", "alice"));
+        assert!(!sender_in_csv("alice", "ALICE"));
     }
 
     // T-1346: tail_slice
