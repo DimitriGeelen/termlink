@@ -4,16 +4,16 @@ name: "channel reactions: --by-sender per-reactor identity (T-1314 follow-up)"
 description: >
   channel reactions: --by-sender per-reactor identity (T-1314 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T13:40:20Z
-last_update: 2026-04-27T13:40:20Z
-date_finished: null
+last_update: 2026-04-27T13:43:06Z
+date_finished: 2026-04-27T13:43:06Z
 ---
 
 # T-1317: channel reactions: --by-sender per-reactor identity (T-1314 follow-up)
@@ -99,3 +99,6 @@ target/debug/termlink channel subscribe --help 2>&1 | grep -q by-sender
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1317-channel-reactions---by-sender-per-reacto.md
 - **Context:** Initial task creation
+
+### 2026-04-27T13:43:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

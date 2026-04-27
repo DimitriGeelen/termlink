@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1317: channel reactions: --by-sender per-reactor identity (T-1314 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T13:43:16Z
+# ============================================================================
+
+task_id: T-1317
+task_name: "channel reactions: --by-sender per-reactor identity (T-1314 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T13:40:20Z
+completed: 2026-04-27T13:43:06Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T15:42:59+02:00
+last_commit: 2026-04-27T15:42:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel reactions --by-sender per-reactor identity (T-1314 polish)
+
+# Key outcomes
+outcomes:
+  - "CLI `termlink channel subscribe --reactions --by-sender` shows per-emoji reactor list (`👍 by alice, bob` instead of `👍 ×2`); same first-seen ordering of emojis"
+  - "Without `--by-sender`, existing count-only behavior unchanged (backwards compatible)"
+  - "`--by-sender` requires `--reactions` (clap-level enforcement via `requires` attribute)"
+  - "CLI build + clippy clean"
+  - "Smoke evidence in task file"
+  - "Same-sender double-react dedups in `--by-sender` mode (alice++ shows once)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1317-channel-reactions---by-sender-per-reacto.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T15:42:59"
+    action: "T-1317: channel reactions --by-sender per-reactor identity (T-1314 polish)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 150
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1317-channel-reactions---by-sender-per-reacto.md
+generated_by: context-agent-hybrid
