@@ -641,6 +641,30 @@ async fn main() -> Result<()> {
             ChannelAction::Pinned { topic, hub, json } => {
                 commands::channel::cmd_channel_pinned(&topic, hub.as_deref(), json).await
             }
+            ChannelAction::Typing {
+                topic,
+                emit,
+                ttl_ms,
+                hub,
+                json,
+            } => {
+                if emit {
+                    commands::channel::cmd_channel_typing_emit(
+                        &topic,
+                        ttl_ms,
+                        hub.as_deref(),
+                        json,
+                    )
+                    .await
+                } else {
+                    commands::channel::cmd_channel_typing_list(
+                        &topic,
+                        hub.as_deref(),
+                        json,
+                    )
+                    .await
+                }
+            }
             ChannelAction::Forward {
                 src_topic,
                 offset,

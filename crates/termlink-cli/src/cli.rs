@@ -1850,6 +1850,33 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Emit or list ephemeral typing indicators (T-1351). Matrix-style
+    /// `m.typing` analogue, append-only: emit writes a `msg_type=typing`
+    /// envelope with `metadata.expires_at_ms=<now+ttl>`. List walks the
+    /// topic and reports senders whose latest typing envelope has not
+    /// expired. Default TTL: 30000ms (Matrix's 30s typing window).
+    Typing {
+        /// Topic name
+        topic: String,
+
+        /// Emit a typing indicator (default is list mode)
+        #[arg(long)]
+        emit: bool,
+
+        /// TTL in milliseconds for the emitted typing indicator (default
+        /// 30000). Only meaningful with `--emit`.
+        #[arg(long, default_value_t = 30000u64, value_name = "MS")]
+        ttl_ms: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON (list mode: array of `{sender_id, expires_at_ms,
+        /// ts}`). Emit mode: passes through to `channel.post`.
+        #[arg(long)]
+        json: bool,
+    },
     /// Pin or unpin an envelope on a topic (T-1345). Matrix-style
     /// `m.room.pinned_events` analogue, append-only: emits a `msg_type=pin`
     /// envelope carrying `metadata.pin_target=<offset>` and

@@ -1950,6 +1950,142 @@ pub(crate) async fn cmd_channel_edit(
     .await
 }
 
+/// T-1351: emit a typing indicator. Posts a `msg_type=typing` envelope
+/// carrying `metadata.expires_at_ms=now+ttl_ms`. Append-only — old typing
+/// envelopes coexist; the list path filters by expiry.
+pub(crate) async fn cmd_channel_typing_emit(
+    topic: &str,
+    ttl_ms: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let expires_at = now_ms + (ttl_ms as i64);
+    let metadata = vec![format!("expires_at_ms={expires_at}")];
+    cmd_channel_post(
+        topic,
+        "typing",
+        Some(""),
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1351: structured row for one currently-active typer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TyperRow {
+    pub sender_id: String,
+    /// Wall-clock ms when this typing indicator expires. Filtered to only
+    /// rows where `expires_at_ms > now_ms`.
+    pub expires_at_ms: i64,
+    /// Envelope timestamp (when the typing indicator was emitted). Drives
+    /// sort order in `compute_active_typers`.
+    pub ts: i64,
+}
+
+impl TyperRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "sender_id": self.sender_id,
+            "expires_at_ms": self.expires_at_ms,
+            "ts": self.ts,
+        })
+    }
+}
+
+/// T-1351: pure helper — derive the active typer list from a topic walk.
+///
+/// For each `msg_type=typing` envelope, keep only the LATEST per sender
+/// (latest in offset order — most recent typing intent wins). After
+/// reduction, drop entries whose `expires_at_ms <= now_ms`. Returns rows
+/// sorted by `ts` descending (most recently active first); ties break on
+/// sender_id ascending for determinism.
+pub(crate) fn compute_active_typers(envelopes: &[Value], now_ms: i64) -> Vec<TyperRow> {
+    use std::collections::HashMap;
+    let mut latest: HashMap<String, TyperRow> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("typing") {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let expires_at_ms = env
+            .get("metadata")
+            .and_then(|md| md.get("expires_at_ms"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
+        // Latest-per-sender: replace if this envelope's offset is greater
+        // (envelopes arrive in offset order, so a simple insert/replace
+        // works without checking offset explicitly).
+        latest.insert(
+            sender.clone(),
+            TyperRow {
+                sender_id: sender,
+                expires_at_ms,
+                ts,
+            },
+        );
+    }
+    let mut rows: Vec<TyperRow> = latest
+        .into_values()
+        .filter(|r| r.expires_at_ms > now_ms)
+        .collect();
+    rows.sort_by(|a, b| {
+        b.ts.cmp(&a.ts)
+            .then_with(|| a.sender_id.cmp(&b.sender_id))
+    });
+    rows
+}
+
+/// T-1351: list active typers on a topic.
+pub(crate) async fn cmd_channel_typing_list(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let rows = compute_active_typers(&envelopes, now_ms);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(TyperRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No active typers on topic '{topic}'.");
+        return Ok(());
+    }
+    for r in &rows {
+        let remaining = r.expires_at_ms - now_ms;
+        println!(
+            "{sender}: typing (expires in {remaining}ms)",
+            sender = r.sender_id,
+        );
+    }
+    Ok(())
+}
+
 /// T-1348: pure helper — assemble the metadata K=V strings for a forwarded
 /// envelope. Returns `["forwarded_from=<src>:<off>", "forwarded_sender=<id>"]`
 /// in stable order (forwarded_from first). Used by `cmd_channel_forward`.
@@ -4333,6 +4469,98 @@ mod tests {
             }),
         ];
         assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    // T-1351: compute_active_typers
+    fn typing_env(off: u64, sender: &str, ts: i64, expires_at: i64) -> Value {
+        json!({
+            "offset": off,
+            "msg_type": "typing",
+            "sender_id": sender,
+            "ts": ts,
+            "metadata": {"expires_at_ms": expires_at.to_string()},
+        })
+    }
+
+    #[test]
+    fn compute_active_typers_empty_input() {
+        assert_eq!(compute_active_typers(&[], 1000), Vec::<TyperRow>::new());
+    }
+
+    #[test]
+    fn compute_active_typers_single_active() {
+        let envs = vec![typing_env(0, "alice", 100, 5000)];
+        let rows = compute_active_typers(&envs, 1000);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].expires_at_ms, 5000);
+        assert_eq!(rows[0].ts, 100);
+    }
+
+    #[test]
+    fn compute_active_typers_single_expired_dropped() {
+        // expires_at_ms (500) is in the past relative to now (1000)
+        let envs = vec![typing_env(0, "alice", 100, 500)];
+        let rows = compute_active_typers(&envs, 1000);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn compute_active_typers_now_equals_expiry_dropped() {
+        // Boundary: expires_at_ms == now_ms must be considered expired.
+        // Reasoning: if "expires_at" is the moment the indicator stops being
+        // valid, then at that moment it is no longer active.
+        let envs = vec![typing_env(0, "alice", 100, 1000)];
+        let rows = compute_active_typers(&envs, 1000);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn compute_active_typers_multiple_some_expired() {
+        let envs = vec![
+            typing_env(0, "alice", 100, 5000),
+            typing_env(1, "bob", 200, 500),    // expired
+            typing_env(2, "carol", 300, 6000),
+        ];
+        let rows = compute_active_typers(&envs, 1000);
+        assert_eq!(rows.len(), 2);
+        // Sort by ts desc → carol (300), alice (100)
+        assert_eq!(rows[0].sender_id, "carol");
+        assert_eq!(rows[1].sender_id, "alice");
+    }
+
+    #[test]
+    fn compute_active_typers_latest_per_sender_wins() {
+        // alice has 2 typing envelopes; the LATEST (offset-wise) wins. Older
+        // active envelope must NOT mask a newer expired one.
+        let envs = vec![
+            typing_env(0, "alice", 100, 5000), // active (would survive if alone)
+            typing_env(1, "alice", 200, 500),  // expired (replaces the active one)
+        ];
+        let rows = compute_active_typers(&envs, 1000);
+        assert!(rows.is_empty(), "newer expired envelope must replace older active");
+    }
+
+    #[test]
+    fn compute_active_typers_skips_non_typing() {
+        let envs = vec![
+            json!({"offset": 0, "msg_type": "post", "sender_id": "alice"}),
+            json!({"offset": 1, "msg_type": "reaction", "sender_id": "bob"}),
+        ];
+        assert!(compute_active_typers(&envs, 1000).is_empty());
+    }
+
+    #[test]
+    fn compute_active_typers_sorted_by_ts_desc_with_sender_tie_break() {
+        let envs = vec![
+            typing_env(0, "bob", 500, 5000),
+            typing_env(1, "alice", 500, 5000), // same ts → tie break on sender asc
+            typing_env(2, "carol", 1000, 5000),
+        ];
+        let rows = compute_active_typers(&envs, 100);
+        assert_eq!(rows[0].sender_id, "carol"); // ts=1000
+        assert_eq!(rows[1].sender_id, "alice"); // ts=500, sender < bob
+        assert_eq!(rows[2].sender_id, "bob");   // ts=500
     }
 
     // T-1349: extract_forward
