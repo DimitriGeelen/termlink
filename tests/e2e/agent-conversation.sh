@@ -437,6 +437,33 @@ expect_contains "are you there?" "$out" "step 27: main render line still appears
 out=$(A channel subscribe "$DST_FWD" --limit 10)
 expect_not_contains "[fwd from" "$out" "step 27: control: plain subscribe must not emit fwd prefix"
 
+step "28. channel typing (T-1351): Matrix-style ephemeral typing indicator"
+# Use a fresh topic to avoid interaction with other typers from earlier steps.
+TYPING_TOPIC="typing-test-$(date +%s)"
+A channel create "$TYPING_TOPIC" >/dev/null
+# Initially no active typers.
+out=$(A channel typing "$TYPING_TOPIC")
+expect_contains "No active typers" "$out" "step 28: empty topic has no typers"
+# Alice emits a 60s typing indicator.
+A channel typing "$TYPING_TOPIC" --emit --ttl-ms 60000 >/dev/null
+out=$(A channel typing "$TYPING_TOPIC")
+expect_contains "$ALICE" "$out" "step 28: alice should appear after emit"
+expect_contains "typing" "$out" "step 28: list view says 'typing'"
+# Bob emits too.
+B channel typing "$TYPING_TOPIC" --emit --ttl-ms 60000 >/dev/null
+out=$(A channel typing "$TYPING_TOPIC" --json)
+# Pretty-printed JSON uses `"sender_id": "..."` (with space). Match the
+# fingerprint alone — the JSON pretty-printer's whitespace is irrelevant.
+expect_contains "$ALICE" "$out" "step 28: --json includes alice"
+expect_contains "$BOB" "$out" "step 28: --json includes bob"
+# Alice's NEWER 50ms emit replaces her 60s one (latest-per-sender wins).
+A channel typing "$TYPING_TOPIC" --emit --ttl-ms 50 >/dev/null
+sleep 1
+out=$(A channel typing "$TYPING_TOPIC")
+# Alice's latest expired; bob still active.
+expect_not_contains "$ALICE" "$out" "step 28: alice's newer expired entry replaces older active"
+expect_contains "$BOB" "$out" "step 28: bob still active"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
