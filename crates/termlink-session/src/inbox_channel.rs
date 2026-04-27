@@ -34,6 +34,28 @@ use crate::hub_capabilities::HubCapabilitiesCache;
 const TOPIC_PREFIX: &str = "inbox:";
 const RPC_METHOD_NOT_FOUND: i64 = -32601;
 
+/// T-1310: Inject `from` from `$TERMLINK_SESSION_ID` into legacy-RPC params
+/// when the caller did not already set it. Enables T-1309 caller-attribution
+/// breakdown to populate for `inbox.list` / `inbox.status` / `inbox.clear`
+/// calls that go through the legacy fallback path.
+///
+/// Empty/unset env var = no-op (params returned unchanged). Any value already
+/// set in `params["from"]` is preserved.
+pub(crate) fn params_with_session_from(mut params: Value) -> Value {
+    if !params.is_object() {
+        return params;
+    }
+    if params.get("from").is_some() {
+        return params;
+    }
+    if let Ok(sid) = std::env::var("TERMLINK_SESSION_ID")
+        && !sid.is_empty()
+    {
+        params["from"] = json!(sid);
+    }
+    params
+}
+
 /// Summary of one pending transfer in a target's inbox. Mirrors the
 /// `inbox::PendingTransfer` fields that current renderers actually consume so
 /// callers swap `inbox.list` → `list_with_fallback` without touching display
@@ -319,8 +341,11 @@ async fn call_channel_list_via_client(
 async fn call_legacy_inbox_status_via_client(
     client: &mut Client,
 ) -> io::Result<InboxStatus> {
+    // T-1310: inject $TERMLINK_SESSION_ID as `from` so T-1309's audit
+    // log captures who is calling the legacy primitive.
+    let params = params_with_session_from(json!({}));
     let resp = client
-        .call("inbox.status", json!("inbox-st"), json!({}))
+        .call("inbox.status", json!("inbox-st"), params)
         .await
         .map_err(|e| map_client_err("inbox.status", e))?;
     match resp {
@@ -509,6 +534,8 @@ async fn call_legacy_inbox_clear_via_client(
         ClearScope::Target(target) => json!({"target": target}),
         ClearScope::All => json!({"all": true}),
     };
+    // T-1310: inject $TERMLINK_SESSION_ID as `from`.
+    let params = params_with_session_from(params);
     let resp = client
         .call("inbox.clear", json!("inbox-cl"), params)
         .await
@@ -636,8 +663,10 @@ async fn call_legacy_inbox_list_via_client(
     client: &mut Client,
     target: &str,
 ) -> io::Result<Vec<InboxEntry>> {
+    // T-1310: inject $TERMLINK_SESSION_ID as `from`.
+    let params = params_with_session_from(json!({"target": target}));
     let resp = client
-        .call("inbox.list", json!("inbox-l"), json!({"target": target}))
+        .call("inbox.list", json!("inbox-l"), params)
         .await
         .map_err(|e| map_client_err("inbox.list", e))?;
     match resp {
@@ -753,6 +782,77 @@ fn host_port_str(addr: &TransportAddr) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// T-1310: env-var injection helper. Uses a unique env-var name guard
+    /// pattern to avoid contaminating other tests in the binary; we save and
+    /// restore the original value rather than relying on test isolation.
+    /// Uses `serial_test`-free approach via SAFETY: tests in this block do
+    /// not run concurrently with the env var set because we restore on drop.
+    struct EnvGuard {
+        key: &'static str,
+        prev: Option<String>,
+    }
+    impl EnvGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let prev = std::env::var(key).ok();
+            // SAFETY: cargo test runs with multiple threads but tests using
+            // this guard hold the env var only briefly within a single test
+            // function; collisions with concurrent reads in this module are
+            // benign (helper is idempotent in shape).
+            unsafe { std::env::set_var(key, value) };
+            Self { key, prev }
+        }
+        fn unset(key: &'static str) -> Self {
+            let prev = std::env::var(key).ok();
+            unsafe { std::env::remove_var(key) };
+            Self { key, prev }
+        }
+    }
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.prev {
+                    Some(v) => std::env::set_var(self.key, v),
+                    None => std::env::remove_var(self.key),
+                }
+            }
+        }
+    }
+
+    /// T-1310: env-var helper covered by a single sequential test because
+    /// std::env::set_var/remove_var are process-global and `cargo test` runs
+    /// tests on multiple threads — separate #[test]s would race each other.
+    /// Each scenario is independently asserted; the EnvGuard restores prior
+    /// state on drop.
+    #[test]
+    fn params_with_session_from_all_scenarios() {
+        // Scenario 1: env unset → no from added
+        {
+            let _g = EnvGuard::unset("TERMLINK_SESSION_ID");
+            let out = params_with_session_from(json!({"target": "alpha"}));
+            assert!(out.get("from").is_none(), "no from when env unset");
+            assert_eq!(out["target"], "alpha");
+        }
+        // Scenario 2: env empty string → no from added
+        {
+            let _g = EnvGuard::set("TERMLINK_SESSION_ID", "");
+            let out = params_with_session_from(json!({}));
+            assert!(out.get("from").is_none(), "no from when env empty");
+        }
+        // Scenario 3: env set + no existing from → injected
+        {
+            let _g = EnvGuard::set("TERMLINK_SESSION_ID", "T-1310-test-session");
+            let out = params_with_session_from(json!({"target": "alpha"}));
+            assert_eq!(out["from"], "T-1310-test-session");
+            assert_eq!(out["target"], "alpha");
+        }
+        // Scenario 4: explicit from is preserved (env never overwrites)
+        {
+            let _g = EnvGuard::set("TERMLINK_SESSION_ID", "should-not-overwrite");
+            let out = params_with_session_from(json!({"from": "explicit-caller"}));
+            assert_eq!(out["from"], "explicit-caller");
+        }
+    }
 
     fn synth_msg(msg_type: &str, payload: Value) -> Value {
         let mirror = json!({"from": "session-A", "payload": payload});
