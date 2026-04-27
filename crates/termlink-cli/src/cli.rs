@@ -1873,7 +1873,10 @@ pub(crate) enum ChannelAction {
         json: bool,
     },
     /// Post a reaction (Matrix `m.annotation` analogue) — shorthand for
-    /// `channel post --msg-type reaction --reply-to <parent>` (T-1314)
+    /// `channel post --msg-type reaction --reply-to <parent>` (T-1314).
+    /// With `--remove`, finds the latest matching reaction this identity
+    /// posted on the same parent with the same payload, and emits an
+    /// `m.redaction` targeting that offset (T-1330).
     React {
         /// Topic name
         topic: String,
@@ -1887,6 +1890,12 @@ pub(crate) enum ChannelAction {
         /// Override sender_id (default: the identity file fingerprint)
         #[arg(long)]
         sender_id: Option<String>,
+
+        /// Remove a previously-posted reaction by this identity matching
+        /// (parent, reaction). Emits `m.redaction` targeting the latest
+        /// matching reaction's offset. Errors if no match found. (T-1330)
+        #[arg(long)]
+        remove: bool,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]

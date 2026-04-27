@@ -500,6 +500,7 @@ async fn main() -> Result<()> {
                 parent_offset,
                 reaction,
                 sender_id,
+                remove,
                 hub,
                 json,
             } => {
@@ -508,6 +509,7 @@ async fn main() -> Result<()> {
                     parent_offset,
                     &reaction,
                     sender_id.as_deref(),
+                    remove,
                     hub.as_deref(),
                     json,
                 )

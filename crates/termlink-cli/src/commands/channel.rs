@@ -647,21 +647,113 @@ pub(crate) async fn cmd_channel_react(
     parent_offset: u64,
     reaction: &str,
     sender_id: Option<&str>,
+    remove: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    cmd_channel_post(
-        topic,
-        "reaction",
-        Some(reaction),
-        None,
-        sender_id,
-        Some(parent_offset),
-        &[],
-        hub,
-        json_output,
-    )
-    .await
+    if !remove {
+        return cmd_channel_post(
+            topic,
+            "reaction",
+            Some(reaction),
+            None,
+            sender_id,
+            Some(parent_offset),
+            &[],
+            hub,
+            json_output,
+        )
+        .await;
+    }
+    // T-1330: removal path. Walk the topic, find the latest reaction this
+    // identity posted with matching parent + payload, and emit a redaction
+    // targeting that offset. Identity-aware: an explicit --sender-id wins;
+    // otherwise we resolve the local identity fingerprint, mirroring
+    // cmd_channel_post.
+    let me: String = match sender_id {
+        Some(s) => s.to_string(),
+        None => {
+            let id = load_identity_or_create()
+                .context("Loading identity for reaction removal")?;
+            id.fingerprint().to_string()
+        }
+    };
+    let parent_str = parent_offset.to_string();
+    let sock = hub_socket(hub)?;
+    let mut cursor: u64 = 0;
+    let limit: u64 = 1000;
+    let mut found: Option<u64> = None;
+    loop {
+        let resp = client::rpc_call(
+            &sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .context("Hub rpc_call (channel.subscribe) failed")?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        if let Some(off) = find_my_reaction_offset(&msgs, &me, &parent_str, reaction) {
+            // Latest-wins: keep updating; later pages may yield a higher offset.
+            found = Some(off);
+        }
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+    let target = found.ok_or_else(|| {
+        anyhow!(
+            "No reaction by '{me}' on parent {parent_offset} matching '{reaction}' \
+             found on topic '{topic}'"
+        )
+    })?;
+    cmd_channel_redact(topic, target, Some("reaction-remove"), hub, json_output).await
+}
+
+/// T-1330: pure helper — scan a page of envelopes and return the highest
+/// offset of a reaction envelope that matches (sender, parent, payload).
+/// Returns None when nothing matches. Caller paginates and keeps the
+/// highest across all pages.
+pub(crate) fn find_my_reaction_offset(
+    msgs: &[Value],
+    sender: &str,
+    parent: &str,
+    payload: &str,
+) -> Option<u64> {
+    let mut best: Option<u64> = None;
+    for m in msgs {
+        if m.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+            continue;
+        }
+        if m.get("sender_id").and_then(|v| v.as_str()) != Some(sender) {
+            continue;
+        }
+        let parent_val = m
+            .get("metadata")
+            .and_then(|md| md.get("in_reply_to"))
+            .and_then(|v| v.as_str());
+        if parent_val != Some(parent) {
+            continue;
+        }
+        let payload_b64 = m.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(payload_b64)
+            .ok()
+            .and_then(|b| String::from_utf8(b).ok())
+            .unwrap_or_default();
+        if decoded != payload {
+            continue;
+        }
+        let offset = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        match best {
+            Some(b) if b >= offset => {}
+            _ => best = Some(offset),
+        }
+    }
+    best
 }
 
 /// T-1314 / T-1317: payload-decoded view of a reaction envelope. Per-reactor
@@ -1296,6 +1388,12 @@ pub(crate) async fn cmd_channel_subscribe(
         let result = client::unwrap_result(resp)
             .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
         let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        // T-1330: ALWAYS collect redaction targets up-front so the reaction
+        // aggregator (and other passes) can skip envelopes whose redaction
+        // is in this or a prior batch. Matches Matrix m.annotation removal
+        // semantics — a redacted reaction is gone from the aggregate
+        // regardless of `--hide-redacted`.
+        let batch_redacted = redacted_offsets(&msgs);
         // T-1314: when aggregating, do a first pass to bucket new reactions
         // into the persistent map, then a second pass to print non-reaction
         // lines with their accumulated reaction summary inline (looking up
@@ -1304,6 +1402,10 @@ pub(crate) async fn cmd_channel_subscribe(
         if aggregate_reactions && !json_output {
             for m in &msgs {
                 if let Some(r) = extract_reaction(m) {
+                    let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+                    if redacted.contains(&off) || batch_redacted.contains(&off) {
+                        continue; // T-1330: redacted reactions are suppressed
+                    }
                     reactions_by_parent
                         .entry(r.parent.to_string())
                         .or_default()
@@ -1330,11 +1432,12 @@ pub(crate) async fn cmd_channel_subscribe(
             }
         }
         // T-1322: pass-1 collect redaction targets so pass-2 can suppress them
-        // (only when hide_redacted is on; otherwise we render redactions
-        // explicitly in the standard print loop below).
-        if hide_redacted && !json_output {
-            redacted.extend(redacted_offsets(&msgs));
-        }
+        // when hide_redacted is on. T-1330: ALWAYS carry forward the batch's
+        // redacted offsets in the persistent set so a redaction in a later
+        // page suppresses a reaction whose envelope was in an earlier page
+        // (the next subscribe iteration will rebuild reactions_by_parent
+        // with the updated redacted set).
+        redacted.extend(&batch_redacted);
         for m in &msgs {
             if json_output {
                 println!("{}", serde_json::to_string(m)?);
@@ -1801,5 +1904,65 @@ mod tests {
         ];
         let map = collapse_edits_map(&edits);
         assert_eq!(map.get(&1).map(String::as_str), Some("second"));
+    }
+
+    /// T-1330: helper that finds the latest matching reaction-by-me on a parent.
+    fn react(offset: u64, sender: &str, parent: &str, payload: &str) -> serde_json::Value {
+        let p_b64 = base64::engine::general_purpose::STANDARD.encode(payload.as_bytes());
+        json!({
+            "offset": offset,
+            "msg_type": "reaction",
+            "sender_id": sender,
+            "payload_b64": p_b64,
+            "metadata": {"in_reply_to": parent},
+        })
+    }
+
+    #[test]
+    fn find_my_reaction_offset_picks_latest_match() {
+        let msgs = vec![
+            react(2, "alice", "0", "👍"),
+            react(5, "alice", "0", "👍"),
+            react(7, "alice", "0", "👍"),
+        ];
+        assert_eq!(
+            find_my_reaction_offset(&msgs, "alice", "0", "👍"),
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn find_my_reaction_offset_returns_none_on_empty() {
+        let msgs: Vec<serde_json::Value> = vec![];
+        assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    #[test]
+    fn find_my_reaction_offset_filters_by_sender() {
+        let msgs = vec![react(2, "bob", "0", "👍")];
+        assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    #[test]
+    fn find_my_reaction_offset_filters_by_parent() {
+        let msgs = vec![react(2, "alice", "1", "👍")];
+        assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    #[test]
+    fn find_my_reaction_offset_filters_by_payload() {
+        let msgs = vec![react(2, "alice", "0", "👀")];
+        assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    #[test]
+    fn find_my_reaction_offset_ignores_non_reaction_envelopes() {
+        let msgs = vec![
+            json!({
+                "offset": 2, "msg_type": "chat", "sender_id": "alice",
+                "payload_b64": "", "metadata": {"in_reply_to": "0"}
+            }),
+        ];
+        assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
     }
 }
