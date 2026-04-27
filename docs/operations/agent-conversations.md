@@ -162,6 +162,20 @@ provenance. A malicious peer with hub access could rewrite the pointer.
 For the current threat model (cooperating agents on the same hub) this is
 fine; if it ever isn't, see the T-1313 task file for the design alternative.
 
+## Channel description (T-1323 — Matrix `m.room.topic`)
+
+To attach a free-text description to a topic (think: "this channel is for
+the design review thread, archived after Apr-30"):
+
+```sh
+termlink channel describe alpha:design "Q2 design review thread (closes 2026-04-30)"
+```
+
+Append-only — repeat calls add new records, the latest by ts_ms wins. The
+synthesized `channel info <topic>` view (T-1324) surfaces the latest
+description; raw `subscribe` shows every description record so you can audit
+who changed it and when.
+
 ## Edits (T-1321 — Matrix `m.replace`)
 
 When you need to correct a previously-sent message, emit a new envelope with

@@ -711,6 +711,51 @@ fn collapse_edits_map(edits: &[(u64, u64, String)]) -> std::collections::HashMap
     latest.into_iter().map(|(k, (_, t))| (k, t)).collect()
 }
 
+/// T-1323: emit a `msg_type=topic_metadata` envelope carrying a topic
+/// description (`metadata.description=<text>`). Append-only — repeat calls
+/// add new records; the reader picks the latest by ts_ms.
+pub(crate) async fn cmd_channel_describe(
+    topic: &str,
+    description: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let metadata = vec![format!("description={description}")];
+    cmd_channel_post(
+        topic,
+        "topic_metadata",
+        Some(description),
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1323: pure helper — given a slice of envelope JSON values, return the
+/// most recent (ts_ms, description) from `msg_type=topic_metadata` records.
+/// Returns `None` if there are no such records. Used by T-1324 (`channel info`)
+/// to surface the description in the synthesized topic view; allow(dead_code)
+/// holds until that consumer lands in the next task.
+#[allow(dead_code)]
+pub(crate) fn latest_description(msgs: &[Value]) -> Option<(u64, String)> {
+    msgs.iter()
+        .filter(|m| m.get("msg_type").and_then(|v| v.as_str()) == Some("topic_metadata"))
+        .filter_map(|m| {
+            let ts = m.get("ts_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+            let desc = m
+                .get("metadata")
+                .and_then(|md| md.get("description"))
+                .and_then(|v| v.as_str())
+                .map(String::from)?;
+            Some((ts, desc))
+        })
+        .max_by_key(|(ts, _)| *ts)
+}
+
 /// T-1322: a redaction envelope (`msg_type=redaction` carrying
 /// `metadata.redacts=<offset>` and optional `reason`).
 struct Redaction<'a> {
@@ -1230,6 +1275,42 @@ mod tests {
         assert_eq!(map.get(&5).map(String::as_str), Some("v2"));
         assert_eq!(map.get(&7).map(String::as_str), Some("other-only"));
         assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn latest_description_picks_most_recent() {
+        let msgs = vec![
+            json!({"msg_type": "chat", "ts_ms": 500, "metadata": {}}),
+            json!({
+                "msg_type": "topic_metadata", "ts_ms": 1000,
+                "metadata": {"description": "v1"}
+            }),
+            json!({
+                "msg_type": "topic_metadata", "ts_ms": 2000,
+                "metadata": {"description": "v2"}
+            }),
+            json!({
+                "msg_type": "topic_metadata", "ts_ms": 1500,
+                "metadata": {"description": "v1.5 (older than v2)"}
+            }),
+        ];
+        let got = latest_description(&msgs);
+        assert_eq!(got, Some((2000, "v2".to_string())));
+    }
+
+    #[test]
+    fn latest_description_returns_none_for_empty_or_no_topic_metadata() {
+        assert_eq!(latest_description(&[]), None);
+        let only_chat = vec![
+            json!({"msg_type": "chat", "ts_ms": 1, "metadata": {}}),
+            json!({"msg_type": "reaction", "ts_ms": 2, "metadata": {"in_reply_to": "0"}}),
+        ];
+        assert_eq!(latest_description(&only_chat), None);
+        // topic_metadata missing the description field is ignored
+        let malformed = vec![
+            json!({"msg_type": "topic_metadata", "ts_ms": 1, "metadata": {}}),
+        ];
+        assert_eq!(latest_description(&malformed), None);
     }
 
     #[test]
