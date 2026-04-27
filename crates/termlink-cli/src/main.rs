@@ -586,6 +586,7 @@ async fn main() -> Result<()> {
                 show_parent,
                 tail,
                 senders,
+                show_forwards,
                 hub,
                 json,
             } => {
@@ -607,6 +608,7 @@ async fn main() -> Result<()> {
                     show_parent,
                     tail,
                     senders.as_deref(),
+                    show_forwards,
                     hub.as_deref(),
                     json,
                 )

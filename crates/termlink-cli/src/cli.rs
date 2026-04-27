@@ -2212,6 +2212,13 @@ pub(crate) enum ChannelAction {
         #[arg(long, value_name = "CSV")]
         senders: Option<String>,
 
+        /// Render forwarded envelopes (those carrying `metadata.forwarded_from`,
+        /// emitted by `channel forward`, T-1348) with a `[fwd from <src>:<off>
+        /// by <orig_sender>]` prefix line above the main render line. Pure
+        /// render-side hint; no protocol change. T-1349.
+        #[arg(long)]
+        show_forwards: bool,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

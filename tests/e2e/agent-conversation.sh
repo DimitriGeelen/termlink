@@ -427,6 +427,16 @@ expect_contains "\"forwarded_sender\":\"$ALICE\"" "$out_json" "step 26: metadata
 expect_contains "\"sender_id\":\"$BOB\"" "$out_json" "step 26: dst sender_id is forwarder bob"
 expect_not_contains "\"sender_id\":\"$ALICE\"" "$out_json" "step 26: dst sender_id is NOT original alice"
 
+step "27. channel subscribe --show-forwards (T-1349): forward provenance prefix"
+# DST_FWD topic from step 26 contains a forwarded envelope. Subscribe with
+# --show-forwards must emit a `[fwd from <DM>:0 by <ALICE>]` prefix line.
+out=$(A channel subscribe "$DST_FWD" --limit 10 --show-forwards)
+expect_contains "[fwd from $DM:0 by $ALICE]" "$out" "step 27: --show-forwards must emit provenance prefix"
+expect_contains "are you there?" "$out" "step 27: main render line still appears"
+# Without --show-forwards, no prefix.
+out=$(A channel subscribe "$DST_FWD" --limit 10)
+expect_not_contains "[fwd from" "$out" "step 27: control: plain subscribe must not emit fwd prefix"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
