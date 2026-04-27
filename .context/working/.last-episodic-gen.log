@@ -1,22 +1,23 @@
-=== episodic-gen invocation: 2026-04-27T15:41:05Z ===
-task_id: T-1325
+=== episodic-gen invocation: 2026-04-27T15:50:53Z ===
+task_id: T-1326
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1325.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1326.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel mentions — Matrix m.mention analogue (metadata.mentions + --filter-mentions)
+  Task: fix subscribe --filter-mentions to also suppress redaction explicit-render branch (e2e bug)
   Duration: 0 days (5 min)
   Updates: 2
   Commits: 1
-  Lines: +242 -14 across 15 files
-  Outcomes: 8 AC checked
-  Artifacts: 15 files tracked
+  Lines: +188 -79 across 19 files
+  Outcomes: 4 AC checked
+  Challenges: 1 detected from git
+  Artifacts: 19 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1325-channel-mentions--matrix-mmention-analog.md
+Source: /opt/termlink/.tasks/completed/T-1326-fix-subscribe---filter-mentions-to-also-.md
 --- exit code: 0 ---
