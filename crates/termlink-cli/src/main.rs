@@ -422,6 +422,7 @@ async fn main() -> Result<()> {
             ChannelAction::Ack {
                 topic,
                 up_to,
+                since,
                 sender_id,
                 hub,
                 json,
@@ -429,6 +430,7 @@ async fn main() -> Result<()> {
                 commands::channel::cmd_channel_ack(
                     &topic,
                     up_to,
+                    since,
                     sender_id.as_deref(),
                     hub.as_deref(),
                     json,

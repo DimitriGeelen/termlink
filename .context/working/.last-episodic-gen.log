@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T18:05:06Z ===
-task_id: T-1335
+=== episodic-gen invocation: 2026-04-27T18:18:27Z ===
+task_id: T-1336
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1335.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1336.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel topics --stats — content/meta breakdown per topic
-  Duration: 0 days (14 min)
+  Task: channel search <topic> <pattern> — read-only payload grep
+  Duration: 0 days (9 min)
   Updates: 2
   Commits: 1
-  Lines: +417 -193 across 27 files
+  Lines: +322 -56 across 19 files
   Outcomes: 7 AC checked
-  Artifacts: 27 files tracked
+  Artifacts: 19 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1335-channel-topics---stats--contentmeta-brea.md
+Source: /opt/termlink/.tasks/completed/T-1336-channel-search-topic-pattern--read-only-.md
 --- exit code: 0 ---
