@@ -639,6 +639,22 @@ async fn main() -> Result<()> {
             ChannelAction::Pinned { topic, hub, json } => {
                 commands::channel::cmd_channel_pinned(&topic, hub.as_deref(), json).await
             }
+            ChannelAction::Forward {
+                src_topic,
+                offset,
+                dst_topic,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_forward(
+                    &src_topic,
+                    offset,
+                    &dst_topic,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::List { prefix, stats, hub, json } => {
                 commands::channel::cmd_channel_list(prefix.as_deref(), stats, hub.as_deref(), json).await
             }

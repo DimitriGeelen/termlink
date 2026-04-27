@@ -1950,6 +1950,74 @@ pub(crate) async fn cmd_channel_edit(
     .await
 }
 
+/// T-1348: pure helper — assemble the metadata K=V strings for a forwarded
+/// envelope. Returns `["forwarded_from=<src>:<off>", "forwarded_sender=<id>"]`
+/// in stable order (forwarded_from first). Used by `cmd_channel_forward`.
+pub(crate) fn build_forward_metadata(
+    src_topic: &str,
+    offset: u64,
+    original_sender: &str,
+) -> Vec<String> {
+    vec![
+        format!("forwarded_from={src_topic}:{offset}"),
+        format!("forwarded_sender={original_sender}"),
+    ]
+}
+
+/// T-1348: copy an envelope from one topic to another, preserving payload
+/// and msg_type. The new envelope on dst is signed by the current identity
+/// (so it's NOT a faithful relay — the forwarder is the sender on record);
+/// metadata records the source for trace-back.
+pub(crate) async fn cmd_channel_forward(
+    src_topic: &str,
+    offset: u64,
+    dst_topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    // Walk the source topic to find the envelope at offset. Walking is
+    // consistent with how channel quote / channel ancestors do their
+    // lookups — saves us from inventing a single-offset RPC convention.
+    let envelopes = walk_topic_full(&sock, src_topic).await?;
+    let src_env = envelopes
+        .iter()
+        .find(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(offset))
+        .ok_or_else(|| anyhow!("Source topic '{src_topic}' has no envelope at offset {offset}"))?;
+    let original_sender = src_env
+        .get("sender_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("?")
+        .to_string();
+    let original_msg_type = src_env
+        .get("msg_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("post")
+        .to_string();
+    let payload_b64 = src_env
+        .get("payload_b64")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    use base64::Engine;
+    let payload_bytes = base64::engine::general_purpose::STANDARD
+        .decode(payload_b64)
+        .unwrap_or_default();
+    let payload_str = String::from_utf8_lossy(&payload_bytes).into_owned();
+    let metadata = build_forward_metadata(src_topic, offset, &original_sender);
+    cmd_channel_post(
+        dst_topic,
+        &original_msg_type,
+        Some(&payload_str),
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
 /// T-1345: pure helper — emit a pin/unpin envelope. Wraps `cmd_channel_post`
 /// with `msg_type=pin`, an empty payload, and metadata
 /// `pin_target=<offset>` + `action=pin|unpin`. Latest action per target wins
@@ -4235,6 +4303,32 @@ mod tests {
             }),
         ];
         assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    // T-1348: build_forward_metadata
+    #[test]
+    fn build_forward_metadata_emits_two_kv_pairs_in_stable_order() {
+        let md = build_forward_metadata("room:dev", 42, "alice-fingerprint");
+        assert_eq!(md.len(), 2);
+        assert_eq!(md[0], "forwarded_from=room:dev:42");
+        assert_eq!(md[1], "forwarded_sender=alice-fingerprint");
+    }
+
+    #[test]
+    fn build_forward_metadata_handles_empty_sender() {
+        // Defensive: a missing sender becomes empty string. The K=V pair is
+        // still emitted (with empty value) so callers can detect the case.
+        let md = build_forward_metadata("topic", 0, "");
+        assert_eq!(md[1], "forwarded_sender=");
+    }
+
+    #[test]
+    fn build_forward_metadata_handles_topic_with_colons() {
+        // Topic names like "dm:a:b" contain colons. Forward metadata must
+        // still include them verbatim so receivers can split-on-LAST-colon
+        // to extract offset.
+        let md = build_forward_metadata("dm:alice:bob", 7, "carol");
+        assert_eq!(md[0], "forwarded_from=dm:alice:bob:7");
     }
 
     // T-1347: sender_in_csv
