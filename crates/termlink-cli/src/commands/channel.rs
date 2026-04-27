@@ -419,6 +419,7 @@ fn dm_list_filter(topics: &[String], my_id: &str) -> Vec<(String, String)> {
 /// the caller, prints `<topic>  (peer=<other-fp>)`. Empty result prints a
 /// hint to stderr and exits 0.
 pub(crate) async fn cmd_channel_dm_list(
+    unread: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -439,23 +440,130 @@ pub(crate) async fn cmd_channel_dm_list(
         })
         .unwrap_or_default();
     let dms = dm_list_filter(&topics, &my_id);
-    if json_output {
-        let rows: Vec<_> = dms
-            .iter()
-            .map(|(t, p)| json!({"topic": t, "peer": p}))
-            .collect();
-        println!("{}", serde_json::to_string_pretty(&json!({"my_id": my_id, "dms": rows}))?);
+
+    if !unread {
+        // T-1320 legacy path — peer column only.
+        if json_output {
+            let rows: Vec<_> = dms
+                .iter()
+                .map(|(t, p)| json!({"topic": t, "peer": p}))
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&json!({"my_id": my_id, "dms": rows}))?);
+            return Ok(());
+        }
+        if dms.is_empty() {
+            let prefix: String = my_id.chars().take(12).collect();
+            eprintln!("No DM topics found for identity {prefix}");
+            return Ok(());
+        }
+        for (topic, peer) in &dms {
+            println!("{topic}  (peer={peer})");
+        }
         return Ok(());
     }
-    if dms.is_empty() {
+
+    // T-1338: inbox view. For each DM, fetch the caller's last receipt
+    // (via channel.receipts RPC) and walk the rest of the topic to count
+    // content envelopes. Then sort unread-first.
+    let mut rows: Vec<DmInboxRow> = Vec::with_capacity(dms.len());
+    for (topic, peer) in &dms {
+        let row = compute_dm_inbox_row(&sock, topic, peer, &my_id).await?;
+        rows.push(row);
+    }
+    sort_dm_inbox(&mut rows);
+
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(DmInboxRow::to_json).collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({"my_id": my_id, "dms": arr}))?
+        );
+        return Ok(());
+    }
+    if rows.is_empty() {
         let prefix: String = my_id.chars().take(12).collect();
         eprintln!("No DM topics found for identity {prefix}");
         return Ok(());
     }
-    for (topic, peer) in &dms {
-        println!("{topic}  (peer={peer})");
+    for r in &rows {
+        let first = match r.first_unread {
+            Some(o) => format!("first={o}"),
+            None => "first=—".to_string(),
+        };
+        println!(
+            "{}  (peer={})  unread={}  {}",
+            r.topic, r.peer, r.unread, first
+        );
     }
     Ok(())
+}
+
+/// T-1338: per-row of the DM inbox view.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DmInboxRow {
+    pub topic: String,
+    pub peer: String,
+    pub unread: u64,
+    pub first_unread: Option<u64>,
+}
+
+impl DmInboxRow {
+    pub(crate) fn to_json(&self) -> Value {
+        json!({
+            "topic": self.topic,
+            "peer": self.peer,
+            "unread": self.unread,
+            "first_unread": self.first_unread,
+        })
+    }
+}
+
+/// T-1338: stable sort that floats unread DMs to the top. Within each
+/// (unread > 0) group and within the (unread == 0) group, original order
+/// is preserved (Rust's sort_by is stable).
+pub(crate) fn sort_dm_inbox(rows: &mut [DmInboxRow]) {
+    rows.sort_by(|a, b| {
+        let a_has = if a.unread > 0 { 0u8 } else { 1 };
+        let b_has = if b.unread > 0 { 0u8 } else { 1 };
+        a_has.cmp(&b_has)
+    });
+}
+
+/// T-1338: walk one DM topic and produce the inbox row for it. Reuses the
+/// T-1329 hub-side aggregation when available, falling back to up_to=0
+/// if the receipts call fails (then ALL content counts as unread, which
+/// is the correct conservative answer).
+async fn compute_dm_inbox_row(
+    sock: &std::path::Path,
+    topic: &str,
+    peer: &str,
+    my_id: &str,
+) -> Result<DmInboxRow> {
+    let mut up_to: u64 = 0;
+    let server_resp = client::rpc_call(
+        sock,
+        method::CHANNEL_RECEIPTS,
+        json!({"topic": topic}),
+    )
+    .await
+    .context("Hub rpc_call (channel.receipts) failed")?;
+    if let termlink_protocol::jsonrpc::RpcResponse::Success(r) = server_resp {
+        for entry in r.result["receipts"].as_array().cloned().unwrap_or_default() {
+            if entry.get("sender_id").and_then(|v| v.as_str()) == Some(my_id) {
+                up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                break;
+            }
+        }
+    }
+
+    let envelopes = walk_topic_full(sock, topic).await?;
+    let (count, first) = count_unread(&envelopes, up_to);
+    Ok(DmInboxRow {
+        topic: topic.to_string(),
+        peer: peer.to_string(),
+        unread: count,
+        first_unread: first,
+    })
 }
 
 /// T-1315: resolve the topic's current latest offset by querying
@@ -2954,6 +3062,64 @@ mod tests {
     #[test]
     fn latest_offset_since_empty_returns_none() {
         assert_eq!(latest_offset_since(&[], 100), None);
+    }
+
+    // ---- T-1338: sort_dm_inbox -----------------------------------------
+
+    fn row(topic: &str, peer: &str, unread: u64, first: Option<u64>) -> DmInboxRow {
+        DmInboxRow {
+            topic: topic.to_string(),
+            peer: peer.to_string(),
+            unread,
+            first_unread: first,
+        }
+    }
+
+    #[test]
+    fn sort_dm_inbox_floats_unread_to_top() {
+        let mut rows = vec![
+            row("dm:a:b", "b", 0, None),
+            row("dm:c:d", "d", 3, Some(7)),
+            row("dm:e:f", "f", 0, None),
+            row("dm:g:h", "h", 1, Some(0)),
+        ];
+        sort_dm_inbox(&mut rows);
+        // Both unread DMs come first (in original relative order),
+        // zero-unread DMs come second (in original relative order).
+        let topics: Vec<&str> = rows.iter().map(|r| r.topic.as_str()).collect();
+        assert_eq!(topics, vec!["dm:c:d", "dm:g:h", "dm:a:b", "dm:e:f"]);
+    }
+
+    #[test]
+    fn sort_dm_inbox_all_zero_keeps_order() {
+        let mut rows = vec![
+            row("dm:a:b", "b", 0, None),
+            row("dm:c:d", "d", 0, None),
+        ];
+        sort_dm_inbox(&mut rows);
+        assert_eq!(rows[0].topic, "dm:a:b");
+        assert_eq!(rows[1].topic, "dm:c:d");
+    }
+
+    #[test]
+    fn sort_dm_inbox_all_unread_keeps_order() {
+        let mut rows = vec![
+            row("dm:a:b", "b", 5, Some(1)),
+            row("dm:c:d", "d", 2, Some(0)),
+        ];
+        sort_dm_inbox(&mut rows);
+        assert_eq!(rows[0].topic, "dm:a:b");
+        assert_eq!(rows[1].topic, "dm:c:d");
+    }
+
+    #[test]
+    fn dm_inbox_row_to_json_round_trips() {
+        let r = row("dm:a:b", "b", 4, Some(5));
+        let v = r.to_json();
+        assert_eq!(v["topic"], "dm:a:b");
+        assert_eq!(v["peer"], "b");
+        assert_eq!(v["unread"], 4);
+        assert_eq!(v["first_unread"], 5);
     }
 
     #[test]

@@ -219,6 +219,25 @@ expect_contains "No envelope" "$err_out" "step 15: future --since must error wit
 err_out=$(B channel ack "$DM" --up-to 0 --since "$ANCHOR_MS" 2>&1) || true
 expect_contains "cannot be used with" "$err_out" "step 15: --up-to and --since must be mutually exclusive"
 
+step "16. channel dm --list --unread (T-1338): inbox view per identity"
+# Bob just acked the DM in step 15 → unread should be 0 from his side.
+out=$(B channel dm --list --unread)
+expect_contains "$DM" "$out" "step 16: bob's inbox should include this DM"
+expect_contains "unread=" "$out" "step 16: inbox should expose unread column"
+# Alice posts a new content envelope; from bob's perspective the DM gains
+# unread=1 (alice's last receipt was probably never set to the new offset
+# either, so bob sees 1 new content envelope).
+A channel post "$DM" --msg-type chat --payload "inbox-test from alice" >/dev/null
+out=$(B channel dm --list --unread)
+# At least the DM line must NOT be 'unread=0' for bob. Anchor-assert by
+# checking that 'unread=0  first=—' is NOT present for THIS topic line.
+dm_line=$(grep -F -- "$DM" <<<"$out" | head -1)
+[[ "$dm_line" == *"unread=0"* ]] && fail "step 16: bob's inbox should show unread>0 for $DM after alice posts (got: $dm_line)"
+# JSON shape sanity-check
+out_json=$(B channel dm --list --unread --json)
+expect_contains "\"unread\":" "$out_json" "step 16: --json should include unread field"
+expect_contains "\"first_unread\":" "$out_json" "step 16: --json should include first_unread field"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

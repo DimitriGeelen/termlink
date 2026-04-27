@@ -1721,6 +1721,13 @@ pub(crate) enum ChannelAction {
         #[arg(long, conflicts_with_all = ["peer", "send", "reply_to", "topic_only"])]
         list: bool,
 
+        /// Inbox view (T-1338): for each listed DM, walk the topic and
+        /// compute the caller's unread count + first-unread offset.
+        /// Sorts unread-first. Requires `--list`. Slower (one walk per
+        /// DM) — opt-in.
+        #[arg(long, requires = "list")]
+        unread: bool,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
