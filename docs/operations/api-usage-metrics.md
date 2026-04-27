@@ -160,6 +160,38 @@ gzip -c $TERMLINK_RUNTIME_DIR/rpc-audit.jsonl > /var/log/termlink/rpc-audit-$(da
 : > $TERMLINK_RUNTIME_DIR/rpc-audit.jsonl
 ```
 
+## Real-time deprecation log (T-1311)
+
+The audit log is **retrospective** — operators run `fw metrics api-usage`
+to see counts after the fact. T-1311 adds the **real-time** complement:
+a `tracing::warn!` at the hub the moment a legacy primitive is dispatched.
+
+Output shape:
+
+```
+WARN deprecated method=event.broadcast from=framework-agent T-1166: schedule retirement once legacy <1% over 60d
+```
+
+Filter for it in journalctl:
+
+```sh
+journalctl -u termlink-hub | grep "T-1166"
+```
+
+Or live-tail via `journalctl -fu termlink-hub | grep --line-buffered T-1166`
+to watch deprecated calls happen as a migration is rolled out.
+
+**Rate-limited** to one log per `(method, from)` pair per 5 minutes — a
+chatty long-running caller spamming `inbox.list` every second floods the
+log only on the first call, then again 5 minutes later if it has not
+been migrated. `from` shows `(unknown)` for callers that did not
+populate the field (legacy clients, methods that don't carry it).
+
+The list of legacy methods is the same set the audit-tally script flags
+as `←legacy` in the `fw metrics api-usage` output: `event.broadcast`,
+`inbox.{list,status,clear}`, `file.{send,receive}` (and chunked
+`file.send.*` / `file.receive.*` variants).
+
 ## Hot-path safety
 
 `record()` opens, appends, closes the file synchronously per RPC. Write

@@ -557,6 +557,11 @@ async fn handle_connection<S>(
                 // so legacy-caller breakdown is possible in `fw metrics api-usage`.
                 let from = req.params.get("from").and_then(|v| v.as_str());
                 crate::rpc_audit::record(&req.method, from);
+                // T-1311: real-time warn-log when a legacy primitive is dispatched.
+                // Rate-limited to one log per (method, from) per 5 minutes inside
+                // warn_if_legacy. Operator tailing logs sees deprecated usage
+                // immediately, not days later in the audit tally.
+                crate::rpc_audit::warn_if_legacy(&req.method, from);
                 if req.method == control::method::HUB_AUTH {
                     // hub.auth is always allowed (it's the authentication mechanism)
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);

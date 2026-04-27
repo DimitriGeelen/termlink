@@ -6,9 +6,10 @@
 //! reads the file and tallies. Single-file design (no rotation in v1) — the
 //! operator-runbook handles disk pressure via cron deletion >90d.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 static AUDIT_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
 
@@ -20,6 +21,76 @@ pub const FILE_NAME: &str = "rpc-audit.jsonl";
 /// `event.collect` dispatches). Skip them so the audit log stays signal-rich
 /// for the T-1166 entry-gate measurement.
 const SKIP_METHODS: &[&str] = &["event.poll", "event.collect"];
+
+/// T-1311: Legacy primitives that the T-1166 entry gate is targeting for
+/// retirement. Used by `warn_if_legacy` to emit a real-time warn log when
+/// any of these methods is dispatched. Mirror of the `LEGACY` set in
+/// `.agentic-framework/agents/metrics/api-usage.sh` — keep in sync if either
+/// changes (single source of truth would require cross-language config; not
+/// worth the plumbing for 6 strings).
+const LEGACY_METHODS: &[&str] = &[
+    "event.broadcast",
+    "inbox.list",
+    "inbox.status",
+    "inbox.clear",
+    "file.send",
+    "file.receive",
+];
+
+/// T-1311: Rate-limit window for the per-(method, from) deprecation warn log.
+/// 5 minutes balances: short enough that operator sees the signal soon after
+/// turning the spigot off, long enough that a chatty long-running caller
+/// doesn't flood the log.
+const DEPRECATION_WARN_WINDOW: Duration = Duration::from_secs(5 * 60);
+
+/// T-1311: Per-(method, from) last-warn-at tracker. Process-local. Pruned
+/// opportunistically by `warn_if_legacy` — no background gc.
+static DEPRECATION_WARN_TRACKER: OnceLock<Mutex<HashMap<(String, String), Instant>>> =
+    OnceLock::new();
+
+fn deprecation_tracker() -> &'static Mutex<HashMap<(String, String), Instant>> {
+    DEPRECATION_WARN_TRACKER.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn is_legacy_method(method: &str) -> bool {
+    LEGACY_METHODS.contains(&method)
+        || method.starts_with("file.send.")
+        || method.starts_with("file.receive.")
+}
+
+/// T-1311: Emit a real-time `tracing::warn!` when a legacy primitive is
+/// called, rate-limited to one log per (method, from) per 5 minutes.
+///
+/// Pairs with the audit log written by `record()` — that captures *every*
+/// call for retrospective tally; this surfaces *one per offender per
+/// window* for live operator awareness (journalctl/stderr tail).
+pub fn warn_if_legacy(method: &str, from: Option<&str>) {
+    if !is_legacy_method(method) {
+        return;
+    }
+    let from_label = from.unwrap_or("(unknown)");
+    let key = (method.to_string(), from_label.to_string());
+    let now = Instant::now();
+    let mut tracker = match deprecation_tracker().lock() {
+        Ok(t) => t,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    // Opportunistic prune: drop entries older than 2x window. Bounds
+    // memory under churning-caller workloads without a background task.
+    tracker.retain(|_, last| now.duration_since(*last) < DEPRECATION_WARN_WINDOW * 2);
+    let should_log = match tracker.get(&key) {
+        None => true,
+        Some(last) => now.duration_since(*last) >= DEPRECATION_WARN_WINDOW,
+    };
+    if should_log {
+        tracker.insert(key, now);
+        tracing::warn!(
+            method = %method,
+            from = %from_label,
+            "deprecated primitive called — T-1166: schedule retirement once legacy <1% over 60d"
+        );
+    }
+}
 
 /// Initialise the audit-log path. Call once at hub bootstrap.
 /// If the runtime_dir is missing or unwritable the audit silently no-ops.
@@ -192,6 +263,99 @@ mod tests {
         assert_eq!(json_escape("foo"), "\"foo\"");
         assert_eq!(json_escape("a\"b"), "\"a\\\"b\"");
         assert_eq!(json_escape("a\nb"), "\"a\\nb\"");
+    }
+
+    /// T-1311: rate-limited deprecation warn — predicate-level tests.
+    /// We test `is_legacy_method` and tracker behavior directly because
+    /// `warn_if_legacy` emits via `tracing` and the global tracker shared
+    /// across tests creates ordering coupling. The integration is exercised
+    /// implicitly through unique-key sequences (each test uses keys no
+    /// other test uses) so they don't see each other's tracker state.
+    #[test]
+    fn is_legacy_method_recognises_set_and_chunked_variants() {
+        assert!(is_legacy_method("event.broadcast"));
+        assert!(is_legacy_method("inbox.list"));
+        assert!(is_legacy_method("inbox.status"));
+        assert!(is_legacy_method("inbox.clear"));
+        assert!(is_legacy_method("file.send"));
+        assert!(is_legacy_method("file.receive"));
+        assert!(is_legacy_method("file.send.chunk"));
+        assert!(is_legacy_method("file.receive.metadata"));
+        // Negatives
+        assert!(!is_legacy_method("channel.post"));
+        assert!(!is_legacy_method("event.subscribe"));
+        assert!(!is_legacy_method("hub.auth"));
+        assert!(!is_legacy_method("event.poll"));
+    }
+
+    #[test]
+    fn warn_if_legacy_noop_for_non_legacy() {
+        // Should return cleanly with no panic and no tracker insert.
+        // Use a method we KNOW is not legacy.
+        warn_if_legacy("channel.post", Some("test-noop-caller"));
+        let tracker = deprecation_tracker().lock().unwrap();
+        assert!(
+            !tracker
+                .keys()
+                .any(|k| k.0 == "channel.post" && k.1 == "test-noop-caller"),
+            "non-legacy method must not insert tracker entry"
+        );
+    }
+
+    #[test]
+    fn warn_if_legacy_logs_first_call_inserts_tracker() {
+        // First call for a unique (method, from) should insert into tracker.
+        let unique_from = "T-1311-unit-A";
+        warn_if_legacy("event.broadcast", Some(unique_from));
+        let tracker = deprecation_tracker().lock().unwrap();
+        assert!(
+            tracker
+                .keys()
+                .any(|k| k.0 == "event.broadcast" && k.1 == unique_from),
+            "first call must insert tracker entry"
+        );
+    }
+
+    #[test]
+    fn warn_if_legacy_unknown_caller_label() {
+        // None caller should be tracked under "(unknown)".
+        warn_if_legacy("inbox.list", None);
+        let tracker = deprecation_tracker().lock().unwrap();
+        assert!(
+            tracker
+                .keys()
+                .any(|k| k.0 == "inbox.list" && k.1 == "(unknown)"),
+            "missing from must surface as (unknown)"
+        );
+    }
+
+    #[test]
+    fn warn_if_legacy_rate_limits_within_window() {
+        // Two calls in a row with the same key — only the first inserts a
+        // fresh timestamp; the second sees it already there and skips the
+        // warn (we can't assert the log directly, but we can verify the
+        // timestamp didn't change much between the two calls).
+        let unique_from = "T-1311-unit-rate";
+        warn_if_legacy("event.broadcast", Some(unique_from));
+        let t1 = {
+            let tracker = deprecation_tracker().lock().unwrap();
+            *tracker
+                .get(&("event.broadcast".to_string(), unique_from.to_string()))
+                .expect("entry exists")
+        };
+        std::thread::sleep(Duration::from_millis(10));
+        warn_if_legacy("event.broadcast", Some(unique_from));
+        let t2 = {
+            let tracker = deprecation_tracker().lock().unwrap();
+            *tracker
+                .get(&("event.broadcast".to_string(), unique_from.to_string()))
+                .expect("entry exists")
+        };
+        // Within window — timestamp should NOT have advanced.
+        assert_eq!(
+            t1, t2,
+            "second call within rate-limit window must NOT update timestamp"
+        );
     }
 
     #[test]
