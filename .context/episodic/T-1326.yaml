@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1326: fix subscribe --filter-mentions to also suppress redaction explicit-render branch (e2e bug)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T15:50:54Z
+# ============================================================================
+
+task_id: T-1326
+task_name: "fix subscribe --filter-mentions to also suppress redaction explicit-render branch (e2e bug)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T15:45:39Z
+completed: 2026-04-27T15:50:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T17:50:47+02:00
+last_commit: 2026-04-27T17:50:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  subscribe --filter-mentions also gates redaction explicit-render (e2e fix)
+
+# Key outcomes
+outcomes:
+  - "redaction render branch checks `filter_mentions` before printing"
+  - "e2e walkthrough step 13 (`subscribe --filter-mentions <bob-fp>`) shows"
+  - "`cargo test -p termlink --bins` + clippy clean"
+  - "re-run /tmp/e2e-conv.sh end-to-end to completion"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "subscribe --filter-mentions also gates redaction explicit-render (e2e fix)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/approvals/pending-3d62aa805295.yaml"
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/audits/cron/2026-04-19-1730.yaml"
+  - ".context/audits/cron/2026-04-27-1745.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.stop-counter"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - ".tasks/active/T-1326-fix-subscribe---filter-mentions-to-also-.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T17:50:47"
+    action: "T-1326: subscribe --filter-mentions also gates redaction explicit-render (e2e fix)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 19
+  lines_added: 188
+  lines_removed: 79
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1326-fix-subscribe---filter-mentions-to-also-.md
+generated_by: context-agent-hybrid
