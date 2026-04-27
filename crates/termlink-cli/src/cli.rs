@@ -2093,6 +2093,13 @@ pub(crate) enum ChannelAction {
         #[arg(long, value_name = "ID")]
         filter_mentions: Option<String>,
 
+        /// Drop envelopes whose `ts < <ms>` from the printed output. Pure
+        /// render-side filter — cursor/pagination behavior is unchanged.
+        /// Mirrors `channel info --since` (T-1331) and `channel ack --since`
+        /// (T-1337). T-1343.
+        #[arg(long, value_name = "MS")]
+        since: Option<i64>,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

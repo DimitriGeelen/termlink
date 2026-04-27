@@ -294,6 +294,20 @@ posts_full=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(
 expect_contains "\"members\":" "$out_default" "step 19: --json should include members array"
 expect_contains "\"sender_id\":" "$out_default" "step 19: --json should include sender_id per member"
 
+step "20. channel subscribe --since (T-1343): render-time timestamp filter"
+# Anchor at this moment, post one fresh chat from alice. With --since at
+# the anchor, alice's pre-anchor posts must NOT appear in the rendered
+# output but the new one MUST.
+ANCHOR_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
+sleep 1
+A channel post "$DM" --msg-type chat --payload "post-anchor-line-T1343" >/dev/null
+out=$(A channel subscribe "$DM" --limit 100 --since "$ANCHOR_MS")
+expect_contains "post-anchor-line-T1343" "$out" "step 20: post-anchor envelope must appear"
+expect_not_contains "yes alice, ready" "$out" "step 20: pre-anchor bob's reply must NOT appear under --since"
+# Without --since, the pre-anchor message is still visible (control).
+out=$(A channel subscribe "$DM" --limit 100)
+expect_contains "yes alice, ready" "$out" "step 20: control: without --since, pre-anchor envelope DOES appear"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
