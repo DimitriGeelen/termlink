@@ -298,6 +298,15 @@ pub(crate) async fn cmd_emit_to(
     if let Some(sender) = from {
         params["from"] = serde_json::json!(sender);
     }
+    // T-1310: mirror T-1300 broadcast pattern — populate `from` from
+    // $TERMLINK_SESSION_ID when caller did not pass an explicit value.
+    // Enables T-1309 caller-attribution breakdown to cover event.emit_to.
+    if params.get("from").is_none()
+        && let Ok(sid) = std::env::var("TERMLINK_SESSION_ID")
+        && !sid.is_empty()
+    {
+        params["from"] = serde_json::json!(sid);
+    }
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc = client::rpc_call(&hub_socket, "event.emit_to", params);
