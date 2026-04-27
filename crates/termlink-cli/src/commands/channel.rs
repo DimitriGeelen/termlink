@@ -1198,6 +1198,16 @@ pub(crate) async fn cmd_channel_subscribe(
                 continue;
             }
             if let Some(r) = extract_redaction(m) {
+                // T-1326 (e2e fix): a redaction envelope itself never carries
+                // mentions metadata, so when --filter-mentions is on we must
+                // suppress the explicit-render branch too. Otherwise the
+                // filtered view leaks redaction lines that don't match.
+                if let Some(target) = filter_mentions {
+                    let csv = extract_mentions(m).unwrap_or_default();
+                    if !mentions_match(&csv, target) {
+                        continue;
+                    }
+                }
                 let off = m["offset"].as_u64().unwrap_or(0);
                 let reason = r
                     .reason

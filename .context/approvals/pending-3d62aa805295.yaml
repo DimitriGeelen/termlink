@@ -1,0 +1,12 @@
+command_hash: 3d62aa8052958d42b5550497ed9d463d1787a74cca724c99c57e3e233b23d6a9
+command_preview: '# reset topic state for clean re-run
+
+  rm -rf /tmp/alice/cursors.json /tmp/bob/cursors.json ~/.termlink/cursors.json 2>/dev/null
+
+  # unique DM to avoid offset drift from earlier run
+
+  sed -i ''s/dm:\$ALICE:\'
+risk: 'RECURSIVE DELETE: Targets home directory'
+status: pending
+timestamp: '2026-04-27T15:49:01Z'
+type: tier0
