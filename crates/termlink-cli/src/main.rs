@@ -583,6 +583,7 @@ async fn main() -> Result<()> {
                 hide_redacted,
                 filter_mentions,
                 since,
+                show_parent,
                 hub,
                 json,
             } => {
@@ -601,10 +602,19 @@ async fn main() -> Result<()> {
                     hide_redacted,
                     filter_mentions.as_deref(),
                     since,
+                    show_parent,
                     hub.as_deref(),
                     json,
                 )
                 .await
+            }
+            ChannelAction::Quote {
+                topic,
+                offset,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_quote(&topic, offset, hub.as_deref(), json).await
             }
             ChannelAction::List { prefix, stats, hub, json } => {
                 commands::channel::cmd_channel_list(prefix.as_deref(), stats, hub.as_deref(), json).await

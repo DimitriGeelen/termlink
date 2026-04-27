@@ -68,3 +68,6 @@
 {"ts": "2026-04-27T16:18:52Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "aa75354332d9aac81", "bytes": 1742, "threshold": 8192, "migrated": false, "bus_ref": null}
 {"ts": "2026-04-27T17:19:15Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a1d5d8e585b160e14", "bytes": 1262, "threshold": 8192, "migrated": false, "bus_ref": null}
 {"ts": "2026-04-27T17:45:18Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a3292a13109a4c1cd", "bytes": 1262, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-27T19:38:20Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "ad19286737a9b82e2", "bytes": 773, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-27T20:03:10Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a38e81a77d14e87e3", "bytes": 773, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-27T20:09:00Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a4cc89e4225d8b394", "bytes": 1880, "threshold": 8192, "migrated": false, "bus_ref": null}

@@ -308,6 +308,37 @@ expect_not_contains "yes alice, ready" "$out" "step 20: pre-anchor bob's reply m
 out=$(A channel subscribe "$DM" --limit 100)
 expect_contains "yes alice, ready" "$out" "step 20: control: without --since, pre-anchor envelope DOES appear"
 
+step "21. channel quote (T-1344): render envelope with parent inline"
+# bob's reply at offset 1 carries metadata.in_reply_to=0. quote should
+# render alice's offset-0 line as a `> [0] ...` quote, then bob's [1] line.
+out=$(A channel quote "$DM" 1)
+expect_contains "> [0]" "$out" "step 21: quote should prefix parent with > [0]"
+expect_contains "are you there?" "$out" "step 21: quote should include parent payload"
+expect_contains "yes alice, ready" "$out" "step 21: quote should include child payload"
+# Quote on a non-reply (offset 0) → "no parent" note + child rendered.
+out=$(A channel quote "$DM" 0)
+expect_contains "no parent" "$out" "step 21: quote on root should render no-parent note"
+expect_not_contains "> [" "$out" "step 21: quote on root should not prefix a > line"
+# JSON form has both child and parent objects.
+out=$(A channel quote "$DM" 1 --json)
+expect_contains "\"child\":" "$out" "step 21: --json must carry child key"
+expect_contains "\"parent\":" "$out" "step 21: --json must carry parent key"
+expect_contains "\"offset\": 0" "$out" "step 21: --json parent.offset should be 0"
+
+step "22. channel subscribe --show-parent (T-1344): inline quote during stream"
+# When --show-parent is set, every reply line is preceded by a > quote.
+out=$(A channel subscribe "$DM" --limit 100 --show-parent)
+# bob's reply line includes the marker [1 ↳0] (existing T-1313 behavior); the
+# new contribution is a `> [0]` quote line above it.
+expect_contains "> [0]" "$out" "step 22: --show-parent must emit > [0] before reply"
+# Without --show-parent the same view has no `> [` prefix lines.
+out=$(A channel subscribe "$DM" --limit 100)
+expect_not_contains "> [" "$out" "step 22: control: plain subscribe must NOT emit > prefix"
+# JSON form attaches `parent` field per envelope (null for non-replies).
+out=$(A channel subscribe "$DM" --limit 100 --show-parent --json)
+expect_contains "\"parent\":" "$out" "step 22: --json --show-parent must add parent key"
+expect_contains "\"parent\":null" "$out" "step 22: --json --show-parent root has parent=null"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

@@ -386,7 +386,7 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                None, None, hub, json_output,
+                None, None, false, hub, json_output,
             )
             .await
         }
@@ -1950,6 +1950,97 @@ pub(crate) async fn cmd_channel_edit(
     .await
 }
 
+/// T-1344: pure helper — extract `metadata.in_reply_to` from an envelope and
+/// parse it as a u64. Returns `None` when the field is absent or non-numeric.
+/// Reactions and reply posts both carry this key (T-1313 / T-1314 contracts).
+pub(crate) fn parent_offset_of(env: &Value) -> Option<u64> {
+    env.get("metadata")
+        .and_then(|md| md.get("in_reply_to"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<u64>().ok())
+}
+
+/// T-1344: render an envelope inline with its parent quoted on a preceding
+/// line. Walks the topic once, locates the envelope at `offset`, and looks
+/// up the parent via `metadata.in_reply_to`. Errors when the offset itself
+/// is missing; renders alone with a "no parent" note when the env is not a
+/// reply or the parent reference cannot be resolved.
+pub(crate) async fn cmd_channel_quote(
+    topic: &str,
+    offset: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let child = by_off
+        .get(&offset)
+        .ok_or_else(|| anyhow!("Topic '{topic}' has no envelope at offset {offset}"))?
+        .clone();
+    let parent = parent_offset_of(&child).and_then(|p| by_off.get(&p).cloned());
+
+    if json_output {
+        let render = |m: &Value| -> Value {
+            let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+            let msg_type = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
+            let ts = m
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+            json!({
+                "offset": off,
+                "sender_id": sender,
+                "msg_type": msg_type,
+                "ts": ts,
+                "payload": decode_payload_lossy(m),
+            })
+        };
+        let parent_json = parent.as_ref().map(render).unwrap_or(Value::Null);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "topic": topic,
+                "child": render(&child),
+                "parent": parent_json,
+            }))?
+        );
+        return Ok(());
+    }
+
+    let render_line = |m: &Value, prefix: &str| {
+        let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+        let msg_type = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
+        let payload = decode_payload_lossy(m);
+        println!("{prefix}[{off}] {sender} {msg_type}: {payload}");
+    };
+    match parent {
+        Some(p) => {
+            render_line(&p, "> ");
+            render_line(&child, "");
+        }
+        None => {
+            // Two cases:
+            //   1. envelope has no in_reply_to → not a reply, render alone
+            //   2. has in_reply_to but parent missing from topic → render with note
+            match parent_offset_of(&child) {
+                Some(p) => println!("> [{p} ?] (parent not in topic)"),
+                None => println!("(no parent — not a reply)"),
+            }
+            render_line(&child, "");
+        }
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 /// T-1343: pure helper — should an envelope be emitted given the optional
 /// `--since <ms>` filter? Returns true when no filter is set, when the
@@ -1984,10 +2075,26 @@ pub(crate) async fn cmd_channel_subscribe(
     hide_redacted: bool,
     filter_mentions: Option<&str>,
     since: Option<i64>,
+    show_parent: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
+    // T-1344: when --show-parent is on, seed an offset-keyed cache by walking
+    // the topic once before the streaming loop. Live envelopes seen during
+    // --follow are added to the cache as they arrive (see emission loop).
+    // Cache miss for a known parent reference renders a "[parent ?]" stub
+    // rather than blocking — better degraded UX than a hard error.
+    let mut parent_cache: std::collections::HashMap<u64, Value> =
+        std::collections::HashMap::new();
+    if show_parent {
+        let seed = walk_topic_full(&sock, topic).await.unwrap_or_default();
+        for env in seed {
+            if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+                parent_cache.insert(off, env);
+            }
+        }
+    }
     // T-1318: load identity for cursor key (per-topic, per-identity store).
     // We need the fingerprint regardless of whether --resume/--reset are used,
     // because a successful subscribe writes the latest cursor back ONLY when
@@ -2105,9 +2212,49 @@ pub(crate) async fn cmd_channel_subscribe(
             if !should_emit_for_since(m, since) {
                 continue;
             }
+            // T-1344: keep the parent cache fresh as new envelopes stream in
+            // (so a future reply to this offset finds it without a re-walk).
+            if show_parent
+                && let Some(off) = m.get("offset").and_then(|v| v.as_u64())
+            {
+                parent_cache.entry(off).or_insert_with(|| m.clone());
+            }
             if json_output {
-                println!("{}", serde_json::to_string(m)?);
+                if show_parent {
+                    let parent_off = parent_offset_of(m);
+                    let parent_val = parent_off
+                        .and_then(|off| parent_cache.get(&off))
+                        .cloned()
+                        .map(|v| v as Value)
+                        .unwrap_or(Value::Null);
+                    let mut wrapper = m.clone();
+                    if let Some(obj) = wrapper.as_object_mut() {
+                        obj.insert("parent".to_string(), parent_val);
+                    }
+                    println!("{}", serde_json::to_string(&wrapper)?);
+                } else {
+                    println!("{}", serde_json::to_string(m)?);
+                }
                 continue;
+            }
+            // T-1344: human render — emit a `> [parent] sender msg_type: payload`
+            // quote line BEFORE the main line when --show-parent and this env is
+            // a reply. Reaction/redaction branches below also benefit because
+            // reactions carry in_reply_to and the lookup is the same.
+            if show_parent
+                && let Some(parent_off) = parent_offset_of(m)
+            {
+                match parent_cache.get(&parent_off) {
+                    Some(p) => {
+                        let psender = p.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+                        let pmsg = p.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
+                        let pp = decode_payload_lossy(p);
+                        println!("> [{parent_off}] {psender} {pmsg}: {pp}");
+                    }
+                    None => {
+                        println!("> [{parent_off} ?] (parent not in cache)");
+                    }
+                }
             }
             if aggregate_reactions && extract_reaction(m).is_some() {
                 continue; // already bucketed in pass 1
@@ -3677,5 +3824,41 @@ mod tests {
         assert_eq!(max_ts(&[]), None);
         // No-ts envelope only → None
         assert_eq!(max_ts(&[json!({"offset": 0})]), None);
+    }
+
+    // T-1344: parent_offset_of helper
+    #[test]
+    fn parent_offset_of_returns_none_for_orphan() {
+        let env = json!({"offset": 0, "msg_type": "post", "metadata": {}});
+        assert_eq!(parent_offset_of(&env), None);
+    }
+
+    #[test]
+    fn parent_offset_of_parses_numeric_string() {
+        let env = json!({"offset": 5, "metadata": {"in_reply_to": "3"}});
+        assert_eq!(parent_offset_of(&env), Some(3));
+    }
+
+    #[test]
+    fn parent_offset_of_returns_none_for_non_numeric() {
+        let env = json!({"offset": 5, "metadata": {"in_reply_to": "not-a-number"}});
+        assert_eq!(parent_offset_of(&env), None);
+    }
+
+    #[test]
+    fn parent_offset_of_returns_none_for_missing_metadata() {
+        let env = json!({"offset": 5, "msg_type": "post"});
+        assert_eq!(parent_offset_of(&env), None);
+    }
+
+    #[test]
+    fn parent_offset_of_handles_reaction_envelope() {
+        // Reactions carry in_reply_to → the parent they react to.
+        let env = json!({
+            "offset": 7,
+            "msg_type": "reaction",
+            "metadata": {"in_reply_to": "2"},
+        });
+        assert_eq!(parent_offset_of(&env), Some(2));
     }
 }
