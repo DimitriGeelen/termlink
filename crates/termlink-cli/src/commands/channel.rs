@@ -107,12 +107,15 @@ pub(crate) async fn cmd_channel_create(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_post(
     topic: &str,
     msg_type: &str,
     payload: Option<&str>,
     artifact_ref: Option<&str>,
     sender_id: Option<&str>,
+    reply_to: Option<u64>,
+    metadata_kvs: &[String],
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -135,6 +138,22 @@ pub(crate) async fn cmd_channel_post(
     let resolved_sender = sender_id
         .map(|s| s.to_string())
         .unwrap_or_else(|| identity.fingerprint().to_string());
+    // T-1313: assemble metadata. Order: --metadata K=V parsed first, then
+    // --reply-to overlays in_reply_to so the dedicated flag wins. Empty map
+    // when neither flag is given keeps wire shape unchanged for legacy callers.
+    let mut metadata: std::collections::BTreeMap<String, String> = Default::default();
+    for kv in metadata_kvs {
+        let (k, v) = kv
+            .split_once('=')
+            .ok_or_else(|| anyhow!("--metadata expects KEY=VALUE, got: {kv}"))?;
+        if k.is_empty() {
+            anyhow::bail!("--metadata key must be non-empty (got: {kv})");
+        }
+        metadata.insert(k.to_string(), v.to_string());
+    }
+    if let Some(off) = reply_to {
+        metadata.insert("in_reply_to".to_string(), off.to_string());
+    }
     let pending = PendingPost {
         topic: topic.to_string(),
         msg_type: msg_type.to_string(),
@@ -144,6 +163,7 @@ pub(crate) async fn cmd_channel_post(
         sender_id: resolved_sender,
         sender_pubkey_hex: identity.public_key_hex().to_string(),
         signature_hex: hex_of(&sig.to_bytes()),
+        metadata,
     };
     let sock = hub_socket_soft(hub);
     let queue_path = default_queue_path();
@@ -200,24 +220,36 @@ pub(crate) async fn cmd_channel_post(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
     cursor: u64,
     limit: u64,
     follow: bool,
+    conversation_id: Option<&str>,
+    in_reply_to: Option<u64>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
     let mut cursor = cursor;
     loop {
-        let resp = client::rpc_call(
-            &sock,
-            method::CHANNEL_SUBSCRIBE,
-            json!({"topic": topic, "cursor": cursor, "limit": limit}),
-        )
-        .await
-        .context("Hub rpc_call failed")?;
+        let mut params = json!({"topic": topic, "cursor": cursor, "limit": limit});
+        if let Some(cid) = conversation_id
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("conversation_id".to_string(), json!(cid));
+        }
+        if let Some(off) = in_reply_to
+            && let Some(obj) = params.as_object_mut()
+        {
+            // T-1313: hub filter is by string equality on metadata.in_reply_to
+            // (consistent with conversation_id filter shape — both are strings).
+            obj.insert("in_reply_to".to_string(), json!(off.to_string()));
+        }
+        let resp = client::rpc_call(&sock, method::CHANNEL_SUBSCRIBE, params)
+            .await
+            .context("Hub rpc_call failed")?;
         let result = client::unwrap_result(resp)
             .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
         let msgs = result["messages"].as_array().cloned().unwrap_or_default();
@@ -233,7 +265,14 @@ pub(crate) async fn cmd_channel_subscribe(
                     .decode(payload_b64)
                     .unwrap_or_default();
                 let payload_str = String::from_utf8_lossy(&payload);
-                println!("[{offset}] {sender} {msg_type}: {payload_str}");
+                // T-1313: visual threading marker — replies prefixed with ↳<parent>
+                let reply_marker = m
+                    .get("metadata")
+                    .and_then(|md| md.get("in_reply_to"))
+                    .and_then(|v| v.as_str())
+                    .map(|p| format!(" ↳{p}"))
+                    .unwrap_or_default();
+                println!("[{offset}{reply_marker}] {sender} {msg_type}: {payload_str}");
             }
         }
         let next = result["next_cursor"].as_u64().unwrap_or(cursor);

@@ -512,6 +512,14 @@ pub(crate) async fn handle_channel_subscribe_with(
         .get("conversation_id")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    // T-1313: optional in_reply_to filter (Matrix m.in_reply_to analogue).
+    // Symmetric to conversation_id_filter — string equality on
+    // metadata.in_reply_to (parent envelope's offset, decimal string).
+    // Same advance-over-skipped-records semantics.
+    let in_reply_to_filter = params
+        .get("in_reply_to")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     let iter = if timeout_ms > 0 {
         match bus
@@ -566,6 +574,11 @@ pub(crate) async fn handle_channel_subscribe_with(
         last_offset = Some(offset);
         if let Some(ref cid) = conversation_id_filter
             && env.metadata.get("conversation_id").map(|s| s.as_str()) != Some(cid.as_str())
+        {
+            continue;
+        }
+        if let Some(ref parent) = in_reply_to_filter
+            && env.metadata.get("in_reply_to").map(|s| s.as_str()) != Some(parent.as_str())
         {
             continue;
         }
@@ -1456,5 +1469,65 @@ mod tests {
             !env.contains_key("metadata"),
             "envelope without metadata must omit the key entirely"
         );
+    }
+
+    #[tokio::test]
+    async fn subscribe_in_reply_to_filter_returns_only_replies_to_parent() {
+        // T-1313: post a parent + two replies (one to parent, one to a different
+        // offset) + an unrelated message. Subscribe filtered by in_reply_to=<parent>
+        // returns only the matching reply.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("conv:thread", Retention::Forever).unwrap();
+        let key = signing_key();
+
+        // offset 0 — parent
+        let parent = post_params(&key, "conv:thread", "note", b"hi", 5_001);
+        let _ = handle_channel_post_with(&bus, json!(1), &parent).await;
+
+        // offset 1 — reply to parent (offset=0)
+        let reply_to_parent = post_params_with_meta(
+            &key,
+            "conv:thread",
+            "note",
+            b"answer",
+            5_002,
+            Some(json!({"in_reply_to": "0"})),
+        );
+        let _ = handle_channel_post_with(&bus, json!(2), &reply_to_parent).await;
+
+        // offset 2 — reply to a different offset
+        let reply_other = post_params_with_meta(
+            &key,
+            "conv:thread",
+            "note",
+            b"unrelated reply",
+            5_003,
+            Some(json!({"in_reply_to": "99"})),
+        );
+        let _ = handle_channel_post_with(&bus, json!(3), &reply_other).await;
+
+        // offset 3 — unrelated post (no metadata)
+        let unrelated = post_params(&key, "conv:thread", "note", b"chitchat", 5_004);
+        let _ = handle_channel_post_with(&bus, json!(4), &unrelated).await;
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(5),
+            &json!({"topic": "conv:thread", "cursor": 0, "in_reply_to": "0"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let msgs = v["messages"].as_array().unwrap();
+        assert_eq!(msgs.len(), 1, "only the reply pointing at offset 0 should match");
+        let payload_b64 = msgs[0]["payload_b64"].as_str().unwrap();
+        let payload = base64::engine::general_purpose::STANDARD
+            .decode(payload_b64)
+            .unwrap();
+        assert_eq!(&payload, b"answer");
+
+        // next_cursor advances past all examined records (last offset + 1 = 4),
+        // mirroring the conversation_id filter semantics.
+        let next = v["next_cursor"].as_u64().unwrap();
+        assert_eq!(next, 4, "cursor advances over skipped records");
     }
 }

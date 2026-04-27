@@ -1660,6 +1660,16 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         sender_id: Option<String>,
 
+        /// Reply to a parent envelope's offset within the same topic (T-1313,
+        /// Matrix `m.in_reply_to` analogue). Sets `metadata.in_reply_to=<offset>`.
+        #[arg(long)]
+        reply_to: Option<u64>,
+
+        /// Set arbitrary routing-hint metadata. Repeatable. Format: KEY=VALUE.
+        /// Well-known keys: conversation_id, event_type, in_reply_to. T-1287/T-1313.
+        #[arg(long = "metadata", value_name = "KEY=VALUE")]
+        metadata: Vec<String>,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
@@ -1684,6 +1694,15 @@ pub(crate) enum ChannelAction {
         /// Keep polling every 1s instead of a one-shot drain
         #[arg(long)]
         follow: bool,
+
+        /// Filter to envelopes whose `metadata.conversation_id` matches (T-1287).
+        #[arg(long)]
+        conversation_id: Option<String>,
+
+        /// Filter to replies to a specific parent offset (T-1313 — only envelopes
+        /// whose `metadata.in_reply_to == <offset>` are returned).
+        #[arg(long)]
+        in_reply_to: Option<u64>,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]

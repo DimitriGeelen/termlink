@@ -100,6 +100,7 @@ fn sample(topic: &str, marker: u8) -> PendingPost {
         sender_id: "test".into(),
         sender_pubkey_hex: "00".repeat(32),
         signature_hex: "00".repeat(64),
+        metadata: Default::default(),
     }
 }
 
