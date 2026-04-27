@@ -4,16 +4,16 @@ name: "channel mentions — Matrix m.mention analogue (metadata.mentions + --fil
 description: >
   channel mentions — Matrix m.mention analogue (metadata.mentions + --filter-mentions)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T15:35:02Z
-last_update: 2026-04-27T15:35:02Z
-date_finished: null
+last_update: 2026-04-27T15:40:56Z
+date_finished: 2026-04-27T15:40:56Z
 ---
 
 # T-1325: channel mentions — Matrix m.mention analogue (metadata.mentions + --filter-mentions)
@@ -88,3 +88,6 @@ cargo clippy -p termlink --all-targets -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1325-channel-mentions--matrix-mmention-analog.md
 - **Context:** Initial task creation
+
+### 2026-04-27T15:40:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

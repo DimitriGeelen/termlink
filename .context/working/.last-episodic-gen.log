@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T15:34:27Z ===
-task_id: T-1324
+=== episodic-gen invocation: 2026-04-27T15:41:05Z ===
+task_id: T-1325
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1324.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1325.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel info — synthesized topic view (description + senders + receipts + post count)
-  Duration: 0 days (4 min)
+  Task: channel mentions — Matrix m.mention analogue (metadata.mentions + --filter-mentions)
+  Duration: 0 days (5 min)
   Updates: 2
   Commits: 1
-  Lines: +363 -44 across 19 files
-  Outcomes: 7 AC checked
-  Artifacts: 19 files tracked
+  Lines: +242 -14 across 15 files
+  Outcomes: 8 AC checked
+  Artifacts: 15 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1324-channel-info--synthesized-topic-view-des.md
+Source: /opt/termlink/.tasks/completed/T-1325-channel-mentions--matrix-mmention-analog.md
 --- exit code: 0 ---
