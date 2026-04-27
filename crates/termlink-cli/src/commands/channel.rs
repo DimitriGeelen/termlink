@@ -1944,6 +1944,7 @@ pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bo
 
 pub(crate) async fn cmd_channel_list(
     prefix: Option<&str>,
+    stats: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -1957,25 +1958,162 @@ pub(crate) async fn cmd_channel_list(
         .context("Hub rpc_call failed")?;
     let result = client::unwrap_result(resp)
         .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
-    if json_output {
-        println!("{}", serde_json::to_string_pretty(&result)?);
-    } else {
-        let topics = result["topics"].as_array().cloned().unwrap_or_default();
-        if topics.is_empty() {
-            println!("No channels.");
+    if !stats {
+        if json_output {
+            println!("{}", serde_json::to_string_pretty(&result)?);
         } else {
-            for t in &topics {
-                let name = t["name"].as_str().unwrap_or("?");
-                let kind = t["retention"]["kind"].as_str().unwrap_or("?");
-                let value = t["retention"].get("value");
-                match value {
-                    Some(v) => println!("  {name}  [{kind}:{v}]"),
-                    None => println!("  {name}  [{kind}]"),
+            let topics = result["topics"].as_array().cloned().unwrap_or_default();
+            if topics.is_empty() {
+                println!("No channels.");
+            } else {
+                for t in &topics {
+                    let name = t["name"].as_str().unwrap_or("?");
+                    let kind = t["retention"]["kind"].as_str().unwrap_or("?");
+                    let value = t["retention"].get("value");
+                    match value {
+                        Some(v) => println!("  {name}  [{kind}:{v}]"),
+                        None => println!("  {name}  [{kind}]"),
+                    }
                 }
             }
         }
+        return Ok(());
+    }
+
+    // T-1335: --stats. For each topic, walk it once and accumulate the
+    // breakdown. Empty topic list short-circuits.
+    let topics_raw = result["topics"].as_array().cloned().unwrap_or_default();
+    let mut rows: Vec<TopicStats> = Vec::with_capacity(topics_raw.len());
+    for t in &topics_raw {
+        let name = t["name"].as_str().unwrap_or("").to_string();
+        if name.is_empty() {
+            continue;
+        }
+        let msgs = walk_topic_full(&sock, &name).await?;
+        rows.push(compute_topic_stats(&name, &msgs));
+    }
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(TopicStats::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+    } else if rows.is_empty() {
+        println!("No channels.");
+    } else {
+        for r in &rows {
+            println!("{}", r.render_human());
+        }
     }
     Ok(())
+}
+
+/// T-1335: walk a single topic to completion via `channel.subscribe` paging.
+/// Returns all envelopes as JSON values in offset-ascending order. Bounded by
+/// hub-page limit (1000); large topics make multiple round-trips.
+async fn walk_topic_full(sock: &std::path::Path, topic: &str) -> Result<Vec<Value>> {
+    let mut all: Vec<Value> = Vec::new();
+    let mut cursor: u64 = 0;
+    let limit: u64 = 1000;
+    loop {
+        let resp = client::rpc_call(
+            sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .context("Hub rpc_call (channel.subscribe) failed")?;
+        let result = client::unwrap_result(resp).map_err(|e| {
+            anyhow!("Hub returned error for channel.subscribe('{topic}'): {e}")
+        })?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        all.extend(msgs);
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+    Ok(all)
+}
+
+/// T-1335: per-topic statistics row. `meta` counts envelopes whose msg_type is
+/// in `UNREAD_META_TYPES`; everything else is `content`. Senders are distinct.
+/// Timestamps are min/max across the topic; None when the topic is empty or
+/// no envelope carries `ts_unix_ms`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TopicStats {
+    pub topic: String,
+    pub content: u64,
+    pub meta: u64,
+    pub senders: u64,
+    pub first_ts: Option<i64>,
+    pub last_ts: Option<i64>,
+}
+
+impl TopicStats {
+    pub(crate) fn to_json(&self) -> Value {
+        json!({
+            "topic": self.topic,
+            "content": self.content,
+            "meta": self.meta,
+            "senders": self.senders,
+            "first_ts": self.first_ts,
+            "last_ts": self.last_ts,
+        })
+    }
+
+    pub(crate) fn render_human(&self) -> String {
+        let range = match (self.first_ts, self.last_ts) {
+            (Some(a), Some(b)) => format!("{a}..{b}"),
+            _ => "—".to_string(),
+        };
+        format!(
+            "{}  content={}  meta={}  senders={}  ts={}",
+            self.topic, self.content, self.meta, self.senders, range
+        )
+    }
+}
+
+/// T-1335: pure helper — given a topic name and its envelopes (any order),
+/// compute the breakdown without touching the network. Senders are deduped
+/// case-sensitively. Envelopes missing `ts_unix_ms` are skipped from the
+/// timestamp range but still counted toward content/meta and sender set.
+pub(crate) fn compute_topic_stats(topic: &str, msgs: &[Value]) -> TopicStats {
+    use std::collections::BTreeSet;
+    let mut content: u64 = 0;
+    let mut meta: u64 = 0;
+    let mut senders: BTreeSet<String> = BTreeSet::new();
+    let mut first_ts: Option<i64> = None;
+    let mut last_ts: Option<i64> = None;
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if UNREAD_META_TYPES.contains(&mt) {
+            meta += 1;
+        } else {
+            content += 1;
+        }
+        if let Some(s) = m.get("sender_id").and_then(|v| v.as_str())
+            && !s.is_empty()
+        {
+            senders.insert(s.to_string());
+        }
+        // Hub serializes the envelope timestamp as `ts`; CLI-side aggregates
+        // sometimes call it `ts_unix_ms`. Accept either, prefer `ts_unix_ms`.
+        let ts_opt = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+        if let Some(ts) = ts_opt {
+            first_ts = Some(first_ts.map_or(ts, |a| a.min(ts)));
+            last_ts = Some(last_ts.map_or(ts, |a| a.max(ts)));
+        }
+    }
+    TopicStats {
+        topic: topic.to_string(),
+        content,
+        meta,
+        senders: senders.len() as u64,
+        first_ts,
+        last_ts,
+    }
 }
 
 #[cfg(test)]
@@ -2368,5 +2506,146 @@ mod tests {
             }),
         ];
         assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    // ---- T-1335: compute_topic_stats / TopicStats -----------------------
+
+    #[test]
+    fn compute_topic_stats_empty_topic_yields_zeros() {
+        let s = compute_topic_stats("dm:a:b", &[]);
+        assert_eq!(s.content, 0);
+        assert_eq!(s.meta, 0);
+        assert_eq!(s.senders, 0);
+        assert_eq!(s.first_ts, None);
+        assert_eq!(s.last_ts, None);
+        assert_eq!(s.topic, "dm:a:b");
+    }
+
+    #[test]
+    fn compute_topic_stats_classifies_content_vs_meta() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat",      "sender_id": "alice", "ts_unix_ms": 100}),
+            json!({"offset": 1, "msg_type": "reaction",  "sender_id": "bob",   "ts_unix_ms": 200}),
+            json!({"offset": 2, "msg_type": "edit",      "sender_id": "alice", "ts_unix_ms": 300}),
+            json!({"offset": 3, "msg_type": "redaction", "sender_id": "bob",   "ts_unix_ms": 400}),
+            json!({"offset": 4, "msg_type": "receipt",   "sender_id": "alice", "ts_unix_ms": 500}),
+            json!({"offset": 5, "msg_type": "topic_metadata", "sender_id": "alice", "ts_unix_ms": 600}),
+            json!({"offset": 6, "msg_type": "note",      "sender_id": "carol", "ts_unix_ms": 700}),
+        ];
+        let s = compute_topic_stats("t", &msgs);
+        // chat + note = 2 content; reaction/edit/redaction/receipt/topic_metadata = 5 meta
+        assert_eq!(s.content, 2);
+        assert_eq!(s.meta, 5);
+        assert_eq!(s.senders, 3); // alice, bob, carol
+        assert_eq!(s.first_ts, Some(100));
+        assert_eq!(s.last_ts, Some(700));
+    }
+
+    #[test]
+    fn compute_topic_stats_accepts_hub_ts_field_alias() {
+        // Hub serializes timestamp as `ts` (not `ts_unix_ms`). Stats helper
+        // must accept both — regression for live-hub smoke during T-1335.
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "sender_id": "alice", "ts": 100}),
+            json!({"offset": 1, "msg_type": "chat", "sender_id": "bob",   "ts": 300}),
+        ];
+        let s = compute_topic_stats("t", &msgs);
+        assert_eq!(s.first_ts, Some(100));
+        assert_eq!(s.last_ts, Some(300));
+    }
+
+    #[test]
+    fn compute_topic_stats_prefers_ts_unix_ms_over_ts() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "sender_id": "alice",
+                   "ts": 1, "ts_unix_ms": 100}),
+        ];
+        let s = compute_topic_stats("t", &msgs);
+        assert_eq!(s.first_ts, Some(100));
+    }
+
+    #[test]
+    fn compute_topic_stats_skips_missing_ts_but_still_counts() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "sender_id": "alice"}),  // no ts
+            json!({"offset": 1, "msg_type": "chat", "sender_id": "bob",   "ts_unix_ms": 50}),
+        ];
+        let s = compute_topic_stats("t", &msgs);
+        assert_eq!(s.content, 2);
+        assert_eq!(s.senders, 2);
+        assert_eq!(s.first_ts, Some(50));
+        assert_eq!(s.last_ts, Some(50));
+    }
+
+    #[test]
+    fn compute_topic_stats_dedupes_senders() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "sender_id": "alice", "ts_unix_ms": 1}),
+            json!({"offset": 1, "msg_type": "chat", "sender_id": "alice", "ts_unix_ms": 2}),
+            json!({"offset": 2, "msg_type": "chat", "sender_id": "alice", "ts_unix_ms": 3}),
+        ];
+        let s = compute_topic_stats("t", &msgs);
+        assert_eq!(s.senders, 1);
+        assert_eq!(s.content, 3);
+    }
+
+    #[test]
+    fn compute_topic_stats_unknown_msg_type_counts_as_content() {
+        // Strict allow-list semantics: anything not in UNREAD_META_TYPES
+        // is content. Future msg types ("status", "presence", whatever)
+        // will land in content by default — that's the desired behavior
+        // because operators want to see them.
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "presence", "sender_id": "alice", "ts_unix_ms": 1}),
+            json!({"offset": 1, "msg_type": "",         "sender_id": "alice", "ts_unix_ms": 2}),
+        ];
+        let s = compute_topic_stats("t", &msgs);
+        assert_eq!(s.content, 2);
+        assert_eq!(s.meta, 0);
+    }
+
+    #[test]
+    fn topic_stats_render_human_includes_all_fields() {
+        let s = TopicStats {
+            topic: "team:eng".to_string(),
+            content: 5,
+            meta: 12,
+            senders: 3,
+            first_ts: Some(100),
+            last_ts: Some(900),
+        };
+        let line = s.render_human();
+        assert!(line.contains("team:eng"));
+        assert!(line.contains("content=5"));
+        assert!(line.contains("meta=12"));
+        assert!(line.contains("senders=3"));
+        assert!(line.contains("100..900"));
+    }
+
+    #[test]
+    fn topic_stats_render_human_dashes_when_no_ts() {
+        let s = TopicStats {
+            topic: "t".to_string(),
+            content: 0, meta: 0, senders: 0,
+            first_ts: None, last_ts: None,
+        };
+        let line = s.render_human();
+        assert!(line.contains("ts=—"), "got: {line}");
+    }
+
+    #[test]
+    fn topic_stats_to_json_round_trips_fields() {
+        let s = TopicStats {
+            topic: "t".to_string(),
+            content: 7, meta: 3, senders: 2,
+            first_ts: Some(10), last_ts: Some(20),
+        };
+        let v = s.to_json();
+        assert_eq!(v["topic"], "t");
+        assert_eq!(v["content"], 7);
+        assert_eq!(v["meta"], 3);
+        assert_eq!(v["senders"], 2);
+        assert_eq!(v["first_ts"], 10);
+        assert_eq!(v["last_ts"], 20);
     }
 }
