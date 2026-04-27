@@ -38,35 +38,69 @@ caller that hasn't migrated.
 
 ## Reading the report
 
+### Trend mode (default — incremental feedback)
+
 ```sh
-fw metrics api-usage --last-Nd 60
+fw metrics api-usage
 ```
 
 ```
 == fw metrics api-usage ==
   Audit file: /var/lib/termlink/rpc-audit.jsonl
-  Window:     last 60 days
-  Total RPCs: 12345
+  Mode:       trend
 
-  Top 10 methods:
-       9876   80.0%  channel.post
-       1234   10.0%  event.subscribe
+    Window     Total    Legacy   Legacy %  Status
+  --------  --------  --------  ---------  ------
+      1d         812         0      0.00%  PASS
+      7d        5904         3      0.05%  PASS
+     30d       18203        12      0.07%  PASS
+     60d       33421        29      0.09%  PASS
+
+  Top 10 methods (last 60d):
+       28000   83.8%  channel.post
+        4500   13.5%  event.subscribe
+          29    0.1%  event.broadcast ←legacy
         ...
 
-  Legacy primitives: 12 (0.10% of total)
-  Gate threshold:    1.00%  →  PASS
+  Gate threshold: 1.00% (over 60-day window — T-1166)
 ```
 
-Exit code: `0` if legacy ≤ gate, `1` otherwise. The gate makes this
-suitable as a CI check before authorising T-1166 retirement.
+**Why trend mode is the default.** Don't wait 60 days to find out a
+migration didn't land. Watch the 1d / 7d trajectory toward zero from
+day one. If `event.broadcast` was supposed to drop after a deploy and
+the 1d row stays high, you can investigate within hours.
+
+Exit code: `0` if the **60d** row passes, `1` otherwise — so existing
+CI usage is unchanged when invoked with no flag.
+
+### Single-window CI mode (T-1166 gate)
+
+```sh
+fw metrics api-usage --last-Nd 60
+```
+
+Original behavior — single window, single gate verdict. Use this in
+CI scripts that explicitly want the canonical T-1166 check. Exit `0`
+if legacy ≤ gate-pct in the window, `1` otherwise.
 
 ### Flags
 
 | Flag | Default | Purpose |
 |------|---------|---------|
-| `--last-Nd N` | `60` | Time window in days |
+| `--last-Nd N` | (trend mode) | Single window in days. Omit for trend mode. |
 | `--runtime-dir PATH` | `$TERMLINK_RUNTIME_DIR` or `/var/lib/termlink` | Hub runtime directory |
 | `--gate-pct N` | `1.0` | Threshold below which legacy share passes |
+
+### When to look
+
+- **Day 1 after migrating a caller:** check the 1d row. New legacy
+  traffic should drop sharply; if it didn't, that caller's deploy
+  didn't land or another caller is still using the old API.
+- **Week after a migration:** 7d row tells you whether the drop is
+  steady or just a low-traffic blip.
+- **Before authorizing T-1166 retirement:** all four windows should
+  read PASS. The 60d row is the canonical gate; the others give
+  early warning if a caller regresses.
 
 ## Legacy primitives tracked by the gate
 
