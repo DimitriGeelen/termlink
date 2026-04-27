@@ -371,6 +371,8 @@ async fn main() -> Result<()> {
                 payload,
                 artifact_ref,
                 sender_id,
+                reply_to,
+                metadata,
                 hub,
                 json,
             } => {
@@ -380,14 +382,32 @@ async fn main() -> Result<()> {
                     payload.as_deref(),
                     artifact_ref.as_deref(),
                     sender_id.as_deref(),
+                    reply_to,
+                    &metadata,
                     hub.as_deref(),
                     json,
                 )
                 .await
             }
-            ChannelAction::Subscribe { topic, cursor, limit, follow, hub, json } => {
+            ChannelAction::Subscribe {
+                topic,
+                cursor,
+                limit,
+                follow,
+                conversation_id,
+                in_reply_to,
+                hub,
+                json,
+            } => {
                 commands::channel::cmd_channel_subscribe(
-                    &topic, cursor, limit, follow, hub.as_deref(), json,
+                    &topic,
+                    cursor,
+                    limit,
+                    follow,
+                    conversation_id.as_deref(),
+                    in_reply_to,
+                    hub.as_deref(),
+                    json,
                 )
                 .await
             }

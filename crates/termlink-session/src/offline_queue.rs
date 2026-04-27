@@ -10,6 +10,7 @@
 //! `enqueue` returns `QueueError::QueueFull` so callers fail loudly
 //! (per T-1155 §R3) rather than silently drop.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -29,6 +30,14 @@ pub struct PendingPost {
     pub sender_id: String,
     pub sender_pubkey_hex: String,
     pub signature_hex: String,
+    /// Routing-hint map (Tier-A, NOT signed — trusted-mesh threat model).
+    /// Well-known keys: `conversation_id`, `event_type` (T-1287/T-1288),
+    /// `in_reply_to` (T-1313, Matrix `m.in_reply_to` analogue — value is the
+    /// parent envelope's offset as a decimal string within the same topic).
+    /// `#[serde(default)]` so old queue rows persisted before this field
+    /// existed deserialize cleanly with an empty map.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub metadata: BTreeMap<String, String>,
 }
 
 /// Row id in the outbound table.
@@ -207,6 +216,7 @@ mod tests {
             sender_id: "abc".to_string(),
             sender_pubkey_hex: "00".repeat(32),
             signature_hex: "00".repeat(64),
+            metadata: Default::default(),
         }
     }
 

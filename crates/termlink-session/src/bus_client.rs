@@ -187,7 +187,7 @@ impl Drop for BusClient {
 fn post_to_params(p: &PendingPost) -> Value {
     use base64::Engine as _;
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&p.payload);
-    json!({
+    let mut params = json!({
         "topic": p.topic,
         "msg_type": p.msg_type,
         "payload_b64": payload_b64,
@@ -196,7 +196,19 @@ fn post_to_params(p: &PendingPost) -> Value {
         "sender_id": p.sender_id,
         "sender_pubkey_hex": p.sender_pubkey_hex,
         "signature_hex": p.signature_hex,
-    })
+    });
+    // T-1313: forward metadata only when populated. Hub treats it as routing
+    // hint (NOT signed) — well-known keys: conversation_id, event_type,
+    // in_reply_to. Empty map omits the field for wire-shape stability.
+    if !p.metadata.is_empty()
+        && let Some(obj) = params.as_object_mut()
+    {
+        obj.insert(
+            "metadata".to_string(),
+            serde_json::to_value(&p.metadata).unwrap_or(Value::Null),
+        );
+    }
+    params
 }
 
 fn parse_post_response(resp: RpcResponse) -> Result<i64, BusClientError> {
@@ -227,7 +239,28 @@ mod tests {
             sender_id: "s".into(),
             sender_pubkey_hex: "00".repeat(32),
             signature_hex: "00".repeat(64),
+            metadata: Default::default(),
         }
+    }
+
+    #[test]
+    fn post_to_params_omits_metadata_when_empty() {
+        // T-1313: empty metadata → wire shape unchanged from pre-T-1313 senders.
+        let p = sample_post("t");
+        let v = post_to_params(&p);
+        assert!(v.get("metadata").is_none(), "metadata must be omitted when empty");
+    }
+
+    #[test]
+    fn post_to_params_includes_metadata_when_populated() {
+        // T-1313: in_reply_to surfaces in params for hub-side routing/filter.
+        let mut p = sample_post("t");
+        p.metadata.insert("in_reply_to".into(), "42".into());
+        p.metadata.insert("conversation_id".into(), "c-A".into());
+        let v = post_to_params(&p);
+        let m = v.get("metadata").and_then(|v| v.as_object()).expect("metadata present");
+        assert_eq!(m.get("in_reply_to").and_then(|v| v.as_str()), Some("42"));
+        assert_eq!(m.get("conversation_id").and_then(|v| v.as_str()), Some("c-A"));
     }
 
     #[tokio::test]
