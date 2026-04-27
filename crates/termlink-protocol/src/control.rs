@@ -126,6 +126,14 @@ pub mod method {
     /// Params: `{ topic, before_offset? }` → `{ ok, deleted, topic }`. T-1234 / T-1230a.
     pub const CHANNEL_TRIM: &str = "channel.trim";
 
+    /// T-1329 — server-side aggregation of latest `m.receipt` envelope per sender.
+    /// Walks the topic on the hub, keeps only `msg_type=receipt`, picks the latest
+    /// (by ts; ties broken by higher up_to), returns a sorted-by-sender list.
+    /// Params: `{ topic }` → `{ topic, receipts: [{sender_id, up_to, ts_unix_ms}, ...] }`.
+    /// Old hubs return `MethodNotFound` (-32601) — clients fall back to the
+    /// existing read-side walker (T-1315).
+    pub const CHANNEL_RECEIPTS: &str = "channel.receipts";
+
     /// T-1286 / T-243 — query who has been seen in a multi-turn conversation.
     /// Hub passively tracks `(conversation_id, agent_id) → last_seen_unix_ms`
     /// by observing every successful `channel.post` whose
@@ -496,6 +504,7 @@ mod tests {
         assert_eq!(method::CHANNEL_SUBSCRIBE, "channel.subscribe");
         assert_eq!(method::CHANNEL_LIST, "channel.list");
         assert_eq!(method::CHANNEL_TRIM, "channel.trim");
+        assert_eq!(method::CHANNEL_RECEIPTS, "channel.receipts");
     }
 
     #[test]
