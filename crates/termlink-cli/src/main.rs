@@ -578,8 +578,8 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
-            ChannelAction::List { prefix, hub, json } => {
-                commands::channel::cmd_channel_list(prefix.as_deref(), hub.as_deref(), json).await
+            ChannelAction::List { prefix, stats, hub, json } => {
+                commands::channel::cmd_channel_list(prefix.as_deref(), stats, hub.as_deref(), json).await
             }
             ChannelAction::QueueStatus { queue_path, json } => {
                 commands::channel::cmd_channel_queue_status(queue_path.as_deref(), json)

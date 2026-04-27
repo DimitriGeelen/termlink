@@ -2047,6 +2047,13 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         prefix: Option<String>,
 
+        /// Per-topic content/meta breakdown — for each listed topic, walks it
+        /// once and reports `content=N | meta=M | senders=S | first..last`.
+        /// "meta" matches T-1332's set: receipt, reaction, redaction, edit,
+        /// topic_metadata. Read-only. Slower (one walk per topic). T-1335.
+        #[arg(long)]
+        stats: bool,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

@@ -154,6 +154,21 @@ A channel react "$DM" 0 "🧪" --remove
 out=$(A channel subscribe "$DM" --limit 100 --reactions)
 expect_not_contains "🧪" "$out" "step 12: --remove should suppress the redacted reaction in aggregate"
 
+step "13. channel list --stats (T-1335): per-topic content/meta breakdown"
+# The DM topic has accumulated content (chat) AND meta (reaction, edit,
+# redaction, mention, receipt). --stats must report both buckets non-zero
+# and exactly two distinct senders (alice + bob).
+out=$(A channel list --prefix "$DM" --stats)
+expect_contains "$DM" "$out" "step 13: stats line should mention the DM topic"
+expect_contains "content=" "$out" "step 13: stats line should include content count"
+expect_contains "meta=" "$out" "step 13: stats line should include meta count"
+expect_contains "senders=2" "$out" "step 13: stats should report 2 distinct senders"
+# JSON shape sanity-check
+out_json=$(A channel list --prefix "$DM" --stats --json)
+expect_contains "\"content\":" "$out_json" "step 13: --json must expose content field"
+expect_contains "\"meta\":" "$out_json" "step 13: --json must expose meta field"
+expect_contains "\"senders\":" "$out_json" "step 13: --json must expose senders field"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
