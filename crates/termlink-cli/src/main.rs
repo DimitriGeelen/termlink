@@ -447,6 +447,22 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Redact {
+                topic,
+                redacts,
+                reason,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_redact(
+                    &topic,
+                    redacts,
+                    reason.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::React {
                 topic,
                 parent_offset,
@@ -477,6 +493,7 @@ async fn main() -> Result<()> {
                 reactions,
                 by_sender,
                 collapse_edits,
+                hide_redacted,
                 hub,
                 json,
             } => {
@@ -492,6 +509,7 @@ async fn main() -> Result<()> {
                     reactions,
                     by_sender,
                     collapse_edits,
+                    hide_redacted,
                     hub.as_deref(),
                     json,
                 )

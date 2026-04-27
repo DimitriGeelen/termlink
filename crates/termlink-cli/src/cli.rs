@@ -1759,6 +1759,32 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Retract an earlier post (Matrix `m.redaction` analogue) — emits a
+    /// `msg_type=redaction` envelope with `metadata.redacts=<offset>` and
+    /// optional `metadata.reason=<text>`. Append-only: hub keeps the
+    /// original; readers may opt to hide it via `subscribe --hide-redacted`.
+    /// Default render shows redactions explicitly so the audit trail is
+    /// visible (T-1322).
+    Redact {
+        /// Topic name
+        topic: String,
+
+        /// Offset of the post to retract
+        redacts: u64,
+
+        /// Optional reason for the redaction (free-form text, surfaced in
+        /// the explicit render: `[N redact] sender → offset M (reason: ...)`)
+        #[arg(long)]
+        reason: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Replace an earlier post (Matrix `m.replace` analogue) — emits a
     /// `msg_type=edit` envelope with `metadata.replaces=<offset>` carrying
     /// the new payload. Append-only: hub keeps both records. Reader-side
@@ -1864,6 +1890,13 @@ pub(crate) enum ChannelAction {
         /// JSON mode is unaffected.
         #[arg(long)]
         collapse_edits: bool,
+
+        /// Hide redacted parents and the redaction envelopes themselves (T-1322).
+        /// Default behavior renders redactions explicitly so the operator can
+        /// audit what was retracted; this flag opts into a "clean" view.
+        /// JSON mode is unaffected.
+        #[arg(long)]
+        hide_redacted: bool,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]

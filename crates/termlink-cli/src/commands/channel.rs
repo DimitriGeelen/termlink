@@ -378,8 +378,8 @@ pub(crate) async fn cmd_channel_dm(
             // Default read mode: --resume + --reactions (the rich
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
-                &topic, 0, true, false, 100, false, None, None, true, false, true, hub,
-                json_output,
+                &topic, 0, true, false, 100, false, None, None, true, false, true, true,
+                hub, json_output,
             )
             .await
         }
@@ -711,6 +711,74 @@ fn collapse_edits_map(edits: &[(u64, u64, String)]) -> std::collections::HashMap
     latest.into_iter().map(|(k, (_, t))| (k, t)).collect()
 }
 
+/// T-1322: a redaction envelope (`msg_type=redaction` carrying
+/// `metadata.redacts=<offset>` and optional `reason`).
+struct Redaction<'a> {
+    target: u64,
+    sender: &'a str,
+    reason: Option<String>,
+}
+
+fn extract_redaction(m: &Value) -> Option<Redaction<'_>> {
+    if m.get("msg_type").and_then(|v| v.as_str()) != Some("redaction") {
+        return None;
+    }
+    let target = m
+        .get("metadata")
+        .and_then(|md| md.get("redacts"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<u64>().ok())?;
+    let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+    let reason = m
+        .get("metadata")
+        .and_then(|md| md.get("reason"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    Some(Redaction {
+        target,
+        sender,
+        reason,
+    })
+}
+
+/// T-1322: pure helper — given a slice of envelope JSON values, return the
+/// set of offsets targeted by `msg_type=redaction` records (the parents
+/// being retracted). Used by `--hide-redacted` to suppress them.
+fn redacted_offsets(msgs: &[Value]) -> std::collections::HashSet<u64> {
+    msgs.iter()
+        .filter_map(extract_redaction)
+        .map(|r| r.target)
+        .collect()
+}
+
+/// T-1322: emit a `msg_type=redaction` envelope retracting a previous post.
+/// Append-only: hub keeps the original; readers may opt to hide it via
+/// `subscribe --hide-redacted`.
+pub(crate) async fn cmd_channel_redact(
+    topic: &str,
+    redacts: u64,
+    reason: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let mut metadata = vec![format!("redacts={redacts}")];
+    if let Some(r) = reason {
+        metadata.push(format!("reason={r}"));
+    }
+    cmd_channel_post(
+        topic,
+        "redaction",
+        Some(""), // empty payload — the redaction is metadata-only
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
 /// T-1321: emit a `msg_type=edit` envelope with `metadata.replaces=<offset>`.
 /// Append-only: hub keeps the original; reader-side decides whether to render
 /// collapsed view. Old peers see two records (original + edit).
@@ -749,6 +817,7 @@ pub(crate) async fn cmd_channel_subscribe(
     aggregate_reactions: bool,
     by_sender: bool,
     collapse_edits: bool,
+    hide_redacted: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -789,6 +858,10 @@ pub(crate) async fn cmd_channel_subscribe(
     // across batches (key = parent_offset, value = (latest_ts_ms, latest_text)).
     let mut edits_by_parent: std::collections::HashMap<u64, (u64, String)> =
         Default::default();
+    // T-1322: when hide_redacted is on, accumulate redaction targets across
+    // batches so a parent that arrived in batch N can be hidden when its
+    // redaction arrives in batch N+1.
+    let mut redacted: std::collections::HashSet<u64> = Default::default();
     loop {
         let mut params = json!({"topic": topic, "cursor": cursor, "limit": limit});
         if let Some(cid) = conversation_id
@@ -842,6 +915,12 @@ pub(crate) async fn cmd_channel_subscribe(
                 }
             }
         }
+        // T-1322: pass-1 collect redaction targets so pass-2 can suppress them
+        // (only when hide_redacted is on; otherwise we render redactions
+        // explicitly in the standard print loop below).
+        if hide_redacted && !json_output {
+            redacted.extend(redacted_offsets(&msgs));
+        }
         for m in &msgs {
             if json_output {
                 println!("{}", serde_json::to_string(m)?);
@@ -855,7 +934,33 @@ pub(crate) async fn cmd_channel_subscribe(
             if collapse_edits && extract_edit(m).is_some() {
                 continue;
             }
+            // T-1322: redaction handling
+            //   - hide_redacted=true → suppress redaction envelopes AND their
+            //     target parents (if seen in this batch or any prior one).
+            //   - hide_redacted=false → render redactions explicitly so the
+            //     operator can audit what was retracted (default).
+            if hide_redacted && extract_redaction(m).is_some() {
+                continue;
+            }
+            if let Some(r) = extract_redaction(m) {
+                let off = m["offset"].as_u64().unwrap_or(0);
+                let reason = r
+                    .reason
+                    .as_deref()
+                    .map(|s| format!(" (reason: {s})"))
+                    .unwrap_or_default();
+                println!(
+                    "[{off} redact] {sender} → offset {target}{reason}",
+                    sender = r.sender,
+                    target = r.target,
+                );
+                continue;
+            }
             let offset = m["offset"].as_u64().unwrap_or(0);
+            // T-1322: skip parents that have been redacted (only in hide mode).
+            if hide_redacted && redacted.contains(&offset) {
+                continue;
+            }
             let sender = m["sender_id"].as_str().unwrap_or("?");
             let msg_type = m["msg_type"].as_str().unwrap_or("?");
             let payload_b64 = m["payload_b64"].as_str().unwrap_or("");
@@ -1125,6 +1230,28 @@ mod tests {
         assert_eq!(map.get(&5).map(String::as_str), Some("v2"));
         assert_eq!(map.get(&7).map(String::as_str), Some("other-only"));
         assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn redacted_offsets_collects_targets() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "payload_b64": "", "metadata": {}}),
+            json!({
+                "offset": 1, "msg_type": "redaction", "sender_id": "alice",
+                "payload_b64": "", "metadata": {"redacts": "0", "reason": "typo"}
+            }),
+            json!({"offset": 2, "msg_type": "chat", "payload_b64": "", "metadata": {}}),
+            json!({
+                "offset": 3, "msg_type": "redaction", "sender_id": "bob",
+                "payload_b64": "", "metadata": {"redacts": "2"}
+            }),
+            // malformed redaction (missing redacts) — should be skipped
+            json!({"offset": 4, "msg_type": "redaction", "metadata": {}}),
+        ];
+        let r = redacted_offsets(&msgs);
+        assert!(r.contains(&0));
+        assert!(r.contains(&2));
+        assert_eq!(r.len(), 2);
     }
 
     #[test]
