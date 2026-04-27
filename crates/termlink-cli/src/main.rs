@@ -447,6 +447,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Describe {
+                topic,
+                description,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_describe(
+                    &topic,
+                    &description,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Redact {
                 topic,
                 redacts,

@@ -1759,6 +1759,25 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Set/update the topic's free-text description (Matrix `m.room.topic`
+    /// analogue). Emits a `msg_type=topic_metadata` envelope with
+    /// `metadata.description=<text>`; repeat calls add new records and the
+    /// reader picks the most recent by ts_ms (T-1323).
+    Describe {
+        /// Topic name
+        topic: String,
+
+        /// New description text (free-form)
+        description: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Retract an earlier post (Matrix `m.redaction` analogue) — emits a
     /// `msg_type=redaction` envelope with `metadata.redacts=<offset>` and
     /// optional `metadata.reason=<text>`. Append-only: hub keeps the
