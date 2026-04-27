@@ -553,7 +553,10 @@ async fn handle_connection<S>(
                 // get recorded — that's the point: the audit log is "what was
                 // asked of the hub", not "what succeeded". Best-effort, swallows
                 // errors; never blocks dispatch.
-                crate::rpc_audit::record(&req.method);
+                // T-1309: thread optional caller display_name from params.from
+                // so legacy-caller breakdown is possible in `fw metrics api-usage`.
+                let from = req.params.get("from").and_then(|v| v.as_str());
+                crate::rpc_audit::record(&req.method, from);
                 if req.method == control::method::HUB_AUTH {
                     // hub.auth is always allowed (it's the authentication mechanism)
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);

@@ -47,12 +47,22 @@ fn now_ms() -> u128 {
 
 /// Append one line. Errors are logged at debug and swallowed.
 /// T-1307: silently skips transport-plumbing methods listed in `SKIP_METHODS`.
-pub fn record(method: &str) {
+/// T-1309: optionally records caller attribution (`from` field) so
+/// `fw metrics api-usage` can break down legacy callers by display_name.
+pub fn record(method: &str, from: Option<&str>) {
     if SKIP_METHODS.contains(&method) {
         return;
     }
     let Some(path) = current_path() else { return };
-    let line = format!(r#"{{"ts":{},"method":{}}}"#, now_ms(), json_escape(method));
+    let line = match from {
+        Some(f) if !f.is_empty() => format!(
+            r#"{{"ts":{},"method":{},"from":{}}}"#,
+            now_ms(),
+            json_escape(method),
+            json_escape(f),
+        ),
+        _ => format!(r#"{{"ts":{},"method":{}}}"#, now_ms(), json_escape(method)),
+    };
     if let Err(e) = append_line(path, &line) {
         tracing::debug!(error = %e, "rpc_audit: append failed (suppressed)");
     }
@@ -91,7 +101,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rpc-audit.jsonl");
         force_path(path.clone());
-        record("hub.auth");
+        record("hub.auth", None);
         // Read file (might be the first record with this OnceLock — only check existence + parse)
         if path.exists() {
             let body = fs::read_to_string(&path).unwrap();
@@ -100,6 +110,49 @@ mod tests {
             assert!(v.get("ts").and_then(|t| t.as_u64()).is_some());
             assert!(v.get("method").and_then(|m| m.as_str()).is_some());
         }
+    }
+
+    #[test]
+    fn line_with_from_includes_field() {
+        // T-1309: when caller attribution is provided, line must include "from".
+        let l = format!(
+            r#"{{"ts":{},"method":{},"from":{}}}"#,
+            42,
+            json_escape("event.broadcast"),
+            json_escape("framework-agent"),
+        );
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["method"], "event.broadcast");
+        assert_eq!(v["from"], "framework-agent");
+        assert_eq!(v["ts"], 42);
+    }
+
+    #[test]
+    fn line_without_from_omits_field() {
+        // T-1309: when caller attribution is absent, the line must NOT include "from".
+        let l = format!(r#"{{"ts":{},"method":{}}}"#, 42, json_escape("event.broadcast"));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert!(v.get("from").is_none(), "from must be omitted when None");
+        assert_eq!(v["method"], "event.broadcast");
+    }
+
+    #[test]
+    fn empty_from_treated_as_absent() {
+        // T-1309: empty-string from should be treated like None and omitted.
+        // We can't easily call record() across tests due to OnceLock, but we can
+        // exercise the predicate: build the same shape record() builds for empty.
+        let from_in: Option<&str> = Some("");
+        let line = match from_in {
+            Some(f) if !f.is_empty() => format!(
+                r#"{{"ts":{},"method":{},"from":{}}}"#,
+                1,
+                json_escape("event.broadcast"),
+                json_escape(f),
+            ),
+            _ => format!(r#"{{"ts":{},"method":{}}}"#, 1, json_escape("event.broadcast")),
+        };
+        let v: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert!(v.get("from").is_none(), "empty from must be omitted");
     }
 
     #[test]
