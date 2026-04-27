@@ -1,0 +1,22 @@
+id: crates/termlink-hub/src/rpc_audit.rs
+name: rpc_audit
+type: module
+subsystem: hub
+location: crates/termlink-hub/src/rpc_audit.rs
+tags: [T-1304, T-1166, telemetry, observability]
+
+purpose: >
+  Append-only RPC audit log. Each parseable JSON-RPC dispatch records one
+  line `{"ts":<unix_ms>,"method":"<method>"}` to
+  `<runtime_dir>/rpc-audit.jsonl`. Best-effort: write failures never fail
+  the RPC. Read by `fw metrics api-usage` for the T-1166 entry-gate
+  measurement (legacy primitive call volume as % of total).
+
+depends_on: []
+
+depended_by:
+  - target: crates/termlink-hub/src/server.rs
+    type: calls
+
+last_verified: 2026-04-27
+created_by: T-1304
