@@ -12,6 +12,7 @@ use termlink_session::manager;
 
 use crate::aggregator::{EventAggregator, SessionTarget};
 use crate::remote_store::RemoteStore;
+use crate::topic_lint::{self, LintOutcome};
 
 /// Per-target timeout for broadcast/collect operations.
 const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
@@ -266,6 +267,11 @@ async fn handle_event_broadcast(
         return ErrorResponse::new(id, -32602, &e).into();
     }
 
+    // T-1300: Soft-lint topic↔role mapping. Soft = warns via dual-write to
+    // `routing:lint`; the emit itself proceeds regardless of outcome.
+    let from = params.get("from").and_then(|f| f.as_str());
+    run_topic_lint("event.broadcast", topic, from).await;
+
     let payload = params
         .get("payload")
         .cloned()
@@ -400,6 +406,10 @@ async fn handle_event_emit_to(
         .unwrap_or(json!({}));
 
     let from = params.get("from").and_then(|f| f.as_str());
+
+    // T-1300: Soft-lint at emit. Same semantics as event.broadcast — never
+    // blocks; warnings dual-write to `routing:lint`.
+    run_topic_lint("event.emit_to", topic, from).await;
 
     // Resolve target session (local first, then remote)
     let reg = match manager::find_session(target) {
@@ -1656,6 +1666,54 @@ fn validate_topic_name(topic: &str) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// T-1300: Run topic↔role soft-lint and dual-write a warning envelope on
+/// mismatch. The emit path always proceeds; this is best-effort observability.
+/// `from` is the optional caller-session id (e.g. `$TERMLINK_SESSION_ID`).
+/// When absent, lint is skipped (logged at debug) — the originating client is
+/// unidentifiable, so we can't compare its roles to anything.
+async fn run_topic_lint(method: &str, topic: &str, from: Option<&str>) {
+    let Some(from) = from else {
+        tracing::debug!(method, topic, "topic_lint: no `from` — skipping");
+        return;
+    };
+    let caller_roles = match manager::find_session(from) {
+        Ok(reg) => reg.roles,
+        Err(e) => {
+            tracing::debug!(
+                method, topic, from,
+                error = %e,
+                "topic_lint: caller session not resolvable — skipping"
+            );
+            return;
+        }
+    };
+    let rules = topic_lint::current_rules();
+    let outcome = topic_lint::lint(topic, &caller_roles, &rules);
+    if let LintOutcome::Warn {
+        rule_prefix,
+        expected_roles,
+        actual_roles,
+    } = outcome
+    {
+        let payload = topic_lint::warning_payload(
+            method,
+            topic,
+            Some(from),
+            &rule_prefix,
+            &expected_roles,
+            &actual_roles,
+        );
+        tracing::warn!(
+            method, topic, from,
+            rule_prefix = %rule_prefix,
+            expected = ?expected_roles,
+            actual = ?actual_roles,
+            "topic_lint: WARN — caller role does not match topic prefix policy"
+        );
+        crate::channel::mirror_routing_lint_warning(method, &payload).await;
+    }
 }
 
 #[cfg(test)]
