@@ -431,6 +431,22 @@ async fn main() -> Result<()> {
             ChannelAction::Receipts { topic, hub, json } => {
                 commands::channel::cmd_channel_receipts(&topic, hub.as_deref(), json).await
             }
+            ChannelAction::Edit {
+                topic,
+                replaces,
+                payload,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_edit(
+                    &topic,
+                    replaces,
+                    &payload,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::React {
                 topic,
                 parent_offset,
@@ -460,6 +476,7 @@ async fn main() -> Result<()> {
                 in_reply_to,
                 reactions,
                 by_sender,
+                collapse_edits,
                 hub,
                 json,
             } => {
@@ -474,6 +491,7 @@ async fn main() -> Result<()> {
                     in_reply_to,
                     reactions,
                     by_sender,
+                    collapse_edits,
                     hub.as_deref(),
                     json,
                 )

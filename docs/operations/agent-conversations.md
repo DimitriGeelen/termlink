@@ -162,6 +162,39 @@ provenance. A malicious peer with hub access could rewrite the pointer.
 For the current threat model (cooperating agents on the same hub) this is
 fine; if it ever isn't, see the T-1313 task file for the design alternative.
 
+## Edits (T-1321 — Matrix `m.replace`)
+
+When you need to correct a previously-sent message, emit a new envelope with
+`msg_type=edit` and `metadata.replaces=<original-offset>`:
+
+```sh
+termlink channel post topic --payload "ready by EOD"          # offset 0
+termlink channel edit topic 0 "ready by 4pm — corrected"      # offset 1, edits 0
+termlink channel edit topic 0 "ready now"                     # offset 2, edits 0 again
+```
+
+Hub stores all three records (append-only). The reader chooses the view:
+
+```sh
+# Raw view: full audit trail
+termlink channel subscribe topic --limit 50
+# [0] alice chat: ready by EOD
+# [1] alice edit: ready by 4pm — corrected
+# [2] alice edit: ready now
+
+# Collapsed view: latest version against the original offset
+termlink channel subscribe topic --limit 50 --collapse-edits
+# [0] alice chat: ready now (edited)
+```
+
+Composes with `--reactions` (the parent line shows the latest text and the
+reactions summary attaches as usual). Old peers that don't pass
+`--collapse-edits` see all three records — strictly additive.
+
+`channel dm` opens read mode with `--collapse-edits` on by default, since
+that's the natural conversational view; pass the explicit `subscribe`
+form if you want to see the full edit history.
+
 ## Reactions (T-1314)
 
 A reaction is just a typed reply: `msg_type=reaction`, `metadata.in_reply_to=<parent>`,
