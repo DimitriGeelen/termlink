@@ -718,6 +718,132 @@ fn collapse_edits_map(edits: &[(u64, u64, String)]) -> std::collections::HashMap
     latest.into_iter().map(|(k, (_, t))| (k, t)).collect()
 }
 
+/// T-1328: pure helper — pre-order DFS over a parent→children map starting
+/// at `root`, returning (offset, depth) pairs. Children are visited in
+/// ascending offset order for deterministic output. Stops at `root`'s
+/// subtree; unrelated branches in the map are ignored.
+pub(crate) fn build_thread(
+    parents: &std::collections::HashMap<u64, Vec<u64>>,
+    root: u64,
+) -> Vec<(u64, usize)> {
+    let mut out: Vec<(u64, usize)> = Vec::new();
+    fn visit(
+        parents: &std::collections::HashMap<u64, Vec<u64>>,
+        node: u64,
+        depth: usize,
+        out: &mut Vec<(u64, usize)>,
+    ) {
+        out.push((node, depth));
+        if let Some(children) = parents.get(&node) {
+            let mut sorted: Vec<u64> = children.clone();
+            sorted.sort_unstable();
+            for child in sorted {
+                visit(parents, child, depth + 1, out);
+            }
+        }
+    }
+    visit(parents, root, 0, &mut out);
+    out
+}
+
+/// T-1328: walk a topic, build parent→children map from `metadata.in_reply_to`,
+/// DFS-render the subtree rooted at `root`. One-shot read (no --follow).
+pub(crate) async fn cmd_channel_thread(
+    topic: &str,
+    root: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let mut all_msgs: Vec<Value> = Vec::new();
+    let mut cursor: u64 = 0;
+    let limit: u64 = 1000;
+    loop {
+        let resp = client::rpc_call(
+            &sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .context("Hub rpc_call (channel.subscribe) failed")?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        all_msgs.extend(msgs);
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+    if !all_msgs.iter().any(|m| m["offset"].as_u64() == Some(root)) {
+        anyhow::bail!("Topic '{topic}' has no message at offset {root}");
+    }
+    // Index msgs by offset, build parent→children map from metadata.in_reply_to.
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, Value> = HashMap::with_capacity(all_msgs.len());
+    let mut parents: HashMap<u64, Vec<u64>> = HashMap::new();
+    for m in &all_msgs {
+        let Some(off) = m["offset"].as_u64() else { continue };
+        by_off.insert(off, m.clone());
+        if let Some(parent_str) = m
+            .get("metadata")
+            .and_then(|md| md.get("in_reply_to"))
+            .and_then(|v| v.as_str())
+            && let Ok(parent) = parent_str.parse::<u64>()
+        {
+            parents.entry(parent).or_default().push(off);
+        }
+    }
+    let order = build_thread(&parents, root);
+
+    if json_output {
+        // Flat list with depth for JSON consumers; preserve order.
+        let entries: Vec<Value> = order
+            .iter()
+            .filter_map(|(off, depth)| {
+                let m = by_off.get(off)?;
+                let payload_b64 = m["payload_b64"].as_str().unwrap_or("");
+                let payload = base64::engine::general_purpose::STANDARD
+                    .decode(payload_b64)
+                    .ok()
+                    .and_then(|b| String::from_utf8(b).ok())
+                    .unwrap_or_default();
+                Some(json!({
+                    "offset": off,
+                    "depth": depth,
+                    "sender_id": m["sender_id"].as_str().unwrap_or("?"),
+                    "msg_type": m["msg_type"].as_str().unwrap_or("?"),
+                    "payload": payload,
+                }))
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "topic": topic,
+                "root": root,
+                "thread": entries,
+            }))?
+        );
+        return Ok(());
+    }
+
+    for (off, depth) in &order {
+        let Some(m) = by_off.get(off) else { continue };
+        let sender = m["sender_id"].as_str().unwrap_or("?");
+        let msg_type = m["msg_type"].as_str().unwrap_or("?");
+        let payload_b64 = m["payload_b64"].as_str().unwrap_or("");
+        let payload = base64::engine::general_purpose::STANDARD
+            .decode(payload_b64)
+            .unwrap_or_default();
+        let payload_str = String::from_utf8_lossy(&payload);
+        let indent = "  ".repeat(*depth);
+        println!("{indent}[{off}] {sender} {msg_type}: {payload_str}");
+    }
+    Ok(())
+}
+
 /// T-1325: pure helper — does the comma-separated `mentions` CSV contain the
 /// target id? Strict (comma split + whitespace trim, no substring match).
 /// Empty CSV and empty target both return false.
@@ -1544,6 +1670,33 @@ mod tests {
             json!({"msg_type": "topic_metadata", "ts_ms": 1, "metadata": {}}),
         ];
         assert_eq!(latest_description(&malformed), None);
+    }
+
+    #[test]
+    fn build_thread_orders_dfs_with_depth() {
+        // Tree: 0 → 1, 0 → 2, 1 → 3
+        // Pre-order DFS from 0: 0, 1, 3, 2 with depths 0, 1, 2, 1
+        let mut parents: std::collections::HashMap<u64, Vec<u64>> = std::collections::HashMap::new();
+        parents.insert(0, vec![1, 2]);
+        parents.insert(1, vec![3]);
+        let got = build_thread(&parents, 0);
+        assert_eq!(got, vec![(0, 0), (1, 1), (3, 2), (2, 1)]);
+    }
+
+    #[test]
+    fn build_thread_handles_disconnected_subtree() {
+        // Two separate trees: {0→1} and {5→6}; rooting at 0 should not include 5/6
+        let mut parents: std::collections::HashMap<u64, Vec<u64>> = std::collections::HashMap::new();
+        parents.insert(0, vec![1]);
+        parents.insert(5, vec![6]);
+        let got = build_thread(&parents, 0);
+        assert_eq!(got, vec![(0, 0), (1, 1)]);
+    }
+
+    #[test]
+    fn build_thread_returns_just_root_when_no_children() {
+        let parents: std::collections::HashMap<u64, Vec<u64>> = std::collections::HashMap::new();
+        assert_eq!(build_thread(&parents, 42), vec![(42, 0)]);
     }
 
     #[test]

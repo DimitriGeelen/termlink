@@ -61,8 +61,10 @@ A_topic=$(A channel dm "$BOB" --topic-only)
 B_topic=$(B channel dm "$ALICE" --topic-only)
 [[ "$A_topic" == "$B_topic" ]] || { echo "FAIL step 1: alice & bob disagree on DM topic ($A_topic vs $B_topic)" >&2; exit 1; }
 DM="$A_topic"
-# Trigger the auto-create path so `channel post` below has somewhere to land.
-A channel dm "$BOB" --send "(walkthrough start ts=$(date -u +%FT%TZ))" >/dev/null
+# Ensure the topic exists. channel.create is idempotent on (name, retention)
+# so re-runs are safe; we don't post a sentinel because offsets matter for
+# the thread-view test below (alice's first content post must be offset 0).
+A channel create "$DM" --retention forever >/dev/null 2>&1 || true
 
 step() { printf "\n\033[1;36m== %s ==\033[0m\n" "$1"; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
@@ -133,6 +135,13 @@ expect_contains "$BOB" "$out" "step 9: alice should see bob's receipt"
 step "10. dm --list from both sides"
 expect_contains "$DM" "$(A channel dm --list)" "step 10: alice should see the DM in --list"
 expect_contains "$DM" "$(B channel dm --list)" "step 10: bob should see the DM in --list"
+
+step "11. thread view (T-1328): alice's offset 0 is the canonical root with bob's reply"
+out=$(A channel thread "$DM" 0)
+# Root must appear at depth 0 (no leading whitespace before [0])
+expect_contains "[0]" "$out" "step 11: thread view shows root [0]"
+# Bob's reply at offset 1 → reply_to=0, depth 1 → indent of 2 spaces
+expect_contains "  [1]" "$out" "step 11: bob's reply at offset 1 is rendered indented"
 
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------

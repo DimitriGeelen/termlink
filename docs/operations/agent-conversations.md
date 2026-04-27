@@ -143,6 +143,21 @@ termlink channel post topic --payload "follow-up" --reply-to 1   # offset 2, ↳
 [2 ↳1] sender chat: follow-up
 ```
 
+For a recursive Matrix-style thread view (root + all descendants, indented):
+
+```sh
+termlink channel thread topic 0
+# [0] alice chat: Q?
+#   [1] bob chat: A!
+#     [2] alice chat: follow-up
+#   [3] carol chat: alt-answer
+```
+
+Walks the topic once, builds the parent→children map from
+`metadata.in_reply_to`, DFS-renders the subtree from `<root>`. Children are
+visited in ascending offset order so output is deterministic. Sub-rooting
+(`channel thread topic 1`) renders just that branch (T-1328).
+
 For server-side filtering (e.g. fetch every reply to a specific question):
 
 ```sh
