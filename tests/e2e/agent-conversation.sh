@@ -380,6 +380,35 @@ out=$(A channel subscribe "$DM" --limit 100 --tail 3 --json | wc -l)
   exit 1
 }
 
+step "25. channel subscribe --senders (T-1347): per-sender filter"
+# Helper: count rendered envelopes whose sender_id equals $1 in $2.
+# Looks for "] <id> " — the close of offset/markers + sender + space.
+sender_lines() { echo "$2" | grep -cE "\] $1 "; }
+# Filter to alice only — bob-sourced envelopes drop out, alice's stay.
+out=$(A channel subscribe "$DM" --limit 100 --senders "$ALICE")
+[ "$(sender_lines "$ALICE" "$out")" -gt 0 ] || {
+  echo "FAIL step 25a: --senders \$ALICE must keep alice envelopes" >&2; exit 1; }
+[ "$(sender_lines "$BOB" "$out")" -eq 0 ] || {
+  echo "FAIL step 25a: --senders \$ALICE must drop bob envelopes" >&2; exit 1; }
+# Filter to bob only.
+out=$(A channel subscribe "$DM" --limit 100 --senders "$BOB")
+[ "$(sender_lines "$BOB" "$out")" -gt 0 ] || {
+  echo "FAIL step 25b: --senders \$BOB must keep bob envelopes" >&2; exit 1; }
+[ "$(sender_lines "$ALICE" "$out")" -eq 0 ] || {
+  echo "FAIL step 25b: --senders \$BOB must drop alice envelopes" >&2; exit 1; }
+# Filter to both — both should appear.
+out=$(A channel subscribe "$DM" --limit 100 --senders "$ALICE,$BOB")
+[ "$(sender_lines "$ALICE" "$out")" -gt 0 ] || {
+  echo "FAIL step 25c: CSV match must keep alice envelopes" >&2; exit 1; }
+[ "$(sender_lines "$BOB" "$out")" -gt 0 ] || {
+  echo "FAIL step 25c: CSV match must keep bob envelopes" >&2; exit 1; }
+# Filter to nobody — empty output.
+out=$(A channel subscribe "$DM" --limit 100 --senders "no-such-sender")
+[ -z "$out" ] || {
+  echo "FAIL step 25d: --senders no-such-sender should produce empty output" >&2
+  exit 1
+}
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

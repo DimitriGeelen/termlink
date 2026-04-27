@@ -585,6 +585,7 @@ async fn main() -> Result<()> {
                 since,
                 show_parent,
                 tail,
+                senders,
                 hub,
                 json,
             } => {
@@ -605,6 +606,7 @@ async fn main() -> Result<()> {
                     since,
                     show_parent,
                     tail,
+                    senders.as_deref(),
                     hub.as_deref(),
                     json,
                 )
