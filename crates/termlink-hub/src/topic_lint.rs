@@ -157,17 +157,74 @@ pub fn lint(topic: &str, caller_roles: &[String], rules: &Rules) -> LintOutcome 
     }
 }
 
+/// T-1301: A per-session opt-in entry suppressing lint warnings for any
+/// topic covered by `relay_for`. `name` is the session's display_name.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct RelayEntry {
+    pub name: String,
+    #[serde(default)]
+    pub relay_for: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
+pub struct RelayDeclarations {
+    #[serde(default)]
+    pub sessions: Vec<RelayEntry>,
+}
+
+impl RelayDeclarations {
+    /// Empty defaults — undeclared hubs behave identically to T-1300.
+    pub fn defaults() -> Self {
+        Self::default()
+    }
+
+    /// Parse YAML at `path`. Unknown keys tolerated (forward-compat).
+    pub fn load_from_path(path: &Path) -> Result<Self> {
+        let raw = std::fs::read_to_string(path)
+            .with_context(|| format!("relay_declarations: read {}", path.display()))?;
+        let decls: RelayDeclarations = serde_yaml::from_str(&raw)
+            .with_context(|| format!("relay_declarations: parse {}", path.display()))?;
+        Ok(decls)
+    }
+
+    /// Look up a session by display_name. Returns the declared `relay_for`
+    /// list (empty if undeclared).
+    pub fn relay_for(&self, display_name: &str) -> Vec<String> {
+        self.sessions
+            .iter()
+            .find(|s| s.name == display_name)
+            .map(|s| s.relay_for.clone())
+            .unwrap_or_default()
+    }
+}
+
+/// Returns true when `topic` is covered by any `prefix` in `prefixes` using
+/// the same boundary-match semantics as the rule engine: `prefix` matches
+/// only at end-of-string or before a `.` / `:` separator. So
+/// `learning` covers `learning.captured` and `learning:foo` but not
+/// `learnings.bar`.
+pub fn relay_suppresses(topic: &str, prefixes: &[String]) -> bool {
+    prefixes.iter().any(|p| topic_has_prefix(topic, p))
+}
+
 /// Process-global Rules state, mutated by SIGHUP reloads.
 static RULES: std::sync::OnceLock<Arc<RwLock<Rules>>> = std::sync::OnceLock::new();
 
 /// Path the reload handler re-reads from on SIGHUP. None = use defaults.
 static RULES_PATH: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
 
+/// T-1301: Process-global RelayDeclarations state.
+static RELAYS: std::sync::OnceLock<Arc<RwLock<RelayDeclarations>>> = std::sync::OnceLock::new();
+static RELAYS_PATH: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+
 /// Initialise the lint engine. Called once by the hub server at startup.
 /// If `<runtime_dir>/topic_roles.yaml` exists it is parsed; otherwise the
-/// built-in defaults are installed. Either way the global state is set so
-/// later [`current_rules`] calls succeed.
+/// built-in defaults are installed. Same flow for the T-1301 relay
+/// declarations file `<runtime_dir>/relay_declarations.yaml`. Either way
+/// the global state is set so later [`current_rules`] / [`current_relay_for`]
+/// calls succeed.
 pub fn init(runtime_dir: &Path) {
+    // Topic role rules
     let path = runtime_dir.join("topic_roles.yaml");
     let (rules, used_path) = if path.is_file() {
         match Rules::load_from_path(&path) {
@@ -198,6 +255,37 @@ pub fn init(runtime_dir: &Path) {
     };
     let _ = RULES.set(Arc::new(RwLock::new(rules)));
     let _ = RULES_PATH.set(used_path);
+
+    // T-1301: Relay declarations
+    let relay_path = runtime_dir.join("relay_declarations.yaml");
+    let (relays, used_relay_path) = if relay_path.is_file() {
+        match RelayDeclarations::load_from_path(&relay_path) {
+            Ok(d) => {
+                tracing::info!(
+                    file = %relay_path.display(),
+                    session_count = d.sessions.len(),
+                    "topic_lint: loaded relay declarations from file"
+                );
+                (d, Some(relay_path.clone()))
+            }
+            Err(e) => {
+                tracing::warn!(
+                    file = %relay_path.display(),
+                    error = %e,
+                    "topic_lint: failed to parse relay declarations — using empty"
+                );
+                (RelayDeclarations::defaults(), Some(relay_path.clone()))
+            }
+        }
+    } else {
+        tracing::info!(
+            file = %relay_path.display(),
+            "topic_lint: relay declarations absent — using empty"
+        );
+        (RelayDeclarations::defaults(), None)
+    };
+    let _ = RELAYS.set(Arc::new(RwLock::new(relays)));
+    let _ = RELAYS_PATH.set(used_relay_path);
 }
 
 /// Snapshot current rules (cheap clone of the inner Arc-RwLock guard's data).
@@ -208,29 +296,64 @@ pub fn current_rules() -> Rules {
         .unwrap_or_else(Rules::defaults)
 }
 
+/// T-1301: Look up the declared `relay_for` prefixes for a session by
+/// `display_name`. Returns an empty vec when there is no declaration.
+pub fn current_relay_for(display_name: &str) -> Vec<String> {
+    RELAYS
+        .get()
+        .and_then(|r| r.read().ok().map(|g| g.relay_for(display_name)))
+        .unwrap_or_default()
+}
+
 /// Reload rules from the file recorded at [`init`] time. Used by the SIGHUP
 /// task. On parse failure the previous rules stay in place.
+/// T-1301: Also reloads the relay declarations file. Both reloads are
+/// independent — a parse failure on one keeps the other's previous state.
 pub fn reload() {
-    let Some(Some(path)) = RULES_PATH.get() else {
-        tracing::info!("topic_lint: SIGHUP — no file path recorded; nothing to reload");
-        return;
-    };
-    match Rules::load_from_path(path) {
-        Ok(new_rules) => {
-            if let Some(slot) = RULES.get()
-                && let Ok(mut g) = slot.write()
-            {
-                *g = new_rules;
-                tracing::info!(file = %path.display(), "topic_lint: reloaded rules");
+    // Topic rules
+    if let Some(Some(path)) = RULES_PATH.get() {
+        match Rules::load_from_path(path) {
+            Ok(new_rules) => {
+                if let Some(slot) = RULES.get()
+                    && let Ok(mut g) = slot.write()
+                {
+                    *g = new_rules;
+                    tracing::info!(file = %path.display(), "topic_lint: reloaded rules");
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    file = %path.display(),
+                    error = %e,
+                    "topic_lint: rules reload failed — keeping previous rules"
+                );
             }
         }
-        Err(e) => {
-            tracing::warn!(
-                file = %path.display(),
-                error = %e,
-                "topic_lint: reload failed — keeping previous rules"
-            );
+    } else {
+        tracing::debug!("topic_lint: SIGHUP — no rules file path recorded; skipping rules reload");
+    }
+
+    // T-1301: Relay declarations
+    if let Some(Some(path)) = RELAYS_PATH.get() {
+        match RelayDeclarations::load_from_path(path) {
+            Ok(new_decls) => {
+                if let Some(slot) = RELAYS.get()
+                    && let Ok(mut g) = slot.write()
+                {
+                    *g = new_decls;
+                    tracing::info!(file = %path.display(), "topic_lint: reloaded relay declarations");
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    file = %path.display(),
+                    error = %e,
+                    "topic_lint: relay declarations reload failed — keeping previous"
+                );
+            }
         }
+    } else {
+        tracing::debug!("topic_lint: SIGHUP — no relay file path recorded; skipping relay reload");
     }
 }
 
@@ -441,6 +564,114 @@ exempt_prefixes: ["agent."]
         let r2 = Rules::load_from_path(&path).unwrap();
         assert_eq!(r2.rules.len(), 2);
     }
+
+    // ---------- T-1301 RelayDeclarations tests ----------
+
+    #[test]
+    fn relay_suppresses_matches_prefix_with_dot_or_colon() {
+        let prefixes = vec!["learning".to_string()];
+        assert!(relay_suppresses("learning.captured", &prefixes));
+        assert!(relay_suppresses("learning:foo", &prefixes));
+        assert!(relay_suppresses("learning", &prefixes));
+    }
+
+    #[test]
+    fn relay_suppresses_rejects_lookalike() {
+        let prefixes = vec!["learning".to_string()];
+        assert!(!relay_suppresses("learnings.foo", &prefixes));
+        assert!(!relay_suppresses("learn.foo", &prefixes));
+        assert!(!relay_suppresses("framework:pickup", &prefixes));
+    }
+
+    #[test]
+    fn relay_declarations_yaml_loader_parses_sample() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("relay_declarations.yaml");
+        std::fs::write(
+            &path,
+            r#"
+sessions:
+  - name: "framework-agent"
+    relay_for: ["channel.delivery", "task.complete", "learning"]
+  - name: "ring20-management"
+    relay_for: ["infra"]
+"#,
+        )
+        .unwrap();
+        let d = RelayDeclarations::load_from_path(&path).unwrap();
+        assert_eq!(d.sessions.len(), 2);
+        assert_eq!(d.sessions[0].name, "framework-agent");
+        assert_eq!(d.sessions[0].relay_for.len(), 3);
+        assert_eq!(d.relay_for("framework-agent").len(), 3);
+        assert_eq!(d.relay_for("ring20-management"), vec!["infra".to_string()]);
+    }
+
+    #[test]
+    fn relay_declarations_relay_for_undeclared_session_is_empty() {
+        let d = RelayDeclarations::defaults();
+        assert!(d.relay_for("nobody").is_empty());
+    }
+
+    #[test]
+    fn relay_yaml_tolerates_unknown_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("relay_declarations.yaml");
+        std::fs::write(
+            &path,
+            r#"
+version: 2
+description: "forward-compat field"
+sessions:
+  - name: "framework-agent"
+    relay_for: ["channel.delivery"]
+"#,
+        )
+        .unwrap();
+        let d = RelayDeclarations::load_from_path(&path).unwrap();
+        assert_eq!(d.sessions.len(), 1);
+    }
+
+    #[test]
+    fn relay_hot_reload_via_repeated_load_reflects_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("relay_declarations.yaml");
+        std::fs::write(
+            &path,
+            "sessions:\n  - name: \"framework-agent\"\n    relay_for: [\"channel.delivery\"]\n",
+        )
+        .unwrap();
+        let d1 = RelayDeclarations::load_from_path(&path).unwrap();
+        assert_eq!(d1.sessions.len(), 1);
+        std::fs::write(
+            &path,
+            "sessions:\n  - name: \"framework-agent\"\n    relay_for: [\"channel.delivery\", \"learning\"]\n  - name: \"other\"\n    relay_for: [\"task\"]\n",
+        )
+        .unwrap();
+        let d2 = RelayDeclarations::load_from_path(&path).unwrap();
+        assert_eq!(d2.sessions.len(), 2);
+        assert_eq!(d2.relay_for("framework-agent").len(), 2);
+    }
+
+    #[test]
+    fn end_to_end_warn_suppressed_by_relay_for() {
+        // learning.captured with role=product warns under defaults
+        // (learning -> framework). NOTE: pick a non-exempt topic.
+        let rules = Rules::defaults();
+        let outcome = lint("learning.captured", &roles(&["product"]), &rules);
+        // Confirm baseline: lint warns
+        assert!(
+            matches!(outcome, LintOutcome::Warn { .. }),
+            "expected baseline Warn, got {outcome:?}"
+        );
+        // Caller declares relay_for covering this prefix → suppressed
+        let relay_prefixes = vec!["learning".to_string()];
+        assert!(relay_suppresses("learning.captured", &relay_prefixes));
+        // Caller declares a non-covering prefix → still warns
+        let other_prefixes = vec!["task".to_string()];
+        assert!(!relay_suppresses("learning.captured", &other_prefixes));
+    }
+
+    // ---------- end T-1301 ----------
 
     #[test]
     fn warning_payload_serializes_expected_fields() {

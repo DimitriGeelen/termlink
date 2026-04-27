@@ -80,6 +80,43 @@ Payload shape:
 }
 ```
 
+## Per-session opt-in (T-1301 — `relay_declarations.yaml`)
+
+Multi-purpose sessions like `framework-agent` legitimately emit topics
+that fall under several roles (governance + cross-project relay). Without
+an opt-in, every legitimate emit would generate a warning. The
+**relay_declarations** file lets operators whitelist specific prefixes
+per session.
+
+`<runtime_dir>/relay_declarations.yaml`:
+
+```yaml
+sessions:
+  - name: "framework-agent"
+    relay_for:
+      - "channel.delivery"
+      - "task.complete"
+      - "learning"          # prefix-match: covers learning.x and learning:y
+
+  - name: "ring20-management"
+    relay_for:
+      - "infra"
+      - "outage"
+```
+
+Match semantics: same boundary rules as the `Rules` engine — `learning`
+matches `learning.captured` and `learning:foo` but not `learnings`. When
+the caller's declared `relay_for` covers the topic, lint returns
+suppressed (debug-logged, no envelope written to `routing:lint`).
+
+The file is hot-reloaded by the same SIGHUP signal that reloads
+`topic_roles.yaml`. Both reloads are independent — a parse failure on
+one keeps the other's state in place.
+
+Sessions are looked up by **display_name** (the stable name visible in
+`termlink list-sessions`), not by session_id (which rotates per
+registration).
+
 ## Disabling
 
 Out of scope for T-1300 v1. Workarounds:

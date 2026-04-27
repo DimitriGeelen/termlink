@@ -1678,8 +1678,8 @@ async fn run_topic_lint(method: &str, topic: &str, from: Option<&str>) {
         tracing::debug!(method, topic, "topic_lint: no `from` — skipping");
         return;
     };
-    let caller_roles = match manager::find_session(from) {
-        Ok(reg) => reg.roles,
+    let (caller_roles, display_name) = match manager::find_session(from) {
+        Ok(reg) => (reg.roles, reg.display_name),
         Err(e) => {
             tracing::debug!(
                 method, topic, from,
@@ -1697,6 +1697,17 @@ async fn run_topic_lint(method: &str, topic: &str, from: Option<&str>) {
         actual_roles,
     } = outcome
     {
+        // T-1301: Caller's relay_for declaration may cover this topic; if so,
+        // suppress the warning entirely (no log, no dual-write).
+        let relay_for = topic_lint::current_relay_for(&display_name);
+        if topic_lint::relay_suppresses(topic, &relay_for) {
+            tracing::debug!(
+                method, topic, from, display_name,
+                relay_for = ?relay_for,
+                "topic_lint: WARN suppressed by caller's relay_for declaration"
+            );
+            return;
+        }
         let payload = topic_lint::warning_payload(
             method,
             topic,
@@ -1706,7 +1717,7 @@ async fn run_topic_lint(method: &str, topic: &str, from: Option<&str>) {
             &actual_roles,
         );
         tracing::warn!(
-            method, topic, from,
+            method, topic, from, display_name,
             rule_prefix = %rule_prefix,
             expected = ?expected_roles,
             actual = ?actual_roles,
