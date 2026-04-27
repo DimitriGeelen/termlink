@@ -277,6 +277,23 @@ out_json=$(A channel ancestors "$DM" 1 --json)
 expect_contains "\"ancestors\":" "$out_json" "step 18: --json should include ancestors array"
 expect_contains "\"leaf\":" "$out_json" "step 18: --json should include leaf field"
 
+step "19. channel members (T-1341): per-sender activity summary"
+out=$(A channel members "$DM")
+expect_contains "$ALICE" "$out" "step 19: alice must appear in member list"
+expect_contains "$BOB" "$out" "step 19: bob must appear in member list"
+expect_contains "posts=" "$out" "step 19: each member line must include posts column"
+expect_contains "first=" "$out" "step 19: each member line must include first ts"
+expect_contains "last=" "$out" "step 19: each member line must include last ts"
+# --include-meta should grow at least one member's post count vs. default.
+out_default=$(A channel members "$DM" --json)
+out_full=$(A channel members "$DM" --include-meta --json)
+posts_default=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(sum(m["posts"] for m in d["members"]))' <<<"$out_default")
+posts_full=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(sum(m["posts"] for m in d["members"]))' <<<"$out_full")
+[[ $posts_full -gt $posts_default ]] || fail "step 19: --include-meta should increase total post count (default=$posts_default full=$posts_full)"
+# JSON shape sanity
+expect_contains "\"members\":" "$out_default" "step 19: --json should include members array"
+expect_contains "\"sender_id\":" "$out_default" "step 19: --json should include sender_id per member"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

@@ -1848,6 +1848,29 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Membership list for one topic (T-1341). Walks the topic once and
+    /// reports each distinct sender with post-count, first-seen ts, and
+    /// last-seen ts. Sorted by last-seen descending. Counts only content
+    /// envelopes by default — pass `--include-meta` to include reactions,
+    /// edits, redactions, receipts, and topic_metadata. Read-only.
+    Members {
+        /// Topic name
+        topic: String,
+
+        /// Include meta envelopes (T-1332's set: receipt, reaction,
+        /// redaction, edit, topic_metadata) in the per-sender post count
+        /// and last-seen timestamp.
+        #[arg(long)]
+        include_meta: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON array of `{sender_id, posts, first_ts, last_ts}`
+        #[arg(long)]
+        json: bool,
+    },
     /// Reply to the topic's latest content message — auto-resolves the
     /// reply-to offset so interactive use doesn't need a separate
     /// subscribe lookup. Skips meta envelopes (reactions, edits,
