@@ -581,6 +581,28 @@ async fn main() -> Result<()> {
             ChannelAction::List { prefix, stats, hub, json } => {
                 commands::channel::cmd_channel_list(prefix.as_deref(), stats, hub.as_deref(), json).await
             }
+            ChannelAction::Search {
+                topic,
+                pattern,
+                regex,
+                case_sensitive,
+                all,
+                limit,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_search(
+                    &topic,
+                    &pattern,
+                    regex,
+                    case_sensitive,
+                    all,
+                    limit,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::QueueStatus { queue_path, json } => {
                 commands::channel::cmd_channel_queue_status(queue_path.as_deref(), json)
             }

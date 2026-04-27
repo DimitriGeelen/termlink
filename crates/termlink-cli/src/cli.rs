@@ -2062,6 +2062,46 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Read-only payload grep across one topic. Walks the topic once,
+    /// decodes each envelope's payload from base64 (UTF-8 lossy), and
+    /// prints matches by ascending offset. Default mode: case-insensitive
+    /// substring. `--case-sensitive` makes substring exact; `--regex`
+    /// switches to full regex compilation. Meta envelopes (T-1332's set:
+    /// receipt, reaction, redaction, edit, topic_metadata) are excluded
+    /// unless `--all` is given. Tier-A: pattern stays client-side, the
+    /// hub never sees it. T-1336.
+    Search {
+        /// Topic name
+        topic: String,
+
+        /// Pattern (substring by default; full regex with `--regex`)
+        pattern: String,
+
+        /// Treat the pattern as a regex (compiled once via the `regex` crate)
+        #[arg(long)]
+        regex: bool,
+
+        /// Disable case folding (default is case-insensitive substring)
+        #[arg(long)]
+        case_sensitive: bool,
+
+        /// Search through meta envelopes too — by default reactions, edits,
+        /// redactions, receipts, and topic_metadata records are skipped.
+        #[arg(long)]
+        all: bool,
+
+        /// Cap the number of printed matches (0 = unlimited; default: 0)
+        #[arg(long, default_value_t = 0u64)]
+        limit: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON array of `{offset, sender_id, ts, msg_type, payload}`
+        #[arg(long)]
+        json: bool,
+    },
     /// Show local offline-queue status — pending-post count + oldest timestamp (T-1161 diagnostic)
     QueueStatus {
         /// Path to the queue sqlite file (default: ~/.termlink/outbound.sqlite, or $TERMLINK_IDENTITY_DIR/outbound.sqlite if set)

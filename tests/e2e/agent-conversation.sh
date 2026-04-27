@@ -169,6 +169,38 @@ expect_contains "\"content\":" "$out_json" "step 13: --json must expose content 
 expect_contains "\"meta\":" "$out_json" "step 13: --json must expose meta field"
 expect_contains "\"senders\":" "$out_json" "step 13: --json must expose senders field"
 
+step "14. channel search (T-1336): payload grep across the DM topic"
+# Substring (default, case-insensitive): bob's reply 'yes alice, ready'
+# (offset 1) must surface for both 'YES' and 'ready'.
+out=$(A channel search "$DM" "ready")
+expect_contains "yes alice, ready" "$out" "step 14: substring should match bob's reply"
+out=$(A channel search "$DM" "YES")
+expect_contains "yes alice, ready" "$out" "step 14: case-insensitive default should match upper-case query"
+# --case-sensitive: lower-case 'yes' matches; upper-case 'YES' must NOT.
+out=$(A channel search "$DM" "YES" --case-sensitive)
+expect_not_contains "yes alice, ready" "$out" "step 14: --case-sensitive should miss case-mismatched query"
+# --regex: pattern 'are\s+you\s+\w+\?' must match alice's offset 0
+# ('hi bob, are you there?'). Without --all the edit envelope (offset 4)
+# is skipped, so the live match is the ORIGINAL chat envelope.
+out=$(A channel search "$DM" 'are\s+you\s+\w+\?' --regex)
+expect_contains "are you there?" "$out" "step 14: --regex should match alice's prompt"
+# With --all, the edit envelope (msg_type=edit, payload='hi bob, are you
+# online?') should also surface — different offset, same regex.
+out=$(A channel search "$DM" 'are\s+you\s+online' --regex --all)
+expect_contains "are you online?" "$out" "step 14: --regex --all should also match the edit envelope"
+# Default mode (no --all): meta envelopes (reactions/edits) must NOT appear.
+# The reaction emoji '🧪' was created and removed in step 12; with --all
+# we should still see it in the audit trail, without --all we should not.
+out=$(A channel search "$DM" "🧪")
+expect_not_contains "🧪" "$out" "step 14: default search should skip meta (reaction) envelopes"
+out=$(A channel search "$DM" "🧪" --all)
+expect_contains "🧪" "$out" "step 14: --all should include meta (reaction) envelopes"
+# JSON shape sanity-check
+out_json=$(A channel search "$DM" "ready" --json)
+expect_contains "\"offset\":" "$out_json" "step 14: --json must include offset"
+expect_contains "\"sender_id\":" "$out_json" "step 14: --json must include sender_id"
+expect_contains "\"payload\":" "$out_json" "step 14: --json must include payload"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
