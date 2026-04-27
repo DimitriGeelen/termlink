@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T16:42:18Z ===
-task_id: T-1329
+=== episodic-gen invocation: 2026-04-27T16:51:10Z ===
+task_id: T-1330
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1329.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1330.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: Hub-side channel.receipts RPC — server-side aggregation of latest receipt per sender
-  Duration: 0 days (18 min)
+  Task: channel react --remove — Matrix annotation removal (alias for redact on a reaction offset)
+  Duration: 0 days (8 min)
   Updates: 2
   Commits: 1
-  Lines: +458 -121 across 27 files
-  Outcomes: 9 AC checked
-  Artifacts: 27 files tracked
+  Lines: +350 -75 across 19 files
+  Outcomes: 8 AC checked
+  Artifacts: 19 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1329-hub-side-channelreceipts-rpc--server-sid.md
+Source: /opt/termlink/.tasks/completed/T-1330-channel-react---remove--matrix-annotatio.md
 --- exit code: 0 ---
