@@ -1226,8 +1226,88 @@ pub(crate) async fn cmd_channel_info(
 /// T-1332: msg_types that DON'T count toward "unread" — purely meta envelopes
 /// like reactions, edits, redactions, receipts and topic-metadata. The aim is
 /// to mirror what a human would mentally count: "new content I haven't seen."
+/// T-1334 also uses this set to find the latest content message for `reply`.
 const UNREAD_META_TYPES: &[&str] =
     &["receipt", "reaction", "redaction", "edit", "topic_metadata"];
+
+/// T-1334: pure helper — return the highest offset whose `msg_type` is NOT
+/// in `UNREAD_META_TYPES`. Returns None when the slice is empty or contains
+/// only meta envelopes. Used by `channel reply` to auto-thread to the
+/// topic's most recent content message.
+pub(crate) fn latest_content_offset(msgs: &[Value]) -> Option<u64> {
+    let mut best: Option<u64> = None;
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if UNREAD_META_TYPES.contains(&mt) {
+            continue;
+        }
+        let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        match best {
+            Some(b) if b >= off => {}
+            _ => best = Some(off),
+        }
+    }
+    best
+}
+
+/// T-1334: `channel reply <topic> <text>` — walks the topic, picks the
+/// highest-offset content envelope, and posts a reply with
+/// `metadata.in_reply_to=<that-offset>`. Errors when the topic has no
+/// content to reply to.
+pub(crate) async fn cmd_channel_reply(
+    topic: &str,
+    payload: &str,
+    mentions: &[String],
+    sender_id: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let mut latest: Option<u64> = None;
+    let mut cursor: u64 = 0;
+    let limit: u64 = 1000;
+    loop {
+        let resp = client::rpc_call(
+            &sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .context("Hub rpc_call (channel.subscribe) failed")?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        if let Some(off) = latest_content_offset(&msgs) {
+            // Per-page max; loop's outer cmp keeps the running highest.
+            latest = Some(latest.map_or(off, |prev| prev.max(off)));
+        }
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+    let parent = latest.ok_or_else(|| {
+        anyhow!("No content message found on topic '{topic}' to reply to")
+    })?;
+    let metadata: Vec<String> = if mentions.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!("mentions={}", mentions.join(","))]
+    };
+    cmd_channel_post(
+        topic,
+        "chat",
+        Some(payload),
+        None,
+        sender_id,
+        Some(parent),
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
 
 /// T-1332: pure helper — given a slice of envelopes (sorted by ascending
 /// offset) and the caller's last-acked `up_to`, return (count_unread,
@@ -2151,6 +2231,35 @@ mod tests {
     fn find_my_reaction_offset_filters_by_payload() {
         let msgs = vec![react(2, "alice", "0", "👀")];
         assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    #[test]
+    fn latest_content_offset_empty_returns_none() {
+        let msgs: Vec<Value> = vec![];
+        assert_eq!(latest_content_offset(&msgs), None);
+    }
+
+    #[test]
+    fn latest_content_offset_only_meta_returns_none() {
+        let msgs = vec![
+            json!({"offset": 1, "msg_type": "reaction"}),
+            json!({"offset": 2, "msg_type": "edit"}),
+            json!({"offset": 3, "msg_type": "topic_metadata"}),
+        ];
+        assert_eq!(latest_content_offset(&msgs), None);
+    }
+
+    #[test]
+    fn latest_content_offset_picks_highest_content() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat"}),
+            json!({"offset": 1, "msg_type": "reaction"}),
+            json!({"offset": 2, "msg_type": "chat"}),
+            json!({"offset": 3, "msg_type": "edit"}),
+            json!({"offset": 4, "msg_type": "chat"}),
+            json!({"offset": 5, "msg_type": "receipt"}),
+        ];
+        assert_eq!(latest_content_offset(&msgs), Some(4));
     }
 
     #[test]

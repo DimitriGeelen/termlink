@@ -457,6 +457,24 @@ async fn main() -> Result<()> {
             ChannelAction::Info { topic, since, hub, json } => {
                 commands::channel::cmd_channel_info(&topic, since, hub.as_deref(), json).await
             }
+            ChannelAction::Reply {
+                topic,
+                payload,
+                mention,
+                sender_id,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_reply(
+                    &topic,
+                    &payload,
+                    &mention,
+                    sender_id.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Unread { topic, sender, hub, json } => {
                 commands::channel::cmd_channel_unread(
                     &topic,

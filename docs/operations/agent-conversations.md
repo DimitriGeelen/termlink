@@ -440,6 +440,19 @@ point the CLI transparently falls back to the legacy client-side walker
 (paginated `channel.subscribe` from offset 0). Output is identical
 between the two paths — operators don't need to know which fired.
 
+**Quick reply (T-1334).** For interactive use, `channel reply` auto-resolves
+the latest content offset and threads to it — skipping reactions, edits,
+redactions, receipts, and topic_metadata when picking the parent:
+
+```sh
+termlink channel reply alpha:design "got it"
+# Posted to alpha:design — offset=42, ts=...
+# (envelope's metadata.in_reply_to is the latest content offset, e.g. 41)
+```
+
+Errors with a clear message when the topic has no content yet. Pass
+`--mention <id>` (or `*`) to attach mentions to the reply.
+
 **Unread count (T-1332).** Companion to receipts — "what's new for me?"
 `channel unread <topic>` resolves the caller's (or `--sender`'s) latest
 receipt up_to, walks the topic past that offset, and counts content

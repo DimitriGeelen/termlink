@@ -1811,6 +1811,35 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Reply to the topic's latest content message — auto-resolves the
+    /// reply-to offset so interactive use doesn't need a separate
+    /// subscribe lookup. Skips meta envelopes (reactions, edits,
+    /// redactions, receipts, topic_metadata) when picking the parent.
+    /// Errors if the topic has no content yet. (T-1334)
+    Reply {
+        /// Topic name
+        topic: String,
+
+        /// Reply text (sent as the new message's payload)
+        payload: String,
+
+        /// One or more mention ids (or `*` for @room) — passed through to
+        /// `metadata.mentions` (T-1325 / T-1333)
+        #[arg(long, value_name = "ID")]
+        mention: Vec<String>,
+
+        /// Override sender_id (default: this identity's fingerprint)
+        #[arg(long)]
+        sender_id: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Show unread count for a sender on a topic (T-1332). Looks up the
     /// sender's latest `m.receipt.up_to`, walks the topic past that offset,
     /// and counts content envelopes (excludes meta types: receipt, reaction,
