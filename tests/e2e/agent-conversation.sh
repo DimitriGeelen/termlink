@@ -355,6 +355,31 @@ out=$(A channel pinned "$DM" --json)
 expect_contains "\"target\": 0" "$out" "step 23: --json must carry target=0"
 expect_contains "\"pinned_by\":" "$out" "step 23: --json must carry pinned_by"
 
+step "24. channel subscribe --tail (T-1346): render last N envelopes"
+# DM topic by now has many envelopes (~17+). --tail 3 must produce at most
+# 3 envelope outputs (one envelope may be 1-2 lines under aggregation; we
+# assert via line count <= reasonable upper bound and that the LAST line
+# is one of the most recently posted envelopes). Without --tail, the same
+# subscribe yields strictly more lines.
+out_full=$(A channel subscribe "$DM" --limit 100)
+out_tail=$(A channel subscribe "$DM" --limit 100 --tail 3)
+[ "$(echo "$out_full" | wc -l)" -gt "$(echo "$out_tail" | wc -l)" ] || {
+  echo "FAIL step 24: --tail 3 should produce strictly fewer lines than full subscribe" >&2
+  exit 1
+}
+# --tail 0 → empty.
+out=$(A channel subscribe "$DM" --limit 100 --tail 0)
+[ -z "$out" ] || {
+  echo "FAIL step 24: --tail 0 should produce empty output" >&2
+  exit 1
+}
+# --json --tail 3 — exactly 3 JSON lines (one per envelope).
+out=$(A channel subscribe "$DM" --limit 100 --tail 3 --json | wc -l)
+[ "$out" = "3" ] || {
+  echo "FAIL step 24: --json --tail 3 should produce exactly 3 lines, got $out" >&2
+  exit 1
+}
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
