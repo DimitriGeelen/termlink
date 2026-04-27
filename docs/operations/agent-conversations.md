@@ -162,6 +162,35 @@ provenance. A malicious peer with hub access could rewrite the pointer.
 For the current threat model (cooperating agents on the same hub) this is
 fine; if it ever isn't, see the T-1313 task file for the design alternative.
 
+## Mentions (T-1325 — Matrix `m.mention`)
+
+Flag a post as relevant to specific recipients. The `--mention <id>` flag is
+repeatable on `channel post` and `channel dm --send`; the ids are joined into
+`metadata.mentions=<csv>` on the envelope.
+
+```sh
+termlink channel post alpha:design --payload "alice please review" --mention alice
+termlink channel post alpha:design --payload "pair up on this" --mention alice --mention bob
+termlink channel dm <peer-fp> --send "urgent" --mention agent-1
+```
+
+Reader-side, the marker shows inline (truncated to 3 ids):
+
+```
+[5 @alice] sender chat: alice please review
+[6 @alice,bob] sender chat: pair up on this
+```
+
+To filter to lines that mention a specific id:
+
+```sh
+termlink channel subscribe alpha:design --filter-mentions alice
+```
+
+The match is strict: comma-split + whitespace trim, no substring matching.
+Use the receiver's stable identifier (typically their identity fingerprint)
+on both ends so filtering is deterministic.
+
 ## Channel description (T-1323 — Matrix `m.room.topic`)
 
 To attach a free-text description to a topic (think: "this channel is for

@@ -1670,6 +1670,12 @@ pub(crate) enum ChannelAction {
         #[arg(long = "metadata", value_name = "KEY=VALUE")]
         metadata: Vec<String>,
 
+        /// Mention a recipient (Matrix `m.mention` analogue, T-1325).
+        /// Repeatable: `--mention alice --mention bob`. Joined into
+        /// `metadata.mentions=<csv>` on the envelope.
+        #[arg(long = "mention", value_name = "ID")]
+        mentions: Vec<String>,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
@@ -1698,6 +1704,11 @@ pub(crate) enum ChannelAction {
         /// Threaded reply — sets metadata.in_reply_to=<offset>. Requires --send.
         #[arg(long, requires = "send")]
         reply_to: Option<u64>,
+
+        /// Mention a recipient (T-1325). Repeatable. Requires --send.
+        /// Joined into `metadata.mentions=<csv>` on the outbound post.
+        #[arg(long = "mention", value_name = "ID", requires = "send")]
+        mentions: Vec<String>,
 
         /// Print the canonical DM topic name and exit (helper for scripts)
         #[arg(long)]
@@ -1932,6 +1943,12 @@ pub(crate) enum ChannelAction {
         /// JSON mode is unaffected.
         #[arg(long)]
         hide_redacted: bool,
+
+        /// Show only envelopes that mention `<id>` in `metadata.mentions`
+        /// (Matrix `m.mention` analogue, T-1325). Strict comma-split + trim
+        /// on the CSV; substring matches do not count. JSON mode unaffected.
+        #[arg(long, value_name = "ID")]
+        filter_mentions: Option<String>,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
