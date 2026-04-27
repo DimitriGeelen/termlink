@@ -2116,6 +2116,131 @@ pub(crate) fn compute_topic_stats(topic: &str, msgs: &[Value]) -> TopicStats {
     }
 }
 
+/// T-1336: pure helper — does `text` match `pattern` under the given mode?
+/// `regex=true` compiles `pattern` as a Rust regex (with `(?i)` prefix when
+/// `case_sensitive=false`). `regex=false` does a substring check (folding
+/// both sides to lowercase when `case_sensitive=false`). Returns `Err` only
+/// when regex compilation fails — substring mode is infallible.
+pub(crate) fn payload_matches(
+    text: &str,
+    pattern: &str,
+    regex: bool,
+    case_sensitive: bool,
+) -> Result<bool> {
+    if regex {
+        let effective = if case_sensitive {
+            pattern.to_string()
+        } else {
+            format!("(?i){pattern}")
+        };
+        let re = ::regex::Regex::new(&effective)
+            .map_err(|e| anyhow!("invalid regex pattern '{pattern}': {e}"))?;
+        Ok(re.is_match(text))
+    } else if case_sensitive {
+        Ok(text.contains(pattern))
+    } else {
+        Ok(text.to_lowercase().contains(&pattern.to_lowercase()))
+    }
+}
+
+/// T-1336: decode an envelope's base64 payload to a UTF-8 string (lossy on
+/// invalid sequences). Returns empty string when `payload_b64` is missing
+/// or decode fails — search mode treats both as "no content to match".
+fn decode_payload_lossy(env: &Value) -> String {
+    let b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+    if b64.is_empty() {
+        return String::new();
+    }
+    match base64::engine::general_purpose::STANDARD.decode(b64) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_) => String::new(),
+    }
+}
+
+/// T-1336: `channel search <topic> <pattern>` — read-only client-side grep.
+/// Walks the topic via channel.subscribe, filters envelopes by msg_type
+/// (skips meta unless `all`), decodes payload, applies the matcher, and
+/// prints/returns matches. Validates the regex BEFORE walking the topic
+/// so a typo fails fast.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn cmd_channel_search(
+    topic: &str,
+    pattern: &str,
+    regex: bool,
+    case_sensitive: bool,
+    all: bool,
+    limit: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    // Fail-fast: validate the regex once up-front.
+    if regex {
+        let effective = if case_sensitive {
+            pattern.to_string()
+        } else {
+            format!("(?i){pattern}")
+        };
+        ::regex::Regex::new(&effective)
+            .map_err(|e| anyhow!("invalid regex pattern '{pattern}': {e}"))?;
+    }
+
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+
+    let mut hits: Vec<Value> = Vec::new();
+    for env in &envelopes {
+        let mt = env
+            .get("msg_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if !all && UNREAD_META_TYPES.contains(&mt) {
+            continue;
+        }
+        let payload = decode_payload_lossy(env);
+        if payload.is_empty() {
+            continue;
+        }
+        if !payload_matches(&payload, pattern, regex, case_sensitive)? {
+            continue;
+        }
+        let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()));
+        hits.push(json!({
+            "offset": offset,
+            "sender_id": sender,
+            "ts": ts,
+            "msg_type": mt,
+            "payload": payload,
+        }));
+        if limit > 0 && hits.len() as u64 >= limit {
+            break;
+        }
+    }
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&Value::Array(hits))?);
+    } else if hits.is_empty() {
+        println!("No matches.");
+    } else {
+        for h in &hits {
+            let off = h["offset"].as_u64().unwrap_or(0);
+            let sender = h["sender_id"].as_str().unwrap_or("?");
+            let mt = h["msg_type"].as_str().unwrap_or("?");
+            let payload = h["payload"].as_str().unwrap_or("");
+            println!("[{off}] {sender} ({mt}): {payload}");
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2647,5 +2772,66 @@ mod tests {
         assert_eq!(v["senders"], 2);
         assert_eq!(v["first_ts"], 10);
         assert_eq!(v["last_ts"], 20);
+    }
+
+    // ---- T-1336: payload_matches ---------------------------------------
+
+    #[test]
+    fn payload_matches_substring_default_case_insensitive() {
+        // Default mode (regex=false, case_sensitive=false)
+        assert!(payload_matches("Hello World", "hello", false, false).unwrap());
+        assert!(payload_matches("HELLO", "hello", false, false).unwrap());
+        assert!(!payload_matches("foo bar", "baz", false, false).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_substring_case_sensitive() {
+        assert!(payload_matches("Hello", "Hello", false, true).unwrap());
+        assert!(!payload_matches("Hello", "hello", false, true).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_regex_basic() {
+        assert!(payload_matches("error: 404", r"error:\s+\d+", true, true).unwrap());
+        assert!(!payload_matches("just text", r"error:\s+\d+", true, true).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_regex_case_insensitive() {
+        // case_sensitive=false should auto-prefix `(?i)` for regex mode
+        assert!(payload_matches("ERROR 500", r"error", true, false).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_invalid_regex_errors() {
+        assert!(payload_matches("anything", r"(?P<unclosed", true, true).is_err());
+    }
+
+    #[test]
+    fn payload_matches_empty_pattern_substring_always_true() {
+        // Empty substring matches every string — Rust's str::contains semantics.
+        // This is acceptable for `channel search` because empty pattern is
+        // a UX bug on the caller's end; CLI shouldn't try to second-guess.
+        assert!(payload_matches("foo", "", false, false).unwrap());
+        assert!(payload_matches("", "", false, false).unwrap());
+    }
+
+    #[test]
+    fn decode_payload_lossy_handles_missing_field() {
+        let env = json!({"offset": 0, "msg_type": "chat"});
+        assert_eq!(decode_payload_lossy(&env), "");
+    }
+
+    #[test]
+    fn decode_payload_lossy_decodes_valid_b64() {
+        // "hello" → aGVsbG8=
+        let env = json!({"offset": 0, "msg_type": "chat", "payload_b64": "aGVsbG8="});
+        assert_eq!(decode_payload_lossy(&env), "hello");
+    }
+
+    #[test]
+    fn decode_payload_lossy_returns_empty_on_invalid_b64() {
+        let env = json!({"offset": 0, "msg_type": "chat", "payload_b64": "not-base64-!!!"});
+        assert_eq!(decode_payload_lossy(&env), "");
     }
 }

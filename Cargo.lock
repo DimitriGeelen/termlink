@@ -1596,6 +1596,7 @@ dependencies = [
  "clap_complete",
  "libc",
  "predicates",
+ "regex",
  "rexpect",
  "serde",
  "serde_json",
