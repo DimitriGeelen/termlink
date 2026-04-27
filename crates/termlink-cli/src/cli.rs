@@ -1797,6 +1797,12 @@ pub(crate) enum ChannelAction {
         /// Topic name
         topic: String,
 
+        /// Restrict description/senders/receipts to records with
+        /// `ts_unix_ms >= <ms>`. Total `Posts:` count remains unbounded;
+        /// a `(N since <ms>)` parenthetical is added. (T-1331)
+        #[arg(long, value_name = "MS")]
+        since: Option<i64>,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

@@ -237,6 +237,22 @@ termlink channel info alpha:design
 
 Pass `--json` for machine-readable output (T-1324).
 
+**Bounded view (T-1331).** For long-lived topics, `--since <ms>` restricts
+description / senders / receipts to records with `ts_unix_ms >= <ms>`. The
+total `Posts:` count remains unbounded so you can see the slice in context:
+
+```sh
+# Activity in the last hour:
+NOW=$(date -u +%s%3N); HOUR_AGO=$((NOW - 3600000))
+termlink channel info alpha:design --since $HOUR_AGO
+# Posts: 42 (5 since 1777300000000)
+# Senders: 2
+# ...
+```
+
+In `--json` mode, two extra fields appear: `since` (the bound) and
+`posts_since` (count in slice).
+
 ## Edits (T-1321 — Matrix `m.replace`)
 
 When you need to correct a previously-sent message, emit a new envelope with
