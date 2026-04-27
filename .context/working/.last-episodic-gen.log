@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T21:33:59Z ===
-task_id: T-1350
+=== episodic-gen invocation: 2026-04-27T21:47:33Z ===
+task_id: T-1351
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1350.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1351.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: docs/operations/agent-conversations.md — T-1344..T-1349 wave
-  Duration: 0 days (1 min)
+  Task: channel typing — Matrix-style ephemeral typing indicator with TTL
+  Duration: 0 days (9 min)
   Updates: 2
   Commits: 1
-  Lines: +155 -45 across 14 files
+  Lines: +333 -18 across 15 files
   Outcomes: 8 AC checked
-  Artifacts: 14 files tracked
+  Artifacts: 15 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1350-docsoperationsagent-conversationsmd--t-1.md
+Source: /opt/termlink/.tasks/completed/T-1351-channel-typing--matrix-style-ephemeral-t.md
 --- exit code: 0 ---
