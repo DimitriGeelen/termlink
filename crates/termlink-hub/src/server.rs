@@ -182,6 +182,11 @@ pub async fn run_with_tcp(
     crate::topic_lint::init(&runtime_dir);
     crate::topic_lint::spawn_sighup_watcher();
 
+    // T-1304: Initialize the RPC audit log. Best-effort append-only telemetry
+    // sink at <runtime_dir>/rpc-audit.jsonl, read by `fw metrics api-usage`
+    // for T-1166 entry-gate measurement.
+    crate::rpc_audit::init(&runtime_dir);
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {
@@ -543,6 +548,12 @@ async fn handle_connection<S>(
 
         let response = match serde_json::from_str::<Request>(&line) {
             Ok(req) => {
+                // T-1304: Record every parseable RPC dispatch (auth attempts,
+                // notifications, and authenticated calls). Auth rejections still
+                // get recorded — that's the point: the audit log is "what was
+                // asked of the hub", not "what succeeded". Best-effort, swallows
+                // errors; never blocks dispatch.
+                crate::rpc_audit::record(&req.method);
                 if req.method == control::method::HUB_AUTH {
                     // hub.auth is always allowed (it's the authentication mechanism)
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
