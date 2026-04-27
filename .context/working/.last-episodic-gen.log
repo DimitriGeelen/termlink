@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T15:18:22Z ===
-task_id: T-1321
+=== episodic-gen invocation: 2026-04-27T15:23:57Z ===
+task_id: T-1322
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1321.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1322.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel edit — Matrix m.replace analogue (msg_type=edit + metadata.replaces)
-  Duration: 0 days (6 min)
+  Task: channel redact — Matrix m.redaction analogue (msg_type=redaction + metadata.redacts)
+  Duration: 0 days (5 min)
   Updates: 2
   Commits: 1
-  Lines: +393 -52 across 21 files
+  Lines: +312 -12 across 15 files
   Outcomes: 8 AC checked
-  Artifacts: 21 files tracked
+  Artifacts: 15 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1321-channel-edit--matrix-mreplace-analogue-m.md
+Source: /opt/termlink/.tasks/completed/T-1322-channel-redact--matrix-mredaction-analog.md
 --- exit code: 0 ---

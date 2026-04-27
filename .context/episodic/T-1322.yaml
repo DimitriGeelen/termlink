@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1322: channel redact — Matrix m.redaction analogue (msg_type=redaction + metadata.redacts)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T15:23:58Z
+# ============================================================================
+
+task_id: T-1322
+task_name: "channel redact — Matrix m.redaction analogue (msg_type=redaction + metadata.redacts)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T15:18:34Z
+completed: 2026-04-27T15:23:48Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T17:23:48+02:00
+last_commit: 2026-04-27T17:23:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel redact + subscribe --hide-redacted (Matrix m.redaction)
+
+# Key outcomes
+outcomes:
+  - "`ChannelAction::Redact { topic, redacts, reason, hub, json }` added to cli.rs"
+  - "`cmd_channel_redact` in commands/channel.rs — emits `msg_type=redaction`,"
+  - "`cmd_channel_subscribe` gains `--hide-redacted` flag — suppresses both the"
+  - "Pure helper `redacted_offsets(msgs) -> HashSet<u64>` accumulates target offsets"
+  - "Default render (without flag) shows redaction explicitly: `[N redact] sender → offset M (reason: ...)`"
+  - "Unit test `redacted_offsets_collects_targets` — given mixed messages, returns only the redacted-parent offsets"
+  - "`cargo test -p termlink --bins` + `cargo clippy --all-targets -- -D warnings` clean"
+  - "`agent-conversations.md` gains a short \"Redactions (m.redaction)\" section"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1322-channel-redact--matrix-mredaction-analog.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T17:23:48"
+    action: "T-1322: channel redact + subscribe --hide-redacted (Matrix m.redaction)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 15
+  lines_added: 312
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1322-channel-redact--matrix-mredaction-analog.md
+generated_by: context-agent-hybrid
