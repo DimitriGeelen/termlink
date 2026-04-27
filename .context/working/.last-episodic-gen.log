@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T16:57:28Z ===
-task_id: T-1331
+=== episodic-gen invocation: 2026-04-27T17:03:53Z ===
+task_id: T-1332
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1331.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1332.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel info --since <ts> — bound walk to recent slice for long-lived topics
+  Task: channel unread <topic> [--sender] — count messages newer than the sender's last receipt
   Duration: 0 days (5 min)
   Updates: 2
   Commits: 1
-  Lines: +219 -30 across 15 files
+  Lines: +376 -55 across 17 files
   Outcomes: 9 AC checked
-  Artifacts: 15 files tracked
+  Artifacts: 17 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1331-channel-info---since-ts--bound-walk-to-r.md
+Source: /opt/termlink/.tasks/completed/T-1332-channel-unread-topic---sender--count-mes.md
 --- exit code: 0 ---
