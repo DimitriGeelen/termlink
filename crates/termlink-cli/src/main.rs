@@ -429,6 +429,8 @@ async fn main() -> Result<()> {
             ChannelAction::Subscribe {
                 topic,
                 cursor,
+                resume,
+                reset,
                 limit,
                 follow,
                 conversation_id,
@@ -441,6 +443,8 @@ async fn main() -> Result<()> {
                 commands::channel::cmd_channel_subscribe(
                     &topic,
                     cursor,
+                    resume,
+                    reset,
                     limit,
                     follow,
                     conversation_id.as_deref(),

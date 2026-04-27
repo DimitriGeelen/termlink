@@ -220,6 +220,86 @@ pub(crate) async fn cmd_channel_post(
     Ok(())
 }
 
+/// T-1318: per-(topic, identity_fingerprint) persistent cursor store.
+/// JSON map at `~/.termlink/cursors.json` — `{"<topic>::<fingerprint>": <offset>}`.
+/// Atomic write via tmp + rename. Missing file = no entries.
+mod cursor_store {
+    use anyhow::{Context, Result};
+    use serde_json::Value;
+    use std::collections::BTreeMap;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn store_path() -> Result<PathBuf> {
+        if let Ok(dir) = std::env::var("TERMLINK_IDENTITY_DIR") {
+            return Ok(PathBuf::from(dir).join("cursors.json"));
+        }
+        let home = std::env::var("HOME")
+            .context("HOME is not set; cannot resolve cursor store path")?;
+        Ok(PathBuf::from(home).join(".termlink").join("cursors.json"))
+    }
+
+    fn key(topic: &str, fingerprint: &str) -> String {
+        format!("{topic}::{fingerprint}")
+    }
+
+    fn load() -> Result<BTreeMap<String, u64>> {
+        let path = store_path()?;
+        if !path.exists() {
+            return Ok(BTreeMap::new());
+        }
+        let raw = fs::read_to_string(&path)
+            .with_context(|| format!("read cursors from {}", path.display()))?;
+        if raw.trim().is_empty() {
+            return Ok(BTreeMap::new());
+        }
+        let parsed: Value = serde_json::from_str(&raw)
+            .with_context(|| format!("parse cursors at {}", path.display()))?;
+        let mut out = BTreeMap::new();
+        if let Some(obj) = parsed.as_object() {
+            for (k, v) in obj {
+                if let Some(n) = v.as_u64() {
+                    out.insert(k.clone(), n);
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    fn save(map: &BTreeMap<String, u64>) -> Result<()> {
+        let path = store_path()?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("create parent dir for {}", path.display()))?;
+        }
+        let json = serde_json::to_string_pretty(map)?;
+        let tmp = path.with_extension("json.tmp");
+        fs::write(&tmp, json)
+            .with_context(|| format!("write cursors tmp at {}", tmp.display()))?;
+        fs::rename(&tmp, &path)
+            .with_context(|| format!("rename cursors tmp → {}", path.display()))?;
+        Ok(())
+    }
+
+    pub fn get(topic: &str, fingerprint: &str) -> Result<Option<u64>> {
+        Ok(load()?.get(&key(topic, fingerprint)).copied())
+    }
+
+    pub fn put(topic: &str, fingerprint: &str, cursor: u64) -> Result<()> {
+        let mut map = load()?;
+        map.insert(key(topic, fingerprint), cursor);
+        save(&map)
+    }
+
+    pub fn remove(topic: &str, fingerprint: &str) -> Result<()> {
+        let mut map = load()?;
+        if map.remove(&key(topic, fingerprint)).is_some() {
+            save(&map)?;
+        }
+        Ok(())
+    }
+}
+
 /// T-1315: resolve the topic's current latest offset by querying
 /// `channel.list` with the topic's exact name as prefix and reading `count`.
 /// Returns `Ok(None)` for an empty topic. Used by `channel ack` when the
@@ -428,6 +508,8 @@ fn extract_reaction(m: &Value) -> Option<Reaction<'_>> {
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
     cursor: u64,
+    resume: bool,
+    reset: bool,
     limit: u64,
     follow: bool,
     conversation_id: Option<&str>,
@@ -438,7 +520,32 @@ pub(crate) async fn cmd_channel_subscribe(
     json_output: bool,
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
-    let mut cursor = cursor;
+    // T-1318: load identity for cursor key (per-topic, per-identity store).
+    // We need the fingerprint regardless of whether --resume/--reset are used,
+    // because a successful subscribe writes the latest cursor back ONLY when
+    // resume=true (avoid surprise side-effects for callers not opting in).
+    let identity_fingerprint = if resume || reset {
+        Some(load_identity_or_create()?.fingerprint().to_string())
+    } else {
+        None
+    };
+    if reset
+        && let Some(ref fp) = identity_fingerprint
+    {
+        cursor_store::remove(topic, fp)
+            .context("clear persisted cursor")?;
+    }
+    let mut cursor = if resume {
+        match identity_fingerprint
+            .as_ref()
+            .and_then(|fp| cursor_store::get(topic, fp).ok().flatten())
+        {
+            Some(stored) => stored,
+            None => cursor, // no entry → fall through to --cursor value
+        }
+    } else {
+        cursor
+    };
     // T-1314 / T-1317: when aggregate_reactions is on, reactions accumulate
     // here (parent_offset → [(emoji, sender_id)]) and surface as a trailing
     // summary on the parent line. Sender is preserved for `--by-sender`.
@@ -530,6 +637,17 @@ pub(crate) async fn cmd_channel_subscribe(
             });
         }
         let next = result["next_cursor"].as_u64().unwrap_or(cursor);
+        // T-1318: persist next_cursor whenever --resume was set so the next
+        // invocation picks up where this one stopped. Best-effort: if the
+        // store write fails, log and continue — losing a cursor entry just
+        // means the next --resume re-reads from --cursor (default 0), which
+        // is safe degradation.
+        if resume
+            && let Some(ref fp) = identity_fingerprint
+            && let Err(e) = cursor_store::put(topic, fp, next)
+        {
+            eprintln!("warning: failed to persist cursor: {e}");
+        }
         if !follow {
             return Ok(());
         }

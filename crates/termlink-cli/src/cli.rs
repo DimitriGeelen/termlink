@@ -1747,9 +1747,23 @@ pub(crate) enum ChannelAction {
         /// Topic name
         topic: String,
 
-        /// Cursor to start from (default: 0)
+        /// Cursor to start from (default: 0). Ignored when --resume is set
+        /// and a stored cursor exists for this (topic, identity) pair.
         #[arg(long, default_value_t = 0u64)]
         cursor: u64,
+
+        /// Resume from the locally persisted cursor for this (topic, identity)
+        /// pair (T-1318, Matrix `next_batch` analogue). Stored in
+        /// `~/.termlink/cursors.json`. After a successful subscribe, the
+        /// cursor advances and is written back. No-op if no entry exists.
+        /// Mutually exclusive with --reset.
+        #[arg(long, conflicts_with = "reset")]
+        resume: bool,
+
+        /// Clear the persisted cursor for this (topic, identity) pair before
+        /// starting. T-1318. Mutually exclusive with --resume.
+        #[arg(long, conflicts_with = "resume")]
+        reset: bool,
 
         /// Maximum messages per poll (default: 100, max 1000)
         #[arg(long, default_value_t = 100u64)]

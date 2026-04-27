@@ -160,10 +160,21 @@ parent (count-grouped, first-seen order preserved):
 
 If three agents react with 👍, the summary shows `👍 ×3`.
 
-**Limits.** v1 aggregates by emoji *only* (count). Per-reactor identity
-(who reacted with what) is not surfaced; if you need that, drop
-`--reactions` and read the per-line view, or extend the `extract_reaction`
-helper. There is no "unreact" — once posted, a reaction is in the log.
+For per-reactor identity (T-1317), add `--by-sender`:
+
+```sh
+termlink channel subscribe topic --reactions --by-sender
+```
+
+Renders `👍 by alice, bob, 👀 by carol` instead of count form. Same-sender
+double-reacts de-dup in this mode (alice double-clicking 👍 shows once);
+the raw count form keeps doubles for "very enthusiastic" semantics.
+
+For agent conversations, `--by-sender` is usually what you want — "the
+reviewer ack'd" / "CI passed" beats "3 thumbs-ups" as a signal.
+
+**Limits.** There is no "unreact" — once posted, a reaction is in the
+log. Edits/redactions are not implemented (see Limits & next steps).
 
 ## Read receipts (T-1315)
 
@@ -216,6 +227,38 @@ RPC that aggregates server-side is a small follow-up.
 There is no auto-ack on subscribe; agents must explicitly post a receipt
 when they want their progress visible to others.
 
+## Persistent local cursor (T-1318)
+
+Matrix's `/sync` returns a `next_batch` token clients store and replay so
+each call returns only events they haven't seen. TermLink's analogue is
+a per-(topic, identity) cursor stored locally at `~/.termlink/cursors.json`.
+
+```sh
+# First run: no entry → reads from offset 0, persists cursor on success.
+termlink channel subscribe topic --resume
+
+# Subsequent runs: only show new messages since last --resume.
+termlink channel subscribe topic --resume
+
+# Force a re-read from offset 0 (clears the entry, starts fresh).
+termlink channel subscribe topic --reset
+```
+
+The cursor key is `<topic>::<identity_fingerprint>`, so two agents on the
+same machine (different identity files) get independent cursors. The
+file is a flat JSON map; atomic write via `.tmp` rename. If the write
+fails (rare — disk full, EACCES), a warning prints and the next
+`--resume` falls back to whatever `--cursor` provides (default 0).
+
+**Default behavior unchanged.** Without `--resume` or `--reset`,
+`channel subscribe` neither reads nor writes the cursor file.
+Backwards-compatible.
+
+**Cursor vs receipts.** Receipts (T-1315) are PUBLIC ("I want others to
+know I saw this"); cursors are PRIVATE ("I don't need to re-process
+this"). Different semantics. An agent doing private catch-up shouldn't
+flood the topic with receipts; an agent coordinating with peers should.
+
 ## Matrix mapping
 
 For readers familiar with the Matrix protocol:
@@ -225,6 +268,7 @@ For readers familiar with the Matrix protocol:
 | `m.relates_to.rel_type=m.in_reply_to` | `metadata.in_reply_to=<offset>` | Single-topic; offset, not `event_id` |
 | `m.annotation` (rel_type) | `msg_type=reaction` + `metadata.in_reply_to` | Payload is the annotation string |
 | `m.receipt` | `msg_type=receipt` + `metadata.up_to=<offset>` | Channel-level cursor, latest-wins |
+| `next_batch` (sync token) | `~/.termlink/cursors.json` per (topic, identity) | Local-only; `--resume` reads + writes (T-1318) |
 | `m.room.message` | `msg_type=chat` (or any other free-form msg_type) | The msg_type is opaque to the hub |
 | `m.room.member` | — | Not implemented; channels are open-post |
 | `m.room.topic` | `retention` only | No description/topic field on channels yet |
@@ -271,11 +315,10 @@ What's NOT implemented today, with rough effort if anyone picks it up:
   schema change + persistence. ~300 LOC.
 - **Hub-side `channel.receipts` RPC** — server-side aggregation so the
   CLI doesn't walk every page. ~150 LOC + a hub test.
-- **Persistent local cursor** — `channel subscribe` remembers per-topic
-  position so re-runs only show new messages. Local SQLite under
-  `~/.termlink/cursors/`. ~250 LOC.
-- **Per-reactor identity in `--reactions`** — show who reacted with
-  what, not just counts. ~50 LOC in `extract_reaction` + render.
+- **Persistent local cursor** — *Shipped T-1318.* `~/.termlink/cursors.json`
+  + `subscribe --resume` / `--reset`.
+- **Per-reactor identity in `--reactions`** — *Shipped T-1317.*
+  `subscribe --reactions --by-sender`.
 
 If you start any of these, file a follow-up task referencing this doc.
 
