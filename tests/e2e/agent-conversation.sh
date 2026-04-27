@@ -409,6 +409,24 @@ out=$(A channel subscribe "$DM" --limit 100 --senders "no-such-sender")
   exit 1
 }
 
+step "26. channel forward (T-1348): copy envelope between topics with provenance"
+# Make a fresh dst topic. Bob forwards alice's offset 0 ("hi bob, are you
+# there?") to it — so dst sender_id is bob (the forwarder) but
+# forwarded_sender preserves alice (the original poster).
+DST_FWD="fwd-test-$(date +%s)"
+A channel create "$DST_FWD" >/dev/null
+B channel forward "$DM" 0 "$DST_FWD" >/dev/null
+# Plain subscribe shows the decoded payload — easier to assert than b64.
+out_plain=$(A channel subscribe "$DST_FWD" --limit 10)
+expect_contains "are you there?" "$out_plain" "step 26: forwarded payload should appear on dst"
+# JSON form carries the metadata + sender wiring.
+out_json=$(A channel subscribe "$DST_FWD" --limit 10 --json)
+expect_contains "\"forwarded_from\":\"$DM:0\"" "$out_json" "step 26: metadata.forwarded_from should reference src"
+expect_contains "\"forwarded_sender\":\"$ALICE\"" "$out_json" "step 26: metadata.forwarded_sender should preserve original"
+# Forwarder (bob) is the dst sender_id, NOT alice (the original).
+expect_contains "\"sender_id\":\"$BOB\"" "$out_json" "step 26: dst sender_id is forwarder bob"
+expect_not_contains "\"sender_id\":\"$ALICE\"" "$out_json" "step 26: dst sender_id is NOT original alice"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

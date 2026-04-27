@@ -1826,6 +1826,30 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Copy an envelope from one topic to another, preserving original
+    /// payload + msg_type (T-1348). Matrix-style forwarding analogue.
+    /// The new envelope on `<dst_topic>` has `sender_id` = the forwarder
+    /// (current identity) and metadata
+    /// `forwarded_from=<src_topic>:<offset>` + `forwarded_sender=<original
+    /// sender_id>` so readers can trace provenance.
+    Forward {
+        /// Source topic to copy the envelope FROM
+        src_topic: String,
+
+        /// Offset in src_topic of the envelope to copy
+        offset: u64,
+
+        /// Destination topic to copy the envelope TO
+        dst_topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Pin or unpin an envelope on a topic (T-1345). Matrix-style
     /// `m.room.pinned_events` analogue, append-only: emits a `msg_type=pin`
     /// envelope carrying `metadata.pin_target=<offset>` and
