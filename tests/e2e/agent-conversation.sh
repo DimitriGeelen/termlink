@@ -339,6 +339,22 @@ out=$(A channel subscribe "$DM" --limit 100 --show-parent --json)
 expect_contains "\"parent\":" "$out" "step 22: --json --show-parent must add parent key"
 expect_contains "\"parent\":null" "$out" "step 22: --json --show-parent root has parent=null"
 
+step "23. channel pin / pinned (T-1345): Matrix-style pinned events"
+# Pin alice's offset 0. pinned set must contain target=0.
+A channel pin "$DM" 0 >/dev/null
+out=$(A channel pinned "$DM")
+expect_contains "[0]" "$out" "step 23: pin offset 0 should appear in pinned set"
+expect_contains "are you" "$out" "step 23: pinned row should preview parent payload"
+# Unpin offset 0 — pinned set becomes empty.
+A channel pin "$DM" 0 --unpin >/dev/null
+out=$(A channel pinned "$DM")
+expect_contains "No pinned messages" "$out" "step 23: after unpin, no pinned messages"
+# Pin again, then JSON view.
+A channel pin "$DM" 0 >/dev/null
+out=$(A channel pinned "$DM" --json)
+expect_contains "\"target\": 0" "$out" "step 23: --json must carry target=0"
+expect_contains "\"pinned_by\":" "$out" "step 23: --json must carry pinned_by"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

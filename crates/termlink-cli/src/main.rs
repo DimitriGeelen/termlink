@@ -616,6 +616,25 @@ async fn main() -> Result<()> {
             } => {
                 commands::channel::cmd_channel_quote(&topic, offset, hub.as_deref(), json).await
             }
+            ChannelAction::Pin {
+                topic,
+                offset,
+                unpin,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_pin(
+                    &topic,
+                    offset,
+                    unpin,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
+            ChannelAction::Pinned { topic, hub, json } => {
+                commands::channel::cmd_channel_pinned(&topic, hub.as_deref(), json).await
+            }
             ChannelAction::List { prefix, stats, hub, json } => {
                 commands::channel::cmd_channel_list(prefix.as_deref(), stats, hub.as_deref(), json).await
             }

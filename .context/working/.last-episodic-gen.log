@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T19:34:30Z ===
-task_id: T-1343
+=== episodic-gen invocation: 2026-04-27T20:25:12Z ===
+task_id: T-1344
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1343.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1344.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel subscribe --since <ms> — render-time timestamp filter
-  Duration: 0 days (8 min)
+  Task: channel quote and subscribe --show-parent — render parent inline for replies
+  Duration: 0 days (10 min)
   Updates: 2
   Commits: 1
-  Lines: +120 -46 across 17 files
-  Outcomes: 4 AC checked
-  Artifacts: 17 files tracked
+  Lines: +368 -139 across 26 files
+  Outcomes: 7 AC checked
+  Artifacts: 26 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1343-channel-subscribe---since-ms--render-tim.md
+Source: /opt/termlink/.tasks/completed/T-1344-channel-quote-and-subscribe---show-paren.md
 --- exit code: 0 ---

@@ -1950,6 +1950,171 @@ pub(crate) async fn cmd_channel_edit(
     .await
 }
 
+/// T-1345: pure helper — emit a pin/unpin envelope. Wraps `cmd_channel_post`
+/// with `msg_type=pin`, an empty payload, and metadata
+/// `pin_target=<offset>` + `action=pin|unpin`. Latest action per target wins
+/// when computing the current pin set (see `compute_pinned_set`).
+pub(crate) async fn cmd_channel_pin(
+    topic: &str,
+    offset: u64,
+    unpin: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let action = if unpin { "unpin" } else { "pin" };
+    let metadata = vec![
+        format!("pin_target={offset}"),
+        format!("action={action}"),
+    ];
+    cmd_channel_post(
+        topic,
+        "pin",
+        Some(""),
+        None,
+        None,
+        None, // reply_to unused — pin_target carries the reference
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1345: structured row for one currently-pinned target. `pinned_ts` is
+/// the ts of the most-recent pin envelope (used for sort order).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PinRow {
+    pub target: u64,
+    pub pinned_by: String,
+    pub pinned_ts: i64,
+    /// Payload preview from the *original* envelope at `target`. None if the
+    /// target is no longer in the topic (rare — would mean a pin that
+    /// references an offset out of range). Empty string when the original
+    /// payload is non-utf8 / undecodable.
+    pub payload: Option<String>,
+}
+
+impl PinRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "target": self.target,
+            "pinned_by": self.pinned_by,
+            "pinned_ts": self.pinned_ts,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1345: compute the current pin set from a topic walk.
+///
+/// Iterates `envelopes` in input order, applying each `msg_type=pin` envelope
+/// per its `metadata.action`:
+///   - `action=pin`     → record (or update) PinRow for the target
+///   - `action=unpin`   → remove the entry for the target
+///
+/// After the scan, the original envelope at each pinned target is looked up
+/// to fill `payload`. Returns rows sorted by `pinned_ts` descending (most
+/// recently pinned first); ties break on target ascending for determinism.
+///
+/// Pure helper — no I/O, no allocation outside the result vector. Designed
+/// to be unit-testable and reusable from any topic-walking command.
+pub(crate) fn compute_pinned_set(envelopes: &[Value]) -> Vec<PinRow> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut active: HashMap<u64, PinRow> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("pin") {
+            continue;
+        }
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        let target = match md
+            .get("pin_target")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let action = md.get("action").and_then(|v| v.as_str()).unwrap_or("pin");
+        if action == "unpin" {
+            active.remove(&target);
+            continue;
+        }
+        // Default + explicit "pin" both pin.
+        let pinned_by = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let pinned_ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        active.insert(
+            target,
+            PinRow {
+                target,
+                pinned_by,
+                pinned_ts,
+                payload: None,
+            },
+        );
+    }
+    // Fill payload from original envelope (if still in topic).
+    for row in active.values_mut() {
+        if let Some(orig) = by_off.get(&row.target) {
+            row.payload = Some(decode_payload_lossy(orig));
+        }
+    }
+    let mut rows: Vec<PinRow> = active.into_values().collect();
+    rows.sort_by(|a, b| {
+        b.pinned_ts
+            .cmp(&a.pinned_ts)
+            .then_with(|| a.target.cmp(&b.target))
+    });
+    rows
+}
+
+/// T-1345: render the current pin set for a topic. Walks the topic, computes
+/// the pin set, and renders human or JSON.
+pub(crate) async fn cmd_channel_pinned(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_pinned_set(&envelopes);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(PinRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No pinned messages on topic '{topic}'.");
+        return Ok(());
+    }
+    for r in &rows {
+        let payload = r.payload.as_deref().unwrap_or("(target missing)");
+        println!(
+            "[{target}] pinned_by={by} ts={ts}: {payload}",
+            target = r.target,
+            by = r.pinned_by,
+            ts = r.pinned_ts,
+        );
+    }
+    Ok(())
+}
+
 /// T-1344: pure helper — extract `metadata.in_reply_to` from an envelope and
 /// parse it as a u64. Returns `None` when the field is absent or non-numeric.
 /// Reactions and reply posts both carry this key (T-1313 / T-1314 contracts).
@@ -3860,5 +4025,142 @@ mod tests {
             "metadata": {"in_reply_to": "2"},
         });
         assert_eq!(parent_offset_of(&env), Some(2));
+    }
+
+    // T-1345: compute_pinned_set
+    fn pin_env(off: u64, target: u64, action: &str, by: &str, ts: i64) -> Value {
+        json!({
+            "offset": off,
+            "msg_type": "pin",
+            "sender_id": by,
+            "ts": ts,
+            "payload_b64": "",
+            "metadata": {
+                "pin_target": target.to_string(),
+                "action": action,
+            },
+        })
+    }
+
+    fn content_env(off: u64, payload: &str) -> Value {
+        use base64::Engine;
+        let p = base64::engine::general_purpose::STANDARD.encode(payload);
+        json!({
+            "offset": off,
+            "msg_type": "post",
+            "sender_id": "alice",
+            "payload_b64": p,
+        })
+    }
+
+    #[test]
+    fn compute_pinned_set_empty_topic_is_empty() {
+        assert_eq!(compute_pinned_set(&[]), Vec::<PinRow>::new());
+    }
+
+    #[test]
+    fn compute_pinned_set_single_pin_appears() {
+        let envs = vec![
+            content_env(0, "important note"),
+            pin_env(1, 0, "pin", "alice", 100),
+        ];
+        let rows = compute_pinned_set(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target, 0);
+        assert_eq!(rows[0].pinned_by, "alice");
+        assert_eq!(rows[0].pinned_ts, 100);
+        assert_eq!(rows[0].payload.as_deref(), Some("important note"));
+    }
+
+    #[test]
+    fn compute_pinned_set_unpin_removes_target() {
+        let envs = vec![
+            content_env(0, "x"),
+            pin_env(1, 0, "pin", "alice", 100),
+            pin_env(2, 0, "unpin", "bob", 200),
+        ];
+        assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    #[test]
+    fn compute_pinned_set_repin_after_unpin_restores() {
+        // pin → unpin → pin: result is one active row with the LATEST ts.
+        let envs = vec![
+            content_env(0, "x"),
+            pin_env(1, 0, "pin", "alice", 100),
+            pin_env(2, 0, "unpin", "bob", 200),
+            pin_env(3, 0, "pin", "carol", 300),
+        ];
+        let rows = compute_pinned_set(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].pinned_by, "carol");
+        assert_eq!(rows[0].pinned_ts, 300);
+    }
+
+    #[test]
+    fn compute_pinned_set_multiple_targets_sorted_desc() {
+        let envs = vec![
+            content_env(0, "first"),
+            content_env(1, "second"),
+            content_env(2, "third"),
+            pin_env(3, 0, "pin", "alice", 100),
+            pin_env(4, 1, "pin", "bob", 300),
+            pin_env(5, 2, "pin", "carol", 200),
+        ];
+        let rows = compute_pinned_set(&envs);
+        assert_eq!(rows.len(), 3);
+        // Sorted by pinned_ts desc: 300 (target=1), 200 (target=2), 100 (target=0)
+        assert_eq!(rows[0].target, 1);
+        assert_eq!(rows[1].target, 2);
+        assert_eq!(rows[2].target, 0);
+    }
+
+    #[test]
+    fn compute_pinned_set_target_missing_keeps_row_with_no_payload() {
+        // Pin references an offset not in the topic — degraded but visible.
+        let envs = vec![pin_env(0, 99, "pin", "alice", 100)];
+        let rows = compute_pinned_set(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target, 99);
+        assert_eq!(rows[0].payload, None);
+    }
+
+    #[test]
+    fn compute_pinned_set_skips_non_pin_envelopes() {
+        // Reaction / chat / edit envelopes must NOT contribute to pin set.
+        let envs = vec![
+            content_env(0, "x"),
+            json!({"offset": 1, "msg_type": "reaction", "metadata": {"in_reply_to": "0"}}),
+            json!({"offset": 2, "msg_type": "edit", "metadata": {"replaces": "0"}}),
+        ];
+        assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    #[test]
+    fn compute_pinned_set_skips_non_numeric_target() {
+        let envs = vec![
+            content_env(0, "x"),
+            json!({
+                "offset": 1, "msg_type": "pin", "sender_id": "alice",
+                "metadata": {"pin_target": "not-a-number", "action": "pin"},
+            }),
+        ];
+        assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    #[test]
+    fn compute_pinned_set_uses_ts_unix_ms_when_present() {
+        // Hub may serialize as `ts` or `ts_unix_ms`; helper must accept either.
+        let envs = vec![
+            content_env(0, "x"),
+            json!({
+                "offset": 1, "msg_type": "pin", "sender_id": "alice",
+                "ts_unix_ms": 555,
+                "metadata": {"pin_target": "0", "action": "pin"},
+            }),
+        ];
+        let rows = compute_pinned_set(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].pinned_ts, 555);
     }
 }

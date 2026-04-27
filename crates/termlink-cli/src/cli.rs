@@ -1826,6 +1826,47 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Pin or unpin an envelope on a topic (T-1345). Matrix-style
+    /// `m.room.pinned_events` analogue, append-only: emits a `msg_type=pin`
+    /// envelope carrying `metadata.pin_target=<offset>` and
+    /// `metadata.action=pin|unpin`. The current pin set is computed by
+    /// walking the topic (see `channel pinned`).
+    Pin {
+        /// Topic name
+        topic: String,
+
+        /// Offset of the envelope to pin / unpin
+        offset: u64,
+
+        /// Reverse the operation — emit `metadata.action=unpin` instead of
+        /// `pin`. Latest action per target wins.
+        #[arg(long)]
+        unpin: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the current pin set for a topic (T-1345). Walks the topic, applies
+    /// pin/unpin events in offset order (latest action per target wins), and
+    /// renders one row per actively-pinned target. Sorted by most-recently
+    /// pinned descending. Read-only.
+    Pinned {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `[{target, pinned_by, pinned_ts, payload}]`
+        #[arg(long)]
+        json: bool,
+    },
     /// Render an envelope inline with its parent quoted above it (T-1344).
     /// If `<offset>` carries `metadata.in_reply_to=<parent>`, the parent
     /// envelope is fetched and rendered as a `>` quoted block before the
