@@ -582,6 +582,7 @@ async fn main() -> Result<()> {
                 collapse_edits,
                 hide_redacted,
                 filter_mentions,
+                since,
                 hub,
                 json,
             } => {
@@ -599,6 +600,7 @@ async fn main() -> Result<()> {
                     collapse_edits,
                     hide_redacted,
                     filter_mentions.as_deref(),
+                    since,
                     hub.as_deref(),
                     json,
                 )

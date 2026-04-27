@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T19:19:05Z ===
-task_id: T-1341
+=== episodic-gen invocation: 2026-04-27T19:22:02Z ===
+task_id: T-1342
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1341.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1342.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel members <topic> — distinct senders with last-seen timestamps
-  Duration: 0 days (8 min)
+  Task: doc updates — T-1335..T-1341 agent-conversation feature wave
+  Duration: 0 days (1 min)
   Updates: 2
   Commits: 1
-  Lines: +291 -63 across 17 files
-  Outcomes: 7 AC checked
-  Artifacts: 17 files tracked
+  Lines: +133 -23 across 12 files
+  Outcomes: 4 AC checked
+  Artifacts: 12 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1341-channel-members-topic--distinct-senders-.md
+Source: /opt/termlink/.tasks/completed/T-1342-doc-updates--t-1335t-1341-agent-conversa.md
 --- exit code: 0 ---

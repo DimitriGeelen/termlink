@@ -386,7 +386,7 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                None, hub, json_output,
+                None, None, hub, json_output,
             )
             .await
         }
@@ -1951,6 +1951,24 @@ pub(crate) async fn cmd_channel_edit(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// T-1343: pure helper — should an envelope be emitted given the optional
+/// `--since <ms>` filter? Returns true when no filter is set, when the
+/// envelope carries a ts >= since, or when the filter is set but the
+/// envelope has no usable ts (we keep ts-less envelopes; defensive — they
+/// might be meta lines like edit/redaction markers without ts).
+pub(crate) fn should_emit_for_since(env: &Value, since: Option<i64>) -> bool {
+    let Some(threshold) = since else { return true };
+    let ts_opt = env
+        .get("ts_unix_ms")
+        .and_then(|v| v.as_i64())
+        .or_else(|| env.get("ts").and_then(|v| v.as_i64()));
+    match ts_opt {
+        Some(ts) => ts >= threshold,
+        None => true,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
     cursor: u64,
@@ -1965,6 +1983,7 @@ pub(crate) async fn cmd_channel_subscribe(
     collapse_edits: bool,
     hide_redacted: bool,
     filter_mentions: Option<&str>,
+    since: Option<i64>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -2080,6 +2099,12 @@ pub(crate) async fn cmd_channel_subscribe(
         // with the updated redacted set).
         redacted.extend(&batch_redacted);
         for m in &msgs {
+            // T-1343: render-time --since filter. Pure drop — pagination
+            // and aggregation passes already ran. Affects both JSON-lines
+            // and human output identically.
+            if !should_emit_for_since(m, since) {
+                continue;
+            }
             if json_output {
                 println!("{}", serde_json::to_string(m)?);
                 continue;
@@ -3436,6 +3461,37 @@ mod tests {
         assert_eq!(v["peer"], "b");
         assert_eq!(v["unread"], 4);
         assert_eq!(v["first_unread"], 5);
+    }
+
+    // ---- T-1343: should_emit_for_since --------------------------------
+
+    #[test]
+    fn should_emit_for_since_passes_when_no_filter() {
+        let env = json!({"offset": 0, "ts": 100});
+        assert!(should_emit_for_since(&env, None));
+    }
+
+    #[test]
+    fn should_emit_for_since_emits_at_or_above_threshold() {
+        let env = json!({"offset": 0, "ts": 200});
+        assert!(should_emit_for_since(&env, Some(100)));
+        assert!(should_emit_for_since(&env, Some(200))); // >= boundary
+        assert!(!should_emit_for_since(&env, Some(201)));
+    }
+
+    #[test]
+    fn should_emit_for_since_accepts_ts_unix_ms() {
+        let env = json!({"offset": 0, "ts_unix_ms": 200});
+        assert!(should_emit_for_since(&env, Some(150)));
+        assert!(!should_emit_for_since(&env, Some(250)));
+    }
+
+    #[test]
+    fn should_emit_for_since_keeps_envelope_with_no_ts() {
+        // Defensive: ts-less envelopes (e.g. legacy meta) are kept rather
+        // than silently dropped. Operator can use other filters.
+        let env = json!({"offset": 0, "msg_type": "edit"});
+        assert!(should_emit_for_since(&env, Some(100)));
     }
 
     // ---- T-1341: summarize_members ------------------------------------
