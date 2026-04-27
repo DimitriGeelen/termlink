@@ -4,16 +4,16 @@ name: "Hub-side channel.receipts RPC — server-side aggregation of latest recei
 description: >
   Hub-side channel.receipts RPC — server-side aggregation of latest receipt per sender
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-27T16:23:31Z
-last_update: 2026-04-27T16:23:31Z
-date_finished: null
+last_update: 2026-04-27T16:42:08Z
+date_finished: 2026-04-27T16:42:08Z
 ---
 
 # T-1329: Hub-side channel.receipts RPC — server-side aggregation of latest receipt per sender
@@ -80,3 +80,6 @@ bash tests/e2e/agent-conversation.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1329-hub-side-channelreceipts-rpc--server-sid.md
 - **Context:** Initial task creation
+
+### 2026-04-27T16:42:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
