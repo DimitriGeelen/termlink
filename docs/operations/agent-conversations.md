@@ -47,12 +47,19 @@ TERMLINK_IDENTITY_DIR=/tmp/alice termlink channel dm <bob-fingerprint>
 
 # Bob's identity gets an independent cursor.
 TERMLINK_IDENTITY_DIR=/tmp/bob termlink channel dm <alice-fingerprint>
+
+# Discover existing DMs for the current identity (T-1320).
+termlink channel dm --list
+# dm:alice-fp:d1993c2c3ec4...  (peer=alice-fp)
+# dm:bob-fp:d1993c2c3ec4...    (peer=bob-fp)
 ```
 
 The peer identifier should be a stable string both ends agree on —
 typically the peer's identity fingerprint (`termlink identity show`).
 Topic name is deterministic regardless of which side runs the command:
 `channel dm` sorts `[my_fp, peer]` alphabetically and joins as `dm:<a>:<b>`.
+`channel dm --list` filters `channel.list` to topics involving the
+caller's identity fingerprint, printing the *other* fingerprint as `peer`.
 
 For lower-level use or non-DM conversations, pick a topic name yourself.
 For 1:1 use the convention `dm:<a>:<b>` (alphabetical sort to keep both

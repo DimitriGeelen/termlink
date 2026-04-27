@@ -394,18 +394,23 @@ async fn main() -> Result<()> {
                 send,
                 reply_to,
                 topic_only,
+                list,
                 hub,
                 json,
             } => {
-                commands::channel::cmd_channel_dm(
-                    &peer,
-                    send.as_deref(),
-                    reply_to,
-                    topic_only,
-                    hub.as_deref(),
-                    json,
-                )
-                .await
+                if list {
+                    commands::channel::cmd_channel_dm_list(hub.as_deref(), json).await
+                } else {
+                    commands::channel::cmd_channel_dm(
+                        peer.as_deref().expect("clap required_unless_present guarantees peer when !list"),
+                        send.as_deref(),
+                        reply_to,
+                        topic_only,
+                        hub.as_deref(),
+                        json,
+                    )
+                    .await
+                }
             }
             ChannelAction::Ack {
                 topic,

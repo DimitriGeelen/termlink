@@ -385,6 +385,71 @@ pub(crate) async fn cmd_channel_dm(
     }
 }
 
+/// T-1320: pure filter — given a list of topic names and the caller's
+/// identity fingerprint, return only DM topics involving the caller, paired
+/// with the *other* fingerprint. A DM topic is `dm:<a>:<b>` where `a` and
+/// `b` are sorted; the caller is whichever side equals `my_id`.
+fn dm_list_filter(topics: &[String], my_id: &str) -> Vec<(String, String)> {
+    topics
+        .iter()
+        .filter_map(|name| {
+            let rest = name.strip_prefix("dm:")?;
+            let (a, b) = rest.split_once(':')?;
+            if a == my_id {
+                Some((name.clone(), b.to_string()))
+            } else if b == my_id {
+                Some((name.clone(), a.to_string()))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// T-1320: discover DM topics for the caller's identity. Queries
+/// `channel.list` (no prefix), filters to `dm:<a>:<b>` where one side is
+/// the caller, prints `<topic>  (peer=<other-fp>)`. Empty result prints a
+/// hint to stderr and exits 0.
+pub(crate) async fn cmd_channel_dm_list(
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let identity = load_identity_or_create()?;
+    let my_id = identity.fingerprint().to_string();
+    let sock = hub_socket(hub)?;
+    let resp = client::rpc_call(&sock, method::CHANNEL_LIST, json!({}))
+        .await
+        .context("Hub rpc_call (channel.list) failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let topics: Vec<String> = result["topics"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|t| t.get("name").and_then(|v| v.as_str()).map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    let dms = dm_list_filter(&topics, &my_id);
+    if json_output {
+        let rows: Vec<_> = dms
+            .iter()
+            .map(|(t, p)| json!({"topic": t, "peer": p}))
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&json!({"my_id": my_id, "dms": rows}))?);
+        return Ok(());
+    }
+    if dms.is_empty() {
+        let prefix: String = my_id.chars().take(12).collect();
+        eprintln!("No DM topics found for identity {prefix}");
+        return Ok(());
+    }
+    for (topic, peer) in &dms {
+        println!("{topic}  (peer={peer})");
+    }
+    Ok(())
+}
+
 /// T-1315: resolve the topic's current latest offset by querying
 /// `channel.list` with the topic's exact name as prefix and reading `count`.
 /// Returns `Ok(None)` for an empty topic. Used by `channel ack` when the
@@ -889,4 +954,43 @@ pub(crate) async fn cmd_channel_list(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dm_list_filters_to_caller_identity() {
+        let me = "abc123";
+        let topics = vec![
+            "dm:abc123:def456".to_string(),    // me on left
+            "dm:000aaa:abc123".to_string(),    // me on right
+            "dm:def456:000aaa".to_string(),    // not me
+            "team:engineering".to_string(),    // not a DM
+            "dm:abc123:abc123".to_string(),    // self-DM (degenerate but valid)
+            "dm:malformed".to_string(),        // missing second colon — skip
+        ];
+        let result = dm_list_filter(&topics, me);
+        // Expect: 3 hits (abc123:def456 → peer=def456,
+        //                  000aaa:abc123 → peer=000aaa,
+        //                  abc123:abc123 → peer=abc123 [self-DM])
+        let topic_names: Vec<&str> = result.iter().map(|(t, _)| t.as_str()).collect();
+        assert_eq!(
+            topic_names,
+            vec![
+                "dm:abc123:def456",
+                "dm:000aaa:abc123",
+                "dm:abc123:abc123",
+            ],
+        );
+        let peers: Vec<&str> = result.iter().map(|(_, p)| p.as_str()).collect();
+        assert_eq!(peers, vec!["def456", "000aaa", "abc123"]);
+    }
+
+    #[test]
+    fn dm_list_filter_returns_empty_when_no_match() {
+        let topics = vec!["dm:x:y".to_string(), "team:foo".to_string()];
+        assert!(dm_list_filter(&topics, "z").is_empty());
+    }
 }

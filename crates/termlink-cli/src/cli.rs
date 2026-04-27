@@ -1687,7 +1687,9 @@ pub(crate) enum ChannelAction {
         /// Peer identifier (typically their identity fingerprint, but any
         /// stable string works — both ends just need to agree). Used together
         /// with your own identity fingerprint to derive the topic name.
-        peer: String,
+        /// Required unless `--list` is given.
+        #[arg(required_unless_present = "list")]
+        peer: Option<String>,
 
         /// Send a message to this DM and exit (instead of opening read mode)
         #[arg(long)]
@@ -1700,6 +1702,13 @@ pub(crate) enum ChannelAction {
         /// Print the canonical DM topic name and exit (helper for scripts)
         #[arg(long)]
         topic_only: bool,
+
+        /// List existing DM topics for the caller's identity (T-1320).
+        /// Mutually exclusive with `<peer>`; queries `channel.list` and
+        /// filters topics matching `dm:<a>:<b>` where one side equals the
+        /// caller's identity fingerprint.
+        #[arg(long, conflicts_with_all = ["peer", "send", "reply_to", "topic_only"])]
+        list: bool,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
