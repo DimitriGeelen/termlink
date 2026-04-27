@@ -495,6 +495,15 @@ async fn main() -> Result<()> {
             } => {
                 commands::channel::cmd_channel_thread(&topic, root, hub.as_deref(), json).await
             }
+            ChannelAction::Ancestors {
+                topic,
+                offset,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_ancestors(&topic, offset, hub.as_deref(), json)
+                    .await
+            }
             ChannelAction::Describe {
                 topic,
                 description,
