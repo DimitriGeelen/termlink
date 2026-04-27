@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1321: channel edit — Matrix m.replace analogue (msg_type=edit + metadata.replaces)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T15:18:22Z
+# ============================================================================
+
+task_id: T-1321
+task_name: "channel edit — Matrix m.replace analogue (msg_type=edit + metadata.replaces)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T15:11:16Z
+completed: 2026-04-27T15:18:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T17:18:08+02:00
+last_commit: 2026-04-27T17:18:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel edit + subscribe --collapse-edits (Matrix m.replace)
+
+# Key outcomes
+outcomes:
+  - "`ChannelAction::Edit { topic, replaces, payload, hub, json }` added to cli.rs"
+  - "`cmd_channel_edit` in commands/channel.rs — wraps `cmd_channel_post` with"
+  - "Sender identity/signing path is the existing post path (no signing changes)"
+  - "`cmd_channel_subscribe` gains `--collapse-edits` flag — when true, builds a"
+  - "Edit posts themselves are suppressed in collapsed view (just the merged result"
+  - "Unit test `collapse_edits_picks_latest` — given (orig, edit_v1, edit_v2),"
+  - "`cargo test -p termlink --bins` passes; clippy clean"
+  - "`agent-conversations.md` gains a short \"Edits (m.replace)\" section"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/settings.local.json"
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/audits/cron/2026-04-19-1700.yaml"
+  - ".context/audits/cron/2026-04-27-1715.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".fabric/components/crates-termlink-hub-src-topic_lint.yaml"
+  - ".tasks/active/T-1321-channel-edit--matrix-mreplace-analogue-m.md"
+  - ".tasks/completed/T-1211-build-stop-hook-nudge-script-t-1207-foll.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T17:18:08"
+    action: "T-1321: channel edit + subscribe --collapse-edits (Matrix m.replace)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 21
+  lines_added: 393
+  lines_removed: 52
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1321-channel-edit--matrix-mreplace-analogue-m.md
+generated_by: context-agent-hybrid
