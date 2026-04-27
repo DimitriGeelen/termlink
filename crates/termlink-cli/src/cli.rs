@@ -1770,6 +1770,25 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Recursive thread view (Matrix-style): root + all descendant replies,
+    /// indented by depth. Walks the topic once, builds a parent→children map
+    /// from `metadata.in_reply_to`, DFS-renders the subtree from `<root>`.
+    /// Children are visited in ascending offset order. Read-only (T-1328).
+    Thread {
+        /// Topic name
+        topic: String,
+
+        /// Root envelope offset to render the subtree from
+        root: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON (flat list with depth field, preserves DFS order)
+        #[arg(long)]
+        json: bool,
+    },
     /// Synthesized topic view: description + retention + post count + top
     /// senders + latest receipts in one shot. Read-only, no state mutation.
     /// Walks the topic once and renders a human-readable summary; pass `--json`
