@@ -206,6 +206,21 @@ The match is strict: comma-split + whitespace trim, no substring matching.
 Use the receiver's stable identifier (typically their identity fingerprint)
 on both ends so filtering is deterministic.
 
+**Wildcards (T-1333).** Use `*` for `@room`-style "everyone":
+
+```sh
+# Post that tags everyone:
+termlink channel post alpha:design --payload "Standup in 5" --mention "*"
+
+# Filter to "any post that mentioned anyone":
+termlink channel subscribe alpha:design --filter-mentions "*"
+```
+
+A post with `metadata.mentions=*` matches any specific subscriber's
+`--filter-mentions <id>` filter (so `--mention "*"` reaches everyone the
+way it should). Conversely, `--filter-mentions "*"` matches any post with
+a non-empty mentions metadata. Empty mentions still don't match.
+
 ## Channel description (T-1323 — Matrix `m.room.topic`)
 
 To attach a free-text description to a topic (think: "this channel is for

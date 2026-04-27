@@ -983,15 +983,33 @@ pub(crate) async fn cmd_channel_thread(
     Ok(())
 }
 
-/// T-1325: pure helper — does the comma-separated `mentions` CSV contain the
-/// target id? Strict (comma split + whitespace trim, no substring match).
-/// Empty CSV and empty target both return false.
+/// T-1325 / T-1333: pure helper — does the comma-separated `mentions` CSV
+/// contain the target id?
+/// - Strict (comma split + whitespace trim, no substring match).
+/// - Empty CSV and empty target both return false.
+/// - **Wildcard (T-1333):** `target == "*"` matches any non-empty mention csv
+///   (Matrix `@room` analogue — "did this post mention ANYONE?"). A csv that
+///   itself contains `*` (e.g. `metadata.mentions=*` or `alice,*`) matches
+///   any non-empty target — the post tagged everyone, so any specific
+///   subscriber's filter should fire.
 pub(crate) fn mentions_match(csv: &str, target: &str) -> bool {
     let target = target.trim();
     if target.is_empty() {
         return false;
     }
-    csv.split(',').any(|id| id.trim() == target)
+    let parts: Vec<&str> = csv.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    if parts.is_empty() {
+        return false;
+    }
+    if target == "*" {
+        // "Anyone tagged at all?" — any non-empty csv satisfies.
+        return true;
+    }
+    if parts.contains(&"*") {
+        // Post mentioned everyone — every specific subscriber matches.
+        return true;
+    }
+    parts.contains(&target)
 }
 
 /// T-1325: extract mentions CSV from `metadata.mentions` if present.
@@ -2012,6 +2030,25 @@ mod tests {
         // Substring is NOT a match (strict comma split)
         assert!(!mentions_match("alicia,bobby", "alice"));
         assert!(!mentions_match("alicebob", "alice"));
+    }
+
+    #[test]
+    fn mentions_match_wildcard_target_matches_any_non_empty() {
+        // T-1333: target=* means "did this post mention ANYONE?"
+        assert!(mentions_match("alice", "*"));
+        assert!(mentions_match("alice,bob", "*"));
+        // Empty csv → still false (no one was tagged).
+        assert!(!mentions_match("", "*"));
+        assert!(!mentions_match("   ", "*"));
+    }
+
+    #[test]
+    fn mentions_match_wildcard_in_csv_matches_any_target() {
+        // T-1333: csv=* means "@room" (everyone). Any specific target hits.
+        assert!(mentions_match("*", "alice"));
+        assert!(mentions_match("alice,*", "carol"));
+        // Whitespace tolerated.
+        assert!(mentions_match(" * ", "bob"));
     }
 
     #[test]
