@@ -386,7 +386,7 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                None, None, false, None, None, hub, json_output,
+                None, None, false, None, None, false, hub, json_output,
             )
             .await
         }
@@ -2292,6 +2292,25 @@ pub(crate) fn should_emit_for_since(env: &Value, since: Option<i64>) -> bool {
     }
 }
 
+/// T-1349: pure helper — extract forward-provenance metadata from an envelope.
+/// Returns `Some((src_topic, offset, orig_sender))` when both
+/// `metadata.forwarded_from` (formatted `<topic>:<offset>`) and
+/// `metadata.forwarded_sender` are present and parsable. Defensive: if
+/// `forwarded_sender` is absent, returns `None` (we want both fields to
+/// trust the provenance). Topics may contain colons (e.g. `dm:a:b`) so we
+/// split on the LAST colon to get offset.
+pub(crate) fn extract_forward(env: &Value) -> Option<(String, u64, String)> {
+    let md = env.get("metadata")?;
+    let from = md.get("forwarded_from").and_then(|v| v.as_str())?;
+    let sender = md
+        .get("forwarded_sender")
+        .and_then(|v| v.as_str())?
+        .to_string();
+    let (topic, off_str) = from.rsplit_once(':')?;
+    let off = off_str.parse::<u64>().ok()?;
+    Some((topic.to_string(), off, sender))
+}
+
 /// T-1347: pure helper — does `sender` match the comma-separated allowlist?
 /// Strict equality (comma-split + trim). Empty list returns `false` (no
 /// allowed senders means nothing matches). Empty sender returns `false`.
@@ -2343,6 +2362,7 @@ pub(crate) async fn cmd_channel_subscribe(
     show_parent: bool,
     tail: Option<usize>,
     senders_filter: Option<&str>,
+    show_forwards: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -2640,6 +2660,16 @@ pub(crate) async fn cmd_channel_subscribe(
                         let _ = writeln!(env_out, "> [{parent_off} ?] (parent not in cache)");
                     }
                 }
+            }
+            // T-1349: forward provenance prefix — emit `[fwd from <src>:<off>
+            // by <orig_sender>]` BEFORE the main render line when
+            // --show-forwards and this env carries forwarded_from metadata.
+            // Placed alongside show_parent so both are visible together when
+            // forwarding a reply.
+            if show_forwards
+                && let Some((src, off, orig)) = extract_forward(m)
+            {
+                let _ = writeln!(env_out, "[fwd from {src}:{off} by {orig}]");
             }
             // T-1314: reaction envelopes get a compact non-aggregated render
             // (msg_type prefix dropped; the `react` tag in the bracket is the cue).
@@ -4303,6 +4333,83 @@ mod tests {
             }),
         ];
         assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    // T-1349: extract_forward
+    #[test]
+    fn extract_forward_returns_none_for_normal_envelope() {
+        let env = json!({"offset": 0, "msg_type": "post", "metadata": {}});
+        assert_eq!(extract_forward(&env), None);
+    }
+
+    #[test]
+    fn extract_forward_returns_none_when_metadata_absent() {
+        let env = json!({"offset": 0, "msg_type": "post"});
+        assert_eq!(extract_forward(&env), None);
+    }
+
+    #[test]
+    fn extract_forward_parses_well_formed_metadata() {
+        let env = json!({
+            "metadata": {
+                "forwarded_from": "topic:42",
+                "forwarded_sender": "alice",
+            }
+        });
+        assert_eq!(
+            extract_forward(&env),
+            Some(("topic".to_string(), 42, "alice".to_string()))
+        );
+    }
+
+    #[test]
+    fn extract_forward_handles_topic_with_colons() {
+        // dm:a:b is a valid topic name; we split on LAST colon for offset.
+        let env = json!({
+            "metadata": {
+                "forwarded_from": "dm:alice:bob:7",
+                "forwarded_sender": "carol",
+            }
+        });
+        assert_eq!(
+            extract_forward(&env),
+            Some(("dm:alice:bob".to_string(), 7, "carol".to_string()))
+        );
+    }
+
+    #[test]
+    fn extract_forward_returns_none_when_offset_non_numeric() {
+        let env = json!({
+            "metadata": {
+                "forwarded_from": "topic:not-a-number",
+                "forwarded_sender": "alice",
+            }
+        });
+        assert_eq!(extract_forward(&env), None);
+    }
+
+    #[test]
+    fn extract_forward_returns_none_when_sender_missing() {
+        // Defensive: both fields required; partial provenance should NOT be
+        // surfaced — could mask a malformed forward emit.
+        let env = json!({
+            "metadata": {
+                "forwarded_from": "topic:42",
+            }
+        });
+        assert_eq!(extract_forward(&env), None);
+    }
+
+    #[test]
+    fn extract_forward_returns_none_when_from_lacks_colon() {
+        // Malformed metadata.forwarded_from — no offset separator.
+        let env = json!({
+            "metadata": {
+                "forwarded_from": "topic-no-colon",
+                "forwarded_sender": "alice",
+            }
+        });
+        assert_eq!(extract_forward(&env), None);
     }
 
     // T-1348: build_forward_metadata
