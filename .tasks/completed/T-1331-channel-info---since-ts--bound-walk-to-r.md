@@ -4,16 +4,16 @@ name: "channel info --since <ts> — bound walk to recent slice for long-lived t
 description: >
   channel info --since <ts> — bound walk to recent slice for long-lived topics
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T16:51:47Z
-last_update: 2026-04-27T16:51:47Z
-date_finished: null
+last_update: 2026-04-27T16:57:19Z
+date_finished: 2026-04-27T16:57:19Z
 ---
 
 # T-1331: channel info --since <ts> — bound walk to recent slice for long-lived topics
@@ -74,3 +74,6 @@ cargo clippy --all-targets --workspace -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1331-channel-info---since-ts--bound-walk-to-r.md
 - **Context:** Initial task creation
+
+### 2026-04-27T16:57:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

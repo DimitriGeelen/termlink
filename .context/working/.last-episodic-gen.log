@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T16:51:10Z ===
-task_id: T-1330
+=== episodic-gen invocation: 2026-04-27T16:57:28Z ===
+task_id: T-1331
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1330.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1331.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel react --remove — Matrix annotation removal (alias for redact on a reaction offset)
-  Duration: 0 days (8 min)
+  Task: channel info --since <ts> — bound walk to recent slice for long-lived topics
+  Duration: 0 days (5 min)
   Updates: 2
   Commits: 1
-  Lines: +350 -75 across 19 files
-  Outcomes: 8 AC checked
-  Artifacts: 19 files tracked
+  Lines: +219 -30 across 15 files
+  Outcomes: 9 AC checked
+  Artifacts: 15 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1330-channel-react---remove--matrix-annotatio.md
+Source: /opt/termlink/.tasks/completed/T-1331-channel-info---since-ts--bound-walk-to-r.md
 --- exit code: 0 ---
