@@ -172,9 +172,26 @@ termlink channel describe alpha:design "Q2 design review thread (closes 2026-04-
 ```
 
 Append-only — repeat calls add new records, the latest by ts_ms wins. The
-synthesized `channel info <topic>` view (T-1324) surfaces the latest
-description; raw `subscribe` shows every description record so you can audit
-who changed it and when.
+synthesized `channel info <topic>` view surfaces the latest description; raw
+`subscribe` shows every description record so you can audit who changed it
+and when.
+
+```sh
+termlink channel info alpha:design
+# Topic: alpha:design
+# Retention: messages:100
+# Posts: 42
+# Description: Q2 design review thread (closes 2026-04-30)
+# Senders: 3
+#   alice  (24 posts)
+#   bob    (12 posts)
+#   carol  (6 posts)
+# Receipts: 2
+#   bob    up to 41  (ts=...)
+#   carol  up to 38  (ts=...)
+```
+
+Pass `--json` for machine-readable output (T-1324).
 
 ## Edits (T-1321 — Matrix `m.replace`)
 

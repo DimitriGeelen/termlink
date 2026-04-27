@@ -711,6 +711,176 @@ fn collapse_edits_map(edits: &[(u64, u64, String)]) -> std::collections::HashMap
     latest.into_iter().map(|(k, (_, t))| (k, t)).collect()
 }
 
+/// T-1324: pure helper — count `chat`-style posts per sender, ignoring
+/// metadata envelopes (reaction/edit/redaction/topic_metadata/receipt).
+/// Returns (sender_id, post_count) sorted by count descending, then by
+/// sender_id ascending for stable ties.
+pub(crate) fn summarize_senders(msgs: &[Value]) -> Vec<(String, u64)> {
+    use std::collections::HashMap;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let mut counts: HashMap<String, u64> = HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        *counts.entry(sender).or_insert(0) += 1;
+    }
+    let mut entries: Vec<(String, u64)> = counts.into_iter().collect();
+    entries.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    entries
+}
+
+/// T-1324: synthesized topic view — description (latest), retention, post
+/// count, top senders, latest receipt per sender. One-pass walk over the
+/// topic; reuses helpers from T-1315/T-1323.
+pub(crate) async fn cmd_channel_info(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    // Pull retention + count from channel.list with the topic name as exact prefix.
+    let list_resp = client::rpc_call(&sock, method::CHANNEL_LIST, json!({"prefix": topic}))
+        .await
+        .context("Hub rpc_call (channel.list) failed")?;
+    let list_result = client::unwrap_result(list_resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let topics = list_result["topics"].as_array().cloned().unwrap_or_default();
+    let entry = topics
+        .into_iter()
+        .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(topic))
+        .ok_or_else(|| anyhow!("Topic '{topic}' not found"))?;
+    let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+    let retention_kind = entry["retention"]["kind"]
+        .as_str()
+        .unwrap_or("?")
+        .to_string();
+    let retention_value = entry["retention"]
+        .get("value")
+        .and_then(|v| v.as_u64());
+
+    // Single full walk to compute description / senders / receipts.
+    let mut all_msgs: Vec<Value> = Vec::with_capacity(count as usize);
+    let mut cursor: u64 = 0;
+    let limit: u64 = 1000;
+    loop {
+        let resp = client::rpc_call(
+            &sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .context("Hub rpc_call (channel.subscribe) failed")?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        all_msgs.extend(msgs);
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+    let description = latest_description(&all_msgs).map(|(_, d)| d);
+    let senders = summarize_senders(&all_msgs);
+
+    // Latest receipt per sender (mirror cmd_channel_receipts logic).
+    use std::collections::HashMap;
+    struct Rcpt {
+        up_to: u64,
+        ts: i64,
+    }
+    let mut receipts: HashMap<String, Rcpt> = HashMap::new();
+    for m in &all_msgs {
+        if m.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+            continue;
+        }
+        let Some(sender) = m
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+        else {
+            continue;
+        };
+        let Some(up_to) = m
+            .get("metadata")
+            .and_then(|md| md.get("up_to"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        else {
+            continue;
+        };
+        let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
+        match receipts.get(&sender) {
+            Some(prev) if prev.ts > ts => {}
+            Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+            _ => {
+                receipts.insert(sender, Rcpt { up_to, ts });
+            }
+        }
+    }
+
+    if json_output {
+        let senders_json: Vec<Value> = senders
+            .iter()
+            .map(|(s, n)| json!({"sender_id": s, "posts": n}))
+            .collect();
+        let receipts_json: Vec<Value> = {
+            let mut entries: Vec<(&String, &Rcpt)> = receipts.iter().collect();
+            entries.sort_by(|a, b| a.0.cmp(b.0));
+            entries
+                .iter()
+                .map(|(s, r)| json!({"sender_id": s, "up_to": r.up_to, "ts_unix_ms": r.ts}))
+                .collect()
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "topic": topic,
+                "retention": {
+                    "kind": retention_kind,
+                    "value": retention_value,
+                },
+                "count": count,
+                "description": description,
+                "senders": senders_json,
+                "receipts": receipts_json,
+            }))?
+        );
+        return Ok(());
+    }
+
+    println!("Topic: {topic}");
+    match retention_value {
+        Some(v) => println!("Retention: {retention_kind}:{v}"),
+        None => println!("Retention: {retention_kind}"),
+    }
+    println!("Posts: {count}");
+    println!(
+        "Description: {}",
+        description.as_deref().unwrap_or("(none)")
+    );
+    println!("Senders: {}", senders.len());
+    for (s, n) in senders.iter().take(5) {
+        println!("  {s}  ({n} posts)");
+    }
+    if !receipts.is_empty() {
+        println!("Receipts: {}", receipts.len());
+        let mut entries: Vec<(&String, &Rcpt)> = receipts.iter().collect();
+        entries.sort_by(|a, b| a.0.cmp(b.0));
+        for (s, r) in entries {
+            println!("  {s}  up to {}  (ts={})", r.up_to, r.ts);
+        }
+    }
+    Ok(())
+}
+
 /// T-1323: emit a `msg_type=topic_metadata` envelope carrying a topic
 /// description (`metadata.description=<text>`). Append-only — repeat calls
 /// add new records; the reader picks the latest by ts_ms.
@@ -737,10 +907,8 @@ pub(crate) async fn cmd_channel_describe(
 
 /// T-1323: pure helper — given a slice of envelope JSON values, return the
 /// most recent (ts_ms, description) from `msg_type=topic_metadata` records.
-/// Returns `None` if there are no such records. Used by T-1324 (`channel info`)
-/// to surface the description in the synthesized topic view; allow(dead_code)
-/// holds until that consumer lands in the next task.
-#[allow(dead_code)]
+/// Returns `None` if there are no such records. Consumed by `channel info`
+/// (T-1324) to surface the description in the synthesized topic view.
 pub(crate) fn latest_description(msgs: &[Value]) -> Option<(u64, String)> {
     msgs.iter()
         .filter(|m| m.get("msg_type").and_then(|v| v.as_str()) == Some("topic_metadata"))
@@ -1311,6 +1479,27 @@ mod tests {
             json!({"msg_type": "topic_metadata", "ts_ms": 1, "metadata": {}}),
         ];
         assert_eq!(latest_description(&malformed), None);
+    }
+
+    #[test]
+    fn summarize_senders_counts_only_content_msgs() {
+        let msgs = vec![
+            json!({"sender_id": "alice", "msg_type": "chat"}),
+            json!({"sender_id": "alice", "msg_type": "chat"}),
+            json!({"sender_id": "bob", "msg_type": "chat"}),
+            // metadata envelopes — should be excluded
+            json!({"sender_id": "alice", "msg_type": "reaction", "metadata": {"in_reply_to": "0"}}),
+            json!({"sender_id": "alice", "msg_type": "edit", "metadata": {"replaces": "0"}}),
+            json!({"sender_id": "alice", "msg_type": "redaction", "metadata": {"redacts": "0"}}),
+            json!({"sender_id": "alice", "msg_type": "receipt", "metadata": {"up_to": "0"}}),
+            json!({"sender_id": "alice", "msg_type": "topic_metadata"}),
+        ];
+        let got = summarize_senders(&msgs);
+        // alice: 2 content posts, bob: 1; sorted by count desc.
+        assert_eq!(
+            got,
+            vec![("alice".to_string(), 2), ("bob".to_string(), 1)]
+        );
     }
 
     #[test]

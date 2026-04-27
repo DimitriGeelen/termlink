@@ -1759,6 +1759,22 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Synthesized topic view: description + retention + post count + top
+    /// senders + latest receipts in one shot. Read-only, no state mutation.
+    /// Walks the topic once and renders a human-readable summary; pass `--json`
+    /// for machine-readable output (T-1324).
+    Info {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Set/update the topic's free-text description (Matrix `m.room.topic`
     /// analogue). Emits a `msg_type=topic_metadata` envelope with
     /// `metadata.description=<text>`; repeat calls add new records and the
