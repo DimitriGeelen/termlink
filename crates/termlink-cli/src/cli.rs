@@ -2213,6 +2213,14 @@ pub(crate) enum ChannelAction {
         #[arg(long, value_name = "MS")]
         since: Option<i64>,
 
+        /// Drop envelopes whose `ts > <ms>` from the printed output (T-1352).
+        /// Closing pair to `--since`. Combine for an arbitrary
+        /// `[since, until]` window. Same render-side semantics — pagination
+        /// unchanged. ts-less envelopes are kept (defensive; same precedent
+        /// as `--since`).
+        #[arg(long, value_name = "MS")]
+        until: Option<i64>,
+
         /// Render each reply with its parent quoted on a preceding `>` line
         /// (T-1344). Seeds an offset-keyed cache from a one-time topic walk
         /// at startup so existing parents are available; new envelopes during

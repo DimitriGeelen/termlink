@@ -464,6 +464,28 @@ out=$(A channel typing "$TYPING_TOPIC")
 expect_not_contains "$ALICE" "$out" "step 28: alice's newer expired entry replaces older active"
 expect_contains "$BOB" "$out" "step 28: bob still active"
 
+step "29. channel subscribe --until (T-1352): upper-bound timestamp filter"
+# Anchor at "now" before posting one final entry. With --until at the
+# anchor, that brand-new entry must be DROPPED (it's after the anchor),
+# while earlier entries stay.
+UNTIL_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
+sleep 1
+A channel post "$DM" --msg-type chat --payload "after-until-T1352" >/dev/null
+out=$(A channel subscribe "$DM" --limit 100 --until "$UNTIL_MS")
+expect_not_contains "after-until-T1352" "$out" "step 29: post-anchor envelope must NOT appear under --until"
+expect_contains "are you there?" "$out" "step 29: pre-anchor envelopes still visible"
+# Combine --since and --until for a window. The anchor used for step 20
+# (--since) is well after step 1's posts; step 29's UNTIL_MS is just now.
+# Use a tiny window that deliberately excludes everything to prove the
+# AND-of-bounds: since=now, until=now, brand-new entry filtered out.
+out=$(A channel subscribe "$DM" --limit 100 --since "$UNTIL_MS" --until "$UNTIL_MS")
+# The window [UNTIL_MS, UNTIL_MS] is at most 1ms wide and the post landed
+# >=1000ms after UNTIL_MS, so it falls outside. Pre-anchor entries are also
+# outside (their ts < UNTIL_MS). Result: empty rendered set. (Allow for ts-less
+# envelopes like topic_metadata in earlier steps to slip through; the
+# strong assertion is on the brand-new payload.)
+expect_not_contains "after-until-T1352" "$out" "step 29: window excludes the post"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

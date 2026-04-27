@@ -386,7 +386,7 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                None, None, false, None, None, false, hub, json_output,
+                None, None, None, false, None, None, false, hub, json_output,
             )
             .await
         }
@@ -2428,6 +2428,23 @@ pub(crate) fn should_emit_for_since(env: &Value, since: Option<i64>) -> bool {
     }
 }
 
+/// T-1352: pure helper — closing pair to `should_emit_for_since`. Returns
+/// true when no filter is set, when the envelope carries a ts <= until,
+/// or when the filter is set but the envelope has no usable ts (defensive
+/// keep — same rationale as --since). Together they define an inclusive
+/// `[since, until]` window when both are passed.
+pub(crate) fn should_emit_for_until(env: &Value, until: Option<i64>) -> bool {
+    let Some(threshold) = until else { return true };
+    let ts_opt = env
+        .get("ts_unix_ms")
+        .and_then(|v| v.as_i64())
+        .or_else(|| env.get("ts").and_then(|v| v.as_i64()));
+    match ts_opt {
+        Some(ts) => ts <= threshold,
+        None => true,
+    }
+}
+
 /// T-1349: pure helper — extract forward-provenance metadata from an envelope.
 /// Returns `Some((src_topic, offset, orig_sender))` when both
 /// `metadata.forwarded_from` (formatted `<topic>:<offset>`) and
@@ -2495,6 +2512,7 @@ pub(crate) async fn cmd_channel_subscribe(
     hide_redacted: bool,
     filter_mentions: Option<&str>,
     since: Option<i64>,
+    until: Option<i64>,
     show_parent: bool,
     tail: Option<usize>,
     senders_filter: Option<&str>,
@@ -2653,10 +2671,13 @@ pub(crate) async fn cmd_channel_subscribe(
                     }
                 };
             }
-            // T-1343: render-time --since filter. Pure drop — pagination
-            // and aggregation passes already ran. Affects both JSON-lines
-            // and human output identically.
+            // T-1343 / T-1352: render-time `[since, until]` window. Pure
+            // drop — pagination and aggregation passes already ran. Affects
+            // both JSON-lines and human output identically.
             if !should_emit_for_since(m, since) {
+                continue;
+            }
+            if !should_emit_for_until(m, until) {
                 continue;
             }
             // T-1347: render-time --senders <csv> filter. Same shape as
@@ -4469,6 +4490,46 @@ mod tests {
             }),
         ];
         assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    // T-1352: should_emit_for_until
+    #[test]
+    fn should_emit_for_until_no_filter_keeps_all() {
+        let env = json!({"ts": 5000});
+        assert!(should_emit_for_until(&env, None));
+    }
+
+    #[test]
+    fn should_emit_for_until_keeps_at_boundary() {
+        // ts == until → kept (inclusive upper bound).
+        let env = json!({"ts": 1000});
+        assert!(should_emit_for_until(&env, Some(1000)));
+    }
+
+    #[test]
+    fn should_emit_for_until_keeps_before() {
+        let env = json!({"ts": 500});
+        assert!(should_emit_for_until(&env, Some(1000)));
+    }
+
+    #[test]
+    fn should_emit_for_until_drops_after() {
+        let env = json!({"ts": 1500});
+        assert!(!should_emit_for_until(&env, Some(1000)));
+    }
+
+    #[test]
+    fn should_emit_for_until_keeps_ts_less_envelope() {
+        // Defensive: same precedent as --since — keep envelopes without ts.
+        let env = json!({"offset": 0, "msg_type": "post"});
+        assert!(should_emit_for_until(&env, Some(1000)));
+    }
+
+    #[test]
+    fn should_emit_for_until_uses_ts_unix_ms_when_present() {
+        // Mirror should_emit_for_since: prefer ts_unix_ms over ts when both.
+        let env = json!({"ts_unix_ms": 500, "ts": 5000});
+        assert!(should_emit_for_until(&env, Some(1000)));
     }
 
     // T-1351: compute_active_typers
