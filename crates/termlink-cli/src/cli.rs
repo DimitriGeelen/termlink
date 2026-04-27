@@ -1775,6 +1775,12 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         reactions: bool,
 
+        /// Show per-reactor identities in the reactions summary (T-1317).
+        /// Requires `--reactions`. Renders `👍 by alice, bob` instead of
+        /// the count form `👍 ×2`. Sender order is first-seen.
+        #[arg(long, requires = "reactions")]
+        by_sender: bool,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

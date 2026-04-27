@@ -393,11 +393,12 @@ pub(crate) async fn cmd_channel_react(
     .await
 }
 
-/// T-1314: payload-decoded view of a reaction envelope. Per-reactor identity
-/// is intentionally not surfaced in the v1 aggregator (only counts) — if a
-/// follow-up wants "👍 by sender-A, sender-B", extend this struct.
+/// T-1314 / T-1317: payload-decoded view of a reaction envelope. Per-reactor
+/// identity is captured so `--by-sender` can render `👍 by alice, bob` while
+/// the default count-form ignores it.
 struct Reaction<'a> {
     parent: &'a str,
+    sender: &'a str,
     payload: String,
 }
 
@@ -409,13 +410,18 @@ fn extract_reaction(m: &Value) -> Option<Reaction<'_>> {
         .get("metadata")
         .and_then(|md| md.get("in_reply_to"))
         .and_then(|v| v.as_str())?;
+    let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
     let payload_b64 = m.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
     let payload = base64::engine::general_purpose::STANDARD
         .decode(payload_b64)
         .ok()
         .and_then(|b| String::from_utf8(b).ok())
         .unwrap_or_default();
-    Some(Reaction { parent, payload })
+    Some(Reaction {
+        parent,
+        sender,
+        payload,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -427,18 +433,16 @@ pub(crate) async fn cmd_channel_subscribe(
     conversation_id: Option<&str>,
     in_reply_to: Option<u64>,
     aggregate_reactions: bool,
+    by_sender: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
     let mut cursor = cursor;
-    // T-1314: when aggregate_reactions is on, reactions are NOT printed inline.
-    // Instead they accumulate in this map (parent_offset → Vec<reaction_string>)
-    // and surface as a trailing summary on the parent line. Persists across
-    // poll loops in --follow mode so reactions arriving in later batches still
-    // attach to a parent printed in an earlier batch — best-effort: if you
-    // missed the parent, the reaction summary won't be retroactive.
-    let mut reactions_by_parent: std::collections::HashMap<String, Vec<String>> =
+    // T-1314 / T-1317: when aggregate_reactions is on, reactions accumulate
+    // here (parent_offset → [(emoji, sender_id)]) and surface as a trailing
+    // summary on the parent line. Sender is preserved for `--by-sender`.
+    let mut reactions_by_parent: std::collections::HashMap<String, Vec<(String, String)>> =
         Default::default();
     let mut printed_parents: std::collections::HashSet<u64> = Default::default();
     loop {
@@ -472,7 +476,7 @@ pub(crate) async fn cmd_channel_subscribe(
                     reactions_by_parent
                         .entry(r.parent.to_string())
                         .or_default()
-                        .push(r.payload);
+                        .push((r.payload, r.sender.to_string()));
                 }
             }
         }
@@ -506,7 +510,7 @@ pub(crate) async fn cmd_channel_subscribe(
             } else {
                 println!("[{offset}{reply_marker}] {sender} {msg_type}: {payload_str}");
                 if aggregate_reactions {
-                    let summary = reactions_summary(&reactions_by_parent, offset);
+                    let summary = reactions_summary(&reactions_by_parent, offset, by_sender);
                     if !summary.is_empty() {
                         println!("    └─ reactions: {summary}");
                     }
@@ -534,31 +538,44 @@ pub(crate) async fn cmd_channel_subscribe(
     }
 }
 
-/// T-1314: collapse a list of reaction strings into "👍 ×3, 👀 ×1" form,
-/// preserving first-seen order so output is deterministic for the operator.
+/// T-1314 / T-1317: collapse a list of `(emoji, sender)` reactions into a
+/// summary string. Default form is count-grouped (`👍 ×3, 👀 ×1`); with
+/// `by_sender=true` it switches to identity form (`👍 by alice, bob, carol`).
+/// Both forms preserve first-seen order of emojis for deterministic output.
 fn reactions_summary(
-    by_parent: &std::collections::HashMap<String, Vec<String>>,
+    by_parent: &std::collections::HashMap<String, Vec<(String, String)>>,
     parent: u64,
+    by_sender: bool,
 ) -> String {
     let Some(list) = by_parent.get(&parent.to_string()) else {
         return String::new();
     };
     let mut order: Vec<String> = Vec::new();
-    let mut counts: std::collections::HashMap<String, u32> = Default::default();
-    for r in list {
-        if !counts.contains_key(r) {
-            order.push(r.clone());
+    let mut by_emoji: std::collections::HashMap<String, Vec<String>> = Default::default();
+    for (emoji, sender) in list {
+        if !by_emoji.contains_key(emoji) {
+            order.push(emoji.clone());
         }
-        *counts.entry(r.clone()).or_insert(0) += 1;
+        by_emoji.entry(emoji.clone()).or_default().push(sender.clone());
     }
     order
         .into_iter()
         .map(|k| {
-            let n = counts[&k];
-            if n == 1 {
+            let senders = &by_emoji[&k];
+            if by_sender {
+                // De-dup senders within this emoji bucket so a sender who
+                // accidentally double-reacted with the same emoji shows once.
+                let mut seen = std::collections::HashSet::new();
+                let unique: Vec<String> = senders
+                    .iter()
+                    .filter(|s| seen.insert(s.as_str().to_string()))
+                    .cloned()
+                    .collect();
+                format!("{k} by {}", unique.join(", "))
+            } else if senders.len() == 1 {
                 k
             } else {
-                format!("{k} ×{n}")
+                format!("{k} ×{}", senders.len())
             }
         })
         .collect::<Vec<_>>()
