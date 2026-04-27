@@ -454,6 +454,23 @@ termlink channel subscribe topic --in-reply-to 7 \
 (Hub-side `msg_type` filter is a small follow-up if this pattern is
 common enough to warrant.)
 
+## End-to-end test
+
+A self-contained walkthrough exercising every feature above with two real
+identities lives at `tests/e2e/agent-conversation.sh`. Run it against any
+local hub to catch regressions:
+
+```sh
+PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
+```
+
+The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
+walks all 10 steps (canonical DM, send/read, threading, reactions, edits,
+redactions, description+info, mentions, receipts, dm --list), and exits 0
+on success. Each assertion is content-level (`grep -F` for expected
+substrings) so re-runs are safe even though the canonical DM topic
+accumulates state across runs.
+
 ## Limits and next steps
 
 What's NOT implemented today, with rough effort if anyone picks it up:
