@@ -1759,6 +1759,28 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Replace an earlier post (Matrix `m.replace` analogue) — emits a
+    /// `msg_type=edit` envelope with `metadata.replaces=<offset>` carrying
+    /// the new payload. Append-only: hub keeps both records. Reader-side
+    /// `subscribe --collapse-edits` renders only the latest version (T-1321).
+    Edit {
+        /// Topic name
+        topic: String,
+
+        /// Original envelope offset being replaced
+        replaces: u64,
+
+        /// New payload (the corrected message body)
+        payload: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Post a reaction (Matrix `m.annotation` analogue) — shorthand for
     /// `channel post --msg-type reaction --reply-to <parent>` (T-1314)
     React {
@@ -1835,6 +1857,13 @@ pub(crate) enum ChannelAction {
         /// the count form `👍 ×2`. Sender order is first-seen.
         #[arg(long, requires = "reactions")]
         by_sender: bool,
+
+        /// Collapse `msg_type=edit` envelopes into the original post (T-1321).
+        /// In rendered view the original offset shows the latest edit text
+        /// with a `(edited)` marker; the standalone edit envelopes are hidden.
+        /// JSON mode is unaffected.
+        #[arg(long)]
+        collapse_edits: bool,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]

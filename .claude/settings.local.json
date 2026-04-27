@@ -511,7 +511,8 @@
       "Bash(touch .claude/settings.json.bak.test)",
       "Bash(rm .claude/settings.json.bak.test)",
       "mcp__termlink__termlink_overview",
-      "mcp__termlink__termlink_batch_run"
+      "mcp__termlink__termlink_batch_run",
+      "mcp__termlink__termlink_remote_ping"
     ]
   },
   "enabledMcpjsonServers": [

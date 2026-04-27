@@ -378,7 +378,8 @@ pub(crate) async fn cmd_channel_dm(
             // Default read mode: --resume + --reactions (the rich
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
-                &topic, 0, true, false, 100, false, None, None, true, false, hub, json_output,
+                &topic, 0, true, false, 100, false, None, None, true, false, true, hub,
+                json_output,
             )
             .await
         }
@@ -654,6 +655,87 @@ fn extract_reaction(m: &Value) -> Option<Reaction<'_>> {
     })
 }
 
+/// T-1321: an edit envelope (`msg_type=edit` carrying `metadata.replaces=<offset>`).
+/// `parent` is the original offset being replaced; `text` is the new payload.
+struct Edit<'a> {
+    parent: u64,
+    text: String,
+    sender: &'a str,
+    ts_ms: u64,
+}
+
+fn extract_edit(m: &Value) -> Option<Edit<'_>> {
+    if m.get("msg_type").and_then(|v| v.as_str()) != Some("edit") {
+        return None;
+    }
+    let parent = m
+        .get("metadata")
+        .and_then(|md| md.get("replaces"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<u64>().ok())?;
+    let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+    let ts_ms = m.get("ts_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+    let payload_b64 = m.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+    let text = base64::engine::general_purpose::STANDARD
+        .decode(payload_b64)
+        .ok()
+        .and_then(|b| String::from_utf8(b).ok())
+        .unwrap_or_default();
+    Some(Edit {
+        parent,
+        text,
+        sender,
+        ts_ms,
+    })
+}
+
+/// T-1321: pure helper — given a sequence of (parent_offset, ts_ms, text) edit
+/// records, return a map `parent → latest_text` where latest is decided by
+/// max ts_ms (ties broken by later position in sequence). The streaming
+/// subscribe loop inlines this logic to merge across batches, but the pure
+/// version here pins the algorithm under test.
+#[cfg(test)]
+fn collapse_edits_map(edits: &[(u64, u64, String)]) -> std::collections::HashMap<u64, String> {
+    let mut latest: std::collections::HashMap<u64, (u64, String)> = Default::default();
+    for (parent, ts, text) in edits {
+        latest
+            .entry(*parent)
+            .and_modify(|(prev_ts, prev_text)| {
+                if *ts >= *prev_ts {
+                    *prev_ts = *ts;
+                    *prev_text = text.clone();
+                }
+            })
+            .or_insert_with(|| (*ts, text.clone()));
+    }
+    latest.into_iter().map(|(k, (_, t))| (k, t)).collect()
+}
+
+/// T-1321: emit a `msg_type=edit` envelope with `metadata.replaces=<offset>`.
+/// Append-only: hub keeps the original; reader-side decides whether to render
+/// collapsed view. Old peers see two records (original + edit).
+pub(crate) async fn cmd_channel_edit(
+    topic: &str,
+    replaces: u64,
+    payload: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let metadata = vec![format!("replaces={replaces}")];
+    cmd_channel_post(
+        topic,
+        "edit",
+        Some(payload),
+        None,
+        None, // sender defaults to identity fingerprint
+        None, // reply_to not used (replaces carries the reference)
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
@@ -666,6 +748,7 @@ pub(crate) async fn cmd_channel_subscribe(
     in_reply_to: Option<u64>,
     aggregate_reactions: bool,
     by_sender: bool,
+    collapse_edits: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -702,6 +785,10 @@ pub(crate) async fn cmd_channel_subscribe(
     let mut reactions_by_parent: std::collections::HashMap<String, Vec<(String, String)>> =
         Default::default();
     let mut printed_parents: std::collections::HashSet<u64> = Default::default();
+    // T-1321: when collapse_edits is on, accumulate all edits by parent offset
+    // across batches (key = parent_offset, value = (latest_ts_ms, latest_text)).
+    let mut edits_by_parent: std::collections::HashMap<u64, (u64, String)> =
+        Default::default();
     loop {
         let mut params = json!({"topic": topic, "cursor": cursor, "limit": limit});
         if let Some(cid) = conversation_id
@@ -737,6 +824,24 @@ pub(crate) async fn cmd_channel_subscribe(
                 }
             }
         }
+        // T-1321: bucket edits in their own pass-1 pass so the original-message
+        // render in pass 2 can substitute the latest version.
+        if collapse_edits && !json_output {
+            for m in &msgs {
+                if let Some(e) = extract_edit(m) {
+                    let _ = e.sender; // (held only for symmetry; not rendered yet)
+                    edits_by_parent
+                        .entry(e.parent)
+                        .and_modify(|(prev_ts, prev_text)| {
+                            if e.ts_ms >= *prev_ts {
+                                *prev_ts = e.ts_ms;
+                                prev_text.clone_from(&e.text);
+                            }
+                        })
+                        .or_insert((e.ts_ms, e.text));
+                }
+            }
+        }
         for m in &msgs {
             if json_output {
                 println!("{}", serde_json::to_string(m)?);
@@ -745,6 +850,11 @@ pub(crate) async fn cmd_channel_subscribe(
             if aggregate_reactions && extract_reaction(m).is_some() {
                 continue; // already bucketed in pass 1
             }
+            // T-1321: in collapsed mode, suppress edit envelopes — the parent
+            // line will already show the latest version.
+            if collapse_edits && extract_edit(m).is_some() {
+                continue;
+            }
             let offset = m["offset"].as_u64().unwrap_or(0);
             let sender = m["sender_id"].as_str().unwrap_or("?");
             let msg_type = m["msg_type"].as_str().unwrap_or("?");
@@ -752,7 +862,15 @@ pub(crate) async fn cmd_channel_subscribe(
             let payload = base64::engine::general_purpose::STANDARD
                 .decode(payload_b64)
                 .unwrap_or_default();
-            let payload_str = String::from_utf8_lossy(&payload);
+            let mut payload_str = String::from_utf8_lossy(&payload).into_owned();
+            // T-1321: substitute latest edit text if this offset has been edited.
+            let mut edited_marker = "";
+            if collapse_edits
+                && let Some((_ts, latest)) = edits_by_parent.get(&offset)
+            {
+                payload_str = latest.clone();
+                edited_marker = " (edited)";
+            }
             // T-1313: visual threading marker — replies prefixed with ↳<parent>
             let reply_marker = m
                 .get("metadata")
@@ -765,7 +883,7 @@ pub(crate) async fn cmd_channel_subscribe(
             if msg_type == "reaction" {
                 println!("[{offset}{reply_marker} react] {sender} {payload_str}");
             } else {
-                println!("[{offset}{reply_marker}] {sender} {msg_type}: {payload_str}");
+                println!("[{offset}{reply_marker}] {sender} {msg_type}: {payload_str}{edited_marker}");
                 if aggregate_reactions {
                     let summary = reactions_summary(&reactions_by_parent, offset, by_sender);
                     if !summary.is_empty() {
@@ -992,5 +1110,30 @@ mod tests {
     fn dm_list_filter_returns_empty_when_no_match() {
         let topics = vec!["dm:x:y".to_string(), "team:foo".to_string()];
         assert!(dm_list_filter(&topics, "z").is_empty());
+    }
+
+    #[test]
+    fn collapse_edits_picks_latest() {
+        // (parent_offset, ts_ms, text)
+        let edits = vec![
+            (5, 1000, "v1".to_string()),
+            (5, 2000, "v2".to_string()),
+            (5, 1500, "v1.5".to_string()), // older than v2 → loses
+            (7, 500, "other-only".to_string()),
+        ];
+        let map = collapse_edits_map(&edits);
+        assert_eq!(map.get(&5).map(String::as_str), Some("v2"));
+        assert_eq!(map.get(&7).map(String::as_str), Some("other-only"));
+        assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn collapse_edits_handles_tied_timestamp_by_position() {
+        let edits = vec![
+            (1, 1000, "first".to_string()),
+            (1, 1000, "second".to_string()), // ts tie → later position wins
+        ];
+        let map = collapse_edits_map(&edits);
+        assert_eq!(map.get(&1).map(String::as_str), Some("second"));
     }
 }
