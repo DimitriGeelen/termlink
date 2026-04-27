@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1331: channel info --since <ts> — bound walk to recent slice for long-lived topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T16:57:29Z
+# ============================================================================
+
+task_id: T-1331
+task_name: "channel info --since <ts> — bound walk to recent slice for long-lived topics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T16:51:47Z
+completed: 2026-04-27T16:57:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T18:57:19+02:00
+last_commit: 2026-04-27T18:57:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel info --since <ms> — bounded slice for long-lived topics
+
+# Key outcomes
+outcomes:
+  - "`cli.rs` Info variant gains `--since <ms>: Option<i64>`."
+  - "`cmd_channel_info` accepts `since: Option<i64>`. When set, filters `all_msgs` by `ts >= since` before computing description/senders/receipts."
+  - "Pure helper `filter_msgs_since` with unit tests: bound is inclusive; empty input returns empty; all-before returns empty; all-after returns all."
+  - "Text output adds `(N since <ts>)` parenthetical to `Posts:` when --since is set."
+  - "JSON output adds `\"since\"` and `\"posts_since\"` fields when --since is set."
+  - "`cargo test -p termlink --bins filter_msgs_since` passes."
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean."
+  - "Smoke: `--since 0` matches no-flag output; `--since <future-ts>` shows zero senders/receipts."
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1331-channel-info---since-ts--bound-walk-to-r.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T18:57:19"
+    action: "T-1331: channel info --since <ms> — bounded slice for long-lived topics"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 15
+  lines_added: 219
+  lines_removed: 30
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1331-channel-info---since-ts--bound-walk-to-r.md
+generated_by: context-agent-hybrid
