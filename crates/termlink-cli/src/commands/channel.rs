@@ -220,6 +220,57 @@ pub(crate) async fn cmd_channel_post(
     Ok(())
 }
 
+/// T-1314: post a `msg_type=reaction` envelope pointing at a parent offset.
+/// Thin wrapper over `cmd_channel_post` — same path, fixed msg_type, reply_to
+/// set to the parent. Payload is the reaction string (typically an emoji or
+/// short tag like "ack", "wip", "done").
+pub(crate) async fn cmd_channel_react(
+    topic: &str,
+    parent_offset: u64,
+    reaction: &str,
+    sender_id: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    cmd_channel_post(
+        topic,
+        "reaction",
+        Some(reaction),
+        None,
+        sender_id,
+        Some(parent_offset),
+        &[],
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1314: payload-decoded view of a reaction envelope. Per-reactor identity
+/// is intentionally not surfaced in the v1 aggregator (only counts) — if a
+/// follow-up wants "👍 by sender-A, sender-B", extend this struct.
+struct Reaction<'a> {
+    parent: &'a str,
+    payload: String,
+}
+
+fn extract_reaction(m: &Value) -> Option<Reaction<'_>> {
+    if m.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+        return None;
+    }
+    let parent = m
+        .get("metadata")
+        .and_then(|md| md.get("in_reply_to"))
+        .and_then(|v| v.as_str())?;
+    let payload_b64 = m.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+    let payload = base64::engine::general_purpose::STANDARD
+        .decode(payload_b64)
+        .ok()
+        .and_then(|b| String::from_utf8(b).ok())
+        .unwrap_or_default();
+    Some(Reaction { parent, payload })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
@@ -228,11 +279,21 @@ pub(crate) async fn cmd_channel_subscribe(
     follow: bool,
     conversation_id: Option<&str>,
     in_reply_to: Option<u64>,
+    aggregate_reactions: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
     let mut cursor = cursor;
+    // T-1314: when aggregate_reactions is on, reactions are NOT printed inline.
+    // Instead they accumulate in this map (parent_offset → Vec<reaction_string>)
+    // and surface as a trailing summary on the parent line. Persists across
+    // poll loops in --follow mode so reactions arriving in later batches still
+    // attach to a parent printed in an earlier batch — best-effort: if you
+    // missed the parent, the reaction summary won't be retroactive.
+    let mut reactions_by_parent: std::collections::HashMap<String, Vec<String>> =
+        Default::default();
+    let mut printed_parents: std::collections::HashSet<u64> = Default::default();
     loop {
         let mut params = json!({"topic": topic, "cursor": cursor, "limit": limit});
         if let Some(cid) = conversation_id
@@ -253,27 +314,69 @@ pub(crate) async fn cmd_channel_subscribe(
         let result = client::unwrap_result(resp)
             .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
         let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        // T-1314: when aggregating, do a first pass to bucket new reactions
+        // into the persistent map, then a second pass to print non-reaction
+        // lines with their accumulated reaction summary inline (looking up
+        // reactions by THIS line's own offset). Reactions accumulated from
+        // earlier batches still attach to a parent re-rendered in this batch.
+        if aggregate_reactions && !json_output {
+            for m in &msgs {
+                if let Some(r) = extract_reaction(m) {
+                    reactions_by_parent
+                        .entry(r.parent.to_string())
+                        .or_default()
+                        .push(r.payload);
+                }
+            }
+        }
         for m in &msgs {
             if json_output {
                 println!("{}", serde_json::to_string(m)?);
-            } else {
-                let offset = m["offset"].as_u64().unwrap_or(0);
-                let sender = m["sender_id"].as_str().unwrap_or("?");
-                let msg_type = m["msg_type"].as_str().unwrap_or("?");
-                let payload_b64 = m["payload_b64"].as_str().unwrap_or("");
-                let payload = base64::engine::general_purpose::STANDARD
-                    .decode(payload_b64)
-                    .unwrap_or_default();
-                let payload_str = String::from_utf8_lossy(&payload);
-                // T-1313: visual threading marker — replies prefixed with ↳<parent>
-                let reply_marker = m
-                    .get("metadata")
-                    .and_then(|md| md.get("in_reply_to"))
-                    .and_then(|v| v.as_str())
-                    .map(|p| format!(" ↳{p}"))
-                    .unwrap_or_default();
-                println!("[{offset}{reply_marker}] {sender} {msg_type}: {payload_str}");
+                continue;
             }
+            if aggregate_reactions && extract_reaction(m).is_some() {
+                continue; // already bucketed in pass 1
+            }
+            let offset = m["offset"].as_u64().unwrap_or(0);
+            let sender = m["sender_id"].as_str().unwrap_or("?");
+            let msg_type = m["msg_type"].as_str().unwrap_or("?");
+            let payload_b64 = m["payload_b64"].as_str().unwrap_or("");
+            let payload = base64::engine::general_purpose::STANDARD
+                .decode(payload_b64)
+                .unwrap_or_default();
+            let payload_str = String::from_utf8_lossy(&payload);
+            // T-1313: visual threading marker — replies prefixed with ↳<parent>
+            let reply_marker = m
+                .get("metadata")
+                .and_then(|md| md.get("in_reply_to"))
+                .and_then(|v| v.as_str())
+                .map(|p| format!(" ↳{p}"))
+                .unwrap_or_default();
+            // T-1314: reaction envelopes get a compact non-aggregated render
+            // (msg_type prefix dropped; the `react` tag in the bracket is the cue).
+            if msg_type == "reaction" {
+                println!("[{offset}{reply_marker} react] {sender} {payload_str}");
+            } else {
+                println!("[{offset}{reply_marker}] {sender} {msg_type}: {payload_str}");
+                if aggregate_reactions {
+                    let summary = reactions_summary(&reactions_by_parent, offset);
+                    if !summary.is_empty() {
+                        println!("    └─ reactions: {summary}");
+                    }
+                    printed_parents.insert(offset);
+                }
+            }
+        }
+        // Drop reaction entries whose parent has now been printed so the map
+        // doesn't grow unbounded on long --follow runs. Reactions for parents
+        // we haven't yet seen stay queued — they'll attach when/if the parent
+        // arrives in a later batch (e.g. backfill from a cursor jump).
+        if aggregate_reactions && !json_output {
+            reactions_by_parent.retain(|k, _| {
+                k.parse::<u64>()
+                    .map(|p| !printed_parents.contains(&p))
+                    .unwrap_or(true)
+            });
         }
         let next = result["next_cursor"].as_u64().unwrap_or(cursor);
         if !follow {
@@ -282,6 +385,37 @@ pub(crate) async fn cmd_channel_subscribe(
         cursor = next;
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
+}
+
+/// T-1314: collapse a list of reaction strings into "👍 ×3, 👀 ×1" form,
+/// preserving first-seen order so output is deterministic for the operator.
+fn reactions_summary(
+    by_parent: &std::collections::HashMap<String, Vec<String>>,
+    parent: u64,
+) -> String {
+    let Some(list) = by_parent.get(&parent.to_string()) else {
+        return String::new();
+    };
+    let mut order: Vec<String> = Vec::new();
+    let mut counts: std::collections::HashMap<String, u32> = Default::default();
+    for r in list {
+        if !counts.contains_key(r) {
+            order.push(r.clone());
+        }
+        *counts.entry(r.clone()).or_insert(0) += 1;
+    }
+    order
+        .into_iter()
+        .map(|k| {
+            let n = counts[&k];
+            if n == 1 {
+                k
+            } else {
+                format!("{k} ×{n}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// T-1172: Read-only view of the local offline queue (T-1161).

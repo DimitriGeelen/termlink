@@ -1678,6 +1678,30 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Post a reaction (Matrix `m.annotation` analogue) — shorthand for
+    /// `channel post --msg-type reaction --reply-to <parent>` (T-1314)
+    React {
+        /// Topic name
+        topic: String,
+
+        /// Parent envelope offset within the topic
+        parent_offset: u64,
+
+        /// Reaction payload (typically a single emoji or short tag, e.g. "👍", "ack")
+        reaction: String,
+
+        /// Override sender_id (default: the identity file fingerprint)
+        #[arg(long)]
+        sender_id: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Read messages from a topic starting at a cursor (prints one envelope per line)
     Subscribe {
         /// Topic name
@@ -1703,6 +1727,13 @@ pub(crate) enum ChannelAction {
         /// whose `metadata.in_reply_to == <offset>` are returned).
         #[arg(long)]
         in_reply_to: Option<u64>,
+
+        /// Aggregate reaction envelopes under their parent (T-1314).
+        /// In non-JSON mode, reaction envelopes are NOT printed as standalone
+        /// lines; instead the parent line gets a trailing `(👍 ×3, 👀 ×1)`
+        /// summary. JSON mode is unaffected — all envelopes still emit.
+        #[arg(long)]
+        reactions: bool,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
