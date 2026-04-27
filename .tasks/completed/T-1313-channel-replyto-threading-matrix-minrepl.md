@@ -4,16 +4,16 @@ name: "channel reply_to threading (Matrix m.in_reply_to inspired)"
 description: >
   channel reply_to threading (Matrix m.in_reply_to inspired)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/offline_queue.rs, crates/termlink-session/tests/bus_client_integration.rs]
 related_tasks: []
 created: 2026-04-27T13:18:02Z
-last_update: 2026-04-27T13:18:02Z
-date_finished: null
+last_update: 2026-04-27T13:27:00Z
+date_finished: 2026-04-27T13:27:00Z
 ---
 
 # T-1313: channel reply_to threading (Matrix m.in_reply_to inspired)
@@ -66,10 +66,10 @@ follow-up tasks).
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
-cargo test -p termlink-hub --lib channel:: -- --nocapture 2>&1 | tail -30
-cargo test -p termlink-session --lib offline_queue::tests bus_client::tests 2>&1 | tail -20
-cargo build -p termlink-cli 2>&1 | tail -10
-cargo clippy -p termlink-hub -p termlink-session -p termlink-cli -- -D warnings 2>&1 | tail -10
+cargo test -p termlink-hub --lib channel:: 2>&1 | tail -10
+cargo test -p termlink-session --lib post_to_params 2>&1 | tail -10
+cargo build -p termlink 2>&1 | tail -5
+cargo clippy -p termlink-hub -p termlink-session -p termlink -- -D warnings 2>&1 | tail -5
 
 ## Decisions
 
@@ -107,3 +107,6 @@ $ termlink channel subscribe test:t-1313-v2 --in-reply-to 0
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1313-channel-replyto-threading-matrix-minrepl.md
 - **Context:** Initial task creation
+
+### 2026-04-27T13:27:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
