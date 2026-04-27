@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1313: channel reply_to threading (Matrix m.in_reply_to inspired)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T13:27:10Z
+# ============================================================================
+
+task_id: T-1313
+task_name: "channel reply_to threading (Matrix m.in_reply_to inspired)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T13:18:02Z
+completed: 2026-04-27T13:27:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T15:26:40+02:00
+last_commit: 2026-04-27T15:26:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel reply_to threading (Matrix m.in_reply_to inspired)
+
+# Key outcomes
+outcomes:
+  - "`PendingPost` carries optional `metadata: BTreeMap<String,String>` with `#[serde(default)]` for backward queue-deser compat"
+  - "`bus_client::post_to_params` includes `metadata` when non-empty (omitted otherwise — wire compat)"
+  - "CLI `termlink channel post --reply-to <offset>` injects `metadata.in_reply_to=<offset>`"
+  - "CLI `termlink channel post --metadata K=V` (repeatable) sets arbitrary metadata keys for forward extensibility"
+  - "CLI `termlink channel subscribe --in-reply-to <offset>` filters server-side"
+  - "CLI `termlink channel subscribe` non-JSON output prefixes replies with `↳<parent_offset>` for visual threading"
+  - "Hub `handle_channel_subscribe_with` filters by `in_reply_to` symmetric to existing `conversation_id` filter"
+  - "Hub test: post with metadata.in_reply_to → subscribe filtered by in_reply_to returns only matching envelope"
+  - "Hub test: post without metadata still works (no envelope-shape regression)"
+  - "All termlink-hub + termlink-session + termlink-cli tests pass; clippy clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "`metadata.in_reply_to=<offset>` as a routing-hint string, NOT included in `canonical_sign_bytes`."
+    rationale: "Follows the T-1287 metadata pattern (conversation_id, event_type are also unsigned routing hints) and keeps the change Tier-A — empty metadata → wire shape unchanged for legacy senders. Trusted-mesh threat model already accepts unsigned metadata; making a single Matrix-style rel-type signed would have forced a versioned canonical layout for one field."
+    alternatives_rejected: ["Adding `reply_to: Option<{topic, offset}>` as a new top-level signed field. Pros: cryptographically anchored; cons: requires conditional canonical layout, breaks any path that hashes the raw envelope. If the threat model later demands signed thread parents, revisit as a separate `reply_to` field with explicit canonical-version bump."]
+    chose: "Single integer (decimal string in metadata) within the same topic."
+    rationale: "All Matrix-equivalent use cases fit a single topic — agent conversations happen on a single channel. Cross-topic replies are rare and can be modeled as new posts that reference both topics in payload."
+    alternatives_rejected: ["`<topic>:<offset>` to enable cross-topic threading. Pros: more general; cons: adds parsing complexity to every consumer + filter and we have zero current use cases."]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-session/src/bus_client.rs"
+  - "crates/termlink-session/src/offline_queue.rs"
+  - "crates/termlink-session/tests/bus_client_integration.rs"
+  - ".tasks/active/T-1313-channel-replyto-threading-matrix-minrepl.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T15:26:40"
+    action: "T-1313: channel reply_to threading (Matrix m.in_reply_to inspired)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 8
+  lines_added: 316
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1313-channel-replyto-threading-matrix-minrepl.md
+generated_by: context-agent-hybrid
