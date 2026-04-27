@@ -389,6 +389,24 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::React {
+                topic,
+                parent_offset,
+                reaction,
+                sender_id,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_react(
+                    &topic,
+                    parent_offset,
+                    &reaction,
+                    sender_id.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Subscribe {
                 topic,
                 cursor,
@@ -396,6 +414,7 @@ async fn main() -> Result<()> {
                 follow,
                 conversation_id,
                 in_reply_to,
+                reactions,
                 hub,
                 json,
             } => {
@@ -406,6 +425,7 @@ async fn main() -> Result<()> {
                     follow,
                     conversation_id.as_deref(),
                     in_reply_to,
+                    reactions,
                     hub.as_deref(),
                     json,
                 )
