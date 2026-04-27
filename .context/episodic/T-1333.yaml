@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1333: Wildcard mention support — '*' means 'everyone' for posters and filters
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T17:09:26Z
+# ============================================================================
+
+task_id: T-1333
+task_name: "Wildcard mention support — '*' means 'everyone' for posters and filters"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T17:04:35Z
+completed: 2026-04-27T17:09:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T19:09:16+02:00
+last_commit: 2026-04-27T19:09:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wildcard mention support — '*' = '@room' for posters and filters
+
+# Key outcomes
+outcomes:
+  - "`mentions_match` recognizes `target == \"*\"` to mean \"any non-empty mentions match\", and recognizes csv containing `*` as matching any target."
+  - "Unit tests cover: target `*` matches non-empty csv, target `*` does not match empty csv, csv `*` matches any target, csv `alice,*` matches any target."
+  - "`cargo test -p termlink --bins mentions_match` passes (existing tests still pass; new `wildcard` cases pass)."
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean."
+  - "Smoke: `--mention \"*\"` round-trip (post + filter) shows the message; `--filter-mentions \"*\"` only surfaces posts with any mention."
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1333-wildcard-mention-support---means-everyon.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T19:09:16"
+    action: "T-1333: wildcard mention support — '*' = '@room' for posters and filters"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 13
+  lines_added: 151
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1333-wildcard-mention-support---means-everyon.md
+generated_by: context-agent-hybrid

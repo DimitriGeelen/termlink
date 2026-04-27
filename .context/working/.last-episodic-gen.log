@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T17:03:53Z ===
-task_id: T-1332
+=== episodic-gen invocation: 2026-04-27T17:09:26Z ===
+task_id: T-1333
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1332.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1333.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel unread <topic> [--sender] — count messages newer than the sender's last receipt
-  Duration: 0 days (5 min)
+  Task: Wildcard mention support — '*' means 'everyone' for posters and filters
+  Duration: 0 days (4 min)
   Updates: 2
   Commits: 1
-  Lines: +376 -55 across 17 files
-  Outcomes: 9 AC checked
-  Artifacts: 17 files tracked
+  Lines: +151 -14 across 13 files
+  Outcomes: 6 AC checked
+  Artifacts: 13 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1332-channel-unread-topic---sender--count-mes.md
+Source: /opt/termlink/.tasks/completed/T-1333-wildcard-mention-support---means-everyon.md
 --- exit code: 0 ---

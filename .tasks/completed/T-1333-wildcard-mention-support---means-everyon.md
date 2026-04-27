@@ -4,16 +4,16 @@ name: "Wildcard mention support — '*' means 'everyone' for posters and filters
 description: >
   Wildcard mention support — '*' means 'everyone' for posters and filters
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 created: 2026-04-27T17:04:35Z
-last_update: 2026-04-27T17:04:35Z
-date_finished: null
+last_update: 2026-04-27T17:09:17Z
+date_finished: 2026-04-27T17:09:17Z
 ---
 
 # T-1333: Wildcard mention support — '*' means 'everyone' for posters and filters
@@ -73,3 +73,6 @@ bash tests/e2e/agent-conversation.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1333-wildcard-mention-support---means-everyon.md
 - **Context:** Initial task creation
+
+### 2026-04-27T17:09:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
