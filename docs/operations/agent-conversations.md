@@ -633,6 +633,110 @@ termlink channel ancestors dm:alice:bob 17
 Cycle-safe: caps recursion at depth 1024. `--json` returns the chain
 as `{topic, leaf, ancestors: [...]}`.
 
+## Quote rendering (T-1344)
+
+`channel quote <topic> <offset>` renders an envelope inline with its
+parent quoted on a preceding `>` line. Useful when you've found a reply
+in some other view (e.g. `channel mentions` or a thread walk) and want
+context without juggling two terminal windows.
+
+```sh
+# Show offset 17 with its parent quoted above it.
+termlink channel quote dm:alice:bob 17
+# → > [9] alice chat: agreed — but let's bench it first
+#   [17] bob chat: bench is in CI — passing
+```
+
+For streaming reads, `subscribe --show-parent` does the same render-time
+quote inline for every reply in the stream. A one-time topic walk seeds
+the parent cache; live envelopes during `--follow` are added as they
+arrive. JSON mode (`--show-parent --json`) attaches a `parent` field to
+each emitted envelope (`null` when not a reply or the parent is missing
+from the cache).
+
+```sh
+termlink channel subscribe dm:alice:bob --show-parent
+# → [0] alice chat: hi bob, are you there?
+#   > [0] alice chat: hi bob, are you there?
+#   [1 ↳0] bob chat: yes alice, ready
+```
+
+## Pinned events (T-1345 — Matrix `m.room.pinned_events`)
+
+`channel pin <topic> <offset>` emits a `msg_type=pin` envelope with
+`metadata.pin_target=<offset>` and `metadata.action=pin`. The current pin
+set is computed by walking the topic and applying pin/unpin events in
+order — latest action per target wins. `channel pinned <topic>` walks
+the topic and renders the active set, sorted by most-recently-pinned
+descending.
+
+```sh
+# Pin a message.
+termlink channel pin dm:alice:bob 0
+
+# Show the current pin set.
+termlink channel pinned dm:alice:bob
+# → [0] pinned_by=alice ts=1761500000000: hi bob, are you there?
+
+# Remove a pin (latest action wins).
+termlink channel pin dm:alice:bob 0 --unpin
+```
+
+Append-only — the original posts and the pin/unpin envelopes are never
+overwritten. Old peers ignore unknown `msg_type` values, so pin events
+are visible only to clients that know to compute the pinned set.
+
+## Render filters (T-1346 / T-1347)
+
+Two render-side flags help focus a noisy topic without changing the
+hub-side cursor or filter logic:
+
+- **`--tail <N>`** — show only the last N envelopes after all aggregation
+  passes. Pure render-side slice; pagination unchanged. Conflicts with
+  `--follow` (tail of an unbounded stream is ill-defined).
+- **`--senders <csv>`** — drop envelopes whose `sender_id` is not in the
+  comma-separated allowlist. Strict equality (no substring match);
+  composes with all other passes.
+
+```sh
+# Last 5 envelopes from the topic.
+termlink channel subscribe dm:alice:bob --tail 5
+
+# Only what alice said.
+termlink channel subscribe dm:alice:bob --senders alice-fingerprint
+
+# Both at once: alice's last 3.
+termlink channel subscribe dm:alice:bob --tail 3 --senders alice-fingerprint
+```
+
+## Forwarding (T-1348 / T-1349 — Matrix forwarding)
+
+`channel forward <src> <offset> <dst>` copies an envelope from one topic
+to another while preserving provenance. The destination envelope keeps
+the original `msg_type` and `payload` but is signed by the forwarder
+(current identity); metadata records the source for trace-back:
+
+- `forwarded_from=<src_topic>:<offset>`
+- `forwarded_sender=<original sender_id>`
+
+```sh
+# Bob forwards alice's offset 0 from the DM into a fresh topic.
+termlink channel forward dm:alice:bob 0 announcements
+```
+
+`subscribe --show-forwards` renders forwarded envelopes with a
+`[fwd from <src>:<off> by <orig_sender>]` prefix line so a reader can
+spot the origin at a glance:
+
+```sh
+termlink channel subscribe announcements --show-forwards
+# → [fwd from dm:alice:bob:0 by alice-fingerprint]
+#   [0] bob-fingerprint chat: hi bob, are you there?
+```
+
+Without the flag, forwards render as normal posts (the metadata is still
+in the envelope; readers can opt in to the prefix).
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -644,10 +748,12 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 19 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 27 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
---unread, mentions inbox, ancestors, members), and exits 0 on success.
+--unread, mentions inbox, ancestors, members, subscribe --since, quote,
+subscribe --show-parent, pin/pinned, subscribe --tail, subscribe --senders,
+forward, subscribe --show-forwards), and exits 0 on success.
 Each assertion is content-level (`grep -F` for expected substrings) so
 re-runs are safe even though the canonical DM topic accumulates state
 across runs.
@@ -700,4 +806,11 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1339 — `channel mentions` (cross-topic @-mentions inbox)
 - T-1340 — `channel ancestors` (root→leaf reply chain)
 - T-1341 — `channel members` (per-sender activity summary)
+- T-1343 — `subscribe --since` (timestamp render filter)
+- T-1344 — `channel quote` + `subscribe --show-parent` (parent quoting)
+- T-1345 — `channel pin` / `channel pinned` (Matrix `m.room.pinned_events`)
+- T-1346 — `subscribe --tail N` (last-N render slice)
+- T-1347 — `subscribe --senders <csv>` (per-sender filter)
+- T-1348 — `channel forward` (Matrix-style forwarding with provenance)
+- T-1349 — `subscribe --show-forwards` (forward provenance prefix)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
