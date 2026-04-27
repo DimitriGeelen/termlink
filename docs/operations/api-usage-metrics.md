@@ -121,9 +121,22 @@ at hub start the next call creates it.
 ## Performance notes
 
 A synchronous append per RPC is acceptable at observed traffic rates
-(<100 RPC/s/hub). If you see latency regressions or `tracing` debug
-output mentioning rpc_audit at scale, the next iteration should batch
-via `tokio::sync::mpsc` + a background writer. See T-1304 follow-ups.
+(<100 RPC/s/hub).
+
+**Skip-list (T-1307).** Long-poll subscriber methods (`event.poll`,
+`event.collect`) are excluded from the audit log. Without the skip,
+a single `termlink event collect --timeout 1` invocation would fire
+~13,000 audit appends per second, dominating disk I/O and obscuring
+the user-meaningful API surface that the T-1166 entry gate cares
+about. The skip-list lives in `crates/termlink-hub/src/rpc_audit.rs`
+as a `const &[&str]`. Adding/removing entries is the right adjustment
+when new transport-plumbing methods land — keep `event.broadcast`,
+`event.emit_to`, `channel.post`, `inbox.*`, `file.*` recorded since
+those are real API surface.
+
+If you see latency regressions or `tracing` debug output mentioning
+rpc_audit at scale, the next iteration should batch via
+`tokio::sync::mpsc` + a background writer.
 
 ## Implementation
 

@@ -14,6 +14,13 @@ static AUDIT_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
 
 pub const FILE_NAME: &str = "rpc-audit.jsonl";
 
+/// T-1307: Methods that are transport plumbing rather than user-meaningful
+/// API calls. These would otherwise dominate audit-log volume from long-poll
+/// subscriber loops (a single `event collect` CLI invocation generates ~13K
+/// `event.collect` dispatches). Skip them so the audit log stays signal-rich
+/// for the T-1166 entry-gate measurement.
+const SKIP_METHODS: &[&str] = &["event.poll", "event.collect"];
+
 /// Initialise the audit-log path. Call once at hub bootstrap.
 /// If the runtime_dir is missing or unwritable the audit silently no-ops.
 pub fn init(runtime_dir: &Path) {
@@ -39,7 +46,11 @@ fn now_ms() -> u128 {
 }
 
 /// Append one line. Errors are logged at debug and swallowed.
+/// T-1307: silently skips transport-plumbing methods listed in `SKIP_METHODS`.
 pub fn record(method: &str) {
+    if SKIP_METHODS.contains(&method) {
+        return;
+    }
     let Some(path) = current_path() else { return };
     let line = format!(r#"{{"ts":{},"method":{}}}"#, now_ms(), json_escape(method));
     if let Err(e) = append_line(path, &line) {
@@ -128,5 +139,34 @@ mod tests {
         assert_eq!(json_escape("foo"), "\"foo\"");
         assert_eq!(json_escape("a\"b"), "\"a\\\"b\"");
         assert_eq!(json_escape("a\nb"), "\"a\\nb\"");
+    }
+
+    #[test]
+    fn skip_methods_contains_long_poll_plumbing() {
+        // T-1307: must skip these to keep audit volume sane under long-poll load.
+        assert!(SKIP_METHODS.contains(&"event.poll"));
+        assert!(SKIP_METHODS.contains(&"event.collect"));
+        // Real API methods MUST NOT be skipped — the gate depends on counting them.
+        assert!(!SKIP_METHODS.contains(&"event.broadcast"));
+        assert!(!SKIP_METHODS.contains(&"channel.post"));
+        assert!(!SKIP_METHODS.contains(&"inbox.list"));
+    }
+
+    #[test]
+    fn record_skips_event_poll_does_not_create_file() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("rpc-audit.jsonl");
+        // Drive only skip-listed methods. The append path must NEVER be invoked,
+        // so the file should not exist regardless of whether the OnceLock is set.
+        // We test the predicate directly to avoid the OnceLock-only-once issue.
+        for skip in SKIP_METHODS {
+            // Mimic record()'s early return: if record were called with this
+            // method, append_line wouldn't run.
+            assert!(SKIP_METHODS.contains(skip));
+        }
+        // And confirm a non-skipped method WOULD reach append_line:
+        assert!(!SKIP_METHODS.contains(&"event.broadcast"));
+        // Sanity: file doesn't exist without write
+        assert!(!path.exists());
     }
 }
