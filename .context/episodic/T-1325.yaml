@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1325: channel mentions — Matrix m.mention analogue (metadata.mentions + --filter-mentions)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T15:41:06Z
+# ============================================================================
+
+task_id: T-1325
+task_name: "channel mentions — Matrix m.mention analogue (metadata.mentions + --filter-mentions)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T15:35:02Z
+completed: 2026-04-27T15:40:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T17:40:55+02:00
+last_commit: 2026-04-27T17:40:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel mentions (--mention) + subscribe --filter-mentions (Matrix m.mention)
+
+# Key outcomes
+outcomes:
+  - "`cmd_channel_post` accepts `mentions: &[String]` — when non-empty, sets"
+  - "`Post` and `Dm` CLI variants get `--mention <id>` (repeatable: `Vec<String>`)"
+  - "`cmd_channel_subscribe` gains `--filter-mentions <id>` flag (Option<String>)"
+  - "Renderer prefixes a mention marker on lines that have `metadata.mentions`:"
+  - "Pure helper `mentions_match(metadata_csv: &str, target: &str) -> bool` —"
+  - "Unit test `mentions_match_csv_lookups` covering: hit, miss, padded with"
+  - "`cargo test -p termlink --bins` + clippy clean"
+  - "`agent-conversations.md` gains a \"Mentions (m.mention)\" section"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1325-channel-mentions--matrix-mmention-analog.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T17:40:55"
+    action: "T-1325: channel mentions (--mention) + subscribe --filter-mentions (Matrix m.mention)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 15
+  lines_added: 242
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1325-channel-mentions--matrix-mmention-analog.md
+generated_by: context-agent-hybrid
