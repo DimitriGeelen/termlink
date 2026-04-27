@@ -389,11 +389,13 @@ has 2 unread messages. This makes "who's behind?" a one-line check.
 }
 ```
 
-**Limits.** v1 walks the entire topic from offset 0 to find receipts.
-For very long topics this isn't free; with a default page size of 1000,
-a 100k-message topic costs 100 round-trips. Most "active conversation"
-topics are tiny — if this becomes a bottleneck, a hub-side `channel.receipts`
-RPC that aggregates server-side is a small follow-up.
+**Server-side aggregation (T-1329).** `channel receipts` first calls the
+hub-side `channel.receipts` RPC, which walks the topic once on the server
+and returns the aggregated `{sender_id, up_to, ts_unix_ms}` list. Old
+hubs (pre-T-1329) return JSON-RPC `MethodNotFound` (-32601), at which
+point the CLI transparently falls back to the legacy client-side walker
+(paginated `channel.subscribe` from offset 0). Output is identical
+between the two paths — operators don't need to know which fired.
 
 There is no auto-ack on subscribe; agents must explicitly post a receipt
 when they want their progress visible to others.

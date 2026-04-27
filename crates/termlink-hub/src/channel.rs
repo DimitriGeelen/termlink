@@ -595,6 +595,83 @@ pub(crate) async fn handle_channel_subscribe_with(
     .into()
 }
 
+/// `channel.receipts(topic)` → `{topic, receipts: [{sender_id, up_to, ts_unix_ms}, ...]}`.
+/// T-1329. Server-side aggregation of `m.receipt` envelopes — walks the topic
+/// once on the hub, keeps only the latest receipt per sender (latest-wins by
+/// `ts_unix_ms`; ties broken by higher `up_to`), returns a sorted-by-sender list.
+/// Mirrors the read-side walker the CLI used in T-1315 so output is identical.
+pub async fn handle_channel_receipts(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_receipts_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_receipts_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let iter = match bus.subscribe(&topic, 0) {
+        Ok(i) => i,
+        Err(termlink_bus::BusError::UnknownTopic(t)) => {
+            return ErrorResponse::new(
+                id,
+                error_code::CHANNEL_TOPIC_UNKNOWN,
+                &format!("unknown topic: {t}"),
+            )
+            .into();
+        }
+        Err(e) => {
+            return ErrorResponse::internal_error(id, &format!("channel.receipts: {e}")).into();
+        }
+    };
+    struct Receipt {
+        up_to: u64,
+        ts: i64,
+    }
+    let mut latest: HashMap<String, Receipt> = HashMap::new();
+    for item in iter {
+        let (_offset, env) = match item {
+            Ok(x) => x,
+            Err(e) => {
+                return ErrorResponse::internal_error(id, &format!("channel.receipts decode: {e}"))
+                    .into();
+            }
+        };
+        if env.msg_type != "receipt" {
+            continue;
+        }
+        let Some(up_to_str) = env.metadata.get("up_to") else {
+            continue;
+        };
+        let Ok(up_to) = up_to_str.parse::<u64>() else {
+            continue;
+        };
+        let ts = env.ts_unix_ms;
+        let sender = env.sender_id.clone();
+        match latest.get(&sender) {
+            Some(prev) if prev.ts > ts => {}
+            Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+            _ => {
+                latest.insert(sender, Receipt { up_to, ts });
+            }
+        }
+    }
+    let mut entries: Vec<(String, Receipt)> = latest.into_iter().collect();
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    let arr: Vec<Value> = entries
+        .iter()
+        .map(|(s, r)| json!({"sender_id": s, "up_to": r.up_to, "ts_unix_ms": r.ts}))
+        .collect();
+    Response::success(id, json!({"topic": topic, "receipts": arr})).into()
+}
+
 /// `dialog.presence(conversation_id)` → `{presences: [{agent_id, last_seen_ms}, ...]}`.
 /// T-1286 / T-243. Hub passively tracks senders per conversation_id by
 /// observing channel.post metadata. Unknown conversation_id returns an
@@ -1529,5 +1606,81 @@ mod tests {
         // mirroring the conversation_id filter semantics.
         let next = v["next_cursor"].as_u64().unwrap();
         assert_eq!(next, 4, "cursor advances over skipped records");
+    }
+
+    /// T-1329: post 5 envelopes (3 receipts for alice with overlapping
+    /// timestamps, 1 receipt for bob, 1 chat for charlie that must be ignored).
+    /// Verify the aggregator returns latest-per-sender, sorted by sender,
+    /// with both ts-tiebreak and msg_type filtering applied correctly.
+    #[tokio::test]
+    async fn receipts_aggregates_latest_per_sender() {
+        use std::collections::BTreeMap;
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dm:rcpt-test", Retention::Forever).unwrap();
+
+        let mk = |sender: &str, msg_type: &str, ts: i64, up_to: Option<&str>| -> Envelope {
+            let mut metadata: BTreeMap<String, String> = BTreeMap::new();
+            if let Some(u) = up_to {
+                metadata.insert("up_to".to_string(), u.to_string());
+            }
+            Envelope {
+                topic: "dm:rcpt-test".to_string(),
+                sender_id: sender.to_string(),
+                msg_type: msg_type.to_string(),
+                payload: vec![],
+                artifact_ref: None,
+                ts_unix_ms: ts,
+                metadata,
+            }
+        };
+
+        // alice: ts=100 up_to=5  → superseded
+        bus.post("dm:rcpt-test", &mk("alice", "receipt", 100, Some("5"))).await.unwrap();
+        // bob: ts=110 up_to=10
+        bus.post("dm:rcpt-test", &mk("bob", "receipt", 110, Some("10"))).await.unwrap();
+        // alice: ts=200 up_to=15 → newer ts, supersedes
+        bus.post("dm:rcpt-test", &mk("alice", "receipt", 200, Some("15"))).await.unwrap();
+        // alice: ts=200 up_to=20 → same ts, higher up_to wins tiebreak
+        bus.post("dm:rcpt-test", &mk("alice", "receipt", 200, Some("20"))).await.unwrap();
+        // charlie: ts=150 chat — NOT a receipt, must be filtered out
+        bus.post("dm:rcpt-test", &mk("charlie", "chat", 150, None)).await.unwrap();
+
+        let resp = handle_channel_receipts_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "dm:rcpt-test"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["topic"], "dm:rcpt-test");
+        let arr = v["receipts"].as_array().unwrap();
+        assert_eq!(arr.len(), 2, "should have 2 senders (alice + bob), charlie excluded");
+        assert_eq!(arr[0]["sender_id"], "alice");
+        assert_eq!(arr[0]["up_to"], 20, "tiebreak: higher up_to wins at same ts");
+        assert_eq!(arr[0]["ts_unix_ms"], 200);
+        assert_eq!(arr[1]["sender_id"], "bob");
+        assert_eq!(arr[1]["up_to"], 10);
+        assert_eq!(arr[1]["ts_unix_ms"], 110);
+    }
+
+    #[tokio::test]
+    async fn receipts_unknown_topic_returns_error() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_receipts_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "no-such-topic"}),
+        )
+        .await;
+        let (code, _msg) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+    }
+
+    #[tokio::test]
+    async fn receipts_missing_topic_param_returns_invalid_params() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_receipts_with(&bus, json!(1), &json!({})).await;
+        let (code, _msg) = unwrap_error(resp);
+        assert_eq!(code, -32602);
     }
 }

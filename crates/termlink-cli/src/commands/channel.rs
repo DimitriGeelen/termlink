@@ -519,67 +519,100 @@ pub(crate) async fn cmd_channel_ack(
     .await
 }
 
-/// T-1315: read-side aggregator. Subscribes from offset 0 (one-shot), filters
-/// to `msg_type=receipt`, keeps the most-recent receipt per sender, prints
-/// sorted. Cap at 1000 messages per page; for very long-lived topics this may
-/// need pagination — kept simple for v1 since most "active conversation"
-/// topics have low message counts.
+/// T-1315 (read-side aggregator) → T-1329 (server-side aggregator).
+/// Prefers `channel.receipts` RPC (hub aggregates in one walk); falls back
+/// to the legacy client-side walker when the hub returns `MethodNotFound`
+/// (-32601). Output text/JSON is identical between the two paths.
 pub(crate) async fn cmd_channel_receipts(
     topic: &str,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
-    // Walk the entire topic via repeated subscribe calls. Stops when a page
-    // returns fewer messages than the limit (signals end of stream). Keeps
-    // only the latest receipt per sender; previous receipts are overwritten.
     use std::collections::HashMap;
     struct Receipt {
         up_to: u64,
         ts: i64,
     }
     let mut latest: HashMap<String, Receipt> = HashMap::new();
-    let mut cursor: u64 = 0;
-    let limit: u64 = 1000;
-    loop {
-        let resp = client::rpc_call(
-            &sock,
-            method::CHANNEL_SUBSCRIBE,
-            json!({"topic": topic, "cursor": cursor, "limit": limit}),
-        )
-        .await
-        .context("Hub rpc_call (channel.subscribe) failed")?;
-        let result = client::unwrap_result(resp)
-            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
-        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
-        let n = msgs.len();
-        for m in &msgs {
-            if m.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
-                continue;
-            }
-            let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
-                Some(s) => s.to_string(),
-                None => continue,
-            };
-            let up_to = m
-                .get("metadata")
-                .and_then(|md| md.get("up_to"))
-                .and_then(|v| v.as_str())
-                .and_then(|s| s.parse::<u64>().ok());
-            let Some(up_to) = up_to else { continue };
-            let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
-            // Latest-wins by ts; ties broken by higher up_to.
-            match latest.get(&sender) {
-                Some(prev) if prev.ts > ts => {}
-                Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
-                _ => {
-                    latest.insert(sender, Receipt { up_to, ts });
-                }
+
+    // T-1329 fast path: hub-side aggregation. One RPC, no pagination.
+    let server_resp = client::rpc_call(
+        &sock,
+        method::CHANNEL_RECEIPTS,
+        json!({"topic": topic}),
+    )
+    .await
+    .context("Hub rpc_call (channel.receipts) failed")?;
+    let mut fall_back_to_walker = false;
+    match server_resp {
+        termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+            for entry in r.result["receipts"].as_array().cloned().unwrap_or_default() {
+                let sender = match entry.get("sender_id").and_then(|v| v.as_str()) {
+                    Some(s) => s.to_string(),
+                    None => continue,
+                };
+                let up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                let ts = entry.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+                latest.insert(sender, Receipt { up_to, ts });
             }
         }
-        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
-        if (n as u64) < limit {
-            break;
+        termlink_protocol::jsonrpc::RpcResponse::Error(e) if e.error.code == -32601 => {
+            // Old hub — fall back to the legacy client walker below.
+            fall_back_to_walker = true;
+        }
+        termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+            return Err(anyhow!(
+                "Hub returned error for channel.receipts: JSON-RPC error {}: {}",
+                e.error.code,
+                e.error.message
+            ));
+        }
+    }
+
+    if fall_back_to_walker {
+        let mut cursor: u64 = 0;
+        let limit: u64 = 1000;
+        loop {
+            let resp = client::rpc_call(
+                &sock,
+                method::CHANNEL_SUBSCRIBE,
+                json!({"topic": topic, "cursor": cursor, "limit": limit}),
+            )
+            .await
+            .context("Hub rpc_call (channel.subscribe) failed")?;
+            let result = client::unwrap_result(resp)
+                .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            for m in &msgs {
+                if m.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                    continue;
+                }
+                let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+                    Some(s) => s.to_string(),
+                    None => continue,
+                };
+                let up_to = m
+                    .get("metadata")
+                    .and_then(|md| md.get("up_to"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok());
+                let Some(up_to) = up_to else { continue };
+                let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
+                // Latest-wins by ts; ties broken by higher up_to.
+                match latest.get(&sender) {
+                    Some(prev) if prev.ts > ts => {}
+                    Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+                    _ => {
+                        latest.insert(sender, Receipt { up_to, ts });
+                    }
+                }
+            }
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < limit {
+                break;
+            }
         }
     }
     let mut entries: Vec<(String, &Receipt)> =
