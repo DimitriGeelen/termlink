@@ -401,11 +401,12 @@ async fn main() -> Result<()> {
                 mentions,
                 topic_only,
                 list,
+                unread,
                 hub,
                 json,
             } => {
                 if list {
-                    commands::channel::cmd_channel_dm_list(hub.as_deref(), json).await
+                    commands::channel::cmd_channel_dm_list(unread, hub.as_deref(), json).await
                 } else {
                     commands::channel::cmd_channel_dm(
                         peer.as_deref().expect("clap required_unless_present guarantees peer when !list"),
