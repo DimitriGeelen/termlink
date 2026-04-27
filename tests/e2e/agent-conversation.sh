@@ -143,6 +143,17 @@ expect_contains "[0]" "$out" "step 11: thread view shows root [0]"
 # Bob's reply at offset 1 → reply_to=0, depth 1 → indent of 2 spaces
 expect_contains "  [1]" "$out" "step 11: bob's reply at offset 1 is rendered indented"
 
+step "12. react --remove (T-1330): annotation removal nukes alice's 👀 reaction on bob's offset 0"
+# Alice posts a NEW transient reaction first, then removes it. We use a
+# unique payload string so we can assert it's gone without false-positive
+# matches against other steps' reactions.
+A channel react "$DM" 0 "🧪"
+out=$(A channel subscribe "$DM" --limit 100 --reactions)
+expect_contains "🧪" "$out" "step 12 pre: 🧪 reaction must be present before --remove"
+A channel react "$DM" 0 "🧪" --remove
+out=$(A channel subscribe "$DM" --limit 100 --reactions)
+expect_not_contains "🧪" "$out" "step 12: --remove should suppress the redacted reaction in aggregate"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

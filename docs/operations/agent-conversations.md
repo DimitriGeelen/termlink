@@ -344,8 +344,20 @@ the raw count form keeps doubles for "very enthusiastic" semantics.
 For agent conversations, `--by-sender` is usually what you want — "the
 reviewer ack'd" / "CI passed" beats "3 thumbs-ups" as a signal.
 
-**Limits.** There is no "unreact" — once posted, a reaction is in the
-log. Edits/redactions are not implemented (see Limits & next steps).
+**Removing a reaction (T-1330).** Matrix `m.annotation` removal: emit
+an `m.redaction` against the reaction event. The CLI provides
+`channel react <topic> <parent> <reaction> --remove` which walks the
+topic, finds the latest reaction by this identity matching
+(parent, payload), and emits a redaction targeting that offset:
+
+```sh
+termlink channel react topic 0 "👍" --remove
+```
+
+`subscribe --reactions` aggregation always skips redacted reactions
+(regardless of `--hide-redacted`) so the removed reaction simply
+disappears from the inline summary. Errors with a clear message if no
+matching reaction exists for this identity.
 
 ## Read receipts (T-1315)
 
