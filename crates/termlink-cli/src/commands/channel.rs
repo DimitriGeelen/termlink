@@ -713,6 +713,20 @@ pub(crate) async fn cmd_channel_react(
     cmd_channel_redact(topic, target, Some("reaction-remove"), hub, json_output).await
 }
 
+/// T-1331: pure helper — return references to envelopes with
+/// `ts >= since`. Bound is inclusive; envelopes lacking a `ts` field
+/// (shouldn't happen post-T-1287) are excluded.
+pub(crate) fn filter_msgs_since(msgs: &[Value], since: i64) -> Vec<&Value> {
+    msgs.iter()
+        .filter(|m| {
+            m.get("ts")
+                .and_then(|v| v.as_i64())
+                .map(|t| t >= since)
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
 /// T-1330: pure helper — scan a page of envelopes and return the highest
 /// offset of a reaction envelope that matches (sender, parent, payload).
 /// Returns None when nothing matches. Caller paginates and keeps the
@@ -1033,6 +1047,7 @@ pub(crate) fn summarize_senders(msgs: &[Value]) -> Vec<(String, u64)> {
 /// topic; reuses helpers from T-1315/T-1323.
 pub(crate) async fn cmd_channel_info(
     topic: &str,
+    since: Option<i64>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -1079,8 +1094,20 @@ pub(crate) async fn cmd_channel_info(
             break;
         }
     }
-    let description = latest_description(&all_msgs).map(|(_, d)| d);
-    let senders = summarize_senders(&all_msgs);
+    // T-1331: bound the slice when --since is set. Description / senders /
+    // receipts are computed over the slice; total `count` (above) stays
+    // unbounded so the operator can see "12 of 23 in last hour".
+    let bounded: Vec<Value> = match since {
+        Some(s) => filter_msgs_since(&all_msgs, s).into_iter().cloned().collect(),
+        None => Vec::new(),
+    };
+    let view: &[Value] = match since {
+        Some(_) => &bounded,
+        None => &all_msgs,
+    };
+    let posts_since = since.map(|_| view.len() as u64);
+    let description = latest_description(view).map(|(_, d)| d);
+    let senders = summarize_senders(view);
 
     // Latest receipt per sender (mirror cmd_channel_receipts logic).
     use std::collections::HashMap;
@@ -1089,7 +1116,7 @@ pub(crate) async fn cmd_channel_info(
         ts: i64,
     }
     let mut receipts: HashMap<String, Rcpt> = HashMap::new();
-    for m in &all_msgs {
+    for m in view {
         if m.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
             continue;
         }
@@ -1131,20 +1158,22 @@ pub(crate) async fn cmd_channel_info(
                 .map(|(s, r)| json!({"sender_id": s, "up_to": r.up_to, "ts_unix_ms": r.ts}))
                 .collect()
         };
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({
-                "topic": topic,
-                "retention": {
-                    "kind": retention_kind,
-                    "value": retention_value,
-                },
-                "count": count,
-                "description": description,
-                "senders": senders_json,
-                "receipts": receipts_json,
-            }))?
-        );
+        let mut obj = json!({
+            "topic": topic,
+            "retention": {
+                "kind": retention_kind,
+                "value": retention_value,
+            },
+            "count": count,
+            "description": description,
+            "senders": senders_json,
+            "receipts": receipts_json,
+        });
+        if let (Some(s), Some(ps), Some(map)) = (since, posts_since, obj.as_object_mut()) {
+            map.insert("since".to_string(), json!(s));
+            map.insert("posts_since".to_string(), json!(ps));
+        }
+        println!("{}", serde_json::to_string_pretty(&obj)?);
         return Ok(());
     }
 
@@ -1153,7 +1182,10 @@ pub(crate) async fn cmd_channel_info(
         Some(v) => println!("Retention: {retention_kind}:{v}"),
         None => println!("Retention: {retention_kind}"),
     }
-    println!("Posts: {count}");
+    match (since, posts_since) {
+        (Some(s), Some(ps)) => println!("Posts: {count} ({ps} since {s})"),
+        _ => println!("Posts: {count}"),
+    }
     println!(
         "Description: {}",
         description.as_deref().unwrap_or("(none)")
@@ -1953,6 +1985,55 @@ mod tests {
     fn find_my_reaction_offset_filters_by_payload() {
         let msgs = vec![react(2, "alice", "0", "👀")];
         assert_eq!(find_my_reaction_offset(&msgs, "alice", "0", "👍"), None);
+    }
+
+    #[test]
+    fn filter_msgs_since_inclusive_bound() {
+        let msgs = vec![
+            json!({"ts": 99, "msg_type": "chat"}),
+            json!({"ts": 100, "msg_type": "chat"}),
+            json!({"ts": 101, "msg_type": "chat"}),
+        ];
+        let out = filter_msgs_since(&msgs, 100);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0]["ts"], 100);
+        assert_eq!(out[1]["ts"], 101);
+    }
+
+    #[test]
+    fn filter_msgs_since_empty_input() {
+        let msgs: Vec<Value> = vec![];
+        assert!(filter_msgs_since(&msgs, 0).is_empty());
+    }
+
+    #[test]
+    fn filter_msgs_since_all_before_returns_empty() {
+        let msgs = vec![
+            json!({"ts": 50, "msg_type": "chat"}),
+            json!({"ts": 99, "msg_type": "chat"}),
+        ];
+        assert!(filter_msgs_since(&msgs, 100).is_empty());
+    }
+
+    #[test]
+    fn filter_msgs_since_all_after_returns_all() {
+        let msgs = vec![
+            json!({"ts": 200, "msg_type": "chat"}),
+            json!({"ts": 300, "msg_type": "chat"}),
+        ];
+        let out = filter_msgs_since(&msgs, 100);
+        assert_eq!(out.len(), 2);
+    }
+
+    #[test]
+    fn filter_msgs_since_drops_envelopes_without_ts() {
+        let msgs = vec![
+            json!({"msg_type": "chat"}), // no ts
+            json!({"ts": 100, "msg_type": "chat"}),
+        ];
+        let out = filter_msgs_since(&msgs, 0);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0]["ts"], 100);
     }
 
     #[test]
