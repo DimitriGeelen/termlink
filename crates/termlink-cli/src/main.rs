@@ -389,6 +389,25 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Ack {
+                topic,
+                up_to,
+                sender_id,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_ack(
+                    &topic,
+                    up_to,
+                    sender_id.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
+            ChannelAction::Receipts { topic, hub, json } => {
+                commands::channel::cmd_channel_receipts(&topic, hub.as_deref(), json).await
+            }
             ChannelAction::React {
                 topic,
                 parent_offset,
