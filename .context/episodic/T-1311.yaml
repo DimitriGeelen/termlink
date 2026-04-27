@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1311: Hub-side deprecation warn-log for legacy primitives — real-time T-1166 signal
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T12:45:42Z
+# ============================================================================
+
+task_id: T-1311
+task_name: "Hub-side deprecation warn-log for legacy primitives — real-time T-1166 signal"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T12:41:54Z
+completed: 2026-04-27T12:45:24Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-27T14:45:19+02:00
+last_commit: 2026-04-27T14:45:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub-side real-time deprecation warn-log for legacy primitives
+
+# Key outcomes
+outcomes:
+  - "`rpc_audit::warn_if_legacy(method, from)` checks if method is in the LEGACY set or matches `file.send.*` / `file.receive.*` chunked variants; returns immediately if not"
+  - "Rate-limit dedupe: same `(method, from)` pair logs at most once per 5-minute window. After the window expires, next call logs again"
+  - "Implementation uses a process-local `Mutex<HashMap<(String, String), Instant>>` or equivalent; entries older than the window are pruned opportunistically on each call (no separate gc thread)"
+  - "`warn_if_legacy` is called from `server.rs` immediately after `record()` (so behaviour can be enabled/disabled together)"
+  - "Log format: `tracing::warn!(method = %m, from = %f, \"deprecated primitive called — T-1166\")` — uses tracing fields, NOT just a single formatted string, so structured-log consumers can filter"
+  - "When `from` is None, log shows `from=(unknown)` to indicate the caller did not supply attribution"
+  - "At least 4 unit tests: (1) non-legacy method logs nothing, (2) legacy method logs once on first call, (3) repeated call within 5min window logs only once, (4) call after window expires logs again"
+  - "`cargo build -p termlink-hub` clean, `cargo clippy -p termlink-hub --tests -- -D warnings` clean"
+  - "`cargo test -p termlink-hub` 0 failures (regression check)"
+  - "`docs/operations/api-usage-metrics.md` gains a \"Real-time deprecation log\" subsection explaining the tracing warn output and how to filter for it (`journalctl -u termlink-hub | grep T-1166`)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/rpc_audit.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "docs/operations/api-usage-metrics.md"
+  - ".tasks/active/T-1311-hub-side-deprecation-warn-log-for-legacy.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T14:45:19"
+    action: "T-1311: hub-side real-time deprecation warn-log for legacy primitives"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1166, T-1304-followup, hub, observability, deprecation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 290
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1311-hub-side-deprecation-warn-log-for-legacy.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1309: Enrich rpc-audit with caller attribution (from field) — T-1166 hunt-down enabler
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T12:33:29Z
+# ============================================================================
+
+task_id: T-1309
+task_name: "Enrich rpc-audit with caller attribution (from field) — T-1166 hunt-down enabler"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T12:26:32Z
+completed: 2026-04-27T12:33:11Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-27T14:31:32+02:00
+last_commit: 2026-04-27T14:31:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rpc-audit caller attribution (from field) — T-1166 hunt enabler
+
+# Key outcomes
+outcomes:
+  - "`rpc_audit::record(method, from)` accepts an optional caller string; omits `from` from the JSON line when None"
+  - "Existing call site in `server.rs` extracts optional `from` from `req.params` (top-level field) and threads it through; non-string values treated as None"
+  - "Audit line shape: `{\"ts\":...,\"method\":\"...\",\"from\":\"...\"}` when present, `{\"ts\":...,\"method\":\"...\"}` when absent — both must remain valid JSON parseable by the existing Python tally script"
+  - "`fw metrics api-usage` shows legacy callers grouped by `from`, with `(unknown)` for entries missing the field — both trend mode (uses 60d window) and `--last-Nd N` single-window mode"
+  - "At least 3 unit tests in `rpc_audit.rs`: (1) record with from writes the field, (2) record without from omits the field, (3) skip-list still applies"
+  - "All existing rpc_audit tests still pass"
+  - "`cargo build -p termlink-hub` clean, `cargo clippy -p termlink-hub --tests -- -D warnings` clean"
+  - "`docs/operations/api-usage-metrics.md` line-format section updated to document the new optional field"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/rpc_audit.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "docs/operations/api-usage-metrics.md"
+  - ".tasks/active/T-1309-enrich-rpc-audit-with-caller-attribution.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T14:31:32"
+    action: "T-1309: rpc-audit caller attribution (from field) — T-1166 hunt enabler"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1166, T-1304-followup, hub, telemetry, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 4
+  lines_added: 168
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1309-enrich-rpc-audit-with-caller-attribution.md
+generated_by: context-agent-hybrid

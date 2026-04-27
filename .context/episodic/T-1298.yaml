@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1298: Hub topic-name validation — reject malformed strings at emit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T06:16:40Z
+# ============================================================================
+
+task_id: T-1298
+task_name: "Hub topic-name validation — reject malformed strings at emit"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T21:03:19Z
+completed: 2026-04-27T06:16:38Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-04-26T23:03:49+02:00
+last_commit: 2026-04-27T00:31:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Capture hub topic-name validation gap (T-1297 spinoff). hub rejects malformed topic names at emit (T-1297 spinoff)
+
+# Key outcomes
+outcomes:
+  - "New `validate_topic_name(&str) -> Result<(), String>` helper in `crates/termlink-hub/src/router.rs` — char-class check `[a-z0-9._:-]`, length cap 256, returns descriptive error string on failure (mentions allowed-set + offending byte position)"
+  - "`handle_event_broadcast` and `handle_event_emit_to` call the validator before any side-effects; reject with `ErrorResponse::new(id, -32602, \"...\")` including the offending topic substring (truncated to 64 chars in the error)"
+  - "Existing tests stay green — 241 hub tests, no breakage; all real topics in repo (agent.request, inbox:carol, channel.list, etc.) accepted by validator"
+  - "Six new unit tests in `router.rs::tests`: real-topics accepted, uppercase rejected, XML-interp rejected, whitespace/newline/tab rejected, >256-char rejected, empty rejected"
+  - "Workspace tests clean — 241 termlink-hub unit, all green"
+  - "Workspace `cargo clippy --all-targets -- -D warnings` clean"
+  - "[RUBBER-STAMP] Verify post-deploy that no legitimate emit started failing"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/router.rs"
+  - ".tasks/active/T-1298-hub-topic-name-validation--reject-malfor.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-26T23:03:49"
+    action: "T-1298: Capture hub topic-name validation gap (T-1297 spinoff)"
+  - time: "2026-04-27T00:31:47"
+    action: "T-1298: hub rejects malformed topic names at emit (T-1297 spinoff)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 553 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, hub, validation, topic, T-1297-spinoff]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 553
+  commits: 2
+  files_changed: 2
+  lines_added: 195
+  lines_removed: 23
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1298-hub-topic-name-validation--reject-malfor.md
+generated_by: context-agent-hybrid

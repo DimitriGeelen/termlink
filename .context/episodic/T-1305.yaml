@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1305: T-1304 follow-up: fabric card enrichment + minor polish
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T11:20:22Z
+# ============================================================================
+
+task_id: T-1305
+task_name: "T-1304 follow-up: fabric card enrichment + minor polish"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T11:19:27Z
+completed: 2026-04-27T11:20:21Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T13:20:21+02:00
+last_commit: 2026-04-27T13:20:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  enrich rpc_audit fabric card (T-1304 follow-up, PL-086)
+
+# Key outcomes
+outcomes:
+  - "`.fabric/components/crates-termlink-hub-src-rpc_audit.yaml` enriched with: real `purpose` line describing T-1304 audit-log behaviour, tags including `T-1304/T-1166/telemetry/observability`, `depended_by` edge to `server.rs`"
+  - "No regression: `cargo build -p termlink-hub` and `cargo test -p termlink-hub rpc_audit` still green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-hub-src-rpc_audit.yaml"
+  - ".tasks/active/T-1305-t-1304-follow-up-fabric-card-enrichment-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T13:20:21"
+    action: "T-1305: enrich rpc_audit fabric card (T-1304 follow-up, PL-086)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 90
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1305-t-1304-follow-up-fabric-card-enrichment-.md
+generated_by: context-agent-hybrid

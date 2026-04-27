@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1308: fw metrics api-usage: multi-window trend output (1d/7d/30d/60d) for incremental feedback
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T12:04:31Z
+# ============================================================================
+
+task_id: T-1308
+task_name: "fw metrics api-usage: multi-window trend output (1d/7d/30d/60d) for incremental feedback"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T12:01:40Z
+completed: 2026-04-27T12:04:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T14:03:58+02:00
+last_commit: 2026-04-27T14:04:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  api-usage trend mode docs + ACs (incremental feedback). fix verify command (literal Python format string)
+
+# Key outcomes
+outcomes:
+  - "`.agentic-framework/agents/metrics/api-usage.sh` adds a \"trend\" mode (default when `--last-Nd` is not passed) that computes per-window stats for [1, 7, 30, 60] days and prints a trend table"
+  - "Single-window mode (`--last-Nd N`) preserved exactly — same output, same exit code"
+  - "Trend table shows: window | total RPCs | legacy count | legacy % | gate-status (PASS/FAIL/N-A) per row"
+  - "Trend mode exit code = 60d row's gate status (so existing CI usage is unchanged when invoked with no flag)"
+  - "Top-10 method tally still printed (using the 60d window, since that's the canonical T-1166 gate window)"
+  - "Operator docs (`docs/operations/api-usage-metrics.md`) updated with: \"Reading the report\" section showing the trend output; \"When to look\" guidance — start checking from day 1, watch the 1d/7d trajectory toward zero"
+  - "Smoke test: against T-1306-fixture-pass (1 legacy in 201 calls, all recent), trend mode shows PASS at all four windows; against T-1306-fixture (1 legacy in 10 over 7d, 4 in 13 over 30d), trend shows FAIL@1d/7d, FAIL@30d/60d"
+  - "`bash .agentic-framework/agents/metrics/api-usage.sh --runtime-dir <fixture>` (no other flags) produces the trend report and exits with the correct gate code"
+  - "Sync to upstream framework via patched copy + git -C commit + push (same as T-1304)"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "fix verify command (literal Python format string)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/operations/api-usage-metrics.md"
+  - ".tasks/active/T-1308-fw-metrics-api-usage-multi-window-trend-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T14:03:58"
+    action: "T-1308: api-usage trend mode docs + ACs (incremental feedback)"
+  - time: "2026-04-27T14:04:29"
+    action: "T-1308: fix verify command (literal Python format string)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 2
+  lines_added: 127
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1308-fw-metrics-api-usage-multi-window-trend-.md
+generated_by: context-agent-hybrid
