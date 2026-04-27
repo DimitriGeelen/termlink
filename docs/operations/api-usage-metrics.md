@@ -23,12 +23,16 @@ Override at runtime with `TERMLINK_RUNTIME_DIR` or `--runtime-dir`.
 ## Line format
 
 ```json
-{"ts":1714234567890,"method":"event.broadcast"}
+{"ts":1714234567890,"method":"event.broadcast","from":"framework-agent"}
 ```
 
 - `ts` — UNIX milliseconds (UTC)
 - `method` — the JSON-RPC `method` field as the client sent it (no
   normalization)
+- `from` — *(T-1309, optional)* caller display_name when the request
+  carries a top-level `from` parameter. Omitted when the caller did not
+  supply it (legacy clients, methods that don't carry the field). Surfaces
+  as `(unknown)` in the caller breakdown.
 
 The hub records every parseable request — including auth attempts and
 permission-denied calls. The audit log answers "what was asked of the
@@ -62,8 +66,19 @@ fw metrics api-usage
           29    0.1%  event.broadcast ←legacy
         ...
 
+  Legacy callers (last 60d):
+          23  event.broadcast       framework-agent
+           4  inbox.list            ring20-mgmt
+           2  event.broadcast       (unknown)
+
   Gate threshold: 1.00% (over 60-day window — T-1166)
 ```
+
+The **Legacy callers** breakdown (T-1309) names the caller's display_name
+for every legacy invocation in the window. This is the *who* dimension —
+operators driving migration use it to know which session to migrate next.
+`(unknown)` covers entries from clients that didn't supply `from`
+(legacy clients pre-T-1309, or methods that don't carry the field).
 
 **Why trend mode is the default.** Don't wait 60 days to find out a
 migration didn't land. Watch the 1d / 7d trajectory toward zero from
