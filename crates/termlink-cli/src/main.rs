@@ -434,6 +434,7 @@ async fn main() -> Result<()> {
                 conversation_id,
                 in_reply_to,
                 reactions,
+                by_sender,
                 hub,
                 json,
             } => {
@@ -445,6 +446,7 @@ async fn main() -> Result<()> {
                     conversation_id.as_deref(),
                     in_reply_to,
                     reactions,
+                    by_sender,
                     hub.as_deref(),
                     json,
                 )
