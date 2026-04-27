@@ -174,6 +174,14 @@ pub async fn run_with_tcp(
     let bus_root = termlink_session::discovery::runtime_dir().join("bus");
     crate::channel::init_bus(bus_root);
 
+    // T-1300: Initialize the topic↔role lint engine. Reads
+    // <runtime_dir>/topic_roles.yaml if present, otherwise installs the
+    // built-in defaults from T-1297 § Spike 3. Spawns a SIGHUP watcher so
+    // operators can edit the rule file and reload without a hub restart.
+    let runtime_dir = termlink_session::discovery::runtime_dir();
+    crate::topic_lint::init(&runtime_dir);
+    crate::topic_lint::spawn_sighup_watcher();
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {

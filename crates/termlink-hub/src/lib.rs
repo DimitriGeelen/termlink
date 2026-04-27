@@ -9,6 +9,7 @@ pub mod remote_store;
 pub mod route_cache;
 pub mod router;
 pub mod template_cache;
+pub mod topic_lint;
 pub mod trust;
 pub mod server;
 pub mod supervisor;

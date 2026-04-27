@@ -196,6 +196,16 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     if !targets.is_empty() {
         params["targets"] = serde_json::json!(targets);
     }
+    // T-1300: Populate `from` from $TERMLINK_SESSION_ID so the hub-side
+    // soft-lint can resolve the caller's roles. Operators can override by
+    // passing an explicit `from:` field in the payload (we do not overwrite
+    // a top-level `from` that is already present).
+    if params.get("from").is_none()
+        && let Ok(sid) = std::env::var("TERMLINK_SESSION_ID")
+        && !sid.is_empty()
+    {
+        params["from"] = serde_json::json!(sid);
+    }
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc = client::rpc_call(&hub_socket, "event.broadcast", params);

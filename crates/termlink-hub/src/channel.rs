@@ -206,6 +206,53 @@ pub(crate) async fn mirror_inbox_deposit_with(
     }
 }
 
+/// T-1300: Topic the soft-lint engine dual-writes warnings to. Subscribers
+/// (Watchtower, ad-hoc operator scripts) read from this topic to surface
+/// routing violations without disturbing the live emit path.
+pub const ROUTING_LINT_TOPIC: &str = "routing:lint";
+
+/// T-1300: Mirror a `routing.lint.warning` envelope into the
+/// `routing:lint` channel topic. Best-effort — never blocks the caller; the
+/// lint itself is soft (the originating emit always succeeds regardless).
+/// `msg_type` is set to the emit method ("event.broadcast" / "event.emit_to")
+/// so consumers can filter by call site.
+pub async fn mirror_routing_lint_warning(method: &str, payload: &Value) {
+    let Some(bus) = bus() else {
+        tracing::debug!("T-1300 mirror: bus not initialised — skipping");
+        return;
+    };
+    if let Err(e) = bus.create_topic(ROUTING_LINT_TOPIC, Retention::Messages(1000)) {
+        tracing::warn!(
+            topic = ROUTING_LINT_TOPIC,
+            error = %e,
+            "T-1300 mirror: create_topic failed — will still try bus.post"
+        );
+    }
+    let payload_bytes = match serde_json::to_vec(payload) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(error = %e, "T-1300 mirror: failed to serialize payload");
+            return;
+        }
+    };
+    let ts_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let env = Envelope {
+        topic: ROUTING_LINT_TOPIC.to_string(),
+        sender_id: "hub:topic_lint".to_string(),
+        msg_type: method.to_string(),
+        payload: payload_bytes,
+        artifact_ref: None,
+        ts_unix_ms,
+        metadata: Default::default(),
+    };
+    if let Err(e) = bus.post(ROUTING_LINT_TOPIC, &env).await {
+        tracing::warn!(error = %e, "T-1300 mirror: bus.post failed");
+    }
+}
+
 pub(crate) fn bus() -> Option<&'static Bus> {
     BUS.get()
 }
