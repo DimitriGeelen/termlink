@@ -4,16 +4,16 @@ name: "channel subscribe persistent local cursor (Matrix /sync next_batch analog
 description: >
   channel subscribe persistent local cursor (Matrix /sync next_batch analogue)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T13:43:51Z
-last_update: 2026-04-27T13:43:51Z
-date_finished: null
+last_update: 2026-04-27T13:47:17Z
+date_finished: 2026-04-27T13:47:17Z
 ---
 
 # T-1318: channel subscribe persistent local cursor (Matrix /sync next_batch analogue)
@@ -132,3 +132,6 @@ grep -q "by-sender" docs/operations/agent-conversations.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1318-channel-subscribe-persistent-local-curso.md
 - **Context:** Initial task creation
+
+### 2026-04-27T13:47:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
