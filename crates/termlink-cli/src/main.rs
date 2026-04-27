@@ -373,9 +373,14 @@ async fn main() -> Result<()> {
                 sender_id,
                 reply_to,
                 metadata,
+                mentions,
                 hub,
                 json,
             } => {
+                let mut metadata = metadata;
+                if !mentions.is_empty() {
+                    metadata.push(format!("mentions={}", mentions.join(",")));
+                }
                 commands::channel::cmd_channel_post(
                     &topic,
                     &msg_type,
@@ -393,6 +398,7 @@ async fn main() -> Result<()> {
                 peer,
                 send,
                 reply_to,
+                mentions,
                 topic_only,
                 list,
                 hub,
@@ -405,6 +411,7 @@ async fn main() -> Result<()> {
                         peer.as_deref().expect("clap required_unless_present guarantees peer when !list"),
                         send.as_deref(),
                         reply_to,
+                        &mentions,
                         topic_only,
                         hub.as_deref(),
                         json,
@@ -511,6 +518,7 @@ async fn main() -> Result<()> {
                 by_sender,
                 collapse_edits,
                 hide_redacted,
+                filter_mentions,
                 hub,
                 json,
             } => {
@@ -527,6 +535,7 @@ async fn main() -> Result<()> {
                     by_sender,
                     collapse_edits,
                     hide_redacted,
+                    filter_mentions.as_deref(),
                     hub.as_deref(),
                     json,
                 )

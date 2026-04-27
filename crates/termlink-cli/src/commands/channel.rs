@@ -338,6 +338,7 @@ pub(crate) async fn cmd_channel_dm(
     peer: &str,
     send: Option<&str>,
     reply_to: Option<u64>,
+    mentions: &[String],
     topic_only: bool,
     hub: Option<&str>,
     json_output: bool,
@@ -361,6 +362,12 @@ pub(crate) async fn cmd_channel_dm(
     ensure_topic(&sock, &topic).await?;
     match send {
         Some(msg) => {
+            // T-1325: pack mentions into metadata if provided
+            let metadata: Vec<String> = if mentions.is_empty() {
+                Vec::new()
+            } else {
+                vec![format!("mentions={}", mentions.join(","))]
+            };
             cmd_channel_post(
                 &topic,
                 "chat",
@@ -368,7 +375,7 @@ pub(crate) async fn cmd_channel_dm(
                 None,
                 None, // sender_id defaults to identity fingerprint
                 reply_to,
-                &[],
+                &metadata,
                 hub,
                 json_output,
             )
@@ -379,7 +386,7 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                hub, json_output,
+                None, hub, json_output,
             )
             .await
         }
@@ -711,6 +718,40 @@ fn collapse_edits_map(edits: &[(u64, u64, String)]) -> std::collections::HashMap
     latest.into_iter().map(|(k, (_, t))| (k, t)).collect()
 }
 
+/// T-1325: pure helper — does the comma-separated `mentions` CSV contain the
+/// target id? Strict (comma split + whitespace trim, no substring match).
+/// Empty CSV and empty target both return false.
+pub(crate) fn mentions_match(csv: &str, target: &str) -> bool {
+    let target = target.trim();
+    if target.is_empty() {
+        return false;
+    }
+    csv.split(',').any(|id| id.trim() == target)
+}
+
+/// T-1325: extract mentions CSV from `metadata.mentions` if present.
+fn extract_mentions(m: &Value) -> Option<String> {
+    m.get("metadata")
+        .and_then(|md| md.get("mentions"))
+        .and_then(|v| v.as_str())
+        .map(String::from)
+}
+
+/// T-1325: render `[@alice,bob]` style marker truncated to first 3 ids.
+fn render_mention_marker(csv: &str) -> String {
+    let ids: Vec<&str> = csv.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    if ids.is_empty() {
+        return String::new();
+    }
+    let shown: Vec<&str> = ids.iter().take(3).copied().collect();
+    let suffix = if ids.len() > 3 {
+        format!("+{}", ids.len() - 3)
+    } else {
+        String::new()
+    };
+    format!(" @{}{suffix}", shown.join(","))
+}
+
 /// T-1324: pure helper — count `chat`-style posts per sender, ignoring
 /// metadata envelopes (reaction/edit/redaction/topic_metadata/receipt).
 /// Returns (sender_id, post_count) sorted by count descending, then by
@@ -1031,6 +1072,7 @@ pub(crate) async fn cmd_channel_subscribe(
     by_sender: bool,
     collapse_edits: bool,
     hide_redacted: bool,
+    filter_mentions: Option<&str>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -1196,12 +1238,25 @@ pub(crate) async fn cmd_channel_subscribe(
                 .and_then(|v| v.as_str())
                 .map(|p| format!(" ↳{p}"))
                 .unwrap_or_default();
+            // T-1325: mention marker (`@alice,bob` truncated to first 3) and
+            // optional `--filter-mentions <id>` client-side filter.
+            let mentions_csv = extract_mentions(m);
+            let mention_marker = mentions_csv
+                .as_deref()
+                .map(render_mention_marker)
+                .unwrap_or_default();
+            if let Some(target) = filter_mentions {
+                let csv = mentions_csv.as_deref().unwrap_or("");
+                if !mentions_match(csv, target) {
+                    continue;
+                }
+            }
             // T-1314: reaction envelopes get a compact non-aggregated render
             // (msg_type prefix dropped; the `react` tag in the bracket is the cue).
             if msg_type == "reaction" {
-                println!("[{offset}{reply_marker} react] {sender} {payload_str}");
+                println!("[{offset}{reply_marker}{mention_marker} react] {sender} {payload_str}");
             } else {
-                println!("[{offset}{reply_marker}] {sender} {msg_type}: {payload_str}{edited_marker}");
+                println!("[{offset}{reply_marker}{mention_marker}] {sender} {msg_type}: {payload_str}{edited_marker}");
                 if aggregate_reactions {
                     let summary = reactions_summary(&reactions_by_parent, offset, by_sender);
                     if !summary.is_empty() {
@@ -1479,6 +1534,24 @@ mod tests {
             json!({"msg_type": "topic_metadata", "ts_ms": 1, "metadata": {}}),
         ];
         assert_eq!(latest_description(&malformed), None);
+    }
+
+    #[test]
+    fn mentions_match_csv_lookups() {
+        // Hit
+        assert!(mentions_match("alice,bob,carol", "bob"));
+        // Miss
+        assert!(!mentions_match("alice,bob", "carol"));
+        // Whitespace tolerated on both sides
+        assert!(mentions_match("alice, bob , carol", "bob"));
+        assert!(mentions_match("alice,bob", "  bob  "));
+        // Empty CSV / empty target
+        assert!(!mentions_match("", "bob"));
+        assert!(!mentions_match("alice,bob", ""));
+        assert!(!mentions_match("alice,bob", "   "));
+        // Substring is NOT a match (strict comma split)
+        assert!(!mentions_match("alicia,bobby", "alice"));
+        assert!(!mentions_match("alicebob", "alice"));
     }
 
     #[test]
