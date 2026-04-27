@@ -737,6 +737,49 @@ termlink channel subscribe announcements --show-forwards
 Without the flag, forwards render as normal posts (the metadata is still
 in the envelope; readers can opt in to the prefix).
 
+## Typing indicators (T-1351 — Matrix `m.typing`)
+
+`channel typing <topic> --emit [--ttl-ms N]` posts a `msg_type=typing`
+envelope with `metadata.expires_at_ms=<now+ttl>`. Default TTL is 30000ms
+(Matrix's 30s typing window). `channel typing <topic>` (default = list
+mode) walks the topic, drops envelopes whose `expires_at_ms <= now_ms`,
+and reports active typers — one row per sender, latest envelope wins.
+
+```sh
+# Emit a 30s typing indicator.
+termlink channel typing dm:alice:bob --emit
+# → Posted to dm:alice:bob — offset=42, ts=…
+
+# Who's currently typing?
+termlink channel typing dm:alice:bob
+# → alice-fingerprint: typing (expires in 27412ms)
+```
+
+Append-only. Old peers see typing envelopes as unknown `msg_type` and
+ignore them. The latest-per-sender rule means a fresh emit replaces a
+previous one — including replacing an active indicator with a shorter
+TTL (the most recent intent wins, even if it's about to expire).
+
+## Windowed reads (T-1343 / T-1352)
+
+`subscribe --since <ms>` and `subscribe --until <ms>` are render-side
+timestamp filters that compose into an inclusive `[since, until]`
+window. Pagination/cursor behavior is unchanged — both filters drop
+envelopes from the printed output only.
+
+```sh
+# Yesterday's posts only (since/until in ms-since-epoch).
+SINCE=$(date -d 'yesterday 00:00' +%s)000
+UNTIL=$(date -d 'today 00:00' +%s)000
+termlink channel subscribe dm:alice:bob \
+  --since "$SINCE" --until "$UNTIL"
+```
+
+Defensive keep: ts-less envelopes (rare; e.g. pre-T-1287 envelopes from
+old hubs that didn't carry timestamps) pass through both filters
+unchanged. If you only want envelopes that explicitly fall inside the
+window, post-filter with `--json | jq` on the `ts` field.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -748,12 +791,13 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 27 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 29 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
 subscribe --show-parent, pin/pinned, subscribe --tail, subscribe --senders,
-forward, subscribe --show-forwards), and exits 0 on success.
+forward, subscribe --show-forwards, typing emit/list/expiry, subscribe
+--until window), and exits 0 on success.
 Each assertion is content-level (`grep -F` for expected substrings) so
 re-runs are safe even though the canonical DM topic accumulates state
 across runs.
@@ -813,4 +857,6 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1347 — `subscribe --senders <csv>` (per-sender filter)
 - T-1348 — `channel forward` (Matrix-style forwarding with provenance)
 - T-1349 — `subscribe --show-forwards` (forward provenance prefix)
+- T-1351 — `channel typing` (Matrix `m.typing` ephemeral indicator with TTL)
+- T-1352 — `subscribe --until <ms>` (upper-bound timestamp filter, pairs with --since)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
