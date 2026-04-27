@@ -868,3 +868,17 @@ learnings:
   date: 2026-04-26
   context: Added via context agent
   application: TBD
+- id: PL-088
+  learning: "When extending an RPC method's behavior with caller-process introspection (peer_pid, cwd, env), prefer adding the logic in the CLI on top of local-file lookup rather than plumbing it through JSON-RPC. The CLI has direct access to the session registry without the hub round-trip, and most clients are local. Hub-side plumbing only matters for cross-host RPC, which is the less common path. Source: T-1303 chose CLI-side /proc walk over RpcRequest peer_pid threading; ~50 LOC vs invasive multi-file change."
+  source: P-001
+  task: T-1303
+  date: 2026-04-26
+  context: Added via context agent
+  application: TBD
+- id: PL-089
+  learning: "T-1304 rpc_audit on event.collect long-poll generates ~13K entries per second per subscriber — needs skip-list for transport-plumbing methods"
+  source: P-001
+  task: T-1306
+  date: 2026-04-27
+  context: Added via context agent
+  application: TBD

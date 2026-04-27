@@ -311,3 +311,17 @@ decisions:
     date: 2026-04-25
     task: T-1212
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-024
+    decision: "`metadata.in_reply_to=<offset>` as a routing-hint string, NOT included in `canonical_sign_bytes`."
+    scope: project
+    date: 2026-04-27
+    task: T-1313
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-025
+    decision: "Single integer (decimal string in metadata) within the same topic."
+    scope: project
+    date: 2026-04-27
+    task: T-1313
+    rationale: "Auto-captured from task file on completion"

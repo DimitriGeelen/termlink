@@ -1,11 +1,11 @@
-timestamp: 2026-04-26T15:00:01Z
+timestamp: 2026-04-27T15:00:01Z
 findings:
   - id: D4
     level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 2 anomaly(s): T-243(34d-active) T-212(35d-active)"
+    check: "D5: Task lifecycle — 2 anomaly(s): T-212(36d-active) T-1137(8d-active)"
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
@@ -15,7 +15,7 @@ findings:
     check: "D7: Commit bunching — none (PASS no_recent_commits)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=32.0 earlier=18.6)"
+    check: "D6: Completion velocity — normal (PASS recent=33.3 earlier=19.1)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
