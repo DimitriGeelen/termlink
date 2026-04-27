@@ -12,7 +12,7 @@ tags: [termlink, routing, relay, T-1297-child, config]
 components: []
 related_tasks: [T-1297]
 created: 2026-04-26T21:19:42Z
-last_update: 2026-04-27T07:01:16Z
+last_update: 2026-04-27T07:05:06Z
 date_finished: null
 ---
 
