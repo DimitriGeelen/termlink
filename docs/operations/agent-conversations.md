@@ -195,6 +195,35 @@ reactions summary attaches as usual). Old peers that don't pass
 that's the natural conversational view; pass the explicit `subscribe`
 form if you want to see the full edit history.
 
+## Redactions (T-1322 — Matrix `m.redaction`)
+
+When you need to *retract* a message (vs edit it), use redaction:
+
+```sh
+termlink channel post topic --payload "Slack token: xoxb-..."        # offset 4
+termlink channel redact topic 4 --reason "leaked secret"
+```
+
+The hub keeps the original record (append-only audit trail). Two render
+modes:
+
+```sh
+# Default: redaction shown explicitly so the audit trail is visible
+termlink channel subscribe topic --limit 50
+# [4] alice chat: Slack token: xoxb-...
+# [5 redact] alice → offset 4 (reason: leaked secret)
+
+# --hide-redacted: clean view that suppresses both target AND the redaction envelope
+termlink channel subscribe topic --limit 50 --hide-redacted
+# (offset 4 and 5 both gone)
+```
+
+**Caveat (trusted-mesh threat model):** the redaction envelope is just a
+metadata pointer. The original payload remains in the hub's storage. If the
+content was sensitive (a leaked secret, PII), redaction is *not* a delete —
+it's a "please don't render this" hint that compliant readers honor. For
+true purges you need to truncate the topic or rewrite the channel.
+
 ## Reactions (T-1314)
 
 A reaction is just a typed reply: `msg_type=reaction`, `metadata.in_reply_to=<parent>`,
