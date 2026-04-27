@@ -1678,6 +1678,46 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Post a read-receipt (Matrix `m.receipt` analogue) — shorthand for
+    /// `channel post --msg-type receipt` carrying `metadata.up_to=<offset>`.
+    /// Without `--up-to`, resolves to the topic's current latest offset
+    /// (count-1 from `channel.list`). T-1315.
+    Ack {
+        /// Topic name
+        topic: String,
+
+        /// The offset up to which the sender has been seen. Inclusive.
+        /// If omitted, auto-resolves to the topic's current latest offset.
+        #[arg(long)]
+        up_to: Option<u64>,
+
+        /// Override sender_id (default: the identity file fingerprint)
+        #[arg(long)]
+        sender_id: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the latest read-receipt per sender on a topic (T-1315).
+    /// Subscribes from offset 0, filters to `msg_type=receipt`, keeps the
+    /// most-recent receipt per sender, prints sorted by sender_id.
+    Receipts {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Post a reaction (Matrix `m.annotation` analogue) — shorthand for
     /// `channel post --msg-type reaction --reply-to <parent>` (T-1314)
     React {

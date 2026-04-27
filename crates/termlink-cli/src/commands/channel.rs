@@ -220,6 +220,153 @@ pub(crate) async fn cmd_channel_post(
     Ok(())
 }
 
+/// T-1315: resolve the topic's current latest offset by querying
+/// `channel.list` with the topic's exact name as prefix and reading `count`.
+/// Returns `Ok(None)` for an empty topic. Used by `channel ack` when the
+/// caller doesn't supply `--up-to`.
+async fn resolve_latest_offset(sock: &std::path::Path, topic: &str) -> Result<Option<u64>> {
+    let resp = client::rpc_call(
+        sock,
+        method::CHANNEL_LIST,
+        json!({"prefix": topic}),
+    )
+    .await
+    .context("Hub rpc_call (channel.list) failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let topics = result["topics"].as_array().cloned().unwrap_or_default();
+    let entry = topics
+        .into_iter()
+        .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(topic))
+        .ok_or_else(|| anyhow!("Topic '{topic}' not found"))?;
+    let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+    Ok(if count == 0 { None } else { Some(count - 1) })
+}
+
+/// T-1315: post a `msg_type=receipt` envelope. Body is `up_to=<N>` (text
+/// for human readability when subscribed without aggregation); the
+/// authoritative routing field is `metadata.up_to=<N>`.
+pub(crate) async fn cmd_channel_ack(
+    topic: &str,
+    up_to: Option<u64>,
+    sender_id: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    // Auto-resolve when --up-to omitted. Empty topic → can't ack; surface
+    // a friendly error rather than posting up_to=0 which would be a lie.
+    let up_to_resolved = match up_to {
+        Some(n) => n,
+        None => {
+            let sock = hub_socket(hub)?;
+            match resolve_latest_offset(&sock, topic).await? {
+                Some(n) => n,
+                None => anyhow::bail!("Topic '{topic}' is empty — nothing to ack"),
+            }
+        }
+    };
+    let payload = format!("up_to={up_to_resolved}");
+    let metadata = vec![format!("up_to={up_to_resolved}")];
+    cmd_channel_post(
+        topic,
+        "receipt",
+        Some(&payload),
+        None,
+        sender_id,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1315: read-side aggregator. Subscribes from offset 0 (one-shot), filters
+/// to `msg_type=receipt`, keeps the most-recent receipt per sender, prints
+/// sorted. Cap at 1000 messages per page; for very long-lived topics this may
+/// need pagination — kept simple for v1 since most "active conversation"
+/// topics have low message counts.
+pub(crate) async fn cmd_channel_receipts(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    // Walk the entire topic via repeated subscribe calls. Stops when a page
+    // returns fewer messages than the limit (signals end of stream). Keeps
+    // only the latest receipt per sender; previous receipts are overwritten.
+    use std::collections::HashMap;
+    struct Receipt {
+        up_to: u64,
+        ts: i64,
+    }
+    let mut latest: HashMap<String, Receipt> = HashMap::new();
+    let mut cursor: u64 = 0;
+    let limit: u64 = 1000;
+    loop {
+        let resp = client::rpc_call(
+            &sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .context("Hub rpc_call (channel.subscribe) failed")?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        for m in &msgs {
+            if m.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                continue;
+            }
+            let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+                Some(s) => s.to_string(),
+                None => continue,
+            };
+            let up_to = m
+                .get("metadata")
+                .and_then(|md| md.get("up_to"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok());
+            let Some(up_to) = up_to else { continue };
+            let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
+            // Latest-wins by ts; ties broken by higher up_to.
+            match latest.get(&sender) {
+                Some(prev) if prev.ts > ts => {}
+                Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+                _ => {
+                    latest.insert(sender, Receipt { up_to, ts });
+                }
+            }
+        }
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+    let mut entries: Vec<(String, &Receipt)> =
+        latest.iter().map(|(k, v)| (k.clone(), v)).collect();
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    if json_output {
+        let arr: Vec<Value> = entries
+            .iter()
+            .map(|(s, r)| json!({"sender_id": s, "up_to": r.up_to, "ts_unix_ms": r.ts}))
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({"topic": topic, "receipts": arr}))?
+        );
+    } else if entries.is_empty() {
+        println!("No receipts on '{topic}'.");
+    } else {
+        println!("Receipts on '{topic}':");
+        for (s, r) in entries {
+            println!("  {s}  up to {}  (ts={})", r.up_to, r.ts);
+        }
+    }
+    Ok(())
+}
+
 /// T-1314: post a `msg_type=reaction` envelope pointing at a parent offset.
 /// Thin wrapper over `cmd_channel_post` — same path, fixed msg_type, reply_to
 /// set to the parent. Payload is the reaction string (typically an emoji or
