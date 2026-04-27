@@ -1,0 +1,31 @@
+# Example relay_declarations.yaml for the T-1301 per-session relay opt-in.
+# Drop this into <runtime_dir>/relay_declarations.yaml (default
+# /var/lib/termlink/relay_declarations.yaml) and SIGHUP the hub to load.
+#
+# Schema reference: docs/operations/topic-lint.md (§ Per-session opt-in)
+#
+# Sessions are looked up by display_name (the stable name visible in
+# `termlink list-sessions`), NOT by session_id. Prefixes use the same
+# boundary semantics as topic_roles.yaml — `learning` matches
+# `learning.captured` and `learning:foo` but not `learnings.bar`.
+#
+# Default state (no file, or empty): no suppressions. Build B lint warns
+# on every mismatch.
+
+sessions:
+  # The framework-agent legitimately emits cross-domain topics
+  # (governance + cross-project relay). Without this declaration every
+  # legitimate emit would generate a warning, defeating the purpose of
+  # the lint.
+  - name: "framework-agent"
+    relay_for:
+      - "channel.delivery"
+      - "task.complete"
+      - "learning"
+
+  # The ring20-management session relays infra and outage events from
+  # its hub on behalf of the proxmox host.
+  - name: "ring20-management"
+    relay_for:
+      - "infra"
+      - "outage"

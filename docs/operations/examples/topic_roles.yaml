@@ -1,0 +1,56 @@
+# Example topic_roles.yaml for the T-1300 soft-lint engine.
+# Drop this into <runtime_dir>/topic_roles.yaml (default
+# /var/lib/termlink/topic_roles.yaml) and SIGHUP the hub to load.
+#
+# Schema reference: docs/operations/topic-lint.md
+#
+# These are the same rules the hub uses by default when no file is present.
+# Edit freely; unknown top-level keys are ignored (forward-compat).
+
+rules:
+  - prefix: "framework"
+    roles: [framework, pickup]
+
+  - prefix: "channel"
+    roles: [framework]
+
+  - prefix: "pickup"
+    roles: [framework, pickup]
+
+  - prefix: "learning"
+    roles: [framework]
+
+  - prefix: "inception"
+    roles: [framework]
+
+  - prefix: "claude.md"
+    roles: [framework]
+
+  - prefix: "gap"
+    roles: [framework]
+
+  - prefix: "peer"
+    roles: [framework]
+
+  - prefix: "infra"
+    roles: [ring20-management, infrastructure]
+
+  - prefix: "outage"
+    roles: [ring20-management, infrastructure]
+
+  # roles_from_originator_role: caller's role list must contain a role equal
+  # to the prefix. Used for product-named prefixes where role == prefix.
+  - prefix: "oauth"
+    roles_from_originator_role: true
+
+  - prefix: "task"
+    roles_from_originator_role: true
+
+# Topics under these prefixes are exempt from lint regardless of caller role.
+exempt_prefixes:
+  - "agent."
+  - "session."
+  - "worker."
+  - "test."
+  - "help."
+  - "channel.delivery"

@@ -1,4 +1,10 @@
-# Topic↔role soft-lint (T-1300)
+# Topic↔role soft-lint (T-1300 / T-1301)
+
+> **Quick start:** copy `docs/operations/examples/topic_roles.yaml` and
+> `docs/operations/examples/relay_declarations.yaml` into your hub's
+> `<runtime_dir>/` (default `/var/lib/termlink/`), edit, then send the hub
+> a `SIGHUP` to load. See § Hot-reload below.
+
 
 The hub runs a **soft-lint** at every `event.broadcast` and `event.emit_to`
 that compares the originating session's role(s) against a per-prefix policy.
