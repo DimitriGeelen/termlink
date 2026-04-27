@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T15:10:54Z ===
-task_id: T-1320
+=== episodic-gen invocation: 2026-04-27T15:18:22Z ===
+task_id: T-1321
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1320.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1321.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel dm --list — discover existing DM topics for caller
+  Task: channel edit — Matrix m.replace analogue (msg_type=edit + metadata.replaces)
   Duration: 0 days (6 min)
   Updates: 2
   Commits: 1
-  Lines: +195 -10 across 5 files
-  Outcomes: 6 AC checked
-  Artifacts: 5 files tracked
+  Lines: +393 -52 across 21 files
+  Outcomes: 8 AC checked
+  Artifacts: 21 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1320-channel-dm---list--discover-existing-dm-.md
+Source: /opt/termlink/.tasks/completed/T-1321-channel-edit--matrix-mreplace-analogue-m.md
 --- exit code: 0 ---

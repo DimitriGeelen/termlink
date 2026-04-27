@@ -4,16 +4,16 @@ name: "channel edit — Matrix m.replace analogue (msg_type=edit + metadata.repl
 description: >
   channel edit — Matrix m.replace analogue (msg_type=edit + metadata.replaces)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T15:11:16Z
-last_update: 2026-04-27T15:11:16Z
-date_finished: null
+last_update: 2026-04-27T15:18:12Z
+date_finished: 2026-04-27T15:18:12Z
 ---
 
 # T-1321: channel edit — Matrix m.replace analogue (msg_type=edit + metadata.replaces)
@@ -87,3 +87,6 @@ cargo clippy -p termlink --all-targets -- -D warnings
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1321-channel-edit--matrix-mreplace-analogue-m.md
 - **Context:** Initial task creation
+
+### 2026-04-27T15:18:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
