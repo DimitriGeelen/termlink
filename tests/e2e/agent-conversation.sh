@@ -260,6 +260,23 @@ out_json=$(B channel mentions --prefix "$DM" --limit 5 --json)
 expect_contains "\"topic\":" "$out_json" "step 17: --json should expose topic per hit"
 expect_contains "\"mentions\":" "$out_json" "step 17: --json should include mentions csv"
 
+step "18. channel ancestors (T-1340): trace reply chain upward from a leaf"
+# Bob threaded a reply at offset 1 with --reply-to 0 (step 3). Walking up
+# from 1 should yield [0, 1] in root→leaf order.
+out=$(A channel ancestors "$DM" 1)
+expect_contains "[0]" "$out" "step 18: lineage from offset 1 must include root [0]"
+expect_contains "[1]" "$out" "step 18: lineage must include the leaf itself [1]"
+# Walking up from a root (offset 0) should yield just [0].
+out=$(A channel ancestors "$DM" 0)
+expect_contains "[0]" "$out" "step 18: walking from root yields just the root"
+# Missing offset should error.
+err_out=$(A channel ancestors "$DM" 9999 2>&1) || true
+expect_contains "no envelope at offset" "$err_out" "step 18: missing offset should surface a friendly error"
+# JSON shape
+out_json=$(A channel ancestors "$DM" 1 --json)
+expect_contains "\"ancestors\":" "$out_json" "step 18: --json should include ancestors array"
+expect_contains "\"leaf\":" "$out_json" "step 18: --json should include leaf field"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

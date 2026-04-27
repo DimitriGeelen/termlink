@@ -1804,6 +1804,28 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Trace the reply chain UP from a leaf envelope to the root (inverse
+    /// of `channel thread`, which walks DOWN). Walks the topic once, indexes
+    /// every envelope by offset, then follows `metadata.in_reply_to` from
+    /// `<offset>` toward the root, capping recursion at 1024 to defeat
+    /// pathological cycles. Renders in root→leaf order so reading top-down
+    /// matches the natural conversation flow. Read-only (T-1340).
+    Ancestors {
+        /// Topic name
+        topic: String,
+
+        /// Leaf envelope offset to start the upward walk from
+        offset: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON (array of envelope records in root→leaf order,
+        /// each `{offset, sender_id, msg_type, ts, payload}`)
+        #[arg(long)]
+        json: bool,
+    },
     /// Synthesized topic view: description + retention + post count + top
     /// senders + latest receipts in one shot. Read-only, no state mutation.
     /// Walks the topic once and renders a human-readable summary; pass `--json`

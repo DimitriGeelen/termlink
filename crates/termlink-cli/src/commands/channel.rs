@@ -1160,6 +1160,112 @@ pub(crate) async fn cmd_channel_thread(
     Ok(())
 }
 
+/// T-1340: pure helper — given an offset→envelope index and a leaf offset,
+/// walk `metadata.in_reply_to` upward and return the chain in root→leaf
+/// order. Caps recursion at 1024 (cycle defense). Returns an empty vec
+/// when the leaf isn't found in the index. The leaf itself is included
+/// as the last element. Edges with non-numeric in_reply_to are treated
+/// as "no parent" (terminate the walk).
+pub(crate) fn build_ancestors(
+    by_off: &std::collections::HashMap<u64, Value>,
+    leaf: u64,
+) -> Vec<u64> {
+    const MAX_DEPTH: usize = 1024;
+    let mut chain: Vec<u64> = Vec::new();
+    let mut visited: std::collections::HashSet<u64> = std::collections::HashSet::new();
+    let mut current = leaf;
+    if !by_off.contains_key(&current) {
+        return chain;
+    }
+    for _ in 0..MAX_DEPTH {
+        if !visited.insert(current) {
+            // Cycle — stop without emitting current again.
+            break;
+        }
+        chain.push(current);
+        let Some(env) = by_off.get(&current) else { break };
+        let parent = env
+            .get("metadata")
+            .and_then(|md| md.get("in_reply_to"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok());
+        let Some(p) = parent else { break };
+        if !by_off.contains_key(&p) {
+            break;
+        }
+        current = p;
+    }
+    chain.reverse(); // emit root → leaf
+    chain
+}
+
+/// T-1340: `channel ancestors <topic> <offset>` — root→leaf reply chain.
+pub(crate) async fn cmd_channel_ancestors(
+    topic: &str,
+    offset: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, Value> = HashMap::with_capacity(envelopes.len());
+    for env in &envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env.clone());
+        }
+    }
+    if !by_off.contains_key(&offset) {
+        anyhow::bail!("Topic '{topic}' has no envelope at offset {offset}");
+    }
+    let chain = build_ancestors(&by_off, offset);
+
+    if json_output {
+        let entries: Vec<Value> = chain
+            .iter()
+            .filter_map(|off| {
+                let m = by_off.get(off)?;
+                let payload = decode_payload_lossy(m);
+                let ts = m
+                    .get("ts_unix_ms")
+                    .and_then(|v| v.as_i64())
+                    .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+                Some(json!({
+                    "offset": off,
+                    "sender_id": m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?"),
+                    "msg_type": m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?"),
+                    "ts": ts,
+                    "payload": payload,
+                }))
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "topic": topic,
+                "leaf": offset,
+                "ancestors": entries,
+            }))?
+        );
+        return Ok(());
+    }
+
+    if chain.is_empty() {
+        println!("No ancestors for offset {offset} on topic '{topic}'.");
+        return Ok(());
+    }
+    for (depth, off) in chain.iter().enumerate() {
+        let Some(m) = by_off.get(off) else { continue };
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+        let msg_type = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
+        let payload = decode_payload_lossy(m);
+        let indent = "  ".repeat(depth);
+        println!("{indent}[{off}] {sender} {msg_type}: {payload}");
+    }
+    Ok(())
+}
+
 /// T-1325 / T-1333: pure helper — does the comma-separated `mentions` CSV
 /// contain the target id?
 /// - Strict (comma split + whitespace trim, no substring match).
@@ -3231,6 +3337,79 @@ mod tests {
         assert_eq!(v["peer"], "b");
         assert_eq!(v["unread"], 4);
         assert_eq!(v["first_unread"], 5);
+    }
+
+    // ---- T-1340: build_ancestors --------------------------------------
+
+    fn idx(records: &[(u64, Option<&str>)]) -> std::collections::HashMap<u64, Value> {
+        let mut m = std::collections::HashMap::new();
+        for (off, parent) in records {
+            let env = match parent {
+                Some(p) => json!({
+                    "offset": off,
+                    "metadata": {"in_reply_to": p},
+                }),
+                None => json!({"offset": off}),
+            };
+            m.insert(*off, env);
+        }
+        m
+    }
+
+    #[test]
+    fn build_ancestors_linear_chain_root_to_leaf() {
+        // 0 ← 1 ← 2 ← 3
+        let by_off = idx(&[
+            (0, None),
+            (1, Some("0")),
+            (2, Some("1")),
+            (3, Some("2")),
+        ]);
+        assert_eq!(build_ancestors(&by_off, 3), vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn build_ancestors_root_only_returns_just_self() {
+        let by_off = idx(&[(0, None)]);
+        assert_eq!(build_ancestors(&by_off, 0), vec![0]);
+    }
+
+    #[test]
+    fn build_ancestors_missing_leaf_returns_empty() {
+        let by_off = idx(&[(0, None), (1, Some("0"))]);
+        assert_eq!(build_ancestors(&by_off, 99), Vec::<u64>::new());
+    }
+
+    #[test]
+    fn build_ancestors_terminates_when_parent_missing() {
+        // 5 → 7 (parent), but 7 is not in the index. Walk yields just [5].
+        let by_off = idx(&[(5, Some("7"))]);
+        assert_eq!(build_ancestors(&by_off, 5), vec![5]);
+    }
+
+    #[test]
+    fn build_ancestors_breaks_cycle() {
+        // 0 ← 1 ← 0 (cycle). Walk must terminate after seeing 0 twice.
+        let by_off = idx(&[
+            (0, Some("1")), // 0 → 1
+            (1, Some("0")), // 1 → 0 (creates cycle)
+        ]);
+        let chain = build_ancestors(&by_off, 0);
+        // Cycle is detected; chain has both nodes exactly once.
+        assert_eq!(chain.len(), 2);
+        let unique: std::collections::HashSet<&u64> = chain.iter().collect();
+        assert_eq!(unique.len(), 2);
+    }
+
+    #[test]
+    fn build_ancestors_skips_non_numeric_parent() {
+        // metadata.in_reply_to = "not-a-number" → terminate at offset 5.
+        let mut by_off = std::collections::HashMap::new();
+        by_off.insert(5, json!({
+            "offset": 5,
+            "metadata": {"in_reply_to": "not-a-number"},
+        }));
+        assert_eq!(build_ancestors(&by_off, 5), vec![5]);
     }
 
     #[test]
