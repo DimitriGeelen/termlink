@@ -4,7 +4,7 @@ name: "agent-conversations operator doc (synthesizes T-1313/14/15 Matrix feature
 description: >
   agent-conversations operator doc (synthesizes T-1313/14/15 Matrix features)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-27T13:36:46Z
-last_update: 2026-04-27T13:36:46Z
-date_finished: null
+last_update: 2026-04-27T13:39:26Z
+date_finished: 2026-04-27T13:39:26Z
 ---
 
 # T-1316: agent-conversations operator doc (synthesizes T-1313/14/15 Matrix features)
@@ -79,3 +79,6 @@ grep -q "in_reply_to" docs/operations/agent-conversations.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1316-agent-conversations-operator-doc-synthes.md
 - **Context:** Initial task creation
+
+### 2026-04-27T13:39:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
