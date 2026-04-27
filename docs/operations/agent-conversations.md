@@ -542,6 +542,97 @@ termlink channel subscribe topic --in-reply-to 7 \
 (Hub-side `msg_type` filter is a small follow-up if this pattern is
 common enough to warrant.)
 
+## Topic stats and search (T-1335 / T-1336)
+
+Two read-only observability commands for live operator triage:
+
+```sh
+# Per-topic content/meta breakdown — content envelopes vs. meta types
+# (receipt, reaction, redaction, edit, topic_metadata) plus distinct
+# senders and timestamp range.
+termlink channel list --stats
+# → broadcast:global  content=128  meta=0  senders=1  ts=1777131902274..1777308663711
+
+# Same, JSON-formatted for piping to jq.
+termlink channel list --stats --json --prefix dm:
+
+# Payload grep across one topic. Default mode: case-insensitive substring.
+termlink channel search dm:alice:bob "deadline"
+# → [3] alice (chat): the deadline is friday
+
+# Other modes:
+termlink channel search dm:alice:bob "DEADLINE" --case-sensitive
+termlink channel search dm:alice:bob 'error:\s+\d+' --regex
+termlink channel search dm:alice:bob "🧪" --all   # include meta envelopes
+termlink channel search dm:alice:bob "..." --limit 5 --json
+```
+
+**Tier-A:** the search pattern stays client-side — the hub never sees
+the query, so secrets-in-payloads don't leak via search.
+
+## Inbox views (T-1338 / T-1339 / T-1341)
+
+Three commands that compose the primitives above into operator-friendly
+inbox views:
+
+```sh
+# DM inbox — every DM topic the caller participates in, with per-topic
+# unread count (delta from the caller's last receipt). Sorts unread-
+# first.
+termlink channel dm --list --unread
+# → dm:alice:bob  (peer=bob)  unread=3  first=42
+#   dm:alice:carol  (peer=carol)  unread=0  first=—
+
+# Cross-topic @-mentions inbox — every envelope that mentions the
+# caller (or `*` / @room) across every topic. Groups by topic.
+termlink channel mentions
+# Default --for is the caller's identity; switch to query someone else:
+termlink channel mentions --for bob --prefix dm:
+
+# Per-topic membership list — distinct senders with post-count and
+# first/last activity ts. Lighter than `channel info`.
+termlink channel members dm:alice:bob
+# → alice  posts=12  first=1777313661544  last=1777316598002
+#   bob    posts=8   first=1777313661548  last=1777316597927
+
+# --include-meta counts reactions/edits/redactions/receipts too.
+termlink channel members dm:alice:bob --include-meta --json
+```
+
+## Receipt anchoring (T-1337)
+
+`channel ack` accepts either an explicit offset or a timestamp anchor:
+
+```sh
+# Mark "everything since 10 minutes ago" as seen — no need to look up
+# the offset first.
+TEN_MIN_AGO=$(python3 -c 'import time; print(int(time.time()*1000) - 600_000)')
+termlink channel ack dm:alice:bob --since "$TEN_MIN_AGO"
+
+# --up-to and --since are mutually exclusive (clap-enforced):
+# error: the argument '--up-to <UP_TO>' cannot be used with '--since <MS>'
+```
+
+A future anchor (no envelope satisfies `ts >= since`) emits a friendly
+hint with the topic's actual latest ts and the gap in ms.
+
+## Thread navigation (T-1340)
+
+`channel thread <topic> <offset>` walks a reply tree DOWN from a root.
+T-1340 added the inverse:
+
+```sh
+# Trace the reply chain UP from a leaf back to the conversation's root.
+# Output is indented by depth in root→leaf order.
+termlink channel ancestors dm:alice:bob 17
+# → [3] bob (chat): we should ship the patch
+#     [9] alice (chat): agreed — but let's bench it first
+#       [17] bob (chat): bench is in CI — passing
+```
+
+Cycle-safe: caps recursion at depth 1024. `--json` returns the chain
+as `{topic, leaf, ancestors: [...]}`.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -553,11 +644,13 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 10 steps (canonical DM, send/read, threading, reactions, edits,
-redactions, description+info, mentions, receipts, dm --list), and exits 0
-on success. Each assertion is content-level (`grep -F` for expected
-substrings) so re-runs are safe even though the canonical DM topic
-accumulates state across runs.
+walks all 19 steps (canonical DM, send/read, threading, reactions, edits,
+redactions, description+info, mentions, receipts, dm --list, thread view,
+react --remove, channel list --stats, search, ack --since, dm --list
+--unread, mentions inbox, ancestors, members), and exits 0 on success.
+Each assertion is content-level (`grep -F` for expected substrings) so
+re-runs are safe even though the canonical DM topic accumulates state
+across runs.
 
 ## Limits and next steps
 
@@ -600,4 +693,11 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1313 — threading (`metadata.in_reply_to`)
 - T-1314 — reactions (`msg_type=reaction`)
 - T-1315 — receipts (`msg_type=receipt`, `metadata.up_to`)
+- T-1335 — `channel list --stats` (per-topic content/meta breakdown)
+- T-1336 — `channel search` (read-only payload grep)
+- T-1337 — `channel ack --since` (timestamp-anchored receipt)
+- T-1338 — `channel dm --list --unread` (DM inbox view)
+- T-1339 — `channel mentions` (cross-topic @-mentions inbox)
+- T-1340 — `channel ancestors` (root→leaf reply chain)
+- T-1341 — `channel members` (per-sender activity summary)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
