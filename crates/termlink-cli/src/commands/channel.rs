@@ -2293,6 +2293,117 @@ pub(crate) fn compute_topic_stats(topic: &str, msgs: &[Value]) -> TopicStats {
     }
 }
 
+/// T-1339: `channel mentions [--for <id>]` — cross-topic @-mentions inbox.
+/// Resolves the target id (defaults to caller's identity), enumerates
+/// every topic via channel.list (optionally filtered by `prefix`), walks
+/// each, and accumulates content envelopes whose mentions CSV matches
+/// the target via `mentions_match` (T-1325/T-1333 wildcard semantics —
+/// `*` in CSV = @room). Skips meta envelopes (UNREAD_META_TYPES). Read-
+/// only. Output: human form groups by topic; `--json` emits a flat
+/// array suitable for piping to jq.
+pub(crate) async fn cmd_channel_mentions(
+    target: Option<&str>,
+    prefix: Option<&str>,
+    limit: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let resolved_target: String = match target {
+        Some(s) => s.to_string(),
+        None => {
+            let id = load_identity_or_create()
+                .context("Loading identity for mentions target")?;
+            id.fingerprint().to_string()
+        }
+    };
+
+    let sock = hub_socket(hub)?;
+    let params = match prefix {
+        Some(p) => json!({"prefix": p}),
+        None => json!({}),
+    };
+    let resp = client::rpc_call(&sock, method::CHANNEL_LIST, params)
+        .await
+        .context("Hub rpc_call (channel.list) failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let topics: Vec<String> = result["topics"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|t| t.get("name").and_then(|v| v.as_str()).map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut hits: Vec<Value> = Vec::new();
+    'topic_loop: for topic in &topics {
+        let envelopes = walk_topic_full(&sock, topic).await?;
+        for env in &envelopes {
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+            if UNREAD_META_TYPES.contains(&mt) {
+                continue;
+            }
+            let csv = match extract_mentions(env) {
+                Some(s) => s,
+                None => continue,
+            };
+            if !mentions_match(&csv, &resolved_target) {
+                continue;
+            }
+            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let sender = env
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()));
+            let payload = decode_payload_lossy(env);
+            hits.push(json!({
+                "topic": topic,
+                "offset": offset,
+                "sender_id": sender,
+                "ts": ts,
+                "msg_type": mt,
+                "payload": payload,
+                "mentions": csv,
+            }));
+            if limit > 0 && hits.len() as u64 >= limit {
+                break 'topic_loop;
+            }
+        }
+    }
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&Value::Array(hits))?);
+        return Ok(());
+    }
+    if hits.is_empty() {
+        println!("No mentions for '{resolved_target}'.");
+        return Ok(());
+    }
+    // Group by topic for the human view.
+    let mut last_topic: Option<&str> = None;
+    for h in &hits {
+        let topic = h["topic"].as_str().unwrap_or("?");
+        if last_topic != Some(topic) {
+            if last_topic.is_some() {
+                println!();
+            }
+            println!("== {topic} ==");
+            last_topic = Some(topic);
+        }
+        let off = h["offset"].as_u64().unwrap_or(0);
+        let sender = h["sender_id"].as_str().unwrap_or("?");
+        let payload = h["payload"].as_str().unwrap_or("");
+        println!("  [{off}] {sender}: {payload}");
+    }
+    Ok(())
+}
+
 /// T-1336: pure helper — does `text` match `pattern` under the given mode?
 /// `regex=true` compiles `pattern` as a Rust regex (with `(?i)` prefix when
 /// `case_sensitive=false`). `regex=false` does a substring check (folding

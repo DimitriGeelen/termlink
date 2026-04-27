@@ -584,6 +584,22 @@ async fn main() -> Result<()> {
             ChannelAction::List { prefix, stats, hub, json } => {
                 commands::channel::cmd_channel_list(prefix.as_deref(), stats, hub.as_deref(), json).await
             }
+            ChannelAction::Mentions {
+                target,
+                prefix,
+                limit,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_mentions(
+                    target.as_deref(),
+                    prefix.as_deref(),
+                    limit,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Search {
                 topic,
                 pattern,

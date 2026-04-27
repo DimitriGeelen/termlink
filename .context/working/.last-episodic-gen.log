@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T18:30:55Z ===
-task_id: T-1337
+=== episodic-gen invocation: 2026-04-27T18:43:13Z ===
+task_id: T-1338
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1337.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1338.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel ack --since <ms> — receipt anchored to recent slice
+  Task: channel dm --list --unread — DM inbox with per-topic unread counts
   Duration: 0 days (8 min)
   Updates: 2
   Commits: 1
-  Lines: +200 -28 across 15 files
+  Lines: +244 -55 across 18 files
   Outcomes: 5 AC checked
-  Artifacts: 15 files tracked
+  Artifacts: 18 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1337-channel-ack---since-ms--receipt-anchored.md
+Source: /opt/termlink/.tasks/completed/T-1338-channel-dm---list---unread--dm-inbox-wit.md
 --- exit code: 0 ---

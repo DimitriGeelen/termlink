@@ -238,6 +238,28 @@ out_json=$(B channel dm --list --unread --json)
 expect_contains "\"unread\":" "$out_json" "step 16: --json should include unread field"
 expect_contains "\"first_unread\":" "$out_json" "step 16: --json should include first_unread field"
 
+step "17. channel mentions (T-1339): cross-topic @-mentions inbox"
+# Step 8 already posted '@bob please ack' with --mention $BOB on the DM.
+# Bob's mentions inbox (default --for self) must surface that envelope.
+out=$(B channel mentions --prefix "$DM" --limit 50)
+expect_contains "@bob please ack" "$out" "step 17: bob's inbox must surface alice's mention"
+expect_contains "$DM" "$out" "step 17: the topic header must appear in the inbox"
+# Wildcard: alice posts a @room (T-1333) message; both alice and bob must
+# see it in their inbox via mentions_match wildcard semantics.
+A channel post "$DM" --msg-type chat --payload "FYI everyone" --mention "*"
+out=$(A channel mentions --prefix "$DM" --limit 50)
+expect_contains "FYI everyone" "$out" "step 17: alice should see her own @room post via wildcard matching"
+out=$(B channel mentions --prefix "$DM" --limit 50)
+expect_contains "FYI everyone" "$out" "step 17: bob should see alice's @room post via wildcard matching"
+# --for: alice scans bob's mentions explicitly; should still hit because
+# alice posted '@bob please ack' targeting bob.
+out=$(A channel mentions --for "$BOB" --prefix "$DM" --limit 50)
+expect_contains "@bob please ack" "$out" "step 17: --for <bob> must surface alice's mention of bob from alice's vantage point"
+# JSON shape
+out_json=$(B channel mentions --prefix "$DM" --limit 5 --json)
+expect_contains "\"topic\":" "$out_json" "step 17: --json should expose topic per hit"
+expect_contains "\"mentions\":" "$out_json" "step 17: --json should include mentions csv"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

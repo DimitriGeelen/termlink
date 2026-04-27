@@ -2077,6 +2077,36 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Cross-topic @-mentions inbox (T-1339). Walks every topic (or
+    /// just those matching `--prefix`), filters envelopes whose
+    /// `metadata.mentions` CSV contains the target id (default: caller's
+    /// identity fingerprint) or the wildcard `*` (@room — T-1333). Read-
+    /// only. Skips meta envelopes (UNREAD_META_TYPES) — only content
+    /// counts toward the inbox.
+    Mentions {
+        /// Identity to look up mentions for (default: caller's fingerprint).
+        /// `*` matches every csv that has any non-empty mention list.
+        #[arg(long = "for", value_name = "ID")]
+        target: Option<String>,
+
+        /// Restrict the scan to topics whose name starts with this prefix.
+        /// Useful for large hubs — without it every topic is walked.
+        #[arg(long)]
+        prefix: Option<String>,
+
+        /// Cap the number of printed hits (0 = unlimited; default: 0)
+        #[arg(long, default_value_t = 0u64)]
+        limit: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as flat JSON array of `{topic, offset, sender_id, ts,
+        /// payload}` records (no per-topic grouping).
+        #[arg(long)]
+        json: bool,
+    },
     /// Read-only payload grep across one topic. Walks the topic once,
     /// decodes each envelope's payload from base64 (UTF-8 lossy), and
     /// prints matches by ascending offset. Default mode: case-insensitive
