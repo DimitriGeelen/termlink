@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-27T12:01:40Z
-last_update: 2026-04-27T12:01:40Z
+last_update: 2026-04-27T12:03:58Z
 date_finished: null
 ---
 
@@ -55,7 +55,7 @@ T-1304's `fw metrics api-usage` defaults to a 60-day window (matching T-1166's g
 ## Verification
 
 grep -q "trend (use --last-Nd N for single-window CI gate)" .agentic-framework/agents/metrics/api-usage.sh
-grep -q "Window     Total    Legacy" .agentic-framework/agents/metrics/api-usage.sh
+grep -q "'Window':>8s" .agentic-framework/agents/metrics/api-usage.sh
 grep -q "When to look" docs/operations/api-usage-metrics.md
 test -x .agentic-framework/agents/metrics/api-usage.sh
 .agentic-framework/bin/fw metrics api-usage --runtime-dir /tmp/T-1304-fixture-pass 2>&1 | grep -q "60d         201"
