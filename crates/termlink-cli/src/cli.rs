@@ -1739,9 +1739,17 @@ pub(crate) enum ChannelAction {
         topic: String,
 
         /// The offset up to which the sender has been seen. Inclusive.
-        /// If omitted, auto-resolves to the topic's current latest offset.
-        #[arg(long)]
+        /// If omitted (and `--since` is also omitted), auto-resolves to
+        /// the topic's current latest offset.
+        #[arg(long, conflicts_with = "since")]
         up_to: Option<u64>,
+
+        /// Resolve `up_to` from a timestamp anchor: walks the topic, finds
+        /// the highest offset whose envelope has `ts >= <ms>`, and posts
+        /// the receipt for it. Errors when no envelope satisfies. Mutually
+        /// exclusive with `--up-to`. T-1337.
+        #[arg(long, value_name = "MS", conflicts_with = "up_to")]
+        since: Option<i64>,
 
         /// Override sender_id (default: the identity file fingerprint)
         #[arg(long)]

@@ -481,21 +481,90 @@ async fn resolve_latest_offset(sock: &std::path::Path, topic: &str) -> Result<Op
     Ok(if count == 0 { None } else { Some(count - 1) })
 }
 
-/// T-1315: post a `msg_type=receipt` envelope. Body is `up_to=<N>` (text
-/// for human readability when subscribed without aggregation); the
-/// authoritative routing field is `metadata.up_to=<N>`.
+/// T-1337: pure helper — given a slice of envelopes (any order) and a
+/// timestamp anchor in milliseconds, return the highest offset whose
+/// `ts_unix_ms` (or hub-aliased `ts`) is `>= since`. None when nothing
+/// satisfies. Used by `channel ack --since` to anchor receipts to a
+/// recent slice of activity.
+pub(crate) fn latest_offset_since(msgs: &[Value], since_ms: i64) -> Option<u64> {
+    let mut best: Option<u64> = None;
+    for m in msgs {
+        let ts_opt = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+        let Some(ts) = ts_opt else { continue };
+        if ts < since_ms {
+            continue;
+        }
+        let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        match best {
+            Some(b) if b >= off => {}
+            _ => best = Some(off),
+        }
+    }
+    best
+}
+
+/// T-1337: pure helper — return the maximum `ts` (preferring `ts_unix_ms`)
+/// across the slice, or None when no envelope carries a timestamp. Used
+/// to enrich the "no activity since X" error hint with the topic's actual
+/// latest activity.
+pub(crate) fn max_ts(msgs: &[Value]) -> Option<i64> {
+    let mut best: Option<i64> = None;
+    for m in msgs {
+        let ts_opt = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+        if let Some(ts) = ts_opt {
+            best = Some(best.map_or(ts, |b| b.max(ts)));
+        }
+    }
+    best
+}
+
+/// T-1315/T-1337: post a `msg_type=receipt` envelope. Body is `up_to=<N>`
+/// (text for human readability when subscribed without aggregation); the
+/// authoritative routing field is `metadata.up_to=<N>`. Resolution of
+/// `up_to`:
+///   - explicit `--up-to N`: trusted as-is
+///   - `--since MS` (T-1337): walks the topic, picks the highest offset
+///     whose envelope has `ts >= MS`. Errors with hint when nothing
+///     matches (includes the topic's actual latest ts when present).
+///   - neither: auto-resolves to the topic's current latest offset
 pub(crate) async fn cmd_channel_ack(
     topic: &str,
     up_to: Option<u64>,
+    since_ms: Option<i64>,
     sender_id: Option<&str>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    // Auto-resolve when --up-to omitted. Empty topic → can't ack; surface
-    // a friendly error rather than posting up_to=0 which would be a lie.
-    let up_to_resolved = match up_to {
-        Some(n) => n,
-        None => {
+    let up_to_resolved = match (up_to, since_ms) {
+        (Some(n), _) => n,
+        (None, Some(since)) => {
+            // T-1337: walk the topic and pick the highest offset whose ts
+            // satisfies the anchor.
+            let sock = hub_socket(hub)?;
+            let envelopes = walk_topic_full(&sock, topic).await?;
+            match latest_offset_since(&envelopes, since) {
+                Some(n) => n,
+                None => {
+                    let hint = match max_ts(&envelopes) {
+                        Some(ts) => format!(
+                            " — topic's latest envelope is at ts={ts} (since={since}, gap={} ms)",
+                            since.saturating_sub(ts)
+                        ),
+                        None => String::new(),
+                    };
+                    anyhow::bail!(
+                        "No envelope on '{topic}' has ts >= {since}{hint}",
+                    )
+                }
+            }
+        }
+        (None, None) => {
             let sock = hub_socket(hub)?;
             match resolve_latest_offset(&sock, topic).await? {
                 Some(n) => n,
@@ -2833,5 +2902,70 @@ mod tests {
     fn decode_payload_lossy_returns_empty_on_invalid_b64() {
         let env = json!({"offset": 0, "msg_type": "chat", "payload_b64": "not-base64-!!!"});
         assert_eq!(decode_payload_lossy(&env), "");
+    }
+
+    // ---- T-1337: latest_offset_since / max_ts --------------------------
+
+    #[test]
+    fn latest_offset_since_picks_highest_above_anchor() {
+        let msgs = vec![
+            json!({"offset": 0, "ts": 100}),
+            json!({"offset": 1, "ts": 200}),
+            json!({"offset": 2, "ts": 300}),
+            json!({"offset": 3, "ts": 400}),
+        ];
+        assert_eq!(latest_offset_since(&msgs, 200), Some(3));
+        assert_eq!(latest_offset_since(&msgs, 350), Some(3));
+        assert_eq!(latest_offset_since(&msgs, 500), None);
+    }
+
+    #[test]
+    fn latest_offset_since_inclusive_at_anchor() {
+        let msgs = vec![
+            json!({"offset": 0, "ts": 100}),
+            json!({"offset": 1, "ts": 200}),
+        ];
+        // Boundary: exactly equal to anchor must match (>= semantics).
+        assert_eq!(latest_offset_since(&msgs, 200), Some(1));
+        assert_eq!(latest_offset_since(&msgs, 201), None);
+    }
+
+    #[test]
+    fn latest_offset_since_skips_envelopes_with_no_ts() {
+        let msgs = vec![
+            json!({"offset": 0, "ts": 100}),
+            json!({"offset": 1}), // no ts
+            json!({"offset": 2, "ts": 200}),
+        ];
+        assert_eq!(latest_offset_since(&msgs, 50), Some(2));
+        // At 200, only offset 2 satisfies — offset 1 is unranked.
+        assert_eq!(latest_offset_since(&msgs, 200), Some(2));
+    }
+
+    #[test]
+    fn latest_offset_since_accepts_ts_unix_ms_alias() {
+        let msgs = vec![
+            json!({"offset": 0, "ts_unix_ms": 100}),
+            json!({"offset": 1, "ts_unix_ms": 200}),
+        ];
+        assert_eq!(latest_offset_since(&msgs, 150), Some(1));
+    }
+
+    #[test]
+    fn latest_offset_since_empty_returns_none() {
+        assert_eq!(latest_offset_since(&[], 100), None);
+    }
+
+    #[test]
+    fn max_ts_returns_highest_or_none() {
+        let msgs = vec![
+            json!({"offset": 0, "ts": 100}),
+            json!({"offset": 1, "ts": 50}),
+            json!({"offset": 2, "ts": 200}),
+        ];
+        assert_eq!(max_ts(&msgs), Some(200));
+        assert_eq!(max_ts(&[]), None);
+        // No-ts envelope only → None
+        assert_eq!(max_ts(&[json!({"offset": 0})]), None);
     }
 }

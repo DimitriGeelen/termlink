@@ -201,6 +201,24 @@ expect_contains "\"offset\":" "$out_json" "step 14: --json must include offset"
 expect_contains "\"sender_id\":" "$out_json" "step 14: --json must include sender_id"
 expect_contains "\"payload\":" "$out_json" "step 14: --json must include payload"
 
+step "15. channel ack --since (T-1337): timestamp-anchored receipt"
+# Take a sample timestamp BEFORE posting a fresh envelope, then post one,
+# then ack --since the anchor. The new offset must surface as bob's up_to
+# in receipts.
+ANCHOR_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
+sleep 1  # keep ANCHOR < new ts
+B channel post "$DM" --msg-type chat --payload "anchor-test from bob" >/dev/null
+B channel ack "$DM" --since "$ANCHOR_MS"
+out=$(A channel receipts "$DM")
+expect_contains "$BOB" "$out" "step 15: --since should result in a receipt from bob"
+# Future anchor must error with the friendly hint (not silently no-op).
+FUTURE_MS=$((ANCHOR_MS + 86400000))
+err_out=$(B channel ack "$DM" --since "$FUTURE_MS" 2>&1) || true
+expect_contains "No envelope" "$err_out" "step 15: future --since must error with 'No envelope...'"
+# clap-level mutual exclusion: --up-to + --since must fail fast.
+err_out=$(B channel ack "$DM" --up-to 0 --since "$ANCHOR_MS" 2>&1) || true
+expect_contains "cannot be used with" "$err_out" "step 15: --up-to and --since must be mutually exclusive"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
