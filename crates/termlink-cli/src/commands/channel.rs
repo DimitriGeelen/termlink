@@ -1160,6 +1160,105 @@ pub(crate) async fn cmd_channel_thread(
     Ok(())
 }
 
+/// T-1341: per-sender membership row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MemberRow {
+    pub sender_id: String,
+    pub posts: u64,
+    pub first_ts: Option<i64>,
+    pub last_ts: Option<i64>,
+}
+
+impl MemberRow {
+    pub(crate) fn to_json(&self) -> Value {
+        json!({
+            "sender_id": self.sender_id,
+            "posts": self.posts,
+            "first_ts": self.first_ts,
+            "last_ts": self.last_ts,
+        })
+    }
+}
+
+/// T-1341: pure helper — group envelopes by sender_id and accumulate
+/// post-count + first/last ts. Returns a vec sorted by last_ts desc
+/// (stable: earlier sender_id wins ties). Skips meta envelopes unless
+/// `include_meta` is true. Empty sender_ids are skipped (defensive).
+pub(crate) fn summarize_members(msgs: &[Value], include_meta: bool) -> Vec<MemberRow> {
+    use std::collections::BTreeMap;
+    let mut acc: BTreeMap<String, MemberRow> = BTreeMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if !include_meta && UNREAD_META_TYPES.contains(&mt) {
+            continue;
+        }
+        let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let ts_opt = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+        let entry = acc.entry(sender.clone()).or_insert_with(|| MemberRow {
+            sender_id: sender,
+            posts: 0,
+            first_ts: None,
+            last_ts: None,
+        });
+        entry.posts += 1;
+        if let Some(ts) = ts_opt {
+            entry.first_ts = Some(entry.first_ts.map_or(ts, |a| a.min(ts)));
+            entry.last_ts = Some(entry.last_ts.map_or(ts, |a| a.max(ts)));
+        }
+    }
+    let mut rows: Vec<MemberRow> = acc.into_values().collect();
+    // BTreeMap → values are already sorted by sender_id (stable for ties).
+    // Sort by last_ts desc; None last_ts sorts last.
+    rows.sort_by(|a, b| match (a.last_ts, b.last_ts) {
+        (Some(av), Some(bv)) => bv.cmp(&av), // larger b → b first → desc
+        (Some(_), None) => std::cmp::Ordering::Less, // a has ts, b doesn't → a first
+        (None, Some(_)) => std::cmp::Ordering::Greater, // a no ts → a last
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+    rows
+}
+
+/// T-1341: `channel members <topic>` — per-sender activity summary.
+pub(crate) async fn cmd_channel_members(
+    topic: &str,
+    include_meta: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = summarize_members(&envelopes, include_meta);
+
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(MemberRow::to_json).collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "topic": topic,
+                "include_meta": include_meta,
+                "members": arr,
+            }))?
+        );
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No members on '{topic}'.");
+        return Ok(());
+    }
+    for r in &rows {
+        let first = r.first_ts.map_or("—".to_string(), |v| v.to_string());
+        let last = r.last_ts.map_or("—".to_string(), |v| v.to_string());
+        println!("{}  posts={}  first={}  last={}", r.sender_id, r.posts, first, last);
+    }
+    Ok(())
+}
+
 /// T-1340: pure helper — given an offset→envelope index and a leaf offset,
 /// walk `metadata.in_reply_to` upward and return the chain in root→leaf
 /// order. Caps recursion at 1024 (cycle defense). Returns an empty vec
@@ -3337,6 +3436,105 @@ mod tests {
         assert_eq!(v["peer"], "b");
         assert_eq!(v["unread"], 4);
         assert_eq!(v["first_unread"], 5);
+    }
+
+    // ---- T-1341: summarize_members ------------------------------------
+
+    #[test]
+    fn summarize_members_groups_by_sender_with_first_last_ts() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "sender_id": "alice", "ts": 100}),
+            json!({"offset": 1, "msg_type": "chat", "sender_id": "bob",   "ts": 200}),
+            json!({"offset": 2, "msg_type": "chat", "sender_id": "alice", "ts": 300}),
+            json!({"offset": 3, "msg_type": "chat", "sender_id": "bob",   "ts": 400}),
+            json!({"offset": 4, "msg_type": "chat", "sender_id": "carol", "ts": 250}),
+        ];
+        let rows = summarize_members(&msgs, false);
+        // last_ts desc: bob 400, alice 300, carol 250
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].sender_id, "bob");
+        assert_eq!(rows[0].posts, 2);
+        assert_eq!(rows[0].first_ts, Some(200));
+        assert_eq!(rows[0].last_ts, Some(400));
+        assert_eq!(rows[1].sender_id, "alice");
+        assert_eq!(rows[1].posts, 2);
+        assert_eq!(rows[1].first_ts, Some(100));
+        assert_eq!(rows[1].last_ts, Some(300));
+        assert_eq!(rows[2].sender_id, "carol");
+        assert_eq!(rows[2].posts, 1);
+    }
+
+    #[test]
+    fn summarize_members_skips_meta_by_default() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat",     "sender_id": "alice", "ts": 100}),
+            json!({"offset": 1, "msg_type": "reaction", "sender_id": "bob",   "ts": 200}),
+            json!({"offset": 2, "msg_type": "receipt",  "sender_id": "alice", "ts": 300}),
+        ];
+        let rows = summarize_members(&msgs, false);
+        // Only alice's chat counts; bob's reaction + alice's receipt skipped.
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].posts, 1);
+        assert_eq!(rows[0].last_ts, Some(100));
+    }
+
+    #[test]
+    fn summarize_members_include_meta_counts_everything() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat",     "sender_id": "alice", "ts": 100}),
+            json!({"offset": 1, "msg_type": "reaction", "sender_id": "bob",   "ts": 200}),
+            json!({"offset": 2, "msg_type": "receipt",  "sender_id": "alice", "ts": 300}),
+        ];
+        let rows = summarize_members(&msgs, true);
+        assert_eq!(rows.len(), 2);
+        // bob's last_ts 200; alice's last_ts 300 → alice first.
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].posts, 2);
+        assert_eq!(rows[1].sender_id, "bob");
+        assert_eq!(rows[1].posts, 1);
+    }
+
+    #[test]
+    fn summarize_members_skips_empty_sender_id() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "sender_id": "", "ts": 100}),
+            json!({"offset": 1, "msg_type": "chat", "ts": 200}),
+            json!({"offset": 2, "msg_type": "chat", "sender_id": "alice", "ts": 300}),
+        ];
+        let rows = summarize_members(&msgs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+    }
+
+    #[test]
+    fn summarize_members_handles_no_ts() {
+        let msgs = vec![
+            json!({"offset": 0, "msg_type": "chat", "sender_id": "alice"}),  // no ts
+            json!({"offset": 1, "msg_type": "chat", "sender_id": "bob", "ts": 100}),
+        ];
+        let rows = summarize_members(&msgs, false);
+        assert_eq!(rows.len(), 2);
+        // bob has last_ts=100, alice has none → bob first by sort order
+        assert_eq!(rows[0].sender_id, "bob");
+        assert_eq!(rows[1].sender_id, "alice");
+        assert_eq!(rows[0].first_ts, Some(100));
+        assert_eq!(rows[1].first_ts, None);
+    }
+
+    #[test]
+    fn member_row_to_json_round_trips() {
+        let r = MemberRow {
+            sender_id: "alice".to_string(),
+            posts: 3,
+            first_ts: Some(100),
+            last_ts: Some(300),
+        };
+        let v = r.to_json();
+        assert_eq!(v["sender_id"], "alice");
+        assert_eq!(v["posts"], 3);
+        assert_eq!(v["first_ts"], 100);
+        assert_eq!(v["last_ts"], 300);
     }
 
     // ---- T-1340: build_ancestors --------------------------------------
