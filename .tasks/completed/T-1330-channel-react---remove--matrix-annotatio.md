@@ -4,16 +4,16 @@ name: "channel react --remove — Matrix annotation removal (alias for redact on
 description: >
   channel react --remove — Matrix annotation removal (alias for redact on a reaction offset)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-27T16:42:34Z
-last_update: 2026-04-27T16:42:34Z
-date_finished: null
+last_update: 2026-04-27T16:51:01Z
+date_finished: 2026-04-27T16:51:01Z
 ---
 
 # T-1330: channel react --remove — Matrix annotation removal (alias for redact on a reaction offset)
@@ -76,3 +76,6 @@ bash tests/e2e/agent-conversation.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1330-channel-react---remove--matrix-annotatio.md
 - **Context:** Initial task creation
+
+### 2026-04-27T16:51:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
