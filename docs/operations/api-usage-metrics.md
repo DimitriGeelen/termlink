@@ -105,6 +105,43 @@ if legacy ≤ gate-pct in the window, `1` otherwise.
 | `--last-Nd N` | (trend mode) | Single window in days. Omit for trend mode. |
 | `--runtime-dir PATH` | `$TERMLINK_RUNTIME_DIR` or `/var/lib/termlink` | Hub runtime directory |
 | `--gate-pct N` | `1.0` | Threshold below which legacy share passes |
+| `--json` | (off) | Machine-readable output for dashboards (T-1312) |
+
+### JSON output (`--json`)
+
+Stable shape — once shipped, downstream integrations depend on it.
+
+```json
+{
+  "audit_file": "/var/lib/termlink/rpc-audit.jsonl",
+  "mode": "trend",
+  "gate_pct": 1.0,
+  "malformed_lines": 0,
+  "windows": [
+    {"days": 1, "total": 812, "legacy": 0, "legacy_pct": 0.0, "passing": true},
+    {"days": 7, "total": 5904, "legacy": 3, "legacy_pct": 0.0508, "passing": true},
+    {"days": 30, "total": 18203, "legacy": 12, "legacy_pct": 0.0659, "passing": true},
+    {"days": 60, "total": 33421, "legacy": 29, "legacy_pct": 0.0868, "passing": true}
+  ],
+  "top_methods": [
+    {"method": "channel.post", "count": 28000, "pct": 83.8, "is_legacy": false}
+  ],
+  "legacy_callers": [
+    {"method": "event.broadcast", "from": "framework-agent", "count": 23},
+    {"method": "inbox.list", "from": "ring20-mgmt", "count": 4},
+    {"method": "event.broadcast", "from": "(unknown)", "count": 2}
+  ],
+  "gate": {"window_days": 60, "passing": true}
+}
+```
+
+`mode` is `"trend"` when `--last-Nd` is omitted, `"single-window"` otherwise
+(in which case `windows` contains exactly one entry for the requested
+`--last-Nd N`). Exit code semantics are preserved across both human and JSON
+paths: `0` if the canonical gate (60d in trend mode, the chosen window in
+single-window mode) is passing, `1` otherwise. When the audit file is
+missing, JSON mode emits `{"error": "audit file not found", "audit_file":
+"..."}` to stdout and exits `1`.
 
 ### When to look
 
