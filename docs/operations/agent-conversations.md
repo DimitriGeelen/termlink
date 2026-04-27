@@ -28,8 +28,35 @@ from the well-known msg_type and metadata keys, plus client-side rendering.
 
 ## Quick start: a two-agent conversation
 
-Pick a topic name. For 1:1 use the convention `dm:<a>:<b>` (alphabetical
-sort to keep both ends agreeing on a single topic).
+For 1:1 conversations the easiest entry point is `channel dm <peer>`
+(T-1319) — auto-resolves the canonical topic from your identity
+fingerprint plus the peer's, auto-creates it on first use, and opens
+read mode (`--resume --reactions`) by default:
+
+```sh
+# Alice sends a message (resolves topic + auto-creates).
+TERMLINK_IDENTITY_DIR=/tmp/alice termlink channel dm <bob-fingerprint> \
+    --send "ready for the design review?"
+
+# Bob replies (note --reply-to threads it).
+TERMLINK_IDENTITY_DIR=/tmp/bob termlink channel dm <alice-fingerprint> \
+    --send "yes, walking in now" --reply-to 0
+
+# Alice reads (default mode = --resume --reactions; cursor advances).
+TERMLINK_IDENTITY_DIR=/tmp/alice termlink channel dm <bob-fingerprint>
+
+# Bob's identity gets an independent cursor.
+TERMLINK_IDENTITY_DIR=/tmp/bob termlink channel dm <alice-fingerprint>
+```
+
+The peer identifier should be a stable string both ends agree on —
+typically the peer's identity fingerprint (`termlink identity show`).
+Topic name is deterministic regardless of which side runs the command:
+`channel dm` sorts `[my_fp, peer]` alphabetically and joins as `dm:<a>:<b>`.
+
+For lower-level use or non-DM conversations, pick a topic name yourself.
+For 1:1 use the convention `dm:<a>:<b>` (alphabetical sort to keep both
+ends agreeing on a single topic).
 
 ```sh
 # One-time setup (creates the topic with a sensible retention).

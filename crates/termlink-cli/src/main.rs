@@ -389,6 +389,24 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Dm {
+                peer,
+                send,
+                reply_to,
+                topic_only,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_dm(
+                    &peer,
+                    send.as_deref(),
+                    reply_to,
+                    topic_only,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Ack {
                 topic,
                 up_to,

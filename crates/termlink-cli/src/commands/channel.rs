@@ -300,6 +300,91 @@ mod cursor_store {
     }
 }
 
+/// T-1319: derive the canonical DM topic name from `(my_id, peer_id)`.
+/// Sorted alphabetically and joined as `dm:<a>:<b>` so both ends agree.
+fn dm_topic(my_id: &str, peer: &str) -> String {
+    let (a, b) = if my_id <= peer {
+        (my_id, peer)
+    } else {
+        (peer, my_id)
+    };
+    format!("dm:{a}:{b}")
+}
+
+/// T-1319: ensure a topic exists. Idempotent — if create returns
+/// "already exists" we treat it as success. Used by `channel dm` so the
+/// caller doesn't have to think about whether the topic was set up.
+async fn ensure_topic(sock: &std::path::Path, name: &str) -> Result<()> {
+    let resp = client::rpc_call(
+        sock,
+        method::CHANNEL_CREATE,
+        json!({"name": name, "retention": {"kind": "forever"}}),
+    )
+    .await
+    .context("Hub rpc_call (channel.create) failed")?;
+    match client::unwrap_result(resp) {
+        Ok(_) => Ok(()),
+        // T-1160 channel.create is idempotent on (name, retention) so
+        // re-creating an existing topic shouldn't error. If the hub does
+        // return an error here it's a real problem worth surfacing.
+        Err(e) => Err(anyhow!("channel.create failed: {e}")),
+    }
+}
+
+/// T-1319: DM shorthand. Resolves canonical `dm:<a>:<b>` topic from caller
+/// identity + peer; in read mode opens with `--resume --reactions`; in
+/// `--send` mode posts to the topic; `--topic-only` short-circuits.
+pub(crate) async fn cmd_channel_dm(
+    peer: &str,
+    send: Option<&str>,
+    reply_to: Option<u64>,
+    topic_only: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let identity = load_identity_or_create()?;
+    let my_id = identity.fingerprint().to_string();
+    let topic = dm_topic(&my_id, peer);
+    if topic_only {
+        if json_output {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({"topic": topic, "my_id": my_id, "peer": peer}))?
+            );
+        } else {
+            println!("{topic}");
+        }
+        return Ok(());
+    }
+    // Auto-create the topic on either path (idempotent forever-retention).
+    let sock = hub_socket(hub)?;
+    ensure_topic(&sock, &topic).await?;
+    match send {
+        Some(msg) => {
+            cmd_channel_post(
+                &topic,
+                "chat",
+                Some(msg),
+                None,
+                None, // sender_id defaults to identity fingerprint
+                reply_to,
+                &[],
+                hub,
+                json_output,
+            )
+            .await
+        }
+        None => {
+            // Default read mode: --resume + --reactions (the rich
+            // conversation view the agent typically wants).
+            cmd_channel_subscribe(
+                &topic, 0, true, false, 100, false, None, None, true, false, hub, json_output,
+            )
+            .await
+        }
+    }
+}
+
 /// T-1315: resolve the topic's current latest offset by querying
 /// `channel.list` with the topic's exact name as prefix and reading `count`.
 /// Returns `Ok(None)` for an empty topic. Used by `channel ack` when the
