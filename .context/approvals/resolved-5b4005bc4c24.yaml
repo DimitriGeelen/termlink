@@ -1,0 +1,15 @@
+command_hash: 5b4005bc4c24abd6c61a4029716992ae1a77281d0d4106eaf62fcd324aaf38dd
+command_preview: ".agentic-framework/bin/fw inception decide T-1297 go --rationale\
+  \ \"Spike 1: 5 confirmed misroutes on framework-agent (seq 224/231/688/906/907)\
+  \ with payload-level evidence \u2014 \u22653-incident threshold met. S"
+risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+  recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+  go|no-go --rationale "..."'
+status: approved
+timestamp: '2026-04-26T20:56:59Z'
+type: tier0
+response:
+  decision: approved
+  feedback: null
+  responded_at: '2026-04-26T21:18:00Z'
+  mechanism: watchtower
