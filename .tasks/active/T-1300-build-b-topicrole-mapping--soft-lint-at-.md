@@ -12,7 +12,7 @@ tags: [termlink, routing, lint, T-1297-child, hub]
 components: []
 related_tasks: [T-1297]
 created: 2026-04-26T21:19:39Z
-last_update: 2026-04-27T06:49:31Z
+last_update: 2026-04-27T07:08:50Z
 date_finished: null
 ---
 
