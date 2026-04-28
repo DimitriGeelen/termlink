@@ -298,6 +298,22 @@ mod cursor_store {
         }
         Ok(())
     }
+
+    /// T-1358: enumerate every cursor scoped to one identity. Returns
+    /// `(topic, cursor)` rows. The store key is `<topic>::<fingerprint>` so
+    /// we suffix-match on `::<fingerprint>` and strip it.
+    pub fn list_for_fingerprint(fingerprint: &str) -> Result<Vec<(String, u64)>> {
+        let map = load()?;
+        let suffix = format!("::{fingerprint}");
+        let mut out: Vec<(String, u64)> = map
+            .into_iter()
+            .filter_map(|(k, v)| {
+                k.strip_suffix(&suffix).map(|t| (t.to_string(), v))
+            })
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(out)
+    }
 }
 
 /// T-1319: derive the canonical DM topic name from `(my_id, peer_id)`.
@@ -3008,6 +3024,128 @@ pub(crate) async fn cmd_channel_digest(
     Ok(())
 }
 
+/// T-1358: per-topic unread row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UnreadRow {
+    pub topic: String,
+    pub cursor: u64,
+    pub latest: u64,
+    pub unread: u64,
+}
+
+impl UnreadRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "topic": self.topic,
+            "cursor": self.cursor,
+            "latest": self.latest,
+            "unread": self.unread,
+        })
+    }
+}
+
+/// T-1358: pure helper — given a list of `(topic, cursor)` from the local
+/// cursor store and a `topic_counts` map (from channel.list), produce
+/// rows for topics where new envelopes have arrived since the cursor.
+///
+/// Rules:
+/// - Topic missing from `topic_counts`: silently dropped (topic was deleted
+///   on the hub or doesn't exist there)
+/// - `count == 0`: latest is undefined; row dropped
+/// - `cursor + 1 >= count`: caller is at-or-ahead; row dropped (no unread)
+/// - Otherwise: `latest = count - 1`, `unread = count - 1 - cursor`
+///
+/// Result is sorted by descending `unread` (highest first); ties break on
+/// topic ascending for determinism. Pure — no I/O.
+pub(crate) fn compute_unread_rows(
+    cursors: &[(String, u64)],
+    topic_counts: &std::collections::HashMap<String, u64>,
+) -> Vec<UnreadRow> {
+    let mut rows: Vec<UnreadRow> = Vec::new();
+    for (topic, cursor) in cursors {
+        let count = match topic_counts.get(topic) {
+            Some(c) => *c,
+            None => continue,
+        };
+        if count == 0 {
+            continue;
+        }
+        let latest = count - 1;
+        if *cursor >= latest {
+            continue;
+        }
+        let unread = latest - cursor;
+        rows.push(UnreadRow {
+            topic: topic.clone(),
+            cursor: *cursor,
+            latest,
+            unread,
+        });
+    }
+    rows.sort_by(|a, b| b.unread.cmp(&a.unread).then_with(|| a.topic.cmp(&b.topic)));
+    rows
+}
+
+/// T-1358: render the cross-topic unread inbox.
+pub(crate) async fn cmd_channel_inbox(
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let identity = load_identity_or_create()
+        .context("Loading identity for unread scope")?;
+    let fp = identity.fingerprint().to_string();
+    let cursors = cursor_store::list_for_fingerprint(&fp)?;
+
+    if cursors.is_empty() {
+        if json_output {
+            println!("[]");
+        } else {
+            println!("No cursors recorded yet — use `subscribe --resume` to start tracking topics.");
+        }
+        return Ok(());
+    }
+
+    let sock = hub_socket(hub)?;
+    let resp = client::rpc_call(&sock, method::CHANNEL_LIST, json!({}))
+        .await
+        .context("Hub rpc_call (channel.list) failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    if let Some(arr) = result["topics"].as_array() {
+        for entry in arr {
+            let name = match entry.get("name").and_then(|v| v.as_str()) {
+                Some(n) => n.to_string(),
+                None => continue,
+            };
+            let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+            counts.insert(name, count);
+        }
+    }
+    let rows = compute_unread_rows(&cursors, &counts);
+
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(UnreadRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No unread topics.");
+        return Ok(());
+    }
+    println!("{} topic(s) with unread content:", rows.len());
+    for r in &rows {
+        println!(
+            "  {topic} — {unread} unread (latest={latest}, cursor={cursor})",
+            topic = r.topic,
+            unread = r.unread,
+            latest = r.latest,
+            cursor = r.cursor,
+        );
+    }
+    Ok(())
+}
+
 /// T-1344: pure helper — extract `metadata.in_reply_to` from an envelope and
 /// parse it as a u64. Returns `None` when the field is absent or non-numeric.
 /// Reactions and reply posts both carry this key (T-1313 / T-1314 contracts).
@@ -5565,6 +5703,89 @@ mod tests {
         let d = compute_digest(&envs, 0);
         assert_eq!(d.forwards_in, 1);
         assert_eq!(d.posts, 2);
+    }
+
+    // T-1358: compute_unread_rows
+    fn counts_map(items: &[(&str, u64)]) -> std::collections::HashMap<String, u64> {
+        items.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
+
+    #[test]
+    fn compute_unread_rows_empty_cursors() {
+        let counts = counts_map(&[("foo", 5)]);
+        assert!(compute_unread_rows(&[], &counts).is_empty());
+    }
+
+    #[test]
+    fn compute_unread_rows_caller_caught_up() {
+        // count=5 → latest=4. cursor=4 → caught up.
+        let cursors = vec![("foo".to_string(), 4)];
+        let counts = counts_map(&[("foo", 5)]);
+        assert!(compute_unread_rows(&cursors, &counts).is_empty());
+    }
+
+    #[test]
+    fn compute_unread_rows_simple_unread() {
+        // count=10 → latest=9. cursor=5 → unread = 9-5 = 4.
+        let cursors = vec![("foo".to_string(), 5)];
+        let counts = counts_map(&[("foo", 10)]);
+        let rows = compute_unread_rows(&cursors, &counts);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].unread, 4);
+        assert_eq!(rows[0].latest, 9);
+        assert_eq!(rows[0].cursor, 5);
+    }
+
+    #[test]
+    fn compute_unread_rows_topic_missing_dropped() {
+        let cursors = vec![("foo".to_string(), 1), ("bar".to_string(), 0)];
+        let counts = counts_map(&[("foo", 5)]);
+        let rows = compute_unread_rows(&cursors, &counts);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].topic, "foo");
+    }
+
+    #[test]
+    fn compute_unread_rows_zero_count_dropped() {
+        let cursors = vec![("foo".to_string(), 0)];
+        let counts = counts_map(&[("foo", 0)]);
+        assert!(compute_unread_rows(&cursors, &counts).is_empty());
+    }
+
+    #[test]
+    fn compute_unread_rows_cursor_ahead_of_latest_dropped() {
+        // cursor=10, count=5 → latest=4, cursor >= latest. drop.
+        let cursors = vec![("foo".to_string(), 10)];
+        let counts = counts_map(&[("foo", 5)]);
+        assert!(compute_unread_rows(&cursors, &counts).is_empty());
+    }
+
+    #[test]
+    fn compute_unread_rows_sorted_by_unread_desc() {
+        let cursors = vec![
+            ("a".to_string(), 0), // unread=4
+            ("b".to_string(), 0), // unread=9
+            ("c".to_string(), 0), // unread=1
+        ];
+        let counts = counts_map(&[("a", 5), ("b", 10), ("c", 2)]);
+        let rows = compute_unread_rows(&cursors, &counts);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].topic, "b");
+        assert_eq!(rows[1].topic, "a");
+        assert_eq!(rows[2].topic, "c");
+    }
+
+    #[test]
+    fn compute_unread_rows_tie_break_on_topic() {
+        // Two topics with same unread count — tie break alphabetical.
+        let cursors = vec![
+            ("zebra".to_string(), 0),
+            ("apple".to_string(), 0),
+        ];
+        let counts = counts_map(&[("zebra", 5), ("apple", 5)]);
+        let rows = compute_unread_rows(&cursors, &counts);
+        assert_eq!(rows[0].topic, "apple");
+        assert_eq!(rows[1].topic, "zebra");
     }
 
     #[test]

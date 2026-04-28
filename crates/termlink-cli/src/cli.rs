@@ -2423,6 +2423,21 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Cross-topic inbox: "what did I miss?" view (T-1358). Walks the local
+    /// per-(topic, identity) cursor store written by `subscribe --resume`
+    /// (T-1318), queries `channel.list` for each topic's current count,
+    /// and renders rows for topics where `count - 1 > cursor`. Read-only;
+    /// does not touch cursors. Distinct from `channel unread <topic>` which
+    /// is single-topic + receipt-based.
+    Inbox {
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `[{topic, unread, latest, cursor}]`
+        #[arg(long)]
+        json: bool,
+    },
     /// Synthesized recent-activity digest for a topic (T-1356). Walks the
     /// topic, applies a time filter, and renders a compact summary
     /// (posts, top senders, top reactions, pins added/removed, forwards in,
