@@ -854,6 +854,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::AckHistory {
+                topic,
+                user,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_ack_history(
+                    &topic,
+                    user.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,

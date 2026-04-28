@@ -2549,6 +2549,27 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Chronological receipt audit log (T-1377). Walks the topic and lists
+    /// every `msg_type=receipt` envelope as a row in ts asc order. Distinct
+    /// from `receipts` (T-1315 LWW snapshot) and `ack-status` (T-1361
+    /// dashboard with lag). Optional positional user filter narrows the log
+    /// to a single sender. Extends the audit-log family (pin-history,
+    /// redactions, edit-stats) to receipt activity.
+    AckHistory {
+        /// Topic name
+        topic: String,
+
+        /// Optional user filter — only show receipts from this sender_id
+        user: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Canonical collapsed view of a topic (T-1376). Matrix-style room
     /// render: applies `m.replace` (edits — latest text wins) and hides
     /// `m.redaction`-targeted offsets. One row per visible content message,

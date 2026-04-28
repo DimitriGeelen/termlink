@@ -1292,6 +1292,32 @@ Filter behaviour:
 Sort: offset asc (chronological). `--json` returns `[{offset, sender_id,
 payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}]`.
 
+## Receipt audit log — `channel ack-history`
+
+The chronological audit companion to the LWW receipt views. Walks the topic
+and emits one row per `msg_type=receipt` envelope in ts-asc order. Distinct
+from `channel receipts` (T-1315 — latest-per-sender state) and
+`channel ack-status` (T-1361 — dashboard with lag).
+
+```sh
+termlink channel ack-history alpha:design
+
+#   Ack-history of 'alpha:design':
+#     [4]  ts=1729880600000 alice-fp → up_to=2
+#     [9]  ts=1729880710000 bob-fp   → up_to=4
+#     [14] ts=1729880820000 alice-fp → up_to=6
+```
+
+Optional positional user filter narrows to one sender:
+
+```sh
+termlink channel ack-history alpha:design alice-fp
+```
+
+Receipts with non-numeric or missing `metadata.up_to` are silently dropped
+(malformed shape). Sort: ts_ms asc, receipt_offset asc tiebreak. `--json`
+returns `[{receipt_offset, sender_id, up_to, ts_ms}]`.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1303,7 +1329,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 48 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 49 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1394,4 +1420,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1374 — `channel reactions-on` (per-message reaction rollup, fourth axis after live/topic-wide/per-sender)
 - T-1375 — `channel edit-stats` (topic-wide edit count summary, completes audit trio with T-1372 pin-history + T-1373 redactions)
 - T-1376 — `channel state` (Matrix-style canonical render — edits applied, redactions hidden; the "what does this topic say now" view)
+- T-1377 — `channel ack-history` (chronological receipt audit log; extends audit-log family to receipt activity)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
