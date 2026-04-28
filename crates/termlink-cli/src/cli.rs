@@ -2549,6 +2549,23 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Pin/unpin audit log for a topic (T-1372). Walks the topic and lists
+    /// every `msg_type=pin` envelope chronologically — each toggle is a row,
+    /// including pins that were later unpinned and re-pins of the same target.
+    /// Complements `channel pinned` (T-1345), which shows live last-write-wins
+    /// state only. Useful for forensic audits and "when did this happen".
+    PinHistory {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Mentions of a user on a topic (T-1371). Reverse view of `--mention`
     /// posting. Lists every envelope on `<topic>` whose `metadata.mentions`
     /// CSV matches `<user>` (wildcard `*` in either side honored per T-1333).
