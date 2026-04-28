@@ -818,6 +818,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::ReactionsOn {
+                topic,
+                offset,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_reactions_on(
+                    &topic,
+                    offset,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,

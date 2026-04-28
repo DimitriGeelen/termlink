@@ -4226,6 +4226,108 @@ pub(crate) async fn cmd_channel_redactions(
     Ok(())
 }
 
+/// T-1374: one row in the reactions-on rollup.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReactionsOnRow {
+    pub emoji: String,
+    pub count: u64,
+    pub senders: Vec<String>,
+}
+
+impl ReactionsOnRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "emoji": self.emoji,
+            "count": self.count,
+            "senders": self.senders,
+        })
+    }
+}
+
+/// T-1374: pure helper — per-target reaction rollup.
+///
+/// Walks the topic, filters `msg_type=reaction` whose
+/// `metadata.in_reply_to == target_offset` and that are not redacted,
+/// groups by emoji. `count` is the total reactions (so a single sender
+/// hitting 👍 twice still counts twice — captures repeated tapping). `senders`
+/// is deduplicated (set semantics, sorted asc) so "who reacted" is clean.
+///
+/// Sort: count desc, emoji asc tiebreak. Pure — no I/O.
+pub(crate) fn compute_reactions_on(envelopes: &[Value], target: u64) -> Vec<ReactionsOnRow> {
+    use std::collections::{BTreeSet, HashMap};
+    let redacted = redacted_offsets(envelopes);
+    // emoji -> (count, set of senders)
+    let mut by_emoji: HashMap<String, (u64, BTreeSet<String>)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let parent = match parent_offset_of(env) {
+            Some(p) => p,
+            None => continue,
+        };
+        if parent != target {
+            continue;
+        }
+        let emoji = decode_payload_lossy(env);
+        if emoji.is_empty() {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let entry = by_emoji.entry(emoji).or_insert_with(|| (0, BTreeSet::new()));
+        entry.0 += 1;
+        entry.1.insert(sender);
+    }
+    let mut rows: Vec<ReactionsOnRow> = by_emoji
+        .into_iter()
+        .map(|(emoji, (count, senders))| ReactionsOnRow {
+            emoji,
+            count,
+            senders: senders.into_iter().collect(),
+        })
+        .collect();
+    rows.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.emoji.cmp(&b.emoji)));
+    rows
+}
+
+/// T-1374: render the per-message reaction rollup.
+pub(crate) async fn cmd_channel_reactions_on(
+    topic: &str,
+    target: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_reactions_on(&envelopes, target);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(ReactionsOnRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No reactions on '{topic}':[{target}].");
+        return Ok(());
+    }
+    println!("Reactions on '{topic}':[{target}]:");
+    for r in &rows {
+        let senders = r.senders.join(", ");
+        println!("  {emoji} ×{count} — {senders}", emoji = r.emoji, count = r.count);
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -9024,6 +9126,80 @@ mod tests {
         assert_eq!(rows[0].target_offset, 99);
         assert!(rows[0].target_payload.is_none());
         assert!(rows[0].reason.is_none());
+    }
+
+    // T-1374: compute_reactions_on
+    fn mk_reaction(off: u64, sender: &str, ts: i64, parent: u64, emoji: &str) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "reaction",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(emoji),
+            "metadata": {"in_reply_to": parent.to_string()},
+        })
+    }
+
+    #[test]
+    fn reactions_on_two_emojis_count_desc() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "target"),
+            mk_reaction(1, "alice", 200, 0, "👍"),
+            mk_reaction(2, "bob", 300, 0, "👍"),
+            mk_reaction(3, "alice", 400, 0, "🎉"),
+        ];
+        let rows = compute_reactions_on(&envs, 0);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].emoji, "👍");
+        assert_eq!(rows[0].count, 2);
+        assert_eq!(rows[0].senders, vec!["alice".to_string(), "bob".to_string()]);
+        assert_eq!(rows[1].emoji, "🎉");
+        assert_eq!(rows[1].count, 1);
+        assert_eq!(rows[1].senders, vec!["alice".to_string()]);
+    }
+
+    #[test]
+    fn reactions_on_same_sender_dedup_in_senders() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "target"),
+            mk_reaction(1, "alice", 200, 0, "👍"),
+            mk_reaction(2, "alice", 300, 0, "👍"), // alice taps again
+        ];
+        let rows = compute_reactions_on(&envs, 0);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 2, "count captures repeats");
+        assert_eq!(rows[0].senders, vec!["alice".to_string()], "senders dedup");
+    }
+
+    #[test]
+    fn reactions_on_redacted_excluded() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "target"),
+            mk_reaction(1, "alice", 200, 0, "👍"),
+            mk_reaction(2, "bob", 300, 0, "👍"),
+            mk_redact(3, "alice", 400, 2),
+        ];
+        let rows = compute_reactions_on(&envs, 0);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 1);
+        assert_eq!(rows[0].senders, vec!["alice".to_string()]);
+    }
+
+    #[test]
+    fn reactions_on_other_target_excluded() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "target-zero"),
+            mk_post(1, "alice", 150, "target-one"),
+            mk_reaction(2, "alice", 200, 0, "👍"),
+            mk_reaction(3, "bob", 300, 1, "🎉"),
+        ];
+        let rows = compute_reactions_on(&envs, 0);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].emoji, "👍");
+        let rows1 = compute_reactions_on(&envs, 1);
+        assert_eq!(rows1.len(), 1);
+        assert_eq!(rows1[0].emoji, "🎉");
     }
 
     #[test]

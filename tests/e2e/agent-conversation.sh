@@ -883,6 +883,29 @@ expect_contains "\"event_offset\":" "$out_json" "step 45: --json carries event_o
 expect_contains "\"target_offset\":" "$out_json" "step 45: --json carries target_offset"
 expect_contains "\"reason\":" "$out_json" "step 45: --json carries reason"
 
+step "46. channel reactions-on (T-1374): per-message reaction rollup"
+RX_TOPIC="t-1374-rxon-$(date +%s)"
+A channel create "$RX_TOPIC" --retention forever >/dev/null
+A channel post "$RX_TOPIC" --msg-type chat --payload "rx-target-0" >/dev/null
+A channel post "$RX_TOPIC" --msg-type chat --payload "rx-target-1" >/dev/null
+A channel react "$RX_TOPIC" 0 "👍" >/dev/null
+B channel react "$RX_TOPIC" 0 "👍" >/dev/null
+A channel react "$RX_TOPIC" 0 "🎉" >/dev/null
+B channel react "$RX_TOPIC" 1 "👀" >/dev/null
+out=$(A channel reactions-on "$RX_TOPIC" 0)
+expect_contains "👍 ×2" "$out" "step 46: thumbs-up count is 2"
+expect_contains "🎉 ×1" "$out" "step 46: party-popper count is 1"
+[ -z "$(echo "$out" | grep -F '👀')" ] || fail "step 46: 👀 belongs to offset 1, not 0"
+out_json=$(A channel reactions-on "$RX_TOPIC" 0 --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 46: expected 2 emoji rows, got $n"
+expect_contains "\"emoji\":" "$out_json" "step 46: --json carries emoji"
+expect_contains "\"count\":" "$out_json" "step 46: --json carries count"
+expect_contains "\"senders\":" "$out_json" "step 46: --json carries senders"
+# Sort: thumbs-up first (count desc)
+first_emoji=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["emoji"])')
+[ "$first_emoji" = "👍" ] || fail "step 46: count desc should put 👍 first, got $first_emoji"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
