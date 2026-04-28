@@ -514,6 +514,40 @@ out_json=$(A channel starred "$STAR_TOPIC" --all --json)
 expect_contains "starred_by" "$out_json" "step 30: --json envelopes carry starred_by"
 expect_contains "\"target\": $STAR_TARGET" "$out_json" "step 30: --json carries target offset"
 
+step "31. channel poll start/vote/end/results (T-1355): Matrix m.poll lifecycle"
+POLL_TOPIC="t-1355-poll-$(date +%s)"
+A channel create "$POLL_TOPIC" --retention forever >/dev/null
+# Alice opens a poll. Its offset (0 in this fresh topic) is the poll id.
+A channel poll start "$POLL_TOPIC" --question "Lunch?" --option "Pizza" --option "Salad" --option "Sushi" >/dev/null
+POLL_ID=0
+# Alice votes Pizza (0).
+A channel poll vote "$POLL_TOPIC" "$POLL_ID" --choice 0 >/dev/null
+# Bob votes Sushi (2).
+B channel poll vote "$POLL_TOPIC" "$POLL_ID" --choice 2 >/dev/null
+out=$(A channel poll results "$POLL_TOPIC" "$POLL_ID")
+expect_contains "Pizza — 1 vote" "$out" "step 31: pizza has 1 vote"
+expect_contains "Sushi — 1 vote" "$out" "step 31: sushi has 1 vote"
+expect_contains "Total votes: 2" "$out" "step 31: 2 total votes"
+expect_contains "[OPEN]" "$out" "step 31: poll is open"
+# Bob changes mind to Pizza — vote replacement.
+B channel poll vote "$POLL_TOPIC" "$POLL_ID" --choice 0 >/dev/null
+out=$(A channel poll results "$POLL_TOPIC" "$POLL_ID")
+expect_contains "Pizza — 2 vote" "$out" "step 31: pizza now has 2 votes"
+expect_contains "Sushi — 0 vote" "$out" "step 31: sushi back to 0 (vote replacement)"
+expect_contains "Total votes: 2" "$out" "step 31: still 2 total (replacement, not addition)"
+# Close the poll, then attempt a late vote — it must NOT change the tally.
+A channel poll end "$POLL_TOPIC" "$POLL_ID" >/dev/null
+sleep 1
+B channel poll vote "$POLL_TOPIC" "$POLL_ID" --choice 1 >/dev/null
+out=$(A channel poll results "$POLL_TOPIC" "$POLL_ID")
+expect_contains "[CLOSED]" "$out" "step 31: poll is closed"
+expect_contains "Pizza — 2 vote" "$out" "step 31: pizza unchanged after close"
+expect_contains "Salad — 0 vote" "$out" "step 31: late salad vote rejected"
+# JSON shape sanity.
+out_json=$(A channel poll results "$POLL_TOPIC" "$POLL_ID" --json)
+expect_contains "\"closed\": true" "$out_json" "step 31: --json carries closed:true"
+expect_contains "\"total_votes\": 2" "$out_json" "step 31: --json carries total_votes"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

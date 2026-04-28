@@ -2501,6 +2501,282 @@ pub(crate) async fn cmd_channel_starred(
     Ok(())
 }
 
+/// T-1355: emit a poll_start envelope. Payload is the question, options are
+/// joined with `|` into `metadata.poll_options`. The returned offset is the
+/// poll id used by `vote`/`end`/`results`.
+pub(crate) async fn cmd_channel_poll_start(
+    topic: &str,
+    question: &str,
+    options: &[String],
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    if options.len() < 2 {
+        return Err(anyhow!(
+            "poll requires at least 2 options (got {})",
+            options.len()
+        ));
+    }
+    if options.iter().any(|o| o.contains('|')) {
+        return Err(anyhow!(
+            "option labels cannot contain '|' (used as the metadata delimiter)"
+        ));
+    }
+    let metadata = vec![format!("poll_options={}", options.join("|"))];
+    cmd_channel_post(
+        topic,
+        "poll_start",
+        Some(question),
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1355: emit a poll_vote envelope. Latest vote per (poll_id, sender) wins.
+pub(crate) async fn cmd_channel_poll_vote(
+    topic: &str,
+    poll_id: u64,
+    choice: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let metadata = vec![
+        format!("poll_id={poll_id}"),
+        format!("poll_choice={choice}"),
+    ];
+    cmd_channel_post(
+        topic,
+        "poll_vote",
+        Some(""),
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1355: emit a poll_end envelope. Aggregator drops votes whose ts is
+/// after this envelope's ts.
+pub(crate) async fn cmd_channel_poll_end(
+    topic: &str,
+    poll_id: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let metadata = vec![format!("poll_id={poll_id}")];
+    cmd_channel_post(
+        topic,
+        "poll_end",
+        Some(""),
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1355: per-option tally row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PollOptionRow {
+    pub label: String,
+    pub count: u64,
+    pub voters: Vec<String>,
+}
+
+/// T-1355: aggregated poll state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PollState {
+    pub poll_id: u64,
+    pub question: String,
+    pub options: Vec<PollOptionRow>,
+    pub closed: bool,
+    pub total_votes: u64,
+}
+
+/// T-1355: pure helper — derive a poll's current state from a topic walk.
+///
+/// Locates the `poll_start` envelope at `poll_id`. Returns `None` if absent
+/// or wrong msg_type. Walks all `poll_vote` envelopes for that poll_id in
+/// offset order — latest vote per sender wins; an out-of-range choice index
+/// drops that voter. If a `poll_end` envelope exists for this poll_id, votes
+/// whose `ts` is strictly greater than the end ts are ignored, and `closed`
+/// is true.
+pub(crate) fn compute_poll_state(envelopes: &[Value], poll_id: u64) -> Option<PollState> {
+    let start = envelopes.iter().find(|e| {
+        e.get("offset").and_then(|v| v.as_u64()) == Some(poll_id)
+            && e.get("msg_type").and_then(|v| v.as_str()) == Some("poll_start")
+    })?;
+    let question = decode_payload_lossy(start);
+    let opts_str = start
+        .get("metadata")
+        .and_then(|m| m.get("poll_options"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let labels: Vec<String> = if opts_str.is_empty() {
+        Vec::new()
+    } else {
+        opts_str.split('|').map(|s| s.to_string()).collect()
+    };
+    if labels.len() < 2 {
+        // Malformed start — treat as no poll for purposes of compute.
+        return None;
+    }
+
+    let pid = poll_id.to_string();
+    // Find poll_end if any.
+    let end_ts: Option<i64> = envelopes
+        .iter()
+        .filter(|e| {
+            e.get("msg_type").and_then(|v| v.as_str()) == Some("poll_end")
+                && e.get("metadata")
+                    .and_then(|m| m.get("poll_id"))
+                    .and_then(|v| v.as_str())
+                    == Some(pid.as_str())
+        })
+        .filter_map(|e| {
+            e.get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| e.get("ts").and_then(|v| v.as_i64()))
+        })
+        .min();
+    let closed = end_ts.is_some();
+
+    use std::collections::HashMap;
+    // sender -> (choice_index, ts) — latest wins (offset order).
+    let mut latest: HashMap<String, (u64, i64)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("poll_vote") {
+            continue;
+        }
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        if md.get("poll_id").and_then(|v| v.as_str()) != Some(pid.as_str()) {
+            continue;
+        }
+        let choice = match md
+            .get("poll_choice")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(c) => c,
+            None => continue,
+        };
+        if (choice as usize) >= labels.len() {
+            continue;
+        }
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if let Some(ets) = end_ts
+            && ts > ets
+        {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        latest.insert(sender, (choice, ts));
+    }
+
+    let mut option_rows: Vec<PollOptionRow> = labels
+        .iter()
+        .map(|l| PollOptionRow {
+            label: l.clone(),
+            count: 0,
+            voters: Vec::new(),
+        })
+        .collect();
+    let mut total: u64 = 0;
+    let mut by_choice: Vec<Vec<String>> = vec![Vec::new(); labels.len()];
+    for (sender, (choice, _ts)) in &latest {
+        by_choice[*choice as usize].push(sender.clone());
+        total += 1;
+    }
+    for (i, voters) in by_choice.into_iter().enumerate() {
+        let mut v = voters;
+        v.sort();
+        option_rows[i].count = v.len() as u64;
+        option_rows[i].voters = v;
+    }
+    Some(PollState {
+        poll_id,
+        question,
+        options: option_rows,
+        closed,
+        total_votes: total,
+    })
+}
+
+/// T-1355: render poll results. Walks the topic once, computes state, prints.
+pub(crate) async fn cmd_channel_poll_results(
+    topic: &str,
+    poll_id: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let state = compute_poll_state(&envelopes, poll_id).ok_or_else(|| {
+        anyhow!(
+            "Topic '{topic}' has no poll_start at offset {poll_id} (or it is malformed)"
+        )
+    })?;
+    if json_output {
+        let opts: Vec<Value> = state
+            .options
+            .iter()
+            .map(|o| {
+                json!({
+                    "label": o.label,
+                    "count": o.count,
+                    "voters": o.voters,
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "poll_id": state.poll_id,
+                "question": state.question,
+                "options": opts,
+                "closed": state.closed,
+                "total_votes": state.total_votes,
+            }))?
+        );
+        return Ok(());
+    }
+    let status = if state.closed { "CLOSED" } else { "OPEN" };
+    println!(
+        "Poll #{} [{}]: {}",
+        state.poll_id, status, state.question
+    );
+    for (i, opt) in state.options.iter().enumerate() {
+        println!("  [{i}] {} — {} vote(s)", opt.label, opt.count);
+        for v in &opt.voters {
+            println!("       · {v}");
+        }
+    }
+    println!("Total votes: {}", state.total_votes);
+    Ok(())
+}
+
 /// T-1344: pure helper — extract `metadata.in_reply_to` from an envelope and
 /// parse it as a u64. Returns `None` when the field is absent or non-numeric.
 /// Reactions and reply posts both carry this key (T-1313 / T-1314 contracts).
@@ -4786,6 +5062,155 @@ mod tests {
             }),
         ];
         assert!(compute_starred_set(&envs, None).is_empty());
+    }
+
+    // T-1355: compute_poll_state
+    fn poll_start_env(off: u64, q: &str, opts: &[&str], by: &str, ts: i64) -> Value {
+        use base64::Engine;
+        let p = base64::engine::general_purpose::STANDARD.encode(q);
+        json!({
+            "offset": off,
+            "msg_type": "poll_start",
+            "sender_id": by,
+            "ts": ts,
+            "payload_b64": p,
+            "metadata": {
+                "poll_options": opts.join("|"),
+            },
+        })
+    }
+    fn poll_vote_env(off: u64, poll_id: u64, choice: u64, by: &str, ts: i64) -> Value {
+        json!({
+            "offset": off,
+            "msg_type": "poll_vote",
+            "sender_id": by,
+            "ts": ts,
+            "payload_b64": "",
+            "metadata": {
+                "poll_id": poll_id.to_string(),
+                "poll_choice": choice.to_string(),
+            },
+        })
+    }
+    fn poll_end_env(off: u64, poll_id: u64, by: &str, ts: i64) -> Value {
+        json!({
+            "offset": off,
+            "msg_type": "poll_end",
+            "sender_id": by,
+            "ts": ts,
+            "payload_b64": "",
+            "metadata": {
+                "poll_id": poll_id.to_string(),
+            },
+        })
+    }
+
+    #[test]
+    fn compute_poll_state_no_start_returns_none() {
+        assert!(compute_poll_state(&[], 0).is_none());
+    }
+
+    #[test]
+    fn compute_poll_state_start_only_no_votes() {
+        let envs = vec![poll_start_env(0, "Lunch?", &["Pizza", "Salad"], "alice", 100)];
+        let s = compute_poll_state(&envs, 0).unwrap();
+        assert_eq!(s.question, "Lunch?");
+        assert_eq!(s.options.len(), 2);
+        assert_eq!(s.options[0].label, "Pizza");
+        assert_eq!(s.options[0].count, 0);
+        assert_eq!(s.total_votes, 0);
+        assert!(!s.closed);
+    }
+
+    #[test]
+    fn compute_poll_state_one_vote() {
+        let envs = vec![
+            poll_start_env(0, "Q", &["A", "B"], "alice", 100),
+            poll_vote_env(1, 0, 1, "bob", 200),
+        ];
+        let s = compute_poll_state(&envs, 0).unwrap();
+        assert_eq!(s.options[1].count, 1);
+        assert_eq!(s.options[1].voters, vec!["bob"]);
+        assert_eq!(s.total_votes, 1);
+    }
+
+    #[test]
+    fn compute_poll_state_vote_replacement() {
+        // Bob votes A then changes mind to B; only B counts.
+        let envs = vec![
+            poll_start_env(0, "Q", &["A", "B"], "alice", 100),
+            poll_vote_env(1, 0, 0, "bob", 200),
+            poll_vote_env(2, 0, 1, "bob", 300),
+        ];
+        let s = compute_poll_state(&envs, 0).unwrap();
+        assert_eq!(s.options[0].count, 0);
+        assert_eq!(s.options[1].count, 1);
+        assert_eq!(s.total_votes, 1);
+    }
+
+    #[test]
+    fn compute_poll_state_closed_drops_late_votes() {
+        let envs = vec![
+            poll_start_env(0, "Q", &["A", "B"], "alice", 100),
+            poll_vote_env(1, 0, 0, "bob", 200),
+            poll_end_env(2, 0, "alice", 250),
+            // late vote — must be ignored.
+            poll_vote_env(3, 0, 1, "carol", 300),
+        ];
+        let s = compute_poll_state(&envs, 0).unwrap();
+        assert!(s.closed);
+        assert_eq!(s.options[0].count, 1);
+        assert_eq!(s.options[1].count, 0);
+        assert_eq!(s.total_votes, 1);
+    }
+
+    #[test]
+    fn compute_poll_state_multiple_voters() {
+        let envs = vec![
+            poll_start_env(0, "Q", &["A", "B", "C"], "alice", 100),
+            poll_vote_env(1, 0, 0, "bob", 200),
+            poll_vote_env(2, 0, 0, "carol", 250),
+            poll_vote_env(3, 0, 2, "dave", 300),
+        ];
+        let s = compute_poll_state(&envs, 0).unwrap();
+        assert_eq!(s.options[0].count, 2);
+        assert_eq!(s.options[0].voters, vec!["bob", "carol"]);
+        assert_eq!(s.options[2].count, 1);
+        assert_eq!(s.total_votes, 3);
+    }
+
+    #[test]
+    fn compute_poll_state_out_of_range_choice_dropped() {
+        let envs = vec![
+            poll_start_env(0, "Q", &["A", "B"], "alice", 100),
+            poll_vote_env(1, 0, 5, "bob", 200), // out of range
+        ];
+        let s = compute_poll_state(&envs, 0).unwrap();
+        assert_eq!(s.total_votes, 0);
+    }
+
+    #[test]
+    fn compute_poll_state_filters_by_poll_id() {
+        // Two polls in the same topic; voting on one must not affect the other.
+        let envs = vec![
+            poll_start_env(0, "P0", &["A", "B"], "alice", 100),
+            poll_start_env(1, "P1", &["X", "Y"], "alice", 110),
+            poll_vote_env(2, 0, 1, "bob", 200),
+            poll_vote_env(3, 1, 0, "carol", 250),
+        ];
+        let s0 = compute_poll_state(&envs, 0).unwrap();
+        let s1 = compute_poll_state(&envs, 1).unwrap();
+        assert_eq!(s0.options[1].count, 1);
+        assert_eq!(s0.options[0].count, 0);
+        assert_eq!(s1.options[0].count, 1);
+        assert_eq!(s1.options[1].count, 0);
+    }
+
+    #[test]
+    fn compute_poll_state_malformed_start_too_few_options_returns_none() {
+        // Only one option — invalid.
+        let envs = vec![poll_start_env(0, "Q", &["only"], "alice", 100)];
+        assert!(compute_poll_state(&envs, 0).is_none());
     }
 
     // T-1352: should_emit_for_until

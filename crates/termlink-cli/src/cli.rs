@@ -2423,6 +2423,98 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Polls on a topic (T-1355). Matrix `m.poll.start` / `m.poll.response`
+    /// / `m.poll.end` analog. Sub-actions: `start`, `vote`, `end`, `results`.
+    Poll {
+        #[command(subcommand)]
+        action: PollAction,
+    },
+}
+
+/// Poll sub-actions (T-1355).
+#[derive(Subcommand)]
+pub(crate) enum PollAction {
+    /// Open a poll on a topic. Posts a `msg_type=poll_start` envelope whose
+    /// payload is the question and `metadata.poll_options=opt1|opt2|opt3`.
+    /// The envelope's offset becomes the poll id used by `vote`/`end`/`results`.
+    Start {
+        /// Topic name
+        topic: String,
+
+        /// The poll question (rendered as the envelope payload)
+        #[arg(long)]
+        question: String,
+
+        /// Option label. Repeat for each option (>=2 required).
+        #[arg(long = "option", required = true, num_args = 1..)]
+        options: Vec<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Cast a vote in an open poll. Posts `msg_type=poll_vote` with
+    /// `metadata.poll_id=<poll_id>` and `metadata.poll_choice=<index>`.
+    /// Re-voting replaces the prior vote (latest action per sender wins).
+    Vote {
+        /// Topic name
+        topic: String,
+
+        /// Poll id (the offset of the poll_start envelope)
+        poll_id: u64,
+
+        /// Zero-based option index
+        #[arg(long)]
+        choice: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Close a poll. Posts `msg_type=poll_end` with
+    /// `metadata.poll_id=<poll_id>`. Aggregator drops votes whose ts is
+    /// after the end envelope.
+    End {
+        /// Topic name
+        topic: String,
+
+        /// Poll id (the offset of the poll_start envelope)
+        poll_id: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Render tallies for a poll. Walks the topic, finds the poll_start at
+    /// `<poll_id>`, applies poll_vote envelopes (latest per sender wins),
+    /// and stops counting after poll_end (if any). Read-only.
+    Results {
+        /// Topic name
+        topic: String,
+
+        /// Poll id (the offset of the poll_start envelope)
+        poll_id: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `{question, options:[{label,count,voters}], closed}`
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Fleet-wide operations across all configured hubs
