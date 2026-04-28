@@ -17,7 +17,7 @@ tags: [infrastructure, proxmox, operations]
 components: []
 related_tasks: [T-1064, T-1028, T-1053]
 created: 2026-04-19T08:43:09Z
-last_update: 2026-04-26T15:18:24Z
+last_update: 2026-04-28T08:32:56Z
 date_finished: null
 ---
 
@@ -115,3 +115,18 @@ See `.context/project/concerns.yaml` entry G-009 for full diagnosis.
 - **Expected reply:** short report ack or refusal via `termlink emit` with subject `T-1137-report`.
 - **Authority:** T-1063 cross-repo work approval (standing user directive 2026-04-24).
 - **Next step:** await reply; on success, tick Human ACs with evidence.
+
+### 2026-04-28T08:35Z — AC 2/AC 3 verification with operator creds (re-check; both still UNCHECKED)
+- **AC 2 evidence (from `ssh root@192.168.10.180`):**
+  * `df -h /var/log` → **98% used** (202M / 224M zram0). Threshold is <50% — NOT met.
+  * `du -sh /var/log/*` sorted: **pveproxy 106M, journal 86M**, pve 4.2M, postgresql 3.8M, others <1M
+  * `/etc/cron.daily/logrotate` exists and executable; rotated files span 3 days (`access.log.2.gz` 27 00:12, `access.log.3.gz` 26 13:25) — daily cron IS active ✓
+  * Today's `access.log.1` is 38M *uncompressed* (rotated 28 00:31, not yet compressed by next-day cron) + 23M legacy `access.log.1-2026042613.backup` left from initial install
+  * **journald.conf:** `SystemMaxUse=140M` — too generous for a 224M zram0 volume. Journal alone can eat 62% of /var/log.
+- **AC 3 evidence:** CT 200 boot history (last 4 boots):
+  * 27 10:42 (up till 16:55) — 6h
+  * 27 16:57 (up till 18:22) — 1.5h
+  * 27 18:24 (current) — 14h09m
+  * **3 reboots between Apr 27 10:42 and Apr 27 18:24** — instability persists post-T-1137-AC1 + post-T-1294
+- **Diagnosis:** pveproxy logrotate (T-1137 AC1) is doing its job (3-day retention, daily cron working). The cascade is NOT yet broken because (a) journald can eat 140M unbounded, (b) the legacy 23M backup is still loitering, (c) today's rotated-but-uncompressed 38M file is in flight. AC 2 (<50%) requires either lowering `SystemMaxUse` to ~30M OR expanding /var/log, neither of which is in T-1137 scope. AC 3 requires identifying the actual reboot cause from inside CT 200.
+- **Recommendation:** (1) spawn follow-up task for journald sizing + backup cleanup; (2) dispatch ring20-management agent on CT 200 (.122) to investigate CT-internal reboot cause (OOM killer? cron-triggered? watchdog flap?). T-1137 stays open until AC 2 + AC 3 mechanically satisfied. Side gap: G-009 cascade is not yet structurally closed.

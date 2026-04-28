@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T08:20:30Z ===
-task_id: T-1363
+=== episodic-gen invocation: 2026-04-28T08:21:57Z ===
+task_id: T-1364
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1363.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1364.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel snippet — quotable text excerpt with surrounding context
-  Duration: 0 days (11 min)
+  Task: docs/operations/agent-conversations.md — T-1361/T-1362/T-1363 wave (ack-status, reactions-of, snippet)
+  Duration: 0 days (1 min)
   Updates: 2
   Commits: 1
-  Lines: +306 -43 across 15 files
-  Outcomes: 7 AC checked
-  Artifacts: 15 files tracked
+  Lines: +102 -18 across 11 files
+  Outcomes: 5 AC checked
+  Artifacts: 11 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1363-channel-snippet--quotable-text-excerpt-w.md
+Source: /opt/termlink/.tasks/completed/T-1364-docsoperationsagent-conversationsmd--t-1.md
 --- exit code: 0 ---
