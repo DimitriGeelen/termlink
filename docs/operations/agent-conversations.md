@@ -1370,6 +1370,47 @@ Use cases:
 Same `--include-redacted` flag as `state`. `--json` returns the same
 `StateRow[]` shape, just filtered.
 
+## Diff between two snapshots — `channel snapshot-diff` (T-1383)
+
+Composes two `compute_snapshot` calls (T-1378) and classifies the
+union of offsets into one of four `change_kind` values:
+
+| change_kind | meaning |
+|-------------|---------|
+| `added`     | offset present at `--to` but absent at `--from` |
+| `removed`   | present at `--from`, absent at `--to` (typically a redaction landed) |
+| `edited`    | present in both, payload text differs |
+| `unchanged` | present in both, payload identical |
+
+```sh
+termlink channel snapshot-diff alpha:design --from 1729880600000 --to 1729881000000
+
+#   Snapshot diff of 'alpha:design' from ts=1729880600000 to ts=1729881000000:
+#     + [4] dave-fp: lgtm                          # added between from and to
+#     - [2] alice-fp: scratch that                 # redacted between from and to
+#     ~ [1] bob-fp: api proposal v0 -> revised     # edited between from and to
+```
+
+By default `unchanged` rows are omitted — it's a "what changed" view.
+Pass `--include-unchanged` to surface every offset.
+
+```sh
+# Audit replay: include the stable rows too
+termlink channel snapshot-diff alpha:design --from 1729880600000 --to 1729881000000 --include-unchanged
+```
+
+`--from == --to` produces all-`unchanged` rows (or empty by default).
+
+JSON output uses a `DiffRow[]` shape: `{offset, change_kind,
+sender_id, from_payload, to_payload}`. `from_payload` is `null` for
+`added`; `to_payload` is `null` for `removed`.
+
+Use cases:
+- forensic replay: "between incident T0 and T1, what changed?"
+- audit reports for compliance review
+- compare snapshots across long pauses (more compact than two
+  `snapshot --as-of` outputs side-by-side)
+
 ## Unified per-offset navigation — `channel relations`
 
 Matrix Client API `/relations/{eventId}` analogue. For one target offset,

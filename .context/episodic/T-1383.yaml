@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1383: channel snapshot-diff <topic> --from <ms> --to <ms> — what changed between two timestamps (compose two T-1378 snapshots)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T16:20:35Z
+# ============================================================================
+
+task_id: T-1383
+task_name: "channel snapshot-diff <topic> --from <ms> --to <ms> — what changed between two timestamps (compose two T-1378 snapshots)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T16:00:59Z
+completed: 2026-04-28T16:15:05Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_snapshot_diff(envelopes, from_ms, to_ms, include_redacted) -> Vec<DiffRow>` added to `crates/termlink-cli/src/commands/channel.rs`. Internally calls `compute_snapshot` twice and classifies the union of offsets."
+  - "`DiffRow` struct with `offset, change_kind: \"added\"|\"removed\"|\"edited\"|\"unchanged\", from_payload: Option<String>, to_payload: Option<String>, sender_id`."
+  - "`cmd_channel_snapshot_diff` async wrapper with text + JSON output."
+  - "`ChannelAction::SnapshotDiff { topic, from_ms, to_ms, include_redacted, include_unchanged, hub, json }` variant added in `cli.rs`; main.rs dispatches."
+  - "At least 6 unit tests: empty topic, no diff (from==to), pure-add (post between from and to), pure-remove (redaction between from and to), edit between from and to, unchanged-row classification."
+  - "`cargo build --release -p termlink` clean."
+  - "`cargo test -p termlink --bins` green (524 → 530+)."
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean."
+  - "One e2e step (55) added to `tests/e2e/agent-conversation.sh`."
+  - "`bash tests/e2e/agent-conversation.sh` passes."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1383-channel-snapshot-diff-topic---from-ms---.md
+generated_by: context-agent-hybrid

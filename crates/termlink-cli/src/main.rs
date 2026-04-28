@@ -872,6 +872,26 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::SnapshotDiff {
+                topic,
+                from_ms,
+                to_ms,
+                include_redacted,
+                include_unchanged,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_snapshot_diff(
+                    &topic,
+                    from_ms,
+                    to_ms,
+                    include_redacted,
+                    include_unchanged,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::AckHistory {
                 topic,
                 user,
