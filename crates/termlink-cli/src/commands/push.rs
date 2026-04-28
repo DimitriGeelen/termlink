@@ -91,7 +91,12 @@ async fn cmd_push_inner(
         shell_escape(&inbox_path),
     );
 
-    if let Err(e) = exec_rpc(&mut rpc_client, session, &write_cmd).await {
+    // SECURITY (G-048): the write_cmd contains the base64 payload literal.
+    // If the remote shell or its allowlist echoes the command back in stderr/
+    // stdout/error.message, bubbling that up would leak the payload. Pass
+    // `redact_secrets` so exec_rpc strips any echoed payload bytes before
+    // surfacing an error.
+    if let Err(e) = exec_rpc(&mut rpc_client, session, &write_cmd, &[&b64]).await {
         if json {
             super::json_error_exit(serde_json::json!({"ok": false, "hub": conn.hub, "session": session, "error": format!("Failed to deliver file to target inbox: {e}")}));
         }
@@ -130,9 +135,36 @@ async fn cmd_push_inner(
     Ok(())
 }
 
+/// Strip any occurrence of `secrets[i]` from `s`, replacing each match with a
+/// `<redacted N bytes>` marker. Used on error paths where the remote shell may
+/// echo back a command that contained sensitive payload bytes (G-048).
+pub(crate) fn redact(s: &str, secrets: &[&str]) -> String {
+    let mut out = s.to_string();
+    for needle in secrets {
+        if needle.len() < 8 {
+            // Too short to be a unique payload — skip to avoid false replacements.
+            continue;
+        }
+        if out.contains(needle) {
+            let marker = format!("<redacted {} bytes>", needle.len());
+            out = out.replace(needle, &marker);
+        }
+    }
+    out
+}
+
 /// Execute a command on a remote session, returning stdout.
 /// Unlike cmd_remote_exec, this captures the result instead of printing/exiting.
-async fn exec_rpc(client: &mut client::Client, session: &str, command: &str) -> Result<String> {
+///
+/// `redact_secrets` is a list of substrings that must be scrubbed from any
+/// error-path message. The happy path never surfaces stderr/stdout, so this
+/// only affects bail! sites.
+async fn exec_rpc(
+    client: &mut client::Client,
+    session: &str,
+    command: &str,
+    redact_secrets: &[&str],
+) -> Result<String> {
     let params = serde_json::json!({
         "target": session,
         "command": command,
@@ -145,11 +177,9 @@ async fn exec_rpc(client: &mut client::Client, session: &str, command: &str) -> 
             let stdout = r.result["stdout"].as_str().unwrap_or("").to_string();
             let stderr = r.result["stderr"].as_str().unwrap_or("");
             if exit_code != 0 {
-                anyhow::bail!(
-                    "Remote command failed (exit {}): {}",
-                    exit_code,
-                    if stderr.is_empty() { &stdout } else { stderr }
-                );
+                let raw = if stderr.is_empty() { stdout.as_str() } else { stderr };
+                let safe = redact(raw, redact_secrets);
+                anyhow::bail!("Remote command failed (exit {}): {}", exit_code, safe);
             }
             Ok(stdout)
         }
@@ -157,9 +187,13 @@ async fn exec_rpc(client: &mut client::Client, session: &str, command: &str) -> 
             if e.error.message.contains("not found") || e.error.message.contains("No route") {
                 anyhow::bail!("Session '{}' not found on hub", session);
             }
-            anyhow::bail!("Remote exec failed: {} {}", e.error.code, e.error.message);
+            let safe = redact(&e.error.message, redact_secrets);
+            anyhow::bail!("Remote exec failed: {} {}", e.error.code, safe);
         }
-        Err(e) => anyhow::bail!("Remote exec error: {}", e),
+        Err(e) => {
+            let safe = redact(&e.to_string(), redact_secrets);
+            anyhow::bail!("Remote exec error: {}", safe);
+        }
     }
 }
 
@@ -185,3 +219,54 @@ async fn inject_rpc(client: &mut client::Client, session: &str, text: &str) -> R
 
 /// Escape a string for use in a shell command.
 use termlink_protocol::shell_escape;
+
+#[cfg(test)]
+mod tests {
+    use super::redact;
+
+    #[test]
+    fn redact_strips_allowlist_rejection_echo() {
+        // Simulate stderr from a session allowlist that echoes the rejected command.
+        let payload = "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE=";
+        let stderr = format!(
+            "command not allowed: mkdir -p /tmp/termlink-inbox && echo '{payload}' | base64 -d > /tmp/termlink-inbox/secret.hex"
+        );
+        let safe = redact(&stderr, &[payload]);
+        assert!(!safe.contains(payload), "payload must not appear in redacted output");
+        assert!(safe.contains("<redacted"), "must include redaction marker");
+    }
+
+    #[test]
+    fn redact_handles_heredoc_shell_error() {
+        let payload = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        let stderr = format!("bash: syntax error near 'echo {payload} | base64'");
+        let safe = redact(&stderr, &[payload]);
+        assert!(!safe.contains(payload));
+    }
+
+    #[test]
+    fn redact_passthrough_when_no_payload() {
+        // Stderr-only failure, no payload echoed — message preserved.
+        let stderr = "permission denied: /tmp/termlink-inbox";
+        let safe = redact(stderr, &["irrelevant-payload-not-present-here-1234567"]);
+        assert_eq!(safe, stderr);
+    }
+
+    #[test]
+    fn redact_skips_short_needles_to_avoid_false_positives() {
+        // Short common substrings (<8 chars) must NOT be replaced.
+        let stderr = "exit 1: cat: /tmp/termlink-inbox: No such file or directory";
+        let safe = redact(stderr, &["exit 1"]);
+        assert_eq!(safe, stderr, "short needle should be skipped");
+    }
+
+    #[test]
+    fn redact_handles_multiple_secrets() {
+        let s1 = "first-secret-payload-bytes-1234567890";
+        let s2 = "second-secret-payload-bytes-9876543210";
+        let combined = format!("error: rejected '{s1}' and also leaked '{s2}'");
+        let safe = redact(&combined, &[s1, s2]);
+        assert!(!safe.contains(s1));
+        assert!(!safe.contains(s2));
+    }
+}
