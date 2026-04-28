@@ -2555,6 +2555,26 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Unified per-offset navigation (T-1381). Matrix Client API
+    /// `/relations/{eventId}` analogue. For one target offset, returns all
+    /// four canonical Matrix relations: replies (m.in_reply_to), reactions
+    /// (m.annotation), edits (m.replace), redactions (m.redaction). Each
+    /// list sorted ts_ms asc. Forwards excluded — cross-topic relation.
+    Relations {
+        /// Topic name
+        topic: String,
+
+        /// Target offset whose relations to surface
+        offset: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON (full lists, not truncated to first 5)
+        #[arg(long)]
+        json: bool,
+    },
     /// Per-target reply rollup (T-1379). For each target message that has
     /// been replied to at least once, lists reply count, distinct repliers,
     /// and latest reply timestamp. Per-target companion to `replies-of`

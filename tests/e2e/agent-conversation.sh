@@ -1086,6 +1086,34 @@ out_end=$(A channel members "$MAS_TOPIC" --as-of "$T_END" --json)
 n_end=$(echo "$out_end" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["members"]))')
 [ "$n_end" = "2" ] || fail "step 52: as_of end expected 2, got $n_end"
 
+step "53. channel relations (T-1381): unified per-offset navigation (Matrix /relations analogue)"
+REL_TOPIC="t-1381-relations-$(date +%s)"
+A channel create "$REL_TOPIC" --retention forever >/dev/null
+A channel post "$REL_TOPIC" --msg-type chat --payload "rel-target" >/dev/null  # 0
+B channel post "$REL_TOPIC" --msg-type chat --payload "rel-r1" --reply-to 0 >/dev/null
+A channel post "$REL_TOPIC" --msg-type chat --payload "rel-r2" --reply-to 0 >/dev/null
+B channel react "$REL_TOPIC" 0 "👍" >/dev/null
+A channel react "$REL_TOPIC" 0 "🎉" >/dev/null
+A channel edit "$REL_TOPIC" 0 "rel-edited" >/dev/null
+out=$(A channel relations "$REL_TOPIC" 0)
+expect_contains "Relations on" "$out" "step 53: header present"
+expect_contains "replies (×2)" "$out" "step 53: 2 replies"
+expect_contains "reactions (×2)" "$out" "step 53: 2 reactions"
+expect_contains "edits (×1)" "$out" "step 53: 1 edit"
+out_json=$(A channel relations "$REL_TOPIC" 0 --json)
+n_replies=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["replies"]))')
+n_reactions=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["reactions"]))')
+n_edits=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["edits"]))')
+[ "$n_replies" = "2" ] || fail "step 53: expected 2 replies in JSON, got $n_replies"
+[ "$n_reactions" = "2" ] || fail "step 53: expected 2 reactions in JSON, got $n_reactions"
+[ "$n_edits" = "1" ] || fail "step 53: expected 1 edit in JSON, got $n_edits"
+expect_contains "\"target_offset\":" "$out_json" "step 53: --json carries target_offset"
+expect_contains "\"target_payload\":" "$out_json" "step 53: --json carries target_payload"
+# Missing offset must error (not return empty)
+if A channel relations "$REL_TOPIC" 999 >/dev/null 2>&1; then
+  fail "step 53: relations on missing offset should error"
+fi
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
