@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T15:18:55Z ===
-task_id: T-1380
+=== episodic-gen invocation: 2026-04-28T15:35:37Z ===
+task_id: T-1381
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1380.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1381.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel members --as-of <ms> — retro participant view (Matrix-style backfill membership query, parallel to T-1378 snapshot)
-  Duration: 0 days (13 min)
+  Task: channel relations <topic> <offset> — unified per-offset navigation: replies + reactions + edits + redactions + forwards in one view
+  Duration: 0 days (15 min)
   Updates: 2
   Commits: 0
   Lines: +0 -0 across 0 files
   Outcomes: 10 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1380-channel-members---as-of-ms--retro-partic.md
+Source: /opt/termlink/.tasks/completed/T-1381-channel-relations-topic-offset--unified-.md
 --- exit code: 0 ---

@@ -4708,6 +4708,243 @@ pub(crate) async fn cmd_channel_state(
     Ok(())
 }
 
+/// T-1381: one item in any of the relation lists. Uniform shape across
+/// replies/reactions/edits/redactions. `payload` carries:
+/// - replies: the reply text
+/// - reactions: the emoji
+/// - edits: the new text
+/// - redactions: empty (or the optional reason if present)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RelationItem {
+    pub offset: u64,
+    pub sender_id: String,
+    pub ts_ms: i64,
+    pub payload: String,
+}
+
+impl RelationItem {
+    fn to_json(&self) -> Value {
+        json!({
+            "offset": self.offset,
+            "sender_id": self.sender_id,
+            "ts_ms": self.ts_ms,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1381: unified per-offset navigation report — Matrix Client API
+/// `/relations/{eventId}` analogue. Per-target consolidation of the four
+/// canonical Matrix relation types: replies (`m.in_reply_to`), reactions
+/// (`m.annotation`), edits (`m.replace`), redactions (`m.redaction`).
+/// Forwards are excluded — cross-topic relation, requires multi-topic walk.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RelationsReport {
+    pub target_offset: u64,
+    pub target_sender: String,
+    pub target_payload: String,
+    pub replies: Vec<RelationItem>,
+    pub reactions: Vec<RelationItem>,
+    pub edits: Vec<RelationItem>,
+    pub redactions: Vec<RelationItem>,
+}
+
+/// T-1381: pure helper — build the unified relations report for `target`.
+///
+/// Walks `envelopes` once, partitioning relation envelopes into 4 lists
+/// based on metadata. Filters:
+/// - relation envelopes whose own offset is in the redaction set are excluded
+/// - the target itself does NOT need to be present (returns target_payload="");
+///   callers can detect "not found" by checking if the target offset has a
+///   row in the original envelopes list
+///
+/// Each list is sorted ts_ms asc, offset asc tiebreak.
+pub(crate) fn compute_relations(envelopes: &[Value], target: u64) -> RelationsReport {
+    let redacted = redacted_offsets(envelopes);
+    let mut replies: Vec<RelationItem> = Vec::new();
+    let mut reactions: Vec<RelationItem> = Vec::new();
+    let mut edits: Vec<RelationItem> = Vec::new();
+    let mut redactions_list: Vec<RelationItem> = Vec::new();
+    let mut target_sender = String::new();
+    let mut target_payload = String::new();
+    for env in envelopes {
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if off == target {
+            target_sender = env
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            target_payload = decode_payload_lossy(env);
+        }
+        if redacted.contains(&off) {
+            continue;
+        }
+        let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        match mt {
+            "edit" => {
+                if let Some(replaces) = env
+                    .get("metadata")
+                    .and_then(|md| md.get("replaces"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    && replaces == target
+                {
+                    edits.push(RelationItem {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: decode_payload_lossy(env),
+                    });
+                }
+            }
+            "redaction" => {
+                if let Some(redacts) = env
+                    .get("metadata")
+                    .and_then(|md| md.get("redacts"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    && redacts == target
+                {
+                    let reason = env
+                        .get("metadata")
+                        .and_then(|md| md.get("reason"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    redactions_list.push(RelationItem {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: reason,
+                    });
+                }
+            }
+            "reaction" => {
+                if parent_offset_of(env) == Some(target) {
+                    reactions.push(RelationItem {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: decode_payload_lossy(env),
+                    });
+                }
+            }
+            _ => {
+                // Reply candidate: any non-reaction envelope with in_reply_to == target.
+                if parent_offset_of(env) == Some(target) {
+                    replies.push(RelationItem {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: decode_payload_lossy(env),
+                    });
+                }
+            }
+        }
+    }
+    let sort_fn = |a: &RelationItem, b: &RelationItem| {
+        a.ts_ms.cmp(&b.ts_ms).then_with(|| a.offset.cmp(&b.offset))
+    };
+    replies.sort_by(sort_fn);
+    reactions.sort_by(sort_fn);
+    edits.sort_by(sort_fn);
+    redactions_list.sort_by(sort_fn);
+    RelationsReport {
+        target_offset: target,
+        target_sender,
+        target_payload,
+        replies,
+        reactions,
+        edits,
+        redactions: redactions_list,
+    }
+}
+
+/// T-1381: render the unified relations report.
+pub(crate) async fn cmd_channel_relations(
+    topic: &str,
+    target: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    // Refuse if the target isn't present at all (saves the user a confusing
+    // empty report for a typo'd offset).
+    if !envelopes
+        .iter()
+        .any(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(target))
+    {
+        anyhow::bail!("Topic '{topic}' has no envelope at offset {target}");
+    }
+    let r = compute_relations(&envelopes, target);
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "target_offset": r.target_offset,
+                "target_sender": r.target_sender,
+                "target_payload": r.target_payload,
+                "replies": r.replies.iter().map(RelationItem::to_json).collect::<Vec<_>>(),
+                "reactions": r.reactions.iter().map(RelationItem::to_json).collect::<Vec<_>>(),
+                "edits": r.edits.iter().map(RelationItem::to_json).collect::<Vec<_>>(),
+                "redactions": r.redactions.iter().map(RelationItem::to_json).collect::<Vec<_>>(),
+            }))?
+        );
+        return Ok(());
+    }
+    println!(
+        "Relations on '{topic}':[{off}] — {sender}: {payload}",
+        off = r.target_offset,
+        sender = r.target_sender,
+        payload = r.target_payload,
+    );
+    let render_section = |label: &str, items: &[RelationItem]| {
+        if items.is_empty() {
+            return;
+        }
+        println!("  {label} (×{n}):", n = items.len());
+        for item in items.iter().take(5) {
+            println!(
+                "    [{off}] {sender}: {payload} (ts={ts})",
+                off = item.offset,
+                sender = item.sender_id,
+                payload = item.payload,
+                ts = item.ts_ms,
+            );
+        }
+        if items.len() > 5 {
+            println!("    … +{n} more (use --json for full list)", n = items.len() - 5);
+        }
+    };
+    render_section("replies", &r.replies);
+    render_section("reactions", &r.reactions);
+    render_section("edits", &r.edits);
+    render_section("redactions", &r.redactions);
+    if r.replies.is_empty()
+        && r.reactions.is_empty()
+        && r.edits.is_empty()
+        && r.redactions.is_empty()
+    {
+        println!("  (no relations)");
+    }
+    Ok(())
+}
+
 /// T-1379: one row in the per-target reply rollup. Per-target companion
 /// to T-1370 `replies-of` (per-sender).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10509,6 +10746,100 @@ mod tests {
         ];
         let rows = summarize_members_as_of(&envs, false, Some(200));
         assert_eq!(rows.len(), 2, "ts=200 inclusive");
+    }
+
+    // T-1381: compute_relations — unified per-offset navigation
+
+    #[test]
+    fn relations_target_not_present_is_all_empty() {
+        let envs = vec![mk_post(0, "alice", 100, "p")];
+        let r = compute_relations(&envs, 999);
+        assert_eq!(r.target_offset, 999);
+        assert_eq!(r.target_payload, "");
+        assert!(r.replies.is_empty());
+        assert!(r.reactions.is_empty());
+        assert!(r.edits.is_empty());
+        assert!(r.redactions.is_empty());
+    }
+
+    #[test]
+    fn relations_replies_only() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "tgt"),
+            mk_reply(1, "bob", 200, 0, "r1"),
+            mk_reply(2, "carol", 300, 0, "r2"),
+            mk_reply(3, "dave", 400, 9, "unrelated"),
+        ];
+        let r = compute_relations(&envs, 0);
+        assert_eq!(r.replies.len(), 2);
+        assert!(r.reactions.is_empty());
+        assert!(r.edits.is_empty());
+        assert!(r.redactions.is_empty());
+        assert_eq!(r.replies[0].sender_id, "bob", "ts asc");
+        assert_eq!(r.replies[1].sender_id, "carol");
+    }
+
+    #[test]
+    fn relations_reactions_only() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "tgt"),
+            mk_reaction(1, "bob", 200, 0, "👍"),
+            mk_reaction(2, "carol", 300, 0, "🎉"),
+        ];
+        let r = compute_relations(&envs, 0);
+        assert_eq!(r.reactions.len(), 2);
+        assert_eq!(r.reactions[0].payload, "👍");
+        assert_eq!(r.reactions[1].payload, "🎉");
+        assert!(r.replies.is_empty());
+    }
+
+    #[test]
+    fn relations_all_four_types() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "tgt"),
+            mk_reply(1, "bob", 200, 0, "r1"),
+            mk_reaction(2, "carol", 300, 0, "👍"),
+            mk_edit_event(3, "alice", 400, 0, "edited"),
+            mk_redact(4, "alice", 500, 0),
+        ];
+        let r = compute_relations(&envs, 0);
+        assert_eq!(r.replies.len(), 1, "1 reply");
+        assert_eq!(r.reactions.len(), 1, "1 reaction");
+        assert_eq!(r.edits.len(), 1, "1 edit");
+        assert_eq!(r.redactions.len(), 1, "1 redaction");
+        assert_eq!(r.target_payload, "tgt");
+        assert_eq!(r.target_sender, "alice");
+        // Reply payload preserved
+        assert_eq!(r.replies[0].payload, "r1");
+        // Edit payload is the new text
+        assert_eq!(r.edits[0].payload, "edited");
+    }
+
+    #[test]
+    fn relations_redacted_relation_excluded() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "tgt"),
+            mk_reply(1, "bob", 200, 0, "real-reply"),
+            mk_reply(2, "carol", 300, 0, "to-be-redacted"),
+            mk_redact(3, "carol", 400, 2),
+        ];
+        let r = compute_relations(&envs, 0);
+        assert_eq!(r.replies.len(), 1, "redacted reply excluded");
+        assert_eq!(r.replies[0].payload, "real-reply");
+    }
+
+    #[test]
+    fn relations_ts_asc_with_offset_tiebreak() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "tgt"),
+            mk_reaction(5, "alice", 200, 0, "👍"),
+            mk_reaction(2, "bob", 200, 0, "🎉"),
+        ];
+        let r = compute_relations(&envs, 0);
+        assert_eq!(r.reactions.len(), 2);
+        // Same ts → offset asc
+        assert_eq!(r.reactions[0].offset, 2);
+        assert_eq!(r.reactions[1].offset, 5);
     }
 
     #[test]

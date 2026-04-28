@@ -1335,6 +1335,37 @@ Distinct from `state` (current truth, no temporal bound),
 `subscribe --until <ms>` (raw envelope filter — no collapse),
 `edits-of` (single-target edit history).
 
+## Unified per-offset navigation — `channel relations`
+
+Matrix Client API `/relations/{eventId}` analogue. For one target offset,
+returns all four canonical Matrix relation types in a single view:
+
+```sh
+termlink channel relations alpha:design 0
+
+#   Relations on 'alpha:design':[0] — alice-fp: api proposal v0
+#     replies (×2):
+#       [1] bob-fp: lgtm (ts=1729880600000)
+#       [2] carol-fp: ship it (ts=1729880610000)
+#     reactions (×3):
+#       [3] bob-fp: 👍 (ts=1729880620000)
+#       [4] dave-fp: 🎉 (ts=1729880630000)
+#       [5] eve-fp: 🚀 (ts=1729880640000)
+#     edits (×1):
+#       [10] alice-fp: api proposal v1 (ts=1729880700000)
+#     redactions (×0):
+```
+
+Consolidates 4-5 separate commands (`replies-of`, `reactions-on`, `edits-of`,
+`redactions`) into one navigation point keyed on the target. Each list
+sorted ts_ms asc (chronological). Missing offset → error (no empty report
+for typos). `--json` returns the full lists, not the human-render's first-5
+truncation.
+
+Forwards are intentionally excluded — they are cross-topic relations and
+require multi-topic walking. Use `forwards-of` for sender-side forward
+audits within a single topic.
+
 ## Per-target reply rollup — `channel quote-stats`
 
 Per-target companion to `replies-of` (T-1370 — per-sender). For each target
@@ -1398,7 +1429,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 52 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 53 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1493,4 +1524,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1378 — `channel snapshot --as-of <ms>` (Matrix backfill — point-in-time canonical view, combines T-1376 collapse with temporal upper bound)
 - T-1379 — `channel quote-stats` (per-target reply rollup, per-target companion to T-1370 replies-of which is per-sender)
 - T-1380 — `channel members --as-of <ms>` (retro participant view, parallel to T-1378 snapshot on the content side)
+- T-1381 — `channel relations <offset>` (Matrix /relations API — unified per-offset navigation: replies + reactions + edits + redactions)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
