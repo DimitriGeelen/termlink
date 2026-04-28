@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T06:25:36Z ===
-task_id: T-1354
+=== episodic-gen invocation: 2026-04-28T06:43:08Z ===
+task_id: T-1355
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1354.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1355.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel star/unstar/starred — per-user message bookmarks (Matrix m.bookmark)
-  Duration: 0 days (18 min)
+  Task: channel poll start/vote/end/results — Matrix m.poll
+  Duration: 0 days (16 min)
   Updates: 2
   Commits: 1
-  Lines: +815 -938 across 54 files
+  Lines: +651 -42 across 16 files
   Outcomes: 8 AC checked
-  Artifacts: 54 files tracked
+  Artifacts: 16 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1354-channel-starunstarstarred--per-user-mess.md
+Source: /opt/termlink/.tasks/completed/T-1355-channel-poll-startvoteendresults--matrix.md
 --- exit code: 0 ---
