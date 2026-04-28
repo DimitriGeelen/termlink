@@ -3869,6 +3869,119 @@ pub(crate) async fn cmd_channel_replies_of(
     Ok(())
 }
 
+/// T-1371: one row in the mentions-of view.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MentionsOfRow {
+    pub mention_offset: u64,
+    pub sender_id: String,
+    pub payload: String,
+    pub mentions_csv: String,
+    pub ts_ms: i64,
+}
+
+impl MentionsOfRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "mention_offset": self.mention_offset,
+            "sender_id": self.sender_id,
+            "payload": self.payload,
+            "mentions_csv": self.mentions_csv,
+            "ts_ms": self.ts_ms,
+        })
+    }
+}
+
+/// T-1371: pure helper — list every envelope on the topic that mentions
+/// `user` via `metadata.mentions` CSV, regardless of author.
+///
+/// Filters:
+/// - `mentions_match(metadata.mentions, user)` is true (T-1333 rules: empty
+///   target rejected; literal-equality on parts; `target == "*"` matches any
+///   non-empty csv; csv containing `*` matches any specific target)
+/// - msg_type NOT in `UNREAD_META_TYPES` (skip receipt/reaction/edit/...)
+/// - offset NOT in redacted_offsets
+///
+/// Sort: `mention_offset` descending. Pure — no I/O.
+pub(crate) fn compute_mentions_of(envelopes: &[Value], user: &str) -> Vec<MentionsOfRow> {
+    let redacted = redacted_offsets(envelopes);
+    let mut rows: Vec<MentionsOfRow> = Vec::new();
+    for env in envelopes {
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if UNREAD_META_TYPES.contains(&mt) {
+            continue;
+        }
+        let csv = match extract_mentions(env) {
+            Some(s) => s,
+            None => continue,
+        };
+        if !mentions_match(&csv, user) {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        rows.push(MentionsOfRow {
+            mention_offset: off,
+            sender_id: sender,
+            payload: decode_payload_lossy(env),
+            mentions_csv: csv,
+            ts_ms: ts,
+        });
+    }
+    rows.sort_by(|a, b| b.mention_offset.cmp(&a.mention_offset));
+    rows
+}
+
+/// T-1371: render the mentions-of view.
+pub(crate) async fn cmd_channel_mentions_of(
+    topic: &str,
+    user: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_mentions_of(&envelopes, user);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(MentionsOfRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No mentions of {user} on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Mentions of {user} on '{topic}':");
+    for r in &rows {
+        let preview = if r.payload.len() > 60 {
+            format!("{}…", &r.payload[..60])
+        } else {
+            r.payload.clone()
+        };
+        println!(
+            "  [@ {mo}] {sender} (mentions={csv}): {preview}",
+            mo = r.mention_offset,
+            sender = r.sender_id,
+            csv = r.mentions_csv,
+        );
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -8428,5 +8541,91 @@ mod tests {
         assert_eq!(rows[0].parent_offset, 99);
         assert_eq!(rows[0].parent_sender, "");
         assert_eq!(rows[0].parent_payload, "");
+    }
+
+    // T-1371: compute_mentions_of
+    fn mk_mention(off: u64, sender: &str, ts: i64, payload: &str, mentions_csv: &str) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "post",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "metadata": {"mentions": mentions_csv},
+        })
+    }
+
+    #[test]
+    fn mentions_of_happy_path_desc() {
+        let envs = vec![
+            mk_post(0, "carol", 50, "no-mention"),
+            mk_mention(1, "bob", 100, "hey alice", "alice"),
+            mk_mention(2, "carol", 200, "hi alice and dave", "alice,dave"),
+            mk_mention(3, "bob", 300, "alice again", "alice"),
+        ];
+        let rows = compute_mentions_of(&envs, "alice");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].mention_offset, 3);
+        assert_eq!(rows[1].mention_offset, 2);
+        assert_eq!(rows[2].mention_offset, 1);
+        assert_eq!(rows[0].sender_id, "bob");
+        assert_eq!(rows[1].mentions_csv, "alice,dave");
+    }
+
+    #[test]
+    fn mentions_of_wildcard_csv_matches_any_specific_user() {
+        let envs = vec![
+            mk_mention(0, "bob", 100, "@room ping", "*"),
+            mk_mention(1, "carol", 200, "alice only", "alice"),
+        ];
+        let rows = compute_mentions_of(&envs, "alice");
+        assert_eq!(rows.len(), 2);
+        let rows_dave = compute_mentions_of(&envs, "dave");
+        assert_eq!(rows_dave.len(), 1, "dave only matches the @room post");
+        assert_eq!(rows_dave[0].mentions_csv, "*");
+    }
+
+    #[test]
+    fn mentions_of_redacted_dropped() {
+        let envs = vec![
+            mk_mention(0, "bob", 100, "kept", "alice"),
+            mk_mention(1, "bob", 200, "to-redact", "alice"),
+            mk_redact(2, "bob", 300, 1),
+        ];
+        let rows = compute_mentions_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].mention_offset, 0);
+    }
+
+    #[test]
+    fn mentions_of_non_matching_excluded() {
+        let envs = vec![
+            mk_post(0, "bob", 100, "no-mention-at-all"),
+            mk_mention(1, "bob", 200, "hi carol", "carol"),
+            mk_mention(2, "bob", 300, "alice", "alice"),
+        ];
+        let rows = compute_mentions_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].mention_offset, 2);
+    }
+
+    #[test]
+    fn mentions_of_meta_msg_types_excluded() {
+        use base64::Engine;
+        let envs = vec![
+            json!({
+                "offset": 0,
+                "sender_id": "bob",
+                "msg_type": "reaction",
+                "ts_unix_ms": 100,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode("👍"),
+                "metadata": {"mentions": "alice", "in_reply_to": "5"},
+            }),
+            mk_mention(1, "bob", 200, "real ping", "alice"),
+        ];
+        let rows = compute_mentions_of(&envs, "alice");
+        assert_eq!(rows.len(), 1, "reaction must not count as mention");
+        assert_eq!(rows[0].mention_offset, 1);
     }
 }

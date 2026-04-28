@@ -820,6 +820,28 @@ out_a_json=$(A channel replies-of "$RO_TOPIC" --json)
 n_a=$(echo "$out_a_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
 [ "$n_a" = "1" ] || fail "step 42: alice should have exactly 1 reply, got $n_a"
 
+step "43. channel mentions-of (T-1371): per-topic mentions reverse view (any author)"
+MO_TOPIC="t-1371-mentions-of-$(date +%s)"
+A channel create "$MO_TOPIC" --retention forever >/dev/null
+A channel post "$MO_TOPIC" --msg-type chat --payload "no-mention-here" >/dev/null
+B channel post "$MO_TOPIC" --msg-type chat --payload "ping alice" --mention "$ALICE" >/dev/null
+B channel post "$MO_TOPIC" --msg-type chat --payload "@room ping" --mention "*" >/dev/null
+A channel post "$MO_TOPIC" --msg-type chat --payload "alice pings bob" --mention "$BOB" >/dev/null
+out_a=$(A channel mentions-of "$MO_TOPIC" "$ALICE")
+expect_contains "ping alice" "$out_a" "step 43: alice direct ping listed"
+expect_contains "@room ping" "$out_a" "step 43: wildcard @room matches alice"
+[ -z "$(echo "$out_a" | grep -F 'no-mention-here')" ] || fail "step 43: non-mention post excluded"
+[ -z "$(echo "$out_a" | grep -F 'alice pings bob')" ] || fail "step 43: post mentioning bob (not alice) excluded"
+out_a_json=$(A channel mentions-of "$MO_TOPIC" "$ALICE" --json)
+n=$(echo "$out_a_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 43: alice should match 2 (direct + @room), got $n"
+expect_contains "\"mention_offset\":" "$out_a_json" "step 43: --json carries mention_offset"
+expect_contains "\"mentions_csv\":" "$out_a_json" "step 43: --json carries mentions_csv"
+# Carol (not present anywhere): only @room post
+out_c_json=$(A channel mentions-of "$MO_TOPIC" carol-not-on-channel --json)
+n_c=$(echo "$out_c_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n_c" = "1" ] || fail "step 43: carol should match only @room, got $n_c"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

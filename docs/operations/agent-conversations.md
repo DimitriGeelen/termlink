@@ -1131,6 +1131,31 @@ dropped. If the parent is missing or itself redacted, `parent_sender` /
 missing or redacted)`. `--json` returns `[{reply_offset, parent_offset,
 parent_sender, parent_payload, reply_payload, ts_ms}]`.
 
+## Mentions reverse view — `channel mentions-of`
+
+`channel mentions-of <topic> <user>` complements `channel mentions`
+(T-1339): mentions is *cross-topic and locked to the caller fingerprint*,
+mentions-of is *per-topic for any user*. Use it to answer "who pinged
+Alice in this thread" or audit `@room` traffic.
+
+```sh
+termlink channel mentions-of design-channel alice-fp
+
+#   Mentions of alice-fp on 'design-channel':
+#     [@ 17] bob-fp (mentions=alice,carol): can you take this?
+#     [@ 12] carol-fp (mentions=*): @room standup in 5
+```
+
+The match rule is exactly the T-1333 `mentions_match` semantics: literal
+CSV equality on parts, with two wildcards — querying `*` matches every
+non-empty `mentions` csv ("did this post tag *anyone*?"), and a csv
+containing `*` matches every specific user (the post tagged everyone, so
+every individual filter fires). Meta envelopes (receipts, reactions,
+edits, redactions, topic-metadata) are skipped — only content posts are
+considered. Redacted offsets dropped. Sort: mention_offset desc.
+`--json` returns `[{mention_offset, sender_id, payload, mentions_csv,
+ts_ms}]`.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1142,7 +1167,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 42 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 43 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1227,4 +1252,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1367 — `channel forwards-of` (per-sender forwards reverse view, parallel to reactions-of)
 - T-1368 — `channel topic-stats` (full per-topic statistics dashboard, distinct from T-1335 list summary)
 - T-1370 — `channel replies-of` (reverse view of `channel reply`, mirror of T-1367)
+- T-1371 — `channel mentions-of` (per-topic mention reverse view, complements T-1339 cross-topic mentions)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report

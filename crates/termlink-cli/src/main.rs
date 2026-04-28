@@ -788,6 +788,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::MentionsOf {
+                topic,
+                user,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_mentions_of(
+                    &topic,
+                    &user,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,
