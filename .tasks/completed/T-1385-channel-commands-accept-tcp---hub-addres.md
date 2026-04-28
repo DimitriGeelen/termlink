@@ -4,16 +4,16 @@ name: "channel commands accept TCP --hub addresses for cross-hub RPC"
 description: >
   channel commands accept TCP --hub addresses for cross-hub RPC
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-session/src/bus_client.rs]
 related_tasks: []
 created: 2026-04-28T18:21:09Z
-last_update: 2026-04-28T18:21:09Z
-date_finished: null
+last_update: 2026-04-28T19:14:01Z
+date_finished: 2026-04-28T19:14:01Z
 ---
 
 # T-1385: channel commands accept TCP --hub addresses for cross-hub RPC
@@ -77,3 +77,6 @@ test -x tests/e2e/multi-agent-conversation.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1385-channel-commands-accept-tcp---hub-addres.md
 - **Context:** Initial task creation
+
+### 2026-04-28T19:14:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
