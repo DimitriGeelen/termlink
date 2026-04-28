@@ -1201,6 +1201,30 @@ target_offset, redactor_sender, optional reason (passed through from
 the target isn't in the snapshot). Sort: event_offset asc. Symmetric
 with `pin-history` (T-1372). `--json` returns the array of rows.
 
+## Per-message reaction rollup — `channel reactions-on`
+
+Three reaction views complete the matrix: `subscribe
+--aggregate-reactions` (live, inline next to the parent), `emoji-stats`
+(T-1359, topic-wide tally), `reactions-of` (T-1362, per-sender). The
+fourth, `reactions-on <topic> <offset>`, is the *per-target* rollup —
+"how is THIS message being received?" — equivalent to Matrix's
+annotation rollup for a specific event.
+
+```sh
+termlink channel reactions-on alpha:design 17
+
+#   Reactions on 'alpha:design':[17]:
+#     👍 ×3 — alice-fp, bob-fp, carol-fp
+#     🎉 ×2 — alice-fp, dave-fp
+#     👀 ×1 — bob-fp
+```
+
+Filters: `msg_type=reaction` AND `metadata.in_reply_to == target_offset`
+AND not redacted. `count` is total taps (a sender hitting 👍 twice
+counts twice), `senders` is the deduplicated sorted set (set semantics
+for "who reacted"). Sort: count desc, emoji asc tiebreak. `--json`
+returns `[{emoji, count, senders}]`.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1212,7 +1236,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 45 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 46 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1300,4 +1324,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1371 — `channel mentions-of` (per-topic mention reverse view, complements T-1339 cross-topic mentions)
 - T-1372 — `channel pin-history` (chronological pin/unpin audit log, complements T-1345 LWW pinned set)
 - T-1373 — `channel redactions` (chronological redaction audit log, symmetric with pin-history; mirror of T-1322 redact)
+- T-1374 — `channel reactions-on` (per-message reaction rollup, fourth axis after live/topic-wide/per-sender)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report

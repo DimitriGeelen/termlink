@@ -2549,6 +2549,26 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Per-message reaction rollup (T-1374). Matrix annotation API analog —
+    /// for a single target offset, group every active reaction by emoji and
+    /// list the unique senders. Distinct from `emoji-stats` (topic-wide) and
+    /// `reactions-of` (per-sender). Sort: count desc, emoji asc tiebreak.
+    /// Honors redaction.
+    ReactionsOn {
+        /// Topic name
+        topic: String,
+
+        /// Target offset whose reactions to roll up
+        offset: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Chronological redaction audit log for a topic (T-1373). Walks the
     /// topic and lists every `msg_type=redaction` envelope as a row, with
     /// target offset, redactor, optional reason, ts, and a preview of the
