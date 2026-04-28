@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T09:49:35Z ===
-task_id: T-1366
+=== episodic-gen invocation: 2026-04-28T10:12:27Z ===
+task_id: T-1367
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1366.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1367.yaml
 
   Status: ✓ auto-complete (Auto-generated)
-  Task: channel edits-of — render edit history for a target offset (m.replace)
-  Duration: 0 days (18 min)
-  Updates: 2
+  Task: channel forwards-of — list forwards posted by a sender
+  Duration: 0 days (21 min)
+  Updates: 3
   Commits: 1
-  Lines: +346 -89 across 17 files
+  Lines: +327 -29 across 16 files
   Outcomes: 5 AC checked
-  Artifacts: 17 files tracked
+  Artifacts: 16 files tracked
 
-Source: /opt/termlink/.tasks/completed/T-1366-channel-edits-of--render-edit-history-fo.md
+Source: /opt/termlink/.tasks/completed/T-1367-channel-forwards-of--list-forwards-poste.md
 --- exit code: 0 ---

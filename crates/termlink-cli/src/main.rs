@@ -752,6 +752,14 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::TopicStats { topic, hub, json } => {
+                commands::channel::cmd_channel_topic_stats(
+                    &topic,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::ForwardsOf {
                 topic,
                 sender,
