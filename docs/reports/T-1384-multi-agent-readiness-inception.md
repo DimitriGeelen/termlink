@@ -273,6 +273,29 @@ The original DEFER + 3 follow-ups stands, but **T-1385's priority should be the 
 - **T-1387 (deploy):** ring20-dashboard SSH-less heal
 - **(done in this session):** binary deploy to .122 via HTTP+musl pattern is now a known recipe; document in CLAUDE.md / runbook
 
+### 2026-04-28 21:30Z — DEFER reversed → recommendation: GO
+
+Three follow-ups now closed in this session. Outcomes:
+
+- **T-1385 (cross-hub TCP):** DONE. `hub_socket` + `hub_socket_soft` + `walk_topic_full` retyped to `TransportAddr`. Added `parse_hub_addr()` (TCP if no `/` and trailing u16, else Unix). Added `rpc_call_authed()` wrapper that, for TCP, looks up secret in `~/.termlink/hubs.toml` by address, builds an Execute-scope token, calls `hub.auth`, then issues the RPC. `BusClient` migrated to `TransportAddr`; `cmd_channel_post` bypasses BusClient on TCP and uses authed direct RPC. 5 new unit tests + 306 channel tests pass. Cross-hub `channel create/list/state/post` validated against .122 (and `--hub 192.168.10.107:9100` from .122 back).
+- **T-1386 (multi-machine e2e):** DONE. `tests/e2e/multi-machine-conversation.sh` posts 4 from .107, 2 from .122 (via TCP --hub) on shared topic, all 6 sender_ids resolve, cross-machine reply chain works.
+- **T-1387 (live-agent e2e):** DONE. `tests/e2e/live-agents-conversation.sh` posts 5 in parallel tagged with real long-running session IDs (tl-ismotg7j, tl-bkfp6hqt, tl-pljpkait, tl-6clmxxos, tl-rvbgtjjl) + 1 from .122. 6 distinct senders converge on one topic.
+- **Binary deploy:** .122 upgraded to musl static 0.9.1534 via HTTP+ufw recipe (binary built locally, fetched via curl, installed via mv to handle "Text file busy", hub restarted in <3s).
+- **.121 (ring20-dashboard):** still SSH-blocked, NOT in fleet for this round. Not blocking — 2 hubs is enough to prove the pattern.
+
+**Recommendation: GO.** The arc is ready to push to the fleet. The cross-hub gap is closed at the client AND wire layer. Multi-machine, multi-agent conversation works end-to-end.
+
+**Outstanding (lower priority):**
+- Per-session identity opt-in: still hypothetical; not needed for the bus to work — `--sender-id` already lets each session distinguish itself.
+- ring20-dashboard heal: SSH key infrastructure, separate operational task.
+- BusClient offline queue for cross-hub: out of scope for T-1385; cross-hub TCP currently bypasses queue.
+
+Decision command (Tier 0, requires human approval):
+
+```
+cd /opt/termlink && .agentic-framework/bin/fw inception decide T-1384 go --rationale "Cross-hub gap closed in T-1385. Multi-machine + live-agent e2e proven in T-1386/T-1387. Arc is ready to push to the fleet."
+```
+
 ## Dialogue Log
 
 ### 2026-04-28 17:14Z — opening prompt
