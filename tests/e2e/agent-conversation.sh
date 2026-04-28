@@ -928,6 +928,36 @@ expect_contains "\"latest_editor\":" "$out_json" "step 47: --json carries latest
 first=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["target_offset"])')
 [ "$first" = "0" ] || fail "step 47: count desc should put target 0 first, got $first"
 
+step "48. channel state (T-1376): canonical Matrix-style render — edits applied, redactions hidden"
+ST_TOPIC="t-1376-state-$(date +%s)"
+A channel create "$ST_TOPIC" --retention forever >/dev/null
+A channel post "$ST_TOPIC" --msg-type chat --payload "st-v0" >/dev/null   # offset 0
+A channel post "$ST_TOPIC" --msg-type chat --payload "st-keep" >/dev/null # offset 1
+A channel post "$ST_TOPIC" --msg-type chat --payload "st-doomed" >/dev/null # offset 2
+A channel edit "$ST_TOPIC" 0 "st-v1" >/dev/null
+B channel edit "$ST_TOPIC" 0 "st-v2-final" >/dev/null
+A channel redact "$ST_TOPIC" 2 >/dev/null
+out=$(A channel state "$ST_TOPIC")
+expect_contains "[0]" "$out" "step 48: offset 0 surfaces"
+expect_contains "[1]" "$out" "step 48: offset 1 surfaces"
+expect_contains "st-v2-final" "$out" "step 48: latest edit text wins"
+expect_contains "st-keep" "$out" "step 48: untouched message visible"
+[ -z "$(echo "$out" | grep -F 'st-doomed')" ] || fail "step 48: redacted payload must not appear in default view"
+[ -z "$(echo "$out" | grep -F '[2]')" ] || fail "step 48: redacted offset must be dropped (no [2] row)"
+out_inc=$(A channel state "$ST_TOPIC" --include-redacted)
+expect_contains "[2]" "$out_inc" "step 48: --include-redacted surfaces offset 2"
+expect_contains "[REDACTED]" "$out_inc" "step 48: --include-redacted shows [REDACTED] payload"
+out_json=$(A channel state "$ST_TOPIC" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 48: expected 2 visible rows, got $n"
+expect_contains "\"is_edited\":" "$out_json" "step 48: --json carries is_edited"
+expect_contains "\"edit_count\":" "$out_json" "step 48: --json carries edit_count"
+expect_contains "\"is_redacted\":" "$out_json" "step 48: --json carries is_redacted"
+expect_contains "\"latest_edit_ts_ms\":" "$out_json" "step 48: --json carries latest_edit_ts_ms"
+# Verify edit collapse in JSON
+edited_payload=$(echo "$out_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); print([r["payload"] for r in d if r["offset"]==0][0])')
+[ "$edited_payload" = "st-v2-final" ] || fail "step 48: collapsed payload should be st-v2-final, got $edited_payload"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

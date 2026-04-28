@@ -2549,6 +2549,28 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Canonical collapsed view of a topic (T-1376). Matrix-style room
+    /// render: applies `m.replace` (edits — latest text wins) and hides
+    /// `m.redaction`-targeted offsets. One row per visible content message,
+    /// in offset-asc order. Distinct from raw `subscribe` (envelope stream),
+    /// `info` (topic summary), `edits-of` (single-target history), and
+    /// `edit-stats` (count rollup). This is "what does this topic say now?"
+    State {
+        /// Topic name
+        topic: String,
+
+        /// Show redacted rows with payload "[REDACTED]" instead of dropping.
+        #[arg(long)]
+        include_redacted: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Per-target edit count summary for a topic (T-1375). Topic-wide
     /// aggregate companion to `edits-of` (T-1366, single-target full
     /// history). Lists each target offset with edit count, last editor,

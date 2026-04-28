@@ -4487,6 +4487,192 @@ pub(crate) async fn cmd_channel_edit_stats(
     Ok(())
 }
 
+/// T-1376: one row in the canonical-state view of a topic — the Matrix-style
+/// render where `m.replace` (edits) have been applied and `m.redaction`-
+/// targeted offsets are hidden. This is the "what does this topic say right
+/// now" view, distinct from raw subscribe (envelope stream) and from the
+/// audit-log views (T-1372 pin-history, T-1373 redactions, T-1375 edit-stats).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StateRow {
+    pub offset: u64,
+    pub sender_id: String,
+    pub payload: String,
+    pub is_edited: bool,
+    pub edit_count: u64,
+    pub latest_edit_ts_ms: i64,
+    pub ts_ms: i64,
+    pub is_redacted: bool,
+}
+
+impl StateRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "offset": self.offset,
+            "sender_id": self.sender_id,
+            "payload": self.payload,
+            "is_edited": self.is_edited,
+            "edit_count": self.edit_count,
+            "latest_edit_ts_ms": self.latest_edit_ts_ms,
+            "ts_ms": self.ts_ms,
+            "is_redacted": self.is_redacted,
+        })
+    }
+}
+
+/// T-1376: pure helper — build the canonical state of a topic.
+///
+/// One row per content message in the topic, in offset-asc order.
+/// Filters:
+/// - meta envelopes (`UNREAD_META_TYPES`: receipt/reaction/redaction/edit/topic_metadata)
+///   are skipped — they are NOT content rows
+/// - if `include_redacted` is false, rows whose offset is in the redaction
+///   target set are dropped entirely
+/// - if `include_redacted` is true, redacted rows surface with payload set
+///   to `"[REDACTED]"` and `is_redacted=true`
+///
+/// Edit collapse: when a content row has at least one non-redacted edit
+/// targeting it, payload becomes the latest edit's text (max ts_ms; offset
+/// asc tiebreak), `is_edited=true`, `edit_count` reflects the number of
+/// surviving (non-redacted) edits, and `latest_edit_ts_ms` is the ts of
+/// that latest edit. When no edits, `is_edited=false`, `edit_count=0`,
+/// `latest_edit_ts_ms=0`.
+///
+/// `ts_ms` is always the original content row's timestamp (not the latest
+/// edit's). Use `latest_edit_ts_ms` to know when the current text was
+/// written.
+pub(crate) fn compute_state(envelopes: &[Value], include_redacted: bool) -> Vec<StateRow> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets(envelopes);
+    // Build per-target latest edit map (only non-redacted edits count).
+    // target -> (latest_ts, latest_offset, latest_text, count)
+    let mut edits: HashMap<u64, (i64, u64, String, u64)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("edit") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let target = match env
+            .get("metadata")
+            .and_then(|md| md.get("replaces"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let text = decode_payload_lossy(env);
+        let entry = edits
+            .entry(target)
+            .or_insert((i64::MIN, 0, String::new(), 0));
+        entry.3 += 1;
+        if ts > entry.0 || (ts == entry.0 && off > entry.1) {
+            entry.0 = ts;
+            entry.1 = off;
+            entry.2 = text;
+        }
+    }
+    let mut rows: Vec<StateRow> = Vec::new();
+    for env in envelopes {
+        let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if UNREAD_META_TYPES.contains(&mt) {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        let is_red = redacted.contains(&off);
+        if is_red && !include_redacted {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let original_payload = decode_payload_lossy(env);
+        let (payload, is_edited, edit_count, latest_edit_ts) = if is_red {
+            ("[REDACTED]".to_string(), false, 0u64, 0i64)
+        } else if let Some((latest_ts, _, text, count)) = edits.get(&off) {
+            (text.clone(), true, *count, *latest_ts)
+        } else {
+            (original_payload, false, 0u64, 0i64)
+        };
+        rows.push(StateRow {
+            offset: off,
+            sender_id: sender,
+            payload,
+            is_edited,
+            edit_count,
+            latest_edit_ts_ms: latest_edit_ts,
+            ts_ms: ts,
+            is_redacted: is_red,
+        });
+    }
+    rows.sort_by_key(|r| r.offset);
+    rows
+}
+
+/// T-1376: render the canonical state view.
+pub(crate) async fn cmd_channel_state(
+    topic: &str,
+    include_redacted: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_state(&envelopes, include_redacted);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(StateRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No content messages on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Canonical state of '{topic}':");
+    for r in &rows {
+        let marker = if r.is_redacted {
+            " [redacted]"
+        } else if r.is_edited {
+            " *"
+        } else {
+            ""
+        };
+        let edit_suffix = if r.edit_count > 0 {
+            format!(" (×{} edits)", r.edit_count)
+        } else {
+            String::new()
+        };
+        println!(
+            "  [{off}]{marker} {sender}: {payload}{edits}",
+            off = r.offset,
+            sender = r.sender_id,
+            payload = r.payload,
+            edits = edit_suffix,
+        );
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -9475,5 +9661,127 @@ mod tests {
         let rows = compute_redactions(&envs);
         assert_eq!(rows.len(), 1, "only the well-formed redaction survives");
         assert_eq!(rows[0].event_offset, 2);
+    }
+
+    // T-1376: compute_state — canonical Matrix-style render
+
+    #[test]
+    fn state_empty_topic_yields_no_rows() {
+        let envs: Vec<Value> = vec![];
+        let rows = compute_state(&envs, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn state_single_post_unedited() {
+        let envs = vec![mk_post(0, "alice", 100, "hello")];
+        let rows = compute_state(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].offset, 0);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].payload, "hello");
+        assert!(!rows[0].is_edited);
+        assert_eq!(rows[0].edit_count, 0);
+        assert!(!rows[0].is_redacted);
+        assert_eq!(rows[0].ts_ms, 100);
+    }
+
+    #[test]
+    fn state_single_edit_collapses_to_latest_text() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 200, 0, "v1"),
+        ];
+        let rows = compute_state(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].offset, 0);
+        assert_eq!(rows[0].payload, "v1", "latest edit text wins");
+        assert!(rows[0].is_edited);
+        assert_eq!(rows[0].edit_count, 1);
+        assert_eq!(rows[0].latest_edit_ts_ms, 200);
+        assert_eq!(rows[0].ts_ms, 100, "ts_ms is the original post's ts");
+    }
+
+    #[test]
+    fn state_two_edits_latest_ts_wins() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 200, 0, "v1"),
+            mk_edit_event(2, "bob", 300, 0, "v2"),
+        ];
+        let rows = compute_state(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "v2");
+        assert_eq!(rows[0].edit_count, 2);
+        assert_eq!(rows[0].latest_edit_ts_ms, 300);
+    }
+
+    #[test]
+    fn state_redacted_dropped_by_default() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "secret"),
+            mk_post(1, "alice", 150, "kept"),
+            mk_redact(2, "alice", 200, 0),
+        ];
+        let rows = compute_state(&envs, false);
+        assert_eq!(rows.len(), 1, "redacted offset 0 is dropped");
+        assert_eq!(rows[0].offset, 1);
+        assert_eq!(rows[0].payload, "kept");
+    }
+
+    #[test]
+    fn state_redacted_shown_when_include_redacted_true() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "secret"),
+            mk_post(1, "alice", 150, "kept"),
+            mk_redact(2, "alice", 200, 0),
+        ];
+        let rows = compute_state(&envs, true);
+        assert_eq!(rows.len(), 2);
+        let redacted_row = rows.iter().find(|r| r.offset == 0).unwrap();
+        assert!(redacted_row.is_redacted);
+        assert_eq!(redacted_row.payload, "[REDACTED]");
+        assert!(!redacted_row.is_edited);
+    }
+
+    #[test]
+    fn state_meta_envelopes_skipped() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "real"),
+            mk_reaction(1, "bob", 150, 0, "👍"),
+            mk_redact(2, "alice", 200, 9999), // redaction targeting unknown
+        ];
+        let rows = compute_state(&envs, false);
+        assert_eq!(rows.len(), 1, "reaction + redaction envelopes are not content rows");
+        assert_eq!(rows[0].offset, 0);
+    }
+
+    #[test]
+    fn state_redacted_edit_does_not_apply() {
+        // Edit at offset 2 is itself redacted -> shouldn't update payload.
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 200, 0, "v1"),
+            mk_edit_event(2, "alice", 300, 0, "v-bogus"),
+            mk_redact(3, "alice", 400, 2),
+        ];
+        let rows = compute_state(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "v1", "the surviving edit wins, not the redacted one");
+        assert_eq!(rows[0].edit_count, 1);
+    }
+
+    #[test]
+    fn state_offset_asc_order() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "first"),
+            mk_post(1, "bob", 200, "second"),
+            mk_post(2, "carol", 300, "third"),
+        ];
+        let rows = compute_state(&envs, false);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].offset, 0);
+        assert_eq!(rows[1].offset, 1);
+        assert_eq!(rows[2].offset, 2);
     }
 }

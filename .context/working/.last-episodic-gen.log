@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T10:36:08Z ===
-task_id: T-1369
+=== episodic-gen invocation: 2026-04-28T14:21:08Z ===
+task_id: T-1376
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1369.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1376.yaml
 
-  Status: ✓ auto-complete (Auto-generated)
-  Task: docs/operations/agent-conversations.md — T-1365/1366/1367/1368 wave (threads, edits-of, forwards-of, topic-stats)
-  Duration: 0 days (2 min)
+  Status: ✓ complete (Auto-generated)
+  Task: channel state <topic> — canonical collapsed view (edits applied, redactions hidden) — Matrix m.replace + m.redaction render
+  Duration: 0 days (15 min)
   Updates: 2
-  Commits: 1
-  Lines: +137 -17 across 11 files
-  Outcomes: 5 AC checked
-  Artifacts: 11 files tracked
+  Commits: 0
+  Lines: +0 -0 across 0 files
+  Outcomes: 10 AC checked
+  Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1369-docsoperationsagent-conversationsmd--t-1.md
+Source: /opt/termlink/.tasks/completed/T-1376-channel-state-topic--canonical-collapsed.md
 --- exit code: 0 ---

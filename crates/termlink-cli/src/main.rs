@@ -840,6 +840,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::State {
+                topic,
+                include_redacted,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_state(
+                    &topic,
+                    include_redacted,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,
