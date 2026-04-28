@@ -2423,6 +2423,26 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Reverse-view of reactions: list everything a specific sender has
+    /// reacted to on a topic (T-1362). Distinct from `subscribe --reactions`
+    /// (per-message aggregation) and `emoji-stats` (per-emoji breakdown).
+    /// Renders one row per active reaction with its parent payload preview.
+    ReactionsOf {
+        /// Topic name
+        topic: String,
+
+        /// Sender id (fingerprint) to scope to. Default: caller identity.
+        #[arg(long)]
+        sender: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `[{reaction_offset, parent_offset, emoji, parent_payload, ts}]`
+        #[arg(long)]
+        json: bool,
+    },
     /// Read-receipt dashboard for a topic (T-1361). Composes
     /// `channel.receipts` with the topic's latest offset and member set into
     /// per-sender lag rows: `<sender_id> ack=<up_to> latest=<L> lag=<N>`.

@@ -3144,6 +3144,130 @@ pub(crate) async fn cmd_channel_emoji_stats(
     Ok(())
 }
 
+/// T-1362: one reaction row produced by `compute_reactions_of`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReactionsOfRow {
+    pub reaction_offset: u64,
+    pub parent_offset: u64,
+    pub emoji: String,
+    pub parent_payload: Option<String>,
+    pub ts: i64,
+}
+
+impl ReactionsOfRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "reaction_offset": self.reaction_offset,
+            "parent_offset": self.parent_offset,
+            "emoji": self.emoji,
+            "parent_payload": self.parent_payload,
+            "ts": self.ts,
+        })
+    }
+}
+
+/// T-1362: pure helper — list every active (non-redacted) reaction posted
+/// by `sender` on this topic, with the parent payload preview filled in.
+///
+/// Filtering:
+/// - `msg_type == "reaction"` AND `sender_id == sender`
+/// - reaction's offset NOT in `redacted_offsets`
+/// - reaction must carry `metadata.in_reply_to` parseable as u64
+///
+/// Sort: by reaction offset descending (most recent first).
+/// Pure — no I/O.
+pub(crate) fn compute_reactions_of(envelopes: &[Value], sender: &str) -> Vec<ReactionsOfRow> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let redacted = redacted_offsets(envelopes);
+    let mut rows: Vec<ReactionsOfRow> = Vec::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+            continue;
+        }
+        if env.get("sender_id").and_then(|v| v.as_str()) != Some(sender) {
+            continue;
+        }
+        let r_off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&r_off) {
+            continue;
+        }
+        let parent_offset = match parent_offset_of(env) {
+            Some(p) => p,
+            None => continue,
+        };
+        let emoji = decode_payload_lossy(env);
+        if emoji.is_empty() {
+            continue;
+        }
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let parent_payload = by_off.get(&parent_offset).map(|p| decode_payload_lossy(p));
+        rows.push(ReactionsOfRow {
+            reaction_offset: r_off,
+            parent_offset,
+            emoji,
+            parent_payload,
+            ts,
+        });
+    }
+    rows.sort_by(|a, b| b.reaction_offset.cmp(&a.reaction_offset));
+    rows
+}
+
+/// T-1362: render the reactions-of view.
+pub(crate) async fn cmd_channel_reactions_of(
+    topic: &str,
+    sender: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let scope = match sender {
+        Some(s) => s.to_string(),
+        None => {
+            let id = load_identity_or_create()
+                .context("Loading identity for reactions-of scope")?;
+            id.fingerprint().to_string()
+        }
+    };
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_reactions_of(&envelopes, &scope);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(ReactionsOfRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No reactions by {scope} on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Reactions by {scope} on '{topic}':");
+    for r in &rows {
+        let preview = r
+            .parent_payload
+            .as_deref()
+            .unwrap_or("(parent missing)");
+        println!(
+            "  {emoji} → offset {parent} ({preview})",
+            emoji = r.emoji,
+            parent = r.parent_offset,
+        );
+    }
+    Ok(())
+}
+
 /// T-1361: one row in the read-receipt dashboard.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AckStatusRow {
@@ -6030,6 +6154,88 @@ mod tests {
         let d = compute_digest(&envs, 0);
         assert_eq!(d.forwards_in, 1);
         assert_eq!(d.posts, 2);
+    }
+
+    // T-1362: compute_reactions_of
+    #[test]
+    fn compute_reactions_of_empty_topic() {
+        assert!(compute_reactions_of(&[], "alice").is_empty());
+    }
+
+    #[test]
+    fn compute_reactions_of_filters_by_sender() {
+        let envs = vec![
+            content_env(0, "post"),
+            reaction_env(1, "alice", 100, "👍"),
+            reaction_env(2, "bob", 100, "❤"),
+        ];
+        let rows = compute_reactions_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].emoji, "👍");
+    }
+
+    #[test]
+    fn compute_reactions_of_excludes_redacted() {
+        let envs = vec![
+            content_env(0, "post"),
+            reaction_env(1, "alice", 100, "👍"),
+            reaction_env(2, "alice", 110, "❤"),
+            redaction_env(3, 1, "alice"),
+        ];
+        let rows = compute_reactions_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reaction_offset, 2);
+    }
+
+    #[test]
+    fn compute_reactions_of_sorted_offset_desc() {
+        let envs = vec![
+            content_env(0, "post"),
+            reaction_env(1, "alice", 100, "👍"),
+            reaction_env(2, "alice", 200, "❤"),
+            reaction_env(3, "alice", 300, "🚀"),
+        ];
+        let rows = compute_reactions_of(&envs, "alice");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].emoji, "🚀");
+        assert_eq!(rows[1].emoji, "❤");
+        assert_eq!(rows[2].emoji, "👍");
+    }
+
+    #[test]
+    fn compute_reactions_of_fills_parent_preview() {
+        let envs = vec![
+            content_env(0, "first message"),
+            reaction_env(1, "alice", 100, "👍"),
+        ];
+        let rows = compute_reactions_of(&envs, "alice");
+        assert_eq!(rows[0].parent_payload.as_deref(), Some("first message"));
+    }
+
+    #[test]
+    fn compute_reactions_of_skips_when_missing_in_reply_to() {
+        // Reaction without metadata.in_reply_to is skipped.
+        let envs = vec![
+            content_env(0, "post"),
+            json!({
+                "offset": 1, "msg_type": "reaction", "sender_id": "alice", "ts": 100,
+                "payload_b64": "8J+RjQ==",  // base64 of 👍
+            }),
+        ];
+        assert!(compute_reactions_of(&envs, "alice").is_empty());
+    }
+
+    #[test]
+    fn compute_reactions_of_skips_empty_payload() {
+        let envs = vec![
+            content_env(0, "post"),
+            json!({
+                "offset": 1, "msg_type": "reaction", "sender_id": "alice", "ts": 100,
+                "payload_b64": "",
+                "metadata": {"in_reply_to": "0"},
+            }),
+        ];
+        assert!(compute_reactions_of(&envs, "alice").is_empty());
     }
 
     // T-1361: compute_ack_status
