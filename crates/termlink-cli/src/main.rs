@@ -690,6 +690,22 @@ async fn main() -> Result<()> {
             ChannelAction::Inbox { hub, json } => {
                 commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
             }
+            ChannelAction::EmojiStats {
+                topic,
+                by_sender,
+                top,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_emoji_stats(
+                    &topic,
+                    by_sender,
+                    top,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Digest {
                 topic,
                 since_mins,

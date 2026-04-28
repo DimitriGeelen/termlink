@@ -599,6 +599,33 @@ A channel subscribe "$INBOX_TOPIC" --limit 100 --resume >/dev/null
 out_clean=$(A channel inbox)
 expect_not_contains "$INBOX_TOPIC" "$out_clean" "step 33: caught-up topic excluded from inbox"
 
+step "34. channel emoji-stats (T-1359): per-topic reaction breakdown"
+EMOJI_TOPIC="t-1359-emoji-$(date +%s)"
+A channel create "$EMOJI_TOPIC" --retention forever >/dev/null
+A channel post "$EMOJI_TOPIC" --msg-type chat --payload "post-a" >/dev/null
+A channel post "$EMOJI_TOPIC" --msg-type chat --payload "post-b" >/dev/null
+# Three reactions: two thumbs (alice + bob), one heart (alice).
+A channel react "$EMOJI_TOPIC" 0 "👍" >/dev/null
+B channel react "$EMOJI_TOPIC" 1 "👍" >/dev/null
+A channel react "$EMOJI_TOPIC" 0 "❤" >/dev/null
+out=$(A channel emoji-stats "$EMOJI_TOPIC")
+expect_contains "👍" "$out" "step 34: thumbs-up appears"
+expect_contains "❤" "$out" "step 34: heart appears"
+expect_contains "👍 ×2" "$out" "step 34: thumbs-up has 2 total"
+expect_contains "❤ ×1" "$out" "step 34: heart has 1 total"
+# --by-sender expansion.
+out_bs=$(A channel emoji-stats "$EMOJI_TOPIC" --by-sender)
+expect_contains "$ALICE" "$out_bs" "step 34: --by-sender lists alice"
+expect_contains "$BOB" "$out_bs" "step 34: --by-sender lists bob"
+# --top 1 truncation.
+out_top=$(A channel emoji-stats "$EMOJI_TOPIC" --top 1)
+expect_contains "👍" "$out_top" "step 34: --top 1 keeps the leader"
+expect_not_contains "❤" "$out_top" "step 34: --top 1 drops the rest"
+# JSON shape.
+out_json=$(A channel emoji-stats "$EMOJI_TOPIC" --json)
+expect_contains "\"emoji\":" "$out_json" "step 34: --json carries emoji field"
+expect_contains "\"distinct_reactors\":" "$out_json" "step 34: --json carries distinct_reactors"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
