@@ -780,6 +780,100 @@ old hubs that didn't carry timestamps) pass through both filters
 unchanged. If you only want envelopes that explicitly fall inside the
 window, post-filter with `--json | jq` on the `ts` field.
 
+## Per-user bookmarks (T-1354 — Matrix `m.bookmark` flavour)
+
+`channel star` is the per-user analogue of `channel pin`: scoped to the
+calling identity, latest action per (sender_id, target) wins. Anyone can
+star anyone else's message, but `channel starred` defaults to the
+caller's own stars. Use `--all` to see every user's bookmarks.
+
+```sh
+# Bookmark a message someone else posted.
+termlink channel star dm:alice:bob 5
+
+# Just my stars.
+termlink channel starred dm:alice:bob
+# → [5] starred_by=alice-fingerprint ts=…: <decoded payload>
+
+# Everyone's stars.
+termlink channel starred dm:alice:bob --all
+
+# Remove my star.
+termlink channel unstar dm:alice:bob 5
+```
+
+Implementation parallels pin: `metadata.star_target=<offset>` +
+`metadata.star=true|false`. Aggregator: `compute_starred_set` keys on
+`(sender_id, target)`. Matrix mapping: there's no first-class
+`m.bookmark` event type — Matrix clients use account-data, but the same
+"per-user, per-message marker" pattern applies.
+
+## Polls (T-1355 — Matrix `m.poll`)
+
+Three additive envelope types implement Matrix `m.poll.start` /
+`m.poll.response` / `m.poll.end`:
+
+```sh
+# Open a poll. The envelope's offset becomes the poll id.
+termlink channel poll start dm:alice:bob \
+  --question "Lunch?" --option "Pizza" --option "Salad" --option "Sushi"
+# → Posted to dm:alice:bob — offset=42, ts=…
+
+# Vote. Re-voting replaces the prior vote (latest action per sender wins).
+termlink channel poll vote dm:alice:bob 42 --choice 0
+termlink channel poll vote dm:alice:bob 42 --choice 2  # changed mind
+
+# Close. Aggregator drops votes with ts > poll_end.ts.
+termlink channel poll end dm:alice:bob 42
+
+# Tallies.
+termlink channel poll results dm:alice:bob 42
+# → Poll #42 [CLOSED]: Lunch?
+#     [0] Pizza — 1 vote(s)
+#          · alice-fingerprint
+#     [1] Salad — 0 vote(s)
+#     [2] Sushi — 1 vote(s)
+#          · bob-fingerprint
+#   Total votes: 2
+```
+
+`--json` returns `{poll_id, question, options:[{label,count,voters}], closed, total_votes}`.
+
+Constraints: at least 2 options required at start; option labels must
+not contain `|` (used as the metadata delimiter); out-of-range choice
+indices are silently dropped from the tally; votes posted after
+`poll_end` are ignored even if their offset is later.
+
+## Activity digest (T-1356)
+
+`channel digest` is "I was away — what did I miss?" — a synthesized
+view scoped to a time window. Distinct from `channel info` (no time
+window) and `channel stats` (global counts).
+
+```sh
+# Last 60 minutes (default).
+termlink channel digest dm:alice:bob
+
+# Custom relative window.
+termlink channel digest dm:alice:bob --since-mins 5
+
+# Absolute lower bound (epoch ms).
+termlink channel digest dm:alice:bob --since 1761500000000
+```
+
+Output sections:
+- Posts count (content msg_types: `post`/`chat`/`note`)
+- Distinct senders
+- Forwards in (envelopes carrying `metadata.forwarded_from`)
+- Pins added/removed
+- Top 3 senders by content-post count
+- Top 3 reactions by count
+- Last 3 chat snippets in offset order
+
+`--json` returns the structured object with all sections. Pure helper
+`compute_digest(envelopes, since_ms)` does the aggregation; ts-less
+envelopes are dropped (defensive).
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -791,13 +885,15 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 29 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 32 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
 subscribe --show-parent, pin/pinned, subscribe --tail, subscribe --senders,
 forward, subscribe --show-forwards, typing emit/list/expiry, subscribe
---until window), and exits 0 on success.
+--until window, star/unstar/starred per-user bookmarks, poll
+start/vote/end/results lifecycle, digest synthesis), and exits 0 on
+success.
 Each assertion is content-level (`grep -F` for expected substrings) so
 re-runs are safe even though the canonical DM topic accumulates state
 across runs.
@@ -859,4 +955,7 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1349 — `subscribe --show-forwards` (forward provenance prefix)
 - T-1351 — `channel typing` (Matrix `m.typing` ephemeral indicator with TTL)
 - T-1352 — `subscribe --until <ms>` (upper-bound timestamp filter, pairs with --since)
+- T-1354 — `channel star` / `unstar` / `starred` (per-user message bookmarks, Matrix `m.bookmark` flavour)
+- T-1355 — `channel poll start` / `vote` / `end` / `results` (Matrix `m.poll` lifecycle)
+- T-1356 — `channel digest` (synthesized recent activity, time-windowed)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
