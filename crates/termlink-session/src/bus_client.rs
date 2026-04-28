@@ -13,7 +13,7 @@
 //! The client is deliberately thin — signing lives in `termlink-session`
 //! `agent_identity`; canonical bytes live in `termlink_protocol::control::channel`.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -23,8 +23,9 @@ use tokio::task::JoinHandle;
 
 use termlink_protocol::control::method;
 use termlink_protocol::jsonrpc::RpcResponse;
+use termlink_protocol::transport::TransportAddr;
 
-use crate::client::{rpc_call, ClientError};
+use crate::client::{rpc_call_addr, ClientError};
 use crate::offline_queue::{OfflineQueue, PendingPost, QueueError};
 
 /// Result of a `BusClient::post` attempt.
@@ -63,7 +64,7 @@ pub const DEFAULT_FLUSH_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Offline-tolerant client for `channel.*` RPCs.
 pub struct BusClient {
-    socket_path: PathBuf,
+    addr: TransportAddr,
     queue: Arc<OfflineQueue>,
     shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
 }
@@ -72,25 +73,26 @@ impl BusClient {
     /// Open the queue at `queue_path`, spawn the flush task, and return
     /// both the client (wrapped in `Arc` so the flush task can hold it)
     /// and the task's `JoinHandle`. Dropping the returned `Arc<BusClient>`
-    /// notifies the task to exit on its next tick.
+    /// notifies the task to exit on its next tick. T-1385: accepts
+    /// `TransportAddr` for TCP cross-hub posting.
     pub fn connect(
-        socket_path: PathBuf,
+        addr: TransportAddr,
         queue_path: impl AsRef<Path>,
     ) -> Result<(Arc<Self>, JoinHandle<()>), BusClientError> {
-        Self::connect_with_interval(socket_path, queue_path, DEFAULT_FLUSH_INTERVAL)
+        Self::connect_with_interval(addr, queue_path, DEFAULT_FLUSH_INTERVAL)
     }
 
     /// Same as `connect` but with a configurable flush cadence (tests use
     /// a short interval to drive the queue quickly).
     pub fn connect_with_interval(
-        socket_path: PathBuf,
+        addr: TransportAddr,
         queue_path: impl AsRef<Path>,
         flush_interval: Duration,
     ) -> Result<(Arc<Self>, JoinHandle<()>), BusClientError> {
         let queue = Arc::new(OfflineQueue::open(queue_path)?);
         let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
         let client = Arc::new(Self {
-            socket_path,
+            addr,
             queue,
             shutdown_tx: Mutex::new(Some(shutdown_tx)),
         });
@@ -130,7 +132,7 @@ impl BusClient {
     /// Try to POST directly; on transport failure, enqueue and return `Queued`.
     pub async fn post(&self, post: PendingPost) -> Result<PostOutcome, BusClientError> {
         let params = post_to_params(&post);
-        match rpc_call(&self.socket_path, method::CHANNEL_POST, params).await {
+        match rpc_call_addr(&self.addr, method::CHANNEL_POST, params).await {
             Ok(resp) => parse_post_response(resp).map(|offset| PostOutcome::Delivered { offset }),
             Err(e) => {
                 // Any transport / protocol-level failure → queue locally.
@@ -150,7 +152,7 @@ impl BusClient {
                 break;
             };
             let params = post_to_params(&post);
-            match rpc_call(&self.socket_path, method::CHANNEL_POST, params).await {
+            match rpc_call_addr(&self.addr, method::CHANNEL_POST, params).await {
                 Ok(resp) => match parse_post_response(resp) {
                     Ok(_offset) => {
                         let _ = self.queue.pop(id);

@@ -7,6 +7,7 @@ use base64::Engine;
 use serde_json::{Value, json};
 
 use termlink_protocol::control::{channel::canonical_sign_bytes, method};
+use termlink_protocol::transport::TransportAddr;
 use termlink_session::agent_identity::{Identity, identity_path};
 use termlink_session::bus_client::{BusClient, PostOutcome};
 use termlink_session::client;
@@ -49,9 +50,25 @@ fn parse_retention(spec: &str) -> Result<Value> {
     anyhow::bail!("retention must be 'forever', 'days:N', or 'messages:N' (got: {spec})");
 }
 
-fn hub_socket(hub: Option<&str>) -> Result<PathBuf> {
+/// T-1385: parse a `--hub` argument as either a TCP `host:port` or a Unix path.
+/// TCP if the string has no `/`, contains a `:`, and the trailing component
+/// parses as a u16 port. Otherwise, treat as a Unix socket path.
+fn parse_hub_addr(s: &str) -> TransportAddr {
+    if !s.contains('/') {
+        if let Some((host, port_str)) = s.rsplit_once(':') {
+            if let Ok(port) = port_str.parse::<u16>() {
+                return TransportAddr::tcp(host, port);
+            }
+        }
+    }
+    TransportAddr::unix(PathBuf::from(s))
+}
+
+/// T-1385: returns a TransportAddr (Unix or TCP). Variable name `sock` is
+/// preserved across the file for call-site stability — it holds an addr now.
+fn hub_socket(hub: Option<&str>) -> Result<TransportAddr> {
     if let Some(h) = hub {
-        return Ok(PathBuf::from(h));
+        return Ok(parse_hub_addr(h));
     }
     let (_, sock) = resolve_hub_paths();
     if !sock.exists() {
@@ -60,17 +77,103 @@ fn hub_socket(hub: Option<&str>) -> Result<PathBuf> {
             sock.display()
         );
     }
-    Ok(sock)
+    Ok(TransportAddr::unix(sock))
 }
 
 /// `channel post` tolerates a missing socket (offline-queue fallback), so
-/// resolve the path without asserting it exists. T-1174.
-fn hub_socket_soft(hub: Option<&str>) -> PathBuf {
+/// resolve the path without asserting it exists. T-1174. T-1385: returns
+/// TransportAddr for TCP-capable parsing.
+fn hub_socket_soft(hub: Option<&str>) -> TransportAddr {
     if let Some(h) = hub {
-        return PathBuf::from(h);
+        return parse_hub_addr(h);
     }
     let (_, sock) = resolve_hub_paths();
-    sock
+    TransportAddr::unix(sock)
+}
+
+/// T-1385: For TCP `--hub host:port`, look up the hub secret from
+/// `~/.termlink/hubs.toml` by matching the `address` field. Returns the raw
+/// 64-char hex secret, ready to be parsed into a 32-byte TokenSecret.
+fn resolve_hub_secret_hex(addr: &TransportAddr) -> Result<String> {
+    let (host, port) = addr
+        .as_tcp()
+        .ok_or_else(|| anyhow!("resolve_hub_secret_hex called with non-TCP addr"))?;
+    let want = format!("{host}:{port}");
+    let cfg = crate::config::load_hubs_config();
+    for (name, entry) in cfg.hubs.iter() {
+        if entry.address == want {
+            if let Some(path) = entry.secret_file.as_deref() {
+                let expanded = if let Some(rest) = path.strip_prefix("~/") {
+                    let home = std::env::var("HOME").context("HOME not set")?;
+                    format!("{home}/{rest}")
+                } else {
+                    path.to_string()
+                };
+                let s = std::fs::read_to_string(&expanded)
+                    .with_context(|| format!("read secret_file {expanded} for hub '{name}'"))?;
+                return Ok(s.trim().to_string());
+            }
+            if let Some(inline) = entry.secret.as_deref() {
+                return Ok(inline.to_string());
+            }
+            anyhow::bail!("hub profile '{name}' has neither secret_file nor secret");
+        }
+    }
+    anyhow::bail!(
+        "no hubs.toml profile matches TCP address {want} — add one with `termlink fleet profile add` or pass --hub <unix-path>"
+    );
+}
+
+/// T-1385: TCP-aware RPC wrapper. For Unix addresses, delegates to
+/// `client::rpc_call_addr` (peer-cred trust). For TCP, opens a connection,
+/// performs `hub.auth` with the resolved secret, then issues the RPC. Each
+/// call opens a fresh connection (matches Unix one-shot semantics).
+async fn rpc_call_authed(
+    addr: &TransportAddr,
+    method: &str,
+    params: Value,
+) -> std::result::Result<termlink_protocol::jsonrpc::RpcResponse, termlink_session::client::ClientError>
+{
+    use termlink_session::auth::{self, PermissionScope};
+    if addr.is_unix() {
+        return client::rpc_call_addr(addr, method, params).await;
+    }
+    let mut c = termlink_session::client::Client::connect_addr(addr).await?;
+    let hex = match resolve_hub_secret_hex(addr) {
+        Ok(h) => h,
+        Err(e) => {
+            return Err(termlink_session::client::ClientError::Io(
+                std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+            ))
+        }
+    };
+    if hex.len() != 64 {
+        return Err(termlink_session::client::ClientError::Io(
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("hub secret must be 64 hex chars, got {}", hex.len()),
+            ),
+        ));
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| {
+            termlink_session::client::ClientError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("invalid hex in secret: {e}"),
+            ))
+        })?;
+    }
+    let secret: auth::TokenSecret = bytes;
+    let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+    let _ = c
+        .call(
+            "hub.auth",
+            json!("channel-auth"),
+            json!({"token": token.raw}),
+        )
+        .await?;
+    c.call(method, json!("cli-1"), params).await
 }
 
 fn hex_of(bytes: &[u8]) -> String {
@@ -90,7 +193,7 @@ pub(crate) async fn cmd_channel_create(
 ) -> Result<()> {
     let retention_val = parse_retention(retention)?;
     let sock = hub_socket(hub)?;
-    let resp = client::rpc_call(
+    let resp = rpc_call_authed(
         &sock,
         method::CHANNEL_CREATE,
         json!({"name": name, "retention": retention_val}),
@@ -167,25 +270,52 @@ pub(crate) async fn cmd_channel_post(
     };
     let sock = hub_socket_soft(hub);
     let queue_path = default_queue_path();
-    let (client, _flush_task) = BusClient::connect(sock, &queue_path)
-        .context("open bus client / offline queue")?;
-    // Opportunistic drain: the CLI is one-shot, so the background flush task
-    // never gets a 5 s tick. Drain any backlog *before* posting so queued items
-    // keep FIFO order relative to this call. Best-effort; transport failure
-    // leaves the queue intact for the next invocation. T-1174.
-    if client.queue_size() > 0 {
-        let report = client.flush().await;
-        if report.sent > 0 && !json_output {
-            eprintln!(
-                "Drained {} queued post(s) from previous offline period",
-                report.sent
+    // T-1385: TCP cross-hub posts bypass the offline queue (BusClient is
+    // Unix-only at the wire level). Direct authed RPC; no queueing on failure.
+    let outcome = if sock.is_tcp() {
+        // T-1385: mirror bus_client::post_to_params shape exactly so the
+        // hub's signature canonical-bytes recompute matches.
+        let mut params = json!({
+            "topic": pending.topic,
+            "msg_type": pending.msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&pending.payload),
+            "artifact_ref": pending.artifact_ref,
+            "ts": pending.ts_unix_ms,
+            "sender_id": pending.sender_id,
+            "sender_pubkey_hex": pending.sender_pubkey_hex,
+            "signature_hex": pending.signature_hex,
+        });
+        if !pending.metadata.is_empty()
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert(
+                "metadata".to_string(),
+                serde_json::to_value(&pending.metadata).unwrap_or(Value::Null),
             );
         }
-    }
-    let outcome = client
-        .post(pending)
-        .await
-        .map_err(|e| anyhow!("channel.post failed (and offline queue also failed): {e}"))?;
+        let resp = rpc_call_authed(&sock, method::CHANNEL_POST, params)
+            .await
+            .map_err(|e| anyhow!("cross-hub channel.post failed: {e}"))?;
+        let r = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("hub returned error for channel.post: {e}"))?;
+        let offset = r.get("offset").and_then(|v| v.as_i64()).unwrap_or(0);
+        PostOutcome::Delivered { offset }
+    } else {
+        let (bus, _flush_task) = BusClient::connect(sock, &queue_path)
+            .context("open bus client / offline queue")?;
+        if bus.queue_size() > 0 {
+            let report = bus.flush().await;
+            if report.sent > 0 && !json_output {
+                eprintln!(
+                    "Drained {} queued post(s) from previous offline period",
+                    report.sent
+                );
+            }
+        }
+        bus.post(pending)
+            .await
+            .map_err(|e| anyhow!("channel.post failed (and offline queue also failed): {e}"))?
+    };
     match outcome {
         PostOutcome::Delivered { offset } => {
             if json_output {
@@ -330,8 +460,8 @@ fn dm_topic(my_id: &str, peer: &str) -> String {
 /// T-1319: ensure a topic exists. Idempotent — if create returns
 /// "already exists" we treat it as success. Used by `channel dm` so the
 /// caller doesn't have to think about whether the topic was set up.
-async fn ensure_topic(sock: &std::path::Path, name: &str) -> Result<()> {
-    let resp = client::rpc_call(
+async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<()> {
+    let resp = rpc_call_authed(
         sock,
         method::CHANNEL_CREATE,
         json!({"name": name, "retention": {"kind": "forever"}}),
@@ -442,7 +572,7 @@ pub(crate) async fn cmd_channel_dm_list(
     let identity = load_identity_or_create()?;
     let my_id = identity.fingerprint().to_string();
     let sock = hub_socket(hub)?;
-    let resp = client::rpc_call(&sock, method::CHANNEL_LIST, json!({}))
+    let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({}))
         .await
         .context("Hub rpc_call (channel.list) failed")?;
     let result = client::unwrap_result(resp)
@@ -550,13 +680,13 @@ pub(crate) fn sort_dm_inbox(rows: &mut [DmInboxRow]) {
 /// if the receipts call fails (then ALL content counts as unread, which
 /// is the correct conservative answer).
 async fn compute_dm_inbox_row(
-    sock: &std::path::Path,
+    sock: &TransportAddr,
     topic: &str,
     peer: &str,
     my_id: &str,
 ) -> Result<DmInboxRow> {
     let mut up_to: u64 = 0;
-    let server_resp = client::rpc_call(
+    let server_resp = rpc_call_authed(
         sock,
         method::CHANNEL_RECEIPTS,
         json!({"topic": topic}),
@@ -586,8 +716,8 @@ async fn compute_dm_inbox_row(
 /// `channel.list` with the topic's exact name as prefix and reading `count`.
 /// Returns `Ok(None)` for an empty topic. Used by `channel ack` when the
 /// caller doesn't supply `--up-to`.
-async fn resolve_latest_offset(sock: &std::path::Path, topic: &str) -> Result<Option<u64>> {
-    let resp = client::rpc_call(
+async fn resolve_latest_offset(sock: &TransportAddr, topic: &str) -> Result<Option<u64>> {
+    let resp = rpc_call_authed(
         sock,
         method::CHANNEL_LIST,
         json!({"prefix": topic}),
@@ -730,7 +860,7 @@ pub(crate) async fn cmd_channel_receipts(
     let mut latest: HashMap<String, Receipt> = HashMap::new();
 
     // T-1329 fast path: hub-side aggregation. One RPC, no pagination.
-    let server_resp = client::rpc_call(
+    let server_resp = rpc_call_authed(
         &sock,
         method::CHANNEL_RECEIPTS,
         json!({"topic": topic}),
@@ -767,7 +897,7 @@ pub(crate) async fn cmd_channel_receipts(
         let mut cursor: u64 = 0;
         let limit: u64 = 1000;
         loop {
-            let resp = client::rpc_call(
+            let resp = rpc_call_authed(
                 &sock,
                 method::CHANNEL_SUBSCRIBE,
                 json!({"topic": topic, "cursor": cursor, "limit": limit}),
@@ -877,7 +1007,7 @@ pub(crate) async fn cmd_channel_react(
     let limit: u64 = 1000;
     let mut found: Option<u64> = None;
     loop {
-        let resp = client::rpc_call(
+        let resp = rpc_call_authed(
             &sock,
             method::CHANNEL_SUBSCRIBE,
             json!({"topic": topic, "cursor": cursor, "limit": limit}),
@@ -1091,7 +1221,7 @@ pub(crate) async fn cmd_channel_thread(
     let mut cursor: u64 = 0;
     let limit: u64 = 1000;
     loop {
-        let resp = client::rpc_call(
+        let resp = rpc_call_authed(
             &sock,
             method::CHANNEL_SUBSCRIBE,
             json!({"topic": topic, "cursor": cursor, "limit": limit}),
@@ -1504,7 +1634,7 @@ pub(crate) async fn cmd_channel_info(
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
     // Pull retention + count from channel.list with the topic name as exact prefix.
-    let list_resp = client::rpc_call(&sock, method::CHANNEL_LIST, json!({"prefix": topic}))
+    let list_resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({"prefix": topic}))
         .await
         .context("Hub rpc_call (channel.list) failed")?;
     let list_result = client::unwrap_result(list_resp)
@@ -1528,7 +1658,7 @@ pub(crate) async fn cmd_channel_info(
     let mut cursor: u64 = 0;
     let limit: u64 = 1000;
     loop {
-        let resp = client::rpc_call(
+        let resp = rpc_call_authed(
             &sock,
             method::CHANNEL_SUBSCRIBE,
             json!({"topic": topic, "cursor": cursor, "limit": limit}),
@@ -1700,7 +1830,7 @@ pub(crate) async fn cmd_channel_reply(
     let mut cursor: u64 = 0;
     let limit: u64 = 1000;
     loop {
-        let resp = client::rpc_call(
+        let resp = rpc_call_authed(
             &sock,
             method::CHANNEL_SUBSCRIBE,
             json!({"topic": topic, "cursor": cursor, "limit": limit}),
@@ -1785,7 +1915,7 @@ pub(crate) async fn cmd_channel_unread(
 
     // T-1329: prefer hub-side aggregation; fall back gracefully if old hub.
     let mut up_to: u64 = 0;
-    let server_resp = client::rpc_call(
+    let server_resp = rpc_call_authed(
         &sock,
         method::CHANNEL_RECEIPTS,
         json!({"topic": topic}),
@@ -1813,7 +1943,7 @@ pub(crate) async fn cmd_channel_unread(
     let mut cursor: u64 = start_cursor;
     let limit: u64 = 1000;
     loop {
-        let resp = client::rpc_call(
+        let resp = rpc_call_authed(
             &sock,
             method::CHANNEL_SUBSCRIBE,
             json!({"topic": topic, "cursor": cursor, "limit": limit}),
@@ -5982,7 +6112,7 @@ pub(crate) async fn cmd_channel_ack_status(
     // fallback for old hubs).
     use std::collections::HashMap;
     let mut receipts: HashMap<String, (u64, i64)> = HashMap::new();
-    let server_resp = client::rpc_call(
+    let server_resp = rpc_call_authed(
         &sock,
         method::CHANNEL_RECEIPTS,
         json!({"topic": topic}),
@@ -6165,7 +6295,7 @@ pub(crate) async fn cmd_channel_inbox(
     }
 
     let sock = hub_socket(hub)?;
-    let resp = client::rpc_call(&sock, method::CHANNEL_LIST, json!({}))
+    let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({}))
         .await
         .context("Hub rpc_call (channel.list) failed")?;
     let result = client::unwrap_result(resp)
@@ -6483,7 +6613,7 @@ pub(crate) async fn cmd_channel_subscribe(
             // (consistent with conversation_id filter shape — both are strings).
             obj.insert("in_reply_to".to_string(), json!(off.to_string()));
         }
-        let resp = client::rpc_call(&sock, method::CHANNEL_SUBSCRIBE, params)
+        let resp = rpc_call_authed(&sock, method::CHANNEL_SUBSCRIBE, params)
             .await
             .context("Hub rpc_call failed")?;
         let result = client::unwrap_result(resp)
@@ -6902,7 +7032,7 @@ pub(crate) async fn cmd_channel_list(
         Some(p) => json!({"prefix": p}),
         None => json!({}),
     };
-    let resp = client::rpc_call(&sock, method::CHANNEL_LIST, params)
+    let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, params)
         .await
         .context("Hub rpc_call failed")?;
     let result = client::unwrap_result(resp)
@@ -6957,12 +7087,12 @@ pub(crate) async fn cmd_channel_list(
 /// T-1335: walk a single topic to completion via `channel.subscribe` paging.
 /// Returns all envelopes as JSON values in offset-ascending order. Bounded by
 /// hub-page limit (1000); large topics make multiple round-trips.
-async fn walk_topic_full(sock: &std::path::Path, topic: &str) -> Result<Vec<Value>> {
+async fn walk_topic_full(sock: &TransportAddr, topic: &str) -> Result<Vec<Value>> {
     let mut all: Vec<Value> = Vec::new();
     let mut cursor: u64 = 0;
     let limit: u64 = 1000;
     loop {
-        let resp = client::rpc_call(
+        let resp = rpc_call_authed(
             sock,
             method::CHANNEL_SUBSCRIBE,
             json!({"topic": topic, "cursor": cursor, "limit": limit}),
@@ -7094,7 +7224,7 @@ pub(crate) async fn cmd_channel_mentions(
         Some(p) => json!({"prefix": p}),
         None => json!({}),
     };
-    let resp = client::rpc_call(&sock, method::CHANNEL_LIST, params)
+    let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, params)
         .await
         .context("Hub rpc_call (channel.list) failed")?;
     let result = client::unwrap_result(resp)
@@ -7304,6 +7434,43 @@ pub(crate) async fn cmd_channel_search(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_hub_addr_recognizes_tcp_host_port() {
+        let a = parse_hub_addr("192.168.10.122:9100");
+        assert!(a.is_tcp());
+        assert_eq!(a.as_tcp(), Some(("192.168.10.122", 9100)));
+    }
+
+    #[test]
+    fn parse_hub_addr_recognizes_localhost_tcp() {
+        let a = parse_hub_addr("localhost:8080");
+        assert!(a.is_tcp());
+        assert_eq!(a.as_tcp(), Some(("localhost", 8080)));
+    }
+
+    #[test]
+    fn parse_hub_addr_falls_back_to_unix_path() {
+        let a = parse_hub_addr("/tmp/termlink-0/hub.sock");
+        assert!(a.is_unix());
+        assert_eq!(
+            a.as_unix_path(),
+            Some(std::path::Path::new("/tmp/termlink-0/hub.sock"))
+        );
+    }
+
+    #[test]
+    fn parse_hub_addr_path_with_colon_treated_as_unix() {
+        // Has /, so even with `:port-like` suffix it's a path.
+        let a = parse_hub_addr("/tmp/foo:9100/hub.sock");
+        assert!(a.is_unix());
+    }
+
+    #[test]
+    fn parse_hub_addr_invalid_port_falls_back_to_unix() {
+        let a = parse_hub_addr("notahost:notaport");
+        assert!(a.is_unix());
+    }
 
     #[test]
     fn dm_list_filters_to_caller_identity() {
