@@ -991,6 +991,43 @@ out_filt=$(A channel ack-history "$AH_TOPIC" "$BOB" --json)
 nb=$(echo "$out_filt" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
 [ "$nb" = "2" ] || fail "step 49: Bob filter expected 2 receipts, got $nb"
 
+step "50. channel snapshot (T-1378): point-in-time canonical view (Matrix backfill)"
+SNAP_TOPIC="t-1378-snapshot-$(date +%s)"
+A channel create "$SNAP_TOPIC" --retention forever >/dev/null
+T_PRE=$(date +%s%3N)
+A channel post "$SNAP_TOPIC" --msg-type chat --payload "snap-p0" >/dev/null
+sleep 0.1
+T_AFTER_P0=$(date +%s%3N)
+A channel post "$SNAP_TOPIC" --msg-type chat --payload "snap-p1" >/dev/null
+sleep 0.1
+T_AFTER_P1=$(date +%s%3N)
+A channel edit "$SNAP_TOPIC" 0 "snap-p0-edited" >/dev/null
+sleep 0.1
+T_AFTER_EDIT=$(date +%s%3N)
+# As-of before the topic existed -> empty
+out_pre=$(A channel snapshot "$SNAP_TOPIC" --as-of "$T_PRE")
+[ -z "$(echo "$out_pre" | grep -F 'snap-p0')" ] || fail "step 50: as_of pre topic should not show snap-p0"
+# As-of after p0 only
+out_p0=$(A channel snapshot "$SNAP_TOPIC" --as-of "$T_AFTER_P0")
+expect_contains "snap-p0" "$out_p0" "step 50: as_of after p0 shows snap-p0"
+[ -z "$(echo "$out_p0" | grep -F 'snap-p1')" ] || fail "step 50: as_of after p0 must not show snap-p1"
+[ -z "$(echo "$out_p0" | grep -F 'snap-p0-edited')" ] || fail "step 50: as_of after p0 must not show edit"
+# As-of after p1 but before edit -> shows ORIGINAL p0 + p1
+out_p1=$(A channel snapshot "$SNAP_TOPIC" --as-of "$T_AFTER_P1")
+expect_contains "snap-p0" "$out_p1" "step 50: as_of after p1 shows original snap-p0"
+expect_contains "snap-p1" "$out_p1" "step 50: as_of after p1 shows snap-p1"
+[ -z "$(echo "$out_p1" | grep -F 'edited')" ] || fail "step 50: as_of after p1 must not show edit yet"
+# As-of after edit -> p0 edited + p1
+out_edit=$(A channel snapshot "$SNAP_TOPIC" --as-of "$T_AFTER_EDIT")
+expect_contains "snap-p0-edited" "$out_edit" "step 50: as_of after edit shows edit applied"
+expect_contains "snap-p1" "$out_edit" "step 50: as_of after edit shows snap-p1"
+# JSON shape
+out_json=$(A channel snapshot "$SNAP_TOPIC" --as-of "$T_AFTER_EDIT" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 50: expected 2 visible rows in snapshot, got $n"
+expect_contains "\"is_edited\":" "$out_json" "step 50: --json carries is_edited"
+expect_contains "\"latest_edit_ts_ms\":" "$out_json" "step 50: --json carries latest_edit_ts_ms"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

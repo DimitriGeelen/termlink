@@ -1292,6 +1292,44 @@ Filter behaviour:
 Sort: offset asc (chronological). `--json` returns `[{offset, sender_id,
 payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}]`.
 
+## Point-in-time snapshot — `channel snapshot`
+
+Matrix backfill semantics. Replay the topic state as it was at a given
+timestamp. Combines the T-1376 collapse (apply edits, hide redactions)
+with a temporal upper bound — events whose ts is greater than `--as-of`
+have NOT happened yet at the snapshot moment, so they are not applied.
+
+```sh
+termlink channel snapshot alpha:design --as-of 1729880600000
+
+#   Snapshot of 'alpha:design' as of ts=1729880600000:
+#     [0] alice-fp: api proposal v0
+#     [1] bob-fp: lgtm
+```
+
+Use cases:
+- "what did the topic say last Tuesday at 3pm?" — forensic replay
+- verify when content first changed (binary search across timestamps)
+- compare snapshot at two times to see what diverged
+
+A later edit / redaction won't surface unless `--as-of` is past its
+timestamp:
+
+```sh
+# At ts=300, edit at ts=500 hasn't happened yet → shows original
+termlink channel snapshot alpha:design --as-of 300
+
+# Later snapshot — edit applied, redactions removed
+termlink channel snapshot alpha:design --as-of 1000
+```
+
+Same `--include-redacted` flag as `state`. `--json` returns the same
+schema as `state` (`StateRow` shape).
+
+Distinct from `state` (current truth, no temporal bound),
+`subscribe --until <ms>` (raw envelope filter — no collapse),
+`edits-of` (single-target edit history).
+
 ## Receipt audit log — `channel ack-history`
 
 The chronological audit companion to the LWW receipt views. Walks the topic
@@ -1329,7 +1367,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 49 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 50 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1421,4 +1459,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1375 — `channel edit-stats` (topic-wide edit count summary, completes audit trio with T-1372 pin-history + T-1373 redactions)
 - T-1376 — `channel state` (Matrix-style canonical render — edits applied, redactions hidden; the "what does this topic say now" view)
 - T-1377 — `channel ack-history` (chronological receipt audit log; extends audit-log family to receipt activity)
+- T-1378 — `channel snapshot --as-of <ms>` (Matrix backfill — point-in-time canonical view, combines T-1376 collapse with temporal upper bound)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
