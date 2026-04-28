@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-048
+  type: gap
+  title: "termlink remote push leaks payload-on-error — error message echoes the base64-encoded shell command"
+  description: "crates/termlink-cli/src/commands/push.rs embeds the file payload as a base64 literal inside a shell write command, then surfaces stderr/stdout/error.message verbatim on any failure path (exec_rpc lines 148-160). When the target session has a command allowlist that rejects the exec, the rejection message includes the original command — leaking the entire base64 payload back to the caller's stdout/stderr (and into chat transcripts, logs, telemetry)."
+  spec_reference: "crates/termlink-cli/src/commands/push.rs cmd_push_inner / exec_rpc"
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-04-28: User attempted to push the ring20-dashboard hub.secret to .107 via `termlink remote push` during T-1296 secret-handoff. The target session's allowlist rejected the exec; the rejection error echoed the full base64-encoded secret into the chat transcript. User rotated the .121 hub secret as containment (fingerprint aa0654832806 → 476be8fe21e3) and explicitly said: 'Will NOT redo the secret push. The bug stack stops here.'"
+  detection_lag_days: 0
+  what_works_now: "Successful pushes work fine (no leak on happy path). Cross-hub TCP auth still works for non-payload-bearing commands."
+  what_remains: "Fix push.rs error sites to redact command body before surfacing. T-1388 created."
+  mitigation_candidate: "Tier-1 (now): redact the write_cmd from all three error bail! sites in push.rs. Surface only stderr (which the shell may or may not have already leaked, but is at least narrower than embedding the original command). Tier-3 (later): consider replacing the inline-base64 transport with a dedicated `inbox.write` RPC that takes content as a binary param, never crossing through a shell command at all."
+  status: watching
+  created: 2026-04-28
+  related_tasks: [T-1388, T-1296]
+
 - id: G-047
   type: gap
   title: "fw task verify counts AC checkboxes inside HTML <!-- comments --> (template examples appear as real unchecked ACs)"
