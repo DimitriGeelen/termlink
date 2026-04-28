@@ -719,6 +719,27 @@ expect_contains "\"reply_count\":" "$out_json" "step 38: --json includes reply_c
 expect_contains "\"participants\":" "$out_json" "step 38: --json includes participants"
 expect_contains "\"last_ts_ms\":" "$out_json" "step 38: --json includes last_ts_ms"
 
+step "39. channel edits-of (T-1366): full edit history for a target offset"
+EDIT_TOPIC="t-1366-edits-$(date +%s)"
+A channel create "$EDIT_TOPIC" --retention forever >/dev/null
+A channel post "$EDIT_TOPIC" --msg-type chat --payload "ORIGINAL-T1366" >/dev/null
+A channel edit "$EDIT_TOPIC" 0 "FIRST-EDIT-T1366" >/dev/null
+A channel edit "$EDIT_TOPIC" 0 "SECOND-EDIT-T1366" >/dev/null
+out=$(A channel edits-of "$EDIT_TOPIC" 0)
+expect_contains "ORIGINAL-T1366" "$out" "step 39: original visible"
+expect_contains "FIRST-EDIT-T1366" "$out" "step 39: first edit visible"
+expect_contains "SECOND-EDIT-T1366" "$out" "step 39: second edit visible"
+expect_contains "2 edits" "$out" "step 39: count reads '2 edits'"
+first_pos=$(echo "$out" | grep -n FIRST-EDIT-T1366 | head -1 | cut -d: -f1)
+second_pos=$(echo "$out" | grep -n SECOND-EDIT-T1366 | head -1 | cut -d: -f1)
+[ "$first_pos" -lt "$second_pos" ] || fail "step 39: first edit must precede second"
+if A channel edits-of "$EDIT_TOPIC" 99 >/dev/null 2>&1; then
+  fail "step 39: edits-of for missing offset must fail"
+fi
+out_json=$(A channel edits-of "$EDIT_TOPIC" 0 --json)
+expect_contains "\"original\":" "$out_json" "step 39: --json carries original"
+expect_contains "\"edits\":" "$out_json" "step 39: --json carries edits array"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

@@ -752,6 +752,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::EditsOf {
+                topic,
+                offset,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_edits_of(
+                    &topic,
+                    offset,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Threads {
                 topic,
                 top,

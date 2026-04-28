@@ -1,22 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T08:21:57Z ===
-task_id: T-1364
+=== episodic-gen invocation: 2026-04-28T09:29:08Z ===
+task_id: T-1365
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1364.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1365.yaml
 
-  Status: ✓ complete (Auto-generated)
-  Task: docs/operations/agent-conversations.md — T-1361/T-1362/T-1363 wave (ack-status, reactions-of, snippet)
-  Duration: 0 days (1 min)
+  Status: ✓ auto-complete (Auto-generated)
+  Task: channel threads — index of threads in a topic with reply counts
+  Duration: 0 days (22 min)
   Updates: 2
   Commits: 1
-  Lines: +102 -18 across 11 files
+  Lines: +438 -153 across 22 files
   Outcomes: 5 AC checked
-  Artifacts: 11 files tracked
-  Decisions: recorded from task file
+  Artifacts: 22 files tracked
 
-Source: /opt/termlink/.tasks/completed/T-1364-docsoperationsagent-conversationsmd--t-1.md
+Source: /opt/termlink/.tasks/completed/T-1365-channel-thread--recursive-descendant-tre.md
 --- exit code: 0 ---
