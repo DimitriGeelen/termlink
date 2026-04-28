@@ -2549,6 +2549,23 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Per-target edit count summary for a topic (T-1375). Topic-wide
+    /// aggregate companion to `edits-of` (T-1366, single-target full
+    /// history). Lists each target offset with edit count, last editor,
+    /// latest edit timestamp, and target payload preview. Completes the
+    /// audit trio with `pin-history` (T-1372) and `redactions` (T-1373).
+    EditStats {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Per-message reaction rollup (T-1374). Matrix annotation API analog —
     /// for a single target offset, group every active reaction by emoji and
     /// list the unique senders. Distinct from `emoji-stats` (topic-wide) and

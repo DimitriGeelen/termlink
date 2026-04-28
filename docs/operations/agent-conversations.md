@@ -1225,6 +1225,30 @@ counts twice), `senders` is the deduplicated sorted set (set semantics
 for "who reacted"). Sort: count desc, emoji asc tiebreak. `--json`
 returns `[{emoji, count, senders}]`.
 
+## Edit-stats summary — `channel edit-stats`
+
+Companion to `edits-of` (T-1366, single-target full history) — the
+topic-wide aggregate. One row per edited target, sorted by edit count
+descending. Together with `pin-history` (T-1372) and `redactions`
+(T-1373), forms the audit trio for content mutations.
+
+```sh
+termlink channel edit-stats alpha:design
+
+#   Edit-stats for 'alpha:design':
+#     [3] ×4 edits (last by alice-fp) — 1729880520000 alice-fp: api proposal v0
+#     [12] ×2 edits (last by bob-fp)  — 1729880600000 carol-fp: meeting notes
+#     [17] ×1 edits (last by alice-fp) — 1729880700000 dave-fp: deploy plan
+```
+
+Filters: edit envelopes with non-numeric `metadata.replaces` are ignored;
+edits whose own offset is redacted don't count; a target that is itself
+redacted drops its row entirely. `latest_editor` / `latest_ts_ms` track
+the most recent surviving edit (max ts; offset asc tiebreak when equal).
+Sort: edit_count desc, target_offset asc tiebreak. `--json` returns
+`[{target_offset, target_sender, target_payload, edit_count,
+latest_editor, latest_ts_ms}]`.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1236,7 +1260,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 46 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 47 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1325,4 +1349,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1372 — `channel pin-history` (chronological pin/unpin audit log, complements T-1345 LWW pinned set)
 - T-1373 — `channel redactions` (chronological redaction audit log, symmetric with pin-history; mirror of T-1322 redact)
 - T-1374 — `channel reactions-on` (per-message reaction rollup, fourth axis after live/topic-wide/per-sender)
+- T-1375 — `channel edit-stats` (topic-wide edit count summary, completes audit trio with T-1372 pin-history + T-1373 redactions)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
