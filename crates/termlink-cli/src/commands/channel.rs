@@ -3024,6 +3024,126 @@ pub(crate) async fn cmd_channel_digest(
     Ok(())
 }
 
+/// T-1359: one row in the per-topic emoji-stats output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EmojiStatRow {
+    pub emoji: String,
+    pub count: u64,
+    /// (sender_id, per-sender count) sorted by count desc, sender asc.
+    pub reactors: Vec<(String, u64)>,
+}
+
+impl EmojiStatRow {
+    fn to_json(&self) -> Value {
+        let reactors: Vec<Value> = self
+            .reactors
+            .iter()
+            .map(|(s, c)| json!({"sender_id": s, "count": c}))
+            .collect();
+        json!({
+            "emoji": self.emoji,
+            "count": self.count,
+            "distinct_reactors": self.reactors.len(),
+            "reactors": reactors,
+        })
+    }
+}
+
+/// T-1359: pure helper — compute per-emoji stats from a topic walk.
+///
+/// Filters envelopes to `msg_type=reaction` whose offset is NOT in
+/// `redacted_offsets(envelopes)`. The reaction's payload is the emoji.
+/// Result is sorted by total count desc, ties break on emoji ascending.
+/// Pure — no I/O.
+pub(crate) fn compute_emoji_stats(envelopes: &[Value]) -> Vec<EmojiStatRow> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets(envelopes);
+    // emoji -> sender -> count
+    let mut by_emoji: HashMap<String, HashMap<String, u64>> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let emoji = decode_payload_lossy(env);
+        if emoji.is_empty() {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        *by_emoji
+            .entry(emoji)
+            .or_default()
+            .entry(sender)
+            .or_insert(0) += 1;
+    }
+    let mut rows: Vec<EmojiStatRow> = by_emoji
+        .into_iter()
+        .map(|(emoji, reactors_map)| {
+            let count = reactors_map.values().sum();
+            let mut reactors: Vec<(String, u64)> = reactors_map.into_iter().collect();
+            reactors.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+            EmojiStatRow {
+                emoji,
+                count,
+                reactors,
+            }
+        })
+        .collect();
+    rows.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.emoji.cmp(&b.emoji)));
+    rows
+}
+
+/// T-1359: render the per-topic emoji breakdown.
+pub(crate) async fn cmd_channel_emoji_stats(
+    topic: &str,
+    by_sender: bool,
+    top: Option<usize>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let mut rows = compute_emoji_stats(&envelopes);
+    if let Some(n) = top {
+        rows.truncate(n);
+    }
+
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(EmojiStatRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No reactions on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Emoji stats for '{topic}':");
+    for r in &rows {
+        println!(
+            "  {emoji} ×{count} ({n} reactor(s))",
+            emoji = r.emoji,
+            count = r.count,
+            n = r.reactors.len()
+        );
+        if by_sender {
+            for (s, c) in &r.reactors {
+                println!("    · {s} ×{c}");
+            }
+        }
+    }
+    Ok(())
+}
+
 /// T-1358: per-topic unread row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UnreadRow {
@@ -5703,6 +5823,107 @@ mod tests {
         let d = compute_digest(&envs, 0);
         assert_eq!(d.forwards_in, 1);
         assert_eq!(d.posts, 2);
+    }
+
+    // T-1359: compute_emoji_stats
+    fn redaction_env(off: u64, target: u64, by: &str) -> Value {
+        json!({
+            "offset": off,
+            "msg_type": "redaction",
+            "sender_id": by,
+            "ts": 100,
+            "payload_b64": "",
+            "metadata": {"redacts": target.to_string()},
+        })
+    }
+
+    #[test]
+    fn compute_emoji_stats_empty() {
+        assert!(compute_emoji_stats(&[]).is_empty());
+    }
+
+    #[test]
+    fn compute_emoji_stats_single_emoji() {
+        let envs = vec![
+            content_env(0, "msg"),
+            reaction_env(1, "alice", 100, "👍"),
+        ];
+        let rows = compute_emoji_stats(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].emoji, "👍");
+        assert_eq!(rows[0].count, 1);
+        assert_eq!(rows[0].reactors.len(), 1);
+    }
+
+    #[test]
+    fn compute_emoji_stats_multiple_emojis_sorted_desc() {
+        let envs = vec![
+            content_env(0, "msg"),
+            reaction_env(1, "alice", 100, "👍"),
+            reaction_env(2, "bob", 100, "👍"),
+            reaction_env(3, "carol", 100, "👍"),
+            reaction_env(4, "alice", 100, "❤"),
+            reaction_env(5, "bob", 100, "🚀"),
+        ];
+        let rows = compute_emoji_stats(&envs);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].emoji, "👍");
+        assert_eq!(rows[0].count, 3);
+        // ❤ and 🚀 both have count 1; tie-break on emoji asc.
+        assert_eq!(rows[1].count, 1);
+        assert_eq!(rows[2].count, 1);
+    }
+
+    #[test]
+    fn compute_emoji_stats_redacted_excluded() {
+        let envs = vec![
+            content_env(0, "msg"),
+            reaction_env(1, "alice", 100, "👍"),
+            reaction_env(2, "bob", 100, "👍"),
+            redaction_env(3, 1, "alice"),
+        ];
+        let rows = compute_emoji_stats(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 1); // alice's was redacted; only bob's left
+        assert_eq!(rows[0].reactors[0].0, "bob");
+    }
+
+    #[test]
+    fn compute_emoji_stats_per_sender_count() {
+        // alice reacts twice with 👍, bob once. reactors row should be sorted
+        // alice (2) then bob (1).
+        let envs = vec![
+            content_env(0, "msg"),
+            reaction_env(1, "alice", 100, "👍"),
+            reaction_env(2, "alice", 100, "👍"),
+            reaction_env(3, "bob", 100, "👍"),
+        ];
+        let rows = compute_emoji_stats(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 3);
+        assert_eq!(rows[0].reactors.len(), 2);
+        assert_eq!(rows[0].reactors[0], ("alice".to_string(), 2));
+        assert_eq!(rows[0].reactors[1], ("bob".to_string(), 1));
+    }
+
+    #[test]
+    fn compute_emoji_stats_skips_non_reaction_envelopes() {
+        let envs = vec![
+            content_env(0, "msg"),
+            content_env(1, "another"),
+        ];
+        assert!(compute_emoji_stats(&envs).is_empty());
+    }
+
+    #[test]
+    fn compute_emoji_stats_skips_empty_payload() {
+        let envs = vec![
+            json!({
+                "offset": 0, "msg_type": "reaction", "sender_id": "alice",
+                "ts": 100, "payload_b64": "",
+            }),
+        ];
+        assert!(compute_emoji_stats(&envs).is_empty());
     }
 
     // T-1358: compute_unread_rows

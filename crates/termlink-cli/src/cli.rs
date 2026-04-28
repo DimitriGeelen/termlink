@@ -2423,6 +2423,31 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Per-topic emoji-reaction breakdown (T-1359). Walks the topic, tallies
+    /// every active (non-redacted) `msg_type=reaction` envelope by payload,
+    /// and renders rows sorted by count descending. Distinct from
+    /// `channel digest` (shows top 3 only) and from `subscribe --reactions`
+    /// (per-message aggregation, no global view).
+    EmojiStats {
+        /// Topic name
+        topic: String,
+
+        /// Add per-reactor breakdown beneath each emoji row
+        #[arg(long)]
+        by_sender: bool,
+
+        /// Truncate output to the top N emoji
+        #[arg(long, value_name = "N")]
+        top: Option<usize>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `[{emoji, count, reactors:[{sender_id,count}]}]`
+        #[arg(long)]
+        json: bool,
+    },
     /// Cross-topic inbox: "what did I miss?" view (T-1358). Walks the local
     /// per-(topic, identity) cursor store written by `subscribe --resume`
     /// (T-1318), queries `channel.list` for each topic's current count,
