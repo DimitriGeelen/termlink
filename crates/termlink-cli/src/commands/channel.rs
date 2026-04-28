@@ -3382,6 +3382,226 @@ pub(crate) async fn cmd_channel_reactions_of(
     Ok(())
 }
 
+/// T-1368: aggregated per-topic statistics. Distinct from the lightweight
+/// `TopicStats` (T-1335) used by `channel list` — this one is the full
+/// dashboard shape for `channel topic-stats`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FullTopicStats {
+    pub total: usize,
+    pub distinct_senders: usize,
+    pub by_msg_type: Vec<(String, usize)>,
+    pub top_senders: Vec<(String, usize)>,
+    pub distinct_emojis: usize,
+    pub top_emojis: Vec<(String, usize)>,
+    pub thread_roots: usize,
+    pub active_pins: usize,
+    pub forwards_in: usize,
+    pub edits: usize,
+    pub redactions: usize,
+    pub first_ts_ms: Option<i64>,
+    pub last_ts_ms: Option<i64>,
+}
+
+impl FullTopicStats {
+    fn to_json(&self) -> Value {
+        json!({
+            "total": self.total,
+            "distinct_senders": self.distinct_senders,
+            "by_msg_type": self.by_msg_type.iter().map(|(t, c)| json!({"msg_type": t, "count": c})).collect::<Vec<_>>(),
+            "top_senders": self.top_senders.iter().map(|(s, c)| json!({"sender_id": s, "count": c})).collect::<Vec<_>>(),
+            "distinct_emojis": self.distinct_emojis,
+            "top_emojis": self.top_emojis.iter().map(|(e, c)| json!({"emoji": e, "count": c})).collect::<Vec<_>>(),
+            "thread_roots": self.thread_roots,
+            "active_pins": self.active_pins,
+            "forwards_in": self.forwards_in,
+            "edits": self.edits,
+            "redactions": self.redactions,
+            "first_ts_ms": self.first_ts_ms,
+            "last_ts_ms": self.last_ts_ms,
+        })
+    }
+}
+
+/// T-1368: pure helper — aggregate per-topic statistics.
+///
+/// Counters exclude redacted envelopes (their offset appears in
+/// `redacted_offsets`). The redaction envelopes themselves are counted
+/// separately under `redactions`.
+///
+/// Top-N lists are sorted by count desc with name asc tiebreak; truncated
+/// to 5 rows. Time span uses `ts_unix_ms` (falling back to `ts`).
+pub(crate) fn compute_full_topic_stats(envelopes: &[Value]) -> FullTopicStats {
+    use std::collections::{HashMap, HashSet};
+    let redacted = redacted_offsets(envelopes);
+    let mut total: usize = 0;
+    let mut by_type: HashMap<String, usize> = HashMap::new();
+    let mut by_sender: HashMap<String, usize> = HashMap::new();
+    let mut emoji_count: HashMap<String, usize> = HashMap::new();
+    let mut thread_roots_set: HashSet<u64> = HashSet::new();
+    let mut active_pins: HashSet<u64> = HashSet::new();
+    let mut forwards_in: usize = 0;
+    let mut edits: usize = 0;
+    let mut redactions: usize = 0;
+    let mut first_ts: Option<i64> = None;
+    let mut last_ts: Option<i64> = None;
+
+    // First pass: count redactions specially (they're counted regardless of
+    // whether the redaction envelope itself is redacted).
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) == Some("redaction") {
+            redactions += 1;
+        }
+    }
+
+    // Two-pass pin state: pin = active, unpin = removes. Last-write-wins.
+    let mut pin_state: HashMap<u64, bool> = HashMap::new();
+
+    for env in envelopes {
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        total += 1;
+        let mt = env
+            .get("msg_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        *by_type.entry(mt.clone()).or_insert(0) += 1;
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        *by_sender.entry(sender).or_insert(0) += 1;
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()));
+        if let Some(t) = ts {
+            first_ts = Some(first_ts.map_or(t, |f| f.min(t)));
+            last_ts = Some(last_ts.map_or(t, |l| l.max(t)));
+        }
+        // Per-type counters
+        match mt.as_str() {
+            "reaction" => {
+                let emoji = decode_payload_lossy(env);
+                if !emoji.is_empty() {
+                    *emoji_count.entry(emoji).or_insert(0) += 1;
+                }
+            }
+            "edit" => {
+                edits += 1;
+            }
+            "pin" => {
+                if let Some(md) = env.get("metadata")
+                    && let Some(target) = md
+                        .get("pin_target")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<u64>().ok())
+                {
+                    let action = md.get("action").and_then(|v| v.as_str()).unwrap_or("pin");
+                    pin_state.insert(target, action != "unpin");
+                }
+            }
+            _ => {}
+        }
+        // Thread root: any envelope referenced by another envelope's in_reply_to
+        if let Some(parent) = parent_offset_of(env) {
+            thread_roots_set.insert(parent);
+        }
+        // Forwards-in: detected via metadata
+        if extract_forward(env).is_some() {
+            forwards_in += 1;
+        }
+    }
+
+    for (target, active) in &pin_state {
+        if *active {
+            active_pins.insert(*target);
+        }
+    }
+
+    let distinct_senders = by_sender.len();
+    let distinct_emojis = emoji_count.len();
+
+    let mut by_msg_type: Vec<(String, usize)> = by_type.into_iter().collect();
+    by_msg_type.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+    let mut top_senders: Vec<(String, usize)> = by_sender.into_iter().collect();
+    top_senders.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    top_senders.truncate(5);
+
+    let mut top_emojis: Vec<(String, usize)> = emoji_count.into_iter().collect();
+    top_emojis.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    top_emojis.truncate(5);
+
+    FullTopicStats {
+        total,
+        distinct_senders,
+        by_msg_type,
+        top_senders,
+        distinct_emojis,
+        top_emojis,
+        thread_roots: thread_roots_set.len(),
+        active_pins: active_pins.len(),
+        forwards_in,
+        edits,
+        redactions,
+        first_ts_ms: first_ts,
+        last_ts_ms: last_ts,
+    }
+}
+
+/// T-1368: render the topic-stats dashboard.
+pub(crate) async fn cmd_channel_topic_stats(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let stats = compute_full_topic_stats(&envelopes);
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&stats.to_json())?);
+        return Ok(());
+    }
+    println!("Topic-stats for '{topic}':");
+    println!("  total envelopes:     {}", stats.total);
+    println!("  distinct senders:    {}", stats.distinct_senders);
+    println!("  thread roots:        {}", stats.thread_roots);
+    println!("  active pins:         {}", stats.active_pins);
+    println!("  forwards in:         {}", stats.forwards_in);
+    println!("  edits:               {}", stats.edits);
+    println!("  redactions:          {}", stats.redactions);
+    println!("  distinct emojis:     {}", stats.distinct_emojis);
+    if let (Some(f), Some(l)) = (stats.first_ts_ms, stats.last_ts_ms) {
+        println!("  time span (ms):      {f} → {l}  ({} ms)", l - f);
+    }
+    if !stats.by_msg_type.is_empty() {
+        println!("  by msg_type:");
+        for (t, c) in &stats.by_msg_type {
+            println!("    {t}: {c}");
+        }
+    }
+    if !stats.top_senders.is_empty() {
+        println!("  top senders:");
+        for (s, c) in &stats.top_senders {
+            println!("    {s}: {c}");
+        }
+    }
+    if !stats.top_emojis.is_empty() {
+        println!("  top emojis:");
+        for (e, c) in &stats.top_emojis {
+            println!("    {e}: {c}");
+        }
+    }
+    Ok(())
+}
+
 /// T-1367: one row in the forwards-of view.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ForwardOfRow {
@@ -7632,6 +7852,129 @@ mod tests {
         assert_eq!(row_for_1.reply_count, 2);
         let row_for_2 = rows.iter().find(|r| r.root_offset == 2).unwrap();
         assert_eq!(row_for_2.reply_count, 1);
+    }
+
+    // T-1368: compute_topic_stats
+    fn mk_react(off: u64, sender: &str, ts: i64, parent: u64, emoji: &str) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "reaction",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(emoji),
+            "metadata": {"in_reply_to": parent.to_string()},
+        })
+    }
+    fn mk_pin(off: u64, sender: &str, ts: i64, target: u64, unpin: bool) -> Value {
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "pin",
+            "ts_unix_ms": ts,
+            "payload_b64": "",
+            "metadata": {
+                "pin_target": target.to_string(),
+                "action": if unpin { "unpin" } else { "pin" },
+            },
+        })
+    }
+
+    #[test]
+    fn topic_stats_empty_topic_zero() {
+        let envs: Vec<Value> = vec![];
+        let s = compute_full_topic_stats(&envs);
+        assert_eq!(s.total, 0);
+        assert_eq!(s.distinct_senders, 0);
+        assert!(s.first_ts_ms.is_none());
+        assert!(s.last_ts_ms.is_none());
+    }
+
+    #[test]
+    fn topic_stats_single_post() {
+        let envs = vec![mk_post(0, "alice", 100, "hi")];
+        let s = compute_full_topic_stats(&envs);
+        assert_eq!(s.total, 1);
+        assert_eq!(s.distinct_senders, 1);
+        assert_eq!(s.by_msg_type, vec![("post".to_string(), 1)]);
+        assert_eq!(s.first_ts_ms, Some(100));
+        assert_eq!(s.last_ts_ms, Some(100));
+    }
+
+    #[test]
+    fn topic_stats_mixed_msg_types() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "root"),
+            mk_reply(1, "bob", 200, 0, "reply"),
+            mk_react(2, "carol", 300, 0, "👍"),
+            mk_react(3, "dave", 400, 0, "👍"),
+            mk_react(4, "eve", 500, 0, "❤"),
+        ];
+        let s = compute_full_topic_stats(&envs);
+        assert_eq!(s.total, 5);
+        assert_eq!(s.distinct_senders, 5);
+        assert_eq!(s.thread_roots, 1); // offset 0 is the root
+        assert_eq!(s.distinct_emojis, 2); // 👍 and ❤
+        assert_eq!(s.top_emojis[0].0, "👍");
+        assert_eq!(s.top_emojis[0].1, 2);
+        assert_eq!(s.first_ts_ms, Some(100));
+        assert_eq!(s.last_ts_ms, Some(500));
+    }
+
+    #[test]
+    fn topic_stats_redacted_excluded_from_counters() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "kept"),
+            mk_post(1, "bob", 200, "to-redact"),
+            mk_redact(2, "alice", 300, 1),
+        ];
+        let s = compute_full_topic_stats(&envs);
+        // total includes the redaction envelope itself but NOT the redacted post
+        assert_eq!(s.total, 2); // post 0 + redaction 2; post 1 dropped
+        assert_eq!(s.distinct_senders, 1); // only alice (bob's post was redacted)
+        assert_eq!(s.redactions, 1);
+    }
+
+    #[test]
+    fn topic_stats_active_pins_lww() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "p0"),
+            mk_post(1, "alice", 110, "p1"),
+            mk_pin(2, "alice", 200, 0, false), // pin 0
+            mk_pin(3, "alice", 300, 1, false), // pin 1
+            mk_pin(4, "alice", 400, 0, true),  // unpin 0
+        ];
+        let s = compute_full_topic_stats(&envs);
+        assert_eq!(s.active_pins, 1); // only offset 1 still pinned
+    }
+
+    #[test]
+    fn topic_stats_top_senders_sorted_desc_with_tiebreak() {
+        let envs = vec![
+            mk_post(0, "zelda", 100, "x"),
+            mk_post(1, "amy", 110, "x"),
+            mk_post(2, "amy", 120, "x"),
+            mk_post(3, "bob", 130, "x"),
+            mk_post(4, "bob", 140, "x"),
+        ];
+        let s = compute_full_topic_stats(&envs);
+        // amy=2, bob=2 → tiebreak by name asc → amy first; zelda=1
+        assert_eq!(s.top_senders[0].0, "amy");
+        assert_eq!(s.top_senders[0].1, 2);
+        assert_eq!(s.top_senders[1].0, "bob");
+        assert_eq!(s.top_senders[1].1, 2);
+        assert_eq!(s.top_senders[2].0, "zelda");
+        assert_eq!(s.top_senders[2].1, 1);
+    }
+
+    #[test]
+    fn topic_stats_forwards_in_via_metadata() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "p"),
+            mk_forward(1, "alice", 200, "other-topic", 5, "bob", "fwd"),
+        ];
+        let s = compute_full_topic_stats(&envs);
+        assert_eq!(s.forwards_in, 1);
     }
 
     // T-1367: compute_forwards_of

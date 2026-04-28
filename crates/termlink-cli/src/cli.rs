@@ -2532,6 +2532,23 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Full per-topic statistics dashboard (T-1368). Walks the topic and
+    /// reports total envelopes, distinct senders, msg-type breakdown, top-5
+    /// senders, distinct + top-5 emojis, thread roots, active pins, forwards-in,
+    /// edits, redactions, and lifetime time span. Like `channel digest` but
+    /// unconstrained by time and focused on cumulative totals.
+    TopicStats {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Forwards posted by a sender on a topic (T-1367). Reverse view of
     /// `channel forward` (T-1346). Sender defaults to the caller fingerprint.
     /// Renders forward_offset, origin (topic + offset), original sender,

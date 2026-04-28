@@ -770,6 +770,30 @@ expect_contains "\"origin_topic\":" "$out_json" "step 40: --json carries origin_
 expect_contains "\"origin_offset\":" "$out_json" "step 40: --json carries origin_offset"
 expect_contains "\"origin_sender\":" "$out_json" "step 40: --json carries origin_sender"
 
+step "41. channel topic-stats (T-1368): full per-topic statistics dashboard"
+TS_TOPIC="t-1368-stats-$(date +%s)"
+A channel create "$TS_TOPIC" --retention forever >/dev/null
+A channel post "$TS_TOPIC" --msg-type chat --payload "p1-T1368" >/dev/null
+A channel post "$TS_TOPIC" --msg-type chat --payload "p2-T1368" >/dev/null
+B channel post "$TS_TOPIC" --reply-to 0 --msg-type chat --payload "reply" >/dev/null
+A channel react "$TS_TOPIC" 0 "👍" >/dev/null
+B channel react "$TS_TOPIC" 0 "👍" >/dev/null
+A channel pin "$TS_TOPIC" 1 >/dev/null
+A channel edit "$TS_TOPIC" 1 "edited-T1368" >/dev/null
+out=$(A channel topic-stats "$TS_TOPIC")
+expect_contains "total envelopes:     7" "$out" "step 41: total counted (5 content + 1 pin + 1 edit; redactions=0)"
+expect_contains "distinct senders:    2" "$out" "step 41: alice + bob"
+expect_contains "thread roots:        1" "$out" "step 41: 1 root (offset 0)"
+expect_contains "active pins:         1" "$out" "step 41: pin on offset 1"
+expect_contains "edits:               1" "$out" "step 41: 1 edit"
+expect_contains "distinct emojis:     1" "$out" "step 41: 👍 only"
+expect_contains "👍: 2" "$out" "step 41: 👍 count = 2"
+out_json=$(A channel topic-stats "$TS_TOPIC" --json)
+expect_contains "\"total\":" "$out_json" "step 41: --json carries total"
+expect_contains "\"by_msg_type\":" "$out_json" "step 41: --json carries by_msg_type"
+expect_contains "\"top_senders\":" "$out_json" "step 41: --json carries top_senders"
+expect_contains "\"first_ts_ms\":" "$out_json" "step 41: --json carries first_ts_ms"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
