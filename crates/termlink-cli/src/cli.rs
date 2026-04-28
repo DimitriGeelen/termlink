@@ -2532,6 +2532,25 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Edit history for a target offset (T-1366). Renders the original post
+    /// at `<offset>` followed by every `msg_type=edit` envelope whose
+    /// `metadata.replaces` equals the target, in chronological order. Matrix
+    /// m.replace history analog. Skips redacted edits.
+    EditsOf {
+        /// Topic name
+        topic: String,
+
+        /// Target offset whose edit history to render
+        offset: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `{original: {...}, edits: [{...}, ...]}`
+        #[arg(long)]
+        json: bool,
+    },
     /// Index of all threads in a topic (T-1365). Walks the topic and lists
     /// every offset that has at least one reply (a thread root) with reply
     /// count, distinct participants, last activity, and a payload preview.

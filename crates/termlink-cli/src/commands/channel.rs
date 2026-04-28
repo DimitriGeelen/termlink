@@ -3382,6 +3382,152 @@ pub(crate) async fn cmd_channel_reactions_of(
     Ok(())
 }
 
+/// T-1366: one row in the edits-of report (either the original or an edit).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EditRow {
+    pub offset: u64,
+    pub sender_id: String,
+    pub ts_ms: i64,
+    pub payload: String,
+}
+
+impl EditRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "offset": self.offset,
+            "sender_id": self.sender_id,
+            "ts_ms": self.ts_ms,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1366: edits-of report for one target.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EditsOfReport {
+    pub original: EditRow,
+    pub edits: Vec<EditRow>,
+}
+
+/// T-1366: pure helper — build the edit history for `target` in `envelopes`.
+///
+/// Returns `None` when:
+/// - the target offset is not present, OR
+/// - the target itself is in the redacted-offsets set
+///
+/// Otherwise returns a report whose `original` is the target's row, and
+/// `edits` is the chronological list of `msg_type=edit` envelopes whose
+/// `metadata.replaces == target`. Sort: ts_ms asc, edit-offset asc tiebreak.
+/// Filters:
+/// - non-numeric `metadata.replaces` → ignored
+/// - redacted edit offsets → dropped
+/// - edits referencing other targets → not in this report
+pub(crate) fn compute_edits_of(envelopes: &[Value], target: u64) -> Option<EditsOfReport> {
+    let redacted = redacted_offsets(envelopes);
+    if redacted.contains(&target) {
+        return None;
+    }
+    let target_env = envelopes
+        .iter()
+        .find(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(target))?;
+    let original = EditRow {
+        offset: target,
+        sender_id: target_env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string(),
+        ts_ms: target_env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| target_env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0),
+        payload: decode_payload_lossy(target_env),
+    };
+    let mut edits: Vec<EditRow> = Vec::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("edit") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let replaces = env
+            .get("metadata")
+            .and_then(|md| md.get("replaces"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok());
+        if replaces != Some(target) {
+            continue;
+        }
+        edits.push(EditRow {
+            offset: off,
+            sender_id: env
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            ts_ms: env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0),
+            payload: decode_payload_lossy(env),
+        });
+    }
+    edits.sort_by(|a, b| a.ts_ms.cmp(&b.ts_ms).then_with(|| a.offset.cmp(&b.offset)));
+    Some(EditsOfReport { original, edits })
+}
+
+/// T-1366: render the edits-of view.
+pub(crate) async fn cmd_channel_edits_of(
+    topic: &str,
+    offset: u64,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let report = match compute_edits_of(&envelopes, offset) {
+        Some(r) => r,
+        None => anyhow::bail!(
+            "Target offset {offset} not found or redacted on topic '{topic}'"
+        ),
+    };
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "original": report.original.to_json(),
+                "edits": report.edits.iter().map(EditRow::to_json).collect::<Vec<_>>(),
+            }))?
+        );
+        return Ok(());
+    }
+    println!(
+        "Edits of offset {} on '{}' ({} edit{}):",
+        report.original.offset,
+        topic,
+        report.edits.len(),
+        if report.edits.len() == 1 { "" } else { "s" }
+    );
+    println!(
+        "  [original {} ts={} {}] {}",
+        report.original.offset, report.original.ts_ms, report.original.sender_id, report.original.payload
+    );
+    for e in &report.edits {
+        println!(
+            "  [edit {} ts={} {}] {}",
+            e.offset, e.ts_ms, e.sender_id, e.payload
+        );
+    }
+    Ok(())
+}
+
 /// T-1365: one row in the threads index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ThreadIndexRow {
@@ -7367,6 +7513,104 @@ mod tests {
         assert_eq!(row_for_1.reply_count, 2);
         let row_for_2 = rows.iter().find(|r| r.root_offset == 2).unwrap();
         assert_eq!(row_for_2.reply_count, 1);
+    }
+
+    // T-1366: compute_edits_of
+    fn mk_edit(off: u64, sender: &str, ts: i64, replaces: u64, payload: &str) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "edit",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "metadata": {"replaces": replaces.to_string()},
+        })
+    }
+
+    #[test]
+    fn edits_of_target_with_no_edits_returns_only_original() {
+        let envs = vec![mk_post(5, "alice", 100, "hello")];
+        let r = compute_edits_of(&envs, 5).expect("target present");
+        assert_eq!(r.original.offset, 5);
+        assert_eq!(r.original.payload, "hello");
+        assert!(r.edits.is_empty());
+    }
+
+    #[test]
+    fn edits_of_multiple_edits_chronological() {
+        let envs = vec![
+            mk_post(5, "alice", 100, "v0"),
+            mk_edit(6, "alice", 200, 5, "v1"),
+            mk_edit(7, "alice", 300, 5, "v2"),
+            // Out-of-order ts (older but later offset) — should sort by ts asc
+            mk_edit(8, "alice", 250, 5, "v1.5"),
+        ];
+        let r = compute_edits_of(&envs, 5).unwrap();
+        assert_eq!(r.edits.len(), 3);
+        assert_eq!(r.edits[0].payload, "v1");      // ts 200
+        assert_eq!(r.edits[1].payload, "v1.5");    // ts 250
+        assert_eq!(r.edits[2].payload, "v2");      // ts 300
+    }
+
+    #[test]
+    fn edits_of_redacted_edit_dropped() {
+        let envs = vec![
+            mk_post(5, "alice", 100, "v0"),
+            mk_edit(6, "alice", 200, 5, "v1"),
+            mk_edit(7, "alice", 300, 5, "v2"),
+            mk_redact(8, "alice", 350, 7), // redact v2
+        ];
+        let r = compute_edits_of(&envs, 5).unwrap();
+        assert_eq!(r.edits.len(), 1);
+        assert_eq!(r.edits[0].payload, "v1");
+    }
+
+    #[test]
+    fn edits_of_redacted_target_returns_none() {
+        let envs = vec![
+            mk_post(5, "alice", 100, "v0"),
+            mk_edit(6, "alice", 200, 5, "v1"),
+            mk_redact(7, "alice", 300, 5),
+        ];
+        assert!(compute_edits_of(&envs, 5).is_none());
+    }
+
+    #[test]
+    fn edits_of_non_numeric_replaces_ignored() {
+        use base64::Engine;
+        let envs = vec![
+            mk_post(5, "alice", 100, "v0"),
+            json!({
+                "offset": 6,
+                "sender_id": "alice",
+                "msg_type": "edit",
+                "ts_unix_ms": 200,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode("garbage"),
+                "metadata": {"replaces": "not-a-number"},
+            }),
+        ];
+        let r = compute_edits_of(&envs, 5).unwrap();
+        assert!(r.edits.is_empty());
+    }
+
+    #[test]
+    fn edits_of_other_targets_not_in_report() {
+        let envs = vec![
+            mk_post(5, "alice", 100, "five"),
+            mk_post(7, "bob", 110, "seven"),
+            mk_edit(8, "alice", 200, 5, "v1-of-five"),
+            mk_edit(9, "bob", 210, 7, "v1-of-seven"),
+        ];
+        let r = compute_edits_of(&envs, 5).unwrap();
+        assert_eq!(r.edits.len(), 1);
+        assert_eq!(r.edits[0].payload, "v1-of-five");
+    }
+
+    #[test]
+    fn edits_of_missing_target_returns_none() {
+        let envs = vec![mk_post(5, "alice", 100, "v0")];
+        assert!(compute_edits_of(&envs, 99).is_none());
     }
 
     #[test]
