@@ -1028,6 +1028,34 @@ n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdi
 expect_contains "\"is_edited\":" "$out_json" "step 50: --json carries is_edited"
 expect_contains "\"latest_edit_ts_ms\":" "$out_json" "step 50: --json carries latest_edit_ts_ms"
 
+step "51. channel quote-stats (T-1379): per-target reply rollup"
+QS_TOPIC="t-1379-quote-stats-$(date +%s)"
+A channel create "$QS_TOPIC" --retention forever >/dev/null
+A channel post "$QS_TOPIC" --msg-type chat --payload "qs-popular" >/dev/null  # 0
+A channel post "$QS_TOPIC" --msg-type chat --payload "qs-quiet" >/dev/null    # 1
+B channel post "$QS_TOPIC" --msg-type chat --payload "qs-r0-a" --reply-to 0 >/dev/null
+A channel post "$QS_TOPIC" --msg-type chat --payload "qs-r0-b" --reply-to 0 >/dev/null
+B channel post "$QS_TOPIC" --msg-type chat --payload "qs-r0-c" --reply-to 0 >/dev/null
+A channel post "$QS_TOPIC" --msg-type chat --payload "qs-r1-a" --reply-to 1 >/dev/null
+B channel react "$QS_TOPIC" 0 "👍" >/dev/null  # must NOT count
+out=$(A channel quote-stats "$QS_TOPIC")
+expect_contains "[0] ×3 replies" "$out" "step 51: target 0 has 3 replies"
+expect_contains "[1] ×1 replies" "$out" "step 51: target 1 has 1 reply"
+expect_contains "qs-popular" "$out" "step 51: target_payload preview present"
+out_json=$(A channel quote-stats "$QS_TOPIC" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 51: expected 2 quote-stats rows, got $n"
+expect_contains "\"target_offset\":" "$out_json" "step 51: --json carries target_offset"
+expect_contains "\"reply_count\":" "$out_json" "step 51: --json carries reply_count"
+expect_contains "\"distinct_repliers\":" "$out_json" "step 51: --json carries distinct_repliers"
+expect_contains "\"latest_reply_ts_ms\":" "$out_json" "step 51: --json carries latest_reply_ts_ms"
+# Sort: count desc → target 0 first
+first=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["target_offset"])')
+[ "$first" = "0" ] || fail "step 51: count desc should put target 0 first, got $first"
+# Distinct repliers: target 0 should have 2 unique senders (alice + bob), bob replied twice
+n_repliers_0=$(echo "$out_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len([r for r in d if r["target_offset"]==0][0]["distinct_repliers"]))')
+[ "$n_repliers_0" = "2" ] || fail "step 51: target 0 should have 2 distinct repliers (alice + bob), got $n_repliers_0"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

@@ -1,15 +1,15 @@
-=== episodic-gen invocation: 2026-04-28T14:50:01Z ===
-task_id: T-1378
+=== episodic-gen invocation: 2026-04-28T15:04:02Z ===
+task_id: T-1379
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1378.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1379.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel snapshot <topic> --as-of <ms> — point-in-time canonical view (Matrix backfill semantics; combines T-1376 collapse with ts upper bound)
+  Task: channel quote-stats <topic> — per-target reply rollup (per-target companion to T-1370 replies-of which is per-sender)
   Duration: 0 days (12 min)
   Updates: 2
   Commits: 0
@@ -17,5 +17,5 @@ Episodic generated: /opt/termlink/.context/episodic/T-1378.yaml
   Outcomes: 10 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1378-channel-snapshot-topic---as-of-ms--point.md
+Source: /opt/termlink/.tasks/completed/T-1379-channel-quote-stats-topic--per-target-re.md
 --- exit code: 0 ---
