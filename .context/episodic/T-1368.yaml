@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1368: channel topic-stats — full per-topic statistics dashboard
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T10:32:49Z
+# ============================================================================
+
+task_id: T-1368
+task_name: "channel topic-stats — full per-topic statistics dashboard"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-28T10:13:00Z
+completed: 2026-04-28T10:32:02Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-28T12:31:48+02:00
+last_commit: 2026-04-28T12:31:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel topic-stats — full per-topic statistics dashboard
+
+# Key outcomes
+outcomes:
+  - "CLI variant `Channel TopicStats <topic>` accepted; `--hub`, `--json` flags wired"
+  - "`compute_full_topic_stats` (pure helper, name disambiguated from existing T-1335 `compute_topic_stats`) added with 7 unit tests: empty topic, single post, mixed msg types, redacted excluded, active pins LWW, top senders tiebreak, forwards-in via metadata"
+  - "Live smoke test against the local hub produces a sensible report (4 envelopes including pin + reaction render correctly)"
+  - "e2e step 41 added (positive + JSON shape)"
+  - "`cargo build --release -p termlink && cargo test -p termlink --bins --quiet && cargo clippy --all-targets --workspace -- -D warnings` all green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-1215.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T12:31:48"
+    action: "T-1368: channel topic-stats — full per-topic statistics dashboard"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-conversation, matrix, stats, channel-cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19
+  commits: 1
+  files_changed: 16
+  lines_added: 440
+  lines_removed: 43
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1368-channel-topic-stats--full-per-topic-stat.md
+generated_by: context-agent-hybrid

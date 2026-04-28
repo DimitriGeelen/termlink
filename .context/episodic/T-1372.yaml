@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1372: channel pin-history <topic> — chronological pin/unpin audit log
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T12:27:40Z
+# ============================================================================
+
+task_id: T-1372
+task_name: "channel pin-history <topic> — chronological pin/unpin audit log"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T12:13:12Z
+completed: 2026-04-28T12:26:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T14:26:40+02:00
+last_commit: 2026-04-28T14:26:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel pin-history <topic> — chronological pin/unpin audit log
+
+# Key outcomes
+outcomes:
+  - "`pub fn compute_pin_history(envelopes: &[Value]) -> Vec<PinHistoryRow>` in channel.rs returns one row per `msg_type=pin` envelope, sorted by event_offset asc"
+  - "`PinHistoryRow { event_offset, action (\"pin\"|\"unpin\"), target_offset, actor_sender, ts_ms, target_payload }` — target_payload is best-effort from the topic snapshot, may be None when target isn't in the slice"
+  - "CLI: `ChannelAction::PinHistory { topic, hub, json }`"
+  - "main.rs dispatch wired"
+  - "At least 4 unit tests: pin-then-unpin renders 2 rows asc; multiple toggles all preserved (audit, not LWW); malformed pin envelope (missing pin_target) skipped; default action treated as \"pin\""
+  - "cargo test passes; clippy clean"
+  - "e2e step 44: pin offset 0, unpin, re-pin → 3 rows in asc order with actions in correct sequence; positive payload preview check; JSON shape"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1372-channel-pin-history-topic--chronological.md"
+  - "tests/e2e/agent-conversation.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T14:26:40"
+    action: "T-1372: channel pin-history <topic> — chronological pin/unpin audit log"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 6
+  lines_added: 379
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1372-channel-pin-history-topic--chronological.md
+generated_by: context-agent-hybrid

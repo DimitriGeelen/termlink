@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1374: channel reactions-on <topic> <offset> — per-message reaction aggregate (Matrix annotation rollup)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T12:57:07Z
+# ============================================================================
+
+task_id: T-1374
+task_name: "channel reactions-on <topic> <offset> — per-message reaction aggregate (Matrix annotation rollup)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T12:42:56Z
+completed: 2026-04-28T12:56:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T14:56:07+02:00
+last_commit: 2026-04-28T14:56:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel reactions-on <offset> — per-message reaction rollup
+
+# Key outcomes
+outcomes:
+  - "`pub fn compute_reactions_on(envelopes: &[Value], target_offset: u64) -> Vec<ReactionsOnRow>` — walks the topic, filters `msg_type=reaction` with `metadata.in_reply_to == target_offset`, drops redacted reactions, groups by emoji, returns one row per emoji"
+  - "`ReactionsOnRow { emoji, count, senders: Vec<String> }` (senders deduplicated, sorted asc); to_json"
+  - "CLI: `ChannelAction::ReactionsOn { topic, offset, hub, json }`"
+  - "main.rs dispatch"
+  - "At least 4 unit tests: 2 emojis with different counts → sort desc; same sender twice with same emoji counts once in `senders`; redacted reaction excluded; non-target reactions excluded"
+  - "cargo test passes; clippy clean"
+  - "e2e step 46: 3 reactions on offset 0 (alice 👍, bob 👍, alice 🎉), 1 reaction on offset 1 → reactions-on 0 returns 2 rows (👍 count=2 senders=[alice,bob], 🎉 count=1 senders=[alice]); JSON shape"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1374-channel-reactions-on-topic-offset--per-m.md"
+  - "tests/e2e/agent-conversation.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T14:56:07"
+    action: "T-1374: channel reactions-on <offset> — per-message reaction rollup"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 6
+  lines_added: 332
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1374-channel-reactions-on-topic-offset--per-m.md
+generated_by: context-agent-hybrid

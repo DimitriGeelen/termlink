@@ -1,0 +1,133 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1354: channel star/unstar/starred — per-user message bookmarks (Matrix m.bookmark)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T06:25:36Z
+# ============================================================================
+
+task_id: T-1354
+task_name: "channel star/unstar/starred — per-user message bookmarks (Matrix m.bookmark)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T06:05:59Z
+completed: 2026-04-28T06:24:54Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T08:24:49+02:00
+last_commit: 2026-04-28T08:24:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel star/unstar/starred — per-user message bookmarks (Matrix m.bookmark)
+
+# Key outcomes
+outcomes:
+  - "`termlink channel star <topic> --offset N` emits an envelope with `metadata.star_target=N`, `metadata.star=true`"
+  - "`termlink channel unstar <topic> --offset N` emits same shape but `metadata.star=false`"
+  - "`termlink channel starred <topic>` lists current user's starred messages (latest state per target wins)"
+  - "`--all` flag on `starred` lists every user's stars (not just caller)"
+  - "`--json` flag on `starred` returns structured rows"
+  - "Unit tests for `compute_starred_set` covering: empty input, single star, star→unstar, unstar without prior star (ignored), multiple users, --all aggregation"
+  - "e2e step added to tests/e2e/agent-conversation.sh"
+  - "cargo build, cargo test, cargo clippy --all-targets -- -D warnings all pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-0000.yaml"
+  - ".context/audits/cron/2026-04-20-0015.yaml"
+  - ".context/audits/cron/2026-04-20-0030.yaml"
+  - ".context/audits/cron/2026-04-20-0045.yaml"
+  - ".context/audits/cron/2026-04-20-0100.yaml"
+  - ".context/audits/cron/2026-04-20-0115.yaml"
+  - ".context/audits/cron/2026-04-20-0130.yaml"
+  - ".context/audits/cron/2026-04-20-0145.yaml"
+  - ".context/audits/cron/2026-04-20-0200.yaml"
+  - ".context/audits/cron/2026-04-20-0215.yaml"
+  - ".context/audits/cron/2026-04-20-0230.yaml"
+  - ".context/audits/cron/2026-04-20-0245.yaml"
+  - ".context/audits/cron/2026-04-20-0300.yaml"
+  - ".context/audits/cron/2026-04-20-0315.yaml"
+  - ".context/audits/cron/2026-04-20-0330.yaml"
+  - ".context/audits/cron/2026-04-20-0345.yaml"
+  - ".context/audits/cron/2026-04-20-0400.yaml"
+  - ".context/audits/cron/2026-04-20-0415.yaml"
+  - ".context/audits/cron/2026-04-20-0430.yaml"
+  - ".context/audits/cron/2026-04-20-0445.yaml"
+  - ".context/audits/cron/2026-04-20-0500.yaml"
+  - ".context/audits/cron/2026-04-20-0515.yaml"
+  - ".context/audits/cron/2026-04-20-0530.yaml"
+  - ".context/audits/cron/2026-04-20-0545.yaml"
+  - ".context/audits/cron/2026-04-20-0600.yaml"
+  - ".context/audits/cron/2026-04-20-0615.yaml"
+  - ".context/audits/cron/2026-04-20-0630.yaml"
+  - ".context/audits/cron/2026-04-20-0645.yaml"
+  - ".context/audits/cron/2026-04-20-0700.yaml"
+  - ".context/audits/cron/2026-04-20-0715.yaml"
+  - ".context/audits/cron/2026-04-20-0730.yaml"
+  - ".context/audits/cron/2026-04-20-0745.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-start-ts"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.stop-counter"
+  - ".context/working/subagent-returns.jsonl"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T08:24:49"
+    action: "T-1354: channel star/unstar/starred — per-user message bookmarks (Matrix m.bookmark)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 18 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 18
+  commits: 1
+  files_changed: 54
+  lines_added: 815
+  lines_removed: 938
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1354-channel-starunstarstarred--per-user-mess.md
+generated_by: context-agent-hybrid

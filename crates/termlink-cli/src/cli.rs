@@ -2661,6 +2661,32 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Incremental state view (T-1382). Matrix `/sync` analogue: returns
+    /// only rows whose canonical state changed at or after `--since`
+    /// (new posts, new edits, new redactions). Composes T-1376 state with
+    /// a per-row last-change filter. `--since 0` is equivalent to
+    /// `channel state` (full state).
+    StateSince {
+        /// Topic name
+        topic: String,
+
+        /// Lower-bound timestamp (ms since epoch). Rows with last change
+        /// at or after this ts are returned.
+        #[arg(long = "since")]
+        since_ms: i64,
+
+        /// Show redacted rows with payload "[REDACTED]" instead of dropping.
+        #[arg(long)]
+        include_redacted: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Per-target edit count summary for a topic (T-1375). Topic-wide
     /// aggregate companion to `edits-of` (T-1366, single-target full
     /// history). Lists each target offset with edit count, last editor,

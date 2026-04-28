@@ -1335,6 +1335,41 @@ Distinct from `state` (current truth, no temporal bound),
 `subscribe --until <ms>` (raw envelope filter — no collapse),
 `edits-of` (single-target edit history).
 
+## Incremental updates — `channel state-since` (T-1382)
+
+Matrix `/sync` analogue. Returns only the rows whose canonical state
+changed at or after `--since` — new posts, new edits, new redactions.
+The companion to `snapshot --as-of` on the temporal axis:
+
+| Command | Returns | Cutoff direction |
+|---------|---------|------------------|
+| `state` | full canonical state | none |
+| `snapshot --as-of <ms>` | full state as it was AT `<ms>` | upper bound |
+| `state-since --since <ms>` | rows that changed AT OR AFTER `<ms>` | lower bound |
+
+```sh
+# Last sync token was 1729880600000 ms — what's new?
+termlink channel state-since alpha:design --since 1729880600000
+
+#   State changes on 'alpha:design' since ts=1729880600000:
+#     [4] alice-fp: revised proposal *  (×1 edits)
+#     [7] bob-fp: lgtm
+```
+
+A row's "last change" is `max(original_post_ts, latest_edit_ts, redaction_ts)`.
+A row whose original post is older than `--since` still appears if it has
+been edited or redacted after `--since`.
+
+`--since 0` is functionally equivalent to `channel state` (every row passes).
+
+Use cases:
+- polling loop: "give me only what's new since I last looked"
+- delta render in a UI client (avoid replaying history every tick)
+- audit trail: "show everything that's been touched since incident T0"
+
+Same `--include-redacted` flag as `state`. `--json` returns the same
+`StateRow[]` shape, just filtered.
+
 ## Unified per-offset navigation — `channel relations`
 
 Matrix Client API `/relations/{eventId}` analogue. For one target offset,

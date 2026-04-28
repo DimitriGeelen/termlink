@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1378: channel snapshot <topic> --as-of <ms> — point-in-time canonical view (Matrix backfill semantics; combines T-1376 collapse with ts upper bound)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T14:50:01Z
+# ============================================================================
+
+task_id: T-1378
+task_name: "channel snapshot <topic> --as-of <ms> — point-in-time canonical view (Matrix backfill semantics; combines T-1376 collapse with ts upper bound)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T14:37:01Z
+completed: 2026-04-28T14:49:29Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_snapshot(envelopes, as_of_ms, include_redacted)` pure helper"
+  - "Reuses `StateRow` (same shape as T-1376; semantics: as-of view)"
+  - "Filter rule: skip envelopes whose ts > as_of_ms (they haven't happened yet)"
+  - "After temporal filter: apply T-1376 collapse logic (edits, redactions, meta-skip)"
+  - "If a target message has ts > as_of_ms, it doesn't surface (didn't exist yet)"
+  - "`cmd_channel_snapshot` async wrapper, human + JSON output"
+  - "At least 5 unit tests: empty, before-any-msg, between-msgs, after-edit-only-original-shows, redaction-not-applied-yet"
+  - "`ChannelAction::Snapshot` variant in cli.rs (topic, --as-of, --include-redacted, --hub, --json)"
+  - "Dispatch arm in main.rs"
+  - "E2E step exercising before/after timestamps with edits + redactions"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1378-channel-snapshot-topic---as-of-ms--point.md
+generated_by: context-agent-hybrid

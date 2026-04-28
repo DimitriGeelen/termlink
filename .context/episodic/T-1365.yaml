@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1365: channel threads — index of threads in a topic with reply counts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T09:29:08Z
+# ============================================================================
+
+task_id: T-1365
+task_name: "channel threads — index of threads in a topic with reply counts"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-28T09:05:29Z
+completed: 2026-04-28T09:28:22Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T11:28:07+02:00
+last_commit: 2026-04-28T11:28:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel threads — index of threads in a topic with reply counts
+
+# Key outcomes
+outcomes:
+  - "CLI variant `Channel threads <topic>` accepted; `--hub`, `--json`, `--top N` flags wired"
+  - "`compute_threads_index` (pure helper) added with unit tests covering: no-reply topic (empty result), single thread, multiple threads, redacted root dropped, redacted reply dropped, deeply-nested thread (depth ≥ 3), `--top N` truncation"
+  - "Live smoke test against the local hub produces a table matching expected output"
+  - "e2e step added to `tests/e2e/agent-conversation.sh` (positive + negative + JSON shape assertions)"
+  - "`cargo build --release -p termlink && cargo test -p termlink --bins --quiet && cargo clippy --all-targets --workspace -- -D warnings` all green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-1030.yaml"
+  - ".context/audits/cron/2026-04-20-1045.yaml"
+  - ".context/audits/cron/2026-04-20-1100.yaml"
+  - ".context/audits/cron/2026-04-20-1115.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.stop-counter"
+  - ".context/working/subagent-returns.jsonl"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1294-migrate-ring20-management-hub-runtimedir.md"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T11:28:07"
+    action: "T-1365: channel threads — index of threads in a topic with reply counts"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 22 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-conversation, matrix, threads, channel-cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 22
+  commits: 1
+  files_changed: 22
+  lines_added: 438
+  lines_removed: 153
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1365-channel-thread--recursive-descendant-tre.md
+generated_by: context-agent-hybrid

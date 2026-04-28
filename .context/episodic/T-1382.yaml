@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1382: channel state --since <ms> — incremental state updates (Matrix /sync analogue)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T16:00:31Z
+# ============================================================================
+
+task_id: T-1382
+task_name: "channel state --since <ms> — incremental state updates (Matrix /sync analogue)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T15:46:26Z
+completed: 2026-04-28T15:59:58Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_state_since(envelopes, since_ms, include_redacted) -> Vec<StateRow>` added to `crates/termlink-cli/src/commands/channel.rs`. Returns rows whose `max(ts_ms, latest_edit_ts_ms, redaction_ts) >= since_ms`. Delegates to `compute_state` for the canonical render, then filters."
+  - "`cmd_channel_state_since` async wrapper added with text + JSON output paths."
+  - "`ChannelAction::StateSince { topic, since_ms, include_redacted, hub, json }` variant added in `cli.rs`; main.rs dispatches to `cmd_channel_state_since`."
+  - "At least 6 unit tests covering: empty envelopes, no rows since cutoff, new post since cutoff, edit-since-cutoff (original was earlier), redaction-since-cutoff, since=0 returns full state."
+  - "`cargo build --release -p termlink` clean."
+  - "`cargo test -p termlink --bins` green (current baseline 517 → expected 523+)."
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean."
+  - "One e2e step added to `tests/e2e/agent-conversation.sh` exercising state --since with edits and a cutoff that includes some but not all changes."
+  - "`bash tests/e2e/agent-conversation.sh` passes start to finish."
+  - "Section added to `docs/operations/agent-conversations.md`."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1382-channel-state---since-ms--incremental-st.md
+generated_by: context-agent-hybrid

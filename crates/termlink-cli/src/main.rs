@@ -856,6 +856,22 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::StateSince {
+                topic,
+                since_ms,
+                include_redacted,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_state_since(
+                    &topic,
+                    since_ms,
+                    include_redacted,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::AckHistory {
                 topic,
                 user,

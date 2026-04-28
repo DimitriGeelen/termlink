@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1370: channel replies-of <sender> — list replies posted by a sender
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T11:56:58Z
+# ============================================================================
+
+task_id: T-1370
+task_name: "channel replies-of <sender> — list replies posted by a sender"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T11:25:33Z
+completed: 2026-04-28T11:56:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T13:55:59+02:00
+last_commit: 2026-04-28T13:55:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel replies-of <sender> — list replies posted by a sender
+
+# Key outcomes
+outcomes:
+  - "`pub fn compute_replies_of(envelopes: &[Value], sender: &str) -> Vec<RepliesOfRow>` in `crates/termlink-cli/src/commands/channel.rs` returns rows where `sender_id == sender` AND `metadata.in_reply_to` is present AND envelope is not redacted, sorted by reply offset desc"
+  - "Each `RepliesOfRow` carries `reply_offset, parent_offset, parent_sender, reply_payload, parent_payload, ts_ms` (parent_payload may be empty if parent missing/redacted)"
+  - "`cli.rs` adds `RepliesOf { topic, sender, hub, json }` ChannelAction variant"
+  - "`main.rs` dispatches to `cmd_channel_replies_of`"
+  - "At least 3 unit tests in channel.rs cover: happy path (3 replies → 3 rows desc), filter excludes non-replies and other-sender messages, redacted reply is excluded"
+  - "`cargo test -p termlink --bins --quiet` passes"
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean"
+  - "tests/e2e/agent-conversation.sh gains a step exercising replies-of (positive + JSON shape)"
+  - "Smoke test: post 2 replies from Alice + 1 from Bob, `termlink channel replies-of <topic> alice` returns exactly 2"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1370-channel-replies-of-sender--list-replies-.md"
+  - "tests/e2e/agent-conversation.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T13:55:59"
+    action: "T-1370: channel replies-of <sender> — list replies posted by a sender"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 30 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 30
+  commits: 1
+  files_changed: 6
+  lines_added: 393
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1370-channel-replies-of-sender--list-replies-.md
+generated_by: context-agent-hybrid

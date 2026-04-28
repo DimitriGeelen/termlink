@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1362: channel reactions-of — list all reactions a specific sender posted on a topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T08:08:17Z
+# ============================================================================
+
+task_id: T-1362
+task_name: "channel reactions-of — list all reactions a specific sender posted on a topic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T07:56:08Z
+completed: 2026-04-28T08:07:32Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T10:07:31+02:00
+last_commit: 2026-04-28T10:07:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel reactions-of — per-sender reaction reverse view
+
+# Key outcomes
+outcomes:
+  - "`channel reactions-of <topic>` lists all reactions the calling identity has posted"
+  - "`--sender <id>` overrides the default identity scope"
+  - "Output rows: `<emoji> → offset <N> (<parent_preview>)` sorted by reaction offset desc (most recent first)"
+  - "Redacted reactions excluded"
+  - "`--json` returns `[{reaction_offset, parent_offset, emoji, parent_payload, ts}]`"
+  - "Empty result prints \"No reactions by <sender>\" + JSON `[]`"
+  - "Pure helper `compute_reactions_of` unit-tested across: empty, single, multiple, redacted excluded, sender filter, sort order"
+  - "e2e step covering full lifecycle"
+  - "cargo build, test, clippy --all-targets -- -D warnings all pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-0945.yaml"
+  - ".context/audits/cron/2026-04-20-1000.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T10:07:31"
+    action: "T-1362: channel reactions-of — per-sender reaction reverse view"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 18
+  lines_added: 322
+  lines_removed: 101
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1362-channel-reactions-of--list-all-reactions.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1349: channel subscribe --show-forwards — prefix forwarded envelopes with [fwd] marker
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T21:32:15Z
+# ============================================================================
+
+task_id: T-1349
+task_name: "channel subscribe --show-forwards — prefix forwarded envelopes with [fwd] marker"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T21:20:05Z
+completed: 2026-04-27T21:28:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T23:28:33+02:00
+last_commit: 2026-04-27T23:28:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel subscribe --show-forwards — render forward provenance prefix
+
+# Key outcomes
+outcomes:
+  - "`--show-forwards` flag added to `channel subscribe`"
+  - "When set, every envelope carrying `metadata.forwarded_from` emits a `[fwd from <src>:<off> by <orig_sender>]` prefix line BEFORE the main render line"
+  - "When unset, forwarded envelopes render as normal (no prefix); current behavior unchanged"
+  - "Pure helper `extract_forward(env) -> Option<(src_topic, offset, orig_sender)>` that pulls the metadata fields and parses src:off; tested for present, missing, and malformed cases"
+  - "Unit tests: present (well-formed), missing (no metadata), missing forwarded_from, missing forwarded_sender (defensive), src with embedded colons (split-on-LAST-colon)"
+  - "`cargo test -p termlink --bins --quiet` passes"
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean"
+  - "e2e step extended; full run green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "channel subscribe --show-forwards — render forward provenance prefix"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T23:28:33"
+    action: "T-1349: channel subscribe --show-forwards — render forward provenance prefix"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 14
+  lines_added: 155
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1349-channel-subscribe---show-forwards--prefi.md
+generated_by: context-agent-hybrid

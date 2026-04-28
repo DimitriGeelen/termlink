@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1343: channel subscribe --since <ms> — render-time timestamp filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T19:34:31Z
+# ============================================================================
+
+task_id: T-1343
+task_name: "channel subscribe --since <ms> — render-time timestamp filter"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T19:22:32Z
+completed: 2026-04-27T19:31:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T21:31:11+02:00
+last_commit: 2026-04-27T21:31:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel subscribe --since <ms> — render-time timestamp filter
+
+# Key outcomes
+outcomes:
+  - "`channel subscribe <topic> --since <ms>` only prints envelopes whose ts >= `<ms>`"
+  - "Pre-since envelopes are dropped from BOTH text and JSON-lines output (render-side filter only — pagination unchanged)"
+  - "Pure helper `should_emit_for_since(env, since)` unit-tested across present/absent ts, ts/ts_unix_ms aliasing, and >=  boundary"
+  - "Build/test/clippy all clean (307 tests passing); e2e `agent-conversation.sh` step 20 added and passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/audits/cron/2026-04-19-2115.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T21:31:11"
+    action: "T-1343: channel subscribe --since <ms> — render-time timestamp filter"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 17
+  lines_added: 120
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1343-channel-subscribe---since-ms--render-tim.md
+generated_by: context-agent-hybrid

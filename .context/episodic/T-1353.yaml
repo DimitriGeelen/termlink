@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1353: docs/operations/agent-conversations.md — T-1351 typing + T-1352 until tail
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T22:01:45Z
+# ============================================================================
+
+task_id: T-1353
+task_name: "docs/operations/agent-conversations.md — T-1351 typing + T-1352 until tail"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T22:00:22Z
+completed: 2026-04-27T22:01:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T00:01:32+02:00
+last_commit: 2026-04-28T00:01:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  docs/operations/agent-conversations.md — T-1351 typing + T-1352 windowed reads
+
+# Key outcomes
+outcomes:
+  - "New section \"Typing indicators\" describes `channel typing --emit/--list/--ttl-ms`"
+  - "New section \"Windowed reads\" describes `--since` paired with `--until`"
+  - "e2e step count updated 27 → 29 in the End-to-end test paragraph"
+  - "Related list extended with T-1351 + T-1352"
+  - "`bash tests/e2e/agent-conversation.sh` still green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-19-2345.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "docs/operations/agent-conversations.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T00:01:32"
+    action: "T-1353: docs/operations/agent-conversations.md — T-1351 typing + T-1352 windowed reads"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 14
+  lines_added: 77
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1353-docsoperationsagent-conversationsmd--t-1.md
+generated_by: context-agent-hybrid

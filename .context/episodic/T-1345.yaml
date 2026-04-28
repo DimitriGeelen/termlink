@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1345: channel pin / unpin / pinned — Matrix-style pinned events on a topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T20:39:07Z
+# ============================================================================
+
+task_id: T-1345
+task_name: "channel pin / unpin / pinned — Matrix-style pinned events on a topic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T20:25:56Z
+completed: 2026-04-27T20:35:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T22:35:29+02:00
+last_commit: 2026-04-27T22:35:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel pin / pinned — Matrix-style pinned events
+
+# Key outcomes
+outcomes:
+  - "`channel pin <topic> <offset>` emits a `msg_type=pin` envelope with `metadata.pin_target=<offset>` and `metadata.action=pin`"
+  - "`channel pin <topic> <offset> --unpin` emits the same envelope shape but `metadata.action=unpin`"
+  - "`channel pinned <topic>` walks the topic and prints the current pin set (one row per pinned target with the original sender + payload preview); sorted by most-recently-pinned descending"
+  - "`channel pinned --json` returns `[{target, pinned_by, pinned_ts, payload}]`"
+  - "Pure helper `compute_pinned_set(envelopes) -> Vec<PinRow>` resolves latest pin/unpin per target (unpin removes); tested against pin→unpin→repin sequences"
+  - "Unit tests: empty topic, single pin, pin+unpin (target removed), repin after unpin, multiple distinct targets, ordering by pinned_ts desc"
+  - "`cargo test -p termlink --bins --quiet` passes"
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean"
+  - "e2e `tests/e2e/agent-conversation.sh` extended with a pin/unpin/pinned step; full run green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/audits/cron/2026-04-19-2215.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T22:35:29"
+    action: "T-1345: channel pin / pinned — Matrix-style pinned events"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 18
+  lines_added: 430
+  lines_removed: 47
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1345-channel-pin--unpin--pinned--matrix-style.md
+generated_by: context-agent-hybrid
