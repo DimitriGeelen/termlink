@@ -1330,6 +1330,32 @@ Distinct from `state` (current truth, no temporal bound),
 `subscribe --until <ms>` (raw envelope filter — no collapse),
 `edits-of` (single-target edit history).
 
+## Per-target reply rollup — `channel quote-stats`
+
+Per-target companion to `replies-of` (T-1370 — per-sender). For each target
+message that has been replied to at least once, lists reply count, distinct
+repliers (sorted), and latest reply timestamp. "What's getting the most
+discussion?"
+
+```sh
+termlink channel quote-stats alpha:design
+
+#   Quote-stats for 'alpha:design':
+#     [3] ×7 replies from alice-fp, bob-fp, carol-fp (last ts=1729880800000) — alice-fp: api proposal v0
+#     [12] ×2 replies from bob-fp (last ts=1729880600000) — carol-fp: meeting notes
+```
+
+Filters:
+- `msg_type=reaction` envelopes are NOT replies (even though they carry
+  `metadata.in_reply_to`)
+- redacted reply offsets are excluded from the count
+- redacted target rows are dropped entirely
+- `distinct_repliers` is deduplicated and sorted
+
+Sort: reply_count desc, target_offset asc tiebreak. `--json` returns
+`[{target_offset, target_sender, target_payload, reply_count,
+distinct_repliers, latest_reply_ts_ms}]`.
+
 ## Receipt audit log — `channel ack-history`
 
 The chronological audit companion to the LWW receipt views. Walks the topic
@@ -1367,7 +1393,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 50 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 51 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1460,4 +1486,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1376 — `channel state` (Matrix-style canonical render — edits applied, redactions hidden; the "what does this topic say now" view)
 - T-1377 — `channel ack-history` (chronological receipt audit log; extends audit-log family to receipt activity)
 - T-1378 — `channel snapshot --as-of <ms>` (Matrix backfill — point-in-time canonical view, combines T-1376 collapse with temporal upper bound)
+- T-1379 — `channel quote-stats` (per-target reply rollup, per-target companion to T-1370 replies-of which is per-sender)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report

@@ -2549,6 +2549,23 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Per-target reply rollup (T-1379). For each target message that has
+    /// been replied to at least once, lists reply count, distinct repliers,
+    /// and latest reply timestamp. Per-target companion to `replies-of`
+    /// (T-1370, per-sender). Reactions don't count as replies even if they
+    /// carry `in_reply_to`. Sort: reply_count desc, target_offset asc.
+    QuoteStats {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Point-in-time canonical view of a topic (T-1378). Matrix backfill
     /// semantics: simulate the room as it was at `--as-of <ms>`. Combines
     /// T-1376 collapse (apply edits, hide redactions) with a temporal upper
