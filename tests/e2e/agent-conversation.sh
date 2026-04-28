@@ -486,6 +486,34 @@ out=$(A channel subscribe "$DM" --limit 100 --since "$UNTIL_MS" --until "$UNTIL_
 # strong assertion is on the brand-new payload.)
 expect_not_contains "after-until-T1352" "$out" "step 29: window excludes the post"
 
+step "30. channel star/unstar/starred (T-1354): per-user message bookmarks"
+# Use a fresh topic — the DM topic name embeds both fingerprints which
+# would defeat the per-user expect_not_contains assertions.
+STAR_TOPIC="t-1354-star-$(date +%s)"
+A channel create "$STAR_TOPIC" --retention forever >/dev/null
+A channel post "$STAR_TOPIC" --msg-type chat --payload "star-target-T1354" >/dev/null
+# The post just landed — its offset is 0 in this fresh topic.
+STAR_TARGET=0
+A channel star "$STAR_TOPIC" "$STAR_TARGET" >/dev/null
+B channel star "$STAR_TOPIC" "$STAR_TARGET" >/dev/null
+out=$(A channel starred "$STAR_TOPIC")
+expect_contains "$ALICE" "$out" "step 30: alice sees her own star (default scope)"
+expect_not_contains "$BOB" "$out" "step 30: alice's default-scope view excludes bob's star"
+out_all=$(A channel starred "$STAR_TOPIC" --all)
+expect_contains "$ALICE" "$out_all" "step 30: --all includes alice"
+expect_contains "$BOB" "$out_all" "step 30: --all includes bob"
+# Unstar from alice, then default-scope must be empty for alice while
+# bob's star survives in --all.
+A channel unstar "$STAR_TOPIC" "$STAR_TARGET" >/dev/null
+out_after=$(A channel starred "$STAR_TOPIC")
+expect_not_contains "$ALICE" "$out_after" "step 30: alice's unstar removes her row"
+out_all_after=$(A channel starred "$STAR_TOPIC" --all)
+expect_contains "$BOB" "$out_all_after" "step 30: bob's star unaffected by alice's unstar"
+# JSON shape sanity check.
+out_json=$(A channel starred "$STAR_TOPIC" --all --json)
+expect_contains "starred_by" "$out_json" "step 30: --json envelopes carry starred_by"
+expect_contains "\"target\": $STAR_TARGET" "$out_json" "step 30: --json carries target offset"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

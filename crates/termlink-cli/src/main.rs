@@ -643,6 +643,50 @@ async fn main() -> Result<()> {
             ChannelAction::Pinned { topic, hub, json } => {
                 commands::channel::cmd_channel_pinned(&topic, hub.as_deref(), json).await
             }
+            ChannelAction::Star {
+                topic,
+                offset,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_star(
+                    &topic,
+                    offset,
+                    false,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
+            ChannelAction::Unstar {
+                topic,
+                offset,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_star(
+                    &topic,
+                    offset,
+                    true,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
+            ChannelAction::Starred {
+                topic,
+                all,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_starred(
+                    &topic,
+                    all,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Typing {
                 topic,
                 emit,

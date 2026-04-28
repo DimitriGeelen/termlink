@@ -2319,6 +2319,188 @@ pub(crate) async fn cmd_channel_pinned(
     Ok(())
 }
 
+/// T-1354: pure helper — emit a star/unstar envelope. Wraps `cmd_channel_post`
+/// with `msg_type=star`, an empty payload, and metadata
+/// `star_target=<offset>` + `star=true|false`. Latest action per
+/// (sender_id, target) wins when computing the current star set (see
+/// `compute_starred_set`).
+pub(crate) async fn cmd_channel_star(
+    topic: &str,
+    offset: u64,
+    unstar: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let star_value = if unstar { "false" } else { "true" };
+    let metadata = vec![
+        format!("star_target={offset}"),
+        format!("star={star_value}"),
+    ];
+    cmd_channel_post(
+        topic,
+        "star",
+        Some(""),
+        None,
+        None,
+        None,
+        &metadata,
+        hub,
+        json_output,
+    )
+    .await
+}
+
+/// T-1354: structured row for one currently-starred (sender_id, target) pair.
+/// `starred_ts` is the ts of the most-recent star envelope (used for sort
+/// order). `payload` is filled from the original envelope at `target`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StarRow {
+    pub target: u64,
+    pub starred_by: String,
+    pub starred_ts: i64,
+    pub payload: Option<String>,
+}
+
+impl StarRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "target": self.target,
+            "starred_by": self.starred_by,
+            "starred_ts": self.starred_ts,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1354: compute the current star set from a topic walk.
+///
+/// Iterates `envelopes` in input order, applying each `msg_type=star` envelope
+/// per its `metadata.star` flag, keyed by `(sender_id, star_target)`:
+///   - `star=true`  → record/update StarRow for that (user, target)
+///   - `star=false` → remove the entry for that (user, target)
+///
+/// When `caller` is `Some(fp)`, only stars by that fingerprint are returned.
+/// When `caller` is `None`, all users' stars are returned (used by --all).
+///
+/// After the scan, the original envelope at each starred target is looked up
+/// to fill `payload`. Returns rows sorted by `starred_ts` descending; ties
+/// break on (target, starred_by) ascending for determinism.
+///
+/// Pure helper — no I/O. Designed for unit tests.
+pub(crate) fn compute_starred_set(
+    envelopes: &[Value],
+    caller: Option<&str>,
+) -> Vec<StarRow> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut active: HashMap<(String, u64), StarRow> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("star") {
+            continue;
+        }
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        let target = match md
+            .get("star_target")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let star_flag = md.get("star").and_then(|v| v.as_str()).unwrap_or("true");
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        if let Some(fp) = caller
+            && sender != fp
+        {
+            continue;
+        }
+        let key = (sender.clone(), target);
+        if star_flag == "false" {
+            active.remove(&key);
+            continue;
+        }
+        let starred_ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        active.insert(
+            key,
+            StarRow {
+                target,
+                starred_by: sender,
+                starred_ts,
+                payload: None,
+            },
+        );
+    }
+    for row in active.values_mut() {
+        if let Some(orig) = by_off.get(&row.target) {
+            row.payload = Some(decode_payload_lossy(orig));
+        }
+    }
+    let mut rows: Vec<StarRow> = active.into_values().collect();
+    rows.sort_by(|a, b| {
+        b.starred_ts
+            .cmp(&a.starred_ts)
+            .then_with(|| a.target.cmp(&b.target))
+            .then_with(|| a.starred_by.cmp(&b.starred_by))
+    });
+    rows
+}
+
+/// T-1354: render the current star set for a topic. Defaults to the calling
+/// user's stars; pass `all=true` to include every user.
+pub(crate) async fn cmd_channel_starred(
+    topic: &str,
+    all: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let me_owned: Option<String> = if all {
+        None
+    } else {
+        let id = load_identity_or_create()
+            .context("Loading identity for star list scope")?;
+        Some(id.fingerprint().to_string())
+    };
+    let rows = compute_starred_set(&envelopes, me_owned.as_deref());
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(StarRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        let scope = if all { "anyone" } else { "you" };
+        println!("No starred messages on topic '{topic}' (scope: {scope}).");
+        return Ok(());
+    }
+    for r in &rows {
+        let payload = r.payload.as_deref().unwrap_or("(target missing)");
+        println!(
+            "[{target}] starred_by={by} ts={ts}: {payload}",
+            target = r.target,
+            by = r.starred_by,
+            ts = r.starred_ts,
+        );
+    }
+    Ok(())
+}
+
 /// T-1344: pure helper — extract `metadata.in_reply_to` from an envelope and
 /// parse it as a u64. Returns `None` when the field is absent or non-numeric.
 /// Reactions and reply posts both carry this key (T-1313 / T-1314 contracts).
@@ -4490,6 +4672,120 @@ mod tests {
             }),
         ];
         assert!(compute_pinned_set(&envs).is_empty());
+    }
+
+    // T-1354: compute_starred_set
+    fn star_env(off: u64, target: u64, star: bool, by: &str, ts: i64) -> Value {
+        json!({
+            "offset": off,
+            "msg_type": "star",
+            "sender_id": by,
+            "ts": ts,
+            "payload_b64": "",
+            "metadata": {
+                "star_target": target.to_string(),
+                "star": if star { "true" } else { "false" },
+            },
+        })
+    }
+
+    #[test]
+    fn compute_starred_set_empty_topic_is_empty() {
+        assert_eq!(compute_starred_set(&[], None), Vec::<StarRow>::new());
+    }
+
+    #[test]
+    fn compute_starred_set_single_star_appears() {
+        let envs = vec![
+            content_env(0, "hello"),
+            star_env(1, 0, true, "alice", 100),
+        ];
+        let rows = compute_starred_set(&envs, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target, 0);
+        assert_eq!(rows[0].starred_by, "alice");
+        assert_eq!(rows[0].starred_ts, 100);
+        assert_eq!(rows[0].payload.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn compute_starred_set_unstar_removes_target() {
+        let envs = vec![
+            content_env(0, "hi"),
+            star_env(1, 0, true, "alice", 100),
+            star_env(2, 0, false, "alice", 200),
+        ];
+        assert!(compute_starred_set(&envs, None).is_empty());
+    }
+
+    #[test]
+    fn compute_starred_set_unstar_without_prior_is_noop() {
+        let envs = vec![
+            content_env(0, "hi"),
+            star_env(1, 0, false, "alice", 100),
+        ];
+        assert!(compute_starred_set(&envs, None).is_empty());
+    }
+
+    #[test]
+    fn compute_starred_set_per_user_keys() {
+        // alice and bob both star offset 0 — both rows survive (different users).
+        let envs = vec![
+            content_env(0, "shared"),
+            star_env(1, 0, true, "alice", 100),
+            star_env(2, 0, true, "bob", 200),
+        ];
+        let rows = compute_starred_set(&envs, None);
+        assert_eq!(rows.len(), 2);
+        // Newest first.
+        assert_eq!(rows[0].starred_by, "bob");
+        assert_eq!(rows[1].starred_by, "alice");
+    }
+
+    #[test]
+    fn compute_starred_set_caller_filter() {
+        let envs = vec![
+            content_env(0, "shared"),
+            star_env(1, 0, true, "alice", 100),
+            star_env(2, 0, true, "bob", 200),
+        ];
+        let rows = compute_starred_set(&envs, Some("alice"));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].starred_by, "alice");
+    }
+
+    #[test]
+    fn compute_starred_set_one_user_unstar_does_not_affect_other() {
+        let envs = vec![
+            content_env(0, "shared"),
+            star_env(1, 0, true, "alice", 100),
+            star_env(2, 0, true, "bob", 150),
+            star_env(3, 0, false, "alice", 200), // alice unstars
+        ];
+        let rows = compute_starred_set(&envs, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].starred_by, "bob");
+    }
+
+    #[test]
+    fn compute_starred_set_skips_non_star_envelopes() {
+        let envs = vec![
+            content_env(0, "x"),
+            pin_env(1, 0, "pin", "alice", 100),
+        ];
+        assert!(compute_starred_set(&envs, None).is_empty());
+    }
+
+    #[test]
+    fn compute_starred_set_skips_non_numeric_target() {
+        let envs = vec![
+            content_env(0, "x"),
+            json!({
+                "offset": 1, "msg_type": "star", "sender_id": "alice", "ts": 100,
+                "metadata": {"star_target": "garbage", "star": "true"},
+            }),
+        ];
+        assert!(compute_starred_set(&envs, None).is_empty());
     }
 
     // T-1352: should_emit_for_until

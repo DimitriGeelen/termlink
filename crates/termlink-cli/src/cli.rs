@@ -1918,6 +1918,66 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Star (bookmark) an envelope on a topic (T-1354). Per-user analogue of
+    /// `channel pin` — Matrix `m.bookmark` flavour. Emits a `msg_type=star`
+    /// envelope carrying `metadata.star_target=<offset>` and
+    /// `metadata.star=true`. Latest action per (sender_id, target) wins, so
+    /// repeating `star` is idempotent. See `channel starred` for aggregation.
+    Star {
+        /// Topic name
+        topic: String,
+
+        /// Offset of the envelope to star
+        offset: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Remove a star from an envelope on a topic (T-1354). Same shape as
+    /// `channel star` but emits `metadata.star=false`. Latest action per
+    /// (sender_id, target) wins.
+    Unstar {
+        /// Topic name
+        topic: String,
+
+        /// Offset of the envelope to unstar
+        offset: u64,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// List currently-starred envelopes on a topic (T-1354). Walks the topic,
+    /// applies star/unstar events in offset order (latest action per
+    /// (sender_id, target) wins), and renders one row per actively-starred
+    /// target. By default scoped to the calling user; pass `--all` to include
+    /// every user's stars. Sorted by most-recently starred descending.
+    /// Read-only.
+    Starred {
+        /// Topic name
+        topic: String,
+
+        /// Include every user's stars instead of just the caller's.
+        #[arg(long)]
+        all: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `[{target, starred_by, starred_ts, payload}]`
+        #[arg(long)]
+        json: bool,
+    },
     /// Render an envelope inline with its parent quoted above it (T-1344).
     /// If `<offset>` carries `metadata.in_reply_to=<parent>`, the parent
     /// envelope is fetched and rendered as a `>` quoted block before the

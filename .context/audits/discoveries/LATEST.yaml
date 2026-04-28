@@ -1,4 +1,4 @@
-timestamp: 2026-04-27T22:00:01Z
+timestamp: 2026-04-28T06:00:01Z
 findings:
   - id: D4
     level: PASS
@@ -15,7 +15,7 @@ findings:
     check: "D7: Commit bunching — none (PASS no_recent_commits)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=44.3 earlier=19.1)"
+    check: "D6: Completion velocity — normal (PASS recent=22.3 earlier=26.6)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
