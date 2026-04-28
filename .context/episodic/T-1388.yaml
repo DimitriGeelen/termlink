@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1388: Sanitize remote push error messages — never echo command body containing payload
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T20:39:30Z
+# ============================================================================
+
+task_id: T-1388
+task_name: "Sanitize remote push error messages — never echo command body containing payload"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T20:17:35Z
+completed: 2026-04-28T20:39:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T22:29:42+02:00
+last_commit: 2026-04-28T22:29:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  redact payload from termlink remote push error messages (G-048)
+
+# Key outcomes
+outcomes:
+  - "All three error sites in push.rs (write step, inject step, exec_rpc) replace the raw command/payload with a redacted stderr-only message OR explicit `<payload-redacted>` marker"
+  - "When `command.execute` returns a non-zero exit, the surfaced error never contains base64 chars matching the payload prefix sent"
+  - "Unit test in push.rs proving the redaction holds for: (a) allowlist rejection containing the full command, (b) shell error echoing the heredoc body, (c) stderr-only failure"
+  - "Build passes: `cargo build --release -p termlink`"
+  - "Existing `cargo test -p termlink` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "redact payload from termlink remote push error messages (G-048)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - "crates/termlink-cli/src/commands/push.rs"
+  - ".tasks/active/T-1388-sanitize-remote-push-error-messages--nev.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T22:29:42"
+    action: "T-1388: redact payload from termlink remote push error messages (G-048)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 21
+  commits: 1
+  files_changed: 3
+  lines_added: 190
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1388-sanitize-remote-push-error-messages--nev.md
+generated_by: context-agent-hybrid

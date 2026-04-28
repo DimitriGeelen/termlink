@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1384: Are we ready to push agent-conversation arc to other agents (cross-machine), and what end-to-end multi-agent test should we run with the fleet we already have?
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T19:33:24Z
+# ============================================================================
+
+task_id: T-1384
+task_name: "Are we ready to push agent-conversation arc to other agents (cross-machine), and what end-to-end multi-agent test should we run with the fleet we already have?"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T17:14:57Z
+completed: 2026-04-28T19:33:22Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-04-28T19:38:13+02:00
+last_commit: 2026-04-28T21:31:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception — multi-agent fleet readiness for the conversation arc. cross-hub TCP gap discovered — channel --hub accepts only Unix paths. update inception artifact — DEFER reversed → GO
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested (A1=PARTIAL, A2=FALSE, A3=BLOCKED, A6=FALSE)"
+  - "Recommendation written with rationale"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-28.yaml"
+  - ".context/audits/cron/2026-04-20-1830.yaml"
+  - ".context/audits/cron/2026-04-28-1830.yaml"
+  - ".context/audits/cron/2026-04-28-1845.yaml"
+  - ".context/audits/cron/2026-04-28-1900.yaml"
+  - ".context/audits/cron/2026-04-28-1915.yaml"
+  - ".context/audits/cron/2026-04-28-1930.yaml"
+  - ".context/audits/cron/2026-04-28-1945.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.fleet-failure-state.json"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.stop-counter"
+  - ".context/working/stop-guard.log"
+  - ".context/working/.stop-next-nudge-at"
+  - ".context/working/subagent-returns.jsonl"
+  - ".context/working/.tool-counter"
+  - "docs/reports/T-1384-multi-agent-readiness-inception.md"
+  - ".tasks/active/T-1384-are-we-ready-to-push-agent-conversation-.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T19:38:13"
+    action: "T-1384: inception — multi-agent fleet readiness for the conversation arc"
+  - time: "2026-04-28T19:59:32"
+    action: "T-1384: cross-hub TCP gap discovered — channel `--hub` accepts only Unix paths"
+  - time: "2026-04-28T21:31:36"
+    action: "T-1384: update inception artifact — DEFER reversed → GO"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 138 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 138
+  commits: 3
+  files_changed: 26
+  lines_added: 667
+  lines_removed: 103
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1384-are-we-ready-to-push-agent-conversation-.md
+generated_by: context-agent-hybrid

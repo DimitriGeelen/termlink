@@ -4,16 +4,16 @@ name: "Are we ready to push agent-conversation arc to other agents (cross-machin
 description: >
   Inception: Are we ready to push agent-conversation arc to other agents (cross-machine), and what end-to-end multi-agent test should we run with the fleet we already have?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-session/src/bus_client.rs]
 related_tasks: []
 created: 2026-04-28T17:14:57Z
-last_update: 2026-04-28T17:16:31Z
-date_finished: null
+last_update: 2026-04-28T19:33:22Z
+date_finished: 2026-04-28T19:33:22Z
 ---
 
 # T-1384: Are we ready to push agent-conversation arc to other agents (cross-machine), and what end-to-end multi-agent test should we run with the fleet we already have?
@@ -61,7 +61,7 @@ OUT: hub restart on .122 (operational, human-supervised); per-session identity b
 - [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -120,7 +120,12 @@ Any of these is a clean, scoped follow-up task. None requires arc redesign.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Cross-hub gap closed in T-1385. Multi-machine + live-agent e2e proven in T-1386/T-1387.
+  Arc is ready to push to the fleet.
+
+**Date**: 2026-04-28T19:33:22Z
 
 ## Updates
 
@@ -129,3 +134,38 @@ Any of these is a clean, scoped follow-up task. None requires arc redesign.
 
 ### 2026-04-28T17:16:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-04-28T18:46:06Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER full fleet rollout. GO on the arc itself for local-host multi-identity scenarios (already validated). Open three follow-up tasks for the gaps.
+
+Rationale: The arc is correct (531 unit tests + 55-step e2e green twice this session). What blocks fleet rollout is purely operational/architectural, not a flaw in the arc design:
+
+1. Remote hub at .122 lacks `channel.` RPCs because it runs 0.9.844 — needs binary deploy + hub restart (service-impacting, human-supervised).
+2. Multi-session-on-one-host produces ONE identity, not many — per-user not per-session — needs an opt-in mechanism (build task).
+3. ring20-dashboard heal is SSH-blocked — needs Tier-2 reauth or SSH key setup.
+
+Any of these is a clean, scoped follow-up task. None requires arc redesign.
+
+Evidence:
+- S1: 2 reachable hubs (.107=local, .122=ring20-management); .121 auth-broken; .107 = this machine with 14 live sessions
+- S2: cross-hub `channel create` against .122 fails with RPC error — remote hub lacks the namespace at version 0.9.844
+- S3a: 55-step e2e green twice this session (cargo binary + system binary at /usr/local/bin/termlink)
+- S3b: 3-session local-hub posting works at envelope level; both successful posts came from `sender_id=d1993c2c3ec44c94` (same identity) — architectural finding: identity is per-user not per-session
+- Local /usr/local/bin/termlink upgraded 0.9.844 → 0.9.1527 with safety backup at `.0.9.844.bak`; verified all 14 sessions now resolve to new binary
+
+Follow-up tasks:
+- T-1385 (build): per-session identity opt-in
+- T-1386 (deploy): binary deploy + hub restart on .122 + .121
+- T-1387 (build, optional): Tier-2 reauth without SSH-key dependency
+
+### 2026-04-28T19:33:22Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Cross-hub gap closed in T-1385. Multi-machine + live-agent e2e proven in T-1386/T-1387.
+  Arc is ready to push to the fleet.
+
+### 2026-04-28T19:33:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
