@@ -2549,6 +2549,28 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Mentions of a user on a topic (T-1371). Reverse view of `--mention`
+    /// posting. Lists every envelope on `<topic>` whose `metadata.mentions`
+    /// CSV matches `<user>` (wildcard `*` in either side honored per T-1333).
+    /// Renders mention_offset, sender, payload preview, mentions csv, ts.
+    /// Sort: mention_offset desc. Honors redaction. Skips meta envelopes
+    /// (receipt/typing/edit/redaction/pin/topic_metadata).
+    MentionsOf {
+        /// Topic name
+        topic: String,
+
+        /// User id to scan mentions for (e.g. fingerprint, room nickname).
+        /// Pass `*` to find every post that tagged anyone.
+        user: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Replies posted by a sender on a topic (T-1370). Reverse view of
     /// `channel reply` (T-1313). Sender defaults to the caller fingerprint.
     /// Renders reply_offset, parent (offset + sender + payload preview), reply
