@@ -2423,6 +2423,34 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Synthesized recent-activity digest for a topic (T-1356). Walks the
+    /// topic, applies a time filter, and renders a compact summary
+    /// (posts, top senders, top reactions, pins added/removed, forwards in,
+    /// last 3 chat snippets). Use `--since-mins N` for a relative window or
+    /// `--since MS` for an absolute lower bound. Read-only.
+    Digest {
+        /// Topic name
+        topic: String,
+
+        /// Window size in minutes — include envelopes with
+        /// `ts_unix_ms >= now - N * 60_000`. Mutually exclusive with `--since`.
+        #[arg(long, value_name = "N", conflicts_with = "since")]
+        since_mins: Option<i64>,
+
+        /// Absolute lower-bound `ts_unix_ms` (epoch milliseconds) — include
+        /// envelopes with `ts_unix_ms >= MS`. Mutually exclusive with
+        /// `--since-mins`.
+        #[arg(long, value_name = "MS")]
+        since: Option<i64>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Polls on a topic (T-1355). Matrix `m.poll.start` / `m.poll.response`
     /// / `m.poll.end` analog. Sub-actions: `start`, `vote`, `end`, `results`.
     Poll {

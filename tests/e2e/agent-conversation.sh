@@ -548,6 +548,32 @@ out_json=$(A channel poll results "$POLL_TOPIC" "$POLL_ID" --json)
 expect_contains "\"closed\": true" "$out_json" "step 31: --json carries closed:true"
 expect_contains "\"total_votes\": 2" "$out_json" "step 31: --json carries total_votes"
 
+step "32. channel digest (T-1356): synthesized recent activity"
+DIGEST_TOPIC="t-1356-digest-$(date +%s)"
+A channel create "$DIGEST_TOPIC" --retention forever >/dev/null
+A channel post "$DIGEST_TOPIC" --msg-type chat --payload "alice msg 1" >/dev/null
+A channel post "$DIGEST_TOPIC" --msg-type chat --payload "alice msg 2" >/dev/null
+B channel post "$DIGEST_TOPIC" --msg-type chat --payload "bob msg" >/dev/null
+A channel react "$DIGEST_TOPIC" 2 "👍" >/dev/null || true
+A channel pin "$DIGEST_TOPIC" 0 >/dev/null
+out=$(A channel digest "$DIGEST_TOPIC" --since-mins 5)
+expect_contains "Posts: 3" "$out" "step 32: 3 content posts in window"
+expect_contains "Distinct senders: 2" "$out" "step 32: 2 distinct senders"
+expect_contains "Pins: +1" "$out" "step 32: 1 pin added"
+expect_contains "👍" "$out" "step 32: top reactions section includes thumbs-up"
+expect_contains "alice msg 2" "$out" "step 32: recent chats include alice's last"
+expect_contains "bob msg" "$out" "step 32: recent chats include bob's"
+# JSON shape check.
+out_json=$(A channel digest "$DIGEST_TOPIC" --since-mins 5 --json)
+expect_contains "\"posts\": 3" "$out_json" "step 32: --json carries posts:3"
+expect_contains "\"distinct_senders\": 2" "$out_json" "step 32: --json carries distinct_senders"
+expect_contains "\"pins_added\": 1" "$out_json" "step 32: --json carries pins_added:1"
+# Tight window test: --since-mins 0 ms-resolution would zero out. Use absolute
+# --since with a future-of-now timestamp instead — must yield empty digest.
+FUTURE=$(python3 -c 'import time; print(int(time.time()*1000)+60000)')
+out_empty=$(A channel digest "$DIGEST_TOPIC" --since "$FUTURE")
+expect_contains "Posts: 0" "$out_empty" "step 32: future-since yields empty digest"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

@@ -687,6 +687,22 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Digest {
+                topic,
+                since_mins,
+                since,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_digest(
+                    &topic,
+                    since_mins,
+                    since,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Poll { action } => match action {
                 PollAction::Start {
                     topic,

@@ -2777,6 +2777,237 @@ pub(crate) async fn cmd_channel_poll_results(
     Ok(())
 }
 
+/// T-1356: aggregated activity digest for a topic, scoped to a time window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DigestSummary {
+    pub since_ms: i64,
+    pub posts: u64,
+    pub distinct_senders: u64,
+    pub top_senders: Vec<(String, u64)>,
+    pub top_reactions: Vec<(String, u64)>,
+    pub pins_added: u64,
+    pub pins_removed: u64,
+    pub forwards_in: u64,
+    pub recent_chats: Vec<DigestChat>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DigestChat {
+    pub offset: u64,
+    pub sender_id: String,
+    pub ts: i64,
+    pub payload: String,
+}
+
+/// T-1356: pure helper — compute a digest from a topic walk + lower bound.
+///
+/// Filters envelopes to those whose `ts_unix_ms` (or legacy `ts`) is `>=
+/// since_ms`. Envelopes without a ts are dropped (defensive).
+///
+/// Sections:
+/// - posts: count of `msg_type=post|chat|note` (the "content" types)
+/// - distinct_senders: unique sender_id across all (any-msg-type) envelopes
+/// - top_senders: top 3 by content-post count (descending; tie-break sender_id asc)
+/// - top_reactions: top 3 reactions by payload (decoded as the emoji)
+/// - pins_added / pins_removed: count of pin/unpin events
+/// - forwards_in: count of envelopes with `metadata.forwarded_from`
+/// - recent_chats: last 3 content posts in offset-asc order, payloads decoded
+pub(crate) fn compute_digest(envelopes: &[Value], since_ms: i64) -> DigestSummary {
+    use std::collections::HashMap;
+    let in_window = |env: &Value| -> Option<i64> {
+        env.get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .filter(|t| *t >= since_ms)
+    };
+    let is_content = |env: &Value| -> bool {
+        matches!(
+            env.get("msg_type").and_then(|v| v.as_str()),
+            Some("post") | Some("chat") | Some("note")
+        )
+    };
+
+    let mut posts: u64 = 0;
+    let mut sender_counts: HashMap<String, u64> = HashMap::new();
+    let mut all_senders: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut reaction_counts: HashMap<String, u64> = HashMap::new();
+    let mut pins_added: u64 = 0;
+    let mut pins_removed: u64 = 0;
+    let mut forwards_in: u64 = 0;
+    let mut content_envs: Vec<&Value> = Vec::new();
+
+    for env in envelopes {
+        if in_window(env).is_none() {
+            continue;
+        }
+        if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
+            all_senders.insert(s.to_string());
+        }
+        if env
+            .get("metadata")
+            .and_then(|m| m.get("forwarded_from"))
+            .is_some()
+        {
+            forwards_in += 1;
+        }
+        match env.get("msg_type").and_then(|v| v.as_str()) {
+            Some("pin") => {
+                let action = env
+                    .get("metadata")
+                    .and_then(|m| m.get("action"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("pin");
+                if action == "unpin" {
+                    pins_removed += 1;
+                } else {
+                    pins_added += 1;
+                }
+            }
+            Some("reaction") => {
+                let payload = decode_payload_lossy(env);
+                if !payload.is_empty() {
+                    *reaction_counts.entry(payload).or_insert(0) += 1;
+                }
+            }
+            _ => {}
+        }
+        if is_content(env) {
+            posts += 1;
+            content_envs.push(env);
+            if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
+                *sender_counts.entry(s.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    let mut top_senders: Vec<(String, u64)> = sender_counts.into_iter().collect();
+    top_senders.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    top_senders.truncate(3);
+
+    let mut top_reactions: Vec<(String, u64)> = reaction_counts.into_iter().collect();
+    top_reactions.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    top_reactions.truncate(3);
+
+    // recent_chats: last 3 by offset.
+    content_envs.sort_by_key(|e| e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0));
+    let recent_chats: Vec<DigestChat> = content_envs
+        .iter()
+        .rev()
+        .take(3)
+        .rev()
+        .map(|e| DigestChat {
+            offset: e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0),
+            sender_id: e
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            ts: e
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| e.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0),
+            payload: decode_payload_lossy(e),
+        })
+        .collect();
+
+    DigestSummary {
+        since_ms,
+        posts,
+        distinct_senders: all_senders.len() as u64,
+        top_senders,
+        top_reactions,
+        pins_added,
+        pins_removed,
+        forwards_in,
+        recent_chats,
+    }
+}
+
+/// T-1356: render the digest. Walks the topic, computes, prints.
+pub(crate) async fn cmd_channel_digest(
+    topic: &str,
+    since_mins: Option<i64>,
+    since: Option<i64>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let since_ms = match (since_mins, since) {
+        (Some(_), Some(_)) => {
+            return Err(anyhow!(
+                "--since-mins and --since are mutually exclusive"
+            ));
+        }
+        (Some(n), None) => now_ms - n * 60_000,
+        (None, Some(ms)) => ms,
+        (None, None) => now_ms - 60 * 60_000, // default: last 60 minutes
+    };
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let d = compute_digest(&envelopes, since_ms);
+
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "since_ms": d.since_ms,
+                "posts": d.posts,
+                "distinct_senders": d.distinct_senders,
+                "top_senders": d.top_senders.iter().map(|(s,c)| json!({"sender_id": s, "count": c})).collect::<Vec<_>>(),
+                "top_reactions": d.top_reactions.iter().map(|(r,c)| json!({"reaction": r, "count": c})).collect::<Vec<_>>(),
+                "pins_added": d.pins_added,
+                "pins_removed": d.pins_removed,
+                "forwards_in": d.forwards_in,
+                "recent_chats": d.recent_chats.iter().map(|c| json!({
+                    "offset": c.offset,
+                    "sender_id": c.sender_id,
+                    "ts": c.ts,
+                    "payload": c.payload,
+                })).collect::<Vec<_>>(),
+            }))?
+        );
+        return Ok(());
+    }
+
+    println!("Digest for '{topic}' since ts={since}", since = d.since_ms);
+    println!(
+        "  Posts: {} | Distinct senders: {} | Forwards in: {}",
+        d.posts, d.distinct_senders, d.forwards_in
+    );
+    println!(
+        "  Pins: +{} added, -{} removed",
+        d.pins_added, d.pins_removed
+    );
+    if !d.top_senders.is_empty() {
+        println!("  Top senders:");
+        for (s, c) in &d.top_senders {
+            println!("    · {s} — {c}");
+        }
+    }
+    if !d.top_reactions.is_empty() {
+        println!("  Top reactions:");
+        for (r, c) in &d.top_reactions {
+            println!("    · {r} ×{c}");
+        }
+    }
+    if !d.recent_chats.is_empty() {
+        println!("  Last {} chat(s):", d.recent_chats.len());
+        for c in &d.recent_chats {
+            println!(
+                "    [{off}] {sender}: {payload}",
+                off = c.offset,
+                sender = c.sender_id,
+                payload = c.payload
+            );
+        }
+    }
+    Ok(())
+}
+
 /// T-1344: pure helper — extract `metadata.in_reply_to` from an envelope and
 /// parse it as a u64. Returns `None` when the field is absent or non-numeric.
 /// Reactions and reply posts both carry this key (T-1313 / T-1314 contracts).
@@ -5211,6 +5442,145 @@ mod tests {
         // Only one option — invalid.
         let envs = vec![poll_start_env(0, "Q", &["only"], "alice", 100)];
         assert!(compute_poll_state(&envs, 0).is_none());
+    }
+
+    // T-1356: compute_digest
+    fn chat_env(off: u64, sender: &str, ts: i64, payload: &str) -> Value {
+        use base64::Engine;
+        let p = base64::engine::general_purpose::STANDARD.encode(payload);
+        json!({
+            "offset": off,
+            "msg_type": "chat",
+            "sender_id": sender,
+            "ts": ts,
+            "payload_b64": p,
+        })
+    }
+    fn reaction_env(off: u64, sender: &str, ts: i64, emoji: &str) -> Value {
+        use base64::Engine;
+        let p = base64::engine::general_purpose::STANDARD.encode(emoji);
+        json!({
+            "offset": off,
+            "msg_type": "reaction",
+            "sender_id": sender,
+            "ts": ts,
+            "payload_b64": p,
+            "metadata": { "in_reply_to": "0" },
+        })
+    }
+    fn forward_env(off: u64, sender: &str, ts: i64, payload: &str) -> Value {
+        use base64::Engine;
+        let p = base64::engine::general_purpose::STANDARD.encode(payload);
+        json!({
+            "offset": off,
+            "msg_type": "chat",
+            "sender_id": sender,
+            "ts": ts,
+            "payload_b64": p,
+            "metadata": { "forwarded_from": "src:0:alice" },
+        })
+    }
+
+    #[test]
+    fn compute_digest_empty_topic() {
+        let d = compute_digest(&[], 0);
+        assert_eq!(d.posts, 0);
+        assert_eq!(d.distinct_senders, 0);
+        assert!(d.top_senders.is_empty());
+        assert!(d.recent_chats.is_empty());
+    }
+
+    #[test]
+    fn compute_digest_filters_by_since() {
+        let envs = vec![
+            chat_env(0, "alice", 50, "old"),
+            chat_env(1, "alice", 200, "new"),
+        ];
+        let d = compute_digest(&envs, 100);
+        assert_eq!(d.posts, 1);
+        assert_eq!(d.recent_chats.len(), 1);
+        assert_eq!(d.recent_chats[0].payload, "new");
+    }
+
+    #[test]
+    fn compute_digest_top_senders_sorted_desc() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "a1"),
+            chat_env(1, "alice", 110, "a2"),
+            chat_env(2, "alice", 120, "a3"),
+            chat_env(3, "bob", 130, "b1"),
+            chat_env(4, "bob", 140, "b2"),
+            chat_env(5, "carol", 150, "c1"),
+        ];
+        let d = compute_digest(&envs, 0);
+        assert_eq!(d.posts, 6);
+        assert_eq!(d.distinct_senders, 3);
+        assert_eq!(d.top_senders.len(), 3);
+        assert_eq!(d.top_senders[0], ("alice".to_string(), 3));
+        assert_eq!(d.top_senders[1], ("bob".to_string(), 2));
+        assert_eq!(d.top_senders[2], ("carol".to_string(), 1));
+    }
+
+    #[test]
+    fn compute_digest_top_senders_truncated_to_three() {
+        let envs = vec![
+            chat_env(0, "a", 100, "x"),
+            chat_env(1, "b", 100, "x"),
+            chat_env(2, "c", 100, "x"),
+            chat_env(3, "d", 100, "x"),
+            chat_env(4, "e", 100, "x"),
+        ];
+        let d = compute_digest(&envs, 0);
+        assert_eq!(d.top_senders.len(), 3);
+    }
+
+    #[test]
+    fn compute_digest_top_reactions() {
+        let envs = vec![
+            reaction_env(0, "alice", 100, "👍"),
+            reaction_env(1, "bob", 100, "👍"),
+            reaction_env(2, "carol", 100, "❤"),
+        ];
+        let d = compute_digest(&envs, 0);
+        assert_eq!(d.top_reactions.len(), 2);
+        assert_eq!(d.top_reactions[0], ("👍".to_string(), 2));
+        assert_eq!(d.top_reactions[1], ("❤".to_string(), 1));
+    }
+
+    #[test]
+    fn compute_digest_pins_counted() {
+        let envs = vec![
+            pin_env(0, 5, "pin", "alice", 100),
+            pin_env(1, 7, "pin", "alice", 110),
+            pin_env(2, 5, "unpin", "alice", 120),
+        ];
+        let d = compute_digest(&envs, 0);
+        assert_eq!(d.pins_added, 2);
+        assert_eq!(d.pins_removed, 1);
+    }
+
+    #[test]
+    fn compute_digest_forwards_counted() {
+        let envs = vec![forward_env(0, "alice", 100, "fwd"), chat_env(1, "alice", 100, "native")];
+        let d = compute_digest(&envs, 0);
+        assert_eq!(d.forwards_in, 1);
+        assert_eq!(d.posts, 2);
+    }
+
+    #[test]
+    fn compute_digest_recent_chats_last_three_in_order() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "first"),
+            chat_env(1, "alice", 110, "second"),
+            chat_env(2, "alice", 120, "third"),
+            chat_env(3, "alice", 130, "fourth"),
+            chat_env(4, "alice", 140, "fifth"),
+        ];
+        let d = compute_digest(&envs, 0);
+        assert_eq!(d.recent_chats.len(), 3);
+        assert_eq!(d.recent_chats[0].payload, "third");
+        assert_eq!(d.recent_chats[1].payload, "fourth");
+        assert_eq!(d.recent_chats[2].payload, "fifth");
     }
 
     // T-1352: should_emit_for_until
