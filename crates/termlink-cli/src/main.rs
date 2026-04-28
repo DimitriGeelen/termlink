@@ -774,6 +774,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::RepliesOf {
+                topic,
+                sender,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_replies_of(
+                    &topic,
+                    sender.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,

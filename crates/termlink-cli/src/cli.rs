@@ -2549,6 +2549,27 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Replies posted by a sender on a topic (T-1370). Reverse view of
+    /// `channel reply` (T-1313). Sender defaults to the caller fingerprint.
+    /// Renders reply_offset, parent (offset + sender + payload preview), reply
+    /// payload preview, and ts. Sort: reply_offset desc. Honors redaction.
+    /// Excludes reactions (msg_type=reaction also carries in_reply_to but is
+    /// not a reply post).
+    RepliesOf {
+        /// Topic to scan
+        topic: String,
+
+        /// Sender fingerprint (defaults to caller identity)
+        sender: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Forwards posted by a sender on a topic (T-1367). Reverse view of
     /// `channel forward` (T-1346). Sender defaults to the caller fingerprint.
     /// Renders forward_offset, origin (topic + offset), original sender,

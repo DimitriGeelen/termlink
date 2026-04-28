@@ -794,6 +794,32 @@ expect_contains "\"by_msg_type\":" "$out_json" "step 41: --json carries by_msg_t
 expect_contains "\"top_senders\":" "$out_json" "step 41: --json carries top_senders"
 expect_contains "\"first_ts_ms\":" "$out_json" "step 41: --json carries first_ts_ms"
 
+step "42. channel replies-of (T-1370): list replies posted by a sender"
+RO_TOPIC="t-1370-replies-of-$(date +%s)"
+A channel create "$RO_TOPIC" --retention forever >/dev/null
+# Parent post by Alice
+A channel post "$RO_TOPIC" --msg-type chat --payload "ro-parent" >/dev/null
+# Two replies by Bob, one reply by Alice, one reaction by Bob (must be excluded)
+B channel post "$RO_TOPIC" --reply-to 0 --msg-type chat --payload "bob-reply-1" >/dev/null
+B channel post "$RO_TOPIC" --reply-to 0 --msg-type chat --payload "bob-reply-2" >/dev/null
+A channel post "$RO_TOPIC" --reply-to 0 --msg-type chat --payload "alice-reply" >/dev/null
+B channel react "$RO_TOPIC" 0 "👍" >/dev/null
+out_b=$(B channel replies-of "$RO_TOPIC")
+expect_contains "bob-reply-1" "$out_b" "step 42: bob's first reply listed"
+expect_contains "bob-reply-2" "$out_b" "step 42: bob's second reply listed"
+[ -z "$(echo "$out_b" | grep -F 'alice-reply')" ] || fail "step 42: replies-of must filter to bob only"
+[ -z "$(echo "$out_b" | grep -F '👍')" ] || fail "step 42: replies-of must exclude reactions"
+out_b_json=$(B channel replies-of "$RO_TOPIC" --json)
+n_b=$(echo "$out_b_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n_b" = "2" ] || fail "step 42: bob should have exactly 2 replies, got $n_b"
+expect_contains "\"reply_offset\":" "$out_b_json" "step 42: --json carries reply_offset"
+expect_contains "\"parent_offset\":" "$out_b_json" "step 42: --json carries parent_offset"
+expect_contains "\"parent_payload\":" "$out_b_json" "step 42: --json carries parent_payload"
+# Alice scope: 1 reply
+out_a_json=$(A channel replies-of "$RO_TOPIC" --json)
+n_a=$(echo "$out_a_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n_a" = "1" ] || fail "step 42: alice should have exactly 1 reply, got $n_a"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
