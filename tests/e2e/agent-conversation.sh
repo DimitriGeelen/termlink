@@ -672,6 +672,28 @@ expect_contains "\"reaction_offset\":" "$out_json" "step 36: --json carries reac
 expect_contains "\"parent_offset\":" "$out_json" "step 36: --json carries parent_offset"
 expect_contains "\"emoji\":" "$out_json" "step 36: --json carries emoji"
 
+step "37. channel snippet (T-1363): quotable text excerpt for citations"
+SNIP_TOPIC="t-1363-snip-$(date +%s)"
+A channel create "$SNIP_TOPIC" --retention forever >/dev/null
+for p in "alpha-T1363" "beta-T1363" "TARGET-T1363" "delta-T1363" "epsilon-T1363"; do
+  A channel post "$SNIP_TOPIC" --msg-type chat --payload "$p" >/dev/null
+done
+out=$(A channel snippet "$SNIP_TOPIC" 2 --lines 1)
+expect_contains "beta-T1363" "$out" "step 37: 1 line of context above"
+expect_contains "TARGET-T1363" "$out" "step 37: target line included"
+expect_contains "delta-T1363" "$out" "step 37: 1 line of context below"
+expect_contains ">>" "$out" "step 37: target marked with >>"
+expect_not_contains "alpha-T1363" "$out" "step 37: --lines 1 excludes 2-back"
+expect_not_contains "epsilon-T1363" "$out" "step 37: --lines 1 excludes 2-ahead"
+# --header adds citation prefix.
+out_h=$(A channel snippet "$SNIP_TOPIC" 2 --lines 1 --header)
+expect_contains "$SNIP_TOPIC" "$out_h" "step 37: --header carries topic name"
+expect_contains "offset 2" "$out_h" "step 37: --header carries target offset"
+# JSON shape.
+out_json=$(A channel snippet "$SNIP_TOPIC" 2 --lines 1 --json)
+expect_contains "\"target_offset\":" "$out_json" "step 37: --json carries target_offset"
+expect_contains "\"is_target\":" "$out_json" "step 37: --json marks target line"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

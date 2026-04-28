@@ -3144,6 +3144,120 @@ pub(crate) async fn cmd_channel_emoji_stats(
     Ok(())
 }
 
+/// T-1363: one rendered line in a snippet block.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SnippetLine {
+    pub offset: u64,
+    pub sender: String,
+    pub payload: String,
+    pub is_target: bool,
+}
+
+impl SnippetLine {
+    fn to_json(&self) -> Value {
+        json!({
+            "offset": self.offset,
+            "sender": self.sender,
+            "payload": self.payload,
+            "is_target": self.is_target,
+        })
+    }
+}
+
+/// T-1363: pure helper — pick the snippet window from a topic walk.
+///
+/// Filters envelopes to content msg_types (`post`/`chat`/`note`) and skips
+/// meta types (reaction/edit/redaction/receipt/topic_metadata) so the
+/// snippet stays focused.
+///
+/// Locates the target offset, includes up to `lines` content envelopes on
+/// each side. Returns `None` when the target is not in `envelopes` or is
+/// itself a meta type. Pure — no I/O.
+pub(crate) fn compute_snippet(
+    envelopes: &[Value],
+    target_offset: u64,
+    lines: u64,
+) -> Option<Vec<SnippetLine>> {
+    let is_content = |env: &Value| -> bool {
+        matches!(
+            env.get("msg_type").and_then(|v| v.as_str()),
+            Some("post") | Some("chat") | Some("note")
+        )
+    };
+    let mut content_envs: Vec<&Value> = envelopes.iter().filter(|e| is_content(e)).collect();
+    content_envs.sort_by_key(|e| e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0));
+
+    let target_idx = content_envs
+        .iter()
+        .position(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(target_offset))?;
+    let lines_usize = lines as usize;
+    let lo = target_idx.saturating_sub(lines_usize);
+    let hi = (target_idx + lines_usize + 1).min(content_envs.len());
+
+    let snippet: Vec<SnippetLine> = content_envs[lo..hi]
+        .iter()
+        .map(|e| {
+            let off = e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            SnippetLine {
+                offset: off,
+                sender: e
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?")
+                    .to_string(),
+                payload: decode_payload_lossy(e),
+                is_target: off == target_offset,
+            }
+        })
+        .collect();
+    Some(snippet)
+}
+
+/// T-1363: render the snippet for a target envelope.
+pub(crate) async fn cmd_channel_snippet(
+    topic: &str,
+    offset: u64,
+    lines: u64,
+    header: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let snippet = compute_snippet(&envelopes, offset, lines).ok_or_else(|| {
+        anyhow!(
+            "Topic '{topic}' has no content envelope at offset {offset} (or it's a meta type)"
+        )
+    })?;
+    if json_output {
+        let arr: Vec<Value> = snippet.iter().map(SnippetLine::to_json).collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "topic": topic,
+                "target_offset": offset,
+                "lines": arr,
+            }))?
+        );
+        return Ok(());
+    }
+    if header {
+        println!("From `{topic}` @ offset {offset}:");
+    }
+    println!("```");
+    for line in &snippet {
+        let prefix = if line.is_target { ">>" } else { "  " };
+        println!(
+            "{prefix} [{off}] {sender}: {payload}",
+            off = line.offset,
+            sender = line.sender,
+            payload = line.payload,
+        );
+    }
+    println!("```");
+    Ok(())
+}
+
 /// T-1362: one reaction row produced by `compute_reactions_of`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReactionsOfRow {
@@ -6154,6 +6268,94 @@ mod tests {
         let d = compute_digest(&envs, 0);
         assert_eq!(d.forwards_in, 1);
         assert_eq!(d.posts, 2);
+    }
+
+    // T-1363: compute_snippet
+    #[test]
+    fn compute_snippet_target_in_middle() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "first"),
+            chat_env(1, "alice", 110, "second"),
+            chat_env(2, "alice", 120, "target"),
+            chat_env(3, "alice", 130, "fourth"),
+            chat_env(4, "alice", 140, "fifth"),
+        ];
+        let s = compute_snippet(&envs, 2, 1).unwrap();
+        assert_eq!(s.len(), 3);
+        assert_eq!(s[0].offset, 1);
+        assert_eq!(s[1].offset, 2);
+        assert!(s[1].is_target);
+        assert_eq!(s[2].offset, 3);
+    }
+
+    #[test]
+    fn compute_snippet_target_at_start() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "first"),
+            chat_env(1, "alice", 110, "second"),
+            chat_env(2, "alice", 120, "third"),
+        ];
+        let s = compute_snippet(&envs, 0, 2).unwrap();
+        assert_eq!(s.len(), 3); // 0 + 2 ahead
+        assert!(s[0].is_target);
+    }
+
+    #[test]
+    fn compute_snippet_target_at_end() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "first"),
+            chat_env(1, "alice", 110, "second"),
+            chat_env(2, "alice", 120, "third"),
+        ];
+        let s = compute_snippet(&envs, 2, 2).unwrap();
+        assert_eq!(s.len(), 3); // 2 behind + target
+        assert!(s[2].is_target);
+    }
+
+    #[test]
+    fn compute_snippet_lines_zero() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "first"),
+            chat_env(1, "alice", 110, "target"),
+            chat_env(2, "alice", 120, "third"),
+        ];
+        let s = compute_snippet(&envs, 1, 0).unwrap();
+        assert_eq!(s.len(), 1);
+        assert!(s[0].is_target);
+    }
+
+    #[test]
+    fn compute_snippet_lines_larger_than_topic() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "a"),
+            chat_env(1, "alice", 110, "target"),
+        ];
+        let s = compute_snippet(&envs, 1, 100).unwrap();
+        assert_eq!(s.len(), 2);
+    }
+
+    #[test]
+    fn compute_snippet_target_missing_returns_none() {
+        let envs = vec![chat_env(0, "alice", 100, "x")];
+        assert!(compute_snippet(&envs, 99, 2).is_none());
+    }
+
+    #[test]
+    fn compute_snippet_skips_meta_envelopes() {
+        // Reactions and redactions should NOT count as snippet lines.
+        let envs = vec![
+            chat_env(0, "alice", 100, "first"),
+            reaction_env(1, "alice", 110, "👍"),
+            chat_env(2, "alice", 120, "target"),
+            redaction_env(3, 0, "alice"),
+            chat_env(4, "alice", 140, "fourth"),
+        ];
+        let s = compute_snippet(&envs, 2, 5).unwrap();
+        // Only content envelopes: offsets 0, 2, 4.
+        assert_eq!(s.len(), 3);
+        assert_eq!(s[0].offset, 0);
+        assert_eq!(s[1].offset, 2);
+        assert_eq!(s[2].offset, 4);
     }
 
     // T-1362: compute_reactions_of
