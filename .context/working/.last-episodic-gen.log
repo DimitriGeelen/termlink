@@ -1,21 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T16:20:34Z ===
-task_id: T-1383
+=== episodic-gen invocation: 2026-04-28T20:58:53Z ===
+task_id: T-1389
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1383.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1389.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel snapshot-diff <topic> --from <ms> --to <ms> — what changed between two timestamps (compose two T-1378 snapshots)
-  Duration: 0 days (14 min)
+  Task: topic_lint hot-reload bug — files created post-init never reload via SIGHUP
+  Duration: 0 days (9 min)
   Updates: 2
-  Commits: 0
-  Lines: +0 -0 across 0 files
-  Outcomes: 10 AC checked
+  Commits: 1
+  Lines: +181 -32 across 2 files
+  Outcomes: 7 AC checked
+  Artifacts: 2 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1383-channel-snapshot-diff-topic---from-ms---.md
+Source: /opt/termlink/.tasks/completed/T-1389-topiclint-hot-reload-bug--files-created-.md
 --- exit code: 0 ---

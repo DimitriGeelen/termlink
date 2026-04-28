@@ -1,9 +1,9 @@
-# Audit Results - 2026-04-20-2030
-timestamp: 2026-04-20T18:30:01Z
+# Audit Results - 2026-04-28-2230
+timestamp: 2026-04-28T20:30:01Z
 sections: "structure,compliance,quality,discovery"
 summary:
-  pass: 15
-  warn: 2
+  pass: 18
+  warn: 0
   fail: 0
 findings:
   - level: PASS
@@ -17,23 +17,23 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "All 8 project YAML files parse correctly"
+    check: "No duplicate task IDs across active/ and completed/"
   - level: PASS
-    check: "Fabric: 90 registered, 0 unregistered"
+    check: "All 9 project YAML files parse correctly"
   - level: PASS
-    check: "Fabric edges: 85/90 cards enriched (5 without edges)"
+    check: "Fabric: 113 registered, 0 unregistered"
   - level: PASS
-    check: "Fabric drift: All watched source files registered (90 cards)"
+    check: "Fabric edges: 104/113 cards enriched (9 without edges)"
   - level: PASS
-    check: "All 147 active tasks are valid"
-  - level: WARN
-    check: "Task T-243 has 28 days old with only 1 updates"
-    mitigation: "Fix in T-243-script-error-yielding--checkpoint-based-.md"
+    check: "Fabric drift: All watched source files registered (113 cards)"
   - level: PASS
-    check: "D1: Episodic quality — 1% [TODO] (8/799)"
-  - level: WARN
-    check: "D2: Human review queue — 4 task(s) waiting >14d: T-160(16d) T-789(21d) T-834(15d) T-879(15d)"
-    mitigation: "Review with: fw task verify"
+    check: "All 11 active tasks are valid"
+  - level: PASS
+    check: "All active tasks meet quality thresholds"
+  - level: PASS
+    check: "D1: Episodic quality — 0% [TODO] (8/1140)"
+  - level: PASS
+    check: "D2: Human review queue — no pending items"
   - level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
   - level: PASS

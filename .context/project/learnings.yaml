@@ -889,3 +889,17 @@ learnings:
   date: 2026-04-28
   context: fleet-doctor auto-registered
   application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-091
+  learning: "Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-04-28T20:15:57Z hub_fingerprint=sha256:53de15ec8b33b4e87abd57d6e9700553d68382d66a105cf0c14690bf452b6fe4. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-28
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-092
+  learning: "Shell-command transports leak payload via error echo. Any RPC that embeds sensitive bytes as a base64 literal inside a shell command leaks the payload back through error messages whenever the remote end echoes the rejected command (allowlist denials, syntax errors, etc.). Mitigation: redact the embedded literal from all error bail! sites. Long-term: prefer dedicated binary-arg RPCs over shell-command transports for any sensitive payload."
+  source: PL-007
+  task: T-1388
+  date: 2026-04-28
+  context: Added via context agent
+  application: TBD

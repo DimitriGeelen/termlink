@@ -483,3 +483,8 @@
   flag: '--skip-sovereignty'
   caller: 'check_human_sovereignty'
   reason: 'Completed via Watchtower UI (human action)'
+- timestamp: '2026-04-28T19:33:22Z'
+  task: 'T-1384'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

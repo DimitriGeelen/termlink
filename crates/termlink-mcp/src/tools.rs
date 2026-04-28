@@ -836,6 +836,44 @@ pub struct DispatchParams {
     /// TERMLINK_MODEL env var to workers. If unavailable, falls back through the default
     /// chain (opus → sonnet → haiku).
     pub model: Option<String>,
+    /// Task type label (e.g., "build", "test", "refactor") used to track per-model
+    /// success rates in the route cache. When omitted and `model` is also omitted,
+    /// no model selection learning is recorded.
+    pub task_type: Option<String>,
+}
+
+/// Resolve a dispatch model decision: applies T-1590 model selection logic.
+///
+/// - If `requested` is Some: try it through the model circuit breaker; on open
+///   circuit, walk the default fallback chain.
+/// - If `requested` is None and `task_type` is Some: pick the best-known model
+///   from the route cache for that task type, then resolve through the breaker.
+/// - If both are None: returns (None, false) — caller skips model selection.
+///
+/// Returns `(effective_model, fallback_used)`.
+pub(crate) fn resolve_dispatch_model(
+    requested: Option<&str>,
+    task_type: Option<&str>,
+    cache: &termlink_hub::route_cache::RouteCache,
+) -> (Option<String>, bool) {
+    let mcb = termlink_hub::circuit_breaker::model_global();
+    let chain = termlink_hub::circuit_breaker::DEFAULT_MODEL_FALLBACK;
+
+    let preferred: Option<String> = match requested {
+        Some(m) => Some(m.to_string()),
+        None => task_type
+            .and_then(|tt| cache.best_model_for(tt))
+            .map(|s| s.to_string()),
+    };
+
+    match preferred {
+        Some(p) => {
+            let resolved = mcb.resolve_model(&p, chain);
+            let fallback_used = matches!(&resolved, Some(r) if r != &p);
+            (resolved, fallback_used)
+        }
+        None => (None, false),
+    }
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -2628,6 +2666,17 @@ impl TermLinkTools {
         let cap = p.cap.unwrap_or_default();
         let env_vars = p.env.unwrap_or_default();
         let workdir = p.workdir;
+        let task_type = p.task_type.clone();
+
+        // T-1590: resolve effective model via circuit breaker + route cache.
+        let mut route_cache = termlink_hub::route_cache::RouteCache::load();
+        let (effective_model, fallback_used) = resolve_dispatch_model(
+            p.model.as_deref(),
+            task_type.as_deref(),
+            &route_cache,
+        );
+        let model_requested = p.model.clone();
+        let model_used = effective_model.clone();
 
         // Add task_id as a tag for observability
         if let Some(ref tid) = p.task_id {
@@ -2689,8 +2738,8 @@ impl TermLinkTools {
             env_prefix.push_str(&format!("export TERMLINK_DISPATCH_ID={}; ", shell_escape(&dispatch_id)));
             env_prefix.push_str(&format!("export TERMLINK_ORCHESTRATOR={}; ", std::process::id()));
             env_prefix.push_str(&format!("export TERMLINK_WORKER_NAME={}; ", shell_escape(&worker_name)));
-            // Model selection
-            if let Some(ref model) = p.model {
+            // Model selection (T-1590: use effective model after fallback chain)
+            if let Some(ref model) = effective_model {
                 env_prefix.push_str(&format!("export TERMLINK_MODEL={}; ", shell_escape(model)));
             }
             // User-supplied env vars
@@ -2848,6 +2897,34 @@ impl TermLinkTools {
         let timed_out = collected_count < registered_count;
         let total_elapsed = collect_start.elapsed().as_secs_f64();
 
+        // T-1590: record per-worker outcomes against model + circuit breaker.
+        if let (Some(m), Some(tt)) = (&model_used, &task_type) {
+            let mcb = termlink_hub::circuit_breaker::model_global();
+            let success_workers = collected_events.iter().filter(|e| {
+                e["payload"]["ok"].as_bool().unwrap_or(true)
+            }).count();
+            let failure_workers = collected_events.len() - success_workers + crashed_workers.len();
+            for _ in 0..success_workers {
+                route_cache.record_model_success(m, tt);
+                mcb.record_success(m);
+            }
+            for _ in 0..failure_workers {
+                route_cache.record_model_failure(m, tt);
+                mcb.record_failure(m);
+            }
+            // Persist updates; ignore I/O errors (cache is best-effort).
+            let _ = route_cache.save();
+        } else if let Some(ref m) = model_used {
+            // No task_type, but we can still update the breaker on hard crashes.
+            let mcb = termlink_hub::circuit_breaker::model_global();
+            for _ in 0..crashed_workers.len() {
+                mcb.record_failure(m);
+            }
+            for _ in 0..(collected_events.len()) {
+                mcb.record_success(m);
+            }
+        }
+
         let mut result = serde_json::json!({
             "ok": !timed_out && crashed_workers.is_empty(),
             "dispatch_id": dispatch_id,
@@ -2859,6 +2936,19 @@ impl TermLinkTools {
             "topic": topic,
             "results": collected_events,
         });
+        // T-1590: surface model decision into the dispatch manifest/response.
+        if let Some(ref m) = model_requested {
+            result["model_requested"] = serde_json::json!(m);
+        }
+        if let Some(ref m) = model_used {
+            result["model_used"] = serde_json::json!(m);
+        }
+        if model_requested.is_some() || model_used.is_some() {
+            result["fallback_used"] = serde_json::json!(fallback_used);
+        }
+        if let Some(ref tt) = task_type {
+            result["task_type"] = serde_json::json!(tt);
+        }
         if !spawn_errors.is_empty() {
             result["spawn_errors"] = serde_json::json!(spawn_errors);
         }
@@ -6740,6 +6830,62 @@ mod tests {
         let json = serde_json::json!({"count": 1, "command": ["ls"]});
         let p: DispatchParams = serde_json::from_value(json).unwrap();
         assert!(p.model.is_none());
+    }
+
+    #[test]
+    fn dispatch_params_with_task_type() {
+        let json = serde_json::json!({
+            "count": 1,
+            "command": ["echo"],
+            "task_type": "build",
+        });
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.task_type.as_deref(), Some("build"));
+    }
+
+    #[test]
+    fn dispatch_params_default_task_type_none() {
+        let json = serde_json::json!({"count": 1, "command": ["echo"]});
+        let p: DispatchParams = serde_json::from_value(json).unwrap();
+        assert!(p.task_type.is_none());
+    }
+
+    #[test]
+    fn resolve_dispatch_model_passthrough_when_breaker_closed() {
+        // Fresh cache, fresh breaker state — explicit "opus" should pass through.
+        let cache = termlink_hub::route_cache::RouteCache::default();
+        // Reset breaker first
+        termlink_hub::circuit_breaker::model_global().record_success("opus");
+        let (m, fb) = resolve_dispatch_model(Some("opus"), Some("build"), &cache);
+        assert_eq!(m.as_deref(), Some("opus"));
+        assert!(!fb);
+    }
+
+    #[test]
+    fn resolve_dispatch_model_uses_best_for_task_type() {
+        let mut cache = termlink_hub::route_cache::RouteCache::default();
+        // sonnet: 100% success for "test"
+        for _ in 0..5 {
+            cache.record_model_success("sonnet", "test");
+        }
+        // haiku: 50/50 for "test"
+        cache.record_model_success("haiku", "test");
+        cache.record_model_failure("haiku", "test");
+        // Reset breakers
+        termlink_hub::circuit_breaker::model_global().record_success("sonnet");
+        termlink_hub::circuit_breaker::model_global().record_success("haiku");
+
+        let (m, fb) = resolve_dispatch_model(None, Some("test"), &cache);
+        assert_eq!(m.as_deref(), Some("sonnet"));
+        assert!(!fb);
+    }
+
+    #[test]
+    fn resolve_dispatch_model_no_inputs_returns_none() {
+        let cache = termlink_hub::route_cache::RouteCache::default();
+        let (m, fb) = resolve_dispatch_model(None, None, &cache);
+        assert!(m.is_none());
+        assert!(!fb);
     }
 
     #[test]
