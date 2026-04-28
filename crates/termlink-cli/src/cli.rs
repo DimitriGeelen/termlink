@@ -2532,6 +2532,27 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Index of all threads in a topic (T-1365). Walks the topic and lists
+    /// every offset that has at least one reply (a thread root) with reply
+    /// count, distinct participants, last activity, and a payload preview.
+    /// Sorted by last_ts_ms desc. Honors redaction (redacted root → row dropped;
+    /// redacted replies don't count). Matrix m.thread room-overview analog.
+    Threads {
+        /// Topic name
+        topic: String,
+
+        /// Limit to top N rows (after sort by last_ts_ms desc)
+        #[arg(long, value_name = "N")]
+        top: Option<usize>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `[{root_offset, reply_count, participants, last_ts_ms, root_payload}]`
+        #[arg(long)]
+        json: bool,
+    },
     /// Synthesized recent-activity digest for a topic (T-1356). Walks the
     /// topic, applies a time filter, and renders a compact summary
     /// (posts, top senders, top reactions, pins added/removed, forwards in,

@@ -4,7 +4,7 @@ name: "Migrate ring20-management hub runtime_dir from /tmp/termlink-0 to /var/li
 description: >
   Operator-side migration on CT 200 (.122). Confirm hypothesis (spike 1) then apply T-935 systemd-unit migration so TERMLINK_RUNTIME_DIR=/var/lib/termlink, restart hub, all clients re-pin once. Closes the upstream cause of recurring G-011 cascades — eliminates the loop where every CT reboot wipes hub.secret and triggers TOFU+auth-mismatch storm across the fleet.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: [auth, infrastructure, ring20-management, G-011, runtime_dir]
 components: []
 related_tasks: [T-1290, T-935, T-931, T-1291, T-1137, T-1051]
 created: 2026-04-26T12:04:17Z
-last_update: 2026-04-26T12:05:15Z
+last_update: 2026-04-28T08:38:01Z
 date_finished: null
 ---
 
@@ -135,3 +135,6 @@ Supersedes: nothing — but it eliminates the upstream cause of every G-011 inci
 - **AC 4 (Re-pin):** ticked — re-verified live this turn: `termlink fleet doctor` returned 3/3 PASS (ring20-management latency 44ms).
 - **AC 3 (CT-reboot persistence):** LEFT UNCHECKED — disruptive (`pct reboot 200`), needs operator window. Validates ground-truth that `/var/lib/termlink/` itself isn't volatile inside CT 200.
 - **Authority:** Memory rule "Validate Human ACs, don't punt — when AC Steps are mechanical, RUN them and tick the box."
+
+### 2026-04-28T08:38:01Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
