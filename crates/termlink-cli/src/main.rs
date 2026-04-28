@@ -687,6 +687,9 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Inbox { hub, json } => {
+                commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
+            }
             ChannelAction::Digest {
                 topic,
                 since_mins,

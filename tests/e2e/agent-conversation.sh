@@ -574,6 +574,31 @@ FUTURE=$(python3 -c 'import time; print(int(time.time()*1000)+60000)')
 out_empty=$(A channel digest "$DIGEST_TOPIC" --since "$FUTURE")
 expect_contains "Posts: 0" "$out_empty" "step 32: future-since yields empty digest"
 
+step "33. channel inbox (T-1358): cross-topic unread summary via T-1318 cursors"
+INBOX_TOPIC="t-1358-inbox-$(date +%s)"
+A channel create "$INBOX_TOPIC" --retention forever >/dev/null
+for i in 0 1 2 3 4; do
+  A channel post "$INBOX_TOPIC" --msg-type chat --payload "ix-msg-$i" >/dev/null
+done
+# Consume the first 3 with --resume so a cursor is recorded for alice.
+A channel subscribe "$INBOX_TOPIC" --limit 3 --resume >/dev/null
+out=$(A channel inbox)
+expect_contains "$INBOX_TOPIC" "$out" "step 33: inbox shows the topic"
+expect_contains "unread" "$out" "step 33: inbox renders an unread row"
+# Post a fresh envelope, the unread count must grow.
+A channel post "$INBOX_TOPIC" --msg-type chat --payload "ix-msg-extra" >/dev/null
+out_grown=$(A channel inbox)
+expect_contains "$INBOX_TOPIC" "$out_grown" "step 33: topic still in inbox after new post"
+# JSON shape sanity.
+out_json=$(A channel inbox --json)
+expect_contains "\"topic\":" "$out_json" "step 33: --json carries topic field"
+expect_contains "\"latest\":" "$out_json" "step 33: --json carries latest field"
+expect_contains "\"cursor\":" "$out_json" "step 33: --json carries cursor field"
+# Catch up to latest, inbox should drop the topic.
+A channel subscribe "$INBOX_TOPIC" --limit 100 --resume >/dev/null
+out_clean=$(A channel inbox)
+expect_not_contains "$INBOX_TOPIC" "$out_clean" "step 33: caught-up topic excluded from inbox"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T06:55:57Z ===
-task_id: T-1356
+=== episodic-gen invocation: 2026-04-28T06:58:09Z ===
+task_id: T-1357
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1356.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1357.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel digest --since-mins N — synthesized topic activity highlights
-  Duration: 0 days (11 min)
+  Task: docs/operations/agent-conversations.md — T-1354/T-1355/T-1356 wave (star, poll, digest)
+  Duration: 0 days (1 min)
   Updates: 2
   Commits: 1
-  Lines: +477 -61 across 16 files
-  Outcomes: 8 AC checked
-  Artifacts: 16 files tracked
+  Lines: +126 -17 across 11 files
+  Outcomes: 5 AC checked
+  Artifacts: 11 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1356-channel-digest---since-mins-n--synthesiz.md
+Source: /opt/termlink/.tasks/completed/T-1357-docsoperationsagent-conversationsmd--t-1.md
 --- exit code: 0 ---
