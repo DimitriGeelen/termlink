@@ -249,9 +249,11 @@ pub fn init(runtime_dir: &Path) {
     } else {
         tracing::info!(
             file = %path.display(),
-            "topic_lint: rule file absent — using defaults"
+            "topic_lint: rule file absent — using defaults (path recorded for hot-reload)"
         );
-        (Rules::defaults(), None)
+        // T-1389: record canonical path even when absent at init so a later
+        // SIGHUP can pick up an operator-created file without a hub restart.
+        (Rules::defaults(), Some(path.clone()))
     };
     let _ = RULES.set(Arc::new(RwLock::new(rules)));
     let _ = RULES_PATH.set(used_path);
@@ -280,9 +282,11 @@ pub fn init(runtime_dir: &Path) {
     } else {
         tracing::info!(
             file = %relay_path.display(),
-            "topic_lint: relay declarations absent — using empty"
+            "topic_lint: relay declarations absent — using empty (path recorded for hot-reload)"
         );
-        (RelayDeclarations::defaults(), None)
+        // T-1389: record canonical path even when absent at init so a later
+        // SIGHUP can pick up an operator-created file without a hub restart.
+        (RelayDeclarations::defaults(), Some(relay_path.clone()))
     };
     let _ = RELAYS.set(Arc::new(RwLock::new(relays)));
     let _ = RELAYS_PATH.set(used_relay_path);
@@ -312,21 +316,31 @@ pub fn current_relay_for(display_name: &str) -> Vec<String> {
 pub fn reload() {
     // Topic rules
     if let Some(Some(path)) = RULES_PATH.get() {
-        match Rules::load_from_path(path) {
-            Ok(new_rules) => {
-                if let Some(slot) = RULES.get()
-                    && let Ok(mut g) = slot.write()
-                {
-                    *g = new_rules;
-                    tracing::info!(file = %path.display(), "topic_lint: reloaded rules");
+        // T-1389: file may have been absent at init or removed since — treat
+        // "not present right now" as a no-op (operator may legitimately remove
+        // to revert), distinct from a parse failure which keeps previous state.
+        if !path.is_file() {
+            tracing::debug!(
+                file = %path.display(),
+                "topic_lint: SIGHUP — rules file currently absent; keeping current state"
+            );
+        } else {
+            match Rules::load_from_path(path) {
+                Ok(new_rules) => {
+                    if let Some(slot) = RULES.get()
+                        && let Ok(mut g) = slot.write()
+                    {
+                        *g = new_rules;
+                        tracing::info!(file = %path.display(), "topic_lint: reloaded rules");
+                    }
                 }
-            }
-            Err(e) => {
-                tracing::warn!(
-                    file = %path.display(),
-                    error = %e,
-                    "topic_lint: rules reload failed — keeping previous rules"
-                );
+                Err(e) => {
+                    tracing::warn!(
+                        file = %path.display(),
+                        error = %e,
+                        "topic_lint: rules reload failed — keeping previous rules"
+                    );
+                }
             }
         }
     } else {
@@ -335,21 +349,28 @@ pub fn reload() {
 
     // T-1301: Relay declarations
     if let Some(Some(path)) = RELAYS_PATH.get() {
-        match RelayDeclarations::load_from_path(path) {
-            Ok(new_decls) => {
-                if let Some(slot) = RELAYS.get()
-                    && let Ok(mut g) = slot.write()
-                {
-                    *g = new_decls;
-                    tracing::info!(file = %path.display(), "topic_lint: reloaded relay declarations");
+        if !path.is_file() {
+            tracing::debug!(
+                file = %path.display(),
+                "topic_lint: SIGHUP — relay declarations file currently absent; keeping current state"
+            );
+        } else {
+            match RelayDeclarations::load_from_path(path) {
+                Ok(new_decls) => {
+                    if let Some(slot) = RELAYS.get()
+                        && let Ok(mut g) = slot.write()
+                    {
+                        *g = new_decls;
+                        tracing::info!(file = %path.display(), "topic_lint: reloaded relay declarations");
+                    }
                 }
-            }
-            Err(e) => {
-                tracing::warn!(
-                    file = %path.display(),
-                    error = %e,
-                    "topic_lint: relay declarations reload failed — keeping previous"
-                );
+                Err(e) => {
+                    tracing::warn!(
+                        file = %path.display(),
+                        error = %e,
+                        "topic_lint: relay declarations reload failed — keeping previous"
+                    );
+                }
             }
         }
     } else {
@@ -543,6 +564,50 @@ exempt_prefixes: ["agent."]
         .unwrap();
         let r = Rules::load_from_path(&path).unwrap();
         assert_eq!(r.rules.len(), 1);
+    }
+
+    /// T-1389 regression: load_from_path must Err when the file is absent
+    /// (so the reload() handler's `path.is_file()` short-circuit is the
+    /// only thing protecting against parse errors on missing files).
+    #[test]
+    fn load_from_path_errors_when_file_absent() {
+        let dir = tempfile::tempdir().unwrap();
+        let absent = dir.path().join("does-not-exist.yaml");
+        let res = Rules::load_from_path(&absent);
+        assert!(res.is_err(), "absent file must produce a load error");
+        let res = RelayDeclarations::load_from_path(&absent);
+        assert!(res.is_err(), "absent relay file must produce a load error");
+    }
+
+    /// T-1389 regression: simulate the cold-start hot-reload scenario.
+    /// File absent at "init" time → operator creates it later → next load
+    /// must succeed and reflect the new content. The fix in init() records
+    /// the canonical path even when the file is absent so this is reachable
+    /// at all; the file-existence guard in reload() (path.is_file()) keeps
+    /// the absent->created transition non-failing.
+    #[test]
+    fn cold_start_then_create_then_load_reflects_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("relay_declarations.yaml");
+        // Phase 1: file absent — load errors (caller should skip), but the
+        // canonical path is what init() now records regardless.
+        assert!(!path.is_file());
+        // Phase 2: operator creates the file post-init.
+        std::fs::write(
+            &path,
+            "sessions:\n  - name: \"agent-x\"\n    relay_for: [\"framework\"]\n",
+        )
+        .unwrap();
+        assert!(path.is_file());
+        // Phase 3: subsequent load succeeds and reflects new content.
+        let d = RelayDeclarations::load_from_path(&path).unwrap();
+        assert_eq!(d.sessions.len(), 1);
+        assert_eq!(d.relay_for("agent-x"), vec!["framework".to_string()]);
+        // Phase 4: operator removes the file — caller (reload handler) must
+        // detect non-existence and skip rather than overwrite state with
+        // an Err. We verify the precondition the handler relies on.
+        std::fs::remove_file(&path).unwrap();
+        assert!(!path.is_file());
     }
 
     #[test]
