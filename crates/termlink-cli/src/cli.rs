@@ -2423,6 +2423,33 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Quotable text snippet for citing a channel message in tasks/docs
+    /// (T-1363). Walks the topic, finds the target offset, renders it with
+    /// N envelopes of context above and below. Skips meta envelopes so the
+    /// snippet stays content-focused.
+    Snippet {
+        /// Topic name
+        topic: String,
+
+        /// Offset of the target envelope
+        offset: u64,
+
+        /// Number of context envelopes on each side (default: 2).
+        #[arg(long, value_name = "N", default_value_t = 2)]
+        lines: u64,
+
+        /// Include a topic + offset citation header above the block.
+        #[arg(long)]
+        header: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `{topic, target_offset, lines:[{offset,sender,payload}]}`
+        #[arg(long)]
+        json: bool,
+    },
     /// Reverse-view of reactions: list everything a specific sender has
     /// reacted to on a topic (T-1362). Distinct from `subscribe --reactions`
     /// (per-message aggregation) and `emoji-stats` (per-emoji breakdown).

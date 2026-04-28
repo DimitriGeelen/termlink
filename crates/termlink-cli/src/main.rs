@@ -690,6 +690,24 @@ async fn main() -> Result<()> {
             ChannelAction::Inbox { hub, json } => {
                 commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
             }
+            ChannelAction::Snippet {
+                topic,
+                offset,
+                lines,
+                header,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_snippet(
+                    &topic,
+                    offset,
+                    lines,
+                    header,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::ReactionsOf {
                 topic,
                 sender,
