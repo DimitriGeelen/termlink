@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T06:43:08Z ===
-task_id: T-1355
+=== episodic-gen invocation: 2026-04-28T06:55:57Z ===
+task_id: T-1356
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1355.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1356.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel poll start/vote/end/results — Matrix m.poll
-  Duration: 0 days (16 min)
+  Task: channel digest --since-mins N — synthesized topic activity highlights
+  Duration: 0 days (11 min)
   Updates: 2
   Commits: 1
-  Lines: +651 -42 across 16 files
+  Lines: +477 -61 across 16 files
   Outcomes: 8 AC checked
   Artifacts: 16 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1355-channel-poll-startvoteendresults--matrix.md
+Source: /opt/termlink/.tasks/completed/T-1356-channel-digest---since-mins-n--synthesiz.md
 --- exit code: 0 ---
