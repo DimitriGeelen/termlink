@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T07:27:32Z ===
-task_id: T-1360
+=== episodic-gen invocation: 2026-04-28T07:55:53Z ===
+task_id: T-1361
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1360.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1361.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: docs/operations/agent-conversations.md — T-1358/T-1359 wave (inbox, emoji-stats)
-  Duration: 0 days (1 min)
+  Task: channel ack-status — per-topic read-receipt overview across all senders
+  Duration: 0 days (12 min)
   Updates: 2
   Commits: 1
-  Lines: +87 -19 across 11 files
-  Outcomes: 4 AC checked
-  Artifacts: 11 files tracked
+  Lines: +452 -131 across 22 files
+  Outcomes: 8 AC checked
+  Artifacts: 22 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1360-docsoperationsagent-conversationsmd--t-1.md
+Source: /opt/termlink/.tasks/completed/T-1361-channel-ack-status--per-topic-read-recei.md
 --- exit code: 0 ---

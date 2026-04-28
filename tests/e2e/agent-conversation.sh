@@ -649,6 +649,29 @@ out_pending=$(A channel ack-status "$ACK_TOPIC" --pending-only)
 expect_contains "$ALICE" "$out_pending" "step 35: pending-only includes lagging alice"
 expect_contains "$BOB" "$out_pending" "step 35: pending-only includes never-acked bob"
 
+step "36. channel reactions-of (T-1362): per-sender reaction reverse view"
+RXOF_TOPIC="t-1362-rxof-$(date +%s)"
+A channel create "$RXOF_TOPIC" --retention forever >/dev/null
+A channel post "$RXOF_TOPIC" --msg-type chat --payload "p-rxof-0" >/dev/null
+A channel post "$RXOF_TOPIC" --msg-type chat --payload "p-rxof-1" >/dev/null
+A channel react "$RXOF_TOPIC" 0 "👍" >/dev/null
+A channel react "$RXOF_TOPIC" 1 "❤" >/dev/null
+B channel react "$RXOF_TOPIC" 0 "🚀" >/dev/null
+out=$(A channel reactions-of "$RXOF_TOPIC")
+expect_contains "$ALICE" "$out" "step 36: header includes alice"
+expect_contains "👍" "$out" "step 36: alice's thumbs visible"
+expect_contains "❤" "$out" "step 36: alice's heart visible"
+expect_not_contains "🚀" "$out" "step 36: bob's rocket excluded (caller-scope)"
+# Bob's reactions via --sender override.
+out_bob=$(A channel reactions-of "$RXOF_TOPIC" --sender "$BOB")
+expect_contains "🚀" "$out_bob" "step 36: --sender bob shows bob's rocket"
+expect_not_contains "👍" "$out_bob" "step 36: --sender bob excludes alice's thumbs"
+# JSON shape.
+out_json=$(A channel reactions-of "$RXOF_TOPIC" --json)
+expect_contains "\"reaction_offset\":" "$out_json" "step 36: --json carries reaction_offset"
+expect_contains "\"parent_offset\":" "$out_json" "step 36: --json carries parent_offset"
+expect_contains "\"emoji\":" "$out_json" "step 36: --json carries emoji"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
