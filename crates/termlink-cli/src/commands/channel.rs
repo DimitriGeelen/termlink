@@ -5170,6 +5170,104 @@ pub(crate) async fn cmd_channel_snapshot(
     Ok(())
 }
 
+/// T-1382: incremental view — rows whose canonical state changed at or
+/// after `since_ms`. Matrix `/sync` analogue. A row is "changed since"
+/// when any of original-post / latest-surviving-edit / redaction
+/// happened at ts >= `since_ms`.
+///
+/// Filter pipeline:
+/// 1. delegate to `compute_state` to obtain the canonical post-collapse rows
+/// 2. build a redaction-ts map: target_offset -> ts of its redaction envelope
+/// 3. for each row, compute last_change = max(ts_ms, latest_edit_ts_ms, redaction_ts)
+/// 4. keep rows where last_change >= since_ms
+///
+/// `since_ms=0` is functionally equivalent to `compute_state` (every row
+/// passes — every change happened at ts >= 0).
+pub(crate) fn compute_state_since(
+    envelopes: &[Value],
+    since_ms: i64,
+    include_redacted: bool,
+) -> Vec<StateRow> {
+    use std::collections::HashMap;
+    let mut redact_ts: HashMap<u64, i64> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("redaction") {
+            continue;
+        }
+        let target = match env
+            .get("metadata")
+            .and_then(|md| md.get("redacts"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let entry = redact_ts.entry(target).or_insert(i64::MIN);
+        if ts > *entry {
+            *entry = ts;
+        }
+    }
+    let rows = compute_state(envelopes, include_redacted);
+    rows.into_iter()
+        .filter(|r| {
+            let red = redact_ts.get(&r.offset).copied().unwrap_or(i64::MIN);
+            let last_change = r.ts_ms.max(r.latest_edit_ts_ms).max(red);
+            last_change >= since_ms
+        })
+        .collect()
+}
+
+/// T-1382: render the incremental state view (rows changed since `since_ms`).
+pub(crate) async fn cmd_channel_state_since(
+    topic: &str,
+    since_ms: i64,
+    include_redacted: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_state_since(&envelopes, since_ms, include_redacted);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(StateRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No state changes on '{topic}' since ts={since_ms}.");
+        return Ok(());
+    }
+    println!("State changes on '{topic}' since ts={since_ms}:");
+    for r in &rows {
+        let marker = if r.is_redacted {
+            " [redacted]"
+        } else if r.is_edited {
+            " *"
+        } else {
+            ""
+        };
+        let edit_suffix = if r.edit_count > 0 {
+            format!(" (×{} edits)", r.edit_count)
+        } else {
+            String::new()
+        };
+        println!(
+            "  [{off}]{marker} {sender}: {payload}{edits}",
+            off = r.offset,
+            sender = r.sender_id,
+            payload = r.payload,
+            edits = edit_suffix,
+        );
+    }
+    Ok(())
+}
+
 /// T-1377: one row in the chronological receipt audit log. Each row is one
 /// `msg_type=receipt` envelope; distinct from `cmd_channel_receipts`
 /// (T-1315 LWW snapshot) and `cmd_channel_ack_status` (T-1361 dashboard
@@ -10403,6 +10501,101 @@ mod tests {
         assert_eq!(rows[0].offset, 0);
         assert_eq!(rows[1].offset, 1);
         assert_eq!(rows[2].offset, 2);
+    }
+
+    // T-1382: compute_state_since — incremental view (Matrix /sync analogue)
+
+    #[test]
+    fn state_since_empty_envelopes_yields_no_rows() {
+        let envs: Vec<Value> = vec![];
+        let rows = compute_state_since(&envs, 100, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn state_since_zero_returns_full_state() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "a"),
+            mk_post(1, "bob", 200, "b"),
+            mk_post(2, "carol", 300, "c"),
+        ];
+        let rows = compute_state_since(&envs, 0, false);
+        assert_eq!(rows.len(), 3, "since=0 includes everything");
+    }
+
+    #[test]
+    fn state_since_excludes_rows_before_cutoff() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "old"),
+            mk_post(1, "bob", 500, "new"),
+        ];
+        let rows = compute_state_since(&envs, 300, false);
+        assert_eq!(rows.len(), 1, "only the post after cutoff");
+        assert_eq!(rows[0].offset, 1);
+        assert_eq!(rows[0].payload, "new");
+    }
+
+    #[test]
+    fn state_since_includes_edit_after_cutoff_even_when_original_before() {
+        // Original at ts=100, edit at ts=500, cutoff=300.
+        // Row's last_change = max(100, 500) = 500 >= 300 → included.
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 500, 0, "v1"),
+        ];
+        let rows = compute_state_since(&envs, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].offset, 0);
+        assert_eq!(rows[0].payload, "v1", "edited text used");
+        assert!(rows[0].is_edited);
+        assert_eq!(rows[0].latest_edit_ts_ms, 500);
+    }
+
+    #[test]
+    fn state_since_includes_redaction_after_cutoff() {
+        // Original at ts=100, redaction at ts=500, cutoff=300.
+        // include_redacted=true so the redacted row is rendered.
+        let envs = vec![
+            mk_post(0, "alice", 100, "secret"),
+            mk_redact(1, "alice", 500, 0),
+        ];
+        let rows = compute_state_since(&envs, 300, true);
+        assert_eq!(rows.len(), 1, "redaction-after-cutoff brings the row in");
+        assert_eq!(rows[0].offset, 0);
+        assert!(rows[0].is_redacted);
+        assert_eq!(rows[0].payload, "[REDACTED]");
+    }
+
+    #[test]
+    fn state_since_excludes_unchanged_old_rows_when_others_changed() {
+        // offset 0: post at ts=100, no later change → excluded with cutoff=300.
+        // offset 1: post at ts=100, edited at ts=500 → included.
+        // offset 2: post at ts=400 → included.
+        let envs = vec![
+            mk_post(0, "alice", 100, "stale"),
+            mk_post(1, "bob", 100, "v0"),
+            mk_edit_event(2, "bob", 500, 1, "v1"),
+            mk_post(3, "carol", 400, "fresh"),
+        ];
+        let rows = compute_state_since(&envs, 300, false);
+        assert_eq!(rows.len(), 2);
+        let offsets: Vec<u64> = rows.iter().map(|r| r.offset).collect();
+        assert!(offsets.contains(&1), "edited row included");
+        assert!(offsets.contains(&3), "fresh post included");
+        assert!(!offsets.contains(&0), "stale row excluded");
+    }
+
+    #[test]
+    fn state_since_drops_redacted_when_include_redacted_false() {
+        // Even though the redaction is the change-event that brings the row
+        // into scope, with include_redacted=false the row is dropped by
+        // compute_state — composition correctness check.
+        let envs = vec![
+            mk_post(0, "alice", 100, "secret"),
+            mk_redact(1, "alice", 500, 0),
+        ];
+        let rows = compute_state_since(&envs, 300, false);
+        assert!(rows.is_empty());
     }
 
     // T-1377: compute_ack_history — chronological receipt audit log

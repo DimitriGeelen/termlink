@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1381: channel relations <topic> <offset> — unified per-offset navigation: replies + reactions + edits + redactions + forwards in one view
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T15:35:37Z
+# ============================================================================
+
+task_id: T-1381
+task_name: "channel relations <topic> <offset> — unified per-offset navigation: replies + reactions + edits + redactions + forwards in one view"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T15:19:46Z
+completed: 2026-04-28T15:35:05Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_relations(envelopes, target)` pure helper returning `RelationsReport`"
+  - "`RelationsReport {target_offset, target_payload, target_sender, replies: Vec<RelationItem>, reactions: Vec<RelationItem>, edits: Vec<RelationItem>, redactions: Vec<RelationItem>}`"
+  - "`RelationItem {offset, sender_id, ts_ms, payload}` (uniform shape across all relation types; payload=emoji for reactions, empty for redactions, etc)"
+  - "When target offset not in envelopes → return None (or all-empty with target_offset=offset, payload=\"\"); choose all-empty with bail-on-missing semantics matching `edits-of`"
+  - "Filter: skip relation envelopes that are themselves redacted (consistency with audit-log conventions)"
+  - "Each relation list sorted: ts_ms asc (chronological)"
+  - "`cmd_channel_relations` async wrapper — human render shows counts + first 5 of each, JSON returns full"
+  - "At least 5 unit tests: target-not-present, replies-only, reactions-only, all-four-types, redacted-relation-excluded"
+  - "`ChannelAction::Relations` variant in cli.rs (topic, offset, --hub, --json)"
+  - "Dispatch arm in main.rs"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1381-channel-relations-topic-offset--unified-.md
+generated_by: context-agent-hybrid

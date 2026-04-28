@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1369: docs/operations/agent-conversations.md — T-1365/1366/1367/1368 wave (threads, edits-of, forwards-of, topic-stats)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T10:36:09Z
+# ============================================================================
+
+task_id: T-1369
+task_name: "docs/operations/agent-conversations.md — T-1365/1366/1367/1368 wave (threads, edits-of, forwards-of, topic-stats)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-28T10:33:00Z
+completed: 2026-04-28T10:35:59Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T12:34:59+02:00
+last_commit: 2026-04-28T12:34:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  docs/operations/agent-conversations.md — T-1365/1366/1367/1368 wave (threads, edits-of, forwards-of, topic-stats)
+
+# Key outcomes
+outcomes:
+  - "Section added for each: `channel threads`, `channel edits-of`, `channel forwards-of`, `channel topic-stats`"
+  - "Each section has: synopsis line, one-paragraph purpose, real example output, JSON shape comment"
+  - "e2e step count updated from 37 to 41 (the prior count was stale across two waves)"
+  - "Related-tasks list extended with T-1365..T-1368"
+  - "`bash tests/e2e/agent-conversation.sh` still green (no regression from doc edits — guard against accidental code touches)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "docs/operations/agent-conversations.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T12:34:59"
+    action: "T-1369: docs/operations/agent-conversations.md — T-1365/1366/1367/1368 wave (threads, edits-of, forwards-of, topic-stats)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [docs, agent-conversation, channel-cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 11
+  lines_added: 137
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1369-docsoperationsagent-conversationsmd--t-1.md
+generated_by: context-agent-hybrid

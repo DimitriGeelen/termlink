@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1338: channel dm --list --unread — DM inbox with per-topic unread counts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T18:43:13Z
+# ============================================================================
+
+task_id: T-1338
+task_name: "channel dm --list --unread — DM inbox with per-topic unread counts"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T18:31:24Z
+completed: 2026-04-27T18:39:54Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T20:39:50+02:00
+last_commit: 2026-04-27T20:39:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel dm --list --unread — DM inbox view
+
+# Key outcomes
+outcomes:
+  - "`channel dm --list --unread` adds an `unread=N first=offset` column suffix per DM line"
+  - "DMs with `unread > 0` sort before zero-unread DMs (stable within each group)"
+  - "`--json` adds `unread` (u64) and `first_unread` (Option<u64>) fields per record"
+  - "Pure helper `sort_dm_inbox(rows)` + `DmInboxRow::to_json` unit-tested (4 tests)"
+  - "Build/test/clippy all clean (291 tests passing); e2e `agent-conversation.sh` step 16 added and passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/audits/cron/2026-04-19-2015.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T20:39:50"
+    action: "T-1338: channel dm --list --unread — DM inbox view"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 18
+  lines_added: 244
+  lines_removed: 55
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1338-channel-dm---list---unread--dm-inbox-wit.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1364: docs/operations/agent-conversations.md — T-1361/T-1362/T-1363 wave (ack-status, reactions-of, snippet)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T08:21:58Z
+# ============================================================================
+
+task_id: T-1364
+task_name: "docs/operations/agent-conversations.md — T-1361/T-1362/T-1363 wave (ack-status, reactions-of, snippet)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T08:20:46Z
+completed: 2026-04-28T08:21:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T10:21:56+02:00
+last_commit: 2026-04-28T10:21:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  docs/operations/agent-conversations.md — T-1361/T-1362/T-1363 wave (ack-status, reactions-of, snippet)
+
+# Key outcomes
+outcomes:
+  - "Section added for T-1361 (ack-status — read-receipt dashboard)"
+  - "Section added for T-1362 (reactions-of — per-sender reaction reverse view)"
+  - "Section added for T-1363 (snippet — quotable text excerpt)"
+  - "e2e step count updated 34 → 37"
+  - "Related list extended"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "docs/operations/agent-conversations.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T10:21:56"
+    action: "T-1364: docs/operations/agent-conversations.md — T-1361/T-1362/T-1363 wave (ack-status, reactions-of, snippet)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 11
+  lines_added: 102
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1364-docsoperationsagent-conversationsmd--t-1.md
+generated_by: context-agent-hybrid

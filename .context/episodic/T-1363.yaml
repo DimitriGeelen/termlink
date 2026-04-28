@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1363: channel snippet — quotable text excerpt with surrounding context
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T08:20:31Z
+# ============================================================================
+
+task_id: T-1363
+task_name: "channel snippet — quotable text excerpt with surrounding context"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T08:08:30Z
+completed: 2026-04-28T08:19:46Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T10:19:45+02:00
+last_commit: 2026-04-28T10:19:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel snippet — quotable text excerpt with surrounding context
+
+# Key outcomes
+outcomes:
+  - "`channel snippet <topic> <offset>` renders a quotable block with the target line marked (e.g. with `>>`)"
+  - "`--lines N` controls context envelopes on each side (default: 2)"
+  - "`--header` includes a topic+offset citation header above the block"
+  - "`--json` returns `{topic, target_offset, lines:[{offset, sender, payload}]}`"
+  - "Pure helper `compute_snippet` unit-tested across: target at start, target at end, target in middle, lines=0, lines>topic-size, target missing"
+  - "e2e step covering full lifecycle"
+  - "cargo build, test, clippy --all-targets -- -D warnings all pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-1015.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T10:19:45"
+    action: "T-1363: channel snippet — quotable text excerpt with surrounding context"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 15
+  lines_added: 306
+  lines_removed: 43
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1363-channel-snippet--quotable-text-excerpt-w.md
+generated_by: context-agent-hybrid

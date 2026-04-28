@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1356: channel digest --since-mins N — synthesized topic activity highlights
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T06:55:57Z
+# ============================================================================
+
+task_id: T-1356
+task_name: "channel digest --since-mins N — synthesized topic activity highlights"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T06:43:25Z
+completed: 2026-04-28T06:55:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T08:55:11+02:00
+last_commit: 2026-04-28T08:55:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel digest — synthesized recent activity (since-mins/since)
+
+# Key outcomes
+outcomes:
+  - "`channel digest <topic> --since-mins N` walks the topic and renders a digest scoped to envelopes with ts within last N minutes"
+  - "`--since MS` accepts an absolute lower bound (mutually exclusive with `--since-mins`)"
+  - "Output sections: posts, senders, top reactions, pins added/removed, forwards in, last 3 chat snippets"
+  - "`--json` returns structured object with all sections"
+  - "Pure helper `compute_digest(envelopes, since_ms)` unit-tested across: empty topic, no envelopes in window, mixed types, multiple senders, top-3 truncation, edits/redactions excluded from chat snippets"
+  - "e2e step covering the lifecycle"
+  - "cargo build, test, clippy --all-targets -- -D warnings all pass"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-0830.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T08:55:11"
+    action: "T-1356: channel digest — synthesized recent activity (since-mins/since)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 16
+  lines_added: 477
+  lines_removed: 61
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1356-channel-digest---since-mins-n--synthesiz.md
+generated_by: context-agent-hybrid

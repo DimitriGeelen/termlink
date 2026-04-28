@@ -1,0 +1,104 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1344: channel quote and subscribe --show-parent — render parent inline for replies
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T20:25:12Z
+# ============================================================================
+
+task_id: T-1344
+task_name: "channel quote and subscribe --show-parent — render parent inline for replies"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T20:10:53Z
+completed: 2026-04-27T20:21:41Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T22:21:37+02:00
+last_commit: 2026-04-27T22:21:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel quote + subscribe --show-parent — render parent inline
+
+# Key outcomes
+outcomes:
+  - "`channel quote <topic> <offset>` reads the envelope at offset and, if it has `metadata.in_reply_to`, fetches+renders the parent inline as a quoted block; orphan envelope (no parent metadata) renders alone with a note"
+  - "`channel subscribe --show-parent` accepts a flag that, when set, prefixes each emitted reply with the parent's payload (single-shot lookup per parent offset, cached for the stream)"
+  - "Both surfaces have `--json` form returning `{topic, child: {...}, parent: {...}|null}` for quote; subscribe `--json --show-parent` adds a `parent` field to each emitted envelope (null when not a reply)"
+  - "Unit tests cover: orphan envelope (no in_reply_to), normal reply (parent found), reply with broken/missing parent reference (renders gracefully), and helper that formats the quoted block"
+  - "`cargo test -p termlink --bins --quiet` passes"
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean"
+  - "e2e `tests/e2e/agent-conversation.sh` extended with a quote step + subscribe --show-parent step; full run green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/audits/cron/2026-04-19-2130.yaml"
+  - ".context/audits/cron/2026-04-19-2145.yaml"
+  - ".context/audits/cron/2026-04-19-2200.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.compact-log"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-start-ts"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.stop-counter"
+  - ".context/working/subagent-returns.jsonl"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T22:21:37"
+    action: "T-1344: channel quote + subscribe --show-parent — render parent inline"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 26
+  lines_added: 368
+  lines_removed: 139
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1344-channel-quote-and-subscribe---show-paren.md
+generated_by: context-agent-hybrid

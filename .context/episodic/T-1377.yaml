@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1377: channel ack-history <topic> [user] — chronological receipt audit log (Matrix m.receipt audit, complements ack-status LWW dashboard)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T14:36:36Z
+# ============================================================================
+
+task_id: T-1377
+task_name: "channel ack-history <topic> [user] — chronological receipt audit log (Matrix m.receipt audit, complements ack-status LWW dashboard)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T14:21:55Z
+completed: 2026-04-28T14:35:59Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_ack_history(envelopes, user_filter)` pure helper exists"
+  - "`AckHistoryRow {receipt_offset, sender_id, up_to, ts_ms}` struct + to_json"
+  - "Filter: only `msg_type=receipt` envelopes with parseable `metadata.up_to`"
+  - "When `user_filter` is `Some(uid)`, only rows where `sender_id == uid` survive"
+  - "Sort: ts_ms asc, receipt_offset asc tiebreak"
+  - "`cmd_channel_ack_history` async wrapper renders human + JSON"
+  - "At least 5 unit tests: empty, single, multi-sender, user-filter, ts-asc-sort, malformed-up_to-skipped"
+  - "`ChannelAction::AckHistory` variant in cli.rs with positional `user` Option, `--hub`, `--json`"
+  - "Dispatch arm in main.rs"
+  - "E2E step in agent-conversation.sh exercising positive + user filter + JSON shape"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1377-channel-ack-history-topic-user--chronolo.md
+generated_by: context-agent-hybrid

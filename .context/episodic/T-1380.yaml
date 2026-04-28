@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1380: channel members --as-of <ms> — retro participant view (Matrix-style backfill membership query, parallel to T-1378 snapshot)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T15:18:55Z
+# ============================================================================
+
+task_id: T-1380
+task_name: "channel members --as-of <ms> — retro participant view (Matrix-style backfill membership query, parallel to T-1378 snapshot)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T15:04:54Z
+completed: 2026-04-28T15:18:22Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`summarize_members_as_of(envelopes, include_meta, as_of_ms)` pure helper that filters then delegates to `summarize_members`"
+  - "`--as-of <ms>` flag on `Members` CLI variant (Option<i64>)"
+  - "Dispatch threads `as_of` through to a new `cmd_channel_members_as_of` (or extends `cmd_channel_members` to accept Option<i64>)"
+  - "When `as_of` is None, behaviour is identical to T-1341 (no regression)"
+  - "When `as_of` is Some(t), envelopes with ts > t are excluded; senders whose only activity was after t do not appear"
+  - "At least 4 unit tests: as_of None equals existing, as_of before any → empty, as_of mid-history shows partial, sender-only-after excluded"
+  - "Doc note added on `members` section"
+  - "E2E step exercising as_of-mid-history vs no-flag"
+  - "tests/clippy/build pass"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1380-channel-members---as-of-ms--retro-partic.md
+generated_by: context-agent-hybrid

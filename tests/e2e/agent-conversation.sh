@@ -1114,6 +1114,31 @@ if A channel relations "$REL_TOPIC" 999 >/dev/null 2>&1; then
   fail "step 53: relations on missing offset should error"
 fi
 
+step "54. channel state-since (T-1382): incremental view (Matrix /sync analogue)"
+SINCE_TOPIC="t-1382-since-$(date +%s)"
+A channel create "$SINCE_TOPIC" --retention forever >/dev/null
+# Two early posts before the cutoff.
+A channel post "$SINCE_TOPIC" --msg-type chat --payload "early-1" >/dev/null  # offset 0
+B channel post "$SINCE_TOPIC" --msg-type chat --payload "early-2" >/dev/null  # offset 1
+sleep 0.05
+T_CUTOFF=$(date +%s%3N)
+sleep 0.05
+# After the cutoff: edit offset 0 (brings it back into the --since view) and post fresh.
+A channel edit "$SINCE_TOPIC" 0 "edited-after-cutoff" >/dev/null  # edit envelope (meta)
+B channel post "$SINCE_TOPIC" --msg-type chat --payload "fresh" >/dev/null     # new content
+out=$(A channel state-since "$SINCE_TOPIC" --since "$T_CUTOFF")
+expect_contains "State changes" "$out" "step 54: header present"
+expect_contains "edited-after-cutoff" "$out" "step 54: edited row present (last_change>=cutoff)"
+expect_contains "fresh" "$out" "step 54: fresh post present"
+echo "$out" | grep -q "early-2" && fail "step 54: unchanged early-2 should NOT appear in --since view"
+out_json=$(A channel state-since "$SINCE_TOPIC" --since "$T_CUTOFF" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 54: expected 2 rows since cutoff, got $n"
+# --since 0 returns full canonical state (3 content rows; the edit envelope is meta-skipped).
+out_full=$(A channel state-since "$SINCE_TOPIC" --since 0 --json)
+n_full=$(echo "$out_full" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n_full" = "3" ] || fail "step 54: --since 0 should return full state (3 rows), got $n_full"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

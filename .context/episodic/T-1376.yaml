@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1376: channel state <topic> — canonical collapsed view (edits applied, redactions hidden) — Matrix m.replace + m.redaction render
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T14:21:08Z
+# ============================================================================
+
+task_id: T-1376
+task_name: "channel state <topic> — canonical collapsed view (edits applied, redactions hidden) — Matrix m.replace + m.redaction render"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T14:05:23Z
+completed: 2026-04-28T14:20:36Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_state(envelopes, include_redacted)` pure helper exists in `commands/channel.rs`"
+  - "`StateRow` struct holds {offset, sender_id, payload (post-edit), is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}"
+  - "Filter rule: skip meta envelopes (`UNREAD_META_TYPES`) — only content rows surface"
+  - "Edit collapse: when target has edits, payload = latest edit's text (max ts, offset asc tiebreak); is_edited=true; edit_count>=1"
+  - "Redaction rule: when not include_redacted, redacted offsets are dropped entirely; with flag, payload=\"[REDACTED]\" and is_redacted=true"
+  - "Sort order: offset asc (chronological)"
+  - "`cmd_channel_state` async wrapper renders human + JSON output"
+  - "At least 6 unit tests covering: empty topic, single message, message with one edit (collapsed), message with two edits (latest wins), redacted hidden, redacted shown with --include-redacted"
+  - "`ChannelAction::State` variant in `cli.rs` with `topic`, optional `--include-redacted`, `--hub`, `--json`"
+  - "Dispatch arm in `main.rs`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1376-channel-state-topic--canonical-collapsed.md
+generated_by: context-agent-hybrid

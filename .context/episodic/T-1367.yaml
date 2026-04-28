@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1367: channel forwards-of — list forwards posted by a sender
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T10:12:28Z
+# ============================================================================
+
+task_id: T-1367
+task_name: "channel forwards-of — list forwards posted by a sender"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-28T09:50:00Z
+completed: 2026-04-28T10:11:42Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-28T12:11:29+02:00
+last_commit: 2026-04-28T12:11:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel forwards-of — list forwards posted by a sender
+
+# Key outcomes
+outcomes:
+  - "CLI variant `Channel ForwardsOf <topic> [sender]` accepted; `--hub`, `--json` flags wired"
+  - "`compute_forwards_of` (pure helper) added with unit tests covering: no forwards (empty), single forward, multiple forwards sorted desc, forward by other sender excluded, redacted forward dropped, malformed `forwarded_from` (no colon) ignored"
+  - "Live smoke test against the local hub — forward 2 posts as alice, run `forwards-of` filtered to alice → see both rows"
+  - "e2e step 40 added (positive + negative + JSON shape + sender filter)"
+  - "`cargo build --release -p termlink && cargo test -p termlink --bins --quiet && cargo clippy --all-targets --workspace -- -D warnings` all green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-1200.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T12:11:29"
+    action: "T-1367: channel forwards-of — list forwards posted by a sender"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-conversation, matrix, forwards, channel-cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 21
+  commits: 1
+  files_changed: 16
+  lines_added: 327
+  lines_removed: 29
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1367-channel-forwards-of--list-forwards-poste.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1351: channel typing — Matrix-style ephemeral typing indicator with TTL
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T21:47:34Z
+# ============================================================================
+
+task_id: T-1351
+task_name: "channel typing — Matrix-style ephemeral typing indicator with TTL"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T21:34:31Z
+completed: 2026-04-27T21:44:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T23:43:56+02:00
+last_commit: 2026-04-27T23:43:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel typing — Matrix-style ephemeral typing indicator with TTL
+
+# Key outcomes
+outcomes:
+  - "`channel typing <topic> --emit [--ttl-ms N]` emits a `msg_type=typing` envelope with `metadata.expires_at_ms=now+ttl` (default ttl 30000ms)"
+  - "`channel typing <topic>` (default = list mode) walks the topic and renders rows for senders whose latest typing envelope has not expired"
+  - "Pure helper `compute_active_typers(envelopes, now_ms) -> Vec<TyperRow>` — for each sender, picks the latest typing envelope; drops if expires_at_ms <= now_ms; sorts by ts desc"
+  - "`channel typing --json` returns `[{sender_id, expires_at_ms, ts}]`"
+  - "Unit tests: empty input, single typer (active), single typer (expired), multiple typers some expired, latest-per-sender wins (older non-expired entries replaced by newer expired one == still expired)"
+  - "`cargo test -p termlink --bins --quiet` passes"
+  - "`cargo clippy --all-targets --workspace -- -D warnings` clean"
+  - "e2e step extended with emit + list + expiry; full run green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T23:43:56"
+    action: "T-1351: channel typing — Matrix-style ephemeral typing indicator with TTL"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 15
+  lines_added: 333
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1351-channel-typing--matrix-style-ephemeral-t.md
+generated_by: context-agent-hybrid

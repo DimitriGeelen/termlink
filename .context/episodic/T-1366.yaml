@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1366: channel edits-of — render edit history for a target offset (m.replace)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T09:49:35Z
+# ============================================================================
+
+task_id: T-1366
+task_name: "channel edits-of — render edit history for a target offset (m.replace)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-28T09:30:00Z
+completed: 2026-04-28T09:48:51Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T11:48:37+02:00
+last_commit: 2026-04-28T11:48:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel edits-of — render full edit history for a target offset (m.replace)
+
+# Key outcomes
+outcomes:
+  - "CLI variant `Channel EditsOf <topic> <offset>` accepted; `--hub`, `--json` flags wired"
+  - "`compute_edits_of` (pure helper) added with unit tests covering: target with no edits (single-row report), target with multiple edits (chronological order), redacted edit dropped, redacted target → None, edit with non-numeric `replaces` ignored, edits to other targets ignored"
+  - "Live smoke test against the local hub produces correct output (post + 2 edits → 3 rows)"
+  - "e2e step 39 added to `tests/e2e/agent-conversation.sh` (positive + negative + JSON shape)"
+  - "`cargo build --release -p termlink && cargo test -p termlink --bins --quiet && cargo clippy --all-targets --workspace -- -D warnings` all green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-04-20-1130.yaml"
+  - ".context/audits/cron/2026-04-20-1145.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T11:48:37"
+    action: "T-1366: channel edits-of — render full edit history for a target offset (m.replace)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 18 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-conversation, matrix, edits, channel-cli]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 18
+  commits: 1
+  files_changed: 17
+  lines_added: 346
+  lines_removed: 89
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1366-channel-edits-of--render-edit-history-fo.md
+generated_by: context-agent-hybrid

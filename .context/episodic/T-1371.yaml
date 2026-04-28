@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1371: channel mentions-of <user> — every message that @-mentions a target user (any author)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T12:12:59Z
+# ============================================================================
+
+task_id: T-1371
+task_name: "channel mentions-of <user> — every message that @-mentions a target user (any author)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T11:57:27Z
+completed: 2026-04-28T12:12:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T14:11:57+02:00
+last_commit: 2026-04-28T14:11:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel mentions-of <user> — per-topic mention reverse view
+
+# Key outcomes
+outcomes:
+  - "`pub fn compute_mentions_of(envelopes: &[Value], user: &str) -> Vec<MentionsOfRow>` in channel.rs returns rows where `metadata.mentions` CSV `mentions_match`es the user, msg_type is NOT in UNREAD_META_TYPES, and envelope is not redacted; sorted by mention offset desc"
+  - "`MentionsOfRow { mention_offset, sender_id, payload, mentions_csv, ts_ms }` with to_json"
+  - "CLI: `ChannelAction::MentionsOf { topic, user, hub, json }` — user is required positional"
+  - "main.rs dispatch wired"
+  - "At least 4 unit tests: happy path desc; wildcard `*` mention matches any specific user; redacted excluded; non-mentioning posts excluded"
+  - "cargo test passes; clippy clean"
+  - "e2e step 43 exercises positive (Bob pings Alice 2×), negative (no mention of Carol), wildcard (`@room` style ping matches any user), JSON shape"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1371-channel-mentions-of-user--every-message-.md"
+  - "tests/e2e/agent-conversation.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T14:11:57"
+    action: "T-1371: channel mentions-of <user> — per-topic mention reverse view"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 1
+  files_changed: 6
+  lines_added: 357
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1371-channel-mentions-of-user--every-message-.md
+generated_by: context-agent-hybrid

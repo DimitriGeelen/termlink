@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1336: channel search <topic> <pattern> — read-only payload grep
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-27T18:18:27Z
+# ============================================================================
+
+task_id: T-1336
+task_name: "channel search <topic> <pattern> — read-only payload grep"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-27T18:05:22Z
+completed: 2026-04-27T18:15:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-27T20:15:06+02:00
+last_commit: 2026-04-27T20:15:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel search <topic> <pattern> — read-only payload grep
+
+# Key outcomes
+outcomes:
+  - "`channel search <topic> <pattern>` prints matching content envelopes by offset"
+  - "Default mode: case-insensitive substring; `--case-sensitive` exact, `--regex` full regex"
+  - "`--all` includes meta envelopes (otherwise meta types from UNREAD_META_TYPES are skipped)"
+  - "`--limit N` caps printed matches (0 = unlimited)"
+  - "`--json` returns array of `{offset, sender_id, ts, payload}` records"
+  - "Pure helper `payload_matches` unit-tested across substring/regex/case modes (6 cases) + `decode_payload_lossy` (3 cases)"
+  - "Build/test/clippy all clean; e2e `agent-conversation.sh` step 14 added and passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "Cargo.lock"
+  - ".context/audits/2026-04-27.yaml"
+  - ".context/audits/cron/2026-04-19-2000.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/Cargo.toml"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".termlink-task"
+  - "tests/e2e/agent-conversation.sh"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T20:15:06"
+    action: "T-1336: channel search <topic> <pattern> — read-only payload grep"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 19
+  lines_added: 322
+  lines_removed: 56
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1336-channel-search-topic-pattern--read-only-.md
+generated_by: context-agent-hybrid

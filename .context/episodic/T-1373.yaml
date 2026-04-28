@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1373: channel redactions <topic> — chronological list of redaction events
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T12:42:30Z
+# ============================================================================
+
+task_id: T-1373
+task_name: "channel redactions <topic> — chronological list of redaction events"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T12:28:08Z
+completed: 2026-04-28T12:41:34Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T14:41:28+02:00
+last_commit: 2026-04-28T14:41:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel redactions <topic> — chronological redaction audit log
+
+# Key outcomes
+outcomes:
+  - "`pub fn compute_redactions(envelopes: &[Value]) -> Vec<RedactionRow>` in channel.rs — one row per `msg_type=redaction` envelope with parseable `metadata.redacts`, sorted by event_offset asc"
+  - "`RedactionRow { event_offset, target_offset, redactor_sender, reason, ts_ms, target_payload }` with to_json"
+  - "CLI: `ChannelAction::Redactions { topic, hub, json }`"
+  - "main.rs dispatch wired"
+  - "At least 4 unit tests: 2 redactions chronological asc; reason-with optional rendering; missing target → target_payload None; malformed redacts (non-numeric) skipped"
+  - "cargo test passes; clippy clean"
+  - "e2e step 45 — redact 2 distinct offsets with one reason, verify table+JSON shape, count, ordering"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1373-channel-redactions-topic--chronological-.md"
+  - "tests/e2e/agent-conversation.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T14:41:28"
+    action: "T-1373: channel redactions <topic> — chronological redaction audit log"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 6
+  lines_added: 325
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1373-channel-redactions-topic--chronological-.md
+generated_by: context-agent-hybrid
