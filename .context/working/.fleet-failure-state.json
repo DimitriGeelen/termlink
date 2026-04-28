@@ -30,12 +30,19 @@
     },
     "ring20-dashboard": {
       "concern_registered": false,
-      "consecutive_failures": 1,
+      "consecutive_failures": 3,
       "first_failure_at": "2026-04-28T08:34:58Z",
       "last_class": "tofu-violation",
-      "last_failure_at": "2026-04-28T08:34:58Z"
+      "last_failure_at": "2026-04-28T17:56:20Z"
     },
     "ring20-management": {
+      "concern_registered": false,
+      "consecutive_failures": 0,
+      "first_failure_at": null,
+      "last_class": null,
+      "last_failure_at": null
+    },
+    "testhub": {
       "concern_registered": false,
       "consecutive_failures": 0,
       "first_failure_at": null,
