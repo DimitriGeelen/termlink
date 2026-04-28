@@ -17,7 +17,8 @@ set -euo pipefail
 BIN=${BIN:-./target/release/termlink}
 ORIGIN_HUB=${ORIGIN_HUB:-127.0.0.1:9100}
 REMOTE_HUB_FROM_122=192.168.10.107:9100
-REMOTE_SESSION=${REMOTE_SESSION:-tl-aai6xg5o}
+REMOTE_SESSION=${REMOTE_SESSION:-$($BIN remote list ring20-management 2>/dev/null | awk '/^tl-/ {print $1; exit}')}
+[ -n "$REMOTE_SESSION" ] || { echo "FAIL: no live session on ring20-management" >&2; exit 1; }
 N=$RANDOM
 TOPIC="live-agents-${N}"
 WORK=$(mktemp -d -t live-agents-e2e.XXXXXX)
