@@ -1000,6 +1000,111 @@ topic_metadata) so the snippet stays content-focused. Default `--lines
 payload, is_target}]}`. Errors when the target offset doesn't exist as
 content.
 
+## Threads index — `channel threads`
+
+`channel threads <topic>` lists every offset that has at least one
+non-redacted reply (a thread root) with reply count, distinct
+participants, last activity, and a preview. Matrix m.thread room-overview
+analog. Sister of `channel thread <topic> <offset>` (T-1328) which drills
+into ONE thread; this one is the index. Sorted by last_ts_ms desc.
+
+```sh
+termlink channel threads dm:alice:bob
+
+#   Threads on 'dm:alice:bob' (2 roots):
+#     [42] replies=3 participants=2 last_ts=1729880000000: shall we ship today?
+#     [17] replies=1 participants=2 last_ts=1729810000000: design doc draft
+```
+
+`--top N` truncates after sort. `--json` returns `[{root_offset,
+reply_count, participants, last_ts_ms, root_payload}]`. Redacted roots
+drop the row entirely; redacted replies don't count toward
+`reply_count`/`participants`. Roots with zero non-redacted replies don't
+appear (use `channel info` if you want a flat envelope listing).
+
+## Edit history — `channel edits-of`
+
+`channel edits-of <topic> <offset>` shows the full edit chain for one
+target — the original post followed by every `msg_type=edit` envelope
+whose `metadata.replaces=<offset>`, in chronological order. Matrix
+m.replace history analog. Useful for audit and forensic correlation when
+you only ever see the latest text via `subscribe --collapse-edits`.
+
+```sh
+termlink channel edits-of dm:alice:bob 42
+
+#   Edits of offset 42 on 'dm:alice:bob' (2 edits):
+#     [original 42 ts=1729880000000 alice-fp] shall we ship today?
+#     [edit 51 ts=1729880060000 alice-fp] shall we ship today (just the bus part)?
+#     [edit 67 ts=1729880240000 alice-fp] shall we ship today (just the bus part)? Y/N
+```
+
+Errors when target offset is missing or is itself redacted. Redacted
+edits silently dropped. `--json` returns `{original: {...}, edits:
+[{...}, ...]}`. Sort: ts_ms asc with edit offset asc tiebreak.
+
+## Forwards reverse view — `channel forwards-of`
+
+`channel forwards-of <topic> [sender]` is the reverse view of `channel
+forward` (T-1346) — list every forward envelope on `<topic>` whose
+`sender_id` is the given fingerprint (defaults to caller). Each row:
+forward_offset, origin (topic + offset), original sender, payload
+preview, ts. Sort: forward_offset desc.
+
+```sh
+termlink channel forwards-of dst-topic alice-fp
+
+#   Forwards by alice-fp on 'dst-topic':
+#     [forward 12] from src-topic:5 (orig sender bob-fp): hub restart needed
+#     [forward 11] from src-topic:3 (orig sender carol-fp): cert rotation alert
+```
+
+A subtlety: `channel forward` keeps the *original* `msg_type` (e.g.
+"chat") on the destination envelope — only `metadata.forwarded_from` /
+`metadata.forwarded_sender` differentiate it from a regular post. The
+helper detects forwards via metadata, NOT via msg_type. `--json`
+returns `[{forward_offset, origin_topic, origin_offset, origin_sender,
+payload, ts}]`.
+
+## Topic dashboard — `channel topic-stats`
+
+`channel topic-stats <topic>` rolls up every counter into a single
+read: total envelopes (excluding redacted), distinct senders,
+breakdown by msg_type, top-5 senders, distinct + top-5 emojis, thread
+roots, active pins (last-write-wins), forwards-in (via metadata),
+edits, redactions, and lifetime time span. Like `channel digest`
+(T-1356) but unconstrained by time and focused on cumulative totals.
+
+```sh
+termlink channel topic-stats dm:alice:bob
+
+#   Topic-stats for 'dm:alice:bob':
+#     total envelopes:     7
+#     distinct senders:    2
+#     thread roots:        1
+#     active pins:         1
+#     forwards in:         0
+#     edits:               1
+#     redactions:          0
+#     distinct emojis:     1
+#     time span (ms):      1729880000000 → 1729880240000  (240000 ms)
+#     by msg_type:
+#       chat: 3
+#       reaction: 2
+#       pin: 1
+#       edit: 1
+#     top senders:
+#       alice-fp: 4
+#       bob-fp:   3
+#     top emojis:
+#       👍: 2
+```
+
+Naming note: the helper is `compute_full_topic_stats` (the lighter
+`TopicStats` / `compute_topic_stats` from T-1335 is reserved for
+`channel list --stats` summaries). `--json` returns a structured object
+with all counters.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1011,7 +1116,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 37 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 41 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1020,7 +1125,8 @@ forward, subscribe --show-forwards, typing emit/list/expiry, subscribe
 --until window, star/unstar/starred per-user bookmarks, poll
 start/vote/end/results lifecycle, digest synthesis, cross-topic inbox,
 per-topic emoji-stats, ack-status dashboard, reactions-of reverse view,
-snippet excerpt), and exits 0 on success.
+snippet excerpt, threads index, edits-of history, forwards-of reverse
+view, topic-stats dashboard), and exits 0 on success.
 Each assertion is content-level (`grep -F` for expected substrings) so
 re-runs are safe even though the canonical DM topic accumulates state
 across runs.
@@ -1090,4 +1196,8 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1361 — `channel ack-status` (read-receipt dashboard with lag)
 - T-1362 — `channel reactions-of` (per-sender reaction reverse view)
 - T-1363 — `channel snippet` (quotable text excerpt with surrounding context)
+- T-1365 — `channel threads` (index of threads with reply counts, Matrix m.thread overview)
+- T-1366 — `channel edits-of` (Matrix m.replace history for one target offset)
+- T-1367 — `channel forwards-of` (per-sender forwards reverse view, parallel to reactions-of)
+- T-1368 — `channel topic-stats` (full per-topic statistics dashboard, distinct from T-1335 list summary)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
