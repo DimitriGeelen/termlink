@@ -55,7 +55,7 @@ Supersedes: nothing — but it eliminates the upstream cause of every G-011 inci
   **Expected:** Hub running with runtime_dir at `/var/lib/termlink/`, secret + cert present and persistent across the systemd-tmpfiles wipe.
   **If not:** Check `tail -20 /root/proxmox-ring20-management/.context/working/watchdog.log` and `tail -20 /root/proxmox-ring20-management/.context/working/termlink-hub.log`.
 
-- [ ] [RUBBER-STAMP] Verify persistence across CT reboot (ground truth, NOT just hub restart)
+- [x] [RUBBER-STAMP] Verify persistence across CT reboot (ground truth, NOT just hub restart)
   **Steps:**
   1. `sha256sum /var/lib/termlink/hub.secret` — note the hash
   2. From .180 host: `pct reboot 200`, wait ~30s for CT to come back
@@ -119,6 +119,15 @@ Supersedes: nothing — but it eliminates the upstream cause of every G-011 inci
 ### 2026-04-26T14:25:00Z — AC 4 fleet re-pin complete (heal-as-tier-2)
 - **Action:** Read live secret from .122 console (`cat /var/lib/termlink/hub.secret`), wrote to /tmp/ring20-mgmt-secret.hex with umask 077, ran `termlink fleet reauth ring20-management --bootstrap-from file:/tmp/...`. Removed temp file post-heal.
 - **Evidence:** Fleet doctor: 3/3 PASS. Remote ping: PONG with auth in 79ms (down from previous 5+s timeout failure).
+
+### 2026-04-28T08:35Z — AC 3 SATISFIED — empirical persistence across ≥3 CT reboots [agent + operator on .180]
+- **Evidence (from .180 console via `pct exec 200 -- ...`):**
+  * `sha256sum /var/lib/termlink/hub.secret` → `3dd9d01afe4ec599d797e6bbc6c8fbd6f940932f42916cd4f8fd193d14fa9a71`
+  * mtime of `hub.secret`, `hub.cert.pem`, `hub.key.pem` is `Apr 25 20:34` — pre-dates ALL recent CT boots
+  * `journalctl --list-boots -n 10` shows CT 200 booted at 27 10:42, 27 16:57, 27 18:24 (current, up 14h09m)
+  * Only `hub.pid`, `hub.sock`, `hub.tcp` have boot mtime (`Apr 27 18:25`) — those are correctly recreated by the hub on each boot
+- **Conclusion:** secret + cert + key SURVIVE CT reboots. Migration to `/var/lib/termlink` works.
+- **Side observation (out of T-1294 scope):** CT 200 rebooted 3× yesterday (27 10:42, 16:57, 18:24). The runtime_dir migration is working — clients no longer have to re-pin per reboot — but the *underlying cause of CT instability* (likely G-009 cascade via .180 /var/log = 98% disk) persists. Tracked in T-1137.
 
 ### 2026-04-26T17:45Z — Tick mechanical ACs based on captured evidence [agent autonomous]
 - **AC 1 (Spike 1):** ticked — task-file Updates already cite the volatile-runtime_dir confirmation (mechanism: systemd-tmpfiles `D /tmp` rule, not tmpfs).
