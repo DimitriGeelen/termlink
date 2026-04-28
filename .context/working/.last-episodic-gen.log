@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T10:12:27Z ===
-task_id: T-1367
+=== episodic-gen invocation: 2026-04-28T10:32:48Z ===
+task_id: T-1368
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1367.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1368.yaml
 
   Status: ✓ auto-complete (Auto-generated)
-  Task: channel forwards-of — list forwards posted by a sender
-  Duration: 0 days (21 min)
+  Task: channel topic-stats — full per-topic statistics dashboard
+  Duration: 0 days (19 min)
   Updates: 3
   Commits: 1
-  Lines: +327 -29 across 16 files
+  Lines: +440 -43 across 16 files
   Outcomes: 5 AC checked
   Artifacts: 16 files tracked
 
-Source: /opt/termlink/.tasks/completed/T-1367-channel-forwards-of--list-forwards-poste.md
+Source: /opt/termlink/.tasks/completed/T-1368-channel-topic-stats--full-per-topic-stat.md
 --- exit code: 0 ---
