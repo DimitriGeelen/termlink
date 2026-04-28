@@ -687,6 +687,68 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Poll { action } => match action {
+                PollAction::Start {
+                    topic,
+                    question,
+                    options,
+                    hub,
+                    json,
+                } => {
+                    commands::channel::cmd_channel_poll_start(
+                        &topic,
+                        &question,
+                        &options,
+                        hub.as_deref(),
+                        json,
+                    )
+                    .await
+                }
+                PollAction::Vote {
+                    topic,
+                    poll_id,
+                    choice,
+                    hub,
+                    json,
+                } => {
+                    commands::channel::cmd_channel_poll_vote(
+                        &topic,
+                        poll_id,
+                        choice,
+                        hub.as_deref(),
+                        json,
+                    )
+                    .await
+                }
+                PollAction::End {
+                    topic,
+                    poll_id,
+                    hub,
+                    json,
+                } => {
+                    commands::channel::cmd_channel_poll_end(
+                        &topic,
+                        poll_id,
+                        hub.as_deref(),
+                        json,
+                    )
+                    .await
+                }
+                PollAction::Results {
+                    topic,
+                    poll_id,
+                    hub,
+                    json,
+                } => {
+                    commands::channel::cmd_channel_poll_results(
+                        &topic,
+                        poll_id,
+                        hub.as_deref(),
+                        json,
+                    )
+                    .await
+                }
+            },
             ChannelAction::Typing {
                 topic,
                 emit,
