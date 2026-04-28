@@ -4,7 +4,7 @@ name: "Live-agent e2e: 5 .107 sessions + .122 post concurrently to one topic"
 description: >
   Live-agent e2e: 5 .107 sessions + .122 post concurrently to one topic
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T19:27:34Z
-last_update: 2026-04-28T19:27:34Z
-date_finished: null
+last_update: 2026-04-28T19:29:26Z
+date_finished: 2026-04-28T19:29:26Z
 ---
 
 # T-1387: Live-agent e2e: 5 .107 sessions + .122 post concurrently to one topic
@@ -69,3 +69,6 @@ BIN=./target/release/termlink ./tests/e2e/live-agents-conversation.sh 2>&1 | gre
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1387-live-agent-e2e-5-107-sessions--122-post-.md
 - **Context:** Initial task creation
+
+### 2026-04-28T19:29:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
