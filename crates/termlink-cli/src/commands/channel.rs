@@ -3982,6 +3982,140 @@ pub(crate) async fn cmd_channel_mentions_of(
     Ok(())
 }
 
+/// T-1372: one row in the pin-history audit log.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PinHistoryRow {
+    pub event_offset: u64,
+    pub action: String, // "pin" or "unpin"
+    pub target_offset: u64,
+    pub actor_sender: String,
+    pub ts_ms: i64,
+    pub target_payload: Option<String>,
+}
+
+impl PinHistoryRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "event_offset": self.event_offset,
+            "action": self.action,
+            "target_offset": self.target_offset,
+            "actor_sender": self.actor_sender,
+            "ts_ms": self.ts_ms,
+            "target_payload": self.target_payload,
+        })
+    }
+}
+
+/// T-1372: pure helper — chronological audit log of pin/unpin events.
+///
+/// Unlike `compute_pinned_set` (T-1345) which collapses to last-write-wins,
+/// this preserves every toggle. Useful for forensic queries: "who pinned
+/// what when, and was it ever undone?"
+///
+/// Filters:
+/// - `msg_type == "pin"`
+/// - `metadata.pin_target` parses as u64 (malformed envelopes silently skipped)
+///
+/// Action: `metadata.action` literal ("pin" / "unpin"). Default + missing
+/// treated as "pin". `target_payload` filled from the topic snapshot when
+/// the target offset is present; None otherwise (target may be redacted,
+/// outside the snapshot, or itself a meta envelope).
+///
+/// Sort: `event_offset` ascending (chronological). Pure — no I/O.
+pub(crate) fn compute_pin_history(envelopes: &[Value]) -> Vec<PinHistoryRow> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut rows: Vec<PinHistoryRow> = Vec::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("pin") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        let target = match md
+            .get("pin_target")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let action = md
+            .get("action")
+            .and_then(|v| v.as_str())
+            .unwrap_or("pin");
+        let action = if action == "unpin" { "unpin" } else { "pin" };
+        let actor = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let target_payload = by_off.get(&target).map(|e| decode_payload_lossy(e));
+        rows.push(PinHistoryRow {
+            event_offset: off,
+            action: action.to_string(),
+            target_offset: target,
+            actor_sender: actor,
+            ts_ms: ts,
+            target_payload,
+        });
+    }
+    rows.sort_by(|a, b| a.event_offset.cmp(&b.event_offset));
+    rows
+}
+
+/// T-1372: render the pin-history audit log.
+pub(crate) async fn cmd_channel_pin_history(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_pin_history(&envelopes);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(PinHistoryRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No pin events on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Pin history for '{topic}':");
+    for r in &rows {
+        let preview = match &r.target_payload {
+            Some(p) if p.len() > 60 => format!("{}…", &p[..60]),
+            Some(p) => p.clone(),
+            None => "(target not in snapshot)".to_string(),
+        };
+        println!(
+            "  [{eo}] {action} → [{to}] by {actor}: {preview}",
+            eo = r.event_offset,
+            action = r.action.to_uppercase(),
+            to = r.target_offset,
+            actor = r.actor_sender,
+        );
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -8627,5 +8761,105 @@ mod tests {
         let rows = compute_mentions_of(&envs, "alice");
         assert_eq!(rows.len(), 1, "reaction must not count as mention");
         assert_eq!(rows[0].mention_offset, 1);
+    }
+
+    // T-1372: compute_pin_history
+    fn mk_pin_event(off: u64, sender: &str, ts: i64, target: u64, action: Option<&str>) -> Value {
+        let md = match action {
+            Some(a) => json!({"pin_target": target.to_string(), "action": a}),
+            None => json!({"pin_target": target.to_string()}),
+        };
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "pin",
+            "ts_unix_ms": ts,
+            "payload_b64": "",
+            "metadata": md,
+        })
+    }
+
+    #[test]
+    fn pin_history_pin_then_unpin_two_rows_asc() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "the-target"),
+            mk_pin_event(1, "alice", 200, 0, None),
+            mk_pin_event(2, "bob", 300, 0, Some("unpin")),
+        ];
+        let rows = compute_pin_history(&envs);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].event_offset, 1);
+        assert_eq!(rows[0].action, "pin");
+        assert_eq!(rows[0].target_offset, 0);
+        assert_eq!(rows[0].actor_sender, "alice");
+        assert_eq!(rows[0].target_payload.as_deref(), Some("the-target"));
+        assert_eq!(rows[1].event_offset, 2);
+        assert_eq!(rows[1].action, "unpin");
+        assert_eq!(rows[1].actor_sender, "bob");
+    }
+
+    #[test]
+    fn pin_history_multiple_toggles_all_preserved() {
+        // Audit, not LWW — every toggle stays.
+        let envs = vec![
+            mk_post(0, "a", 100, "x"),
+            mk_pin_event(1, "a", 200, 0, None),
+            mk_pin_event(2, "a", 300, 0, Some("unpin")),
+            mk_pin_event(3, "b", 400, 0, Some("pin")),
+            mk_pin_event(4, "b", 500, 0, Some("unpin")),
+        ];
+        let rows = compute_pin_history(&envs);
+        assert_eq!(rows.len(), 4);
+        let actions: Vec<&str> = rows.iter().map(|r| r.action.as_str()).collect();
+        assert_eq!(actions, vec!["pin", "unpin", "pin", "unpin"]);
+    }
+
+    #[test]
+    fn pin_history_malformed_pin_target_skipped() {
+        use base64::Engine;
+        let envs = vec![
+            mk_post(0, "a", 100, "x"),
+            mk_pin_event(1, "a", 200, 0, None),
+            json!({
+                "offset": 2,
+                "sender_id": "a",
+                "msg_type": "pin",
+                "ts_unix_ms": 300,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode(""),
+                "metadata": {"pin_target": "not-a-number"},
+            }),
+            // pin envelope with no metadata at all
+            json!({
+                "offset": 3,
+                "sender_id": "a",
+                "msg_type": "pin",
+                "ts_unix_ms": 400,
+                "payload_b64": "",
+            }),
+        ];
+        let rows = compute_pin_history(&envs);
+        assert_eq!(rows.len(), 1, "only the well-formed pin event survives");
+        assert_eq!(rows[0].event_offset, 1);
+    }
+
+    #[test]
+    fn pin_history_default_action_is_pin() {
+        let envs = vec![
+            mk_post(0, "a", 100, "x"),
+            mk_pin_event(1, "a", 200, 0, None), // metadata.action absent
+        ];
+        let rows = compute_pin_history(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].action, "pin");
+    }
+
+    #[test]
+    fn pin_history_target_payload_none_when_absent() {
+        // Pin pointing at offset 99 which isn't in the snapshot.
+        let envs = vec![mk_pin_event(0, "a", 100, 99, None)];
+        let rows = compute_pin_history(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_offset, 99);
+        assert!(rows[0].target_payload.is_none());
     }
 }

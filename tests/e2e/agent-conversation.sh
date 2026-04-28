@@ -842,6 +842,27 @@ out_c_json=$(A channel mentions-of "$MO_TOPIC" carol-not-on-channel --json)
 n_c=$(echo "$out_c_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
 [ "$n_c" = "1" ] || fail "step 43: carol should match only @room, got $n_c"
 
+step "44. channel pin-history (T-1372): chronological pin/unpin audit log"
+PH_TOPIC="t-1372-pinhist-$(date +%s)"
+A channel create "$PH_TOPIC" --retention forever >/dev/null
+A channel post "$PH_TOPIC" --msg-type chat --payload "ph-target-0" >/dev/null  # offset 0
+A channel post "$PH_TOPIC" --msg-type chat --payload "ph-target-1" >/dev/null  # offset 1
+A channel pin "$PH_TOPIC" 0 >/dev/null              # event 2: pin 0
+B channel pin "$PH_TOPIC" 1 >/dev/null              # event 3: pin 1
+A channel pin "$PH_TOPIC" 0 --unpin >/dev/null      # event 4: unpin 0
+A channel pin "$PH_TOPIC" 0 >/dev/null              # event 5: re-pin 0
+out=$(A channel pin-history "$PH_TOPIC")
+expect_contains "[2] PIN → [0]" "$out" "step 44: first pin event listed"
+expect_contains "[3] PIN → [1]" "$out" "step 44: second pin event listed"
+expect_contains "[4] UNPIN → [0]" "$out" "step 44: unpin event listed"
+expect_contains "[5] PIN → [0]" "$out" "step 44: re-pin event listed"
+out_json=$(A channel pin-history "$PH_TOPIC" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "4" ] || fail "step 44: expected 4 pin events, got $n"
+expect_contains "\"event_offset\":" "$out_json" "step 44: --json carries event_offset"
+expect_contains "\"action\":" "$out_json" "step 44: --json carries action"
+expect_contains "\"target_payload\":" "$out_json" "step 44: --json carries target_payload"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

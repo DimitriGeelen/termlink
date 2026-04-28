@@ -1156,6 +1156,30 @@ considered. Redacted offsets dropped. Sort: mention_offset desc.
 `--json` returns `[{mention_offset, sender_id, payload, mentions_csv,
 ts_ms}]`.
 
+## Pin audit log — `channel pin-history`
+
+`channel pinned` (T-1345) shows the *current* pin set after collapsing
+last-write-wins. `channel pin-history <topic>` is the audit complement:
+it preserves *every* pin/unpin envelope as a chronological row, so you
+can answer "when did this get pinned, by whom, and was it ever undone?"
+
+```sh
+termlink channel pin-history alpha:design
+
+#   Pin history for 'alpha:design':
+#     [12] PIN   → [3] by alice-fp: api proposal v3 — comments?
+#     [17] UNPIN → [3] by bob-fp:   api proposal v3 — comments?
+#     [22] PIN   → [3] by alice-fp: api proposal v3 — comments?
+```
+
+Each row carries event_offset (where in the topic timeline the toggle
+happened), action ("pin" or "unpin", default + missing both render as
+"pin"), target_offset, actor_sender, ts_ms, and best-effort
+target_payload (None when the target isn't in the snapshot — redacted,
+truncated, or itself a meta envelope). Sort: event_offset asc.
+Malformed pin envelopes (missing or non-numeric `pin_target`, missing
+metadata) are silently skipped. `--json` returns the array of rows.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1167,7 +1191,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 43 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 44 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1253,4 +1277,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1368 — `channel topic-stats` (full per-topic statistics dashboard, distinct from T-1335 list summary)
 - T-1370 — `channel replies-of` (reverse view of `channel reply`, mirror of T-1367)
 - T-1371 — `channel mentions-of` (per-topic mention reverse view, complements T-1339 cross-topic mentions)
+- T-1372 — `channel pin-history` (chronological pin/unpin audit log, complements T-1345 LWW pinned set)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report

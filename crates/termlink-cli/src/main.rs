@@ -802,6 +802,14 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::PinHistory { topic, hub, json } => {
+                commands::channel::cmd_channel_pin_history(
+                    &topic,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,
