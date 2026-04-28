@@ -5268,6 +5268,171 @@ pub(crate) async fn cmd_channel_state_since(
     Ok(())
 }
 
+/// T-1383: one row of a snapshot diff. `change_kind` classifies the
+/// per-offset transition between two `compute_snapshot` views:
+/// - `"added"`: offset absent at `from`, present at `to` (new post)
+/// - `"removed"`: present at `from`, absent at `to` (e.g. redaction landed)
+/// - `"edited"`: offset present in both; payload text differs
+/// - `"unchanged"`: offset present in both; payload identical
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DiffRow {
+    pub offset: u64,
+    pub change_kind: &'static str,
+    pub sender_id: String,
+    pub from_payload: Option<String>,
+    pub to_payload: Option<String>,
+}
+
+impl DiffRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "offset": self.offset,
+            "change_kind": self.change_kind,
+            "sender_id": self.sender_id,
+            "from_payload": self.from_payload,
+            "to_payload": self.to_payload,
+        })
+    }
+}
+
+/// T-1383: pure helper — typed diff between two T-1378 snapshots.
+///
+/// Pipeline:
+/// 1. `from_rows = compute_snapshot(envelopes, from_ms, include_redacted)`
+/// 2. `to_rows   = compute_snapshot(envelopes, to_ms,   include_redacted)`
+/// 3. union of offsets, classified per-offset
+///
+/// Sort: offset asc.
+///
+/// `from_ms == to_ms` produces all-`unchanged` rows (or empty if
+/// `include_unchanged` is false on the caller side).
+pub(crate) fn compute_snapshot_diff(
+    envelopes: &[Value],
+    from_ms: i64,
+    to_ms: i64,
+    include_redacted: bool,
+) -> Vec<DiffRow> {
+    use std::collections::{BTreeSet, HashMap};
+    let from_rows = compute_snapshot(envelopes, from_ms, include_redacted);
+    let to_rows = compute_snapshot(envelopes, to_ms, include_redacted);
+    let from_map: HashMap<u64, &StateRow> = from_rows.iter().map(|r| (r.offset, r)).collect();
+    let to_map: HashMap<u64, &StateRow> = to_rows.iter().map(|r| (r.offset, r)).collect();
+    let mut all_offsets: BTreeSet<u64> = BTreeSet::new();
+    all_offsets.extend(from_map.keys());
+    all_offsets.extend(to_map.keys());
+    let mut rows: Vec<DiffRow> = Vec::with_capacity(all_offsets.len());
+    for off in all_offsets {
+        let f = from_map.get(&off);
+        let t = to_map.get(&off);
+        let (kind, from_payload, to_payload, sender) = match (f, t) {
+            (None, Some(tr)) => (
+                "added",
+                None,
+                Some(tr.payload.clone()),
+                tr.sender_id.clone(),
+            ),
+            (Some(fr), None) => (
+                "removed",
+                Some(fr.payload.clone()),
+                None,
+                fr.sender_id.clone(),
+            ),
+            (Some(fr), Some(tr)) => {
+                let kind = if fr.payload == tr.payload {
+                    "unchanged"
+                } else {
+                    "edited"
+                };
+                (
+                    kind,
+                    Some(fr.payload.clone()),
+                    Some(tr.payload.clone()),
+                    tr.sender_id.clone(),
+                )
+            }
+            (None, None) => unreachable!("offset came from union of both maps"),
+        };
+        rows.push(DiffRow {
+            offset: off,
+            change_kind: kind,
+            sender_id: sender,
+            from_payload,
+            to_payload,
+        });
+    }
+    rows
+}
+
+/// T-1383: render the snapshot diff. By default `unchanged` rows are
+/// omitted (it's a "what changed" view). Pass `include_unchanged=true`
+/// to surface them too.
+pub(crate) async fn cmd_channel_snapshot_diff(
+    topic: &str,
+    from_ms: i64,
+    to_ms: i64,
+    include_redacted: bool,
+    include_unchanged: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let mut rows = compute_snapshot_diff(&envelopes, from_ms, to_ms, include_redacted);
+    if !include_unchanged {
+        rows.retain(|r| r.change_kind != "unchanged");
+    }
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(DiffRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No changes on '{topic}' between ts={from_ms} and ts={to_ms}.");
+        return Ok(());
+    }
+    println!("Snapshot diff of '{topic}' from ts={from_ms} to ts={to_ms}:");
+    for r in &rows {
+        let marker = match r.change_kind {
+            "added" => "+",
+            "removed" => "-",
+            "edited" => "~",
+            _ => " ",
+        };
+        match r.change_kind {
+            "added" => println!(
+                "  {m} [{off}] {sender}: {p}",
+                m = marker,
+                off = r.offset,
+                sender = r.sender_id,
+                p = r.to_payload.as_deref().unwrap_or(""),
+            ),
+            "removed" => println!(
+                "  {m} [{off}] {sender}: {p}",
+                m = marker,
+                off = r.offset,
+                sender = r.sender_id,
+                p = r.from_payload.as_deref().unwrap_or(""),
+            ),
+            "edited" => println!(
+                "  {m} [{off}] {sender}: {f} -> {t}",
+                m = marker,
+                off = r.offset,
+                sender = r.sender_id,
+                f = r.from_payload.as_deref().unwrap_or(""),
+                t = r.to_payload.as_deref().unwrap_or(""),
+            ),
+            _ => println!(
+                "  {m} [{off}] {sender}: {p}",
+                m = marker,
+                off = r.offset,
+                sender = r.sender_id,
+                p = r.to_payload.as_deref().unwrap_or(""),
+            ),
+        }
+    }
+    Ok(())
+}
+
 /// T-1377: one row in the chronological receipt audit log. Each row is one
 /// `msg_type=receipt` envelope; distinct from `cmd_channel_receipts`
 /// (T-1315 LWW snapshot) and `cmd_channel_ack_status` (T-1361 dashboard
@@ -10596,6 +10761,107 @@ mod tests {
         ];
         let rows = compute_state_since(&envs, 300, false);
         assert!(rows.is_empty());
+    }
+
+    // T-1383: compute_snapshot_diff — typed diff between two snapshots
+
+    #[test]
+    fn snapshot_diff_empty_envelopes_yields_no_rows() {
+        let envs: Vec<Value> = vec![];
+        let rows = compute_snapshot_diff(&envs, 0, 1000, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn snapshot_diff_from_equals_to_all_unchanged() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "a"),
+            mk_post(1, "bob", 200, "b"),
+        ];
+        let rows = compute_snapshot_diff(&envs, 300, 300, false);
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|r| r.change_kind == "unchanged"));
+    }
+
+    #[test]
+    fn snapshot_diff_pure_add_when_post_lands_after_from() {
+        // Post at ts=200 lands between from=100 and to=300.
+        let envs = vec![mk_post(0, "alice", 200, "new")];
+        let rows = compute_snapshot_diff(&envs, 100, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].change_kind, "added");
+        assert_eq!(rows[0].offset, 0);
+        assert_eq!(rows[0].from_payload, None);
+        assert_eq!(rows[0].to_payload.as_deref(), Some("new"));
+    }
+
+    #[test]
+    fn snapshot_diff_pure_remove_when_redaction_lands_after_from() {
+        // Post at ts=100, redaction at ts=300, from=200, to=400.
+        // At from: post visible. At to: redacted (and dropped because
+        // include_redacted=false). → "removed".
+        let envs = vec![
+            mk_post(0, "alice", 100, "secret"),
+            mk_redact(1, "alice", 300, 0),
+        ];
+        let rows = compute_snapshot_diff(&envs, 200, 400, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].change_kind, "removed");
+        assert_eq!(rows[0].from_payload.as_deref(), Some("secret"));
+        assert_eq!(rows[0].to_payload, None);
+    }
+
+    #[test]
+    fn snapshot_diff_edited_when_payload_changes_between_snapshots() {
+        // Post v0 at ts=100, edit to v1 at ts=300, from=200, to=400.
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 300, 0, "v1"),
+        ];
+        let rows = compute_snapshot_diff(&envs, 200, 400, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].change_kind, "edited");
+        assert_eq!(rows[0].from_payload.as_deref(), Some("v0"));
+        assert_eq!(rows[0].to_payload.as_deref(), Some("v1"));
+    }
+
+    #[test]
+    fn snapshot_diff_classifies_three_offsets_distinctly() {
+        // Setup:
+        //   offset 0: post at ts=50 (visible at both from=100 and to=500, unchanged) → unchanged
+        //   offset 1: post at ts=60, edit at ts=400 (visible at from with v0, edit applied at to) → edited
+        //   offset 2: post at ts=300 (lands between from and to) → added
+        //   offset 3: post at ts=80, redacted at ts=350 (visible at from, redacted by to) → removed
+        let envs = vec![
+            mk_post(0, "alice", 50, "stable"),
+            mk_post(1, "bob", 60, "v0"),
+            mk_post(3, "carol", 80, "doomed"),
+            mk_post(2, "dave", 300, "fresh"),
+            mk_redact(4, "alice", 350, 3),
+            mk_edit_event(5, "bob", 400, 1, "v1"),
+        ];
+        let rows = compute_snapshot_diff(&envs, 100, 500, false);
+        assert_eq!(rows.len(), 4);
+        let by_off: std::collections::HashMap<u64, &DiffRow> =
+            rows.iter().map(|r| (r.offset, r)).collect();
+        assert_eq!(by_off[&0].change_kind, "unchanged");
+        assert_eq!(by_off[&1].change_kind, "edited");
+        assert_eq!(by_off[&2].change_kind, "added");
+        assert_eq!(by_off[&3].change_kind, "removed");
+    }
+
+    #[test]
+    fn snapshot_diff_offsets_sorted_ascending() {
+        let envs = vec![
+            mk_post(2, "alice", 200, "two"),
+            mk_post(0, "bob", 200, "zero"),
+            mk_post(1, "carol", 200, "one"),
+        ];
+        let rows = compute_snapshot_diff(&envs, 100, 300, false);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].offset, 0);
+        assert_eq!(rows[1].offset, 1);
+        assert_eq!(rows[2].offset, 2);
     }
 
     // T-1377: compute_ack_history — chronological receipt audit log

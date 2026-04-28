@@ -2661,6 +2661,39 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Diff between two point-in-time snapshots (T-1383). Composes two
+    /// T-1378 `compute_snapshot` calls and classifies the union of
+    /// offsets as added / removed / edited / unchanged. Default text
+    /// rendering omits `unchanged` rows; pass `--include-unchanged` to
+    /// see all four classes. Useful for forensic replay and audit.
+    SnapshotDiff {
+        /// Topic name
+        topic: String,
+
+        /// Lower-bound timestamp (ms since epoch). State as it was at this ts.
+        #[arg(long = "from")]
+        from_ms: i64,
+
+        /// Upper-bound timestamp (ms since epoch). State as it was at this ts.
+        #[arg(long = "to")]
+        to_ms: i64,
+
+        /// Include redacted rows in both snapshots (with payload "[REDACTED]").
+        #[arg(long)]
+        include_redacted: bool,
+
+        /// Show unchanged rows alongside diff entries (default: hide them).
+        #[arg(long)]
+        include_unchanged: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Incremental state view (T-1382). Matrix `/sync` analogue: returns
     /// only rows whose canonical state changed at or after `--since`
     /// (new posts, new edits, new redactions). Composes T-1376 state with

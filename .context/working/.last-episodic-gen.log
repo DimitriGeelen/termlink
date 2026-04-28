@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T16:00:30Z ===
-task_id: T-1382
+=== episodic-gen invocation: 2026-04-28T16:20:34Z ===
+task_id: T-1383
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1382.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1383.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel state --since <ms> — incremental state updates (Matrix /sync analogue)
-  Duration: 0 days (13 min)
+  Task: channel snapshot-diff <topic> --from <ms> --to <ms> — what changed between two timestamps (compose two T-1378 snapshots)
+  Duration: 0 days (14 min)
   Updates: 2
   Commits: 0
   Lines: +0 -0 across 0 files
   Outcomes: 10 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1382-channel-state---since-ms--incremental-st.md
+Source: /opt/termlink/.tasks/completed/T-1383-channel-snapshot-diff-topic---from-ms---.md
 --- exit code: 0 ---

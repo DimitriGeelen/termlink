@@ -1139,6 +1139,41 @@ out_full=$(A channel state-since "$SINCE_TOPIC" --since 0 --json)
 n_full=$(echo "$out_full" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
 [ "$n_full" = "3" ] || fail "step 54: --since 0 should return full state (3 rows), got $n_full"
 
+step "55. channel snapshot-diff (T-1383): typed diff between two snapshots"
+DIFF_TOPIC="t-1383-diff-$(date +%s)"
+A channel create "$DIFF_TOPIC" --retention forever >/dev/null
+# Phase 1: two stable posts at T_FROM
+A channel post "$DIFF_TOPIC" --msg-type chat --payload "stable" >/dev/null   # offset 0
+B channel post "$DIFF_TOPIC" --msg-type chat --payload "v0" >/dev/null       # offset 1
+sleep 0.05
+T_FROM=$(date +%s%3N)
+sleep 0.05
+# Phase 2: edit offset 1, post offset 2 (added), redact offset 0 (removed at to)
+B channel edit "$DIFF_TOPIC" 1 "v1" >/dev/null
+A channel post "$DIFF_TOPIC" --msg-type chat --payload "added-row" >/dev/null
+A channel redact "$DIFF_TOPIC" 0 >/dev/null
+sleep 0.05
+T_TO=$(date +%s%3N)
+out=$(A channel snapshot-diff "$DIFF_TOPIC" --from "$T_FROM" --to "$T_TO")
+expect_contains "Snapshot diff" "$out" "step 55: header present"
+expect_contains "+ [" "$out" "step 55: added marker present"
+expect_contains "- [" "$out" "step 55: removed marker present"
+expect_contains "~ [" "$out" "step 55: edited marker present"
+expect_contains "v0 -> v1" "$out" "step 55: edit payload transition rendered"
+out_json=$(A channel snapshot-diff "$DIFF_TOPIC" --from "$T_FROM" --to "$T_TO" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "3" ] || fail "step 55: expected 3 diff rows (default hides unchanged), got $n"
+n_kinds=$(echo "$out_json" | python3 -c 'import sys,json; rows=json.load(sys.stdin); print(",".join(sorted({r["change_kind"] for r in rows})))')
+[ "$n_kinds" = "added,edited,removed" ] || fail "step 55: expected three change kinds, got $n_kinds"
+# from==to should produce zero rows (unchanged hidden by default)
+out_same=$(A channel snapshot-diff "$DIFF_TOPIC" --from "$T_TO" --to "$T_TO" --json)
+n_same=$(echo "$out_same" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n_same" = "0" ] || fail "step 55: from==to should yield empty diff (default), got $n_same"
+# include-unchanged surfaces the stable rows
+out_full=$(A channel snapshot-diff "$DIFF_TOPIC" --from "$T_TO" --to "$T_TO" --include-unchanged --json)
+n_full=$(echo "$out_full" | python3 -c 'import sys,json; rows=json.load(sys.stdin); print(len([r for r in rows if r["change_kind"]=="unchanged"]))')
+[ "$n_full" -ge "1" ] || fail "step 55: --include-unchanged should surface unchanged rows, got $n_full"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
