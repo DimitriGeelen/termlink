@@ -868,6 +868,22 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Snapshot {
+                topic,
+                as_of,
+                include_redacted,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_snapshot(
+                    &topic,
+                    as_of,
+                    include_redacted,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,

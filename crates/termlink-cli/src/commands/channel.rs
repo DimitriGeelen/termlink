@@ -4673,6 +4673,83 @@ pub(crate) async fn cmd_channel_state(
     Ok(())
 }
 
+/// T-1378: point-in-time canonical view — Matrix backfill semantics.
+/// Reuses `StateRow` shape (T-1376) but applies collapse logic only to
+/// envelopes whose ts is `<= as_of_ms`. Edits and redactions later than
+/// the cutoff are NOT applied — they hadn't happened yet.
+///
+/// Filter pipeline:
+/// 1. drop envelopes with ts > as_of_ms (didn't exist yet)
+/// 2. delegate to `compute_state` on the filtered slice
+///
+/// `as_of_ms` is in the same scale as `ts_unix_ms` / `ts` envelope fields.
+/// Envelopes missing a timestamp are treated as ts=0 (always included
+/// when as_of >= 0; never excluded by the upper bound).
+pub(crate) fn compute_snapshot(
+    envelopes: &[Value],
+    as_of_ms: i64,
+    include_redacted: bool,
+) -> Vec<StateRow> {
+    let filtered: Vec<Value> = envelopes
+        .iter()
+        .filter(|env| {
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            ts <= as_of_ms
+        })
+        .cloned()
+        .collect();
+    compute_state(&filtered, include_redacted)
+}
+
+/// T-1378: render the point-in-time snapshot.
+pub(crate) async fn cmd_channel_snapshot(
+    topic: &str,
+    as_of_ms: i64,
+    include_redacted: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_snapshot(&envelopes, as_of_ms, include_redacted);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(StateRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No content messages on '{topic}' as of ts={as_of_ms}.");
+        return Ok(());
+    }
+    println!("Snapshot of '{topic}' as of ts={as_of_ms}:");
+    for r in &rows {
+        let marker = if r.is_redacted {
+            " [redacted]"
+        } else if r.is_edited {
+            " *"
+        } else {
+            ""
+        };
+        let edit_suffix = if r.edit_count > 0 {
+            format!(" (×{} edits)", r.edit_count)
+        } else {
+            String::new()
+        };
+        println!(
+            "  [{off}]{marker} {sender}: {payload}{edits}",
+            off = r.offset,
+            sender = r.sender_id,
+            payload = r.payload,
+            edits = edit_suffix,
+        );
+    }
+    Ok(())
+}
+
 /// T-1377: one row in the chronological receipt audit log. Each row is one
 /// `msg_type=receipt` envelope; distinct from `cmd_channel_receipts`
 /// (T-1315 LWW snapshot) and `cmd_channel_ack_status` (T-1361 dashboard
@@ -10002,5 +10079,116 @@ mod tests {
         assert_eq!(rows[0].receipt_offset, 2);
         assert_eq!(rows[1].receipt_offset, 5);
         assert_eq!(rows[2].receipt_offset, 8);
+    }
+
+    // T-1378: compute_snapshot — point-in-time canonical view
+
+    #[test]
+    fn snapshot_empty_topic() {
+        let envs: Vec<Value> = vec![];
+        let rows = compute_snapshot(&envs, 1000, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn snapshot_before_first_message_is_empty() {
+        let envs = vec![
+            mk_post(0, "alice", 500, "hello"),
+        ];
+        let rows = compute_snapshot(&envs, 100, false);
+        assert!(rows.is_empty(), "as_of=100 < first ts=500 → no content");
+    }
+
+    #[test]
+    fn snapshot_at_message_ts_includes_it() {
+        let envs = vec![
+            mk_post(0, "alice", 500, "hello"),
+            mk_post(1, "bob", 1000, "world"),
+        ];
+        let rows = compute_snapshot(&envs, 500, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].offset, 0, "ts=500 inclusive");
+    }
+
+    #[test]
+    fn snapshot_edit_after_cutoff_not_applied() {
+        // post at 100, edit at 500 → snapshot at 300 should show ORIGINAL
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0-original"),
+            mk_edit_event(1, "alice", 500, 0, "v1-later"),
+        ];
+        let rows = compute_snapshot(&envs, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "v0-original", "edit at ts=500 hadn't happened by as_of=300");
+        assert!(!rows[0].is_edited);
+        assert_eq!(rows[0].edit_count, 0);
+    }
+
+    #[test]
+    fn snapshot_edit_before_cutoff_is_applied() {
+        // post at 100, edit at 200 → snapshot at 300 sees edit applied
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 200, 0, "v1"),
+        ];
+        let rows = compute_snapshot(&envs, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "v1", "edit at ts=200 already happened by as_of=300");
+        assert!(rows[0].is_edited);
+        assert_eq!(rows[0].edit_count, 1);
+    }
+
+    #[test]
+    fn snapshot_redaction_after_cutoff_not_applied() {
+        // post at 100, redact at 500 → snapshot at 300 still shows original
+        let envs = vec![
+            mk_post(0, "alice", 100, "still-here"),
+            mk_redact(1, "alice", 500, 0),
+        ];
+        let rows = compute_snapshot(&envs, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "still-here", "redaction at ts=500 hadn't happened");
+        assert!(!rows[0].is_redacted);
+    }
+
+    #[test]
+    fn snapshot_redaction_before_cutoff_is_applied() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "doomed"),
+            mk_post(1, "alice", 150, "kept"),
+            mk_redact(2, "alice", 200, 0),
+        ];
+        let rows = compute_snapshot(&envs, 300, false);
+        assert_eq!(rows.len(), 1, "redacted offset 0 dropped at as_of=300");
+        assert_eq!(rows[0].offset, 1);
+    }
+
+    #[test]
+    fn snapshot_partial_history_walks_correctly() {
+        // 3 posts, 1 edit, 1 redact at staggered times
+        let envs = vec![
+            mk_post(0, "alice", 100, "p0"),
+            mk_post(1, "alice", 200, "p1"),
+            mk_post(2, "alice", 300, "p2"),
+            mk_edit_event(3, "alice", 400, 0, "p0-edited"),
+            mk_redact(4, "alice", 500, 1),
+        ];
+        // as_of=250: only p0 and p1 visible, no edit/redact yet
+        let rows = compute_snapshot(&envs, 250, false);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].payload, "p0");
+        assert!(!rows[0].is_edited);
+        assert_eq!(rows[1].payload, "p1");
+        // as_of=450: p0 edited, p1 still here (redact at 500 hasn't happened), p2 here
+        let rows = compute_snapshot(&envs, 450, false);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].payload, "p0-edited");
+        assert!(rows[0].is_edited);
+        // as_of=600: everything happened
+        let rows = compute_snapshot(&envs, 600, false);
+        assert_eq!(rows.len(), 2, "p1 redacted at 500");
+        assert_eq!(rows[0].offset, 0);
+        assert_eq!(rows[0].payload, "p0-edited");
+        assert_eq!(rows[1].offset, 2);
     }
 }

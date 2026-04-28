@@ -2549,6 +2549,32 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Point-in-time canonical view of a topic (T-1378). Matrix backfill
+    /// semantics: simulate the room as it was at `--as-of <ms>`. Combines
+    /// T-1376 collapse (apply edits, hide redactions) with a temporal upper
+    /// bound — events with ts > as_of are NOT applied. Useful for forensic
+    /// replay ("what did this say last Tuesday?"). Distinct from `state`
+    /// (current truth) and `subscribe --until` (raw envelope filter).
+    Snapshot {
+        /// Topic name
+        topic: String,
+
+        /// Cutoff timestamp in ms (envelopes with ts > as_of are ignored)
+        #[arg(long = "as-of")]
+        as_of: i64,
+
+        /// Show redacted rows with payload "[REDACTED]" instead of dropping.
+        #[arg(long)]
+        include_redacted: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Chronological receipt audit log (T-1377). Walks the topic and lists
     /// every `msg_type=receipt` envelope as a row in ts asc order. Distinct
     /// from `receipts` (T-1315 LWW snapshot) and `ack-status` (T-1361

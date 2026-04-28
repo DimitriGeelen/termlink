@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T14:36:36Z ===
-task_id: T-1377
+=== episodic-gen invocation: 2026-04-28T14:50:01Z ===
+task_id: T-1378
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1377.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1378.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel ack-history <topic> [user] — chronological receipt audit log (Matrix m.receipt audit, complements ack-status LWW dashboard)
-  Duration: 0 days (14 min)
+  Task: channel snapshot <topic> --as-of <ms> — point-in-time canonical view (Matrix backfill semantics; combines T-1376 collapse with ts upper bound)
+  Duration: 0 days (12 min)
   Updates: 2
   Commits: 0
   Lines: +0 -0 across 0 files
   Outcomes: 10 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1377-channel-ack-history-topic-user--chronolo.md
+Source: /opt/termlink/.tasks/completed/T-1378-channel-snapshot-topic---as-of-ms--point.md
 --- exit code: 0 ---
