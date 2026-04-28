@@ -507,12 +507,14 @@ async fn main() -> Result<()> {
             ChannelAction::Members {
                 topic,
                 include_meta,
+                as_of,
                 hub,
                 json,
             } => {
                 commands::channel::cmd_channel_members(
                     &topic,
                     include_meta,
+                    as_of,
                     hub.as_deref(),
                     json,
                 )

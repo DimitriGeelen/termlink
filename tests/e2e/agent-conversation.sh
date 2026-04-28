@@ -1056,6 +1056,36 @@ first=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdi
 n_repliers_0=$(echo "$out_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len([r for r in d if r["target_offset"]==0][0]["distinct_repliers"]))')
 [ "$n_repliers_0" = "2" ] || fail "step 51: target 0 should have 2 distinct repliers (alice + bob), got $n_repliers_0"
 
+step "52. channel members --as-of (T-1380): retro participant view"
+MAS_TOPIC="t-1380-members-as-of-$(date +%s)"
+A channel create "$MAS_TOPIC" --retention forever >/dev/null
+T_PRE=$(date +%s%3N)
+A channel post "$MAS_TOPIC" --msg-type chat --payload "alice-early" >/dev/null
+sleep 0.1
+T_MID=$(date +%s%3N)
+B channel post "$MAS_TOPIC" --msg-type chat --payload "bob-mid" >/dev/null
+sleep 0.1
+T_END=$(date +%s%3N)
+# No flag -> alice + bob both visible
+out_now=$(A channel members "$MAS_TOPIC" --json)
+n_now=$(echo "$out_now" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["members"]))')
+[ "$n_now" = "2" ] || fail "step 52: current members expected 2, got $n_now"
+# As-of pre -> empty
+out_pre=$(A channel members "$MAS_TOPIC" --as-of "$T_PRE" --json)
+n_pre=$(echo "$out_pre" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["members"]))')
+[ "$n_pre" = "0" ] || fail "step 52: as_of pre expected 0, got $n_pre"
+# As-of MID -> only alice
+out_mid=$(A channel members "$MAS_TOPIC" --as-of "$T_MID" --json)
+n_mid=$(echo "$out_mid" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["members"]))')
+[ "$n_mid" = "1" ] || fail "step 52: as_of mid expected 1 (alice only), got $n_mid"
+mid_sender=$(echo "$out_mid" | python3 -c 'import sys,json; print(json.load(sys.stdin)["members"][0]["sender_id"])')
+[ "$mid_sender" = "$ALICE" ] || fail "step 52: as_of mid sender should be alice, got $mid_sender"
+expect_contains "\"as_of_ms\":" "$out_mid" "step 52: --json carries as_of_ms field"
+# As-of END -> alice + bob (same as no flag)
+out_end=$(A channel members "$MAS_TOPIC" --as-of "$T_END" --json)
+n_end=$(echo "$out_end" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["members"]))')
+[ "$n_end" = "2" ] || fail "step 52: as_of end expected 2, got $n_end"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

@@ -597,6 +597,11 @@ termlink channel members dm:alice:bob
 
 # --include-meta counts reactions/edits/redactions/receipts too.
 termlink channel members dm:alice:bob --include-meta --json
+
+# T-1380: --as-of <ms> — retro membership query. "Who was active here as of
+# last Tuesday?" Filters envelopes by ts <= cutoff before computing the
+# summary. Parallel to `snapshot --as-of` (T-1378) on the content side.
+termlink channel members dm:alice:bob --as-of 1729880600000
 ```
 
 ## Receipt anchoring (T-1337)
@@ -1393,7 +1398,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 51 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 52 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1487,4 +1492,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1377 — `channel ack-history` (chronological receipt audit log; extends audit-log family to receipt activity)
 - T-1378 — `channel snapshot --as-of <ms>` (Matrix backfill — point-in-time canonical view, combines T-1376 collapse with temporal upper bound)
 - T-1379 — `channel quote-stats` (per-target reply rollup, per-target companion to T-1370 replies-of which is per-sender)
+- T-1380 — `channel members --as-of <ms>` (retro participant view, parallel to T-1378 snapshot on the content side)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
