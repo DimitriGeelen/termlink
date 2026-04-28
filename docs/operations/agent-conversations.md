@@ -1105,6 +1105,32 @@ Naming note: the helper is `compute_full_topic_stats` (the lighter
 `channel list --stats` summaries). `--json` returns a structured object
 with all counters.
 
+## Replies reverse view — `channel replies-of`
+
+`channel replies-of <topic> [sender]` is the reverse view of `channel
+reply` (T-1313) — list every reply envelope on `<topic>` whose
+`sender_id` matches the given fingerprint (defaults to caller). Each row
+shows reply_offset, parent (offset + sender + payload preview), reply
+payload preview, and ts. Sort: reply_offset desc.
+
+```sh
+termlink channel replies-of dm:alice:bob bob-fp
+
+#   Replies by bob-fp on 'dm:alice:bob':
+#   [reply 5] yes I can take that
+#     ↳ to [3] alice-fp: can you cover the deploy?
+#   [reply 4] hub looks healthy from here
+#     ↳ to [2] alice-fp: hub status?
+```
+
+A reply is identified by `metadata.in_reply_to` parsing as a u64 AND
+`msg_type != "reaction"`. Reactions also carry `in_reply_to` (T-1314)
+but live in `channel reactions-of` (T-1362). Redacted replies are
+dropped. If the parent is missing or itself redacted, `parent_sender` /
+`parent_payload` come back empty and the row is annotated `(parent
+missing or redacted)`. `--json` returns `[{reply_offset, parent_offset,
+parent_sender, parent_payload, reply_payload, ts_ms}]`.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1116,7 +1142,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 41 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 42 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1200,4 +1226,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1366 — `channel edits-of` (Matrix m.replace history for one target offset)
 - T-1367 — `channel forwards-of` (per-sender forwards reverse view, parallel to reactions-of)
 - T-1368 — `channel topic-stats` (full per-topic statistics dashboard, distinct from T-1335 list summary)
+- T-1370 — `channel replies-of` (reverse view of `channel reply`, mirror of T-1367)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report

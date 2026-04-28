@@ -3721,6 +3721,154 @@ pub(crate) async fn cmd_channel_forwards_of(
     Ok(())
 }
 
+/// T-1370: one row in the replies-of view.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RepliesOfRow {
+    pub reply_offset: u64,
+    pub parent_offset: u64,
+    pub parent_sender: String,
+    pub parent_payload: String,
+    pub reply_payload: String,
+    pub ts_ms: i64,
+}
+
+impl RepliesOfRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "reply_offset": self.reply_offset,
+            "parent_offset": self.parent_offset,
+            "parent_sender": self.parent_sender,
+            "parent_payload": self.parent_payload,
+            "reply_payload": self.reply_payload,
+            "ts_ms": self.ts_ms,
+        })
+    }
+}
+
+/// T-1370: pure helper — list every reply envelope by `sender`.
+///
+/// A "reply" is an envelope where `metadata.in_reply_to` parses as a u64 AND
+/// `msg_type != "reaction"`. Reactions also carry `in_reply_to` (T-1314) but
+/// are a different aggregate — see `compute_reactions_of` for that view.
+///
+/// Filters:
+/// - `sender_id == sender`
+/// - `parent_offset_of(env)` is `Some`
+/// - `msg_type != "reaction"`
+/// - reply offset NOT in `redacted_offsets`
+///
+/// `parent_payload` / `parent_sender` are best-effort: empty strings if the
+/// parent offset is absent from the topic snapshot or itself redacted.
+///
+/// Sort: `reply_offset` descending (most recent first). Pure — no I/O.
+pub(crate) fn compute_replies_of(envelopes: &[Value], sender: &str) -> Vec<RepliesOfRow> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets(envelopes);
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut rows: Vec<RepliesOfRow> = Vec::new();
+    for env in envelopes {
+        if env.get("sender_id").and_then(|v| v.as_str()) != Some(sender) {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        if env.get("msg_type").and_then(|v| v.as_str()) == Some("reaction") {
+            continue;
+        }
+        let parent = match parent_offset_of(env) {
+            Some(p) => p,
+            None => continue,
+        };
+        let (parent_sender, parent_payload) = match by_off.get(&parent) {
+            Some(p) if !redacted.contains(&parent) => (
+                p.get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                decode_payload_lossy(p),
+            ),
+            _ => (String::new(), String::new()),
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        rows.push(RepliesOfRow {
+            reply_offset: off,
+            parent_offset: parent,
+            parent_sender,
+            parent_payload,
+            reply_payload: decode_payload_lossy(env),
+            ts_ms: ts,
+        });
+    }
+    rows.sort_by(|a, b| b.reply_offset.cmp(&a.reply_offset));
+    rows
+}
+
+/// T-1370: render the replies-of view.
+pub(crate) async fn cmd_channel_replies_of(
+    topic: &str,
+    sender: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let scope = match sender {
+        Some(s) => s.to_string(),
+        None => {
+            let id = load_identity_or_create()
+                .context("Loading identity for replies-of scope")?;
+            id.fingerprint().to_string()
+        }
+    };
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_replies_of(&envelopes, &scope);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(RepliesOfRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No replies by {scope} on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Replies by {scope} on '{topic}':");
+    for r in &rows {
+        let preview = |s: &str, n: usize| -> String {
+            if s.len() > n {
+                format!("{}…", &s[..n])
+            } else {
+                s.to_string()
+            }
+        };
+        let parent_line = if r.parent_payload.is_empty() {
+            format!("  ↳ to [{po}] (parent missing or redacted)", po = r.parent_offset)
+        } else {
+            format!(
+                "  ↳ to [{po}] {ps}: {pp}",
+                po = r.parent_offset,
+                ps = r.parent_sender,
+                pp = preview(&r.parent_payload, 60),
+            )
+        };
+        println!("[reply {ro}] {rp}", ro = r.reply_offset, rp = preview(&r.reply_payload, 60));
+        println!("{parent_line}");
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -8199,5 +8347,86 @@ mod tests {
         ];
         let rows = compute_threads_index(&envs);
         assert!(rows.is_empty());
+    }
+
+    // T-1370: compute_replies_of
+    #[test]
+    fn replies_of_happy_path_desc() {
+        let envs = vec![
+            mk_post(0, "bob", 100, "parent-zero"),
+            mk_reply(1, "alice", 200, 0, "reply-1"),
+            mk_post(2, "bob", 250, "parent-two"),
+            mk_reply(3, "alice", 300, 2, "reply-3"),
+            mk_reply(4, "alice", 400, 0, "reply-4"),
+        ];
+        let rows = compute_replies_of(&envs, "alice");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].reply_offset, 4);
+        assert_eq!(rows[1].reply_offset, 3);
+        assert_eq!(rows[2].reply_offset, 1);
+        assert_eq!(rows[0].parent_offset, 0);
+        assert_eq!(rows[0].parent_sender, "bob");
+        assert_eq!(rows[0].parent_payload, "parent-zero");
+        assert_eq!(rows[2].reply_payload, "reply-1");
+    }
+
+    #[test]
+    fn replies_of_excludes_other_sender_and_non_replies() {
+        let envs = vec![
+            mk_post(0, "carol", 100, "p"),
+            mk_reply(1, "alice", 200, 0, "alice-reply"),
+            mk_reply(2, "bob", 300, 0, "bob-reply"),
+            mk_post(3, "alice", 400, "alice-not-reply"),
+        ];
+        let rows = compute_replies_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_offset, 1);
+        assert_eq!(rows[0].reply_payload, "alice-reply");
+    }
+
+    #[test]
+    fn replies_of_redacted_dropped() {
+        let envs = vec![
+            mk_post(0, "bob", 100, "parent"),
+            mk_reply(1, "alice", 200, 0, "kept"),
+            mk_reply(2, "alice", 300, 0, "to-redact"),
+            mk_redact(3, "alice", 400, 2),
+        ];
+        let rows = compute_replies_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_offset, 1);
+    }
+
+    #[test]
+    fn replies_of_reactions_excluded() {
+        use base64::Engine;
+        let envs = vec![
+            mk_post(0, "bob", 100, "parent"),
+            mk_reply(1, "alice", 200, 0, "real-reply"),
+            json!({
+                "offset": 2,
+                "sender_id": "alice",
+                "msg_type": "reaction",
+                "ts_unix_ms": 250,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode("👍"),
+                "metadata": {"in_reply_to": "0"},
+            }),
+        ];
+        let rows = compute_replies_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_offset, 1);
+        assert_eq!(rows[0].reply_payload, "real-reply");
+    }
+
+    #[test]
+    fn replies_of_missing_parent_renders_empty_parent_fields() {
+        let envs = vec![
+            mk_reply(5, "alice", 200, 99, "orphan-reply"),
+        ];
+        let rows = compute_replies_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].parent_offset, 99);
+        assert_eq!(rows[0].parent_sender, "");
+        assert_eq!(rows[0].parent_payload, "");
     }
 }
