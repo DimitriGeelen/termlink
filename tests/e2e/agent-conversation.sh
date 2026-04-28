@@ -694,6 +694,31 @@ out_json=$(A channel snippet "$SNIP_TOPIC" 2 --lines 1 --json)
 expect_contains "\"target_offset\":" "$out_json" "step 37: --json carries target_offset"
 expect_contains "\"is_target\":" "$out_json" "step 37: --json marks target line"
 
+step "38. channel threads (T-1365): index of threads with reply counts"
+THR_TOPIC="t-1365-threads-$(date +%s)"
+A channel create "$THR_TOPIC" --retention forever >/dev/null
+A channel post "$THR_TOPIC" --msg-type chat --payload "ROOT-A-T1365" >/dev/null
+A channel post "$THR_TOPIC" --msg-type chat --payload "ROOT-B-T1365" >/dev/null
+A channel post "$THR_TOPIC" --msg-type chat --payload "ORPHAN-T1365" >/dev/null
+B channel post "$THR_TOPIC" --reply-to 0 --msg-type chat --payload "reply-A1" >/dev/null
+B channel post "$THR_TOPIC" --reply-to 0 --msg-type chat --payload "reply-A2" >/dev/null
+B channel post "$THR_TOPIC" --reply-to 1 --msg-type chat --payload "reply-B1" >/dev/null
+out=$(A channel threads "$THR_TOPIC")
+expect_contains "ROOT-A-T1365" "$out" "step 38: thread A root listed"
+expect_contains "ROOT-B-T1365" "$out" "step 38: thread B root listed"
+expect_not_contains "ORPHAN-T1365" "$out" "step 38: orphan post (no replies) excluded"
+expect_contains "replies=2" "$out" "step 38: thread A has 2 replies"
+expect_contains "replies=1" "$out" "step 38: thread B has 1 reply"
+expect_contains "participants=2" "$out" "step 38: alice + bob = 2 participants"
+out_top=$(A channel threads "$THR_TOPIC" --top 1)
+n_rows=$(echo "$out_top" | grep -cE '^  \[' || true)
+[ "$n_rows" = "1" ] || fail "step 38: --top 1 should return exactly 1 row, got $n_rows"
+out_json=$(A channel threads "$THR_TOPIC" --json)
+expect_contains "\"root_offset\":" "$out_json" "step 38: --json includes root_offset"
+expect_contains "\"reply_count\":" "$out_json" "step 38: --json includes reply_count"
+expect_contains "\"participants\":" "$out_json" "step 38: --json includes participants"
+expect_contains "\"last_ts_ms\":" "$out_json" "step 38: --json includes last_ts_ms"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

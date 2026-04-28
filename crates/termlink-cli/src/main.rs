@@ -752,6 +752,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Threads {
+                topic,
+                top,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_threads(
+                    &topic,
+                    top,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Digest {
                 topic,
                 since_mins,

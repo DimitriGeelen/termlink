@@ -3382,6 +3382,180 @@ pub(crate) async fn cmd_channel_reactions_of(
     Ok(())
 }
 
+/// T-1365: one row in the threads index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ThreadIndexRow {
+    pub root_offset: u64,
+    pub reply_count: usize,
+    pub participants: usize,
+    pub last_ts_ms: i64,
+    pub root_payload: Option<String>,
+}
+
+impl ThreadIndexRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "root_offset": self.root_offset,
+            "reply_count": self.reply_count,
+            "participants": self.participants,
+            "last_ts_ms": self.last_ts_ms,
+            "root_payload": self.root_payload,
+        })
+    }
+}
+
+/// T-1365: pure helper — index every thread in a topic.
+///
+/// A "thread root" is any envelope that another envelope refers to via
+/// `metadata.in_reply_to`. The index includes one row per root with:
+/// - `reply_count` — non-redacted descendants (transitive)
+/// - `participants` — distinct sender_ids in the thread including root sender
+/// - `last_ts_ms` — max ts across the thread (root + descendants)
+/// - `root_payload` — payload preview of the root envelope (None if redacted/missing)
+///
+/// Filtering rules:
+/// - root that is redacted → row dropped entirely
+/// - replies that are redacted → don't count toward reply_count or participants
+/// - thread with zero non-redacted replies → row dropped
+/// - non-numeric `in_reply_to` → reply ignored
+///
+/// Sort: by `last_ts_ms` descending (most recently active first); offset asc tiebreak.
+/// Pure — no I/O.
+pub(crate) fn compute_threads_index(envelopes: &[Value]) -> Vec<ThreadIndexRow> {
+    use std::collections::{HashMap, HashSet};
+    let redacted = redacted_offsets(envelopes);
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    // parent → list of (reply_offset, reply_sender, reply_ts) for non-redacted replies
+    let mut children: HashMap<u64, Vec<(u64, String, i64)>> = HashMap::new();
+    for env in envelopes {
+        let Some(off) = env.get("offset").and_then(|v| v.as_u64()) else { continue };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let Some(parent) = parent_offset_of(env) else { continue };
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        children.entry(parent).or_default().push((off, sender, ts));
+    }
+    let mut rows: Vec<ThreadIndexRow> = Vec::new();
+    for (root_off, _) in children.iter().filter(|(off, _)| !redacted.contains(off)) {
+        let root_env = match by_off.get(root_off) {
+            Some(e) => *e,
+            None => continue,
+        };
+        // BFS gather all descendants (transitive)
+        let mut stack: Vec<u64> = vec![*root_off];
+        let mut seen: HashSet<u64> = HashSet::new();
+        seen.insert(*root_off);
+        let mut reply_count: usize = 0;
+        let mut participants: HashSet<String> = HashSet::new();
+        let root_sender = root_env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if !root_sender.is_empty() {
+            participants.insert(root_sender);
+        }
+        let mut last_ts: i64 = root_env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| root_env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        while let Some(parent) = stack.pop() {
+            if let Some(kids) = children.get(&parent) {
+                for (k_off, k_sender, k_ts) in kids {
+                    if !seen.insert(*k_off) {
+                        continue;
+                    }
+                    reply_count += 1;
+                    if !k_sender.is_empty() {
+                        participants.insert(k_sender.clone());
+                    }
+                    if *k_ts > last_ts {
+                        last_ts = *k_ts;
+                    }
+                    stack.push(*k_off);
+                }
+            }
+        }
+        if reply_count == 0 {
+            continue;
+        }
+        rows.push(ThreadIndexRow {
+            root_offset: *root_off,
+            reply_count,
+            participants: participants.len(),
+            last_ts_ms: last_ts,
+            root_payload: Some(decode_payload_lossy(root_env)),
+        });
+    }
+    rows.sort_by(|a, b| {
+        b.last_ts_ms
+            .cmp(&a.last_ts_ms)
+            .then_with(|| a.root_offset.cmp(&b.root_offset))
+    });
+    rows
+}
+
+/// T-1365: render the threads index.
+pub(crate) async fn cmd_channel_threads(
+    topic: &str,
+    top: Option<usize>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let mut rows = compute_threads_index(&envelopes);
+    if let Some(n) = top {
+        rows.truncate(n);
+    }
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(ThreadIndexRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No threads on topic '{topic}'.");
+        return Ok(());
+    }
+    println!(
+        "Threads on '{topic}' ({n} root{s}):",
+        n = rows.len(),
+        s = if rows.len() == 1 { "" } else { "s" }
+    );
+    for r in &rows {
+        let preview = r.root_payload.as_deref().unwrap_or("(no payload)");
+        let preview = if preview.len() > 60 {
+            format!("{}…", &preview[..60])
+        } else {
+            preview.to_string()
+        };
+        println!(
+            "  [{root}] replies={rc} participants={p} last_ts={ts}: {preview}",
+            root = r.root_offset,
+            rc = r.reply_count,
+            p = r.participants,
+            ts = r.last_ts_ms,
+        );
+    }
+    Ok(())
+}
+
 /// T-1361: one row in the read-receipt dashboard.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AckStatusRow {
@@ -7066,5 +7240,150 @@ mod tests {
         let rows = compute_pinned_set(&envs);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].pinned_ts, 555);
+    }
+
+    // T-1365: compute_threads_index
+    fn mk_post(off: u64, sender: &str, ts: i64, payload: &str) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "post",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "metadata": {},
+        })
+    }
+    fn mk_reply(off: u64, sender: &str, ts: i64, parent: u64, payload: &str) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "post",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "metadata": {"in_reply_to": parent.to_string()},
+        })
+    }
+    fn mk_redact(off: u64, sender: &str, ts: i64, target: u64) -> Value {
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "redaction",
+            "ts_unix_ms": ts,
+            "payload_b64": "",
+            "metadata": {"redacts": target.to_string()},
+        })
+    }
+
+    #[test]
+    fn threads_index_no_replies_empty() {
+        let envs = vec![
+            mk_post(0, "alice", 1000, "hello"),
+            mk_post(1, "bob", 1100, "world"),
+        ];
+        let rows = compute_threads_index(&envs);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn threads_index_single_thread() {
+        let envs = vec![
+            mk_post(0, "alice", 1000, "root"),
+            mk_reply(1, "bob", 1100, 0, "reply1"),
+            mk_reply(2, "carol", 1200, 0, "reply2"),
+        ];
+        let rows = compute_threads_index(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].root_offset, 0);
+        assert_eq!(rows[0].reply_count, 2);
+        assert_eq!(rows[0].participants, 3); // alice + bob + carol
+        assert_eq!(rows[0].last_ts_ms, 1200);
+        assert_eq!(rows[0].root_payload.as_deref(), Some("root"));
+    }
+
+    #[test]
+    fn threads_index_multiple_threads_sorted_desc_by_last_ts() {
+        let envs = vec![
+            mk_post(0, "alice", 1000, "thread A root"),
+            mk_reply(1, "bob", 5000, 0, "reply A1"),
+            mk_post(2, "carol", 1500, "thread B root"),
+            mk_reply(3, "dave", 9000, 2, "reply B1"),
+        ];
+        let rows = compute_threads_index(&envs);
+        assert_eq!(rows.len(), 2);
+        // B (last_ts=9000) before A (last_ts=5000)
+        assert_eq!(rows[0].root_offset, 2);
+        assert_eq!(rows[0].last_ts_ms, 9000);
+        assert_eq!(rows[1].root_offset, 0);
+        assert_eq!(rows[1].last_ts_ms, 5000);
+    }
+
+    #[test]
+    fn threads_index_redacted_root_drops_row() {
+        let envs = vec![
+            mk_post(0, "alice", 1000, "to-be-redacted"),
+            mk_reply(1, "bob", 1100, 0, "orphan reply"),
+            mk_redact(2, "alice", 1200, 0),
+        ];
+        let rows = compute_threads_index(&envs);
+        assert!(rows.is_empty(), "redacted root must drop the row");
+    }
+
+    #[test]
+    fn threads_index_redacted_reply_doesnt_count() {
+        let envs = vec![
+            mk_post(0, "alice", 1000, "root"),
+            mk_reply(1, "bob", 1100, 0, "real reply"),
+            mk_reply(2, "mallory", 1150, 0, "spam"),
+            mk_redact(3, "mallory", 1200, 2),
+        ];
+        let rows = compute_threads_index(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_count, 1);
+        // participants = alice + bob (mallory's reply was redacted)
+        assert_eq!(rows[0].participants, 2);
+    }
+
+    #[test]
+    fn threads_index_deep_nesting_counts_transitively() {
+        // 0 → 1 → 2 → 3
+        let envs = vec![
+            mk_post(0, "a", 100, "root"),
+            mk_reply(1, "b", 200, 0, "r1"),
+            mk_reply(2, "c", 300, 1, "r2"),
+            mk_reply(3, "d", 400, 2, "r3"),
+        ];
+        let rows = compute_threads_index(&envs);
+        // Root at offset 0 has 3 transitive descendants. Offsets 1 and 2 are
+        // also "roots" because they have replies → they each become a row too.
+        // So we expect 3 rows: roots 0, 1, 2.
+        assert_eq!(rows.len(), 3);
+        let row_for_0 = rows.iter().find(|r| r.root_offset == 0).unwrap();
+        assert_eq!(row_for_0.reply_count, 3);
+        assert_eq!(row_for_0.participants, 4);
+        assert_eq!(row_for_0.last_ts_ms, 400);
+        let row_for_1 = rows.iter().find(|r| r.root_offset == 1).unwrap();
+        assert_eq!(row_for_1.reply_count, 2);
+        let row_for_2 = rows.iter().find(|r| r.root_offset == 2).unwrap();
+        assert_eq!(row_for_2.reply_count, 1);
+    }
+
+    #[test]
+    fn threads_index_non_numeric_in_reply_to_ignored() {
+        use base64::Engine;
+        let envs = vec![
+            mk_post(0, "a", 100, "root"),
+            json!({
+                "offset": 1,
+                "sender_id": "b",
+                "msg_type": "post",
+                "ts_unix_ms": 200,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode("garbage parent"),
+                "metadata": {"in_reply_to": "not-a-number"},
+            }),
+        ];
+        let rows = compute_threads_index(&envs);
+        assert!(rows.is_empty());
     }
 }
