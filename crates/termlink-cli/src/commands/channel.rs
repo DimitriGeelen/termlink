@@ -4328,6 +4328,165 @@ pub(crate) async fn cmd_channel_reactions_on(
     Ok(())
 }
 
+/// T-1375: one row in the edit-stats summary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EditStatsRow {
+    pub target_offset: u64,
+    pub target_sender: String,
+    pub target_payload: String,
+    pub edit_count: u64,
+    pub latest_editor: String,
+    pub latest_ts_ms: i64,
+}
+
+impl EditStatsRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "target_offset": self.target_offset,
+            "target_sender": self.target_sender,
+            "target_payload": self.target_payload,
+            "edit_count": self.edit_count,
+            "latest_editor": self.latest_editor,
+            "latest_ts_ms": self.latest_ts_ms,
+        })
+    }
+}
+
+/// T-1375: pure helper — topic-wide edit count summary.
+///
+/// One row per target offset that has at least one non-redacted edit. The
+/// topic-wide companion to `compute_edits_of` (T-1366, single-target full
+/// history). Completes the audit trio (T-1372 pin-history, T-1373
+/// redactions, T-1375 edit-stats) — three pure rollups, one per mutation
+/// type.
+///
+/// Filters:
+/// - edit envelopes with non-numeric `metadata.replaces` → ignored
+/// - edits whose own offset is redacted → not counted
+/// - targets that are themselves redacted → row dropped entirely
+///
+/// `latest_editor` / `latest_ts_ms` reflect the most recent surviving edit
+/// (max ts among non-redacted edits; offset asc tiebreak).
+///
+/// Sort: edit_count desc, target_offset asc tiebreak. Pure — no I/O.
+pub(crate) fn compute_edit_stats(envelopes: &[Value]) -> Vec<EditStatsRow> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets(envelopes);
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    // target -> (count, latest_editor, latest_ts, latest_offset for tiebreak)
+    let mut by_target: HashMap<u64, (u64, String, i64, u64)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("edit") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let target = match env
+            .get("metadata")
+            .and_then(|md| md.get("replaces"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        if redacted.contains(&target) {
+            continue;
+        }
+        let editor = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let entry = by_target
+            .entry(target)
+            .or_insert((0, String::new(), i64::MIN, 0));
+        entry.0 += 1;
+        // Latest by ts; offset asc tiebreak when equal.
+        if ts > entry.2 || (ts == entry.2 && off > entry.3) {
+            entry.1 = editor;
+            entry.2 = ts;
+            entry.3 = off;
+        }
+    }
+    let mut rows: Vec<EditStatsRow> = by_target
+        .into_iter()
+        .filter_map(|(target, (count, latest_editor, latest_ts, _))| {
+            let target_env = by_off.get(&target)?;
+            Some(EditStatsRow {
+                target_offset: target,
+                target_sender: target_env
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                target_payload: decode_payload_lossy(target_env),
+                edit_count: count,
+                latest_editor,
+                latest_ts_ms: latest_ts,
+            })
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.edit_count
+            .cmp(&a.edit_count)
+            .then_with(|| a.target_offset.cmp(&b.target_offset))
+    });
+    rows
+}
+
+/// T-1375: render the edit-stats summary.
+pub(crate) async fn cmd_channel_edit_stats(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_edit_stats(&envelopes);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(EditStatsRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No edits on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Edit-stats for '{topic}':");
+    for r in &rows {
+        let preview = if r.target_payload.len() > 60 {
+            format!("{}…", &r.target_payload[..60])
+        } else {
+            r.target_payload.clone()
+        };
+        println!(
+            "  [{to}] ×{count} edits (last by {le}) — {ts} {sender}: {preview}",
+            to = r.target_offset,
+            count = r.edit_count,
+            le = r.latest_editor,
+            ts = r.latest_ts_ms,
+            sender = r.target_sender,
+        );
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -9200,6 +9359,101 @@ mod tests {
         let rows1 = compute_reactions_on(&envs, 1);
         assert_eq!(rows1.len(), 1);
         assert_eq!(rows1[0].emoji, "🎉");
+    }
+
+    // T-1375: compute_edit_stats
+    fn mk_edit_event(off: u64, sender: &str, ts: i64, target: u64, new_text: &str) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "edit",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(new_text),
+            "metadata": {"replaces": target.to_string()},
+        })
+    }
+
+    #[test]
+    fn edit_stats_single_target_three_edits() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 200, 0, "v1"),
+            mk_edit_event(2, "bob", 300, 0, "v2"),
+            mk_edit_event(3, "alice", 400, 0, "v3"),
+        ];
+        let rows = compute_edit_stats(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_offset, 0);
+        assert_eq!(rows[0].edit_count, 3);
+        assert_eq!(rows[0].latest_editor, "alice", "alice's offset 3 edit at ts 400 wins");
+        assert_eq!(rows[0].latest_ts_ms, 400);
+        assert_eq!(rows[0].target_payload, "v0", "target_payload is the ORIGINAL");
+    }
+
+    #[test]
+    fn edit_stats_two_targets_sorted_desc() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "tgt-zero"),
+            mk_post(1, "alice", 150, "tgt-one"),
+            mk_edit_event(2, "alice", 200, 0, "z1"),
+            mk_edit_event(3, "alice", 300, 0, "z2"),
+            mk_edit_event(4, "bob", 400, 1, "o1"),
+        ];
+        let rows = compute_edit_stats(&envs);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].target_offset, 0);
+        assert_eq!(rows[0].edit_count, 2);
+        assert_eq!(rows[1].target_offset, 1);
+        assert_eq!(rows[1].edit_count, 1);
+    }
+
+    #[test]
+    fn edit_stats_redacted_edit_excluded() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_edit_event(1, "alice", 200, 0, "v1"),
+            mk_edit_event(2, "alice", 300, 0, "to-redact"),
+            mk_redact(3, "alice", 400, 2),
+        ];
+        let rows = compute_edit_stats(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].edit_count, 1, "redacted edit doesn't count");
+        assert_eq!(rows[0].latest_editor, "alice");
+    }
+
+    #[test]
+    fn edit_stats_redacted_target_drops_row() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "v0"),
+            mk_post(1, "bob", 150, "still-here"),
+            mk_edit_event(2, "alice", 200, 0, "v1"),
+            mk_edit_event(3, "alice", 300, 1, "b1"),
+            mk_redact(4, "alice", 400, 0), // target 0 redacted
+        ];
+        let rows = compute_edit_stats(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_offset, 1);
+    }
+
+    #[test]
+    fn edit_stats_malformed_replaces_skipped() {
+        use base64::Engine;
+        let envs = vec![
+            mk_post(0, "a", 100, "v0"),
+            json!({
+                "offset": 1,
+                "sender_id": "a",
+                "msg_type": "edit",
+                "ts_unix_ms": 200,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode("v1"),
+                "metadata": {"replaces": "not-a-number"},
+            }),
+            mk_edit_event(2, "a", 300, 0, "v2"),
+        ];
+        let rows = compute_edit_stats(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].edit_count, 1);
     }
 
     #[test]

@@ -906,6 +906,28 @@ expect_contains "\"senders\":" "$out_json" "step 46: --json carries senders"
 first_emoji=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["emoji"])')
 [ "$first_emoji" = "👍" ] || fail "step 46: count desc should put 👍 first, got $first_emoji"
 
+step "47. channel edit-stats (T-1375): per-target edit count summary"
+ES_TOPIC="t-1375-edits-$(date +%s)"
+A channel create "$ES_TOPIC" --retention forever >/dev/null
+A channel post "$ES_TOPIC" --msg-type chat --payload "es-tgt-0-v0" >/dev/null  # offset 0
+A channel post "$ES_TOPIC" --msg-type chat --payload "es-tgt-1-v0" >/dev/null  # offset 1
+A channel edit "$ES_TOPIC" 0 "es-tgt-0-v1" >/dev/null
+B channel edit "$ES_TOPIC" 0 "es-tgt-0-v2" >/dev/null
+A channel edit "$ES_TOPIC" 1 "es-tgt-1-v1" >/dev/null
+out=$(A channel edit-stats "$ES_TOPIC")
+expect_contains "[0] ×2 edits" "$out" "step 47: target 0 has 2 edits"
+expect_contains "[1] ×1 edits" "$out" "step 47: target 1 has 1 edit"
+expect_contains "es-tgt-0-v0" "$out" "step 47: target_payload is the ORIGINAL"
+out_json=$(A channel edit-stats "$ES_TOPIC" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 47: expected 2 edited targets, got $n"
+expect_contains "\"target_offset\":" "$out_json" "step 47: --json carries target_offset"
+expect_contains "\"edit_count\":" "$out_json" "step 47: --json carries edit_count"
+expect_contains "\"latest_editor\":" "$out_json" "step 47: --json carries latest_editor"
+# Sort: count desc → target 0 first
+first=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["target_offset"])')
+[ "$first" = "0" ] || fail "step 47: count desc should put target 0 first, got $first"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

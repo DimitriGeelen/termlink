@@ -832,6 +832,14 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::EditStats { topic, hub, json } => {
+                commands::channel::cmd_channel_edit_stats(
+                    &topic,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,
