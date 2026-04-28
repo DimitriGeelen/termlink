@@ -1249,6 +1249,49 @@ Sort: edit_count desc, target_offset asc tiebreak. `--json` returns
 `[{target_offset, target_sender, target_payload, edit_count,
 latest_editor, latest_ts_ms}]`.
 
+## Canonical state — `channel state`
+
+The Matrix-style room render. Walks the topic and emits one row per visible
+content message **with edits applied** (latest text wins per parent) and
+**redactions hidden**. This is the "what does this topic say right now?"
+view — distinct from raw `subscribe` (envelope stream), `info` (synthesized
+summary), `edits-of` (single-target history), and `edit-stats` (count
+rollup).
+
+```sh
+termlink channel state alpha:design
+
+#   Canonical state of 'alpha:design':
+#     [0] * alice-fp: api proposal v3 (×3 edits)
+#     [1] bob-fp: lgtm
+#     [4] carol-fp: shipping monday
+```
+
+The `*` marker flags a row whose payload reflects a later edit. With
+`--include-redacted`, redacted offsets surface with `[redacted]` marker
+and payload `[REDACTED]` (rather than dropping the row):
+
+```sh
+termlink channel state alpha:design --include-redacted
+
+#   Canonical state of 'alpha:design':
+#     [0] * alice-fp: api proposal v3 (×3 edits)
+#     [1] bob-fp: lgtm
+#     [3] [redacted] dave-fp: [REDACTED]
+#     [4] carol-fp: shipping monday
+```
+
+Filter behaviour:
+- meta envelopes (`receipt`, `reaction`, `redaction`, `edit`,
+  `topic_metadata`) are skipped — only content rows surface
+- when an edit envelope is itself redacted, it does NOT contribute to the
+  collapse — the surviving edit (or original) wins
+- `ts_ms` is always the original post's timestamp; `latest_edit_ts_ms`
+  records when the current text was written (0 when un-edited)
+
+Sort: offset asc (chronological). `--json` returns `[{offset, sender_id,
+payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}]`.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1260,7 +1303,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 47 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 48 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1350,4 +1393,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1373 — `channel redactions` (chronological redaction audit log, symmetric with pin-history; mirror of T-1322 redact)
 - T-1374 — `channel reactions-on` (per-message reaction rollup, fourth axis after live/topic-wide/per-sender)
 - T-1375 — `channel edit-stats` (topic-wide edit count summary, completes audit trio with T-1372 pin-history + T-1373 redactions)
+- T-1376 — `channel state` (Matrix-style canonical render — edits applied, redactions hidden; the "what does this topic say now" view)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report

@@ -76,3 +76,11 @@
 {"ts": "2026-04-28T07:31:28Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a35ec2b9bdf9a5664", "bytes": 1488, "threshold": 8192, "migrated": false, "bus_ref": null}
 {"ts": "2026-04-28T08:28:00Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "ac5af42df6a1f3edd", "bytes": 1800, "threshold": 8192, "migrated": false, "bus_ref": null}
 {"ts": "2026-04-28T08:41:57Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "ad0fb375fb7cabcf4", "bytes": 2039, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T10:40:27Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a299eb6bbe76ae3d5", "bytes": 2057, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T10:44:39Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "af41289629155018b", "bytes": 2057, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T10:49:58Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "ad6bcf65d0e722d62", "bytes": 1831, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T13:01:06Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a4eb3688e572eb43c", "bytes": 1357, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T13:48:15Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a97119ad9427b1b97", "bytes": 1280, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T13:52:02Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "ac0a116f07a79c9a8", "bytes": 1280, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T13:55:15Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "aca947067fbcef016", "bytes": 1280, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-04-28T13:59:45Z", "session_id": "d938f9cf-f216-439d-ac3f-60adc5eddbac", "agent_type": "", "agent_id": "a9ffb520e31bfe7aa", "bytes": 1713, "threshold": 8192, "migrated": false, "bus_ref": null}
