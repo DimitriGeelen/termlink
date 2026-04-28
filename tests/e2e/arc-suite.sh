@@ -75,6 +75,7 @@ SCRIPTS=(
   "cross-hub-matrix-flow.sh:MATRIX-FLOW E2E PASSED"
   "cross-hub-presence-flow.sh:PRESENCE-FLOW E2E PASSED"
   "cross-hub-dm-flow.sh:DM-FLOW E2E PASSED"
+  "cross-hub-mention-stream-flow.sh:MENTION-STREAM E2E PASSED"
   "cross-hub-stress-soak.sh:STRESS-SOAK E2E PASSED"
 )
 
