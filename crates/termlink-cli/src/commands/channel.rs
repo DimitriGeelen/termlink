@@ -1240,16 +1240,44 @@ pub(crate) fn summarize_members(msgs: &[Value], include_meta: bool) -> Vec<Membe
     rows
 }
 
+/// T-1380: pure helper — same as `summarize_members` but pre-filters
+/// envelopes by `ts <= as_of_ms`. Envelopes missing a timestamp are
+/// treated as ts=0 (always included when as_of >= 0). When `as_of_ms`
+/// is None, behaviour is identical to `summarize_members`.
+pub(crate) fn summarize_members_as_of(
+    msgs: &[Value],
+    include_meta: bool,
+    as_of_ms: Option<i64>,
+) -> Vec<MemberRow> {
+    let Some(cutoff) = as_of_ms else {
+        return summarize_members(msgs, include_meta);
+    };
+    let filtered: Vec<Value> = msgs
+        .iter()
+        .filter(|env| {
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            ts <= cutoff
+        })
+        .cloned()
+        .collect();
+    summarize_members(&filtered, include_meta)
+}
+
 /// T-1341: `channel members <topic>` — per-sender activity summary.
 pub(crate) async fn cmd_channel_members(
     topic: &str,
     include_meta: bool,
+    as_of_ms: Option<i64>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
     let sock = hub_socket(hub)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
-    let rows = summarize_members(&envelopes, include_meta);
+    let rows = summarize_members_as_of(&envelopes, include_meta, as_of_ms);
 
     if json_output {
         let arr: Vec<Value> = rows.iter().map(MemberRow::to_json).collect();
@@ -1258,14 +1286,21 @@ pub(crate) async fn cmd_channel_members(
             serde_json::to_string_pretty(&json!({
                 "topic": topic,
                 "include_meta": include_meta,
+                "as_of_ms": as_of_ms,
                 "members": arr,
             }))?
         );
         return Ok(());
     }
     if rows.is_empty() {
-        println!("No members on '{topic}'.");
+        match as_of_ms {
+            Some(ts) => println!("No members on '{topic}' as of ts={ts}."),
+            None => println!("No members on '{topic}'."),
+        }
         return Ok(());
+    }
+    if let Some(ts) = as_of_ms {
+        println!("Members of '{topic}' as of ts={ts}:");
     }
     for r in &rows {
         let first = r.first_ts.map_or("—".to_string(), |v| v.to_string());
@@ -10406,6 +10441,74 @@ mod tests {
         let rows = compute_quote_stats(&envs);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].target_offset, 1);
+    }
+
+    // T-1380: summarize_members_as_of — retro membership query
+
+    #[test]
+    fn members_as_of_none_matches_existing() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "p"),
+            mk_post(1, "bob", 200, "p"),
+        ];
+        let baseline = summarize_members(&envs, false);
+        let with_none = summarize_members_as_of(&envs, false, None);
+        assert_eq!(baseline.len(), with_none.len());
+        for (a, b) in baseline.iter().zip(with_none.iter()) {
+            assert_eq!(a.sender_id, b.sender_id);
+            assert_eq!(a.posts, b.posts);
+            assert_eq!(a.first_ts, b.first_ts);
+            assert_eq!(a.last_ts, b.last_ts);
+        }
+    }
+
+    #[test]
+    fn members_as_of_before_history_is_empty() {
+        let envs = vec![
+            mk_post(0, "alice", 500, "p"),
+            mk_post(1, "bob", 600, "p"),
+        ];
+        let rows = summarize_members_as_of(&envs, false, Some(100));
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn members_as_of_mid_history_partial() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "p"),
+            mk_post(1, "bob", 200, "p"),
+            mk_post(2, "carol", 300, "p"),
+        ];
+        let rows = summarize_members_as_of(&envs, false, Some(250));
+        assert_eq!(rows.len(), 2, "alice + bob; carol's post at ts=300 not yet");
+        let senders: Vec<&str> = rows.iter().map(|r| r.sender_id.as_str()).collect();
+        assert!(senders.contains(&"alice"));
+        assert!(senders.contains(&"bob"));
+        assert!(!senders.contains(&"carol"));
+    }
+
+    #[test]
+    fn members_as_of_excludes_sender_only_after_cutoff() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "early"),
+            mk_post(1, "alice", 500, "late"),
+            mk_post(2, "bob", 600, "even-later"),
+        ];
+        // as_of=200: alice has 1 post (ts=100), bob has none yet
+        let rows = summarize_members_as_of(&envs, false, Some(200));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].posts, 1);
+    }
+
+    #[test]
+    fn members_as_of_inclusive_at_cutoff() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "p"),
+            mk_post(1, "bob", 200, "p"),
+        ];
+        let rows = summarize_members_as_of(&envs, false, Some(200));
+        assert_eq!(rows.len(), 2, "ts=200 inclusive");
     }
 
     #[test]

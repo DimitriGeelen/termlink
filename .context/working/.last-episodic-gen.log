@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T15:04:02Z ===
-task_id: T-1379
+=== episodic-gen invocation: 2026-04-28T15:18:55Z ===
+task_id: T-1380
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1379.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1380.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel quote-stats <topic> — per-target reply rollup (per-target companion to T-1370 replies-of which is per-sender)
-  Duration: 0 days (12 min)
+  Task: channel members --as-of <ms> — retro participant view (Matrix-style backfill membership query, parallel to T-1378 snapshot)
+  Duration: 0 days (13 min)
   Updates: 2
   Commits: 0
   Lines: +0 -0 across 0 files
   Outcomes: 10 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1379-channel-quote-stats-topic--per-target-re.md
+Source: /opt/termlink/.tasks/completed/T-1380-channel-members---as-of-ms--retro-partic.md
 --- exit code: 0 ---

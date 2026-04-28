@@ -2036,6 +2036,12 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         include_meta: bool,
 
+        /// Retro-membership query (T-1380): only count envelopes with
+        /// ts <= this cutoff. Useful for "who was active here as of last
+        /// Tuesday?". Parallel to `snapshot --as-of`.
+        #[arg(long = "as-of")]
+        as_of: Option<i64>,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
