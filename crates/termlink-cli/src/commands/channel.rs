@@ -4116,6 +4116,116 @@ pub(crate) async fn cmd_channel_pin_history(
     Ok(())
 }
 
+/// T-1373: one row in the redactions audit log.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RedactionRow {
+    pub event_offset: u64,
+    pub target_offset: u64,
+    pub redactor_sender: String,
+    pub reason: Option<String>,
+    pub ts_ms: i64,
+    pub target_payload: Option<String>,
+}
+
+impl RedactionRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "event_offset": self.event_offset,
+            "target_offset": self.target_offset,
+            "redactor_sender": self.redactor_sender,
+            "reason": self.reason,
+            "ts_ms": self.ts_ms,
+            "target_payload": self.target_payload,
+        })
+    }
+}
+
+/// T-1373: pure helper — chronological audit of redaction events.
+///
+/// One row per `msg_type=redaction` envelope whose `metadata.redacts`
+/// parses as u64. Reason is best-effort (passed straight through if
+/// `metadata.reason` exists). `target_payload` is best-effort from the
+/// topic snapshot — None when the target is missing or itself a meta
+/// envelope without payload.
+///
+/// Sort: `event_offset` ascending. Pure — no I/O. Reuses `extract_redaction`
+/// (T-1322) so the discriminator logic stays in one place.
+pub(crate) fn compute_redactions(envelopes: &[Value]) -> Vec<RedactionRow> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut rows: Vec<RedactionRow> = Vec::new();
+    for env in envelopes {
+        let r = match extract_redaction(env) {
+            Some(r) => r,
+            None => continue,
+        };
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let target_payload = by_off.get(&r.target).map(|e| decode_payload_lossy(e));
+        rows.push(RedactionRow {
+            event_offset: off,
+            target_offset: r.target,
+            redactor_sender: r.sender.to_string(),
+            reason: r.reason,
+            ts_ms: ts,
+            target_payload,
+        });
+    }
+    rows.sort_by(|a, b| a.event_offset.cmp(&b.event_offset));
+    rows
+}
+
+/// T-1373: render the redaction audit log.
+pub(crate) async fn cmd_channel_redactions(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_redactions(&envelopes);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(RedactionRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No redactions on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Redactions on '{topic}':");
+    for r in &rows {
+        let preview = match &r.target_payload {
+            Some(p) if p.len() > 60 => format!("{}…", &p[..60]),
+            Some(p) => p.clone(),
+            None => "(target not in snapshot)".to_string(),
+        };
+        let reason = match &r.reason {
+            Some(r) => format!(" reason=\"{r}\""),
+            None => String::new(),
+        };
+        println!(
+            "  [{eo}] redacts → [{to}] by {actor}{reason}: {preview}",
+            eo = r.event_offset,
+            to = r.target_offset,
+            actor = r.redactor_sender,
+        );
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -8861,5 +8971,79 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].target_offset, 99);
         assert!(rows[0].target_payload.is_none());
+    }
+
+    // T-1373: compute_redactions
+    fn mk_redact_with_reason(off: u64, sender: &str, ts: i64, target: u64, reason: &str) -> Value {
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "redaction",
+            "ts_unix_ms": ts,
+            "payload_b64": "",
+            "metadata": {"redacts": target.to_string(), "reason": reason},
+        })
+    }
+
+    #[test]
+    fn redactions_chronological_asc() {
+        let envs = vec![
+            mk_post(0, "a", 100, "first"),
+            mk_post(1, "b", 200, "second"),
+            mk_redact(2, "a", 300, 1),
+            mk_redact(3, "b", 400, 0),
+        ];
+        let rows = compute_redactions(&envs);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].event_offset, 2);
+        assert_eq!(rows[0].target_offset, 1);
+        assert_eq!(rows[0].redactor_sender, "a");
+        assert_eq!(rows[0].target_payload.as_deref(), Some("second"));
+        assert_eq!(rows[1].event_offset, 3);
+        assert_eq!(rows[1].target_offset, 0);
+        assert_eq!(rows[1].target_payload.as_deref(), Some("first"));
+    }
+
+    #[test]
+    fn redactions_with_reason() {
+        let envs = vec![
+            mk_post(0, "a", 100, "oops"),
+            mk_redact_with_reason(1, "a", 200, 0, "wrong channel"),
+        ];
+        let rows = compute_redactions(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reason.as_deref(), Some("wrong channel"));
+    }
+
+    #[test]
+    fn redactions_target_payload_none_when_absent() {
+        // Redact offset 99 which isn't in the snapshot.
+        let envs = vec![mk_redact(0, "a", 100, 99)];
+        let rows = compute_redactions(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_offset, 99);
+        assert!(rows[0].target_payload.is_none());
+        assert!(rows[0].reason.is_none());
+    }
+
+    #[test]
+    fn redactions_malformed_redacts_skipped() {
+        use base64::Engine;
+        let envs = vec![
+            mk_post(0, "a", 100, "x"),
+            // bogus redacts (non-numeric)
+            json!({
+                "offset": 1,
+                "sender_id": "a",
+                "msg_type": "redaction",
+                "ts_unix_ms": 200,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode(""),
+                "metadata": {"redacts": "not-a-number"},
+            }),
+            mk_redact(2, "a", 300, 0),
+        ];
+        let rows = compute_redactions(&envs);
+        assert_eq!(rows.len(), 1, "only the well-formed redaction survives");
+        assert_eq!(rows[0].event_offset, 2);
     }
 }
