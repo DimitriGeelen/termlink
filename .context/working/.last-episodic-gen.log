@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T08:08:17Z ===
-task_id: T-1362
+=== episodic-gen invocation: 2026-04-28T08:20:30Z ===
+task_id: T-1363
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1362.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1363.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel reactions-of — list all reactions a specific sender posted on a topic
+  Task: channel snippet — quotable text excerpt with surrounding context
   Duration: 0 days (11 min)
   Updates: 2
   Commits: 1
-  Lines: +322 -101 across 18 files
-  Outcomes: 9 AC checked
-  Artifacts: 18 files tracked
+  Lines: +306 -43 across 15 files
+  Outcomes: 7 AC checked
+  Artifacts: 15 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1362-channel-reactions-of--list-all-reactions.md
+Source: /opt/termlink/.tasks/completed/T-1363-channel-snippet--quotable-text-excerpt-w.md
 --- exit code: 0 ---

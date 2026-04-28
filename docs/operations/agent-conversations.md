@@ -930,6 +930,76 @@ termlink channel emoji-stats dm:alice:bob --top 3
 Redactions targeting reaction envelopes are honoured (the reaction is
 excluded from the tally), so `react --remove` is reflected here.
 
+## Read-receipt dashboard (T-1361)
+
+`channel ack-status` is the read-receipt overview: per-sender, where they
+are vs. the topic's latest offset, with a "lag" delta. Surfaces members
+who never sent a receipt (their `ack` shows `-`).
+
+```sh
+# Default: every member.
+termlink channel ack-status dm:alice:bob
+# → Ack status on 'dm:alice:bob' (latest offset = 12):
+#     bob-fingerprint    ack=-   lag=13  ts=0           # never acked
+#     carol-fingerprint  ack=4   lag=8   ts=...
+#     alice-fingerprint  ack=12  lag=0   ts=...
+
+# Only members who are behind.
+termlink channel ack-status dm:alice:bob --pending-only
+```
+
+Distinct from `channel receipts` (raw list, no lag) and `channel unread
+<topic>` (single-sender count). Note: a sender's own receipt envelope is
+itself in the topic, so each `ack` advances `latest` by 1; the lag drifts
+back to ≥1 unless caller acks past the receipt envelope.
+
+## Per-sender reaction reverse view (T-1362)
+
+`channel reactions-of` is the inverse of `subscribe --reactions`: instead
+of "what reactions exist on each message", it answers "what did sender X
+react to". Defaults to the calling identity; `--sender <fp>` overrides.
+
+```sh
+# What did I react to?
+termlink channel reactions-of dm:alice:bob
+# → Reactions by alice-fingerprint on 'dm:alice:bob':
+#     🚀 → offset 5 (let's ship it)
+#     ❤  → offset 3 (I love this idea)
+#     👍 → offset 0 (initial proposal)
+
+# What did bob react to?
+termlink channel reactions-of dm:alice:bob --sender bob-fingerprint
+```
+
+Active reactions only — redacted reactions (via `react --remove`) are
+excluded. Sort: reaction-offset descending (most recent first). `--json`
+returns `[{reaction_offset, parent_offset, emoji, parent_payload, ts}]`.
+
+## Quotable snippets (T-1363)
+
+`channel snippet` is "give me a markdown-friendly excerpt I can paste
+into a task description, inception, or PR". Walks the topic, finds the
+target offset, renders it with N envelopes of context above and below
+as a fenced code block.
+
+```sh
+termlink channel snippet dm:alice:bob 42 --lines 2 --header
+# → From `dm:alice:bob` @ offset 42:
+#   ```
+#      [40] alice-fp: discussion of approach A
+#      [41] bob-fp: prefer approach B because of …
+#   >> [42] alice-fp: agreed — let's go with B
+#      [43] bob-fp: I'll draft the spec
+#      [44] alice-fp: thanks
+#   ```
+```
+
+Skips meta envelopes (reactions, edits, redactions, receipts,
+topic_metadata) so the snippet stays content-focused. Default `--lines
+2`. `--json` returns `{topic, target_offset, lines:[{offset, sender,
+payload, is_target}]}`. Errors when the target offset doesn't exist as
+content.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -941,7 +1011,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 34 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 37 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -949,7 +1019,8 @@ subscribe --show-parent, pin/pinned, subscribe --tail, subscribe --senders,
 forward, subscribe --show-forwards, typing emit/list/expiry, subscribe
 --until window, star/unstar/starred per-user bookmarks, poll
 start/vote/end/results lifecycle, digest synthesis, cross-topic inbox,
-per-topic emoji-stats), and exits 0 on success.
+per-topic emoji-stats, ack-status dashboard, reactions-of reverse view,
+snippet excerpt), and exits 0 on success.
 Each assertion is content-level (`grep -F` for expected substrings) so
 re-runs are safe even though the canonical DM topic accumulates state
 across runs.
@@ -1016,4 +1087,7 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1356 — `channel digest` (synthesized recent activity, time-windowed)
 - T-1358 — `channel inbox` (cross-topic unread summary via T-1318 cursors)
 - T-1359 — `channel emoji-stats` (per-topic reaction breakdown)
+- T-1361 — `channel ack-status` (read-receipt dashboard with lag)
+- T-1362 — `channel reactions-of` (per-sender reaction reverse view)
+- T-1363 — `channel snippet` (quotable text excerpt with surrounding context)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
