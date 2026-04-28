@@ -3144,6 +3144,213 @@ pub(crate) async fn cmd_channel_emoji_stats(
     Ok(())
 }
 
+/// T-1361: one row in the read-receipt dashboard.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AckStatusRow {
+    pub sender_id: String,
+    /// `None` when the sender posted content but never emitted a receipt.
+    pub up_to: Option<u64>,
+    pub latest: u64,
+    pub lag: u64,
+    pub receipt_ts: i64,
+}
+
+impl AckStatusRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "sender_id": self.sender_id,
+            "up_to": self.up_to,
+            "latest": self.latest,
+            "lag": self.lag,
+            "ts": self.receipt_ts,
+        })
+    }
+}
+
+/// T-1361: pure helper — compute the per-sender ack-status rows.
+///
+/// Inputs:
+/// - `envelopes`: full topic walk (used to extract member set + latest offset)
+/// - `receipts`: latest receipt per sender, as `(sender_id -> (up_to, ts))`
+///
+/// Rows:
+/// - Senders with a receipt: `up_to = Some(U)`, `lag = max(0, latest - U)`
+/// - Senders who posted content but no receipt: `up_to = None`, `lag = latest + 1`
+///
+/// Sorted by lag descending; ties break on sender_id ascending. Pure — no I/O.
+pub(crate) fn compute_ack_status(
+    envelopes: &[Value],
+    receipts: &std::collections::HashMap<String, (u64, i64)>,
+    latest_offset: u64,
+) -> Vec<AckStatusRow> {
+    use std::collections::HashSet;
+    // Members = anyone who posted any non-meta envelope. Use a permissive
+    // definition (anyone with sender_id) so the dashboard surfaces lurkers
+    // who reacted but never wrote.
+    let mut members: HashSet<String> = HashSet::new();
+    for env in envelopes {
+        if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
+            members.insert(s.to_string());
+        }
+    }
+    // Always include receipt-only senders too.
+    for sender in receipts.keys() {
+        members.insert(sender.clone());
+    }
+    let mut rows: Vec<AckStatusRow> = members
+        .into_iter()
+        .map(|sender_id| match receipts.get(&sender_id) {
+            Some((up_to, ts)) => {
+                let lag = latest_offset.saturating_sub(*up_to);
+                AckStatusRow {
+                    sender_id,
+                    up_to: Some(*up_to),
+                    latest: latest_offset,
+                    lag,
+                    receipt_ts: *ts,
+                }
+            }
+            None => AckStatusRow {
+                sender_id,
+                up_to: None,
+                latest: latest_offset,
+                lag: latest_offset + 1,
+                receipt_ts: 0,
+            },
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.lag
+            .cmp(&a.lag)
+            .then_with(|| a.sender_id.cmp(&b.sender_id))
+    });
+    rows
+}
+
+/// T-1361: render the ack-status dashboard.
+pub(crate) async fn cmd_channel_ack_status(
+    topic: &str,
+    pending_only: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    if envelopes.is_empty() {
+        println!("Topic '{topic}' is empty.");
+        return Ok(());
+    }
+    let latest_offset = envelopes
+        .iter()
+        .filter_map(|e| e.get("offset").and_then(|v| v.as_u64()))
+        .max()
+        .unwrap_or(0);
+
+    // Latest-receipt per sender via channel.receipts RPC (with envelope-walk
+    // fallback for old hubs).
+    use std::collections::HashMap;
+    let mut receipts: HashMap<String, (u64, i64)> = HashMap::new();
+    let server_resp = client::rpc_call(
+        &sock,
+        method::CHANNEL_RECEIPTS,
+        json!({"topic": topic}),
+    )
+    .await
+    .context("Hub rpc_call (channel.receipts) failed")?;
+    let mut fallback = false;
+    match server_resp {
+        termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+            for entry in r.result["receipts"].as_array().cloned().unwrap_or_default() {
+                let sender = match entry.get("sender_id").and_then(|v| v.as_str()) {
+                    Some(s) => s.to_string(),
+                    None => continue,
+                };
+                let up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                let ts = entry
+                    .get("ts_unix_ms")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                receipts.insert(sender, (up_to, ts));
+            }
+        }
+        termlink_protocol::jsonrpc::RpcResponse::Error(e) if e.error.code == -32601 => {
+            fallback = true;
+        }
+        termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+            return Err(anyhow!(
+                "Hub returned error for channel.receipts: {} {}",
+                e.error.code,
+                e.error.message
+            ));
+        }
+    }
+    if fallback {
+        // Walk the topic for receipt envelopes.
+        for env in &envelopes {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                continue;
+            }
+            let sender = match env.get("sender_id").and_then(|v| v.as_str()) {
+                Some(s) => s.to_string(),
+                None => continue,
+            };
+            let up_to = match env
+                .get("metadata")
+                .and_then(|md| md.get("up_to"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+            {
+                Some(v) => v,
+                None => continue,
+            };
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            match receipts.get(&sender) {
+                Some((_, prev_ts)) if *prev_ts > ts => {}
+                _ => {
+                    receipts.insert(sender, (up_to, ts));
+                }
+            }
+        }
+    }
+
+    let mut rows = compute_ack_status(&envelopes, &receipts, latest_offset);
+    if pending_only {
+        rows.retain(|r| r.lag > 0);
+    }
+
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(AckStatusRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        if pending_only {
+            println!("All members are caught up on '{topic}'.");
+        } else {
+            println!("No members on '{topic}'.");
+        }
+        return Ok(());
+    }
+    println!("Ack status on '{topic}' (latest offset = {latest_offset}):");
+    for r in &rows {
+        let ack = match r.up_to {
+            Some(u) => u.to_string(),
+            None => "-".to_string(),
+        };
+        println!(
+            "  {sender}  ack={ack}  lag={lag}  ts={ts}",
+            sender = r.sender_id,
+            lag = r.lag,
+            ts = r.receipt_ts,
+        );
+    }
+    Ok(())
+}
+
 /// T-1358: per-topic unread row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UnreadRow {
@@ -5823,6 +6030,95 @@ mod tests {
         let d = compute_digest(&envs, 0);
         assert_eq!(d.forwards_in, 1);
         assert_eq!(d.posts, 2);
+    }
+
+    // T-1361: compute_ack_status
+    fn ack_receipts(items: &[(&str, u64, i64)]) -> std::collections::HashMap<String, (u64, i64)> {
+        items.iter().map(|(s, u, t)| (s.to_string(), (*u, *t))).collect()
+    }
+
+    #[test]
+    fn compute_ack_status_empty_topic_no_receipts() {
+        let receipts = ack_receipts(&[]);
+        let rows = compute_ack_status(&[], &receipts, 0);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn compute_ack_status_single_member_caught_up() {
+        let envs = vec![chat_env(0, "alice", 100, "msg")];
+        let receipts = ack_receipts(&[("alice", 0, 200)]);
+        let rows = compute_ack_status(&envs, &receipts, 0);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].lag, 0);
+    }
+
+    #[test]
+    fn compute_ack_status_member_without_receipt_is_full_unread() {
+        let envs = vec![chat_env(0, "alice", 100, "msg"), chat_env(1, "bob", 110, "msg")];
+        // Only alice has a receipt; bob has none.
+        let receipts = ack_receipts(&[("alice", 1, 200)]);
+        let rows = compute_ack_status(&envs, &receipts, 1);
+        let bob_row = rows.iter().find(|r| r.sender_id == "bob").unwrap();
+        assert!(bob_row.up_to.is_none());
+        assert_eq!(bob_row.lag, 2); // latest+1 = 1+1 = 2
+    }
+
+    #[test]
+    fn compute_ack_status_mixed_lag() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "msg"),
+            chat_env(1, "bob", 110, "msg"),
+            chat_env(2, "alice", 120, "msg"),
+            chat_env(3, "carol", 130, "msg"),
+        ];
+        // alice acked up to 1 (lag=2), bob acked up to 0 (lag=3), carol no receipt (lag=4).
+        let receipts = ack_receipts(&[
+            ("alice", 1, 200),
+            ("bob", 0, 200),
+        ]);
+        let rows = compute_ack_status(&envs, &receipts, 3);
+        assert_eq!(rows.len(), 3);
+        // Sorted by lag desc: carol(4), bob(3), alice(2).
+        assert_eq!(rows[0].sender_id, "carol");
+        assert_eq!(rows[0].lag, 4);
+        assert_eq!(rows[1].sender_id, "bob");
+        assert_eq!(rows[1].lag, 3);
+        assert_eq!(rows[2].sender_id, "alice");
+        assert_eq!(rows[2].lag, 2);
+    }
+
+    #[test]
+    fn compute_ack_status_tie_break_on_sender() {
+        let envs = vec![chat_env(0, "zebra", 100, "x"), chat_env(1, "apple", 110, "y")];
+        // Both at full lag, no receipts.
+        let receipts = ack_receipts(&[]);
+        let rows = compute_ack_status(&envs, &receipts, 1);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].sender_id, "apple");
+        assert_eq!(rows[1].sender_id, "zebra");
+    }
+
+    #[test]
+    fn compute_ack_status_includes_receipt_only_senders() {
+        // Sender posted a receipt but never wrote content — they still appear.
+        let envs = vec![chat_env(0, "alice", 100, "msg")];
+        let receipts = ack_receipts(&[
+            ("alice", 0, 200),
+            ("bob", 0, 250), // receipt only
+        ]);
+        let rows = compute_ack_status(&envs, &receipts, 0);
+        assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn compute_ack_status_ack_ahead_of_latest_clamped_to_zero() {
+        // Pathological: receipt up_to > latest_offset. Should saturate to lag=0.
+        let envs = vec![chat_env(0, "alice", 100, "msg")];
+        let receipts = ack_receipts(&[("alice", 99, 200)]);
+        let rows = compute_ack_status(&envs, &receipts, 0);
+        assert_eq!(rows[0].lag, 0);
     }
 
     // T-1359: compute_emoji_stats

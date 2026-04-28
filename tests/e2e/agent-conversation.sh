@@ -626,6 +626,29 @@ out_json=$(A channel emoji-stats "$EMOJI_TOPIC" --json)
 expect_contains "\"emoji\":" "$out_json" "step 34: --json carries emoji field"
 expect_contains "\"distinct_reactors\":" "$out_json" "step 34: --json carries distinct_reactors"
 
+step "35. channel ack-status (T-1361): per-topic read-receipt dashboard"
+ACK_TOPIC="t-1361-ack-$(date +%s)"
+A channel create "$ACK_TOPIC" --retention forever >/dev/null
+for i in 0 1 2 3; do
+  A channel post "$ACK_TOPIC" --msg-type chat --payload "ack-msg-$i" >/dev/null
+done
+B channel post "$ACK_TOPIC" --msg-type chat --payload "bob-msg" >/dev/null
+# Alice acks up to offset 1; bob never acks.
+A channel ack "$ACK_TOPIC" --up-to 1 >/dev/null
+out=$(A channel ack-status "$ACK_TOPIC")
+expect_contains "Ack status" "$out" "step 35: header rendered"
+expect_contains "$ALICE" "$out" "step 35: alice present"
+expect_contains "$BOB" "$out" "step 35: bob present"
+expect_contains "lag=" "$out" "step 35: lag column rendered"
+# JSON shape sanity.
+out_json=$(A channel ack-status "$ACK_TOPIC" --json)
+expect_contains "\"lag\":" "$out_json" "step 35: --json carries lag"
+expect_contains "\"sender_id\":" "$out_json" "step 35: --json carries sender_id"
+# pending-only filter — both alice (lag>0) and bob (no receipt = max lag) should still appear.
+out_pending=$(A channel ack-status "$ACK_TOPIC" --pending-only)
+expect_contains "$ALICE" "$out_pending" "step 35: pending-only includes lagging alice"
+expect_contains "$BOB" "$out_pending" "step 35: pending-only includes never-acked bob"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
