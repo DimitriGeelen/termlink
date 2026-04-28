@@ -690,6 +690,20 @@ async fn main() -> Result<()> {
             ChannelAction::Inbox { hub, json } => {
                 commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
             }
+            ChannelAction::AckStatus {
+                topic,
+                pending_only,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_ack_status(
+                    &topic,
+                    pending_only,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EmojiStats {
                 topic,
                 by_sender,

@@ -2423,6 +2423,28 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Read-receipt dashboard for a topic (T-1361). Composes
+    /// `channel.receipts` with the topic's latest offset and member set into
+    /// per-sender lag rows: `<sender_id> ack=<up_to> latest=<L> lag=<N>`.
+    /// Surfaces members who have posted content but never sent a receipt.
+    /// Distinct from `channel receipts` (raw list, no lag) and `channel
+    /// unread <topic>` (single-sender count).
+    AckStatus {
+        /// Topic name
+        topic: String,
+
+        /// Show only members whose lag is > 0.
+        #[arg(long)]
+        pending_only: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON `[{sender_id, up_to, latest, lag, ts}]`
+        #[arg(long)]
+        json: bool,
+    },
     /// Per-topic emoji-reaction breakdown (T-1359). Walks the topic, tallies
     /// every active (non-redacted) `msg_type=reaction` envelope by payload,
     /// and renders rows sorted by count descending. Distinct from
