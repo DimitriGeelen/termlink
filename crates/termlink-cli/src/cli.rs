@@ -2549,6 +2549,23 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Chronological redaction audit log for a topic (T-1373). Walks the
+    /// topic and lists every `msg_type=redaction` envelope as a row, with
+    /// target offset, redactor, optional reason, ts, and a preview of the
+    /// original payload when still in the snapshot. Symmetric to
+    /// `pin-history` (T-1372). Useful for "what got pulled and why".
+    Redactions {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Pin/unpin audit log for a topic (T-1372). Walks the topic and lists
     /// every `msg_type=pin` envelope chronologically — each toggle is a row,
     /// including pins that were later unpinned and re-pins of the same target.

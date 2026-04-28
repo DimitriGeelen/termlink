@@ -863,6 +863,26 @@ expect_contains "\"event_offset\":" "$out_json" "step 44: --json carries event_o
 expect_contains "\"action\":" "$out_json" "step 44: --json carries action"
 expect_contains "\"target_payload\":" "$out_json" "step 44: --json carries target_payload"
 
+step "45. channel redactions (T-1373): chronological redaction audit log"
+RD_TOPIC="t-1373-redactions-$(date +%s)"
+A channel create "$RD_TOPIC" --retention forever >/dev/null
+A channel post "$RD_TOPIC" --msg-type chat --payload "rd-target-0" >/dev/null
+B channel post "$RD_TOPIC" --msg-type chat --payload "rd-target-1" >/dev/null
+A channel redact "$RD_TOPIC" 0 --reason "test redact" >/dev/null
+B channel redact "$RD_TOPIC" 1 >/dev/null
+out=$(A channel redactions "$RD_TOPIC")
+expect_contains "redacts → [0]" "$out" "step 45: first redaction targets offset 0"
+expect_contains "redacts → [1]" "$out" "step 45: second redaction targets offset 1"
+expect_contains "test redact" "$out" "step 45: reason rendered"
+expect_contains "rd-target-0" "$out" "step 45: target_payload preview rendered"
+expect_contains "rd-target-1" "$out" "step 45: second target_payload preview rendered"
+out_json=$(A channel redactions "$RD_TOPIC" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "2" ] || fail "step 45: expected 2 redactions, got $n"
+expect_contains "\"event_offset\":" "$out_json" "step 45: --json carries event_offset"
+expect_contains "\"target_offset\":" "$out_json" "step 45: --json carries target_offset"
+expect_contains "\"reason\":" "$out_json" "step 45: --json carries reason"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 

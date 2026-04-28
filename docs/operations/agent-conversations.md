@@ -1180,6 +1180,27 @@ truncated, or itself a meta envelope). Sort: event_offset asc.
 Malformed pin envelopes (missing or non-numeric `pin_target`, missing
 metadata) are silently skipped. `--json` returns the array of rows.
 
+## Redaction audit log — `channel redactions`
+
+`channel redact` (T-1322) posts a redaction; `subscribe --hide-redacted`
+suppresses redacted bodies; this command renders the *audit trail*. One
+row per `msg_type=redaction` envelope with parseable `metadata.redacts`,
+chronological by event_offset.
+
+```sh
+termlink channel redactions alpha:design
+
+#   Redactions on 'alpha:design':
+#     [12] redacts → [3] by alice-fp reason="wrong channel": draft proposal v0
+#     [25] redacts → [7] by bob-fp: forgot to anonymise dataset notes
+```
+
+Each row carries event_offset (where the redaction was posted),
+target_offset, redactor_sender, optional reason (passed through from
+`metadata.reason`), ts_ms, and best-effort `target_payload` (None when
+the target isn't in the snapshot). Sort: event_offset asc. Symmetric
+with `pin-history` (T-1372). `--json` returns the array of rows.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -1191,7 +1212,7 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 44 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 45 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
@@ -1278,4 +1299,5 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1370 — `channel replies-of` (reverse view of `channel reply`, mirror of T-1367)
 - T-1371 — `channel mentions-of` (per-topic mention reverse view, complements T-1339 cross-topic mentions)
 - T-1372 — `channel pin-history` (chronological pin/unpin audit log, complements T-1345 LWW pinned set)
+- T-1373 — `channel redactions` (chronological redaction audit log, symmetric with pin-history; mirror of T-1322 redact)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report
