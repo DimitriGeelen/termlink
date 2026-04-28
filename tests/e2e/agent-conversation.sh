@@ -740,6 +740,36 @@ out_json=$(A channel edits-of "$EDIT_TOPIC" 0 --json)
 expect_contains "\"original\":" "$out_json" "step 39: --json carries original"
 expect_contains "\"edits\":" "$out_json" "step 39: --json carries edits array"
 
+step "40. channel forwards-of (T-1367): list forwards posted by a sender"
+SRC_FWD_T1367="t-1367-src-$(date +%s)"
+DST_FWD_T1367="t-1367-dst-$(date +%s)"
+A channel create "$SRC_FWD_T1367" --retention forever >/dev/null
+A channel create "$DST_FWD_T1367" --retention forever >/dev/null
+# Alice posts two messages on src.
+A channel post "$SRC_FWD_T1367" --msg-type chat --payload "src-1-T1367" >/dev/null
+A channel post "$SRC_FWD_T1367" --msg-type chat --payload "src-2-T1367" >/dev/null
+# Bob forwards both into dst.
+B channel forward "$SRC_FWD_T1367" 0 "$DST_FWD_T1367" >/dev/null
+B channel forward "$SRC_FWD_T1367" 1 "$DST_FWD_T1367" >/dev/null
+# forwards-of from BOB's identity, scoped to dst — should see both rows.
+out=$(B channel forwards-of "$DST_FWD_T1367")
+expect_contains "src-1-T1367" "$out" "step 40: first forward visible"
+expect_contains "src-2-T1367" "$out" "step 40: second forward visible"
+expect_contains "$SRC_FWD_T1367" "$out" "step 40: origin topic listed"
+# Default scope (caller = Bob), most-recent first.
+first_pos=$(echo "$out" | grep -n 'src-1-T1367' | head -1 | cut -d: -f1)
+second_pos=$(echo "$out" | grep -n 'src-2-T1367' | head -1 | cut -d: -f1)
+[ "$second_pos" -lt "$first_pos" ] || fail "step 40: forwards-of should sort offset desc (src-2 first)"
+# Filtered to ALICE — alice never forwarded → empty.
+out_alice=$(A channel forwards-of "$DST_FWD_T1367" "$ALICE")
+expect_contains "No forwards by" "$out_alice" "step 40: alice has no forwards on dst"
+# JSON shape.
+out_json=$(B channel forwards-of "$DST_FWD_T1367" --json)
+expect_contains "\"forward_offset\":" "$out_json" "step 40: --json carries forward_offset"
+expect_contains "\"origin_topic\":" "$out_json" "step 40: --json carries origin_topic"
+expect_contains "\"origin_offset\":" "$out_json" "step 40: --json carries origin_offset"
+expect_contains "\"origin_sender\":" "$out_json" "step 40: --json carries origin_sender"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
