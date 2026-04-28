@@ -74,6 +74,7 @@ SCRIPTS=(
   "cross-hub-bidirectional-6agents.sh:BIDIRECTIONAL CROSS-HUB E2E PASSED"
   "cross-hub-matrix-flow.sh:MATRIX-FLOW E2E PASSED"
   "cross-hub-presence-flow.sh:PRESENCE-FLOW E2E PASSED"
+  "cross-hub-dm-flow.sh:DM-FLOW E2E PASSED"
 )
 
 declare -a RESULTS
