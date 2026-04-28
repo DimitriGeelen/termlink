@@ -230,7 +230,48 @@ for the gaps:
 
 **Agent:** (a) Deployed locally: `cp /opt/termlink/target/release/termlink /usr/local/bin/termlink`, backup at `.0.9.844.bak`. Verified via remote exec on session — version now 0.9.1527, `channel state --help` works. (b) Started `remote send-file` to .122. Transfer succeeded (417 chunks) but the legacy event-bus fallback didn't persist the file. Halted further .122 work pending human review of the deploy strategy.
 
-**Agent then ran:** 55-step e2e (passed twice) and 3-session local multi-post test (revealed per-user-not-per-session identity finding). Concluding inception with DEFER + 3 follow-up tasks.
+**Agent then ran:** 55-step e2e (passed twice) and 3-session local multi-post test (revealed per-user-not-per-session identity finding).
+
+### 2026-04-28 19:30Z — termlink-upgrade question + binary deploy push
+
+**Human:** "or dont we have a termlink upgrade command in the aef cli ?"
+
+**Agent:** Located `fw termlink update` (this-machine pull-and-rebuild). On .122 it found the source clone at `/root/termlink` with TERMLINK_REPO override. But: **.122 has no rust toolchain** → cargo not found → cannot build locally.
+
+**Pivot:** push pre-built binary from .107. Stood up python http.server on :8765, opened ufw rule for LAN, .122 curled it. **First binary failed: GLIBC 2.38/2.39 mismatch** — built on dev box with newer libc than .122's.
+
+**Fix:** static musl build (`--target x86_64-unknown-linux-musl`). 7m02s build. Verified `statically linked`. SHA-256 e7c0fd44... Pushed via same HTTP server, .122 received it, `--version` reported 0.9.1529, `channel state --help` worked. Installed at /usr/local/bin/termlink with .0.9.844.bak backup. Restarted hub on .122 (mid-RPC connection killed as expected; hub came back at PID 1241403 in <3s).
+
+### 2026-04-28 19:50Z — actual cross-hub test FAILED with NEW finding
+
+**Action:** Ran `termlink channel create xhub-real-... --hub 192.168.10.122:9100` from .107. Expected: success (both ends now have the new binary).
+
+**Result:** `Hub rpc_call (channel.create) failed — I/O error: No such file or directory (os error 2)`.
+
+**Diagnosis:** checked /var/lib/termlink/rpc-audit.jsonl on .122 — **the channel.create RPC never reached the remote hub.** Audit log shows only the remote-exec auth/discover entries; no `channel.*` entries. Failure is local to the calling client.
+
+**Root cause:** `hub_socket()` in `crates/termlink-cli/src/commands/channel.rs:52` treats the `--hub` arg as a literal `PathBuf` (Unix socket path). When you pass `192.168.10.122:9100`, it tries to open it as a file → ENOENT. The whole channel arc never wired in TCP-address support, even though `TransportAddr::tcp` + `rpc_call_addr` already work elsewhere (remote ping uses them).
+
+**Surface:** ~124 call sites in channel.rs all use `client::rpc_call(&sock, ...)`. Need to:
+1. Change `hub_socket(Option<&str>) -> Result<PathBuf>` to return `TransportAddr`
+2. Replace `rpc_call(&sock, ...)` with `rpc_call_addr(&addr, ...)` everywhere
+3. Add parsing: if `--hub` arg matches `host:port` → `TransportAddr::tcp(host, port)`; else → `TransportAddr::unix(path)`
+4. Same change to `walk_topic_full(sock: &Path, ...)` (used by every read-side command)
+
+**This is THE arc-design gap.** Per-session identity and SSH-blocked heal are real but secondary. Cross-hub support is the primary blocker because we now have two hubs both running 0.9.1529 — and we still can't talk between them.
+
+### 2026-04-28 20:00Z — wrap-up at 84% context
+
+**Agent:** Closed out at 252K tokens to avoid budget gate. Cleaned up: killed HTTP server on :8765, removed ufw rule, removed staged target/release/termlink-musl. .122 is left with the new binary at /usr/local/bin/termlink (0.9.1529) and the new hub running. Local /usr/local/bin/termlink also at 0.9.1527 with backup.
+
+**Updated recommendation:**
+
+The original DEFER + 3 follow-ups stands, but **T-1385's priority should be the cross-hub TCP fix, not per-session identity.** Per-session identity is hypothetical-future-work; cross-hub TCP is blocking-now. Reorder:
+
+- **T-1385 (build, P0):** channel commands accept TCP `--hub` addresses (fix `hub_socket` + `walk_topic_full` to use TransportAddr)
+- **T-1386 (build):** per-session identity opt-in
+- **T-1387 (deploy):** ring20-dashboard SSH-less heal
+- **(done in this session):** binary deploy to .122 via HTTP+musl pattern is now a known recipe; document in CLAUDE.md / runbook
 
 ## Dialogue Log
 
