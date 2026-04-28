@@ -75,7 +75,12 @@ SCRIPTS=(
   "cross-hub-matrix-flow.sh:MATRIX-FLOW E2E PASSED"
   "cross-hub-presence-flow.sh:PRESENCE-FLOW E2E PASSED"
   "cross-hub-dm-flow.sh:DM-FLOW E2E PASSED"
+  "cross-hub-stress-soak.sh:STRESS-SOAK E2E PASSED"
 )
+
+# stress-soak's Phase 3 re-invokes arc-suite, so we set ARC_SUITE_RUN=1
+# below to make it skip that phase when run from here (recursion guard).
+export ARC_SUITE_RUN=1
 
 declare -a RESULTS
 START_ALL=$(date +%s)

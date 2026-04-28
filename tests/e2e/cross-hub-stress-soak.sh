@@ -136,15 +136,20 @@ done
 echo "OK: all 5 fan-out topics carry exactly 10 envelopes"
 
 # ---------- Phase 3: re-run arc-suite to confirm arc unbroken --------------
-step "Phase 3: re-run arc-suite to confirm no leftover stress damage"
-SUITE_PATH="$(dirname "$0")/arc-suite.sh"
-[ -x "$SUITE_PATH" ] || fail "arc-suite.sh not executable at $SUITE_PATH"
-if ! BIN="$BIN" "$SUITE_PATH" > "$WORK/arc-suite.out" 2>&1; then
-  tail -30 "$WORK/arc-suite.out"
-  fail "arc-suite re-run failed after stress"
+# Skip when invoked from inside arc-suite (would infinite-recurse).
+if [ "${ARC_SUITE_RUN:-0}" = "1" ]; then
+  step "Phase 3: SKIPPED — running inside arc-suite (recursion guard)"
+else
+  step "Phase 3: re-run arc-suite to confirm no leftover stress damage"
+  SUITE_PATH="$(dirname "$0")/arc-suite.sh"
+  [ -x "$SUITE_PATH" ] || fail "arc-suite.sh not executable at $SUITE_PATH"
+  if ! BIN="$BIN" "$SUITE_PATH" > "$WORK/arc-suite.out" 2>&1; then
+    tail -30 "$WORK/arc-suite.out"
+    fail "arc-suite re-run failed after stress"
+  fi
+  grep -q "ARC SUITE GREEN" "$WORK/arc-suite.out" || fail "arc-suite marker missing"
+  echo "OK: arc-suite re-runs green after stress"
 fi
-grep -q "ARC SUITE GREEN" "$WORK/arc-suite.out" || fail "arc-suite marker missing"
-echo "OK: arc-suite re-runs green after stress"
 
 END_T=$(date +%s)
 DURATION=$((END_T - START_T))
