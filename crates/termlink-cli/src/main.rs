@@ -752,6 +752,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::ForwardsOf {
+                topic,
+                sender,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_forwards_of(
+                    &topic,
+                    sender.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::EditsOf {
                 topic,
                 offset,

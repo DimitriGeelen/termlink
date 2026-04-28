@@ -3382,6 +3382,125 @@ pub(crate) async fn cmd_channel_reactions_of(
     Ok(())
 }
 
+/// T-1367: one row in the forwards-of view.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ForwardOfRow {
+    pub forward_offset: u64,
+    pub origin_topic: String,
+    pub origin_offset: u64,
+    pub origin_sender: String,
+    pub payload: String,
+    pub ts: i64,
+}
+
+impl ForwardOfRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "forward_offset": self.forward_offset,
+            "origin_topic": self.origin_topic,
+            "origin_offset": self.origin_offset,
+            "origin_sender": self.origin_sender,
+            "payload": self.payload,
+            "ts": self.ts,
+        })
+    }
+}
+
+/// T-1367: pure helper — list every active forward envelope by `sender`.
+///
+/// A forward envelope is identified by `extract_forward` succeeding
+/// (`metadata.forwarded_from` parseable as `"<origin-topic>:<origin-offset>"`
+/// AND `metadata.forwarded_sender` present). Forwarded envelopes preserve
+/// the *original* msg_type (e.g. "chat"), so msg_type isn't the discriminator —
+/// the metadata pair is.
+///
+/// Filters:
+/// - `sender_id == sender` (the forwarder, not the original poster)
+/// - offset NOT in `redacted_offsets`
+/// - `extract_forward` succeeds (well-formed metadata)
+///
+/// Sort: forward_offset descending (most recent first). Pure — no I/O.
+pub(crate) fn compute_forwards_of(envelopes: &[Value], sender: &str) -> Vec<ForwardOfRow> {
+    let redacted = redacted_offsets(envelopes);
+    let mut rows: Vec<ForwardOfRow> = Vec::new();
+    for env in envelopes {
+        if env.get("sender_id").and_then(|v| v.as_str()) != Some(sender) {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let (origin_topic, origin_offset, origin_sender) = match extract_forward(env) {
+            Some(t) => t,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        rows.push(ForwardOfRow {
+            forward_offset: off,
+            origin_topic,
+            origin_offset,
+            origin_sender,
+            payload: decode_payload_lossy(env),
+            ts,
+        });
+    }
+    rows.sort_by(|a, b| b.forward_offset.cmp(&a.forward_offset));
+    rows
+}
+
+/// T-1367: render the forwards-of view.
+pub(crate) async fn cmd_channel_forwards_of(
+    topic: &str,
+    sender: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let scope = match sender {
+        Some(s) => s.to_string(),
+        None => {
+            let id = load_identity_or_create()
+                .context("Loading identity for forwards-of scope")?;
+            id.fingerprint().to_string()
+        }
+    };
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_forwards_of(&envelopes, &scope);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(ForwardOfRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        println!("No forwards by {scope} on topic '{topic}'.");
+        return Ok(());
+    }
+    println!("Forwards by {scope} on '{topic}':");
+    for r in &rows {
+        let preview = if r.payload.len() > 60 {
+            format!("{}…", &r.payload[..60])
+        } else {
+            r.payload.clone()
+        };
+        println!(
+            "  [forward {fo}] from {ot}:{oo} (orig sender {os}): {preview}",
+            fo = r.forward_offset,
+            ot = r.origin_topic,
+            oo = r.origin_offset,
+            os = r.origin_sender,
+        );
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -7513,6 +7632,114 @@ mod tests {
         assert_eq!(row_for_1.reply_count, 2);
         let row_for_2 = rows.iter().find(|r| r.root_offset == 2).unwrap();
         assert_eq!(row_for_2.reply_count, 1);
+    }
+
+    // T-1367: compute_forwards_of
+    fn mk_forward(
+        off: u64,
+        sender: &str,
+        ts: i64,
+        origin_topic: &str,
+        origin_offset: u64,
+        origin_sender: &str,
+        payload: &str,
+    ) -> Value {
+        use base64::Engine;
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "forward",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "metadata": {
+                "forwarded_from": format!("{origin_topic}:{origin_offset}"),
+                "forwarded_sender": origin_sender,
+            },
+        })
+    }
+
+    #[test]
+    fn forwards_of_no_forwards_empty() {
+        let envs = vec![mk_post(0, "alice", 100, "post")];
+        let rows = compute_forwards_of(&envs, "alice");
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn forwards_of_single_forward() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "stuff"),
+            mk_forward(1, "alice", 200, "other", 5, "bob", "fwd-payload"),
+        ];
+        let rows = compute_forwards_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].forward_offset, 1);
+        assert_eq!(rows[0].origin_topic, "other");
+        assert_eq!(rows[0].origin_offset, 5);
+        assert_eq!(rows[0].origin_sender, "bob");
+        assert_eq!(rows[0].payload, "fwd-payload");
+        assert_eq!(rows[0].ts, 200);
+    }
+
+    #[test]
+    fn forwards_of_multiple_sorted_desc() {
+        let envs = vec![
+            mk_forward(1, "alice", 100, "a", 1, "bob", "first"),
+            mk_forward(3, "alice", 300, "b", 2, "carol", "third"),
+            mk_forward(2, "alice", 200, "c", 3, "dave", "second"),
+        ];
+        let rows = compute_forwards_of(&envs, "alice");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].forward_offset, 3);
+        assert_eq!(rows[1].forward_offset, 2);
+        assert_eq!(rows[2].forward_offset, 1);
+    }
+
+    #[test]
+    fn forwards_of_other_sender_excluded() {
+        let envs = vec![
+            mk_forward(1, "alice", 100, "x", 1, "bob", "alice-fwd"),
+            mk_forward(2, "carol", 200, "y", 2, "bob", "carol-fwd"),
+        ];
+        let rows_a = compute_forwards_of(&envs, "alice");
+        let rows_c = compute_forwards_of(&envs, "carol");
+        assert_eq!(rows_a.len(), 1);
+        assert_eq!(rows_a[0].payload, "alice-fwd");
+        assert_eq!(rows_c.len(), 1);
+        assert_eq!(rows_c[0].payload, "carol-fwd");
+    }
+
+    #[test]
+    fn forwards_of_redacted_dropped() {
+        let envs = vec![
+            mk_forward(1, "alice", 100, "x", 1, "bob", "kept"),
+            mk_forward(2, "alice", 200, "y", 2, "bob", "to-redact"),
+            mk_redact(3, "alice", 300, 2),
+        ];
+        let rows = compute_forwards_of(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].forward_offset, 1);
+    }
+
+    #[test]
+    fn forwards_of_malformed_metadata_ignored() {
+        use base64::Engine;
+        let envs = vec![
+            // forwarded_from missing colon → extract_forward returns None
+            json!({
+                "offset": 1,
+                "sender_id": "alice",
+                "msg_type": "forward",
+                "ts_unix_ms": 100,
+                "payload_b64": base64::engine::general_purpose::STANDARD.encode("garbage"),
+                "metadata": {
+                    "forwarded_from": "no-colon-here",
+                    "forwarded_sender": "bob",
+                },
+            }),
+        ];
+        let rows = compute_forwards_of(&envs, "alice");
+        assert!(rows.is_empty());
     }
 
     // T-1366: compute_edits_of

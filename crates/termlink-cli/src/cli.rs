@@ -2532,6 +2532,25 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Forwards posted by a sender on a topic (T-1367). Reverse view of
+    /// `channel forward` (T-1346). Sender defaults to the caller fingerprint.
+    /// Renders forward_offset, origin (topic + offset), original sender,
+    /// payload preview, and ts. Sort: forward_offset desc. Honors redaction.
+    ForwardsOf {
+        /// Topic to scan
+        topic: String,
+
+        /// Sender fingerprint (defaults to caller identity)
+        sender: Option<String>,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Edit history for a target offset (T-1366). Renders the original post
     /// at `<offset>` followed by every `msg_type=edit` envelope whose
     /// `metadata.replaces` equals the target, in chronological order. Matrix

@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-04-28T09:29:08Z ===
-task_id: T-1365
+=== episodic-gen invocation: 2026-04-28T09:49:35Z ===
+task_id: T-1366
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1365.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1366.yaml
 
   Status: ✓ auto-complete (Auto-generated)
-  Task: channel threads — index of threads in a topic with reply counts
-  Duration: 0 days (22 min)
+  Task: channel edits-of — render edit history for a target offset (m.replace)
+  Duration: 0 days (18 min)
   Updates: 2
   Commits: 1
-  Lines: +438 -153 across 22 files
+  Lines: +346 -89 across 17 files
   Outcomes: 5 AC checked
-  Artifacts: 22 files tracked
+  Artifacts: 17 files tracked
 
-Source: /opt/termlink/.tasks/completed/T-1365-channel-thread--recursive-descendant-tre.md
+Source: /opt/termlink/.tasks/completed/T-1366-channel-edits-of--render-edit-history-fo.md
 --- exit code: 0 ---
