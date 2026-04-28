@@ -4673,6 +4673,129 @@ pub(crate) async fn cmd_channel_state(
     Ok(())
 }
 
+/// T-1377: one row in the chronological receipt audit log. Each row is one
+/// `msg_type=receipt` envelope; distinct from `cmd_channel_receipts`
+/// (T-1315 LWW snapshot) and `cmd_channel_ack_status` (T-1361 dashboard
+/// with lag).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AckHistoryRow {
+    pub receipt_offset: u64,
+    pub sender_id: String,
+    pub up_to: u64,
+    pub ts_ms: i64,
+}
+
+impl AckHistoryRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "receipt_offset": self.receipt_offset,
+            "sender_id": self.sender_id,
+            "up_to": self.up_to,
+            "ts_ms": self.ts_ms,
+        })
+    }
+}
+
+/// T-1377: pure helper — chronological receipt audit log.
+///
+/// One row per `msg_type=receipt` envelope with parseable `metadata.up_to`.
+/// When `user_filter` is `Some(uid)`, only rows with `sender_id == uid`
+/// survive.
+///
+/// Sort: ts_ms asc, receipt_offset asc tiebreak.
+///
+/// Filters: receipts with non-numeric or missing `metadata.up_to` are
+/// silently dropped (malformed shape — not actionable as ack-state).
+pub(crate) fn compute_ack_history(
+    envelopes: &[Value],
+    user_filter: Option<&str>,
+) -> Vec<AckHistoryRow> {
+    let mut rows: Vec<AckHistoryRow> = Vec::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        if let Some(uid) = user_filter
+            && sender != uid
+        {
+            continue;
+        }
+        let up_to = match env
+            .get("metadata")
+            .and_then(|md| md.get("up_to"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(u) => u,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        rows.push(AckHistoryRow {
+            receipt_offset: off,
+            sender_id: sender,
+            up_to,
+            ts_ms: ts,
+        });
+    }
+    rows.sort_by(|a, b| {
+        a.ts_ms
+            .cmp(&b.ts_ms)
+            .then_with(|| a.receipt_offset.cmp(&b.receipt_offset))
+    });
+    rows
+}
+
+/// T-1377: render the chronological receipt audit log.
+pub(crate) async fn cmd_channel_ack_history(
+    topic: &str,
+    user: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket(hub)?;
+    let envelopes = walk_topic_full(&sock, topic).await?;
+    let rows = compute_ack_history(&envelopes, user);
+    if json_output {
+        let arr: Vec<Value> = rows.iter().map(AckHistoryRow::to_json).collect();
+        println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        return Ok(());
+    }
+    if rows.is_empty() {
+        match user {
+            Some(u) => println!("No receipts on '{topic}' from {u}."),
+            None => println!("No receipts on '{topic}'."),
+        }
+        return Ok(());
+    }
+    match user {
+        Some(u) => println!("Ack-history of '{topic}' (user={u}):"),
+        None => println!("Ack-history of '{topic}':"),
+    }
+    for r in &rows {
+        println!(
+            "  [{off}] ts={ts} {sender} → up_to={up}",
+            off = r.receipt_offset,
+            ts = r.ts_ms,
+            sender = r.sender_id,
+            up = r.up_to,
+        );
+    }
+    Ok(())
+}
+
 /// T-1366: one row in the edits-of report (either the original or an edit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditRow {
@@ -9783,5 +9906,101 @@ mod tests {
         assert_eq!(rows[0].offset, 0);
         assert_eq!(rows[1].offset, 1);
         assert_eq!(rows[2].offset, 2);
+    }
+
+    // T-1377: compute_ack_history — chronological receipt audit log
+
+    fn mk_receipt(off: u64, sender: &str, ts: i64, up_to: u64) -> Value {
+        json!({
+            "offset": off,
+            "sender_id": sender,
+            "msg_type": "receipt",
+            "ts_unix_ms": ts,
+            "payload_b64": "",
+            "metadata": {"up_to": up_to.to_string()},
+        })
+    }
+
+    #[test]
+    fn ack_history_empty_topic_yields_no_rows() {
+        let envs: Vec<Value> = vec![];
+        let rows = compute_ack_history(&envs, None);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn ack_history_includes_only_receipts() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "msg"),
+            mk_receipt(1, "bob", 200, 0),
+        ];
+        let rows = compute_ack_history(&envs, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "bob");
+        assert_eq!(rows[0].up_to, 0);
+        assert_eq!(rows[0].receipt_offset, 1);
+    }
+
+    #[test]
+    fn ack_history_sorts_ts_asc() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "m"),
+            mk_receipt(1, "bob", 300, 0),
+            mk_receipt(2, "carol", 200, 0),
+            mk_receipt(3, "dave", 400, 0),
+        ];
+        let rows = compute_ack_history(&envs, None);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].sender_id, "carol", "ts=200 first");
+        assert_eq!(rows[1].sender_id, "bob");
+        assert_eq!(rows[2].sender_id, "dave");
+    }
+
+    #[test]
+    fn ack_history_user_filter() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "m"),
+            mk_receipt(1, "bob", 200, 0),
+            mk_receipt(2, "carol", 300, 0),
+            mk_receipt(3, "bob", 400, 0),
+        ];
+        let rows = compute_ack_history(&envs, Some("bob"));
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|r| r.sender_id == "bob"));
+        assert_eq!(rows[0].ts_ms, 200);
+        assert_eq!(rows[1].ts_ms, 400);
+    }
+
+    #[test]
+    fn ack_history_malformed_up_to_skipped() {
+        let envs = vec![
+            mk_post(0, "alice", 100, "m"),
+            json!({
+                "offset": 1,
+                "sender_id": "bob",
+                "msg_type": "receipt",
+                "ts_unix_ms": 200,
+                "payload_b64": "",
+                "metadata": {"up_to": "not-a-number"},
+            }),
+            mk_receipt(2, "bob", 300, 1),
+        ];
+        let rows = compute_ack_history(&envs, None);
+        assert_eq!(rows.len(), 1, "only well-formed receipt survives");
+        assert_eq!(rows[0].receipt_offset, 2);
+    }
+
+    #[test]
+    fn ack_history_offset_tiebreak_when_ts_equal() {
+        let envs = vec![
+            mk_receipt(5, "alice", 100, 0),
+            mk_receipt(2, "bob", 100, 0),
+            mk_receipt(8, "carol", 100, 0),
+        ];
+        let rows = compute_ack_history(&envs, None);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].receipt_offset, 2);
+        assert_eq!(rows[1].receipt_offset, 5);
+        assert_eq!(rows[2].receipt_offset, 8);
     }
 }

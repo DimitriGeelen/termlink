@@ -958,6 +958,39 @@ expect_contains "\"latest_edit_ts_ms\":" "$out_json" "step 48: --json carries la
 edited_payload=$(echo "$out_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); print([r["payload"] for r in d if r["offset"]==0][0])')
 [ "$edited_payload" = "st-v2-final" ] || fail "step 48: collapsed payload should be st-v2-final, got $edited_payload"
 
+step "49. channel ack-history (T-1377): chronological receipt audit log + user filter"
+AH_TOPIC="t-1377-ack-history-$(date +%s)"
+A channel create "$AH_TOPIC" --retention forever >/dev/null
+A channel post "$AH_TOPIC" --msg-type chat --payload "ah-0" >/dev/null
+A channel post "$AH_TOPIC" --msg-type chat --payload "ah-1" >/dev/null
+A channel post "$AH_TOPIC" --msg-type chat --payload "ah-2" >/dev/null
+# Two receipts by Bob, one by Alice — interleaved so order matters
+B channel ack "$AH_TOPIC" --up-to 0 >/dev/null
+sleep 0.05
+A channel ack "$AH_TOPIC" --up-to 1 >/dev/null
+sleep 0.05
+B channel ack "$AH_TOPIC" --up-to 2 >/dev/null
+out=$(A channel ack-history "$AH_TOPIC")
+expect_contains "Ack-history" "$out" "step 49: header includes Ack-history"
+expect_contains "up_to=0" "$out" "step 49: first ack is up_to=0"
+expect_contains "up_to=2" "$out" "step 49: last ack is up_to=2"
+out_json=$(A channel ack-history "$AH_TOPIC" --json)
+n=$(echo "$out_json" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$n" = "3" ] || fail "step 49: expected 3 receipts, got $n"
+expect_contains "\"receipt_offset\":" "$out_json" "step 49: --json carries receipt_offset"
+expect_contains "\"sender_id\":" "$out_json" "step 49: --json carries sender_id"
+expect_contains "\"up_to\":" "$out_json" "step 49: --json carries up_to"
+expect_contains "\"ts_ms\":" "$out_json" "step 49: --json carries ts_ms"
+# Verify ts asc order
+first_up=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["up_to"])')
+[ "$first_up" = "0" ] || fail "step 49: ts asc should put up_to=0 first, got $first_up"
+last_up=$(echo "$out_json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[-1]["up_to"])')
+[ "$last_up" = "2" ] || fail "step 49: ts asc should put up_to=2 last, got $last_up"
+# User filter — Bob made 2 acks
+out_filt=$(A channel ack-history "$AH_TOPIC" "$BOB" --json)
+nb=$(echo "$out_filt" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+[ "$nb" = "2" ] || fail "step 49: Bob filter expected 2 receipts, got $nb"
+
 # ----- Cleanup is via the EXIT trap; the salted topic remains so the
 #       operator can inspect it after the run. ------------------------------
 
