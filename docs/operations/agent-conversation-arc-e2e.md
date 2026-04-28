@@ -115,6 +115,32 @@ MIN_VERSION=0.9.1542 \
 BIN=./target/release/termlink ./tests/e2e/arc-suite.sh
 ```
 
+### Flags (T-1399)
+
+- `--quick` — runs the 5 correctness scripts only (~8s instead of ~13s).
+  Skips `cross-hub-stress-soak.sh` and `cross-hub-mention-stream-flow.sh`
+  (the latter has a 5s subscribe-follow wait that dominates dev iteration).
+- `--help` / `-h` — prints usage + script list + env overrides.
+
+Use `--quick` for tight dev loops; use the default for "pre-commit" or
+"is the fleet healthy" checks.
+
+### Sustained validation: `arc-health-monitor.sh`
+
+For demonstrating sustained arc health (no degradation across runs),
+`tests/e2e/arc-health-monitor.sh` runs the suite N times (default 5)
+and posts each PASS/FAIL + duration to a `arc-health:report:<ts>`
+channel topic. The validator uses the arc to report on itself:
+
+```sh
+RUNS=5 BIN=./target/release/termlink ./tests/e2e/arc-health-monitor.sh
+```
+
+Output: per-run PASS/FAIL with timing, summary stats (min/max/median
+duration), and a cross-hub read of the arc-health topic from `.122`
+to confirm the validator's outputs are visible cross-hub. Marker:
+`ARC HEALTH MONITOR OK`.
+
 ## Troubleshooting
 
 ### `FAIL: session tl-XXXXX not in 'termlink list'`

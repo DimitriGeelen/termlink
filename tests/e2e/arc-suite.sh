@@ -19,6 +19,48 @@ HUB_122=${HUB_122:-192.168.10.122:9100}
 MIN_VERSION=${MIN_VERSION:-0.9.1542}
 SUITE_DIR=$(cd "$(dirname "$0")" && pwd)
 
+QUICK=0
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      cat <<EOF
+Usage: arc-suite.sh [--quick] [--help]
+
+Runs the agent-conversation arc cross-hub e2e regression suite.
+
+Default mode runs all 7 scripts:
+  live-agents-conversation.sh        (T-1387)
+  cross-hub-bidirectional-6agents.sh (T-1390)
+  cross-hub-matrix-flow.sh           (T-1391)
+  cross-hub-presence-flow.sh         (T-1392)
+  cross-hub-dm-flow.sh               (T-1394)
+  cross-hub-mention-stream-flow.sh   (T-1397)  [skipped with --quick]
+  cross-hub-stress-soak.sh           (T-1395)  [skipped with --quick]
+
+--quick    Run only the 5 correctness scripts (~7s instead of ~13s).
+           Skips stress-soak + mention-stream (which has a 5s wait).
+--help     This message.
+
+Env overrides:
+  BIN=<path>          termlink binary (default: ./target/release/termlink)
+  HUB_107=<addr>      .107 hub address (default: 127.0.0.1:9100)
+  HUB_122=<addr>      .122 hub address (default: 192.168.10.122:9100)
+  MIN_VERSION=<sem>   minimum termlink version (default: 0.9.1542)
+
+Runbook: docs/operations/agent-conversation-arc-e2e.md
+EOF
+      exit 0
+      ;;
+    --quick)
+      QUICK=1
+      ;;
+    *)
+      echo "Unknown argument: $arg (try --help)" >&2
+      exit 2
+      ;;
+  esac
+done
+
 c_red()   { printf '\e[31m%s\e[0m' "$*"; }
 c_green() { printf '\e[32m%s\e[0m' "$*"; }
 c_blue()  { printf '\e[34m%s\e[0m' "$*"; }
@@ -75,9 +117,14 @@ SCRIPTS=(
   "cross-hub-matrix-flow.sh:MATRIX-FLOW E2E PASSED"
   "cross-hub-presence-flow.sh:PRESENCE-FLOW E2E PASSED"
   "cross-hub-dm-flow.sh:DM-FLOW E2E PASSED"
-  "cross-hub-mention-stream-flow.sh:MENTION-STREAM E2E PASSED"
-  "cross-hub-stress-soak.sh:STRESS-SOAK E2E PASSED"
 )
+
+if [ "$QUICK" = "0" ]; then
+  SCRIPTS+=(
+    "cross-hub-mention-stream-flow.sh:MENTION-STREAM E2E PASSED"
+    "cross-hub-stress-soak.sh:STRESS-SOAK E2E PASSED"
+  )
+fi
 
 # stress-soak's Phase 3 re-invokes arc-suite, so we set ARC_SUITE_RUN=1
 # below to make it skip that phase when run from here (recursion guard).
