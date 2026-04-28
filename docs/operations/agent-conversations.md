@@ -874,6 +874,62 @@ Output sections:
 `compute_digest(envelopes, since_ms)` does the aggregation; ts-less
 envelopes are dropped (defensive).
 
+## Cross-topic inbox (T-1358)
+
+`channel inbox` is "what did I miss across every topic I follow?" — a
+one-shot summary built on the T-1318 cursor system.
+
+```sh
+# Set a cursor by reading with --resume.
+termlink channel subscribe dm:alice:bob --limit 10 --resume
+
+# Later, see what's new everywhere.
+termlink channel inbox
+# → 2 topic(s) with unread content:
+#     channel:learnings — 5 unread (latest=42, cursor=37)
+#     dm:alice:bob       — 1 unread (latest=11, cursor=10)
+```
+
+Read-only; does not advance cursors. `--json` returns
+`[{topic, unread, latest, cursor}]`. Topics whose cursor is at-or-ahead
+of latest are excluded; topics deleted on the hub are silently dropped
+(stale cursor entries persist locally — clean by hand if desired).
+
+Distinct from `channel unread <topic>` which is single-topic and
+receipt-based (uses `m.receipt.up_to`, not the local cursor).
+
+## Per-topic emoji breakdown (T-1359)
+
+`channel emoji-stats` walks a topic, tallies every active (non-redacted)
+reaction by emoji, and renders sorted-by-count rows. Distinct from
+`channel digest` (top 3 only) and from `subscribe --reactions`
+(per-message aggregation).
+
+```sh
+# Default: all emojis, descending by count.
+termlink channel emoji-stats dm:alice:bob
+# → Emoji stats for 'dm:alice:bob':
+#     👍 ×7 (4 reactor(s))
+#     ❤ ×3 (2 reactor(s))
+#     🚀 ×1 (1 reactor(s))
+
+# Per-reactor expansion.
+termlink channel emoji-stats dm:alice:bob --by-sender
+# → 👍 ×7 (4 reactor(s))
+#       · alice ×3
+#       · bob ×2
+#       · carol ×1
+#       · dave ×1
+#     ...
+
+# Top N only.
+termlink channel emoji-stats dm:alice:bob --top 3
+```
+
+`--json` returns `[{emoji, count, distinct_reactors, reactors:[{sender_id,count}]}]`.
+Redactions targeting reaction envelopes are honoured (the reaction is
+excluded from the tally), so `react --remove` is reflected here.
+
 ## End-to-end test
 
 A self-contained walkthrough exercising every feature above with two real
@@ -885,15 +941,15 @@ PATH=$PWD/target/release:$PATH bash tests/e2e/agent-conversation.sh
 ```
 
 The script provisions transient `alice` and `bob` identity dirs under `/tmp`,
-walks all 32 steps (canonical DM, send/read, threading, reactions, edits,
+walks all 34 steps (canonical DM, send/read, threading, reactions, edits,
 redactions, description+info, mentions, receipts, dm --list, thread view,
 react --remove, channel list --stats, search, ack --since, dm --list
 --unread, mentions inbox, ancestors, members, subscribe --since, quote,
 subscribe --show-parent, pin/pinned, subscribe --tail, subscribe --senders,
 forward, subscribe --show-forwards, typing emit/list/expiry, subscribe
 --until window, star/unstar/starred per-user bookmarks, poll
-start/vote/end/results lifecycle, digest synthesis), and exits 0 on
-success.
+start/vote/end/results lifecycle, digest synthesis, cross-topic inbox,
+per-topic emoji-stats), and exits 0 on success.
 Each assertion is content-level (`grep -F` for expected substrings) so
 re-runs are safe even though the canonical DM topic accumulates state
 across runs.
@@ -958,4 +1014,6 @@ If you start any of these, file a follow-up task referencing this doc.
 - T-1354 — `channel star` / `unstar` / `starred` (per-user message bookmarks, Matrix `m.bookmark` flavour)
 - T-1355 — `channel poll start` / `vote` / `end` / `results` (Matrix `m.poll` lifecycle)
 - T-1356 — `channel digest` (synthesized recent activity, time-windowed)
+- T-1358 — `channel inbox` (cross-topic unread summary via T-1318 cursors)
+- T-1359 — `channel emoji-stats` (per-topic reaction breakdown)
 - `docs/reports/T-1155-agent-communication-bus.md` — full inception report

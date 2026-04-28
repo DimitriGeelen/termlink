@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-28T07:13:18Z ===
-task_id: T-1358
+=== episodic-gen invocation: 2026-04-28T07:26:06Z ===
+task_id: T-1359
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1358.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1359.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel unread — cross-topic unread summary using T-1318 cursors
-  Duration: 0 days (13 min)
+  Task: channel emoji-stats — per-emoji reaction breakdown across topic
+  Duration: 0 days (11 min)
   Updates: 2
   Commits: 1
-  Lines: +304 -44 across 17 files
+  Lines: +327 -62 across 16 files
   Outcomes: 8 AC checked
-  Artifacts: 17 files tracked
+  Artifacts: 16 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1358-channel-unread--cross-topic-unread-summa.md
+Source: /opt/termlink/.tasks/completed/T-1359-channel-emoji-stats--per-emoji-reaction-.md
 --- exit code: 0 ---
