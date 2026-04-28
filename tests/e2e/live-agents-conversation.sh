@@ -27,9 +27,11 @@ trap 'rm -rf "$WORK"' EXIT
 step() { echo; echo "=== $* ==="; }
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# Pick 5 long-running sessions from the local fleet. Excludes the topic-
-# poster role (which calls back into the same hub via remote exec).
-LOCAL_SESSIONS=(tl-ismotg7j tl-bkfp6hqt tl-pljpkait tl-6clmxxos tl-rvbgtjjl)
+# Pick 5 long-running sessions from the local fleet, dynamically.
+# Hardcoding session IDs is brittle — the pool drifts as sessions
+# come and go.
+mapfile -t LOCAL_SESSIONS < <("$BIN" list 2>/dev/null | awk '/^tl-/ {print $1}' | head -5)
+[ "${#LOCAL_SESSIONS[@]}" -eq 5 ] || { echo "FAIL: need >=5 local sessions for this test, found ${#LOCAL_SESSIONS[@]}" >&2; exit 1; }
 
 step "Inventory"
 "$BIN" --version
