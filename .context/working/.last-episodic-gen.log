@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-04-27T22:00:09Z ===
-task_id: T-1352
+=== episodic-gen invocation: 2026-04-27T22:01:45Z ===
+task_id: T-1353
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1352.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1353.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: channel subscribe --until ms — render-side upper-bound timestamp filter
-  Duration: 0 days (8 min)
+  Task: docs/operations/agent-conversations.md — T-1351 typing + T-1352 until tail
+  Duration: 0 days (1 min)
   Updates: 2
   Commits: 1
-  Lines: +135 -35 across 16 files
-  Outcomes: 8 AC checked
-  Artifacts: 16 files tracked
+  Lines: +77 -46 across 14 files
+  Outcomes: 5 AC checked
+  Artifacts: 14 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1352-channel-subscribe---until-ms--render-sid.md
+Source: /opt/termlink/.tasks/completed/T-1353-docsoperationsagent-conversationsmd--t-1.md
 --- exit code: 0 ---
