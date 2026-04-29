@@ -13,6 +13,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixListener;
 use tokio::sync::Mutex;
 
+use termlink_protocol::transport::TransportAddr;
 use termlink_session::bus_client::{BusClient, PostOutcome};
 use termlink_session::offline_queue::PendingPost;
 
@@ -116,7 +117,7 @@ async fn post_deliver_queue_restart_drain() {
 
     // Short flush interval so queued messages drain quickly.
     let (client, handle) = BusClient::connect_with_interval(
-        socket.clone(),
+        TransportAddr::unix(socket.clone()),
         &queue_path,
         Duration::from_millis(200),
     )
