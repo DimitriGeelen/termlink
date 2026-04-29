@@ -202,18 +202,30 @@ procedure on the hub host:
    ```
 2. **Confirm Tier-2 authorization** has been recorded (the cut is not
    self-delegated by an agent — the human must explicitly approve it).
-3. **Edit the const** in `crates/termlink-hub/src/router.rs`:
-   ```rust
-   pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = false;  // was true
+3. **Pre-verify the OFF path passes CI** (T-1413):
+   ```bash
+   cargo test -p termlink-hub --lib --features legacy_primitives_disabled
+   # expect: test result: ok. <N> passed; 0 failed
    ```
-4. **Build and install:**
+   This runs the same suite with `LEGACY_PRIMITIVES_ENABLED=false` baked in
+   at compile time, including `cut_path::*` tests that exercise the
+   capabilities response, the methods-array filter, and the route-level
+   rejection. If this is green, the cut works; if red, fix before flipping.
+4. **Edit the const expression** in `crates/termlink-hub/src/router.rs`:
+   ```rust
+   // Either: hardcode false directly:
+   pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = false;
+   // Or (equivalent): build with the feature on:
+   //   cargo build --release -p termlink --features termlink-hub/legacy_primitives_disabled
+   ```
+5. **Build and install:**
    ```bash
    cd /opt/termlink
    cargo build --release -p termlink
    cp -f target/release/termlink /root/.cargo/bin/termlink
    sudo systemctl restart termlink-hub.service
    ```
-5. **Verify capabilities reflects the cut:**
+6. **Verify capabilities reflects the cut:**
    ```bash
    python3 -c "import socket, json; \
      s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); \
@@ -223,10 +235,10 @@ procedure on the hub host:
      print(json.dumps(d['result']['features'], indent=2))"
    # expect: {"legacy_primitives": false}
    ```
-6. **Smoke-test rejection:** call any retired method (e.g.
+7. **Smoke-test rejection:** call any retired method (e.g.
    `event.broadcast`) — the response must be JSON-RPC error code
    `-32601` with a message naming the migration target.
-7. **Commit + push the source change** with a `T-1166: cut — flip
+8. **Commit + push the source change** with a `T-1166: cut — flip
    LEGACY_PRIMITIVES_ENABLED` commit message.
 
 After the cut:
@@ -327,3 +339,4 @@ temporarily un-cut without a code surgery.
 - T-1409 (rpc-audit `peer_addr` for TCP callers — closes the network-side blind spot)
 - T-1410 (api-usage agent — IP rollup, ports stripped)
 - T-1411 (hub-side flag-gated rejection — single-const cut, this section's `## Operator Cut Procedure`)
+- T-1413 (cargo-feature-driven const + OFF-path test suite for CI verification of the cut)
