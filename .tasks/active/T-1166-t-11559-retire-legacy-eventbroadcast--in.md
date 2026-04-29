@@ -119,3 +119,16 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 - **T-1403 shipped** — sibling migration of MCP `termlink_broadcast` tool that T-1401 missed (CLI cmd_broadcast was migrated; the MCP tool was a separate code path). Same channel.post-then-fallback pattern.
 - **Pre-existing workspace test compilation issue** — `crates/termlink-session/src/bus_client.rs` lib tests fail to compile due to a stale `TransportAddr` API in the test module (`connect_with_interval` takes `TransportAddr` now but tests pass `PathBuf`). NOT introduced by my changes — `git stash && cargo test --no-run` pre-stash also fails. Likely fallout from the T-1385 TransportAddr migration. Worth its own task; doesn't block T-1166.
 - **Updated in-repo readiness:** the only remaining work for T-1166 entry is the bake window. All structural code work is done. Pre-staged: migration guide. Awaiting: telemetry to drop below 1% (24h–7d).
+
+### 2026-04-29T~time3~ — bus_client test fix (T-1404) + bake re-audit scheduled [agent autonomous pass]
+- **T-1404 closed** — fixed the pre-existing T-1385 test-callsite fallout (3 sites in `bus_client.rs` lib tests + 1 in `tests/bus_client_integration.rs`). Workspace test build now green (336 tests pass for termlink-session). Recorded learning **PL-093**: cargo build does NOT compile `#[cfg(test)]` code, so public-API signature changes must include `cargo test --no-run` as workspace check.
+- **Bake re-audit scheduled** — Claude Code cron `ba9d9f2b` set to fire 2026-04-30 at 11:17Z. The job runs `fw metrics api-usage` and reports the 1d/7d/30d/60d trend; if 1d <1% it recommends T-1166 promotion to `started-work`. Job is session-only (Claude Code cron limitation), so /resume tomorrow will see this Updates entry as a manual-fallback reminder if the cron didn't fire.
+- **T-1166 status:** still `captured`. Code surface complete; awaiting time. Per-target broadcast (`--targets`) replacement remains a UX-review decision per task line 35 — zero in-repo callers, so safest path is keep-and-reimplement (parallel `event.emit_to`) as a drop-in. Recommend tackling that decision when T-1166 promotes.
+
+### 2026-04-30 (scheduled) — bake-window re-audit pickup checklist
+1. Run `fw metrics api-usage` and inspect the 1d window
+2. If 1d <1.0%: prepare to promote T-1166 to `started-work` (Tier-2 — needs human authorization). Migration guide already pre-staged; the actual cut work is router method removal + protocol bump + capability handshake flip
+3. If 1d >=1.0%: hunt the remaining caller. Likely sources:
+   - MCP server processes still holding pre-T-1401 binary (running 4× at session start; will refresh on Claude Code restart)
+   - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
+4. Re-stage cron for next-day re-check if needed
