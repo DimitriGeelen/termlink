@@ -4,7 +4,7 @@ name: "Concurrent stress soak — 50 parallel cross-hub posts; verify offset lin
 description: >
   Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization + zero loss
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:42:52Z
-last_update: 2026-04-28T21:42:52Z
-date_finished: null
+last_update: 2026-04-28T21:44:36Z
+date_finished: 2026-04-28T21:44:36Z
 ---
 
 # T-1395: Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization + zero loss
@@ -78,3 +78,6 @@ out=$(BIN=./target/release/termlink ./tests/e2e/cross-hub-stress-soak.sh 2>&1) &
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1395-concurrent-stress-soak--50-parallel-cros.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:44:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

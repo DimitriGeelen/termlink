@@ -4,7 +4,7 @@ name: "Strengthen agent-conversation arc — true cross-hub 6-agent concurrent l
 description: >
   Strengthen agent-conversation arc — true cross-hub 6-agent concurrent live e2e (post-T-1384 GO)
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:24:49Z
-last_update: 2026-04-28T21:28:09Z
-date_finished: null
+last_update: 2026-04-28T21:30:19Z
+date_finished: 2026-04-28T21:30:19Z
 ---
 
 # T-1390: Strengthen agent-conversation arc — true cross-hub 6-agent concurrent live e2e (post-T-1384 GO)
@@ -39,7 +39,7 @@ This task: patch T-1387's stale REMOTE_SESSION (drifted), add `tests/e2e/cross-h
 - [x] 6 concurrent senders post to .122-hub topic (5 from .107 cross-hub TCP + 1 local on .122)
 - [x] Cross-hub READ test: read both topics from BOTH hubs (4 reads), verify each topic's canonical state has all 6 distinct senders regardless of which hub originates the read
 - [x] Script exits 0 with `BIDIRECTIONAL CROSS-HUB E2E PASSED` marker
-- [ ] All work committed with task reference
+- [x] All work committed with task reference
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -60,8 +60,8 @@ This task: patch T-1387's stale REMOTE_SESSION (drifted), add `tests/e2e/cross-h
 
 test -x tests/e2e/live-agents-conversation.sh
 test -x tests/e2e/cross-hub-bidirectional-6agents.sh
-BIN=./target/release/termlink ./tests/e2e/live-agents-conversation.sh 2>&1 | grep -q "LIVE-AGENT E2E PASSED"
-BIN=./target/release/termlink ./tests/e2e/cross-hub-bidirectional-6agents.sh 2>&1 | grep -q "BIDIRECTIONAL CROSS-HUB E2E PASSED"
+out1=$(BIN=./target/release/termlink ./tests/e2e/live-agents-conversation.sh 2>&1) && echo "$out1" | grep -q "LIVE-AGENT E2E PASSED"
+out2=$(BIN=./target/release/termlink ./tests/e2e/cross-hub-bidirectional-6agents.sh 2>&1) && echo "$out2" | grep -q "BIDIRECTIONAL CROSS-HUB E2E PASSED"
 
 ## Decisions
 
@@ -80,3 +80,6 @@ BIN=./target/release/termlink ./tests/e2e/cross-hub-bidirectional-6agents.sh 2>&
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1390-strengthen-agent-conversation-arc--true-.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:30:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Cross-hub Matrix-primitive flow — 6 agents thread/react/edit/redact acr
 description: >
   Cross-hub Matrix-primitive flow — 6 agents thread/react/edit/redact across 2 hubs
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:30:31Z
-last_update: 2026-04-28T21:30:31Z
-date_finished: null
+last_update: 2026-04-28T21:33:37Z
+date_finished: 2026-04-28T21:33:37Z
 ---
 
 # T-1391: Cross-hub Matrix-primitive flow — 6 agents thread/react/edit/redact across 2 hubs
@@ -76,3 +76,6 @@ out=$(BIN=./target/release/termlink ./tests/e2e/cross-hub-matrix-flow.sh 2>&1) &
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1391-cross-hub-matrix-primitive-flow--6-agent.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:33:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "arc-suite --quick mode + --help — dev-loop ergonomics"
 description: >
   arc-suite --quick mode + --help — dev-loop ergonomics
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T22:04:49Z
-last_update: 2026-04-28T22:04:49Z
-date_finished: null
+last_update: 2026-04-28T22:06:41Z
+date_finished: 2026-04-28T22:06:41Z
 ---
 
 # T-1399: arc-suite --quick mode + --help — dev-loop ergonomics
@@ -77,3 +77,6 @@ grep -q "\-\-quick" docs/operations/agent-conversation-arc-e2e.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1399-arc-suite---quick-mode----help--dev-loop.md
 - **Context:** Initial task creation
+
+### 2026-04-28T22:06:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

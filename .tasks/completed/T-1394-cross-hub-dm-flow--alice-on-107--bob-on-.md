@@ -4,7 +4,7 @@ name: "Cross-hub DM flow — alice on .107 + bob on .122 (Matrix-style direct me
 description: >
   Cross-hub DM flow — alice on .107 + bob on .122 (Matrix-style direct message)
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:40:07Z
-last_update: 2026-04-28T21:40:07Z
-date_finished: null
+last_update: 2026-04-28T21:42:25Z
+date_finished: 2026-04-28T21:42:25Z
 ---
 
 # T-1394: Cross-hub DM flow — alice on .107 + bob on .122 (Matrix-style direct message)
@@ -80,3 +80,6 @@ out=$(BIN=./target/release/termlink ./tests/e2e/cross-hub-dm-flow.sh 2>&1) && ec
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1394-cross-hub-dm-flow--alice-on-107--bob-on-.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:42:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

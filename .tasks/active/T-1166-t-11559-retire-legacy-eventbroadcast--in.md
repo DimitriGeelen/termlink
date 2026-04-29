@@ -103,3 +103,12 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
   2. UX-review the `termlink broadcast` rewrite — own follow-up task (cmd_broadcast → channel.post wrapper)
   3. Run the inbox shim's warn_once stats for ~7 days to confirm no live fallbacks
 - **No ACs ticked.** This is an audit log entry; the structural gates remain unchanged.
+
+### 2026-04-29T~time~ — both sub-migrations shipped; bake window starts [agent autonomous pass]
+- **T-1400 closed earlier today** — `fw doctor` and `termlink_doctor` MCP tool now use `channel.list(prefix="inbox:")` with inbox.status fallback. Live-verified.
+- **T-1401 closed minutes ago** — `cmd_broadcast` routes to `channel.post(broadcast:global)` when `--targets` is empty (the dominant case). Live-verified: zero new event.broadcast audit lines per broadcast, msg_type matches hub-side T-1162 mirror shape.
+- **Operator binary refresh:** `target/release/termlink 0.9.1567` installed to `/root/.cargo/bin/termlink`. Post-install verification: `termlink event broadcast` emits one `channel.post`, `termlink doctor` emits one `channel.list`, neither emits a legacy method.
+- **Trend (post-binary-install snapshot):** 1d=4.91% / 7d=5.42%. The drop will materialize as the audit log accumulates new entries from the migrated binary and old entries age out (60d window). Forecast: 1d <0.5% within 24h, <0.05% within 7d if no new legacy callers appear.
+- **Outstanding cohort to migrate:** 9 named-session callers of event.broadcast remain in 60d window (7+1+1 from `tl-bkfp6hqt`, `tl-ismotg7j`, `tl-bubfbc3w`). These are remote sessions on other hosts whose termlink binaries are independent — fleet rollout, not a code change. Will surface as a follow-up task if they continue past 24h bake.
+- **Outstanding sub-system:** the MCP server process spawned by Claude Code may still hold the pre-T-1400 binary in memory; will refresh on next Claude Code launch / MCP restart. Not blocking.
+- **Status:** stays `captured`. Re-check entry gate after 24h bake at 2026-04-30T~10:30Z. If 1d <1%, the gate has effectively passed and we can promote to `started-work` to begin the actual retirement (router method removal, protocol bump, migration doc).

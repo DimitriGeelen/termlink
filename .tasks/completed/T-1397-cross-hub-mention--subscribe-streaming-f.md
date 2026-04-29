@@ -4,7 +4,7 @@ name: "Cross-hub mention + subscribe streaming flow — proves notifications + l
 description: >
   Cross-hub mention + subscribe streaming flow — proves notifications + live tail
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:48:34Z
-last_update: 2026-04-28T21:48:34Z
-date_finished: null
+last_update: 2026-04-28T21:50:26Z
+date_finished: 2026-04-28T21:50:26Z
 ---
 
 # T-1397: Cross-hub mention + subscribe streaming flow — proves notifications + live tail
@@ -75,3 +75,6 @@ grep -q "cross-hub-mention-stream-flow.sh" tests/e2e/arc-suite.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1397-cross-hub-mention--subscribe-streaming-f.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:50:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -12,7 +12,7 @@ tags: [termlink, routing, lint, T-1297-child, hub]
 components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/src/topic_lint.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1297]
 created: 2026-04-26T21:19:39Z
-last_update: 2026-04-29T07:43:08Z
+last_update: 2026-04-29T07:44:27Z
 date_finished: 2026-04-29T07:43:08Z
 ---
 
