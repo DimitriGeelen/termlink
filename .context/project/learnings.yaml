@@ -910,3 +910,10 @@ learnings:
   date: 2026-04-29
   context: Added via context agent
   application: TBD
+- id: PL-094
+  learning: "Stage a destructive cut into a single-character flip: (1) forensics to identify holdouts, (2) regression guard against new callers, (3) feature flag exposed via capabilities, (4) flag-gated rejection pre-staged, (5) source-cleanup as separate no-risk follow-up. The cut commit becomes one line; reversible until cleanup lands. Pattern proven by T-1166 arc (T-1404..T-1411)."
+  source: D
+  task: T-1166
+  date: 2026-04-29
+  context: Added via context agent
+  application: TBD
