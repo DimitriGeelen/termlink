@@ -133,6 +133,11 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
    - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
 4. Re-stage cron for next-day re-check if needed
 
+### 2026-04-30T00:30Z — T-1412 migration doc updated for one-flag-flip cut + PL-094 pattern captured [agent autonomous pass]
+- **T-1412 closed** — `docs/migrations/T-1166-retire-legacy-primitives.md`: new "## Operator Cut Procedure" section (file path, line, build/install/restart commands, capabilities-flip smoke test via raw socket probe, rejection smoke test). Roll-Back rewritten — the flag-flip is reversible until source-cleanup follow-up ships; recommend ≥7-day flag-off bake. References list extended with T-1406..T-1411.
+- **PL-094 captured (Level D operational reflection)** — generalized the T-1166 arc pattern: stage a destructive cut into a single-character flip via (1) forensics, (2) regression guard, (3) feature flag exposed, (4) flag-gated rejection pre-staged, (5) source-cleanup as no-risk follow-up. Reusable for future destructive-API cuts.
+- **T-1166 pre-bake checklist now 13/13 shipped** — T-1400, T-1401, T-1402, T-1403, T-1404, T-1405, T-1406, T-1407, T-1408, T-1409, T-1410, T-1411, T-1412. The cut itself is now: edit one line in router.rs, recompile, restart hub. Still Tier-2 gated.
+
 ### 2026-04-30T00:20Z — T-1411 hub-side flag-gated rejection pre-staged; cut becomes one-character flip [agent autonomous pass]
 - **T-1411 closed** — `crates/termlink-hub/src/router.rs`: introduced `pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = true;` as the single source of truth for the T-1166 cut. Wired into both (a) `features.legacy_primitives` value in `handle_hub_capabilities` and (b) guarded match arms `<METHOD> if !LEGACY_PRIMITIVES_ENABLED => legacy_method_retired_response(id, ...)` above each of the 4 router-handled legacy methods (event.broadcast, inbox.list/status/clear). Helper returns JSON-RPC -32601 with message naming T-1166 + the migration doc.
 - **Cut now atomic at the hub layer:** flipping the const from `true` to `false`, recompiling, restarting hub produces post-retirement behavior in one commit. The actual source-cleanup (deleting `handle_event_broadcast` + inbox handlers + 6 client-side fallback paths) becomes a follow-up at zero risk because flag-off behavior is test-proven.
