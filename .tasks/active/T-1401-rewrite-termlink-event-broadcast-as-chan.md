@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-29T08:11:33Z
-last_update: 2026-04-29T08:11:33Z
+last_update: 2026-04-29T08:17:14Z
 date_finished: null
 ---
 
@@ -39,15 +39,15 @@ this flag).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `cmd_broadcast` in `events.rs:173` routes to `channel.post(broadcast:global)` when `targets.is_empty()`; falls back to legacy `event.broadcast` on any failure
-- [ ] When `!targets.is_empty()`, behavior is unchanged — still calls `event.broadcast` (preserves per-target fan-out)
-- [ ] Channel post envelope mirrors hub-side T-1162 mirror shape: `topic="broadcast:global"`, `msg_type=<original_topic>`, `payload_b64=<JSON-serialized payload>`, signed with local identity
-- [ ] If `TERMLINK_SESSION_ID` is set, it goes into `metadata.from` so the hub's soft-lint can attribute the caller (replaces the previous `params.from` injection that only worked for event.broadcast)
-- [ ] Human-mode display preserves the "Broadcast '<topic>': 1/1 succeeded" prefix (with new offset suffix) so existing operator habits aren't broken
-- [ ] JSON-mode preserves the legacy keys (`topic`, `targeted`, `succeeded`, `failed`) PLUS adds new keys (`channel_topic`, `offset`) for callers that want richer telemetry
-- [ ] On a hub with channel.post enabled (current fleet), running `termlink event broadcast smoke 'p:1'` produces ZERO new `event.broadcast` lines in `<runtime_dir>/rpc-audit.jsonl` and one new `channel.post` line
-- [ ] cargo build / cargo test / cargo clippy clean for `termlink` and any other affected crates
-- [ ] `termlink channel state broadcast:global` after a broadcast shows the new envelope with `msg_type=<original_topic>` (verifies the wire shape matches hub-side mirror behavior end-to-end)
+- [x] `cmd_broadcast` in `events.rs:173` routes to `channel.post(broadcast:global)` when `targets.is_empty()`; falls back to legacy `event.broadcast` on any failure
+- [x] When `!targets.is_empty()`, behavior is unchanged — still calls `event.broadcast` (preserves per-target fan-out)
+- [x] Channel post envelope mirrors hub-side T-1162 mirror shape: `topic="broadcast:global"`, `msg_type=<original_topic>`, `payload_b64=<JSON-serialized payload>`, signed with local identity
+- [x] If `TERMLINK_SESSION_ID` is set, it goes into `metadata.from` so the hub's soft-lint can attribute the caller (replaces the previous `params.from` injection that only worked for event.broadcast)
+- [x] Human-mode display preserves the "Broadcast '<topic>': 1/1 succeeded" prefix (with new offset suffix) so existing operator habits aren't broken
+- [x] JSON-mode preserves the legacy keys (`topic`, `targeted`, `succeeded`, `failed`) PLUS adds new keys (`channel_topic`, `offset`) for callers that want richer telemetry
+- [x] On a hub with channel.post enabled (current fleet), running `termlink event broadcast smoke 'p:1'` produces ZERO new `event.broadcast` lines in `<runtime_dir>/rpc-audit.jsonl` and one new `channel.post` line
+- [x] cargo build / cargo test / cargo clippy clean for `termlink` and any other affected crates
+- [x] `termlink channel state broadcast:global` after a broadcast shows the new envelope with `msg_type=<original_topic>` (verifies the wire shape matches hub-side mirror behavior end-to-end) — confirmed via `channel subscribe --cursor 300` showing `msg_type:"smoke"`
 
 ## Verification
 
@@ -74,3 +74,11 @@ grep -q "try_broadcast_via_channel_post\|channel.post" crates/termlink-cli/src/c
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1401-rewrite-termlink-event-broadcast-as-chan.md
 - **Context:** Initial task creation
+
+### 2026-04-29T~time~ — implementation + live verification [agent autonomous pass]
+- **Code change:** `crates/termlink-cli/src/commands/events.rs` — added `try_broadcast_via_channel_post` helper (signs envelope mirroring T-1162 shape: topic=`broadcast:global`, msg_type=original_topic, payload_b64, optional metadata.from) and short-circuited `cmd_broadcast` to use it when `targets.is_empty()`. Legacy `event.broadcast` retained for `--targets` and as fallback on any error.
+- **Build/clippy/test:** `cargo build -p termlink` Finished, `cargo clippy -p termlink --tests -- -D warnings` Finished, `cargo test -p termlink` 172 passed.
+- **Audit-log diff (live):** snapshot wc=49980, ran `termlink event broadcast smoke -p '{"p":1}'` → wc=49981, sole new line is `{"ts":...,"method":"channel.post"}`. ZERO new `event.broadcast` entries. Output: `Broadcast 'smoke': 1/1 succeeded (channel:broadcast:global offset=300)`.
+- **Wire-shape verify (live):** `termlink channel subscribe broadcast:global --cursor 300 --json` shows offsets 300/301 with `topic:"broadcast:global"`, `msg_type:"smoke"`, `payload_b64:"eyJwIjoxfQ=="` and `sender_id` = local identity fingerprint (NOT `hub:event.broadcast` — confirms client-side path, not hub mirror).
+- **JSON-mode (live):** keys `topic, channel_topic, offset, targeted, succeeded, failed, ok` all present; legacy consumer keys preserved.
+- **Forecast for T-1166:** combined with T-1400, legacy traffic should drop from 5.46% → <0.05%, unblocking the entry gate after a ~24h bake.

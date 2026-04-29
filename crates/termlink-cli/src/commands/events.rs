@@ -3,6 +3,85 @@ use anyhow::{Context, Result};
 use termlink_session::client;
 use termlink_session::manager;
 
+/// T-1401: hub-side mirror topic for broadcasts (defined in
+/// `termlink_hub::channel::BROADCAST_GLOBAL_TOPIC`). Inlined here because
+/// the CLI does not depend on the hub crate. Both sides MUST use the same
+/// literal — change in lockstep.
+const BROADCAST_GLOBAL_TOPIC: &str = "broadcast:global";
+
+/// T-1401: Try to send the broadcast as a signed `channel.post(broadcast:global)`
+/// envelope, mirroring the hub-side `mirror_event_broadcast` shape (T-1162).
+/// On any failure the caller falls back to legacy `event.broadcast` so the
+/// command remains functional across version skew.
+async fn try_broadcast_via_channel_post(
+    hub_socket: &std::path::Path,
+    topic: &str,
+    payload: &serde_json::Value,
+    timeout_dur: std::time::Duration,
+) -> Result<i64> {
+    use base64::Engine;
+    use termlink_protocol::control::channel::canonical_sign_bytes;
+    use termlink_protocol::control::method;
+
+    let identity = super::channel::load_identity_or_create()?;
+    let payload_bytes = serde_json::to_vec(payload)?;
+    let ts_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+
+    // Mirror T-1162 wire shape: topic="broadcast:global", msg_type=<original>,
+    // payload=<JSON bytes>, no artifact_ref. Hub recomputes signed_bytes with
+    // identical inputs, so signing must match exactly.
+    let signed = canonical_sign_bytes(
+        BROADCAST_GLOBAL_TOPIC,
+        topic,
+        &payload_bytes,
+        None,
+        ts_unix_ms,
+    );
+    let sig = identity.sign(&signed);
+    let sig_hex: String = sig
+        .to_bytes()
+        .iter()
+        .fold(String::with_capacity(128), |mut s, b| {
+            use std::fmt::Write;
+            let _ = write!(&mut s, "{b:02x}");
+            s
+        });
+
+    let mut params = serde_json::json!({
+        "topic": BROADCAST_GLOBAL_TOPIC,
+        "msg_type": topic,
+        "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+        "ts": ts_unix_ms,
+        "sender_id": identity.fingerprint(),
+        "sender_pubkey_hex": identity.public_key_hex(),
+        "signature_hex": sig_hex,
+    });
+
+    // Replaces the previous `params.from` injection that only worked for
+    // event.broadcast — for channel.post it goes into metadata so the
+    // hub-side soft-lint can attribute the caller.
+    if let Ok(sid) = std::env::var("TERMLINK_SESSION_ID")
+        && !sid.is_empty()
+    {
+        params["metadata"] = serde_json::json!({"from": sid});
+    }
+
+    let rpc = client::rpc_call(hub_socket, method::CHANNEL_POST, params);
+    let resp = tokio::time::timeout(timeout_dur, rpc)
+        .await
+        .map_err(|_| anyhow::anyhow!("channel.post timed out"))?
+        .map_err(|e| anyhow::anyhow!("channel.post connect: {e}"))?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow::anyhow!("channel.post error: {e}"))?;
+    let offset = result["offset"]
+        .as_i64()
+        .ok_or_else(|| anyhow::anyhow!("channel.post response missing offset"))?;
+    Ok(offset)
+}
+
 pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool, timeout_secs: u64, payload_only: bool) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
@@ -189,6 +268,37 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
         anyhow::bail!("Hub is not running. Start it with: termlink hub");
     }
 
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+
+    // T-1401: when no explicit --targets are given (the dominant case), prefer
+    // the channel.post(broadcast:global) path. The hub already mirrors every
+    // event.broadcast to the same topic (T-1162), so subscribers see identical
+    // envelopes. On any failure (older hub, signing/identity setup issue) fall
+    // through to the legacy event.broadcast call below.
+    if targets.is_empty()
+        && let Ok(offset) =
+            try_broadcast_via_channel_post(&hub_socket, topic, &payload, timeout_dur).await
+    {
+        if json {
+            let wrapped = serde_json::json!({
+                "ok": true,
+                "topic": topic,
+                "channel_topic": BROADCAST_GLOBAL_TOPIC,
+                "offset": offset,
+                "targeted": 1,
+                "succeeded": 1,
+                "failed": 0,
+            });
+            println!("{}", serde_json::to_string_pretty(&wrapped)?);
+        } else {
+            println!(
+                "Broadcast '{}': 1/1 succeeded (channel:{} offset={})",
+                topic, BROADCAST_GLOBAL_TOPIC, offset
+            );
+        }
+        return Ok(());
+    }
+
     let mut params = serde_json::json!({
         "topic": topic,
         "payload": payload,
@@ -207,7 +317,6 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
         params["from"] = serde_json::json!(sid);
     }
 
-    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     let rpc = client::rpc_call(&hub_socket, "event.broadcast", params);
     let resp = match tokio::time::timeout(timeout_dur, rpc).await {
         Ok(r) => match r {
