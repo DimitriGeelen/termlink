@@ -133,6 +133,13 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
    - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
 4. Re-stage cron for next-day re-check if needed
 
+### 2026-04-29T22:00Z — T-1410 IP rollup shipped (api-usage agent UX) [agent autonomous pass]
+- **T-1410 closed** — `agents/metrics/api-usage.sh` (upstream commit b663ef781): `legacy_callers_by_addr` → `legacy_callers_by_ip`, ports stripped via new `addr_to_ip(addr)` helper using `rsplit(':', 1)`. IPv4 + IPv6 (bracket form) both handled. Section heading is now "Legacy callers by IP (last Nd)".
+- **Why:** T-1409's by-addr breakdown grouped per (method, "ip:port"). Each TCP connection draws a fresh ephemeral port so a single host hammering inbox.status 60×/min would fragment into N rows of count=1 — operator's question is "which host?" not "which connection?".
+- **Live verification:** .143 (the mystery poller) collapsed from N rows → 1 row showing cumulative count for the host. Test: `fw metrics api-usage --last-Nd 1 --json` returns `{"method":"inbox.status","peer_ip":"192.168.10.143","count":8}`.
+- **Schema bump risk:** breaking JSON-field rename (`legacy_callers_by_addr` → `legacy_callers_by_ip`), but T-1409 was 30 minutes old — no consumers on it yet. Better to land the right shape now.
+- **T-1166 pre-bake checklist now 11/11.** Forensics surface complete; UX surface clean; ready for cut once .143 caller migrates or is decommissioned.
+
 ### 2026-04-29T21:55Z — T-1409 closes TCP-side forensics gap; mystery poller identified as 192.168.10.143 [agent autonomous pass]
 - **T-1409 closed** — `crates/termlink-hub/src/{rpc_audit,server}.rs`: hub now threads `peer_addr: Option<String>` from the TCP+TLS / TCP-no-TLS accept paths through `handle_connection` → `record()` / `warn_if_legacy()` → audit line. Mirror of T-1407 for the network side: peer_pid is None for TCP by construction, so peer_addr fills the "who is this anonymous TCP caller" gap.
 - **Schema additive:** `{"ts":...,"method":"X","peer_addr":"ip:port"}` — non-empty peer_addr only. Unix path passes `None`. 4 new unit tests (peer_addr only, with from, all-three-fields, empty-omitted). 21 rpc_audit + 288 hub lib tests pass.
