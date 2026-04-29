@@ -147,13 +147,22 @@ already wired to the channel protocol.
 
 ## Capability Handshake Change
 
-After T-1166 lands, the hub advertises:
+After T-1166 lands, the hub's `hub.capabilities` response includes:
 
 ```json
-{"capabilities": {"legacy_primitives": false}}
+{
+  "methods": [...],
+  "hub_version": "...",
+  "protocol_version": 1,
+  "features": {"legacy_primitives": false}
+}
 ```
 
-The capability key is currently advertised as `legacy_primitives = true`.
+The `features.legacy_primitives` flag is currently advertised as `true`
+(T-1405 shipped 2026-04-29, before T-1166 lands). Downstream consumers
+should wire startup checks NOW against the existing `true` value — when
+the cut happens, the value flips to `false` and the failure path trips
+automatically.
 Clients that depend on legacy methods should check this key on connect
 and fail fast with a clear error pointing at this guide instead of
 discovering the method removal at first-call time.
@@ -218,8 +227,10 @@ For each consumer project:
    `rpc-audit.jsonl` line count and `grep` for the migrated method names.
    The replacement runs should show channel.* methods only.
 5. **Capability check:** add a startup check that fails fast if the hub
-   advertises `legacy_primitives = false` and you still have a legacy
-   call-site you missed.
+   advertises `features.legacy_primitives = false` and you still have a
+   legacy call-site you missed. (Available now — see T-1405. While the
+   cut hasn't landed the value is `true`; your failure path will trip
+   automatically when it flips.)
 6. **Bake:** run the migrated code in production for ≥7 days before the
    T-1166 cut, so any edge case surfaces while the legacy path is still
    available as a fallback.
@@ -241,4 +252,6 @@ first-call time, not a silent data drop. Fix the call-site and ship.
 - T-1304 (`<runtime_dir>/rpc-audit.jsonl` telemetry surface)
 - T-1311 (`fw metrics api-usage` agent)
 - T-1400 (doctor inbox.status migration)
-- T-1401 (broadcast → channel.post wrapper)
+- T-1401 (broadcast → channel.post wrapper, CLI)
+- T-1403 (broadcast → channel.post wrapper, MCP — sibling miss)
+- T-1405 (`features.legacy_primitives` capability flag — pre-staged)

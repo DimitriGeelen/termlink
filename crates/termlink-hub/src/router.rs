@@ -862,12 +862,22 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
     ];
     methods.sort_unstable();
 
+    // T-1405: feature flags object — gives downstream consumers a stable
+    // structural place to detect post-T-1166 hubs (legacy_primitives=false)
+    // versus current hubs (legacy_primitives=true) without probing each
+    // method individually. See docs/migrations/T-1166-retire-legacy-primitives.md.
+    // Forward-compatible: clients that don't read this field are unaffected.
+    let features = json!({
+        "legacy_primitives": true,
+    });
+
     Response::success(
         id,
         json!({
             "methods": methods,
             "hub_version": env!("CARGO_PKG_VERSION"),
             "protocol_version": termlink_protocol::DATA_PLANE_VERSION,
+            "features": features,
         }),
     )
     .into()
@@ -3717,6 +3727,30 @@ mod tests {
                 let mut dedup = names.clone();
                 dedup.dedup();
                 assert_eq!(dedup.len(), names.len(), "methods must be unique");
+            }
+            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+        }
+    }
+
+    // T-1405: hub.capabilities returns a `features` object with
+    // `legacy_primitives` set to true while T-1166 has not yet cut. Downstream
+    // consumers can wire startup checks against the existing true value;
+    // their failure path trips automatically when the flag flips to false.
+    #[test]
+    fn hub_capabilities_advertises_legacy_primitives_feature_flag() {
+        let resp = super::handle_hub_capabilities(json!(42));
+        match resp {
+            RpcResponse::Success(r) => {
+                let features = r.result.get("features").expect("features object missing");
+                let legacy = features
+                    .get("legacy_primitives")
+                    .expect("features.legacy_primitives missing")
+                    .as_bool()
+                    .expect("features.legacy_primitives must be bool");
+                assert!(
+                    legacy,
+                    "legacy_primitives must be true while pre-T-1166 (legacy methods still served)"
+                );
             }
             RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
         }
