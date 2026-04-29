@@ -4,7 +4,7 @@ name: "Self-validating arc health monitor — repeat suite N times, post results
 description: >
   Self-validating arc health monitor — repeat suite N times, post results to arc-health topic
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T22:01:40Z
-last_update: 2026-04-28T22:01:40Z
-date_finished: null
+last_update: 2026-04-28T22:03:47Z
+date_finished: 2026-04-28T22:03:47Z
 ---
 
 # T-1398: Self-validating arc health monitor — repeat suite N times, post results to arc-health topic
@@ -82,3 +82,6 @@ out=$(RUNS=3 BIN=./target/release/termlink ./tests/e2e/arc-health-monitor.sh 2>&
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1398-self-validating-arc-health-monitor--repe.md
 - **Context:** Initial task creation
+
+### 2026-04-28T22:03:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

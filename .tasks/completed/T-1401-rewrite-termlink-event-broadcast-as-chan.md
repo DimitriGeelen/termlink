@@ -4,16 +4,16 @@ name: "Rewrite termlink event broadcast as channel.post(broadcast:global) wrappe
 description: >
   Rewrite termlink event broadcast as channel.post(broadcast:global) wrapper
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/events.rs]
 related_tasks: []
 created: 2026-04-29T08:11:33Z
-last_update: 2026-04-29T08:17:14Z
-date_finished: null
+last_update: 2026-04-29T08:42:37Z
+date_finished: 2026-04-29T08:42:37Z
 ---
 
 # T-1401: Rewrite termlink event broadcast as channel.post(broadcast:global) wrapper
@@ -82,3 +82,6 @@ grep -q "try_broadcast_via_channel_post\|channel.post" crates/termlink-cli/src/c
 - **Wire-shape verify (live):** `termlink channel subscribe broadcast:global --cursor 300 --json` shows offsets 300/301 with `topic:"broadcast:global"`, `msg_type:"smoke"`, `payload_b64:"eyJwIjoxfQ=="` and `sender_id` = local identity fingerprint (NOT `hub:event.broadcast` — confirms client-side path, not hub mirror).
 - **JSON-mode (live):** keys `topic, channel_topic, offset, targeted, succeeded, failed, ok` all present; legacy consumer keys preserved.
 - **Forecast for T-1166:** combined with T-1400, legacy traffic should drop from 5.46% → <0.05%, unblocking the entry gate after a ~24h bake.
+
+### 2026-04-29T08:42:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

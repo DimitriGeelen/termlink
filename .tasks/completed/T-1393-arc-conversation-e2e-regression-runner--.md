@@ -4,7 +4,7 @@ name: "Arc-conversation e2e regression runner — single command for all 4 cross
 description: >
   Arc-conversation e2e regression runner — single command for all 4 cross-hub tests
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:37:59Z
-last_update: 2026-04-28T21:37:59Z
-date_finished: null
+last_update: 2026-04-28T21:39:35Z
+date_finished: 2026-04-28T21:39:35Z
 ---
 
 # T-1393: Arc-conversation e2e regression runner — single command for all 4 cross-hub tests
@@ -71,3 +71,6 @@ out=$(BIN=./target/release/termlink ./tests/e2e/arc-suite.sh 2>&1) && echo "$out
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1393-arc-conversation-e2e-regression-runner--.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:39:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

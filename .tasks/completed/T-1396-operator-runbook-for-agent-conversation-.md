@@ -4,7 +4,7 @@ name: "Operator runbook for agent-conversation arc e2e suite + wire stress-soak 
 description: >
   Operator runbook for agent-conversation arc e2e suite + wire stress-soak into runner
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:45:14Z
-last_update: 2026-04-28T21:45:14Z
-date_finished: null
+last_update: 2026-04-28T21:47:39Z
+date_finished: 2026-04-28T21:47:39Z
 ---
 
 # T-1396: Operator runbook for agent-conversation arc e2e suite + wire stress-soak into runner
@@ -74,3 +74,6 @@ out=$(BIN=./target/release/termlink ./tests/e2e/arc-suite.sh 2>&1) && echo "$out
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1396-operator-runbook-for-agent-conversation-.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:47:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

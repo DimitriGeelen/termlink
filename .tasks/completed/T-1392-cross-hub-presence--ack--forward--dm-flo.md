@@ -4,7 +4,7 @@ name: "Cross-hub presence + ack + forward + DM flow — complete Matrix-primitiv
 description: >
   Cross-hub presence + ack + forward + DM flow — complete Matrix-primitive surface
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:34:26Z
-last_update: 2026-04-28T21:34:26Z
-date_finished: null
+last_update: 2026-04-28T21:37:25Z
+date_finished: 2026-04-28T21:37:25Z
 ---
 
 # T-1392: Cross-hub presence + ack + forward + DM flow — complete Matrix-primitive surface
@@ -77,3 +77,6 @@ out=$(BIN=./target/release/termlink ./tests/e2e/cross-hub-presence-flow.sh 2>&1)
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1392-cross-hub-presence--ack--forward--dm-flo.md
 - **Context:** Initial task creation
+
+### 2026-04-28T21:37:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
