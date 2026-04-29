@@ -68,7 +68,14 @@ fn is_legacy_method(method: &str) -> bool {
 /// T-1407: `peer_pid` (when Some) is included as a structured tracing
 /// field. For Unix-socket callers this lets `ps -p <pid>` identify the
 /// originating process even when the JSON-RPC `from` field is absent.
-pub fn warn_if_legacy(method: &str, from: Option<&str>, peer_pid: Option<u32>) {
+/// T-1409: `peer_addr` (when Some) carries the TCP source address —
+/// the network analogue for callers that have no local PID.
+pub fn warn_if_legacy(
+    method: &str,
+    from: Option<&str>,
+    peer_pid: Option<u32>,
+    peer_addr: Option<&str>,
+) {
     if !is_legacy_method(method) {
         return;
     }
@@ -92,6 +99,7 @@ pub fn warn_if_legacy(method: &str, from: Option<&str>, peer_pid: Option<u32>) {
             method = %method,
             from = %from_label,
             peer_pid = ?peer_pid,
+            peer_addr = ?peer_addr,
             "deprecated primitive called — T-1166: schedule retirement once legacy <1% over 60d"
         );
     }
@@ -130,12 +138,21 @@ fn now_ms() -> u128 {
 /// callers (raw JSON-RPC shells, third-party tools) that omit `from`.
 /// Schema is additive: omitted when `None` or 0; existing readers ignore
 /// the new field. TCP/TLS connections always get `None`.
-pub fn record(method: &str, from: Option<&str>, peer_pid: Option<u32>) {
+/// T-1409: `peer_addr` (when Some non-empty) records the TCP source
+/// address `"ip:port"`. Mirror of `peer_pid` for the network side —
+/// identifies callers that have no local PID. Omitted when `None` or
+/// empty. Unix connections always pass `None`.
+pub fn record(
+    method: &str,
+    from: Option<&str>,
+    peer_pid: Option<u32>,
+    peer_addr: Option<&str>,
+) {
     if SKIP_METHODS.contains(&method) {
         return;
     }
     let Some(path) = current_path() else { return };
-    let line = build_audit_line(now_ms(), method, from, peer_pid);
+    let line = build_audit_line(now_ms(), method, from, peer_pid, peer_addr);
     if let Err(e) = append_line(path, &line) {
         tracing::debug!(error = %e, "rpc_audit: append failed (suppressed)");
     }
@@ -148,8 +165,9 @@ pub(crate) fn build_audit_line(
     method: &str,
     from: Option<&str>,
     peer_pid: Option<u32>,
+    peer_addr: Option<&str>,
 ) -> String {
-    let mut parts: Vec<String> = Vec::with_capacity(4);
+    let mut parts: Vec<String> = Vec::with_capacity(5);
     parts.push(format!("\"ts\":{ts_ms}"));
     parts.push(format!("\"method\":{}", json_escape(method)));
     if let Some(f) = from
@@ -161,6 +179,11 @@ pub(crate) fn build_audit_line(
         && pid != 0
     {
         parts.push(format!("\"peer_pid\":{pid}"));
+    }
+    if let Some(a) = peer_addr
+        && !a.is_empty()
+    {
+        parts.push(format!("\"peer_addr\":{}", json_escape(a)));
     }
     format!("{{{}}}", parts.join(","))
 }
@@ -198,7 +221,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rpc-audit.jsonl");
         force_path(path.clone());
-        record("hub.auth", None, None);
+        record("hub.auth", None, None, None);
         // Read file (might be the first record with this OnceLock — only check existence + parse)
         if path.exists() {
             let body = fs::read_to_string(&path).unwrap();
@@ -212,7 +235,7 @@ mod tests {
     #[test]
     fn line_with_from_includes_field() {
         // T-1309: when caller attribution is provided, line must include "from".
-        let l = build_audit_line(42, "event.broadcast", Some("framework-agent"), None);
+        let l = build_audit_line(42, "event.broadcast", Some("framework-agent"), None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["method"], "event.broadcast");
         assert_eq!(v["from"], "framework-agent");
@@ -222,7 +245,7 @@ mod tests {
     #[test]
     fn line_without_from_omits_field() {
         // T-1309: when caller attribution is absent, the line must NOT include "from".
-        let l = build_audit_line(42, "event.broadcast", None, None);
+        let l = build_audit_line(42, "event.broadcast", None, None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert!(v.get("from").is_none(), "from must be omitted when None");
         assert_eq!(v["method"], "event.broadcast");
@@ -231,7 +254,7 @@ mod tests {
     #[test]
     fn empty_from_treated_as_absent() {
         // T-1309: empty-string from should be treated like None and omitted.
-        let l = build_audit_line(1, "event.broadcast", Some(""), None);
+        let l = build_audit_line(1, "event.broadcast", Some(""), None, None);
         let v: serde_json::Value = serde_json::from_str(&l).unwrap();
         assert!(v.get("from").is_none(), "empty from must be omitted");
     }
@@ -239,7 +262,7 @@ mod tests {
     #[test]
     fn line_with_peer_pid_includes_field() {
         // T-1407: when peer_pid is provided, line must include peer_pid as u32.
-        let l = build_audit_line(42, "inbox.status", None, Some(12345));
+        let l = build_audit_line(42, "inbox.status", None, Some(12345), None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["method"], "inbox.status");
         assert_eq!(v["peer_pid"], 12345);
@@ -249,7 +272,7 @@ mod tests {
     #[test]
     fn line_with_from_and_peer_pid_includes_both() {
         // T-1407: from + peer_pid both present should both appear.
-        let l = build_audit_line(7, "event.broadcast", Some("tl-abc"), Some(99));
+        let l = build_audit_line(7, "event.broadcast", Some("tl-abc"), Some(99), None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["from"], "tl-abc");
         assert_eq!(v["peer_pid"], 99);
@@ -258,9 +281,53 @@ mod tests {
     #[test]
     fn line_with_peer_pid_zero_omits_field() {
         // T-1407: pid 0 is treated as absent (no peer_pid available).
-        let l = build_audit_line(7, "inbox.list", None, Some(0));
+        let l = build_audit_line(7, "inbox.list", None, Some(0), None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert!(v.get("peer_pid").is_none(), "pid 0 must be omitted");
+    }
+
+    #[test]
+    fn line_with_peer_addr_includes_field() {
+        // T-1409: when peer_addr is provided, line must include peer_addr as string.
+        let l = build_audit_line(42, "inbox.status", None, None, Some("192.168.10.143:42820"));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["method"], "inbox.status");
+        assert_eq!(v["peer_addr"], "192.168.10.143:42820");
+        assert!(v.get("from").is_none());
+        assert!(v.get("peer_pid").is_none());
+    }
+
+    #[test]
+    fn line_with_peer_addr_and_from_includes_both() {
+        // T-1409: from + peer_addr both present should both appear.
+        let l = build_audit_line(7, "event.broadcast", Some("tl-xyz"), None, Some("10.0.0.5:5555"));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["from"], "tl-xyz");
+        assert_eq!(v["peer_addr"], "10.0.0.5:5555");
+    }
+
+    #[test]
+    fn line_with_all_three_fields() {
+        // T-1409: from + peer_pid + peer_addr all present should all appear.
+        let l = build_audit_line(
+            7,
+            "event.broadcast",
+            Some("tl-abc"),
+            Some(42),
+            Some("127.0.0.1:9100"),
+        );
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["from"], "tl-abc");
+        assert_eq!(v["peer_pid"], 42);
+        assert_eq!(v["peer_addr"], "127.0.0.1:9100");
+    }
+
+    #[test]
+    fn line_with_empty_peer_addr_omits_field() {
+        // T-1409: empty-string peer_addr should be treated like None and omitted.
+        let l = build_audit_line(1, "event.broadcast", None, None, Some(""));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert!(v.get("peer_addr").is_none(), "empty peer_addr must be omitted");
     }
 
     #[test]
@@ -329,7 +396,7 @@ mod tests {
     fn warn_if_legacy_noop_for_non_legacy() {
         // Should return cleanly with no panic and no tracker insert.
         // Use a method we KNOW is not legacy.
-        warn_if_legacy("channel.post", Some("test-noop-caller"), None);
+        warn_if_legacy("channel.post", Some("test-noop-caller"), None, None);
         let tracker = deprecation_tracker().lock().unwrap();
         assert!(
             !tracker
@@ -343,7 +410,7 @@ mod tests {
     fn warn_if_legacy_logs_first_call_inserts_tracker() {
         // First call for a unique (method, from) should insert into tracker.
         let unique_from = "T-1311-unit-A";
-        warn_if_legacy("event.broadcast", Some(unique_from), None);
+        warn_if_legacy("event.broadcast", Some(unique_from), None, None);
         let tracker = deprecation_tracker().lock().unwrap();
         assert!(
             tracker
@@ -356,7 +423,7 @@ mod tests {
     #[test]
     fn warn_if_legacy_unknown_caller_label() {
         // None caller should be tracked under "(unknown)".
-        warn_if_legacy("inbox.list", None, None);
+        warn_if_legacy("inbox.list", None, None, None);
         let tracker = deprecation_tracker().lock().unwrap();
         assert!(
             tracker
@@ -373,7 +440,7 @@ mod tests {
         // warn (we can't assert the log directly, but we can verify the
         // timestamp didn't change much between the two calls).
         let unique_from = "T-1311-unit-rate";
-        warn_if_legacy("event.broadcast", Some(unique_from), None);
+        warn_if_legacy("event.broadcast", Some(unique_from), None, None);
         let t1 = {
             let tracker = deprecation_tracker().lock().unwrap();
             *tracker
@@ -381,7 +448,7 @@ mod tests {
                 .expect("entry exists")
         };
         std::thread::sleep(Duration::from_millis(10));
-        warn_if_legacy("event.broadcast", Some(unique_from), None);
+        warn_if_legacy("event.broadcast", Some(unique_from), None, None);
         let t2 = {
             let tracker = deprecation_tracker().lock().unwrap();
             *tracker
