@@ -1810,7 +1810,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_broadcast",
-        description = "Broadcast an event to multiple TermLink sessions via the hub. If no targets specified, broadcasts to all."
+        description = "Broadcast an event to multiple TermLink sessions via the hub. If no targets specified, broadcasts to all (via channel.post broadcast:global per T-1401/T-1403). With explicit targets, falls through to legacy event.broadcast for per-target fan-out."
     )]
     async fn termlink_broadcast(&self, Parameters(p): Parameters<BroadcastParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
@@ -1818,9 +1818,31 @@ impl TermLinkTools {
             return json_err("hub is not running. Start it with: termlink hub");
         }
 
+        let payload = p.payload.unwrap_or(serde_json::json!({}));
+        let targets_empty = p.targets.as_ref().is_none_or(|t| t.is_empty());
+
+        // T-1403: prefer channel.post(broadcast:global) when no targets specified
+        // (the dominant case). Mirrors hub-side T-1162 envelope shape.
+        if targets_empty
+            && let Ok(offset) =
+                Self::try_broadcast_via_channel_post(&hub_socket, &p.topic, &payload).await
+        {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "topic": p.topic,
+                "channel_topic": "broadcast:global",
+                "offset": offset,
+                "targeted": 1,
+                "succeeded": 1,
+                "failed": 0,
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        // Fallback: legacy event.broadcast (also handles --targets path).
         let mut params = serde_json::json!({
             "topic": p.topic,
-            "payload": p.payload.unwrap_or(serde_json::json!({})),
+            "payload": payload,
         });
         if let Some(targets) = &p.targets
             && !targets.is_empty() {
@@ -1841,6 +1863,67 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("connection failed: {e}")),
         }
+    }
+
+    /// T-1403: Sign and dispatch a `channel.post(broadcast:global)` envelope
+    /// matching the hub-side T-1162 mirror shape exactly. Returns offset on
+    /// success, or any error (caller falls back to legacy event.broadcast).
+    async fn try_broadcast_via_channel_post(
+        hub_socket: &std::path::Path,
+        topic: &str,
+        payload: &serde_json::Value,
+    ) -> Result<i64, String> {
+        const BROADCAST_GLOBAL_TOPIC: &str = "broadcast:global";
+
+        let payload_bytes = serde_json::to_vec(payload)
+            .map_err(|e| format!("payload serialize: {e}"))?;
+        let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+            .map_err(|e| format!("identity load: {e}"))?;
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            BROADCAST_GLOBAL_TOPIC,
+            topic,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let mut params = serde_json::json!({
+            "topic": BROADCAST_GLOBAL_TOPIC,
+            "msg_type": topic,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": identity.fingerprint(),
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+        });
+        if let Ok(sid) = std::env::var("TERMLINK_SESSION_ID")
+            && !sid.is_empty()
+        {
+            params["metadata"] = serde_json::json!({"from": sid});
+        }
+        let resp = client::rpc_call(
+            hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        .map_err(|e| format!("channel.post connect: {e}"))?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| format!("channel.post error: {e}"))?;
+        result["offset"]
+            .as_i64()
+            .ok_or_else(|| "channel.post response missing offset".to_string())
     }
 
     #[tool(
