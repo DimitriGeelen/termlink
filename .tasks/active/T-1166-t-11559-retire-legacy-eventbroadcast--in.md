@@ -78,6 +78,20 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 ### 2026-04-22T04:52:49Z — status-update [task-update-agent]
 - **Change:** horizon: later → next
 
+### 2026-04-29T07:55Z — telemetry-driven re-audit; gate FAILS, two surgical migrations identified [agent autonomous pass]
+- **Telemetry surface NOW EXISTS:** `<runtime_dir>/rpc-audit.jsonl` (T-1304) + `fw metrics api-usage` agent (T-1311). The previous audit's "telemetry gate untestable" line is stale — both shipped before this session.
+- **Live numbers (60d window, /var/lib/termlink/rpc-audit.jsonl, 48,543 records):**
+  - Legacy traffic: **5.46%** (2,651 calls) — gate threshold is 1.0%. **GATE FAILS.**
+  - Top legacy method: `inbox.status` — 2,453 calls (5.1%), 100% from `(unknown)` caller
+  - Second: `event.broadcast` — 193 calls (0.4%), 184 unknown + 9 from named sessions
+  - `inbox.list`: 5 calls. `inbox.clear`, `file.send`, `file.receive`: ZERO. Effectively retired already.
+- **Source-map of the two real blockers:**
+  - `inbox.status (unknown)` source: `crates/termlink-cli/src/commands/infrastructure.rs:434` (`fw doctor` step 7) + `crates/termlink-mcp/src/tools.rs:5166` (`termlink_doctor` MCP tool step 3). Both call `rpc_call("inbox.status", ...)` directly, bypassing the existing `inbox_channel::status_with_fallback` shim. Each `fw doctor` run emits one inbox.status; the 2453-call total reflects ~2453 doctor invocations over the audit window.
+  - `event.broadcast (unknown)` source: `crates/termlink-cli/src/commands/events.rs:211` (`cmd_broadcast`). This caller IS already env-var aware (T-1310 injects `from = $TERMLINK_SESSION_ID`), but ad-hoc shells running `termlink event broadcast` without setting the var produce the 184 unknowns. Migrating cmd_broadcast to call `channel.post` against `broadcast:global` (the same topic the hub-side mirror already writes to per T-1162) eliminates the legacy method dispatch entirely.
+- **Decomposition:** spawned T-1400 (doctor inbox.status migration — eliminates 2453 calls / 5.1% in one shot). The event.broadcast migration (a `cmd_broadcast` rewrite) is the second sub-task — to be spawned as T-1401 once T-1400 ships and bakes.
+- **Forecast:** T-1400 alone drops legacy% from 5.46% to ~0.4% (under the 1% gate). T-1401 brings it to <0.05%. Together they unblock T-1166 entry gate and allow the actual decommission to schedule.
+- **Status:** stays `captured` — preconditions in flight, not yet ready to start. Will re-audit after T-1400+T-1401 land + bake 24h.
+
 ### 2026-04-26T22:42Z — entry-gate audit (no AC ticks; status stays captured) [agent autonomous pass]
 - **Telemetry gate (AC line 30):** UNTESTABLE — `fw metrics api-usage --last-60d` is not an implemented subcommand (only `dashboard`, `predict` exist). The gate references a tool that was assumed but not built. Either (a) build the telemetry, or (b) replace the gate with a different signal before retirement can proceed.
 - **Code gate (AC line 31):** PARTIAL.

@@ -54,12 +54,11 @@ fn parse_retention(spec: &str) -> Result<Value> {
 /// TCP if the string has no `/`, contains a `:`, and the trailing component
 /// parses as a u16 port. Otherwise, treat as a Unix socket path.
 fn parse_hub_addr(s: &str) -> TransportAddr {
-    if !s.contains('/') {
-        if let Some((host, port_str)) = s.rsplit_once(':') {
-            if let Ok(port) = port_str.parse::<u16>() {
-                return TransportAddr::tcp(host, port);
-            }
-        }
+    if !s.contains('/')
+        && let Some((host, port_str)) = s.rsplit_once(':')
+        && let Ok(port) = port_str.parse::<u16>()
+    {
+        return TransportAddr::tcp(host, port);
     }
     TransportAddr::unix(PathBuf::from(s))
 }
@@ -143,7 +142,7 @@ async fn rpc_call_authed(
         Ok(h) => h,
         Err(e) => {
             return Err(termlink_session::client::ClientError::Io(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+                std::io::Error::other(e.to_string()),
             ))
         }
     };

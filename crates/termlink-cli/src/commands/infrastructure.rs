@@ -429,22 +429,59 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
-    // 7. Inbox status (T-1001)
+    // 7. Inbox status (T-1001).
+    //
+    // T-1400: prefer `channel.list(prefix="inbox:")` over the legacy
+    // `inbox.status` RPC. The channel-aware path uses the same data the
+    // hub-side migration shim already mirrors transfers into, and avoids
+    // contributing to the T-1166 retirement-gate legacy traffic. On any
+    // failure (including MethodNotFound on older hubs), fall back to the
+    // legacy probe so the doctor remains useful across version skew.
     if hub_socket.exists() {
-        match termlink_session::client::rpc_call(&hub_socket, "inbox.status", json!({})).await {
-            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
-                Ok(result) => {
-                    let total = result["total_transfers"].as_u64().unwrap_or(0);
-                    if total == 0 {
-                        check!("inbox", pass, "no pending transfers");
-                    } else {
-                        let targets = result["targets"].as_array().map(|t| t.len()).unwrap_or(0);
-                        check!("inbox", warn, format!("{total} pending transfer(s) for {targets} target(s)"));
-                    }
-                }
-                Err(e) => check!("inbox", warn, format!("inbox query failed: {e}")),
-            },
-            Err(e) => check!("inbox", warn, format!("inbox RPC failed: {e}")),
+        let probe_channel_list = async {
+            let resp = termlink_session::client::rpc_call(
+                &hub_socket,
+                "channel.list",
+                json!({"prefix": "inbox:"}),
+            )
+            .await
+            .map_err(|e| format!("channel.list transport: {e}"))?;
+            let result = termlink_session::client::unwrap_result(resp)?;
+            let topics = result["topics"].as_array().cloned().unwrap_or_default();
+            let target_count = topics.len();
+            let total: u64 = topics
+                .iter()
+                .filter_map(|t| t["count"].as_u64())
+                .sum();
+            Ok::<(u64, usize), String>((total, target_count))
+        };
+
+        let probe_inbox_status = async {
+            let resp = termlink_session::client::rpc_call(
+                &hub_socket,
+                "inbox.status",
+                json!({}),
+            )
+            .await
+            .map_err(|e| format!("inbox.status transport: {e}"))?;
+            let result = termlink_session::client::unwrap_result(resp)?;
+            Ok::<(u64, usize), String>((
+                result["total_transfers"].as_u64().unwrap_or(0),
+                result["targets"].as_array().map(|t| t.len()).unwrap_or(0),
+            ))
+        };
+
+        let outcome: Result<(u64, usize), String> = match probe_channel_list.await {
+            Ok(v) => Ok(v),
+            Err(_) => probe_inbox_status.await,
+        };
+
+        match outcome {
+            Ok((0, _)) => check!("inbox", pass, "no pending transfers"),
+            Ok((total, targets)) => {
+                check!("inbox", warn, format!("{total} pending transfer(s) for {targets} target(s)"))
+            }
+            Err(e) => check!("inbox", warn, format!("inbox query failed: {e}")),
         }
     }
 
