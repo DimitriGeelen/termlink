@@ -64,7 +64,11 @@ fn is_legacy_method(method: &str) -> bool {
 /// Pairs with the audit log written by `record()` — that captures *every*
 /// call for retrospective tally; this surfaces *one per offender per
 /// window* for live operator awareness (journalctl/stderr tail).
-pub fn warn_if_legacy(method: &str, from: Option<&str>) {
+///
+/// T-1407: `peer_pid` (when Some) is included as a structured tracing
+/// field. For Unix-socket callers this lets `ps -p <pid>` identify the
+/// originating process even when the JSON-RPC `from` field is absent.
+pub fn warn_if_legacy(method: &str, from: Option<&str>, peer_pid: Option<u32>) {
     if !is_legacy_method(method) {
         return;
     }
@@ -87,6 +91,7 @@ pub fn warn_if_legacy(method: &str, from: Option<&str>) {
         tracing::warn!(
             method = %method,
             from = %from_label,
+            peer_pid = ?peer_pid,
             "deprecated primitive called — T-1166: schedule retirement once legacy <1% over 60d"
         );
     }
@@ -120,23 +125,44 @@ fn now_ms() -> u128 {
 /// T-1307: silently skips transport-plumbing methods listed in `SKIP_METHODS`.
 /// T-1309: optionally records caller attribution (`from` field) so
 /// `fw metrics api-usage` can break down legacy callers by display_name.
-pub fn record(method: &str, from: Option<&str>) {
+/// T-1407: optionally records `peer_pid` for Unix-socket callers — the
+/// connect-time PID from getsockopt(SO_PEERCRED). Identifies non-TermLink
+/// callers (raw JSON-RPC shells, third-party tools) that omit `from`.
+/// Schema is additive: omitted when `None` or 0; existing readers ignore
+/// the new field. TCP/TLS connections always get `None`.
+pub fn record(method: &str, from: Option<&str>, peer_pid: Option<u32>) {
     if SKIP_METHODS.contains(&method) {
         return;
     }
     let Some(path) = current_path() else { return };
-    let line = match from {
-        Some(f) if !f.is_empty() => format!(
-            r#"{{"ts":{},"method":{},"from":{}}}"#,
-            now_ms(),
-            json_escape(method),
-            json_escape(f),
-        ),
-        _ => format!(r#"{{"ts":{},"method":{}}}"#, now_ms(), json_escape(method)),
-    };
+    let line = build_audit_line(now_ms(), method, from, peer_pid);
     if let Err(e) = append_line(path, &line) {
         tracing::debug!(error = %e, "rpc_audit: append failed (suppressed)");
     }
+}
+
+/// Pure: assemble one JSONL audit line. Public-in-crate so tests can
+/// drive it without touching the OnceLock-guarded path.
+pub(crate) fn build_audit_line(
+    ts_ms: u128,
+    method: &str,
+    from: Option<&str>,
+    peer_pid: Option<u32>,
+) -> String {
+    let mut parts: Vec<String> = Vec::with_capacity(4);
+    parts.push(format!("\"ts\":{ts_ms}"));
+    parts.push(format!("\"method\":{}", json_escape(method)));
+    if let Some(f) = from
+        && !f.is_empty()
+    {
+        parts.push(format!("\"from\":{}", json_escape(f)));
+    }
+    if let Some(pid) = peer_pid
+        && pid != 0
+    {
+        parts.push(format!("\"peer_pid\":{pid}"));
+    }
+    format!("{{{}}}", parts.join(","))
 }
 
 fn append_line(path: &Path, line: &str) -> std::io::Result<()> {
@@ -172,7 +198,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rpc-audit.jsonl");
         force_path(path.clone());
-        record("hub.auth", None);
+        record("hub.auth", None, None);
         // Read file (might be the first record with this OnceLock — only check existence + parse)
         if path.exists() {
             let body = fs::read_to_string(&path).unwrap();
@@ -186,12 +212,7 @@ mod tests {
     #[test]
     fn line_with_from_includes_field() {
         // T-1309: when caller attribution is provided, line must include "from".
-        let l = format!(
-            r#"{{"ts":{},"method":{},"from":{}}}"#,
-            42,
-            json_escape("event.broadcast"),
-            json_escape("framework-agent"),
-        );
+        let l = build_audit_line(42, "event.broadcast", Some("framework-agent"), None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["method"], "event.broadcast");
         assert_eq!(v["from"], "framework-agent");
@@ -201,7 +222,7 @@ mod tests {
     #[test]
     fn line_without_from_omits_field() {
         // T-1309: when caller attribution is absent, the line must NOT include "from".
-        let l = format!(r#"{{"ts":{},"method":{}}}"#, 42, json_escape("event.broadcast"));
+        let l = build_audit_line(42, "event.broadcast", None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert!(v.get("from").is_none(), "from must be omitted when None");
         assert_eq!(v["method"], "event.broadcast");
@@ -210,20 +231,36 @@ mod tests {
     #[test]
     fn empty_from_treated_as_absent() {
         // T-1309: empty-string from should be treated like None and omitted.
-        // We can't easily call record() across tests due to OnceLock, but we can
-        // exercise the predicate: build the same shape record() builds for empty.
-        let from_in: Option<&str> = Some("");
-        let line = match from_in {
-            Some(f) if !f.is_empty() => format!(
-                r#"{{"ts":{},"method":{},"from":{}}}"#,
-                1,
-                json_escape("event.broadcast"),
-                json_escape(f),
-            ),
-            _ => format!(r#"{{"ts":{},"method":{}}}"#, 1, json_escape("event.broadcast")),
-        };
-        let v: serde_json::Value = serde_json::from_str(&line).unwrap();
+        let l = build_audit_line(1, "event.broadcast", Some(""), None);
+        let v: serde_json::Value = serde_json::from_str(&l).unwrap();
         assert!(v.get("from").is_none(), "empty from must be omitted");
+    }
+
+    #[test]
+    fn line_with_peer_pid_includes_field() {
+        // T-1407: when peer_pid is provided, line must include peer_pid as u32.
+        let l = build_audit_line(42, "inbox.status", None, Some(12345));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["method"], "inbox.status");
+        assert_eq!(v["peer_pid"], 12345);
+        assert!(v.get("from").is_none(), "from absent → not in line");
+    }
+
+    #[test]
+    fn line_with_from_and_peer_pid_includes_both() {
+        // T-1407: from + peer_pid both present should both appear.
+        let l = build_audit_line(7, "event.broadcast", Some("tl-abc"), Some(99));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["from"], "tl-abc");
+        assert_eq!(v["peer_pid"], 99);
+    }
+
+    #[test]
+    fn line_with_peer_pid_zero_omits_field() {
+        // T-1407: pid 0 is treated as absent (no peer_pid available).
+        let l = build_audit_line(7, "inbox.list", None, Some(0));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert!(v.get("peer_pid").is_none(), "pid 0 must be omitted");
     }
 
     #[test]
@@ -292,7 +329,7 @@ mod tests {
     fn warn_if_legacy_noop_for_non_legacy() {
         // Should return cleanly with no panic and no tracker insert.
         // Use a method we KNOW is not legacy.
-        warn_if_legacy("channel.post", Some("test-noop-caller"));
+        warn_if_legacy("channel.post", Some("test-noop-caller"), None);
         let tracker = deprecation_tracker().lock().unwrap();
         assert!(
             !tracker
@@ -306,7 +343,7 @@ mod tests {
     fn warn_if_legacy_logs_first_call_inserts_tracker() {
         // First call for a unique (method, from) should insert into tracker.
         let unique_from = "T-1311-unit-A";
-        warn_if_legacy("event.broadcast", Some(unique_from));
+        warn_if_legacy("event.broadcast", Some(unique_from), None);
         let tracker = deprecation_tracker().lock().unwrap();
         assert!(
             tracker
@@ -319,7 +356,7 @@ mod tests {
     #[test]
     fn warn_if_legacy_unknown_caller_label() {
         // None caller should be tracked under "(unknown)".
-        warn_if_legacy("inbox.list", None);
+        warn_if_legacy("inbox.list", None, None);
         let tracker = deprecation_tracker().lock().unwrap();
         assert!(
             tracker
@@ -336,7 +373,7 @@ mod tests {
         // warn (we can't assert the log directly, but we can verify the
         // timestamp didn't change much between the two calls).
         let unique_from = "T-1311-unit-rate";
-        warn_if_legacy("event.broadcast", Some(unique_from));
+        warn_if_legacy("event.broadcast", Some(unique_from), None);
         let t1 = {
             let tracker = deprecation_tracker().lock().unwrap();
             *tracker
@@ -344,7 +381,7 @@ mod tests {
                 .expect("entry exists")
         };
         std::thread::sleep(Duration::from_millis(10));
-        warn_if_legacy("event.broadcast", Some(unique_from));
+        warn_if_legacy("event.broadcast", Some(unique_from), None);
         let t2 = {
             let tracker = deprecation_tracker().lock().unwrap();
             *tracker

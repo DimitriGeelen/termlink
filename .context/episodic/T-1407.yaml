@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1407: Audit log enrichment: capture peer_pid for Unix-socket dispatch (T-1166 forensics)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-29T20:44:49Z
+# ============================================================================
+
+task_id: T-1407
+task_name: "Audit log enrichment: capture peer_pid for Unix-socket dispatch (T-1166 forensics)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-29T20:36:28Z
+completed: 2026-04-29T20:44:47Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`handle_connection` signature gains a `peer_pid: Option<u32>`"
+  - "`rpc_audit::record(method, from, peer_pid)` signature updated;"
+  - "`rpc_audit::warn_if_legacy(method, from, peer_pid)` includes"
+  - "Existing rpc_audit unit tests updated to the new signatures and"
+  - "`cargo build -p termlink-hub` green; `cargo test -p termlink-hub`"
+  - "**Live verification:** binary 0.9.1579 installed, hub restarted"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1407-audit-log-enrichment-capture-peerpid-for.md
+generated_by: context-agent-hybrid

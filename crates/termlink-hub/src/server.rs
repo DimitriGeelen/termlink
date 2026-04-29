@@ -418,6 +418,9 @@ pub async fn run_accept_loop(
                 match result {
                     Ok((stream, _addr)) => {
                         // Extract peer credentials and check UID
+                        // T-1407: capture peer_pid so we can thread it into the
+                        // audit log + legacy-method warn for Unix-socket callers.
+                        let mut peer_pid: Option<u32> = None;
                         match PeerCredentials::from_tokio_stream(&stream) {
                             Ok(creds) => {
                                 if !creds.is_same_user(owner_uid) {
@@ -429,6 +432,7 @@ pub async fn run_accept_loop(
                                     );
                                     continue;
                                 }
+                                peer_pid = creds.pid.map(|p| p as u32);
                             }
                             Err(e) => {
                                 tracing::debug!(
@@ -447,6 +451,7 @@ pub async fn run_accept_loop(
                                 stream,
                                 Some(PermissionScope::Execute),
                                 (*secret).clone(),
+                                peer_pid,
                             )
                             .await;
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
@@ -478,10 +483,12 @@ pub async fn run_accept_loop(
                         let acceptor = tls_acceptor.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         tokio::spawn(async move {
+                            // T-1407: TCP/TLS connections are network-remote; no
+                            // local PID exists, pass None.
                             if let Some(tls) = acceptor.as_ref() {
                                 match tls.accept(tcp_stream).await {
                                     Ok(tls_stream) => {
-                                        handle_connection(tls_stream, None, (*secret).clone()).await;
+                                        handle_connection(tls_stream, None, (*secret).clone(), None).await;
                                     }
                                     Err(e) => {
                                         tracing::warn!(%peer_addr, error = %e, "Hub: TLS handshake failed");
@@ -489,7 +496,7 @@ pub async fn run_accept_loop(
                                 }
                             } else {
                                 // No TLS configured — use raw TCP (tests only)
-                                handle_connection(tcp_stream, None, (*secret).clone()).await;
+                                handle_connection(tcp_stream, None, (*secret).clone(), None).await;
                             }
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
@@ -529,10 +536,17 @@ pub async fn run_accept_loop(
 /// - `None` for TCP connections (unauthenticated — only `hub.auth` allowed)
 ///
 /// The scope can be upgraded via `hub.auth` with a valid token.
+///
+/// T-1407: `peer_pid` is the connect-time PID from `getsockopt(SO_PEERCRED)`
+/// for Unix-socket callers; threaded into the audit log + legacy-method
+/// warn so non-TermLink callers (raw JSON-RPC shells, third-party tools)
+/// can be identified by `ps -p <pid>` even when the JSON-RPC `from` field
+/// is absent. TCP/TLS connections pass `None`.
 async fn handle_connection<S>(
     stream: S,
     initial_scope: Option<PermissionScope>,
     token_secret: Option<String>,
+    peer_pid: Option<u32>,
 ) where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -556,12 +570,15 @@ async fn handle_connection<S>(
                 // T-1309: thread optional caller display_name from params.from
                 // so legacy-caller breakdown is possible in `fw metrics api-usage`.
                 let from = req.params.get("from").and_then(|v| v.as_str());
-                crate::rpc_audit::record(&req.method, from);
+                crate::rpc_audit::record(&req.method, from, peer_pid);
                 // T-1311: real-time warn-log when a legacy primitive is dispatched.
                 // Rate-limited to one log per (method, from) per 5 minutes inside
                 // warn_if_legacy. Operator tailing logs sees deprecated usage
                 // immediately, not days later in the audit tally.
-                crate::rpc_audit::warn_if_legacy(&req.method, from);
+                // T-1407: include peer_pid so the warn line carries the originating
+                // PID for Unix-socket callers — closes the anonymous-poller blind
+                // spot diagnosed during the T-1166 bake.
+                crate::rpc_audit::warn_if_legacy(&req.method, from, peer_pid);
                 if req.method == control::method::HUB_AUTH {
                     // hub.auth is always allowed (it's the authentication mechanism)
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
