@@ -5162,26 +5162,63 @@ impl TermLinkTools {
                 }
             }
 
-            // 3. Inbox
-            match rpc_client.call("inbox.status", serde_json::json!("mcp-doc-is"), serde_json::json!({})).await {
+            // 3. Inbox.
+            //
+            // T-1400: prefer channel.list(prefix="inbox:") over legacy
+            // inbox.status; fall back to inbox.status on any error so the
+            // probe stays useful across version skew. Same migration as
+            // commands/infrastructure.rs::doctor step 7.
+            let inbox_outcome: Result<(u64, usize), String> = match rpc_client
+                .call(
+                    "channel.list",
+                    serde_json::json!("mcp-doc-cl"),
+                    serde_json::json!({"prefix": "inbox:"}),
+                )
+                .await
+            {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-                    let total = r.result["total_transfers"].as_u64().unwrap_or(0);
-                    if total == 0 {
-                        pass_count += 1;
-                        checks.push(serde_json::json!({"check": "inbox", "status": "pass", "message": "no pending transfers"}));
-                    } else {
-                        let targets = r.result["targets"].as_array().map(|t| t.len()).unwrap_or(0);
-                        warn_count += 1;
-                        checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("{} pending transfer(s) for {} target(s)", total, targets)}));
+                    let topics = r.result["topics"].as_array().cloned().unwrap_or_default();
+                    let target_count = topics.len();
+                    let total: u64 = topics
+                        .iter()
+                        .filter_map(|t| t["count"].as_u64())
+                        .sum();
+                    Ok((total, target_count))
+                }
+                _ => {
+                    // Fallback to legacy inbox.status
+                    match rpc_client
+                        .call(
+                            "inbox.status",
+                            serde_json::json!("mcp-doc-is"),
+                            serde_json::json!({}),
+                        )
+                        .await
+                    {
+                        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => Ok((
+                            r.result["total_transfers"].as_u64().unwrap_or(0),
+                            r.result["targets"].as_array().map(|t| t.len()).unwrap_or(0),
+                        )),
+                        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                            Err(format!("inbox.status error: {}", e.error.message))
+                        }
+                        Err(e) => Err(format!("RPC failed: {}", e)),
                     }
                 }
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                    warn_count += 1;
-                    checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("inbox.status error: {}", e.error.message)}));
+            };
+
+            match inbox_outcome {
+                Ok((0, _)) => {
+                    pass_count += 1;
+                    checks.push(serde_json::json!({"check": "inbox", "status": "pass", "message": "no pending transfers"}));
                 }
-                Err(e) => {
+                Ok((total, targets)) => {
                     warn_count += 1;
-                    checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("RPC failed: {}", e)}));
+                    checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("{} pending transfer(s) for {} target(s)", total, targets)}));
+                }
+                Err(msg) => {
+                    warn_count += 1;
+                    checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": msg}));
                 }
             }
 

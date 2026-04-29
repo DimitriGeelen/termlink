@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1400: Migrate fw doctor inbox.status probe to channel.list(prefix=inbox:)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-29T08:07:23Z
+# ============================================================================
+
+task_id: T-1400
+task_name: "Migrate fw doctor inbox.status probe to channel.list(prefix=inbox:)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-29T07:55:26Z
+completed: 2026-04-29T08:06:31Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`infrastructure.rs:434` step replaced with try-channel-first / fall-back-on-error logic; output messages preserved exactly (\"no pending transfers\" / \"N pending transfer(s) for M target(s)\")"
+  - "`tools.rs:5166` ditto for the MCP doctor tool"
+  - "Both call sites compute the same semantic (\"total transfers\", \"targets\") from `channel.list` reply (prefix=inbox:): topic count = target count, sum of per-topic `count` = total transfers"
+  - "On a hub that supports `channel.list` (current fleet), running `fw doctor` once produces ZERO `inbox.status` lines in `<runtime_dir>/rpc-audit.jsonl` (verified live: BEFORE inbox.status=2465, AFTER inbox.status=2465 over a single doctor run; channel.list +1)"
+  - "On a hub that does NOT support `channel.list` (any error from the channel.list call), the fallback path runs and falls back to inbox.status with the same data semantics — verified by code path inspection (the `Err(_)` arm of `outcome` and the `_ =>` arm in tools.rs)"
+  - "No new dependencies added; uses existing `termlink_session::client::rpc_call` and `RpcClient::call` paths"
+  - "`cargo build -p termlink -p termlink-mcp` clean"
+  - "`cargo clippy -p termlink -p termlink-mcp --tests -- -D warnings` clean (also fixed 3 pre-existing clippy nits in `commands/channel.rs` that surfaced because clippy hadn't been run on these crates before)"
+  - "`cargo test -p termlink -p termlink-mcp` 0 failures (99 passed)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1400-migrate-fw-doctor-inboxstatus-probe-to-c.md
+generated_by: context-agent-hybrid
