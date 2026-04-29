@@ -47,6 +47,15 @@ Per T-1297 GO § Spike 3: per-session opt-in declarations that suppress Build B 
 - [x] Workspace builds clean: `cargo build -p termlink-hub`; `cargo clippy -p termlink-hub --tests -- -D warnings`
 - [x] All hub crate tests pass: `cargo test -p termlink-hub` 0 failures
 
+### Human
+
+- [ ] [RUBBER-STAMP] **Verify relay_for suppresses warnings — declaration file present + A/B holds on .107.**
+  Steps:
+  1. `cd /opt/termlink && cat /var/lib/termlink/relay_declarations.yaml`
+  2. `cd /opt/termlink && ./target/release/termlink channel state routing:lint --hub 127.0.0.1:9100 --json | python3 -c "import sys,json;raw=sys.stdin.read();rows=json.loads(raw[raw.find('['):]);bk=[r for r in rows if 'tl-bkfp6hqt' in (json.loads(r['payload']).get('from') or '')];bb=[r for r in rows if 'tl-bubfbc3w' in (json.loads(r['payload']).get('from') or '')];print(f'tl-bkfp6hqt(termlink-agent w/ relay_for): {len(bk)} warnings');print(f'tl-bubfbc3w(undeclared): {len(bb)} warnings')"`
+  Expected: step 1 shows `name: \"termlink-agent\"` with `relay_for: [\"framework\"]`; step 2 prints `tl-bkfp6hqt(termlink-agent w/ relay_for): 3 warnings` (all from BEFORE the declaration was added — see offset [4] `framework:lint-test-after-relay-declared` is the last termlink-agent row) and `tl-bubfbc3w(undeclared): 1 warnings` (the validation row from 2026-04-29T07:03Z). After the declaration was active, no NEW termlink-agent warnings have fired despite multiple emit attempts.
+  If not: if step 1 is missing, the file was deleted — restore from this Updates section. If step 2 shows the bk count growing, suppression broke — file an issue against `topic_lint::relay_suppresses`.
+
 ## Verification
 
 cargo build -p termlink-hub 2>&1 | tail -3 | grep -qE "Finished"

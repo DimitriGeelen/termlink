@@ -12,7 +12,7 @@ tags: [termlink, routing, lint, T-1297-child, hub]
 components: []
 related_tasks: [T-1297]
 created: 2026-04-26T21:19:39Z
-last_update: 2026-04-27T07:08:50Z
+last_update: 2026-04-29T07:05:30Z
 date_finished: null
 ---
 
@@ -40,6 +40,14 @@ Lint applies to `event.broadcast` and `event.emit_to` (the two RPC paths that fa
 - [x] Hot-reload test (file-based, no signal): write defaults.yaml → load → modify file → call `Rules::load_from_path` again → new content reflected
 - [x] Full workspace builds with no warnings: `cargo build --workspace` clean and `cargo clippy -p termlink-hub -- -D warnings` clean
 - [x] All existing tests pass: `cargo test -p termlink-hub` 0 failures
+
+### Human
+
+- [ ] [RUBBER-STAMP] **Verify lint fires on .107 for an undeclared session emitting a mismatched-prefix topic.**
+  Steps:
+  1. `cd /opt/termlink && ./target/release/termlink channel state routing:lint --hub 127.0.0.1:9100 --json | python3 -c "import sys,json;raw=sys.stdin.read();rows=json.loads(raw[raw.find('['):]);print(f'rows={len(rows)}');p=json.loads(rows[-1]['payload']);print(f'last: topic={p[\"topic\"]} from={p[\"from\"]} expected={p[\"expected_roles\"]} actual={p[\"actual_roles\"]}')"`
+  Expected: `rows >= 7` and the last row shows `topic=framework:t1300-validation-undeclared-070345 from=tl-bubfbc3w expected=['framework', 'pickup'] actual=[]` (the validation row captured 2026-04-29T07:03Z; later rows are fine — the row must be present).
+  If not: probe `grep "framework:t1300-validation-undeclared" <(...the same command...)` — if absent, the bus topic was rotated; re-run the trigger from this session's evidence (Updates 2026-04-29T07:05Z, Trigger 2).
 
 ## Verification
 
