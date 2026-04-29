@@ -4,7 +4,7 @@ name: "Draft T-1166 migration guide ahead of retirement"
 description: >
   Draft T-1166 migration guide ahead of retirement
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-29T08:49:34Z
-last_update: 2026-04-29T08:49:34Z
-date_finished: null
+last_update: 2026-04-29T08:51:42Z
+date_finished: 2026-04-29T08:51:42Z
 ---
 
 # T-1402: Draft T-1166 migration guide ahead of retirement
@@ -65,3 +65,6 @@ grep -q "legacy_primitives" docs/migrations/T-1166-retire-legacy-primitives.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1402-draft-t-1166-migration-guide-ahead-of-re.md
 - **Context:** Initial task creation
+
+### 2026-04-29T08:51:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

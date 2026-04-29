@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1404: Fix bus_client TransportAddr test compile breaks (T-1385 fallout)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-29T18:36:12Z
+# ============================================================================
+
+task_id: T-1404
+task_name: "Fix bus_client TransportAddr test compile breaks (T-1385 fallout)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-29T18:33:08Z
+completed: 2026-04-29T18:36:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-29T20:34:46+02:00
+last_commit: 2026-04-29T20:34:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix bus_client TransportAddr test compile breaks (T-1385 fallout)
+
+# Key outcomes
+outcomes:
+  - "`cargo test -p termlink-session --no-run` builds without compile errors"
+  - "`cargo test -p termlink-session` passes (or shows the same pass count it did before T-1385 broke compilation) — 336 passed (314 unit + 1 bus_client_integration + 20 integration + 1 doctest)"
+  - "No production code changed — only test wrapping; the change is purely TransportAddr boilerplate"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "fix bus_client TransportAddr test compile breaks (T-1385 fallout)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-session/src/bus_client.rs"
+  - "crates/termlink-session/tests/bus_client_integration.rs"
+  - ".tasks/active/T-1404-fix-busclient-transportaddr-test-compile.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-29T20:34:46"
+    action: "T-1404: fix bus_client TransportAddr test compile breaks (T-1385 fallout)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 3
+  lines_added: 81
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1404-fix-busclient-transportaddr-test-compile.md
+generated_by: context-agent-hybrid

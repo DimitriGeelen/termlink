@@ -4,16 +4,16 @@ name: "Migrate MCP termlink_broadcast tool to channel.post(broadcast:global)"
 description: >
   Migrate MCP termlink_broadcast tool to channel.post(broadcast:global)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-29T08:52:12Z
-last_update: 2026-04-29T08:52:12Z
-date_finished: null
+last_update: 2026-04-29T08:54:42Z
+date_finished: 2026-04-29T08:54:42Z
 ---
 
 # T-1403: Migrate MCP termlink_broadcast tool to channel.post(broadcast:global)
@@ -73,3 +73,6 @@ grep -q "channel.post" crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1403-migrate-mcp-termlinkbroadcast-tool-to-ch.md
 - **Context:** Initial task creation
+
+### 2026-04-29T08:54:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
