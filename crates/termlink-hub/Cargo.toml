@@ -23,5 +23,13 @@ rustls = { workspace = true }
 rustls-pemfile = { workspace = true }
 rcgen = { workspace = true }
 
+[features]
+# T-1413: Compile-time switch that flips LEGACY_PRIMITIVES_ENABLED to false.
+# Default-off preserves current behavior. Used by CI to test the post-T-1166
+# cut path without changing production builds. The actual T-1166 cut can use
+# either path: edit the const directly, OR build/run with this feature
+# enabled. Both produce identical behavior.
+legacy_primitives_disabled = []
+
 [dev-dependencies]
 tempfile = "3"

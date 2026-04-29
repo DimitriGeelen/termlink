@@ -30,7 +30,16 @@ const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
 /// (deleting `handle_event_broadcast` and the inbox handlers, plus the
 /// allowlisted client-side fallback paths in 6 files) becomes a no-risk
 /// follow-up because the flag-off behavior is already proven by tests.
-pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = true;
+///
+/// T-1413: value is `cfg!`-driven so CI can verify the flag-off path
+/// without editing source. `cargo test --features legacy_primitives_disabled`
+/// runs the suite as if the cut had landed. Default-feature-off preserves
+/// current production behavior. The operator running the cut can choose
+/// either approach (edit the const expression directly, or rebuild with
+/// `--features legacy_primitives_disabled`); both produce identical
+/// behavior.
+pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool =
+    !cfg!(feature = "legacy_primitives_disabled");
 
 /// T-1411: Standardized response when a legacy method has been retired.
 /// Returns JSON-RPC error code -32601 (method-not-found) — what a stranger
@@ -2501,6 +2510,9 @@ mod tests {
         (lines, writer)
     }
 
+    // T-1413: gated to default feature — the OFF feature retires
+    // event.broadcast so this end-to-end happy path no longer applies.
+    #[cfg(not(feature = "legacy_primitives_disabled"))]
     #[tokio::test]
     async fn tcp_broadcast_delivers_to_sessions() {
         let _lock = ENV_LOCK.lock().await;
@@ -3752,6 +3764,10 @@ mod tests {
 
     // T-1215: hub.capabilities method lists directly-handled methods so
     // federating clients can decide channel.* vs event.broadcast at call time.
+    // T-1413: gated — under the OFF feature the array's "event.broadcast"
+    // entry is filtered out, so the assertion that it must be present
+    // would fail. The cut_path module below covers the OFF case.
+    #[cfg(not(feature = "legacy_primitives_disabled"))]
     #[test]
     fn hub_capabilities_returns_sorted_method_list() {
         let resp = super::handle_hub_capabilities(json!(9));
@@ -3801,6 +3817,10 @@ mod tests {
     // `legacy_primitives` set to true while T-1166 has not yet cut. Downstream
     // consumers can wire startup checks against the existing true value;
     // their failure path trips automatically when the flag flips to false.
+    // T-1413: gated to default-feature builds — the OFF feature flips the
+    // const and this assertion would otherwise fail. The OFF feature has
+    // its own dedicated test below (`hub_capabilities_advertises_legacy_primitives_off`).
+    #[cfg(not(feature = "legacy_primitives_disabled"))]
     #[test]
     fn hub_capabilities_advertises_legacy_primitives_feature_flag() {
         let resp = super::handle_hub_capabilities(json!(42));
@@ -3882,6 +3902,107 @@ mod tests {
         assert!(!super::is_retired_legacy_method("event.subscribe"));
         // file.send/receive are session-side, never reach router — not in set.
         assert!(!super::is_retired_legacy_method("file.send"));
+    }
+
+    // T-1413: flag-OFF path tests — gated by the `legacy_primitives_disabled`
+    // cargo feature. With the feature OFF (default), these don't compile in.
+    // With it ON (CI-only by default), they verify the post-T-1166 behavior:
+    // capabilities reports false, methods array excludes the 4 retired
+    // names, and route() returns -32601 for legacy method calls.
+    //
+    // Run: `cargo test -p termlink-hub --lib --features legacy_primitives_disabled`
+    #[cfg(feature = "legacy_primitives_disabled")]
+    mod cut_path {
+        use super::*;
+
+        #[test]
+        fn const_is_false_under_feature_flag() {
+            // T-1413: the cfg-driven const must be false when the feature is on.
+            assert!(
+                !super::super::LEGACY_PRIMITIVES_ENABLED,
+                "LEGACY_PRIMITIVES_ENABLED must be false under legacy_primitives_disabled feature"
+            );
+        }
+
+        #[test]
+        fn capabilities_advertises_legacy_primitives_off() {
+            let resp = super::super::handle_hub_capabilities(json!(101));
+            match resp {
+                RpcResponse::Success(r) => {
+                    let legacy = r.result["features"]["legacy_primitives"]
+                        .as_bool()
+                        .expect("features.legacy_primitives must be bool");
+                    assert!(!legacy, "post-cut: legacy_primitives must be false");
+                }
+                RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+            }
+        }
+
+        #[test]
+        fn capabilities_methods_array_excludes_retired_names() {
+            let resp = super::super::handle_hub_capabilities(json!(102));
+            match resp {
+                RpcResponse::Success(r) => {
+                    let methods = r.result["methods"]
+                        .as_array()
+                        .expect("methods array")
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .collect::<Vec<_>>();
+                    for retired in
+                        ["event.broadcast", "inbox.list", "inbox.status", "inbox.clear"]
+                    {
+                        assert!(
+                            !methods.contains(&retired),
+                            "post-cut: '{retired}' must NOT appear in methods array, got {methods:?}",
+                        );
+                    }
+                    // Sanity: modern methods still present.
+                    assert!(methods.contains(&"channel.post"));
+                    assert!(methods.contains(&"session.discover"));
+                }
+                RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+            }
+        }
+
+        #[tokio::test]
+        async fn route_returns_method_not_found_for_event_broadcast() {
+            let req = Request {
+                jsonrpc: "2.0".to_string(),
+                id: Some(json!(201)),
+                method: "event.broadcast".to_string(),
+                params: json!({"msg_type": "test", "payload": {}}),
+            };
+            let resp = super::super::route(&req).await.expect("response");
+            match resp {
+                RpcResponse::Error(e) => {
+                    assert_eq!(e.error.code, -32601);
+                    assert!(e.error.message.contains("event.broadcast"));
+                    assert!(e.error.message.contains("retired"));
+                }
+                RpcResponse::Success(_) => panic!("expected -32601 error, got success"),
+            }
+        }
+
+        #[tokio::test]
+        async fn route_returns_method_not_found_for_each_inbox_method() {
+            for method in ["inbox.list", "inbox.status", "inbox.clear"] {
+                let req = Request {
+                    jsonrpc: "2.0".to_string(),
+                    id: Some(json!(202)),
+                    method: method.to_string(),
+                    params: json!({}),
+                };
+                let resp = super::super::route(&req).await.expect("response");
+                match resp {
+                    RpcResponse::Error(e) => {
+                        assert_eq!(e.error.code, -32601, "method {method}");
+                        assert!(e.error.message.contains(method));
+                    }
+                    RpcResponse::Success(_) => panic!("expected -32601 for {method}, got success"),
+                }
+            }
+        }
     }
 
     // T-1298: topic-name validation at hub emit boundaries.
