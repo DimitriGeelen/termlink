@@ -133,6 +133,14 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
    - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
 4. Re-stage cron for next-day re-check if needed
 
+### 2026-04-30T00:20Z — T-1411 hub-side flag-gated rejection pre-staged; cut becomes one-character flip [agent autonomous pass]
+- **T-1411 closed** — `crates/termlink-hub/src/router.rs`: introduced `pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = true;` as the single source of truth for the T-1166 cut. Wired into both (a) `features.legacy_primitives` value in `handle_hub_capabilities` and (b) guarded match arms `<METHOD> if !LEGACY_PRIMITIVES_ENABLED => legacy_method_retired_response(id, ...)` above each of the 4 router-handled legacy methods (event.broadcast, inbox.list/status/clear). Helper returns JSON-RPC -32601 with message naming T-1166 + the migration doc.
+- **Cut now atomic at the hub layer:** flipping the const from `true` to `false`, recompiling, restarting hub produces post-retirement behavior in one commit. The actual source-cleanup (deleting `handle_event_broadcast` + inbox handlers + 6 client-side fallback paths) becomes a follow-up at zero risk because flag-off behavior is test-proven.
+- **Tests (3 new, all PASS):** `legacy_method_retired_response_shape`, `hub_capabilities_flag_value_matches_const` (proves single-source-of-truth invariant), `is_retired_legacy_method_predicate`. Total 291 hub lib tests pass (288 prior + 3).
+- **Live verification:** Hub PID 2574661 (post-restart with new binary): probed via raw Unix socket — `features.legacy_primitives:true`, all 4 legacy method names present in `methods[]`, `.143` inbox.status traffic continues unaffected. Flag-on path is byte-identical to pre-T-1411.
+- **T-1166 cut sequence simplified.** When authorized: change `LEGACY_PRIMITIVES_ENABLED` to `false`, build, restart hub. Capabilities flips. Source-cleanup PR follows separately.
+- **Pre-bake checklist now 12/12.** Forensics surface complete (T-1407+T-1409+T-1410), regression guard up (T-1406), capability flag exposed (T-1405), evidence telemetry live (T-1408+T-1409 by-IP), cut infrastructure pre-staged (T-1411). Cut still gated on the .143 caller decommissioning + Tier-2 authorization.
+
 ### 2026-04-29T22:00Z — T-1410 IP rollup shipped (api-usage agent UX) [agent autonomous pass]
 - **T-1410 closed** — `agents/metrics/api-usage.sh` (upstream commit b663ef781): `legacy_callers_by_addr` → `legacy_callers_by_ip`, ports stripped via new `addr_to_ip(addr)` helper using `rsplit(':', 1)`. IPv4 + IPv6 (bracket form) both handled. Section heading is now "Legacy callers by IP (last Nd)".
 - **Why:** T-1409's by-addr breakdown grouped per (method, "ip:port"). Each TCP connection draws a fresh ephemeral port so a single host hammering inbox.status 60×/min would fragment into N rows of count=1 — operator's question is "which host?" not "which connection?".
