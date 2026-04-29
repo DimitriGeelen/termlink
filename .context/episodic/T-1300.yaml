@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1300: Build B: Topic↔role mapping + soft-lint at emit (hub-side)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-29T07:43:26Z
+# ============================================================================
+
+task_id: T-1300
+task_name: "Build B: Topic↔role mapping + soft-lint at emit (hub-side)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T21:19:39Z
+completed: 2026-04-29T07:43:08Z
+duration_days: 3
+updates_count: 5
+first_commit: 2026-04-27T09:00:01+02:00
+last_commit: 2026-04-27T09:00:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub-side topic↔role soft-lint at emit (Build B per T-1297 GO)
+
+# Key outcomes
+outcomes:
+  - "New module `crates/termlink-hub/src/topic_lint.rs` defines `Rules` (prefix rules + exempt prefixes), `LintOutcome` (`Pass | ExemptMatch | NoMatchingRule | Warn { rule_prefix, expected_roles, actual_roles }`), and a pure `lint(topic, caller_roles, &rules) -> LintOutcome` function with no I/O"
+  - "`Rules::defaults()` returns the 10 prefix rules + 4 exempt categories from Spike 3 (framework, channel, pickup, learning, inception, claude.md, gap, peer, infra, oauth/outage; exempt: agent., session., worker., test., help., channel.delivery)"
+  - "`Rules::load_from_path(path)` parses YAML into `Rules` and returns `Result<Rules, anyhow::Error>` with a clear parse error. Unknown YAML keys are tolerated (forward-compat)"
+  - "Hub `init_topic_lint(runtime_dir)` loads `<runtime_dir>/topic_roles.yaml` if it exists; falls back to `Rules::defaults()` otherwise. Logs which path it took at info level"
+  - "`handle_event_broadcast` and `handle_event_emit_to` extract optional `from` param, resolve caller session via `manager::find_session` (local), run `lint()`, and on `Warn` outcome best-effort dual-write a `routing.lint.warning` envelope to bus topic `routing:lint`. Emit response is unchanged (lint is soft)"
+  - "SIGHUP triggers a reload via `tokio::signal::unix::SignalKind::hangup()`; reload uses `Arc<RwLock<Rules>>`; reload errors keep the previous Rules in place and log at warn level"
+  - "CLI `cmd_broadcast` populates `from` from `$TERMLINK_SESSION_ID` if the caller did not pass it explicitly"
+  - "Unit tests in `topic_lint.rs`: (1) default rules match `framework:pickup` for role=framework (Pass), (2) `framework:pickup` for role=product (Warn), (3) exempt prefix `agent.request` returns ExemptMatch regardless of role, (4) YAML loader parses a sample file matching the schema, (5) caller with no roles + non-exempt topic = Warn, (6) caller with no roles + exempt topic = ExemptMatch"
+  - "Hot-reload test (file-based, no signal): write defaults.yaml → load → modify file → call `Rules::load_from_path` again → new content reflected"
+  - "Full workspace builds with no warnings: `cargo build --workspace` clean and `cargo clippy -p termlink-hub -- -D warnings` clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "Cargo.lock"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-hub/Cargo.toml"
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-hub/src/lib.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/server.rs"
+  - "crates/termlink-hub/src/topic_lint.rs"
+  - "docs/operations/topic-lint.md"
+  - ".tasks/active/T-1300-build-b-topicrole-mapping--soft-lint-at-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T09:00:01"
+    action: "T-1300: hub-side topic↔role soft-lint at emit (Build B per T-1297 GO)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3503 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, routing, lint, T-1297-child, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3503
+  commits: 1
+  files_changed: 10
+  lines_added: 746
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1300-build-b-topicrole-mapping--soft-lint-at-.md
+generated_by: context-agent-hybrid
