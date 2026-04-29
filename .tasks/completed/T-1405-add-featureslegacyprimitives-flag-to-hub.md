@@ -4,16 +4,16 @@ name: "Add features.legacy_primitives flag to hub.capabilities response"
 description: >
   Add features.legacy_primitives flag to hub.capabilities response
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-04-29T19:20:34Z
-last_update: 2026-04-29T19:20:34Z
-date_finished: null
+last_update: 2026-04-29T19:28:04Z
+date_finished: 2026-04-29T19:28:04Z
 ---
 
 # T-1405: Add features.legacy_primitives flag to hub.capabilities response
@@ -94,3 +94,6 @@ grep -q "legacy_primitives" crates/termlink-hub/src/router.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1405-add-featureslegacyprimitives-flag-to-hub.md
 - **Context:** Initial task creation
+
+### 2026-04-29T19:28:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

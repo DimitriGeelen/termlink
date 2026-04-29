@@ -132,3 +132,11 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
    - MCP server processes still holding pre-T-1401 binary (running 4× at session start; will refresh on Claude Code restart)
    - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
 4. Re-stage cron for next-day re-check if needed
+
+### 2026-04-29T~time4~ — T-1405 capability flag pre-staged + binary install [agent autonomous pass]
+- **T-1405 closed** — `hub.capabilities` response now includes `features: {"legacy_primitives": true}`. Live-verified against the running hub (PID 4049739, v0.9.1574) over Unix-socket JSON-RPC. Forward-compatible (clients not reading the field are unaffected).
+- **Binary refresh:** termlink 0.9.1574 installed to `/root/.cargo/bin/termlink`; hub restarted (old PID 2430771 → new PID 4049739). The new hub is the one currently serving — every fresh broadcast/doctor invocation since the restart is on the migrated code.
+- **Migration guide corrected** — was using placeholder `capabilities.legacy_primitives`, now matches actual wire shape `features.legacy_primitives`. Added T-1403 + T-1405 to references.
+- **Consumer side now wirable:** downstream consumers (ring20-mgmt, ring20-dashboard, ntb-atc-plugin, framework-agent, skills-manager) can land their `hub.capabilities` startup check in their next deployment cycle. The check passes (returns `true`) until T-1166 cuts; it then flips automatically.
+- **T-1166 cut sequence on flag side:** when T-1166 lands, `handle_hub_capabilities` flips the literal `true` to `false` AND removes the listed legacy methods from the `methods` array AND the actual router match arms. One commit, all three changes.
+
