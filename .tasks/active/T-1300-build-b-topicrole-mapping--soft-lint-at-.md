@@ -71,6 +71,16 @@ test -f crates/termlink-hub/src/topic_lint.rs
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
 
+### 2026-04-29T07:05Z — live fleet evidence captured [agent autonomous pass]
+- **A/B test on .107 hub (single binary, single hub):**
+  - Topic prefix `framework:` → expected_roles=[framework, pickup]
+  - Trigger 1 (suppression-target): `tl-bkfp6hqt` (termlink-agent, roles=[termlink, diagnostics], relay_for=[framework]) → broadcast to `framework:t1300-validation-070030` → 13/13 succeeded → **0 new rows in routing:lint** (relay_for suppressed — proves T-1301 path)
+  - Trigger 2 (warning-target): `tl-bubfbc3w` (ntb-dev-test, no roles, no relay_for) → broadcast to `framework:t1300-validation-undeclared-070345` → 13/13 succeeded → **+1 row in routing:lint**: `[6] from=tl-bubfbc3w expected=[framework, pickup] actual=[]` — proves T-1300 lint fires correctly
+- **Organic field evidence pre-existing in routing:lint:** 3 rows from `email-archive` session emitting `infra.ingress.request` with mismatched roles (rule_prefix=infra, expected=[ring20-management, infrastructure], actual=[email-archive, pickup]) — lint catches real production prefix-role mismatches not just synthetic tests
+- **Cross-hub READ verified earlier in session:** `channel state routing:lint --hub 192.168.10.122:9100` returned `[0] from=tl-yz557gnw expected=[framework, pickup] actual=[]` — proving each hub maintains its own routing:lint canonical state and is readable cross-TCP. (.122 went dark mid-session due to ring20-management environmental churn — unrelated to T-1300, see PL-020.)
+- **Soft-lint property confirmed:** all broadcasts returned `13/13 succeeded` regardless of warning outcome — emit responses unchanged, lint is dual-write only.
+- **Conclusion:** Build B (lint warnings dual-write to routing:lint with correct expected/actual roles + topic + from/method) is live and observable across the fleet.
+
 ### 2026-04-27T07:05Z — build delivered [agent autonomous pass]
 - **Module:** `crates/termlink-hub/src/topic_lint.rs` (new) — pure `Rules`/`LintOutcome`/`lint()` plus init/reload/SIGHUP plumbing.
 - **Defaults:** 10 prefix rules + 6 exempt categories from T-1297 § Spike 3.

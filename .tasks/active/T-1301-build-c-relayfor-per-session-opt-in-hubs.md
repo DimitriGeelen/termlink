@@ -77,6 +77,19 @@ grep -q "relay_declarations.yaml" docs/operations/topic-lint.md
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
 
+### 2026-04-29T07:05Z — live fleet evidence captured [agent autonomous pass]
+- **Active declaration on .107:** `/var/lib/termlink/relay_declarations.yaml` contains:
+  ```yaml
+  sessions:
+    - name: "termlink-agent"
+      relay_for: ["framework"]
+  ```
+- **Suppression proof:** broadcast from `tl-bkfp6hqt` (display_name=termlink-agent) to `framework:t1300-validation-070030`. Caller's roles=[termlink, diagnostics] do NOT match expected=[framework, pickup] → would normally Warn. With relay_for=[framework] declared → suppressed. Result: 13/13 succeeded, **0 new rows in routing:lint** (compared with 7 rows after a non-declared session emitted the same prefix).
+- **A/B counter-test:** identical broadcast from `tl-bubfbc3w` (display_name=ntb-dev-test, NOT in relay_declarations) to `framework:t1300-validation-undeclared-070345` → +1 row at offset [6]. Same hub, same topic prefix, same expected_roles. Only the relay declaration differs. Suppression is the dispositive variable.
+- **Pre-existing field evidence:** `framework:lint-test-after-relay-declared` row from `tl-bkfp6hqt` (offset [4]) is from a previous validation BEFORE relay_for was declared for that session — confirms the same session emits warnings without declaration, then stops once declared. Time-series evidence of toggle behavior.
+- **Soft-lint preserved:** suppression does NOT block broadcasts; emit success counts identical (13/13) in both A and B. Reversible-by-config invariant from T-1297 GO holds.
+- **Conclusion:** Build C (per-session relay_for in YAML config suppresses Build B warnings for declared prefixes) is live and observable on .107. Cross-hub semantics: each hub reads its own relay_declarations.yaml independently — by design (T-1301 § Pragmatic chosen over per-client TOML).
+
 ### 2026-04-27T07:25Z — build delivered [agent autonomous pass]
 - **Schema:** `RelayDeclarations { sessions: Vec<RelayEntry { name, relay_for }> }` added to `crates/termlink-hub/src/topic_lint.rs`. Default = empty so an unconfigured hub behaves identically to T-1300.
 - **Loader:** `RelayDeclarations::load_from_path(path)` — same forward-compat YAML tolerance as `Rules`.
