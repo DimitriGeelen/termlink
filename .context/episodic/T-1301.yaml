@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1301: Build C: relay_for per-session opt-in (hubs.toml integration with B)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-29T07:42:33Z
+# ============================================================================
+
+task_id: T-1301
+task_name: "Build C: relay_for per-session opt-in (hubs.toml integration with B)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-26T21:19:42Z
+completed: 2026-04-29T07:42:15Z
+duration_days: 3
+updates_count: 5
+first_commit: 2026-04-27T09:05:06+02:00
+last_commit: 2026-04-27T09:05:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  per-session relay_for opt-in suppresses lint warnings (Build C)
+
+# Key outcomes
+outcomes:
+  - "`crates/termlink-hub/src/topic_lint.rs` adds `RelayDeclarations` struct (Deserialize) with shape `{ sessions: [{ name: String, relay_for: Vec<String> }] }`, plus `RelayDeclarations::defaults()` returning empty (so unconfigured hubs behave identically to T-1300)"
+  - "`RelayDeclarations::load_from_path(path)` parses YAML, tolerates unknown keys (forward-compat), returns `Result<Self, anyhow::Error>` with parse-error context"
+  - "`relay_suppresses(topic: &str, prefixes: &[String]) -> bool` — pure helper using the same boundary-match semantics as topic-prefix rules"
+  - "`init_relay_declarations(runtime_dir)` loads `<runtime_dir>/relay_declarations.yaml` if present; falls back to empty defaults; logs which path it took at info level. Stores `Arc<RwLock<RelayDeclarations>>` in module-level state"
+  - "`current_relay_for(display_name: &str) -> Vec<String>` returns the caller's declared prefixes (empty if undeclared)"
+  - "Existing `init()` is renamed/extended so the hub bootstraps both rules and relay declarations from a single call (`init_topic_lint(runtime_dir)` or unchanged name) — server.rs calls it once"
+  - "SIGHUP reloads BOTH `topic_roles.yaml` AND `relay_declarations.yaml`. Reload errors keep the previous state in place (per-file)"
+  - "`run_topic_lint` in `crates/termlink-hub/src/router.rs` consults `current_relay_for(caller.display_name)` after `lint()` produces Warn; if the topic is covered by the caller's `relay_for`, suppress the warning (no dual-write to `routing:lint`); log at debug"
+  - "Unit tests in `topic_lint.rs`: (1) `relay_suppresses` matches `learning` prefix to `learning.captured` and `learning:x`, (2) `relay_suppresses` rejects `learnings.foo`, (3) YAML loader parses sample, (4) `current_relay_for` returns empty for undeclared session, (5) end-to-end: a Warn outcome from `lint()` is suppressed when the caller declares a covering relay prefix"
+  - "Hot-reload test (file-based): write declarations.yaml → load → modify file → reload → new content reflected"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/router.rs"
+  - "crates/termlink-hub/src/topic_lint.rs"
+  - "docs/operations/topic-lint.md"
+  - ".tasks/active/T-1301-build-c-relayfor-per-session-opt-in-hubs.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-27T09:05:06"
+    action: "T-1301: per-session relay_for opt-in suppresses lint warnings (Build C)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 3502 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, routing, relay, T-1297-child, config]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3502
+  commits: 5
+  files_changed: 53
+  lines_added: 1541
+  lines_removed: 259
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1301-build-c-relayfor-per-session-opt-in-hubs.md
+generated_by: context-agent-hybrid
