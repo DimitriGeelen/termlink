@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-04-22T04:52:49Z
+last_update: 2026-04-29T20:35:17Z
 date_finished: null
 ---
 
@@ -132,6 +132,12 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
    - MCP server processes still holding pre-T-1401 binary (running 4× at session start; will refresh on Claude Code restart)
    - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
 4. Re-stage cron for next-day re-check if needed
+
+### 2026-04-29T20:55Z — T-1407 audit log enriched with peer_pid + T-1408 agent surfaces it [agent autonomous pass]
+- **T-1407 closed** — `crates/termlink-hub/src/rpc_audit.rs` + `server.rs`: hub now threads `peer_pid` from `getsockopt(SO_PEERCRED)` (already extracted at connect time for the same-UID check, previously discarded post-check) into the audit log JSONL line + the `tracing::warn!` line for legacy methods. Schema is additive (`{ts, method, from?, peer_pid?}`); existing readers ignore unknown keys. TCP/TLS connections pass `None`. Pid 0 treated as absent. Tests: 17 rpc_audit unit tests (3 new), 284 hub lib + 3 integration. Live-verified by injecting an `event.broadcast` and observing `peer_pid:723266` in `/var/lib/termlink/rpc-audit.jsonl` plus matching `peer_pid=Some(723266)` in `journalctl -u termlink-hub`. Binary 0.9.1579 installed; hub PID 713361 is the verifying process.
+- **T-1408 closed (cross-repo)** — `agents/metrics/api-usage.sh` (upstream framework, commit 1e184dd5b on origin/master) gained a parallel "Legacy callers by PID (last Nd)" section in trend + single-window + JSON modes. Builds on T-1407's enriched JSONL. Live-verified the agent now prints `1  event.broadcast  pid=723266` in the new section.
+- **Forensics blind spot closed.** Future incidents like the 60s mystery poller can be diagnosed in one query: the agent prints the offending PID, then `ps -p <pid>` identifies the process. Separately, the `tracing::warn!` line carries `peer_pid` for live-tail operator awareness.
+- **T-1166 cut sequence remains the same** — when authorized: router method removal, capability flag flip, protocol bump, fallback path removal in 6 allowlisted files, T-1406 allowlist shrinks to zero. The cut is one commit. Pre-bake prep complete: T-1400, T-1401, T-1402, T-1403, T-1404, T-1405, T-1406, T-1407, T-1408 — all shipped.
 
 ### 2026-04-29T20:35Z — T-1406 regression-guard test shipped + bake-metric anomaly diagnosed [agent autonomous pass]
 - **T-1406 closed** — `crates/termlink-hub/tests/no_legacy_callers.rs`: a structural integration test that walks `crates/**/src/**/*.rs` and fails if a quoted legacy-method literal appears at a caller-shaped use-site outside the 6-file allowlist (router, audit-list, CLI broadcast/doctor fallbacks, MCP broadcast/doctor fallbacks, session inbox_channel.rs). A line classifier skips comments, `const X: &str = "..."`, match arms, and `#[cfg(test)] / #[test]` blocks so the allowlist stays tight. Three sub-tests including a rename-rot guard (`allowlist_entries_exist`) and a predicate smoke test. Negative control verified.
