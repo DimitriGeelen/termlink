@@ -903,3 +903,10 @@ learnings:
   date: 2026-04-28
   context: Added via context agent
   application: TBD
+- id: PL-093
+  learning: "Refactors of public API signatures (especially TransportAddr-style transport-layer changes) must include a workspace-wide cargo test --no-run check, not just cargo build. T-1385 changed BusClient::connect_with_interval to take TransportAddr but missed 4 test call-sites in the same crate. Build was green; test build was broken silently. cargo build does NOT compile #[cfg(test)] code."
+  source: PL-079
+  task: T-1404
+  date: 2026-04-29
+  context: Added via context agent
+  application: TBD
