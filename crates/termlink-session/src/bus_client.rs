@@ -271,7 +271,7 @@ mod tests {
         let nonexistent_socket = dir.path().join("nope.sock");
         let queue_path = dir.path().join("outbound.sqlite");
         let (client, handle) = BusClient::connect_with_interval(
-            nonexistent_socket,
+            TransportAddr::unix(nonexistent_socket),
             &queue_path,
             Duration::from_secs(3600), // don't auto-flush during this test
         )
@@ -291,7 +291,7 @@ mod tests {
         let socket = dir.path().join("nope.sock");
         let queue_path = dir.path().join("outbound.sqlite");
         let (client, handle) = BusClient::connect_with_interval(
-            socket,
+            TransportAddr::unix(socket),
             &queue_path,
             Duration::from_secs(3600),
         )
@@ -317,7 +317,7 @@ mod tests {
         let socket = dir.path().join("nope.sock");
         let queue_path = dir.path().join("outbound.sqlite");
         let (client, handle) = BusClient::connect_with_interval(
-            socket,
+            TransportAddr::unix(socket),
             &queue_path,
             Duration::from_secs(3600),
         )
