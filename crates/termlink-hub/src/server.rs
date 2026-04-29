@@ -447,11 +447,13 @@ pub async fn run_accept_loop(
                         let secret = token_secret.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         tokio::spawn(async move {
+                            // T-1409: Unix connections have no TCP address; pass None.
                             handle_connection(
                                 stream,
                                 Some(PermissionScope::Execute),
                                 (*secret).clone(),
                                 peer_pid,
+                                None,
                             )
                             .await;
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
@@ -482,13 +484,23 @@ pub async fn run_accept_loop(
                         let secret = token_secret.clone();
                         let acceptor = tls_acceptor.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let peer_addr_str = peer_addr.to_string();
                         tokio::spawn(async move {
                             // T-1407: TCP/TLS connections are network-remote; no
                             // local PID exists, pass None.
+                            // T-1409: pass peer_addr so audit + warn carry the
+                            // network source for callers without a `from` tag.
                             if let Some(tls) = acceptor.as_ref() {
                                 match tls.accept(tcp_stream).await {
                                     Ok(tls_stream) => {
-                                        handle_connection(tls_stream, None, (*secret).clone(), None).await;
+                                        handle_connection(
+                                            tls_stream,
+                                            None,
+                                            (*secret).clone(),
+                                            None,
+                                            Some(peer_addr_str),
+                                        )
+                                        .await;
                                     }
                                     Err(e) => {
                                         tracing::warn!(%peer_addr, error = %e, "Hub: TLS handshake failed");
@@ -496,7 +508,14 @@ pub async fn run_accept_loop(
                                 }
                             } else {
                                 // No TLS configured — use raw TCP (tests only)
-                                handle_connection(tcp_stream, None, (*secret).clone(), None).await;
+                                handle_connection(
+                                    tcp_stream,
+                                    None,
+                                    (*secret).clone(),
+                                    None,
+                                    Some(peer_addr_str),
+                                )
+                                .await;
                             }
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
@@ -542,11 +561,15 @@ pub async fn run_accept_loop(
 /// warn so non-TermLink callers (raw JSON-RPC shells, third-party tools)
 /// can be identified by `ps -p <pid>` even when the JSON-RPC `from` field
 /// is absent. TCP/TLS connections pass `None`.
+/// T-1409: `peer_addr` is the TCP source address (`"ip:port"`) for
+/// network-remote callers; the network analogue of `peer_pid`. Unix
+/// connections pass `None`.
 async fn handle_connection<S>(
     stream: S,
     initial_scope: Option<PermissionScope>,
     token_secret: Option<String>,
     peer_pid: Option<u32>,
+    peer_addr: Option<String>,
 ) where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -570,7 +593,8 @@ async fn handle_connection<S>(
                 // T-1309: thread optional caller display_name from params.from
                 // so legacy-caller breakdown is possible in `fw metrics api-usage`.
                 let from = req.params.get("from").and_then(|v| v.as_str());
-                crate::rpc_audit::record(&req.method, from, peer_pid);
+                let peer_addr_ref = peer_addr.as_deref();
+                crate::rpc_audit::record(&req.method, from, peer_pid, peer_addr_ref);
                 // T-1311: real-time warn-log when a legacy primitive is dispatched.
                 // Rate-limited to one log per (method, from) per 5 minutes inside
                 // warn_if_legacy. Operator tailing logs sees deprecated usage
@@ -578,7 +602,9 @@ async fn handle_connection<S>(
                 // T-1407: include peer_pid so the warn line carries the originating
                 // PID for Unix-socket callers — closes the anonymous-poller blind
                 // spot diagnosed during the T-1166 bake.
-                crate::rpc_audit::warn_if_legacy(&req.method, from, peer_pid);
+                // T-1409: include peer_addr so the warn line carries the TCP
+                // source address for network callers without a `from` tag.
+                crate::rpc_audit::warn_if_legacy(&req.method, from, peer_pid, peer_addr_ref);
                 if req.method == control::method::HUB_AUTH {
                     // hub.auth is always allowed (it's the authentication mechanism)
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
