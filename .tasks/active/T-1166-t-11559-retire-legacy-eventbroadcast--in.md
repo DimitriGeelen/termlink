@@ -133,6 +133,16 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
    - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
 4. Re-stage cron for next-day re-check if needed
 
+### 2026-04-30T00:45Z — T-1413 cargo-feature-driven const + OFF-path test suite [agent autonomous pass]
+- **T-1413 closed** — `crates/termlink-hub/Cargo.toml`: new `[features]` section with `legacy_primitives_disabled = []` (empty deps, pure cfg switch). `crates/termlink-hub/src/router.rs`: const becomes `pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = !cfg!(feature = "legacy_primitives_disabled");` — default-feature-off preserves byte-identical production behavior.
+- **5-test `cut_path` module** (gated by `#[cfg(feature = "legacy_primitives_disabled")]`) covers: const-is-false invariant, capabilities-advertises-false, methods-array-excludes-retired-names, route returns -32601 for event.broadcast, route returns -32601 for each inbox.{list,status,clear}. 3 existing tests gated to default-only (T-1215, T-1405, tcp_broadcast happy path) because they assert legacy-on behavior.
+- **CI verification path live:**
+  - `cargo test -p termlink-hub --lib`: 291 PASS
+  - `cargo test -p termlink-hub --lib --features legacy_primitives_disabled`: 293 PASS
+- **Migration doc updated:** new step 3 in `## Operator Cut Procedure` runs the OFF-feature test suite as a pre-flip verification gate — green means "the cut works, ship". References list extended with T-1413.
+- **The cut is now CI-proven, not just code-reviewed.** Operator running the cut sees concrete green tests for the post-cut behavior before flipping the const in production.
+- **Pre-bake checklist now 14/14 shipped** — T-1400, T-1401, T-1402, T-1403, T-1404, T-1405, T-1406, T-1407, T-1408, T-1409, T-1410, T-1411, T-1412, T-1413. Cut still gated on .143 caller migration + Tier-2 authorization.
+
 ### 2026-04-30T00:30Z — T-1412 migration doc updated for one-flag-flip cut + PL-094 pattern captured [agent autonomous pass]
 - **T-1412 closed** — `docs/migrations/T-1166-retire-legacy-primitives.md`: new "## Operator Cut Procedure" section (file path, line, build/install/restart commands, capabilities-flip smoke test via raw socket probe, rejection smoke test). Roll-Back rewritten — the flag-flip is reversible until source-cleanup follow-up ships; recommend ≥7-day flag-off bake. References list extended with T-1406..T-1411.
 - **PL-094 captured (Level D operational reflection)** — generalized the T-1166 arc pattern: stage a destructive cut into a single-character flip via (1) forensics, (2) regression guard, (3) feature flag exposed, (4) flag-gated rejection pre-staged, (5) source-cleanup as no-risk follow-up. Reusable for future destructive-API cuts.
