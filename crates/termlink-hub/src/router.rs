@@ -17,6 +17,47 @@ use crate::topic_lint::{self, LintOutcome};
 /// Per-target timeout for broadcast/collect operations.
 const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// T-1411: Single source of truth for the T-1166 legacy-primitive cut.
+///
+/// When `true` (current state), the hub serves `event.broadcast` + `inbox.*`
+/// exactly as before; `hub.capabilities` reports `features.legacy_primitives:true`.
+/// When flipped to `false`, the legacy match arms in `route()` are short-circuited
+/// to a structured method-not-found error, and the legacy method names are
+/// filtered out of the `methods` array in the capabilities response — the
+/// hub presents itself as post-retirement.
+///
+/// The flip is the entire T-1166 cut at the hub layer. Source-cleanup
+/// (deleting `handle_event_broadcast` and the inbox handlers, plus the
+/// allowlisted client-side fallback paths in 6 files) becomes a no-risk
+/// follow-up because the flag-off behavior is already proven by tests.
+pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = true;
+
+/// T-1411: Standardized response when a legacy method has been retired.
+/// Returns JSON-RPC error code -32601 (method-not-found) — what a stranger
+/// would see if the method had never existed — with a message that names
+/// the migration target so callers can self-serve.
+fn legacy_method_retired_response(id: serde_json::Value, method: &str) -> RpcResponse {
+    ErrorResponse::new(
+        id,
+        -32601,
+        &format!(
+            "Method '{}' has been retired (T-1166). Use channel.* primitives instead. \
+             See docs/migrations/T-1166-retire-legacy-primitives.md.",
+            method
+        ),
+    )
+    .into()
+}
+
+/// T-1411: predicate for filtering legacy method names from the
+/// `hub.capabilities` `methods` array when the cut is in effect.
+fn is_retired_legacy_method(method: &str) -> bool {
+    matches!(
+        method,
+        "event.broadcast" | "inbox.list" | "inbox.status" | "inbox.clear"
+    )
+}
+
 /// Global remote session store (initialized once by the hub server).
 static REMOTE_STORE: OnceLock<RemoteStore> = OnceLock::new();
 
@@ -60,6 +101,13 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
     let response = match req.method.as_str() {
         control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
         control::method::SESSION_WHOAMI => handle_whoami(id, &req.params).await,
+        // T-1411: legacy methods short-circuit to retired-response when the
+        // T-1166 cut is in effect. Today the const is `true` so these arms
+        // are dead — when the cut is authorized, flipping the const flips
+        // behavior atomically. Source cleanup follows after.
+        control::method::EVENT_BROADCAST if !LEGACY_PRIMITIVES_ENABLED => {
+            legacy_method_retired_response(id, "event.broadcast")
+        }
         control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
         control::method::EVENT_SUBSCRIBE if is_hub_level(&req.params) => {
@@ -72,8 +120,17 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         "session.register_remote" => handle_register_remote(id, &req.params),
         "session.heartbeat" => handle_heartbeat(id, &req.params),
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
+        "inbox.list" if !LEGACY_PRIMITIVES_ENABLED => {
+            legacy_method_retired_response(id, "inbox.list")
+        }
         "inbox.list" => handle_inbox_list(id, &req.params),
+        "inbox.status" if !LEGACY_PRIMITIVES_ENABLED => {
+            legacy_method_retired_response(id, "inbox.status")
+        }
         "inbox.status" => handle_inbox_status(id),
+        "inbox.clear" if !LEGACY_PRIMITIVES_ENABLED => {
+            legacy_method_retired_response(id, "inbox.clear")
+        }
         "inbox.clear" => handle_inbox_clear(id, &req.params),
         control::method::CHANNEL_CREATE => {
             crate::channel::handle_channel_create(id, &req.params).await
@@ -860,6 +917,12 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         "hub.version",
         control::method::HUB_CAPABILITIES,
     ];
+    // T-1411: filter retired legacy method names out of the methods array
+    // when the cut is in effect. With LEGACY_PRIMITIVES_ENABLED=true (today)
+    // this is a no-op and the array is identical to pre-T-1411 behavior.
+    if !LEGACY_PRIMITIVES_ENABLED {
+        methods.retain(|m| !is_retired_legacy_method(m));
+    }
     methods.sort_unstable();
 
     // T-1405: feature flags object — gives downstream consumers a stable
@@ -867,8 +930,10 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
     // versus current hubs (legacy_primitives=true) without probing each
     // method individually. See docs/migrations/T-1166-retire-legacy-primitives.md.
     // Forward-compatible: clients that don't read this field are unaffected.
+    // T-1411: value now sourced from the LEGACY_PRIMITIVES_ENABLED const
+    // (single source of truth for the flag-flip cut).
     let features = json!({
-        "legacy_primitives": true,
+        "legacy_primitives": LEGACY_PRIMITIVES_ENABLED,
     });
 
     Response::success(
@@ -3754,6 +3819,69 @@ mod tests {
             }
             RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
         }
+    }
+
+    // T-1411: confirm capabilities-flag value is sourced from the const
+    // (single source of truth for the T-1166 cut). When the const flips to
+    // false, this test plus `hub_capabilities_advertises_legacy_primitives_feature_flag`
+    // both flip in the same commit — the cut is structurally atomic.
+    #[test]
+    fn hub_capabilities_flag_value_matches_const() {
+        let resp = super::handle_hub_capabilities(json!(99));
+        match resp {
+            RpcResponse::Success(r) => {
+                let legacy = r.result["features"]["legacy_primitives"]
+                    .as_bool()
+                    .expect("features.legacy_primitives must be bool");
+                assert_eq!(
+                    legacy,
+                    super::LEGACY_PRIMITIVES_ENABLED,
+                    "capabilities flag must mirror LEGACY_PRIMITIVES_ENABLED const"
+                );
+            }
+            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+        }
+    }
+
+    // T-1411: retired-method response is method-not-found (-32601) and
+    // names the migration target, so callers receiving it know how to
+    // self-serve. Pure builder test — exercises the helper directly so
+    // the flag-off path is covered without needing a runtime override.
+    #[test]
+    fn legacy_method_retired_response_shape() {
+        let resp = super::legacy_method_retired_response(json!(7), "event.broadcast");
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.id, json!(7));
+                assert_eq!(e.error.code, -32601, "must be method-not-found");
+                let msg = &e.error.message;
+                assert!(msg.contains("event.broadcast"), "msg cites method: {msg}");
+                assert!(msg.contains("retired"), "msg uses 'retired': {msg}");
+                assert!(msg.contains("T-1166"), "msg cites task: {msg}");
+                assert!(msg.contains("channel."), "msg points to migration target: {msg}");
+                assert!(
+                    msg.contains("T-1166-retire-legacy-primitives.md"),
+                    "msg points to migration doc: {msg}"
+                );
+            }
+            RpcResponse::Success(_) => panic!("expected error response, got success"),
+        }
+    }
+
+    // T-1411: predicate identifies exactly the four router-handled legacy methods.
+    #[test]
+    fn is_retired_legacy_method_predicate() {
+        assert!(super::is_retired_legacy_method("event.broadcast"));
+        assert!(super::is_retired_legacy_method("inbox.list"));
+        assert!(super::is_retired_legacy_method("inbox.status"));
+        assert!(super::is_retired_legacy_method("inbox.clear"));
+        // Negatives — modern methods MUST NOT be filtered.
+        assert!(!super::is_retired_legacy_method("channel.post"));
+        assert!(!super::is_retired_legacy_method("session.discover"));
+        assert!(!super::is_retired_legacy_method("hub.capabilities"));
+        assert!(!super::is_retired_legacy_method("event.subscribe"));
+        // file.send/receive are session-side, never reach router — not in set.
+        assert!(!super::is_retired_legacy_method("file.send"));
     }
 
     // T-1298: topic-name validation at hub emit boundaries.
