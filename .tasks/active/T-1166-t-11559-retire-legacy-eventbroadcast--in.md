@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-04-29T20:35:17Z
+last_update: 2026-04-29T20:50:30Z
 date_finished: null
 ---
 
@@ -132,6 +132,14 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
    - MCP server processes still holding pre-T-1401 binary (running 4× at session start; will refresh on Claude Code restart)
    - Remote sessions on other hosts running stale termlink binary (binary refresh is per-host)
 4. Re-stage cron for next-day re-check if needed
+
+### 2026-04-29T21:55Z — T-1409 closes TCP-side forensics gap; mystery poller identified as 192.168.10.143 [agent autonomous pass]
+- **T-1409 closed** — `crates/termlink-hub/src/{rpc_audit,server}.rs`: hub now threads `peer_addr: Option<String>` from the TCP+TLS / TCP-no-TLS accept paths through `handle_connection` → `record()` / `warn_if_legacy()` → audit line. Mirror of T-1407 for the network side: peer_pid is None for TCP by construction, so peer_addr fills the "who is this anonymous TCP caller" gap.
+- **Schema additive:** `{"ts":...,"method":"X","peer_addr":"ip:port"}` — non-empty peer_addr only. Unix path passes `None`. 4 new unit tests (peer_addr only, with from, all-three-fields, empty-omitted). 21 rpc_audit + 288 hub lib tests pass.
+- **Agent mirrored upstream:** `agents/metrics/api-usage.sh` (commit b381a53f9 on /opt/999-AEF master, pushed to OneDev) now parses peer_addr per JSONL entry and prints `Legacy callers by addr (last Nd):` block in trend + single-window + JSON modes. Stable shape — `legacy_callers_by_addr` field added to JSON output.
+- **Live verification — bake mystery solved.** Previous session diagnosed the bake-window legacy floor as a 60s anonymous `inbox.status` poller stopping at session-end. THIS session re-checked and found the poller still firing every 60s. With the T-1409 hub binary (built + installed + restarted as PID 1470670), the very next poll appeared in audit as `{"ts":1777499373875,"method":"inbox.status","peer_addr":"192.168.10.143:35852"}`. The fw agent immediately surfaces it under "Legacy callers by addr". Caller is **192.168.10.143** — a LAN host running its own termlink hub (rcgen self-signed CN), MAC bc:24:11:15:62:d1 (Proxmox VE vNIC), connecting 11x/min. Not in our hubs.toml fleet config.
+- **Forensics surface complete:** Unix callers identified by peer_pid (T-1407+T-1408), TCP callers by peer_addr (T-1409). Anonymous-caller blind spot closed end-to-end.
+- **T-1166 pre-bake checklist: 10/10 shipped** — T-1400, T-1401, T-1402, T-1403, T-1404, T-1405, T-1406, T-1407, T-1408, T-1409. Cut still gated on .143 poller migration (or hub-side decommission) + Tier-2 authorization.
 
 ### 2026-04-29T20:55Z — T-1407 audit log enriched with peer_pid + T-1408 agent surfaces it [agent autonomous pass]
 - **T-1407 closed** — `crates/termlink-hub/src/rpc_audit.rs` + `server.rs`: hub now threads `peer_pid` from `getsockopt(SO_PEERCRED)` (already extracted at connect time for the same-UID check, previously discarded post-check) into the audit log JSONL line + the `tracing::warn!` line for legacy methods. Schema is additive (`{ts, method, from?, peer_pid?}`); existing readers ignore unknown keys. TCP/TLS connections pass `None`. Pid 0 treated as absent. Tests: 17 rpc_audit unit tests (3 new), 284 hub lib + 3 integration. Live-verified by injecting an `event.broadcast` and observing `peer_pid:723266` in `/var/lib/termlink/rpc-audit.jsonl` plus matching `peer_pid=Some(723266)` in `journalctl -u termlink-hub`. Binary 0.9.1579 installed; hub PID 713361 is the verifying process.
