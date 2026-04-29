@@ -1,0 +1,70 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1408: fw metrics api-usage: add peer_pid breakdown for legacy callers (T-1407 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-29T20:48:17Z
+# ============================================================================
+
+task_id: T-1408
+task_name: "fw metrics api-usage: add peer_pid breakdown for legacy callers (T-1407 follow-up)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-29T20:45:30Z
+completed: 2026-04-29T20:48:15Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`.agentic-framework/agents/metrics/api-usage.sh` parses the"
+  - "Trend mode and single-window mode both print a"
+  - "JSON mode emits `legacy_callers_by_pid` (mirroring"
+  - "Live verification on the local hub: after the T-1407 audit-log"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1408-fw-metrics-api-usage-add-peerpid-breakdo.md
+generated_by: context-agent-hybrid
