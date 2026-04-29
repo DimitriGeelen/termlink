@@ -181,12 +181,64 @@ fw metrics api-usage
 ```
 
 When the trend reads `Status: PASS` at 60d, T-1166 promotes from
-`captured` to `started-work` and the actual retirement work begins
-(router method removal, protocol bump, CLI command rewriting where
-necessary, capability handshake flip).
+`captured` to `started-work` and the operator runs the cut procedure
+below. Source cleanup (deleting `handle_event_broadcast`, the inbox
+handlers, and the 6 client-side fallback paths that were allowlisted
+in T-1406) is a separate follow-up task because the flag-off behavior
+is already test-proven; that work carries no risk and can land at the
+operator's convenience.
 
 Downstream consumers should aim to land their migrations
 **before** the gate passes, so the cut itself is a no-op for them.
+
+## Operator Cut Procedure
+
+T-1411 staged the cut so it is a single-character source change. The
+procedure on the hub host:
+
+1. **Verify the bake gate has passed:**
+   ```bash
+   .agentic-framework/bin/fw metrics api-usage    # 60d window must show PASS
+   ```
+2. **Confirm Tier-2 authorization** has been recorded (the cut is not
+   self-delegated by an agent — the human must explicitly approve it).
+3. **Edit the const** in `crates/termlink-hub/src/router.rs`:
+   ```rust
+   pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = false;  // was true
+   ```
+4. **Build and install:**
+   ```bash
+   cd /opt/termlink
+   cargo build --release -p termlink
+   cp -f target/release/termlink /root/.cargo/bin/termlink
+   sudo systemctl restart termlink-hub.service
+   ```
+5. **Verify capabilities reflects the cut:**
+   ```bash
+   python3 -c "import socket, json; \
+     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); \
+     s.connect('/var/lib/termlink/hub.sock'); \
+     s.sendall(b'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"hub.capabilities\",\"params\":{}}\n'); \
+     d = json.loads(s.recv(8192).decode().split('\n')[0]); \
+     print(json.dumps(d['result']['features'], indent=2))"
+   # expect: {"legacy_primitives": false}
+   ```
+6. **Smoke-test rejection:** call any retired method (e.g.
+   `event.broadcast`) — the response must be JSON-RPC error code
+   `-32601` with a message naming the migration target.
+7. **Commit + push the source change** with a `T-1166: cut — flip
+   LEGACY_PRIMITIVES_ENABLED` commit message.
+
+After the cut:
+
+- The hub keeps serving every other method exactly as before.
+- Legacy method names are filtered out of `hub.capabilities.methods[]`,
+  so consumers that registered T-1405 startup checks will fail-fast on
+  next start.
+- Open a follow-up task to delete the now-dead handler functions
+  (`handle_event_broadcast`, `handle_inbox_*`) and the 6 client-side
+  fallback paths that T-1406 currently allowlists. The T-1406
+  ALLOWLIST shrinks to zero in that follow-up.
 
 ## Diagnostic — am I still calling legacy methods?
 
@@ -237,10 +289,24 @@ For each consumer project:
 
 ## Roll-Back
 
-There is no roll-back after T-1166 lands — the router methods are gone.
-Roll-forward only. If you discover a missed call-site after the cut,
-the failure mode is `method_not_found` which surfaces immediately at
-first-call time, not a silent data drop. Fix the call-site and ship.
+T-1411 made the cut reversible until the source-cleanup follow-up
+lands. The flag-flip itself can be undone by setting
+`LEGACY_PRIMITIVES_ENABLED` back to `true`, rebuilding, and restarting
+the hub — capabilities flips back, the (still-present) handler functions
+serve again, and any caller still hitting a legacy method works as
+before.
+
+Once the source-cleanup follow-up ships (handler functions deleted,
+client-side fallbacks removed), there is no roll-back: the methods
+are gone. Roll-forward only at that point. If you discover a missed
+call-site after the cleanup, the failure mode is `method_not_found`
+which surfaces immediately at first-call time, not a silent data drop.
+Fix the call-site and ship.
+
+The recommendation is to leave the cut in flag-off state for at least
+one bake cycle (≥7 days) before shipping the source-cleanup, so a
+genuinely-broken consumer can be discovered and either fixed or
+temporarily un-cut without a code surgery.
 
 ## References
 
@@ -255,3 +321,9 @@ first-call time, not a silent data drop. Fix the call-site and ship.
 - T-1401 (broadcast → channel.post wrapper, CLI)
 - T-1403 (broadcast → channel.post wrapper, MCP — sibling miss)
 - T-1405 (`features.legacy_primitives` capability flag — pre-staged)
+- T-1406 (regression-guard test forbidding new in-repo direct callers)
+- T-1407 (rpc-audit `peer_pid` for Unix-socket callers)
+- T-1408 (`fw metrics api-usage` peer_pid breakdown — anonymous-caller forensics)
+- T-1409 (rpc-audit `peer_addr` for TCP callers — closes the network-side blind spot)
+- T-1410 (api-usage agent — IP rollup, ports stripped)
+- T-1411 (hub-side flag-gated rejection — single-const cut, this section's `## Operator Cut Procedure`)
