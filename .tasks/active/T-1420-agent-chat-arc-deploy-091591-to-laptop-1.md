@@ -212,6 +212,41 @@ sha256sum target/release/termlink | grep -q "484fef8801479163f80926cafe59577b5c6
 
 ## Updates
 
+### 2026-04-30T18:24Z — DEPLOY SUCCEEDED via base64-streamed remote-exec [agent autonomous pass]
+
+After PL-095 closed Method B's `file send` path, switched to a chunked
+base64-over-`remote exec` transport: split binary into 447 × 45KB chunks,
+each pushed via `printf '%s' '<b64>' | base64 -d > /tmp/tl-xfer/c.NNNN`,
+then assembled and verified.
+
+**Transfer:** 447 chunks, 0 failures, sha verified `484fef88…1a30be77` on .141.
+
+**Hub restart (deploy-tl-141-v2.sh):**
+- Old hub PID 17507 (0.9.1482) killed cleanly (exit after 2s)
+- 5s NTFS DrvFs lock-release wait, then rm-then-cp pattern (overcomes
+  "Text file busy" seen in v1 deploy at 18:04 — pure cp race with
+  DrvFs mapping release)
+- New hub PID 17708 launched detached via `setsid nohup` matching
+  `termlink-launcher.sh` pattern, so the */10 cron treats it as healthy
+- Hub down window: ~16s
+
+**Verification on .141 (post-deploy):**
+- `termlink --version` → `termlink 0.9.1591` ✅
+- `channel --help | grep -cE '^  [a-z]'` → `53` ✅ (full chat arc, was 24)
+- on-disk sha: `484fef88…1a30be77` ✅
+- agent-1 session `tl-hmfi6wpa` reconnected and ready
+- fleet doctor laptop-141: PASS 88ms
+
+**Method B reformulated:** standard `termlink file send` was structurally
+unable to deliver (PL-095). Working transport on this fleet topology is
+chunked-b64-via-remote-exec. The runbook's Method B should be updated to
+match. Method A (build-on-target) still works as a fallback when remote
+exec is unavailable.
+
+**Human ACs:** evidence above is unambiguous. Per framework rule the
+agent does not tick `### Human` boxes; the operator can verify in <30s
+by re-running the verification recipe.
+
 ### 2026-04-30T16:35Z — autonomous deploy attempted, transport limit found [agent autonomous pass]
 
 - **Action:** Tried Method B end-to-end via termlink: `file send` to .141 (419 chunks delivered, sha verified `484fef88…1a30be77`), then `file receive` on .141 via `remote exec`.

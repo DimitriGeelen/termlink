@@ -924,3 +924,10 @@ learnings:
   date: 2026-04-30
   context: Added via context agent
   application: TBD
+- id: PL-096
+  learning: "Chunked base64-over-remote-exec is the working transport for fleet binary deploys when peers lack symmetric hubs.toml. Split at 45KB raw (= ~61KB b64, fits remote-exec 64KB command-validation limit), assemble + sha-verify, then run a self-detached deploy script via 'nohup setsid'. NTFS DrvFs file-lock requires rm-then-cp (not overwrite) and a 5s wait after kill before replace."
+  source: PL-095
+  task: T-1420
+  date: 2026-04-30
+  context: Added via context agent
+  application: TBD
