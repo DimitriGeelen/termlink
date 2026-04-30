@@ -18,6 +18,11 @@
 #   --swap-restart   After staging, generate + push a swap+restart deploy script
 #                    that handles NTFS DrvFs file-lock (rm-then-cp + 5s wait).
 #                    The script self-detaches from the exec channel.
+#   --probe          After staging (always) and before any swap, run
+#                    `<staged-binary> --version` on the remote. Abort with exit 5
+#                    if the new binary cannot execute (e.g. glibc / lib mismatch
+#                    between build host and target). Catches the failure mode
+#                    that produced PL-100 / T-1422.
 #
 # What this avoids:
 #   - PL-095: legacy file.send fallback spools to the SENDER's hub inbox; receiver
@@ -25,7 +30,8 @@
 #   - "Text file busy" race when overwriting a running binary on /mnt/c (NTFS DrvFs)
 #   - Caller-side execve ARG_MAX explosion (chunks stay <64KB per remote_exec)
 #
-# Exit codes: 0 ok, 1 misuse, 2 sha mismatch, 3 transport failure, 4 swap failure.
+# Exit codes: 0 ok, 1 misuse, 2 sha mismatch, 3 transport failure, 4 swap failure,
+#             5 probe failure (staged binary cannot execute on target).
 
 set -euo pipefail
 
@@ -36,6 +42,7 @@ DST=""
 SESSION=""
 CHUNK=$((45 * 1024))
 SWAP=0
+PROBE=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -44,6 +51,7 @@ while [ $# -gt 0 ]; do
     --session)       SESSION="$2"; shift 2;;
     --chunk-bytes)   CHUNK="$2"; shift 2;;
     --swap-restart)  SWAP=1; shift;;
+    --probe)         PROBE=1; shift;;
     -h|--help)
       sed -n '2,/^$/p' "$0"; exit 0;;
     -*)
@@ -126,6 +134,24 @@ if [ "$ASSEMBLE_OUT" != "$EXPECTED_SHA" ]; then
   exit 2
 fi
 echo "✓ binary staged at $DST (sha verified)"
+
+# --- Optional: probe (foreign-binary exec test) -----------------------------
+# Catches PL-100: target host glibc / lib version != build host. Run
+# `<NEW> --version` on the remote with a tight timeout; abort if non-zero.
+if [ "$PROBE" = "1" ]; then
+  echo ">>> probe: running '$DST --version' on remote"
+  PROBE_OUT=$(timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
+    "chmod +x '$DST' && '$DST' --version 2>&1; echo __EXIT_\$?__" 2>&1)
+  PROBE_EXIT=$(echo "$PROBE_OUT" | grep -oE '__EXIT_[0-9]+__' | head -1 | grep -oE '[0-9]+')
+  if [ "${PROBE_EXIT:-1}" != "0" ]; then
+    echo "ERROR: probe failed (exit=${PROBE_EXIT:-?}) — staged binary cannot execute on target" >&2
+    echo "First 5 lines of probe output:" >&2
+    echo "$PROBE_OUT" | head -5 >&2
+    echo "Staged binary remains at $DST for forensic analysis (run 'ldd $DST' on remote console)." >&2
+    exit 5
+  fi
+  echo "✓ probe OK: $(echo "$PROBE_OUT" | head -1)"
+fi
 
 # --- Optional: swap + restart ------------------------------------------------
 if [ "$SWAP" = "1" ]; then
