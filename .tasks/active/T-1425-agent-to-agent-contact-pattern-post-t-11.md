@@ -109,9 +109,32 @@ No third spike. If A-2 needs validation we build behind a flag — that's a buil
 
 ## Recommendation
 
-**Pending synthesis after 48h soak (fire time: 2026-05-02T21:13Z / 23:13 local Europe/Amsterdam).**
+**DEFER — formal runbook criteria. Fast-forwarded solo synthesis embedded above.**
 
-If you are the next agent picking up this task: the soak window has elapsed. Run the synthesis sequence below.
+**Rationale:** RFC posted at agent-chat-arc offset 6 on 2026-04-30T21:13Z. Operator requested fast-forward 0h after post. Topic walk at offset 7 returned 0 peer replies. The Go/No-Go rubric requires peer-reply convergence/divergence to validate A-1; with 0 replies the assumption is untestable from this side, so the formal answer is DEFER.
+
+**Forward-motion path (operator's intent):** the Decisions section above contains a complete .107-perspective design pass per question. The downstream build tasks below are scoped against those decisions and may proceed independently, with the explicit understanding that any peer reply landing within the next 14d that contradicts a Decision triggers redesign of the affected build task.
+
+**Build task scoping (provisional, unblocks under solo design):**
+
+| Pick | Task ID | Scope |
+|---|---|---|
+| #1 deprecation print | T-1426 (already captured) | Independent of this synthesis |
+| #4 whoami + identity binding | T-1427 (already captured) | Q4 = A (strict reject) — task ACs reflect this |
+| #2 `termlink agent contact` verb | T-1429 (to scope) | Q1=A, Q2=C, Q3=C, Q5=A — verb auto-creates DM topic, fire-and-forget default with `--ack-required` opt-in, `--require-online` flag for fail-fast, retention=forever |
+| #3 topic self-doc via `channel describe` | T-1430 (to scope) | No protocol question — pure cosmetic; ship after T-1427 lands so identity-binding semantics are documentable |
+| #5 `/agent-handoff` skill | T-1431 (to scope) | Wraps T-1429 verb; ships after T-1429 |
+| #6 `fw fleet doctor --legacy-usage` | T-1432 (to scope) | Independent; can ship anytime; gates T-1166 cut-readiness |
+
+**Sentinel:** T-1428 (foundation soak audit, fires 2026-05-14) will re-check whether T-1426 / T-1427 shipped and what telemetry has accumulated. If peer replies arrive between now and then they amend the relevant Decision and any in-flight build task is paused for redesign.
+
+**Why DEFER not GO:** the formal criteria require peer-reply convergence. A "GO under solo design" outcome would mask the unvalidated A-1. DEFER + scoped build tasks gives forward motion without the pretense of consensus.
+
+---
+
+### Original synthesis runbook (preserved for reference — solo synthesis above supersedes for this iteration)
+
+If a future agent picks this up after peer replies arrive: run the synthesis steps below to integrate the new replies into Decisions, then move from DEFER to GO if the replies converge with the solo design or trigger redesign if they diverge.
 
 ### Synthesis runbook (executable by next session)
 
@@ -147,14 +170,52 @@ If you are the next agent picking up this task: the soak window has elapsed. Run
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-04-30 — Fast-forward solo synthesis (operator-requested)
+
+Operator asked for fast-forward synthesis 0h after RFC post (intended 48h soak). Topic walk at offset 7 returned 0 peer replies (only own pin envelope). Formal runbook outcome: DEFER.
+
+User intent: forward motion, not literal wait. Decisions below are .107-perspective only — explicitly NOT a consensus. Each carries an "amend if peer disagrees" flag so build tasks can ship under solo design while peer feedback remains a first-class amendment path.
+
+### 2026-04-30 — Q1: DM topic provisioning
+
+- **Chose:** A — auto-create `dm:<sorted-sender_id_a>:<sorted-sender_id_b>` on first contact, retention=forever
+- **Why:** receiver friction is the binding constraint. T-1319 already establishes the canonical naming pattern in the codebase; reusing it costs nothing. Override path exists if a receiver objects: `channel describe` can disable or downgrade.
+- **Rejected:** B (explicit pre-subscribe) — front-loads coordination and turns first-contact into a two-phase setup. Defeats the point of a high-level verb.
+- **Amend if:** any peer indicates that DM topic surface clutter is operationally costly enough to outweigh sender ergonomics.
+
+### 2026-04-30 — Q2: Ack semantics
+
+- **Chose:** C — none by default, opt-in via `--ack-required` on the verb
+- **Why:** most contacts are fire-and-forget status; per-message ack doubles topic volume and dilutes signal. Per-thread ack already exists as `channel ack --up-to` (T-1315) for resume-cursor semantics — different concern, kept separate.
+- **Rejected:** A (per-message default) — too noisy; B (per-thread default) — conflates ack-of-receipt with ack-of-thread-progress.
+- **Amend if:** receivers indicate that silent receipt is operationally insufficient (e.g. .122 ops needs explicit "received and acknowledged" gate before acting).
+
+### 2026-04-30 — Q3: Receiver offline behavior
+
+- **Chose:** C — caller chooses, default = queue. Flag `--require-online` for fail-fast.
+- **Why:** chat arc is offset-durable with retention=forever — queueing IS the natural behavior. Default-queue lets the verb work without presence info. `--require-online` covers synchronous-handoff cases.
+- **Rejected:** A (always fail-fast) — surfaces problems but defeats the reason we have durable topics; B (always queue) — obscures delivery state when caller cares.
+- **Amend if:** presence-volatile peers (.141 laptop) indicate auto-replay-on-reconnect is the better default.
+
+### 2026-04-30 — Q4: Identity binding strictness
+
+- **Chose:** A — strict reject when `metadata.from` doesn't resolve through whoami
+- **Why:** identity is a security primitive, not a hint. The .107 ZoneEdit-handoff incident shipped a fabricated `from=002-Claude-Partner-Network` — lenient modes (B warn-and-strip, C warn+accept) leave that hole open. Strict reject with backward-compat (posts WITHOUT `metadata.from` continue working) gives a clean migration: existing traffic unaffected, new traffic gets the lock.
+- **Rejected:** B, C — both keep the door open for the fabrication failure mode.
+- **Amend if:** strict reject breaks an actual legitimate use case (none currently identified).
+
+### 2026-04-30 — Q5: DM topic retention
+
+- **Chose:** A — forever, matching `agent-chat-arc` precedent
+- **Why:** disk is cheap; operational audit-trail value is high. The PL-100 incident (.122 hub recovery) showed concrete value of replaying topic offsets months later. Pathological growth is a per-topic policy decision when it materializes — premature to cap now.
+- **Rejected:** B (30d TTL), C (count cap) — both optimize for problems we don't have.
+- **Amend if:** a receiver shows a real disk-pressure case from accumulated DM topic offsets.
+
+### Solo synthesis caveats
+
+- A-1 (peers have differing priorities) is **untested**. Build tasks ship under .107 design; receivers retain veto via amendment thread.
+- Build tasks scoped below are provisional. If a peer reply lands within 14d that contradicts a Decision, the relevant build task is paused for redesign.
+- This is the first inception in the project to fast-forward without peer input. Pattern itself is worth a learning — record after the build cycle whether peer-amendment-after-ship was the right tradeoff.
 
 ## Decision
 
