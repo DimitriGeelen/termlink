@@ -70,6 +70,18 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-04-30T07:03Z — T-1414 api-usage agent: split attributable vs pre-T-1409 unattributable legacy [agent autonomous pass]
+- **Why now:** Post-T-1409 deploy (2026-04-29 21:49 UTC on .122) the audit captures peer_addr for every TCP caller. But the rolling 7d/30d/60d windows still include pre-deploy lines that have no `from`, no `peer_pid`, no `peer_addr` — these surface as "(unknown)" in legacy_callers and inflate the bake-fail picture. Live snapshot today: 7d window shows 6.21% legacy / FAIL, but 3401/3964 of those legacy lines are pre-deploy backlog. Of the 563 attributable, 552 (~98%) trace cleanly to a single IP: **192.168.10.143** polling `inbox.status` on a ~60s cadence.
+- **Patch (additive, gate logic unchanged):**
+  - `stats_for_window()` now also returns `legacy_unattributable` (count of legacy lines with no `from` AND no `peer_pid` AND no `peer_addr` — definitionally pre-T-1409 backlog on this hub).
+  - JSON: new fields `legacy_attributable` and `legacy_unattributable_pre_t1409` at root level + per-window-row level. Both single-window and trend modes covered.
+  - Human text: clarifying split line under "Legacy primitives:" so operator sees "563 attributable, 3401 pre-T-1409" instead of one muddled aggregate.
+- **Verified live on .122:** `legacy=3964 = legacy_attributable=563 + legacy_unattributable_pre_t1409=3401`. Math holds. `legacy_callers_by_ip` shows the holdout unambiguously.
+- **Mirrored upstream:** `/opt/999-Agentic-Engineering-Framework/agents/metrics/api-usage.sh` commit 3c5ed476c → onedev master pushed.
+- **Why this matters for the cut:** With this split, the operator's mental model switches from "we have 6.21% legacy across some window" to "we have ONE host left to migrate and a ~60-day backlog that ages out on its own". The decision-gate becomes binary, not statistical.
+- **Pre-bake checklist now 15/15 shipped** — T-1400 through T-1414. Cut still gated on .143 decom + Tier-2 authorization (both outside agent scope per CLAUDE.md autonomous-mode boundaries).
+- **Backlog rollover ETA:** Pre-T-1409 lines age out of the 60d gate window naturally by ~2026-06-28; from then on the gate metric reflects current reality without the split needing to be consulted.
+
 ### 2026-04-20T14:12:20Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1166-t-11559-retire-legacy-eventbroadcast--in.md
