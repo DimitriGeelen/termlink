@@ -260,6 +260,34 @@ grep -q "T-1235" crates/termlink-session/src/inbox_channel.rs
 
 ## Updates
 
+### 2026-04-30T18:26Z — host located but auth-blocked [agent autonomous pass]
+
+**Identity confirmed at 192.168.10.143.** TCP :9100 reachable; TOFU
+fingerprint match: `sha256:53de15ec8b33b4…6fe4` — same hub identity as
+the prior .121 pin. Updated hubs.toml address from .121→.143 (backup at
+`~/.termlink/hubs.toml.bak.<ts>`). ARP confirms .143 is the live ring20
+host.
+
+**Hub secret has rotated since last pin.** `fleet doctor` returns
+`-32010 Token validation failed: invalid signature`, hint:
+`Secret mismatch — hub was likely restarted with a new secret`. Per
+T-1054 Tier-1 heal, the new secret must be fetched out-of-band. SSH from
+.107 to .143 fails (permission denied: publickey/password); SSH from
+.122 to .143 fails the same way (known_hosts mismatch + no pubkey).
+**No autonomous OOB channel available** from this host — the heal is
+operator-only without setting up an SSH key first.
+
+**Streaming-transport readiness.** PL-096 (b64-stream-via-remote-exec)
+just succeeded on .141 (T-1420). The same script template will work for
+.143 once auth heals, because the legacy `file send` path is also blocked
+by PL-095 there. Expect ~2 min total deploy time from auth-heal.
+
+**Operator next step (single command):**
+```
+termlink fleet reauth ring20-dashboard
+```
+…then paste the .143 hub.secret value into the printed echo.
+
 ### 2026-04-30T08:11:23Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1418-upgrade-ring20-dashboard-termlink-cli-to.md
