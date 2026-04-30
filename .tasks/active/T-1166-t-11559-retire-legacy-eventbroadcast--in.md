@@ -70,6 +70,12 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-04-30T07:18Z — T-1417 staged: pre-cut migration of event.broadcast `--targets` fanout [agent autonomous pass]
+- **Pre-cut gap discovered:** Reading `crates/termlink-mcp/src/tools.rs::termlink_broadcast` (line 1852) and `crates/termlink-cli/src/commands/events.rs` (line 320), both still call legacy `event.broadcast` when `--targets a,b,c` is non-empty. The migration doc explicitly flags this: "Per-target fan-out still uses event.broadcast until T-1166 cuts the router method — at which point the CLI will need a separate replacement (planned: parallel emit_to calls)."
+- **Risk if not migrated pre-cut:** Post-cut, callers using `termlink event broadcast --targets ...` get -32601 method-not-found from the hub. The empty-targets case is already migrated (T-1401/T-1403 channel.post(broadcast:global)). Most callers don't use --targets, so blast radius is limited but real.
+- **T-1417 created (horizon: next, captured):** Detailed implementation spec — `event.emit_to` already exists in protocol + router (not retired), so the fix is a fan-out loop with per-target result aggregation. ACs cover both call sites (CLI + MCP), result-shape preservation, partial-failure semantics (succeeded/failed counters, not hard error), and migration-doc update. Implementation sketch included for the next agent to pick up cleanly.
+- **Pre-bake checklist:** 16 shipped + 1 staged (T-1415 post-cut, T-1417 pre-cut). The arc is now: ship T-1417 → re-verify cut-ready → operator authorizes Tier-2 cut → bake 7d → fire T-1415 cleanup.
+
 ### 2026-04-30T07:14Z — T-1416 api-usage `--cut-ready` flag: binary gate on attributable-only legacy [agent autonomous pass]
 - **Why now:** The T-1166 entry gate is statistical (legacy_pct over rolling window) — useful for trend, but the wrong gate for the actual cut decision. Operator's real question: "is ANYONE still hitting legacy methods, ignoring the pre-deploy backlog?" That's a binary check on `legacy_attributable == 0`.
 - **Patch:** `--cut-ready` flag added to `api-usage.sh` (additive, no existing-behavior change). Exit 0 iff `legacy_attributable == 0` in chosen window (default 7d). Composes with `--json` for compact CI output.
