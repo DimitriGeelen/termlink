@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1416: api-usage --cut-ready: binary gate on attributable-only legacy traffic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-30T07:14:48Z
+# ============================================================================
+
+task_id: T-1416
+task_name: "api-usage --cut-ready: binary gate on attributable-only legacy traffic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-30T07:12:28Z
+completed: 2026-04-30T07:14:47Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`api-usage.sh --cut-ready` flag added (works alongside existing flags)"
+  - "When `--cut-ready` is present: exit 0 iff `legacy_attributable == 0` in the chosen window (default 7d if `--last-Nd` not given) — verified live: 575 attributable on .107 → exit=1, NOT READY"
+  - "When `--cut-ready` is present + `--json`: emits `{\"cut_ready\": bool, \"window_days\": N, \"legacy_attributable\": K, \"legacy_unattributable_pre_t1409\": K, \"audit_file\": ...}`"
+  - "When `--cut-ready` not present: behavior unchanged (regression-safe — verified `--last-Nd 1 --json` returns full shape)"
+  - "Help text (`-h` / `--help`) describes `--cut-ready` distinct from `--gate-pct`"
+  - "Vendored copy mirrored to `/opt/999-Agentic-Engineering-Framework/agents/metrics/api-usage.sh`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1416-api-usage---cut-ready-binary-gate-on-att.md
+generated_by: context-agent-hybrid

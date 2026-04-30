@@ -70,6 +70,14 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-04-30T07:14Z — T-1416 api-usage `--cut-ready` flag: binary gate on attributable-only legacy [agent autonomous pass]
+- **Why now:** The T-1166 entry gate is statistical (legacy_pct over rolling window) — useful for trend, but the wrong gate for the actual cut decision. Operator's real question: "is ANYONE still hitting legacy methods, ignoring the pre-deploy backlog?" That's a binary check on `legacy_attributable == 0`.
+- **Patch:** `--cut-ready` flag added to `api-usage.sh` (additive, no existing-behavior change). Exit 0 iff `legacy_attributable == 0` in chosen window (default 7d). Composes with `--json` for compact CI output.
+- **Verified live on .107:** 575 attributable + 3401 pre-T-1409 → `--cut-ready` returns NOT READY (exit=1). Once .143 is migrated, attributable drops to 0 and the gate flips to READY (exit=0). The pre-T-1409 backlog is ignored — it ages out of the 60d window naturally.
+- **Mirrored upstream:** `/opt/999-Agentic-Engineering-Framework/agents/metrics/api-usage.sh` commit 616ea2cb6 → onedev master pushed.
+- **Pre-bake checklist now 16/16 shipped** — T-1400 through T-1414 + T-1416. T-1415 (post-cut source cleanup) drafted with horizon=later and detailed inventory; fires after Tier-2 cut + ≥7d bake.
+- **Use cases:** T-1415 prelude verification, CI gate for the post-cut binary build, future watchtower page rendering "X hubs cut-ready, Y not yet" status.
+
 ### 2026-04-30T07:10Z — Holdout .143 IDENTIFIED: ring20-dashboard re-numbered (TLS fingerprint match) [agent autonomous pass]
 - **The mystery is solved.** TLS fingerprint of `192.168.10.143:9100` is `sha256:53de15ec8b33b4e87abd57d6...` — matches `~/.termlink/known_hubs` line for `192.168.10.121:9100` (`sha256:53de15ec8b33b4e87abd57d6e9700553d68382d66a105cf0c14690bf452b6fe4`). The dashboard container has been renumbered from .121 → .143 since last pin update (last_seen .121 = 2026-04-29T11:30Z). Same persistent TLS cert (T-985 / T-1028 persist-if-present), so cert-pin still trusted.
 - **ARP confirms Proxmox VE container:** MAC `bc:24:11:15:62:d1` — `bc:24:11` is the Proxmox vNIC OUI. Consistent with the ring20-dashboard container topology recorded in the operator's reference memory.
