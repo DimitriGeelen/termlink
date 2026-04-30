@@ -931,3 +931,17 @@ learnings:
   date: 2026-04-30
   context: Added via context agent
   application: TBD
+- id: PL-097
+  learning: "Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.143:9100). date_observed=2026-04-30T18:25:58Z hub_fingerprint=sha256:53de15ec8b33b4e87abd57d6e9700553d68382d66a105cf0c14690bf452b6fe4. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-30
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-098
+  learning: "Chat-arc smoke verification per host = create channel + post + reply + react + thread/topic-stats — all 5 ops should succeed on any fleet host running 0.9.15xx+. Confirmed live on .107 (0.9.1591) and .141 (0.9.1591) on 2026-04-30 post-T-1420 deploy. Multi-host chat (cross-hub bridging) is a separate architectural concern (T-1384) not satisfied by binary-version parity alone."
+  source: PL-096
+  task: T-1420
+  date: 2026-04-30
+  context: Added via context agent
+  application: TBD
