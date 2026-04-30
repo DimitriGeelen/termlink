@@ -278,6 +278,15 @@ on TCP callers carry no `peer_addr`/`peer_pid`/`from` — they appear as
 `legacy_attributable`, not `legacy`. The unattributable backlog ages out of
 the rolling window naturally (60d after T-1409 deployed).
 
+**Distinguish live from stale callers (T-1419, since 2026-04-30).** Each
+row in `legacy_callers`, `legacy_callers_by_pid`, and `legacy_callers_by_ip`
+now carries `last_seen_ts_ms` (int) and `last_seen_iso` (UTC string). If a
+peer's `last_seen_iso` is older than your most recent restart of that
+peer's polling agent, the count is stale rolling-window residue — the
+migration succeeded; the count will drop to zero as the window rolls.
+This is the primary signal for verifying a post-deploy cut-blocker
+clearance (T-1418 uses it).
+
 For client-side hunting (your own session is one of the named callers in
 the report), grep your codebase:
 

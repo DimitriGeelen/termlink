@@ -136,20 +136,43 @@ pgrep -af termlink                                   # confirm new PIDs
 
 ### Verification (run on /opt/termlink, this host)
 
-After ≥10 minutes of post-restart polling, the audit log should show .143
-calling `channel.list` instead of `inbox.status`:
+**Preferred — freshness check (T-1419, available since 2026-04-30):**
+the rolling-window count includes pre-restart calls aging out, but
+`last_seen_iso` answers "did .143 call AFTER the restart?" directly.
 
 ```bash
-.agentic-framework/bin/fw metrics api-usage --last-Nd 1 --json | \
+DEPLOY_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)        # capture BEFORE deploy
+# … perform deploy + restart …
+sleep 60                                         # let the log catch up
+.agentic-framework/bin/fw metrics api-usage --last-Nd 1 --json 2>/dev/null | \
+  python3 -c "
+import json, sys, os
+deploy = os.environ.get('DEPLOY_TS', '')
+d = json.load(sys.stdin)
+for r in d.get('legacy_callers_by_ip', []):
+    if r['peer_ip'] != '192.168.10.143':
+        continue
+    last = r.get('last_seen_iso', '')
+    if last < deploy:
+        print(f'PASS — .143 last_seen_iso={last} < deploy={deploy}')
+        sys.exit(0)
+    print(f'FAIL — .143 last_seen_iso={last} >= deploy={deploy} (still calling legacy)')
+    sys.exit(1)
+print('PASS — .143 has no legacy entries in window')
+"
+```
+
+**Fallback — count check** (works without T-1419, but conflates live
+calls with rolling-window residue; only definitive after a full 1d
+window has passed since deploy):
+
+```bash
+.agentic-framework/bin/fw metrics api-usage --last-Nd 1 --json 2>/dev/null | \
   python3 -c '
 import json, sys
 d = json.load(sys.stdin)
-ip_hits = {x["peer_ip"]: x["count"]
-           for x in d.get("legacy_callers_by_ip", [])
-           if x["peer_ip"] == "192.168.10.143"}
-hits = ip_hits.get("192.168.10.143", 0)
+hits = sum(r["count"] for r in d.get("legacy_callers_by_ip", []) if r["peer_ip"] == "192.168.10.143")
 print(f".143 legacy hits in 1d window: {hits}")
-print("PASS — .143 has migrated" if hits == 0 else "FAIL — .143 still on legacy")
 sys.exit(0 if hits == 0 else 1)
 '
 ```

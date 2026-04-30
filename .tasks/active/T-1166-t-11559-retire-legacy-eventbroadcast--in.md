@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-04-30T07:11:16Z
+last_update: 2026-04-30T08:37:51Z
 date_finished: null
 ---
 
@@ -248,3 +248,51 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 ### 2026-04-30T07:11:16Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-04-30T08:38Z — T-1418 + T-1419 shipped: holdout migration runbook + freshness signal [agent autonomous pass]
+
+- **T-1418 staged** — Operator runbook for the lone external holdout
+  (ring20-dashboard / TLS sha256:53de15ec…, currently observed at .143).
+  Three transfer methods (termlink send-file, scp, build-on-target),
+  staged binary at `target/release/termlink` (v0.9.1591, sha
+  `484fef88…1a30be77`), atomic-replace + supervisor-restart steps,
+  end-to-end verification recipe. T-1418 status: `started-work`,
+  owner: `human` (deploy/restart/confirm Human ACs drafted with
+  Steps/Expected/If-not).
+
+- **T-1419 closed** — `agents/metrics/api-usage.sh` JSON output now
+  carries `last_seen_ts_ms` (int) and `last_seen_iso` (UTC string) on
+  every row of `legacy_callers`, `legacy_callers_by_pid`,
+  `legacy_callers_by_ip`. Operators can now distinguish "live"
+  (post-restart calls present) from "stale" (rolling-window residue
+  aging out) without parsing the raw audit log.
+
+- **Live observation that motivated T-1419 and validates it.**
+  Pre-T-1419, the audit JSON gave `{peer_ip:.143, count:647}` —
+  ambiguous: still calling, or stale? Post-T-1419 the same query
+  shows `last_seen_iso=2026-04-30T08:35:28Z` (seconds-old → still
+  live) for .143, while every other row shows last_seen from
+  2026-04-29 (~24h-old → already-stale residue). Exactly the signal
+  T-1418 deploy verification needs.
+
+- **Migration doc updated** — diagnostic section now references
+  T-1419 freshness signal as the primary post-deploy verification
+  technique. T-1418 verification recipe rewritten to compare
+  `last_seen_iso` against deploy timestamp (preferred), with the
+  count-based check kept as fallback.
+
+- **Pre-bake checklist now: 18 shipped + 2 staged.**
+  Shipped: T-1400, T-1401, T-1402, T-1403, T-1404, T-1405, T-1406,
+  T-1407, T-1408, T-1409, T-1410, T-1411, T-1412, T-1413, T-1414,
+  T-1416, T-1417, T-1419. Staged: T-1415 (post-cut source cleanup,
+  fires after 7d clean bake), T-1418 (operator-runnable, .143 cli
+  upgrade).
+
+- **Cut path for the human:** (1) deploy T-1418 binary on .143 +
+  restart polling agents → use T-1419 freshness check to confirm.
+  (2) Rebuild + restart this host's hub for T-1417 bake → 7d soak.
+  (3) `fw metrics api-usage --cut-ready --json` returns
+  `cut_ready: true`. (4) Tier-2 flip
+  (`LEGACY_PRIMITIVES_ENABLED = false` or `--features
+  legacy_primitives_disabled`). (5) ≥7d clean bake post-flip →
+  T-1415 deletes the dead handler code.
