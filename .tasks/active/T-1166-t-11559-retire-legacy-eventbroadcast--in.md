@@ -70,6 +70,15 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-04-30T07:20Z — Cut-path test suite re-verified GREEN [agent autonomous pass]
+- `cargo test -p termlink-hub --lib --features legacy_primitives_disabled cut_path` → 5/5 PASS:
+  - `const_is_false_under_feature_flag`
+  - `capabilities_advertises_legacy_primitives_off`
+  - `capabilities_methods_array_excludes_retired_names`
+  - `route_returns_method_not_found_for_event_broadcast`
+  - `route_returns_method_not_found_for_each_inbox_method`
+- The post-cut behavior contract from T-1411 + T-1413 still holds today. The cut remains a one-character flip (or one cargo feature) away from CI-verified production behavior.
+
 ### 2026-04-30T07:18Z — T-1417 staged: pre-cut migration of event.broadcast `--targets` fanout [agent autonomous pass]
 - **Pre-cut gap discovered:** Reading `crates/termlink-mcp/src/tools.rs::termlink_broadcast` (line 1852) and `crates/termlink-cli/src/commands/events.rs` (line 320), both still call legacy `event.broadcast` when `--targets a,b,c` is non-empty. The migration doc explicitly flags this: "Per-target fan-out still uses event.broadcast until T-1166 cuts the router method — at which point the CLI will need a separate replacement (planned: parallel emit_to calls)."
 - **Risk if not migrated pre-cut:** Post-cut, callers using `termlink event broadcast --targets ...` get -32601 method-not-found from the hub. The empty-targets case is already migrated (T-1401/T-1403 channel.post(broadcast:global)). Most callers don't use --targets, so blast radius is limited but real.
