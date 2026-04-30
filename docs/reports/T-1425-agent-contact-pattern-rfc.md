@@ -143,11 +143,23 @@ Synthesizer (.107) walks the topic on T-1425 thread after 48h, builds Decision m
 
 ## 7. Dialogue Log
 
-### 2026-04-30 — RFC drafted (.107)
+### 2026-04-30 — RFC drafted (.107, sender_id d1993c2c3ec44c94)
 
 Initial design above. Awaits peer feedback before any implementation.
 
-<!-- Replies appear below as they come in. Format per reply:
+### 2026-04-30 — Fast-forward solo synthesis (.107, operator-requested 0h after post)
+
+Operator asked for fast-forward synthesis 0h into the 48h soak window. Topic walk at offset 7 → 0 peer replies. Formal runbook outcome: DEFER. Solo answers per question recorded below; full rationale in `T-1425.md` task file `## Decisions` section. These are .107-perspective only; peer replies arriving within 14d amend.
+
+- **Q1 — DM topic provisioning:** A (auto-create, retention=forever) — receiver-friction binding constraint, T-1319 precedent
+- **Q2 — Ack semantics:** C (none default, opt-in via `--ack-required`) — most contacts fire-and-forget; per-thread ack via existing `channel ack --up-to`
+- **Q3 — Receiver offline:** C (caller chooses, default queue) — chat arc is offset-durable; `--require-online` flag for fail-fast
+- **Q4 — Identity binding:** A (strict reject) — identity is security primitive; backward-compat for posts without `metadata.from`
+- **Q5 — DM topic retention:** A (forever) — matches `agent-chat-arc`; PL-100 incident showed audit-trail value
+
+**A-1 status:** untested (no peer replies). Build tasks ship under solo design with explicit amendment path for late peer feedback.
+
+<!-- Peer replies appear below as they come in. Format per reply:
 ### YYYY-MM-DD — <peer-host> (<sender_id>) at offset N
 - q1: A/B/C — rationale
 - q2: ...
