@@ -299,78 +299,136 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
         return Ok(());
     }
 
-    let mut params = serde_json::json!({
-        "topic": topic,
-        "payload": payload,
-    });
-    if !targets.is_empty() {
-        params["targets"] = serde_json::json!(targets);
-    }
-    // T-1300: Populate `from` from $TERMLINK_SESSION_ID so the hub-side
-    // soft-lint can resolve the caller's roles. Operators can override by
-    // passing an explicit `from:` field in the payload (we do not overwrite
-    // a top-level `from` that is already present).
-    if params.get("from").is_none()
-        && let Ok(sid) = std::env::var("TERMLINK_SESSION_ID")
-        && !sid.is_empty()
-    {
-        params["from"] = serde_json::json!(sid);
-    }
-
-    let rpc = client::rpc_call(&hub_socket, "event.broadcast", params);
-    let resp = match tokio::time::timeout(timeout_dur, rpc).await {
-        Ok(r) => match r {
-            Ok(v) => v,
-            Err(e) => {
-                if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
-                }
-                return Err(e).context("Failed to connect to hub");
-            }
-        },
-        Err(_) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "topic": topic, "error": format!("Broadcast timed out after {}s", timeout_secs)}));
-            }
-            anyhow::bail!("Broadcast timed out after {}s", timeout_secs);
+    // T-1417: Pre-T-1166 cut migration. The legacy `event.broadcast` is
+    // retiring; replace the per-target fan-out with parallel `event.emit_to`
+    // calls. Result shape ({topic, targeted, succeeded, failed}) preserved
+    // so downstream consumers don't need to change.
+    //
+    // For empty-targets we already prefer channel.post(broadcast:global)
+    // above; if that block didn't return, either targets is non-empty (fan
+    // out below) or channel.post failed for empty-targets. The latter is
+    // surfaced as an error rather than falling through to the retiring
+    // event.broadcast path.
+    if targets.is_empty() {
+        if json {
+            super::json_error_exit(serde_json::json!({
+                "ok": false, "topic": topic,
+                "error": "channel.post(broadcast:global) failed and event.broadcast is retiring (T-1166); no usable broadcast path"
+            }));
         }
-    };
+        anyhow::bail!(
+            "channel.post(broadcast:global) failed and event.broadcast is retiring (T-1166); no usable broadcast path"
+        );
+    }
 
-    match client::unwrap_result(resp) {
-        Ok(result) => {
-            if json {
-                let mut wrapped = serde_json::json!({"ok": true});
-                if let Some(obj) = result.as_object() {
-                    for (k, v) in obj {
-                        wrapped[k] = v.clone();
-                    }
-                }
-                println!("{}", serde_json::to_string_pretty(&wrapped)?);
+    let (targeted, succeeded, failed, errors) =
+        broadcast_via_emit_to_fanout(&hub_socket, topic, &payload, &targets, timeout_dur).await;
+
+    if json {
+        let mut wrapped = serde_json::json!({
+            "ok": failed == 0,
+            "topic": topic,
+            "targeted": targeted,
+            "succeeded": succeeded,
+            "failed": failed,
+        });
+        if !errors.is_empty() {
+            wrapped["errors"] = serde_json::json!(errors);
+        }
+        println!("{}", serde_json::to_string_pretty(&wrapped)?);
+    } else {
+        println!(
+            "Broadcast '{}': {}/{} succeeded{}",
+            topic,
+            succeeded,
+            targeted,
+            if failed > 0 {
+                format!(" ({} failed)", failed)
             } else {
-                let targeted = result["targeted"].as_u64().unwrap_or(0);
-                let succeeded = result["succeeded"].as_u64().unwrap_or(0);
-                let failed = result["failed"].as_u64().unwrap_or(0);
-                println!(
-                    "Broadcast '{}': {}/{} succeeded{}",
-                    result["topic"].as_str().unwrap_or(topic),
-                    succeeded,
-                    targeted,
-                    if failed > 0 {
-                        format!(" ({} failed)", failed)
-                    } else {
-                        String::new()
-                    },
-                );
+                String::new()
+            },
+        );
+        if failed > 0 {
+            for err in &errors {
+                eprintln!("  {}", err);
             }
-            Ok(())
-        }
-        Err(e) => {
-            if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "topic": topic, "error": format!("{e}")}));
-            }
-            anyhow::bail!("Broadcast failed: {}", e);
         }
     }
+    Ok(())
+}
+
+/// T-1417: Parallel `event.emit_to` fanout — replacement for the retiring
+/// `event.broadcast` per-target dispatch. Each target gets its own RPC,
+/// issued concurrently. Per-target failures are aggregated, not propagated:
+/// a partial-success broadcast (3/5 ok) returns succeeded=3, failed=2 with
+/// per-target error messages, matching the legacy event.broadcast result
+/// contract.
+///
+/// `from` is populated from $TERMLINK_SESSION_ID when set (preserves the
+/// T-1300 soft-lint role-resolution behavior the legacy path had).
+async fn broadcast_via_emit_to_fanout(
+    hub_socket: &std::path::Path,
+    topic: &str,
+    payload: &serde_json::Value,
+    targets: &[String],
+    timeout_dur: std::time::Duration,
+) -> (u64, u64, u64, Vec<String>) {
+    let from_sid = std::env::var("TERMLINK_SESSION_ID")
+        .ok()
+        .filter(|s| !s.is_empty());
+
+    let mut handles = Vec::with_capacity(targets.len());
+    for target in targets {
+        let mut params = serde_json::json!({
+            "target": target,
+            "topic": topic,
+            "payload": payload,
+        });
+        if let Some(sid) = &from_sid {
+            params["from"] = serde_json::json!(sid);
+        }
+        let socket = hub_socket.to_path_buf();
+        let target_owned = target.clone();
+        let handle = tokio::spawn(async move {
+            let rpc = client::rpc_call(&socket, "event.emit_to", params);
+            (
+                target_owned,
+                tokio::time::timeout(timeout_dur, rpc).await,
+            )
+        });
+        handles.push(handle);
+    }
+
+    let targeted = targets.len() as u64;
+    let mut succeeded: u64 = 0;
+    let mut failed: u64 = 0;
+    let mut errors: Vec<String> = Vec::new();
+
+    for h in handles {
+        match h.await {
+            Ok((target, Ok(Ok(resp)))) => match client::unwrap_result(resp) {
+                Ok(_) => succeeded += 1,
+                Err(e) => {
+                    failed += 1;
+                    errors.push(format!("{}: {}", target, e));
+                }
+            },
+            Ok((target, Ok(Err(e)))) => {
+                failed += 1;
+                errors.push(format!("{}: connection: {}", target, e));
+            }
+            Ok((target, Err(_))) => {
+                failed += 1;
+                errors.push(format!("{}: timeout", target));
+            }
+            Err(e) => {
+                failed += 1;
+                errors.push(format!("(join error): {}", e));
+            }
+        }
+    }
+
+    (targeted, succeeded, failed, errors)
 }
 
 pub(crate) async fn cmd_emit_to(
