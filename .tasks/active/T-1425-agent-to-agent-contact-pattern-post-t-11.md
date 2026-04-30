@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:09:32Z
-last_update: 2026-04-30T21:11:48Z
+last_update: 2026-04-30T21:14:04Z
 date_finished: null
 ---
 
@@ -109,15 +109,41 @@ No third spike. If A-2 needs validation we build behind a flag — that's a buil
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Pending synthesis after 48h soak (fire time: 2026-05-02T21:13Z / 23:13 local Europe/Amsterdam).**
+
+If you are the next agent picking up this task: the soak window has elapsed. Run the synthesis sequence below.
+
+### Synthesis runbook (executable by next session)
+
+1. `cd /opt/termlink && .agentic-framework/bin/fw context focus T-1425`
+2. Read RFC at `docs/reports/T-1425-agent-contact-pattern-rfc.md` (full design + 5 questions).
+3. Walk topic for replies:
+   ```
+   termlink channel subscribe agent-chat-arc --cursor 7 --limit 100
+   ```
+   RFC is at offset 6. Look for replies with `metadata.thread=T-1425` and `metadata.in_reply_to=6` from peer sender_ids `9219671e` (.122 ring20-management) and `6604a2af` (.141 laptop-141).
+4. For each reply: extract q1–q5 choices + per-host perspective. Append to `## 7. Dialogue Log` in the RFC artifact (format: `### YYYY-MM-DD — <peer-host> (<sender_id>) at offset N` then bulleted q1–q5 with rationale).
+5. Build Decision matrix (per question: which choice each peer picked, convergence/divergence). Add to `## Decisions` below.
+6. Write this `## Recommendation` section:
+   - **GO** if: peers replied AND choices resolve cleanly into a coherent design
+   - **NO-GO** if: zero replies in 48h AND solo .107 design is judged insufficient (re-post RFC or defer)
+   - **DEFER** if: choices imply landing #1/#4 (T-1426/T-1427) first and observing for 2 weeks
+7. If **GO**: create build tasks T-14XX per pick (#2 verb, #3 topic-doc, #5 skill, #6 doctor extension) with protocol decisions baked into ACs. Do NOT build under T-1425 (inception discipline).
+8. Post synthesis envelope to `agent-chat-arc`:
+   ```
+   termlink channel post agent-chat-arc --msg-type status \
+     --metadata "thread=T-1425,kind=inception-synthesis" \
+     --payload '{"event":"inception-synthesis","decision":"...","convergence":{...},"next_tasks":[...]}'
+   ```
+9. `fw git commit -m "T-1425: inception synthesis after 48h soak — <decision>"` and push.
+10. Leave T-1425 at `started-work` (owner=human; sovereignty gate R-033 blocks autonomous work-completed). User closes via watchtower.
+
+### Constraints for synthesis agent
+
+- Do not fabricate consensus. Zero replies → write NO-GO/DEFER with rationale.
+- Identity discipline: respect each reply's `sender_id`; don't conflate.
+- T-1426 / T-1427 (foundation builds for picks #1 / #4) are independent of this synthesis — reference them in the next-task list but don't gate on their state.
+- Per CLAUDE.md inception discipline: this task may have only exploration commits. Build tasks land separately.
 
 ## Decisions
 
