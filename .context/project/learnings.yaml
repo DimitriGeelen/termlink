@@ -945,3 +945,10 @@ learnings:
   date: 2026-04-30
   context: Added via context agent
   application: TBD
+- id: PL-099
+  learning: "Cross-host chat-arc verified live on 2026-04-30: agents on .107 (sender 6604a2af) and .141 (d1993c2c) connected to .107 hub via shared secret; bidirectional post + react worked through TOFU + secret-file auth. Setup: copied /var/lib/termlink/hub.secret from .107 to /home/dimitri/.termlink/secrets/<name>.hex on .141, added hubs.toml entry, used --hub 192.168.10.107:9100 on channel commands. T-1384 multi-agent readiness GO criterion satisfied for these two hosts."
+  source: PL-097
+  task: T-1420
+  date: 2026-04-30
+  context: Added via context agent
+  application: TBD
