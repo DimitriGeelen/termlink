@@ -953,9 +953,16 @@ learnings:
   context: Added via context agent
   application: TBD
 - id: PL-100
-  learning: "fleet-deploy-binary.sh transports a foreign-built binary intact, but cross-host swap of the hub binary can leave the new instance unable to start when host glibc / shared-lib versions differ from the build host. Symptom: hub kill, cron watchdog respawns, but `termlink hub start` exits silently and port 9100 stays closed. On 2026-04-30 swapping 0.9.1591 (built on .107) onto .122 (Debian container, ring20-management) produced exactly this: the staging worked, sha verified, cron fired every minute for 6+ min, hub never came back. Without SSH/console fallback the only recovery is operator-driven (proxmox console: cp the .bak back). Mitigation for future: (1) add a `--probe` flag to the script that runs the new binary in dry-run on the remote BEFORE the swap (e.g. `<NEW> --version`) and aborts on non-zero exit, (2) consider statically linked / musl builds for fleet-distributable hub binaries, (3) for systemd-/cron-managed hubs ALWAYS pre-stage a rollback script on the remote so a recovery session can `bash /tmp/rollback-XXX.sh` even when termlink itself is the broken thing."
+  learning: "fleet-deploy-binary.sh defaulted to target/release/termlink — which on .107 (Ubuntu 24.04, glibc 2.39) is dynamically linked and requires GLIBC_2.38. Deploying that to .122 (Debian 12 LXC, glibc 2.36 max) caused silent fail-on-exec: hub kill, cron watchdog respawned every minute, the new binary died at startup with `GLIBC_2.38 not found` (visible only in the target's hub log), port 9100 stayed closed. Symptom looked identical to a hung deploy. Root cause confirmed via T-627 console diagnostic on .122 (2026-04-30T20:21Z): ldd showed missing GLIBC_2.38/2.39; rollback to musl-static 0.9.1542 (sha 0aa844fe…) restored the hub immediately. The musl target was already being produced (CI release.yml builds x86_64-unknown-linux-musl; target/x86_64-unknown-linux-musl/release/termlink existed locally with file ELF showing static-pie linked) — fleet-deploy just wasn't using it. Three-layer fix landed: (1) T-1423 added --probe flag (run NEW --version on target before swap, abort on non-zero); (2) script default flipped to prefer the musl-static binary when present, falling back to target/release only on absence; (3) confirmation-of-fix coordinated via cross-host chat — first operational use of agent-chat-arc topic on workstation-107 hub (offset 0 from .122 status, offset 1 reply from .107 ack), validating PL-098 in production. Open follow-up: build-host musl-rebuild cadence — currently the local musl target is from 2026-04-28 (=0.9.1542) while target/release is newer (0.9.1591); release pipeline must rebuild musl on every version stamp so the fleet-distributable artifact stays current."
   source: PL-096
-  task: T-1418
+  task: T-1422
   date: 2026-04-30
-  context: Recorded after .122 hub remained down post-swap; cause not directly observable without console access
-  application: TBD
+  context: Confirmed root cause via .122 console diagnostic. fleet-deploy-binary.sh defaulted to dynamic-glibc artifact instead of co-existing musl-static one.
+  application: Script default flipped + --probe flag landed (T-1423). Build-host musl-rebuild cadence still open.
+- id: PL-101
+  learning: "Fleet doctor observed auth-mismatch on hub 'ring20-dashboard' (192.168.10.143:9100). date_observed=2026-04-30T20:37:50Z hub_fingerprint=sha256:2b0946f99472b6588013ee954840454b546f1f21ec5350e9ce4de08ad5133034. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-04-30
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
