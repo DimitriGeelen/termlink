@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1421: Reusable b64-stream fleet binary deploy script (codify PL-096)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-30T19:20:19Z
+# ============================================================================
+
+task_id: T-1421
+task_name: "Reusable b64-stream fleet binary deploy script (codify PL-096)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-30T19:17:08Z
+completed: 2026-04-30T19:20:18Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`scripts/fleet-deploy-binary.sh` exists, executable, with `--help`"
+  - "Script auto-discovers the remote session via `termlink remote list HUB | head` when `--session` not provided."
+  - "Script chunks the binary at ≤45KB raw, b64-encodes, and streams via"
+  - "Script assembles + sha-verifies on the remote before exiting; non-match returns exit code 2."
+  - "`--swap-restart` generates a self-detached deploy script that handles"
+  - "Re-running the deploy on .141 (already at 0.9.1591) is idempotent —"
+  - "Script reports clear progress (chunks staged, sha verify, swap status)"
+  - "PL-096 referenced in the script docstring; PL-095 referenced as the"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [agent-chat-arc, fleet-rollout, tooling, PL-095, PL-096]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1421-reusable-b64-stream-fleet-binary-deploy-.md
+generated_by: context-agent-hybrid
