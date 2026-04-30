@@ -432,7 +432,7 @@ pub async fn run_accept_loop(
                                     );
                                     continue;
                                 }
-                                peer_pid = creds.pid.map(|p| p as u32);
+                                peer_pid = creds.pid;
                             }
                             Err(e) => {
                                 tracing::debug!(

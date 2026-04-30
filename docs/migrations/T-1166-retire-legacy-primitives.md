@@ -83,10 +83,11 @@ exact byte sequence. The `metadata.from` field is NOT part of the signed
 bytes (routing-only per T-1287 / trusted-mesh threat model).
 
 The `termlink event broadcast` CLI was rewritten in T-1401 to do this for
-you when `--targets` is empty. Per-target fan-out (`--targets a,b,c`)
-still uses `event.broadcast` until T-1166 cuts the router method — at
-which point the CLI will need a separate replacement (planned: parallel
-emit_to calls). Most callers don't use `--targets`.
+you when `--targets` is empty. **T-1417 (2026-04-30) migrated the
+per-target fan-out path** (`--targets a,b,c`) to parallel `event.emit_to`
+calls, so the CLI no longer hits `event.broadcast` for any input. The
+same migration was applied to the `termlink_broadcast` MCP tool. Result
+shape preserved: `{topic, targeted, succeeded, failed[, errors]}`.
 
 ### `inbox.list` / `inbox.status` → `channel.list(prefix="inbox:")`
 

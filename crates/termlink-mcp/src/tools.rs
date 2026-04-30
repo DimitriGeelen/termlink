@@ -1810,7 +1810,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_broadcast",
-        description = "Broadcast an event to multiple TermLink sessions via the hub. If no targets specified, broadcasts to all (via channel.post broadcast:global per T-1401/T-1403). With explicit targets, falls through to legacy event.broadcast for per-target fan-out."
+        description = "Broadcast an event to multiple TermLink sessions via the hub. If no targets specified, broadcasts to all (via channel.post broadcast:global per T-1401/T-1403). With explicit targets, fans out via parallel event.emit_to per T-1417 (replacement for retiring legacy event.broadcast)."
     )]
     async fn termlink_broadcast(&self, Parameters(p): Parameters<BroadcastParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
@@ -1823,46 +1823,105 @@ impl TermLinkTools {
 
         // T-1403: prefer channel.post(broadcast:global) when no targets specified
         // (the dominant case). Mirrors hub-side T-1162 envelope shape.
-        if targets_empty
-            && let Ok(offset) =
-                Self::try_broadcast_via_channel_post(&hub_socket, &p.topic, &payload).await
-        {
-            return serde_json::to_string_pretty(&serde_json::json!({
-                "ok": true,
-                "topic": p.topic,
-                "channel_topic": "broadcast:global",
-                "offset": offset,
-                "targeted": 1,
-                "succeeded": 1,
-                "failed": 0,
-            }))
-            .unwrap_or_else(json_err);
-        }
-
-        // Fallback: legacy event.broadcast (also handles --targets path).
-        let mut params = serde_json::json!({
-            "topic": p.topic,
-            "payload": payload,
-        });
-        if let Some(targets) = &p.targets
-            && !targets.is_empty() {
-                params["targets"] = serde_json::json!(targets);
-            }
-
-        match client::rpc_call(&hub_socket, "event.broadcast", params).await {
-            Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&serde_json::json!({
+        if targets_empty {
+            return match Self::try_broadcast_via_channel_post(&hub_socket, &p.topic, &payload).await {
+                Ok(offset) => serde_json::to_string_pretty(&serde_json::json!({
                     "ok": true,
-                    "topic": result["topic"].as_str().unwrap_or(&p.topic),
-                    "targeted": result["targeted"].as_u64().unwrap_or(0),
-                    "succeeded": result["succeeded"].as_u64().unwrap_or(0),
-                    "failed": result["failed"].as_u64().unwrap_or(0),
+                    "topic": p.topic,
+                    "channel_topic": "broadcast:global",
+                    "offset": offset,
+                    "targeted": 1,
+                    "succeeded": 1,
+                    "failed": 0,
                 }))
                 .unwrap_or_else(json_err),
-                Err(e) => json_err(e),
-            },
-            Err(e) => json_err(format!("connection failed: {e}")),
+                Err(e) => json_err(format!(
+                    "channel.post(broadcast:global) failed and event.broadcast is retiring (T-1166): {e}"
+                )),
+            };
         }
+
+        // T-1417: per-target fan-out via parallel event.emit_to. Replaces the
+        // legacy event.broadcast --targets dispatch (retiring under T-1166).
+        // Same response shape so downstream consumers don't need to change.
+        let targets = p.targets.clone().unwrap_or_default();
+        let (targeted, succeeded, failed, errors) =
+            Self::broadcast_via_emit_to_fanout(&hub_socket, &p.topic, &payload, &targets).await;
+
+        let mut wrapped = serde_json::json!({
+            "ok": failed == 0,
+            "topic": p.topic,
+            "targeted": targeted,
+            "succeeded": succeeded,
+            "failed": failed,
+        });
+        if !errors.is_empty() {
+            wrapped["errors"] = serde_json::json!(errors);
+        }
+        serde_json::to_string_pretty(&wrapped).unwrap_or_else(json_err)
+    }
+
+    /// T-1417: Parallel `event.emit_to` fanout — MCP-side mirror of the
+    /// CLI helper in `crates/termlink-cli/src/commands/events.rs`. Each
+    /// target gets its own RPC, issued concurrently. Per-target failures
+    /// are aggregated into `errors`, not propagated as a hard error.
+    async fn broadcast_via_emit_to_fanout(
+        hub_socket: &std::path::Path,
+        topic: &str,
+        payload: &serde_json::Value,
+        targets: &[String],
+    ) -> (u64, u64, u64, Vec<String>) {
+        let from_sid = std::env::var("TERMLINK_SESSION_ID")
+            .ok()
+            .filter(|s| !s.is_empty());
+
+        let mut handles = Vec::with_capacity(targets.len());
+        for target in targets {
+            let mut params = serde_json::json!({
+                "target": target,
+                "topic": topic,
+                "payload": payload,
+            });
+            if let Some(sid) = &from_sid {
+                params["from"] = serde_json::json!(sid);
+            }
+            let socket = hub_socket.to_path_buf();
+            let target_owned = target.clone();
+            let handle = tokio::spawn(async move {
+                (
+                    target_owned,
+                    client::rpc_call(&socket, "event.emit_to", params).await,
+                )
+            });
+            handles.push(handle);
+        }
+
+        let targeted = targets.len() as u64;
+        let mut succeeded: u64 = 0;
+        let mut failed: u64 = 0;
+        let mut errors: Vec<String> = Vec::new();
+
+        for h in handles {
+            match h.await {
+                Ok((target, Ok(resp))) => match client::unwrap_result(resp) {
+                    Ok(_) => succeeded += 1,
+                    Err(e) => {
+                        failed += 1;
+                        errors.push(format!("{}: {}", target, e));
+                    }
+                },
+                Ok((target, Err(e))) => {
+                    failed += 1;
+                    errors.push(format!("{}: connection: {}", target, e));
+                }
+                Err(e) => {
+                    failed += 1;
+                    errors.push(format!("(join error): {}", e));
+                }
+            }
+        }
+
+        (targeted, succeeded, failed, errors)
     }
 
     /// T-1403: Sign and dispatch a `channel.post(broadcast:global)` envelope
