@@ -952,3 +952,10 @@ learnings:
   date: 2026-04-30
   context: Added via context agent
   application: TBD
+- id: PL-100
+  learning: "fleet-deploy-binary.sh transports a foreign-built binary intact, but cross-host swap of the hub binary can leave the new instance unable to start when host glibc / shared-lib versions differ from the build host. Symptom: hub kill, cron watchdog respawns, but `termlink hub start` exits silently and port 9100 stays closed. On 2026-04-30 swapping 0.9.1591 (built on .107) onto .122 (Debian container, ring20-management) produced exactly this: the staging worked, sha verified, cron fired every minute for 6+ min, hub never came back. Without SSH/console fallback the only recovery is operator-driven (proxmox console: cp the .bak back). Mitigation for future: (1) add a `--probe` flag to the script that runs the new binary in dry-run on the remote BEFORE the swap (e.g. `<NEW> --version`) and aborts on non-zero exit, (2) consider statically linked / musl builds for fleet-distributable hub binaries, (3) for systemd-/cron-managed hubs ALWAYS pre-stage a rollback script on the remote so a recovery session can `bash /tmp/rollback-XXX.sh` even when termlink itself is the broken thing."
+  source: PL-096
+  task: T-1418
+  date: 2026-04-30
+  context: Recorded after .122 hub remained down post-swap; cause not directly observable without console access
+  application: TBD
