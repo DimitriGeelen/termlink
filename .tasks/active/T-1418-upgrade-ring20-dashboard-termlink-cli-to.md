@@ -69,9 +69,40 @@ different IP, the fingerprint match confirms identity.
 
 ## Operator Runbook
 
-The operator chooses ONE of three transfer methods below based on what
-access they have to the dashboard host. All three converge on the same
-verification step.
+**Pre-step (required, 2026-04-30):** the dashboard hub at .143 has a
+rotated secret since this task was drafted. Heal auth first:
+
+```bash
+cd /opt/termlink
+termlink fleet reauth ring20-dashboard
+# follow the printed steps to fetch the new secret OOB and write it
+# to /root/.termlink/secrets/ring20-dashboard.hex
+termlink fleet doctor   # expect [PASS] for ring20-dashboard
+```
+
+Once auth heals, **Method 0** below is the single-command path. The older
+Methods A/B/C are kept as fallbacks for environments where Method 0 doesn't
+apply.
+
+### Method 0 — fleet-deploy-binary.sh (T-1421, recommended)
+
+After auth heals (above), deploy in one command:
+
+```bash
+cd /opt/termlink
+./scripts/fleet-deploy-binary.sh ring20-dashboard --swap-restart
+```
+
+This:
+- Auto-discovers the remote session
+- Streams the local `target/release/termlink` (sha pinned via the script's
+  pre-check) in 45KB chunks via `remote exec` base64 pipes
+- Assembles + sha-verifies on the remote
+- Generates and runs a self-detached swap+restart script that handles the
+  NTFS DrvFs file-lock case (rm-then-cp + 5s settle + setsid relaunch)
+- Verifies the hub came back
+
+Idempotent: if the running hub already matches the local sha, exits early.
 
 ### Method A — termlink send-file (preferred if .143 has working hub)
 
@@ -259,6 +290,15 @@ grep -q "T-1235" crates/termlink-session/src/inbox_channel.rs
   unnecessary because T-1235 covers exactly this case.
 
 ## Updates
+
+### 2026-04-30T19:25Z — runbook simplified to Method 0 [agent autonomous pass]
+
+After T-1421 codified PL-096 as `scripts/fleet-deploy-binary.sh`, updated
+the runbook so operators have a single one-liner once auth heals:
+`./scripts/fleet-deploy-binary.sh ring20-dashboard --swap-restart`. The
+ad-hoc Method B (SSH) and Method A (termlink file send) are still
+documented as fallbacks but Method 0 supersedes them for this fleet
+topology.
 
 ### 2026-04-30T18:26Z — host located but auth-blocked [agent autonomous pass]
 
