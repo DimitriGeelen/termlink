@@ -9,7 +9,11 @@
 #                              [--chunk-bytes N] [--swap-restart]
 #
 #   HUB              Hub display name from ~/.termlink/hubs.toml
-#   --binary PATH    Local binary to push (default: target/release/termlink)
+#   --binary PATH    Local binary to push. Default: prefer the musl-static
+#                    build at target/x86_64-unknown-linux-musl/release/termlink
+#                    (fleet-safe across mixed glibc); falls back to
+#                    target/release/termlink only if the musl target was never
+#                    built. Override with --binary to deploy something else.
 #   --dst PATH       Where on the remote to land the staged binary
 #                    (default: /tmp/$(basename binary).new)
 #   --session SID    Remote session id; auto-detected via `remote list HUB | head` if omitted
@@ -37,7 +41,16 @@ set -euo pipefail
 
 # --- CLI parsing ------------------------------------------------------------
 HUB=""
-BINARY="target/release/termlink"
+# Default to the musl-static build — fleet-distributable across mixed glibc.
+# Falls back to target/release/termlink only if the musl target was never built
+# AND the operator passes --binary explicitly to override.
+# PL-100 / T-1422: target/release/termlink is dynamic-linked against build-host
+# glibc and will fail on older targets (e.g. Debian 12 LXC, glibc 2.36).
+if [ -x "target/x86_64-unknown-linux-musl/release/termlink" ]; then
+  BINARY="target/x86_64-unknown-linux-musl/release/termlink"
+else
+  BINARY="target/release/termlink"
+fi
 DST=""
 SESSION=""
 CHUNK=$((45 * 1024))
