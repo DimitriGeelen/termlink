@@ -917,3 +917,10 @@ learnings:
   date: 2026-04-29
   context: Added via context agent
   application: TBD
+- id: PL-095
+  learning: "termlink file send to a remote session spools chunks to the SENDER's hub inbox, not the receiver's. Receiver's file receive must connect back to the sender's hub via configured peer (hubs.toml) — without it, replay/receive hangs. Direction: send is push-from-hub, receive is pull-from-source-hub. Implication: cross-host file transfer needs symmetric peer config, not just one-way."
+  source: P-002
+  task: T-1420
+  date: 2026-04-30
+  context: Added via context agent
+  application: TBD

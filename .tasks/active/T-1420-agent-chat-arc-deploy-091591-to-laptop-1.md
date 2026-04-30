@@ -212,6 +212,18 @@ sha256sum target/release/termlink | grep -q "484fef8801479163f80926cafe59577b5c6
 
 ## Updates
 
+### 2026-04-30T16:35Z — autonomous deploy attempted, transport limit found [agent autonomous pass]
+
+- **Action:** Tried Method B end-to-end via termlink: `file send` to .141 (419 chunks delivered, sha verified `484fef88…1a30be77`), then `file receive` on .141 via `remote exec`.
+- **Result:** receive hangs. Root cause: legacy file-events fallback spools chunks to the **sender's** hub inbox (.107). Receiver's `file receive` must pull from the source hub — but `.141` has no `~/.termlink/hubs.toml` and no peer config pointing back to .107.
+- **Confirmed clean signals on .141:**
+  - GLIBC 2.39 ✅ — dynamic binary will run
+  - `TERMLINK_RUNTIME_DIR=/home/dimitri/.termlink/runtime` (not /tmp) ✅ — already past T-1290 volatile-/tmp risk
+  - Hub PID 4450, 0.0.0.0:9100, single instance ✅
+  - Loopback + LAN both reachable from inside the WSL session ✅
+- **Implication:** Method B is operator-only without first establishing peer config on .141. **Method A (git pull + cargo build) is the cleanest remaining path** — source clone exists at `/mnt/c/ntb-acd-plugin/termlink/`, rustup installed.
+- **Captured as:** PL-095 (cross-host file transfer needs symmetric peer config).
+
 ### 2026-04-30T08:50Z — task-created + runbook drafted [agent autonomous pass]
 
 - **Action:** Inventoried fleet for agent-chat-arc command coverage
