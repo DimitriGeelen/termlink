@@ -70,6 +70,16 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-04-30T07:45Z — T-1417 SHIPPED: event.broadcast --targets fanout migrated to parallel event.emit_to [agent autonomous pass]
+- **Final pre-cut migration landed.** Both `crates/termlink-cli/src/commands/events.rs::cmd_broadcast` and `crates/termlink-mcp/src/tools.rs::termlink_broadcast` now use a parallel `event.emit_to` fanout instead of legacy `event.broadcast`. Empty-targets stays on the already-migrated `channel.post(broadcast:global)` path; non-empty-targets fans out via the new `broadcast_via_emit_to_fanout` helper.
+- **Result shape preserved:** `{topic, targeted, succeeded, failed[, errors]}` — `errors` is additive, existing consumers unaffected.
+- **Per-target failure semantics:** N of M succeed → `succeeded=N, failed=M-N` with per-target error strings. Not a hard error.
+- **Sub-fix:** Fixed pre-existing T-1407 clippy nit in `server.rs:435` (unnecessary u32→u32 cast). Workspace clippy now clean.
+- **Verification:** `cargo build -p termlink -p termlink-mcp` clean. `cargo test -p termlink --bin termlink` → 541 PASS. `cargo test -p termlink-mcp --lib` → 103 PASS. `cargo clippy --no-deps -- -D warnings` clean.
+- **Migration doc updated** to reflect new state (no more "Per-target fan-out still uses event.broadcast" note).
+- **Pre-bake checklist now: 17 shipped + T-1415 staged.** Live `event.broadcast` callers in this codebase: zero (only doc comment + routing-table-arm references remain).
+- **What's left:** Bake `event.broadcast=0` from this host's own sessions (Human AC on T-1417, requires hub binary rebuild + restart + 7d soak), then operator can authorize Tier-2 cut. The .143 ring20-dashboard holdout still needs separate termlink-cli upgrade on its container.
+
 ### 2026-04-30T07:20Z — Cut-path test suite re-verified GREEN [agent autonomous pass]
 - `cargo test -p termlink-hub --lib --features legacy_primitives_disabled cut_path` → 5/5 PASS:
   - `const_is_false_under_feature_flag`
