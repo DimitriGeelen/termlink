@@ -260,10 +260,22 @@ On the hub host, the audit log records every method dispatch:
 # Count legacy calls in the last 24h
 fw metrics api-usage --last-Nd 1
 
+# Read the JSON shape (T-1414 attribution split):
+fw metrics api-usage --last-Nd 7 --json | jq '{
+  legacy, legacy_attributable, legacy_unattributable_pre_t1409,
+  callers: .legacy_callers_by_ip
+}'
+
 # Or grep the audit log directly:
 jq -r 'select(.method | test("^(event.broadcast|inbox\\.|file\\.send|file\\.receive)$")) | .method' \
   /var/lib/termlink/rpc-audit.jsonl | sort | uniq -c | sort -rn
 ```
+
+**Read the attribution split correctly (T-1414).** Pre-T-1409-deploy lines
+on TCP callers carry no `peer_addr`/`peer_pid`/`from` — they appear as
+"(unknown)" in the legacy_callers list. The bake-decision number is
+`legacy_attributable`, not `legacy`. The unattributable backlog ages out of
+the rolling window naturally (60d after T-1409 deployed).
 
 For client-side hunting (your own session is one of the named callers in
 the report), grep your codebase:
@@ -275,6 +287,40 @@ git grep -nE 'event\.broadcast|event_broadcast|inbox\.(list|status|clear)|file\.
 
 Exclude protocol constants, deprecation shims, and test fixtures from
 your hit count.
+
+### Identifying the caller behind a peer_addr
+
+The `legacy_callers_by_ip` rollup names the source IP. If the IP is also
+running termlink-hub, its TLS fingerprint is the most stable identifier
+(persistent across container re-numbers under T-985 / T-1028 persist-if-present):
+
+```bash
+# Get the TLS fingerprint of the suspect peer's hub
+python3 -c "
+import socket, ssl, hashlib
+raw = socket.create_connection(('SUSPECT_IP', 9100), timeout=3)
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+ss = ctx.wrap_socket(raw, server_hostname='SUSPECT_IP')
+fp = hashlib.sha256(ss.getpeercert(binary_form=True)).hexdigest()
+print('sha256:' + fp)
+"
+
+# Cross-reference against ~/.termlink/known_hubs to identify the role
+grep '^[0-9].*sha256:53de15ec' ~/.termlink/known_hubs
+```
+
+If the fingerprint matches a known hub at a different IP, the container has
+been re-numbered. Look up the role by fingerprint, not by IP.
+
+For the dashboard agent specifically (canonical T-1166 holdout pattern):
+the dashboard polls `inbox.status` on a ~60s cadence. Migration is to
+upgrade its `termlink-cli` to a build containing T-1235 (the
+`inbox_channel::status_with_fallback` dual-read shim). Once the shim lands,
+polls switch to `channel.list(prefix="inbox:")` and legacy traffic from
+that caller drops to zero within one polling interval. **No hub-side change
+is required for the migration itself.**
 
 ## Roll-Forward Checklist (consumer-side)
 

@@ -4,15 +4,15 @@ name: "T-1155/9 Retire legacy event.broadcast + inbox + file.send/receive primit
 description: >
   After N months of parallel operation + deprecation warnings (T-1155 S-5 phase 4). Remove hub router handlers for event.broadcast, inbox.*, file.* once all callers migrated. Protocol bump + version diversity check (T-1132) gates removal.
 
-status: captured
+status: started-work
 workflow_type: decommission
 owner: agent
-horizon: next
+horizon: now
 tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-04-29T20:50:30Z
+last_update: 2026-04-30T07:11:16Z
 date_finished: null
 ---
 
@@ -211,3 +211,7 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 - **Consumer side now wirable:** downstream consumers (ring20-mgmt, ring20-dashboard, ntb-atc-plugin, framework-agent, skills-manager) can land their `hub.capabilities` startup check in their next deployment cycle. The check passes (returns `true`) until T-1166 cuts; it then flips automatically.
 - **T-1166 cut sequence on flag side:** when T-1166 lands, `handle_hub_capabilities` flips the literal `true` to `false` AND removes the listed legacy methods from the `methods` array AND the actual router match arms. One commit, all three changes.
 
+
+### 2026-04-30T07:11:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
