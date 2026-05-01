@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1436: T-1429-prereq: identity_fingerprint in SessionMetadata + session.discover
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-01T10:33:57Z
+# ============================================================================
+
+task_id: T-1436
+task_name: "T-1429-prereq: identity_fingerprint in SessionMetadata + session.discover"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-01T10:12:02Z
+completed: 2026-05-01T10:33:55Z
+duration_days: 0
+updates_count: 4
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`SessionMetadata` (registration.rs:170) gains `identity_fingerprint: Option<String>` with `#[serde(skip_serializing_if = \"Option::is_none\")]` so legacy registrations on disk continue to deserialize unchanged. Field landed at registration.rs:178-186"
+  - "At session registration time, the field is populated by best-effort `load_identity_fingerprint_best_effort()` helper (registration.rs:14-32) which reads `$HOME/.termlink/identity.key` if present and resolves to the fingerprint via `Identity::load_or_create`. Failures (no HOME, missing key, IO error) silently resolve to `None` so test envs and unprivileged contexts don't crash"
+  - "`session.discover` shape includes `identity_fingerprint` automatically because the handler serialises the existing `Registration.metadata` struct via serde — no separate handler change needed. Verified by spawning a fresh session post-build: `termlink list --json` returned `metadata.identity_fingerprint = \"d1993c2c3ec44c94\"` for `t1436-smoke`, matching the agent-chat-arc sender ID for this host (proves the same fingerprint is used as `sender_id` on channel.post and now as the SessionMetadata field — exactly what T-1429 needs)"
+  - "Migration test: `session_metadata_legacy_json_without_identity_fingerprint` (new) constructs a JSON without the field and asserts it deserialises with `identity_fingerprint: None` — passes"
+  - "Backward compat: pre-T-1436 sessions on disk (e.g. `framework-agent`, `termlink-agent` registered 19h ago) lack the field in their JSON; verified via `termlink list --json` they show no `identity_fingerprint` key — no errors. New sessions (post-T-1436 build) populate it. Live confirmation"
+  - "All 19 unit tests in `crates/termlink-session/src/registration.rs::tests` pass — `cargo test --release -p termlink-session --lib registration` returns `19 passed; 0 failed`"
+  - "Round-trip serialization test landed: `session_metadata_identity_fingerprint_round_trip` — sets a 64-char hex fingerprint, serialises, deserialises, asserts preserved exactly. Passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1429, identity, registration]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 21
+  commits: 1
+  files_changed: 2
+  lines_added: 93
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1436-t-1429-prereq-identityfingerprint-in-ses.md
+generated_by: context-agent-hybrid
