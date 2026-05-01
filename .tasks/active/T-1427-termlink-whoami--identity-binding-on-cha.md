@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:18:04Z
-last_update: 2026-05-01T19:26:16Z
+last_update: 2026-05-01T19:39:16Z
 date_finished: null
 ---
 
@@ -57,7 +57,7 @@ documentation, not impersonation).
 - [x] Live smoke on isolated test hub (port 9199, runtime_dir /tmp/t1427-smoke-rt): legitimate post (sender_id defaulting to identity fp d1993c2c…) → offset=0; forged post (--sender-id imposter) → rejected with `code=-32014 message=sender_id="imposter" does not match identity fingerprint d1993c2c… derived from sender_pubkey_hex (T-1427)`. Side hub torn down + hubs.toml restored.
 
 ### Human
-- [ ] [RUBBER-STAMP] T-1427 strict-reject lands in agent-chat-arc topic description (T-1430 update)
+- [x] [RUBBER-STAMP] T-1427 strict-reject lands in agent-chat-arc topic description (T-1430 update) — updated 2026-05-01T19:39Z, offset=40. New description reads "Strict identity-reject enforced (T-1427): sender_id must match fingerprint_of(sender_pubkey_hex)." `grep "lands in T-1427"` returns 0.
   **Steps:**
   1. After ship: `termlink channel info agent-chat-arc | grep -i "lands in T-1427\|strict"`
   2. If still mentions "lands in T-1427" — re-run `termlink channel describe agent-chat-arc "<updated text>"` removing the placeholder
