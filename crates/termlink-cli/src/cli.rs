@@ -3042,6 +3042,18 @@ pub(crate) enum FleetAction {
         /// RPC timeout per hub in seconds (default: 10)
         #[arg(long, default_value = "10")]
         timeout: u64,
+
+        /// T-1432: append T-1166 cut-readiness telemetry. For each reachable
+        /// hub, query `hub.legacy_usage` and tabulate legacy-primitive
+        /// invocations within `--legacy-window-days`. The fleet verdict is
+        /// CUT-READY iff every hub reports zero legacy traffic.
+        #[arg(long)]
+        legacy_usage: bool,
+
+        /// T-1432: window in days for `--legacy-usage` (default: 7).
+        /// The bake window the operator cares about pre-T-1166 cut.
+        #[arg(long, default_value = "7")]
+        legacy_window_days: u64,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

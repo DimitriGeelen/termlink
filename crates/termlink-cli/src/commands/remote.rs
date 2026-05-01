@@ -1636,7 +1636,13 @@ pub(crate) async fn cmd_fleet_status(
 pub(crate) async fn cmd_fleet_doctor(
     json: bool,
     timeout_secs: u64,
+    legacy_usage: bool,
+    legacy_window_days: u64,
 ) -> Result<()> {
+    // T-1432: clamp window to documented range. 1 day floor (avoid empty
+    // windows from 0), 90 day ceiling (matches T-1166 audit-log retention
+    // assumption — older lines may have been pruned).
+    let legacy_window_days = legacy_window_days.clamp(1, 90);
     let config = crate::config::load_hubs_config();
     if config.hubs.is_empty() {
         if json {
@@ -1716,14 +1722,43 @@ pub(crate) async fn cmd_fleet_doctor(
                 };
                 *fleet_versions.entry(hub_version.clone()).or_insert(0) += 1;
 
-                hub_results.push(serde_json::json!({
+                // T-1432: optional legacy-usage probe per hub. Pre-T-1432 hubs
+                // return method-not-found and the per-hub summary records
+                // "audit_unsupported" so the operator knows the hub needs an
+                // upgrade before its cut-readiness can be measured.
+                let legacy_summary = if legacy_usage {
+                    match client
+                        .call(
+                            "hub.legacy_usage",
+                            serde_json::json!("fleet-doctor-legacy"),
+                            serde_json::json!({"window_seconds": legacy_window_days * 86400}),
+                        )
+                        .await
+                    {
+                        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => Some(r.result),
+                        Ok(_) | Err(_) => Some(serde_json::json!({
+                            "audit_unsupported": true,
+                            "hint": "hub predates T-1432 (hub.legacy_usage) — upgrade to measure cut-readiness on this host",
+                        })),
+                    }
+                } else {
+                    None
+                };
+
+                let mut hub_obj = serde_json::json!({
                     "hub": name,
                     "address": entry.address,
                     "status": "ok",
                     "latency_ms": latency,
                     "secret_source": &secret_source,
                     "hub_version": &hub_version,
-                }));
+                });
+                if let Some(ls) = &legacy_summary
+                    && let Some(obj) = hub_obj.as_object_mut()
+                {
+                    obj.insert("legacy_usage".to_string(), ls.clone());
+                }
+                hub_results.push(hub_obj);
                 if !json {
                     eprintln!("  [PASS] connected in {}ms (version: {})", latency, hub_version);
                 }
@@ -1770,13 +1805,108 @@ pub(crate) async fn cmd_fleet_doctor(
         }
     }
 
+    // T-1432: aggregate cut-readiness verdict from per-hub legacy_usage payloads.
+    // Verdict semantics:
+    //   CUT-READY   — all reachable hubs reported audit_present=true AND total_legacy=0
+    //   WAIT        — at least one hub has total_legacy > 0
+    //   UNCERTAIN   — at least one hub returned audit_unsupported (pre-T-1432)
+    //                 OR audit_present=false (no traffic recorded yet — fresh runtime_dir)
+    //                 — operator must upgrade or wait for traffic before deciding.
+    let legacy_summary_obj = if legacy_usage {
+        let mut total_legacy_fleet: u64 = 0;
+        let mut hubs_unsupported: Vec<String> = Vec::new();
+        let mut hubs_no_audit: Vec<String> = Vec::new();
+        let mut hubs_with_traffic: Vec<(String, u64, u128)> = Vec::new();
+        let mut hubs_clean: Vec<String> = Vec::new();
+        for h in &hub_results {
+            let name = h.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            let Some(lu) = h.get("legacy_usage") else { continue };
+            if lu.get("audit_unsupported").and_then(|v| v.as_bool()) == Some(true) {
+                hubs_unsupported.push(name);
+                continue;
+            }
+            if lu.get("audit_present").and_then(|v| v.as_bool()) == Some(false) {
+                hubs_no_audit.push(name);
+                continue;
+            }
+            let count = lu.get("total_legacy").and_then(|v| v.as_u64()).unwrap_or(0);
+            total_legacy_fleet += count;
+            if count > 0 {
+                let last_ts = lu
+                    .get("last_legacy_ts_ms")
+                    .and_then(|v| v.as_u64())
+                    .map(|t| t as u128)
+                    .unwrap_or(0);
+                hubs_with_traffic.push((name, count, last_ts));
+            } else {
+                hubs_clean.push(name);
+            }
+        }
+        let verdict = if !hubs_with_traffic.is_empty() {
+            "WAIT"
+        } else if !hubs_unsupported.is_empty() || !hubs_no_audit.is_empty() {
+            "UNCERTAIN"
+        } else if !hubs_clean.is_empty() {
+            "CUT-READY"
+        } else {
+            "UNCERTAIN" // no reachable hubs at all
+        };
+        if !json {
+            eprintln!();
+            eprintln!("=== T-1166 cut-readiness ({}d window) ===", legacy_window_days);
+            eprintln!("Verdict: {}", verdict);
+            eprintln!("  total legacy invocations across fleet: {}", total_legacy_fleet);
+            if !hubs_clean.is_empty() {
+                eprintln!("  CLEAN ({}d): {}", legacy_window_days, hubs_clean.join(", "));
+            }
+            if !hubs_with_traffic.is_empty() {
+                eprintln!("  WITH TRAFFIC:");
+                for (name, count, _ts) in &hubs_with_traffic {
+                    eprintln!("    {name}: {count} legacy invocation(s)");
+                }
+            }
+            if !hubs_unsupported.is_empty() {
+                eprintln!(
+                    "  UNSUPPORTED (pre-T-1432, upgrade to measure): {}",
+                    hubs_unsupported.join(", ")
+                );
+            }
+            if !hubs_no_audit.is_empty() {
+                eprintln!(
+                    "  NO AUDIT FILE (fresh runtime_dir or hub never received traffic): {}",
+                    hubs_no_audit.join(", ")
+                );
+            }
+            if verdict == "CUT-READY" {
+                eprintln!("  → safe to flip LEGACY_PRIMITIVES_ENABLED=false (T-1166)");
+            }
+        }
+        Some(serde_json::json!({
+            "window_days": legacy_window_days,
+            "verdict": verdict,
+            "total_legacy_fleet": total_legacy_fleet,
+            "hubs_clean": hubs_clean,
+            "hubs_with_traffic": hubs_with_traffic.iter().map(|(n, c, t)| serde_json::json!({"hub": n, "count": c, "last_ts_ms": *t as u64})).collect::<Vec<_>>(),
+            "hubs_unsupported": hubs_unsupported,
+            "hubs_no_audit": hubs_no_audit,
+        }))
+    } else {
+        None
+    };
+
     if json {
-        println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+        let mut top = serde_json::json!({
             "ok": total_fail == 0,
             "hubs": hub_results,
             "summary": {"total": hub_results.len(), "pass": total_pass, "warn": total_warn, "fail": total_fail},
             "fleet_versions": fleet_versions,
-        }))?);
+        });
+        if let Some(ls) = legacy_summary_obj
+            && let Some(obj) = top.as_object_mut()
+        {
+            obj.insert("legacy_summary".to_string(), ls);
+        }
+        println!("{}", serde_json::to_string_pretty(&top)?);
     } else {
         eprintln!("Fleet summary: {} hub(s), {} ok, {} warn, {} fail",
             hub_results.len(), total_pass, total_warn, total_fail);
