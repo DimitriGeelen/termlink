@@ -403,7 +403,8 @@ concerns:
   what_works_now: "`channel create` works on a fresh hub. Topic re-creation is idempotent and immediately accepts posts. Local hub on .107 retained agent-chat-arc throughout (no restart, so the in-memory issue didn't bite there)."
   what_remains: "1. Persist topic registry to disk in runtime_dir (alongside hub.secret), reload on start. 2. Or: have vendored chat-arc agents check + recreate the topic on (re)connect, not just at first init. 3. Or: extend channel.post to auto-create on -32013 with a flag (`--create-if-missing`). 4. Add a fleet-doctor diagnostic that inventories required topics per hub and warns if missing."
   mitigation_candidate: "Cheapest first: option 2 (chat-arc agent self-heals on reconnect via `channel create` with idempotent semantics). Option 1 is the proper fix and fits the T-1294 pattern. Deferred: option 3 risks accidental topic name typos creating ghost topics."
-  status: watching
+  mitigation_progress: "2026-05-01T21:16Z (T-1443): Shipped option-3 (`channel post --ensure-topic` opt-in flag) — typo-detection preserved by being default-off. Live-verified on local .107 hub AND cross-host .122 hub: without flag → -32013, with --ensure-topic → delivered.offset=0. Vendored agents posting to known-canon topics (chat-arc, broadcast streams) can now self-heal across hub restart by passing the flag. Option 1 (hub-side topic registry persistence) remains the proper long-term fix and is not in scope of T-1443; tracking continues. Infra callers like t1438-checkin.sh can adopt --ensure-topic incrementally."
+  status: mitigated
   created: 2026-05-01
   last_reviewed: 2026-05-01
-  related_tasks: [T-1294, T-1429, T-1438, T-1441]
+  related_tasks: [T-1294, T-1429, T-1438, T-1441, T-1443]

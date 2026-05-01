@@ -57,6 +57,7 @@ PAYLOAD="T-1438 24h check-in: hub=${STATUS}, version=${VERSION}, secret_sha=${SE
 log "posting to agent-chat-arc: $PAYLOAD"
 
 POST_RESULT=$(timeout 15 /opt/termlink/target/release/termlink channel post agent-chat-arc \
+  --ensure-topic \
   --msg-type chat \
   --payload "$PAYLOAD" \
   --metadata "_thread=T-1438" \

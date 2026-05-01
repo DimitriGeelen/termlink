@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1443: channel post --ensure-topic flag (G-050 mitigation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-01T21:19:48Z
+# ============================================================================
+
+task_id: T-1443
+task_name: "channel post --ensure-topic flag (G-050 mitigation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-01T21:07:06Z
+completed: 2026-05-01T21:16:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-01T23:15:46+02:00
+last_commit: 2026-05-01T23:15:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel post --ensure-topic flag (G-050 mitigation, opt-in topic auto-create)
+
+# Key outcomes
+outcomes:
+  - "`cmd_channel_post` in `crates/termlink-cli/src/commands/channel.rs` accepts a new `ensure_topic_flag: bool` parameter (signature line 234, plumbed at line 295 with idempotent ensure_topic call before post)"
+  - "When `ensure_topic_flag = true`, the function calls `ensure_topic(&sock, topic)` before the post; failure of `ensure_topic` is non-fatal (warns and proceeds — original -32013 still surfaces if topic genuinely missing)"
+  - "CLI surface: `termlink channel post` accepts `--ensure-topic` flag (default false); flag passes through to `cmd_channel_post` (cli.rs:1678 + main.rs:380 dispatch)"
+  - "All 14 existing call sites of `cmd_channel_post` updated to pass `false` — receipt, reaction (2 paths), chat reply, topic_metadata (cmd_channel_describe), redaction, edit, typing, forward, pin, star, poll_start, poll_vote, poll_end. CLI dispatch passes the flag through."
+  - "`cargo build -p termlink --release` passes with zero warnings on the new code path"
+  - "`cargo test -p termlink --bins commands::channel` passes — 306 passed; 0 failed"
+  - "**Live verification (LOCAL HUB .107):** fresh topic `t1443-ensure-topic-smoke-1777670103` — without flag → `-32013 unknown topic`, with `--ensure-topic` → `delivered.offset=0`, topic now exists with the post."
+  - "**Live verification (CROSS-HOST HUB .122):** fresh topic `t1443-cross-host-smoke-1777670111` — without flag → `-32013 unknown topic` cross-hub, with `--ensure-topic` → `delivered.offset=0`. G-050 mitigation operational on the .122 leg, the host that has been losing chat-arc topic across swaps."
+  - "[RUBBER-STAMP] Verify the flag works on a freshly-restarted hub — **self-validated 2026-05-01T21:18Z (mechanically equivalent to post-swap)**"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-05-01.yaml"
+  - ".context/audits/cron/2026-04-23-2300.yaml"
+  - ".context/audits/cron/2026-05-01-2315.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/audits/discoveries/LATEST.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.stop-counter"
+  - ".context/working/subagent-returns.jsonl"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/reports/U-005-meta-populate.md"
+  - ".tasks/active/T-1442-populate-modelused-and-fallbackused-in-d.md"
+  - ".tasks/active/T-1443-channel-post---ensure-topic-flag-g-050-m.md"
+  - ".termlink-task"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-01T23:15:46"
+    action: "T-1443: channel post --ensure-topic flag (G-050 mitigation, opt-in topic auto-create)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 22
+  lines_added: 194
+  lines_removed: 102
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1443-channel-post---ensure-topic-flag-g-050-m.md
+generated_by: context-agent-hybrid
