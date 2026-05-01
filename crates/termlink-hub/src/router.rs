@@ -215,7 +215,7 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
                         })
                 })
                 .map(|s| {
-                    json!({
+                    let mut entry = json!({
                         "id": s.id.as_str(),
                         "display_name": s.display_name,
                         "state": s.state,
@@ -223,7 +223,14 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
                         "roles": s.roles,
                         "tags": s.tags,
                         "pid": s.pid,
-                    })
+                    });
+                    // T-1441: surface identity_fingerprint so `remote list`
+                    // can show it as the value `--target-fp` wants. Omit
+                    // (not null) when absent for pre-T-1436 sessions.
+                    if let Some(fp) = s.metadata.identity_fingerprint.as_deref() {
+                        entry["identity_fingerprint"] = json!(fp);
+                    }
+                    entry
                 })
                 .collect();
 
@@ -1940,6 +1947,46 @@ mod tests {
 
         h1.abort();
         h2.abort();
+    }
+
+    /// T-1441: handle_discover surfaces identity_fingerprint per session
+    /// so `remote list` can render the FP column. Field is omitted (not
+    /// null) for pre-T-1436 sessions; present when a session loaded an
+    /// agent identity at registration.
+    #[tokio::test]
+    async fn discover_includes_identity_fingerprint_when_present() {
+        let _lock = ENV_LOCK.lock().await;
+        if let Some(s) = super::remote_store() { s.clear(); }
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+
+        let (h1, r1) = start_test_session(&sessions_dir, "fp-probe").await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let resp = handle_discover(json!("fp-1"), &json!({"name": "fp-probe"})).await;
+        if let RpcResponse::Success(r) = resp {
+            let sessions = r.result["sessions"].as_array().unwrap();
+            assert_eq!(sessions.len(), 1);
+            // identity_fingerprint reflects what r1.metadata recorded.
+            // start_test_session uses Session::register_in → Registration::new
+            // → load_identity_fingerprint_best_effort. Field is Some when
+            // ~/.termlink/identity.key exists in this environment, None
+            // otherwise — assert the returned JSON tracks that.
+            let actual_fp = sessions[0]["identity_fingerprint"].as_str();
+            let expected_fp = r1.metadata.identity_fingerprint.as_deref();
+            assert_eq!(
+                actual_fp, expected_fp,
+                "discover JSON must surface session metadata identity_fingerprint"
+            );
+        } else {
+            panic!("expected success response from handle_discover");
+        }
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        h1.abort();
     }
 
     #[tokio::test]
