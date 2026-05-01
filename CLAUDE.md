@@ -988,6 +988,7 @@ This gate is non-negotiable. The PreToolUse hook will block Write/Edit without a
 | Blast radius | `fw fabric blast-radius [ref]` | `./agents/fabric/fabric.sh blast-radius [ref]` |
 | Fabric drift | `fw fabric drift` | `./agents/fabric/fabric.sh drift` |
 | Register component | `fw fabric register <path>` | `./agents/fabric/fabric.sh register <path>` |
+| **Cross-host handoff** | **`/agent-handoff <target> <task-id> "<msg>"`** | Skill wrapping `termlink agent contact` — see `.claude/commands/agent-handoff.md` |
 | **Auto-restart** | **`claude-fw [args...]`** | Wrapper: runs claude, auto-restarts on handover signal |
 
 ## Auto-Restart (T-179)
