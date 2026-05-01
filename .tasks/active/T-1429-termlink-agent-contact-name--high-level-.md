@@ -99,14 +99,21 @@ target/release/termlink agent contact --help 2>&1 | grep -q "T-1425\|RFC"
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-05-01 — Identity-discovery prereq blocks Phase-1 build
+
+- **Chose:** Defer T-1429 build pending identity-discovery wiring; ship Phase-1 only after the prereq lands
+- **Why:** AC "When `<target>` resolves via `discover`, the verb finds the session and extracts its `sender_id`" requires `SessionMetadata` (crates/termlink-session/src/registration.rs:147) to expose the owner's identity fingerprint. It does not today (verified 2026-05-01: the struct has shell/term/cwd/termlink_version/data_socket — no identity_fingerprint). Without that field, name-resolution → dm-topic-canonicalisation cannot work; we'd be building on `display_name` collisions
+- **Rejected (A):** Build with `display_name` as the dm-key — would create dm:display_name collisions (any two sessions with the same display name on different hosts collapse onto the same topic) and diverge from the `dm:<sorted_fp>:<sorted_fp>` convention that `cmd_channel_dm` (T-1319) already canonicalised
+- **Rejected (B):** Build a Phase-1 MVP that takes `--peer-fingerprint <hex>` directly — duplicates `cmd_channel_dm` with an alias rename; no net new value over the existing verb; vendored agents would still need to know the peer fingerprint
+- **Rejected (C):** Skip discovery entirely, post to a global topic — abandons the dm:* canon and forks the protocol away from T-1425 §3.2
+
+**Phase split:**
+- **Phase-0 (prereq, NOT YET TASKED):** Add `identity_fingerprint: Option<String>` to `SessionMetadata`; populate from `load_identity_or_create()` at registration time; surface in `session.discover` response. This is a small, structural change that benefits any future identity-aware verb (T-1427 strict-reject, T-1429 contact, T-1430 self-describe). Estimate: 50-80 lines + migration test for legacy registrations missing the field.
+- **Phase-1 (this task post-prereq):** Basic `agent contact <name> --message "..."` with discover-based resolution, dm-topic auto-create with self-describe, default fire-and-forget post. ACs marked CLI surface + Discovery + Self-describe + minimal Output.
+- **Phase-2 (separate follow-up):** `--file`, `--ack-required`, `--require-online`, advanced target forms (`name@hub:port`, `sender_id:<hex>`). Independently shippable after Phase-1.
+
+**Action for next session:** capture the Phase-0 prereq as a separate task before reopening this one. T-1429's ACs are otherwise sound — they just need Phase-0 to land first.
+
 
 ## Updates
 
