@@ -263,8 +263,8 @@ async fn main() -> Result<()> {
             AgentAction::Negotiate { specialist, schema, draft, from, max_rounds, timeout, interval, json } => {
                 commands::agent::cmd_agent_negotiate(commands::agent::NegotiateOpts { specialist: &specialist, schema_str: &schema, draft_str: &draft, from: from.as_deref(), max_rounds, timeout, interval, json }).await
             }
-            AgentAction::Contact { target, message, hub, json } => {
-                commands::agent::cmd_agent_contact(&target, &message, hub.as_deref(), json).await
+            AgentAction::Contact { target, message, thread, hub, json } => {
+                commands::agent::cmd_agent_contact(&target, &message, thread.as_deref(), hub.as_deref(), json).await
             }
         },
         Command::File { action } => match action {
@@ -416,6 +416,7 @@ async fn main() -> Result<()> {
                         send.as_deref(),
                         reply_to,
                         &mentions,
+                        &[],   // T-1429 Phase-2: extra_metadata — `channel dm` has no flag for it yet
                         topic_only,
                         hub.as_deref(),
                         json,

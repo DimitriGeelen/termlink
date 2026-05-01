@@ -671,6 +671,7 @@ pub(crate) async fn cmd_agent_negotiate(opts: NegotiateOpts<'_>) -> Result<()> {
 pub(crate) async fn cmd_agent_contact(
     target: &str,
     message: &str,
+    thread: Option<&str>,
     hub: Option<&str>,
     json: bool,
 ) -> Result<()> {
@@ -703,12 +704,21 @@ pub(crate) async fn cmd_agent_contact(
         std::process::exit(8);
     })?;
 
+    // T-1429 Phase-2 partial: --thread routes via `metadata._thread`
+    // (agent-chat-arc protocol canon). Other extra metadata is reserved
+    // for future flags (--subject, --requires-ack); this slot stays empty
+    // for now.
+    let extra_metadata: Vec<String> = thread
+        .map(|t| vec![format!("_thread={t}")])
+        .unwrap_or_default();
+
     super::channel::cmd_channel_dm(
         peer_fp,
         Some(message),
-        None,    // reply_to
-        &[],     // mentions
-        false,   // topic_only
+        None,             // reply_to
+        &[],              // mentions
+        &extra_metadata,  // T-1429 Phase-2 partial: --thread
+        false,            // topic_only
         hub,
         json,
     )
