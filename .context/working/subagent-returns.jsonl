@@ -160,3 +160,4 @@
 {"ts": "2026-05-01T19:04:05Z", "session_id": "9b545678-83c5-4328-99cb-47f811f79b51", "agent_type": "", "agent_id": "aacd5d76551459044", "bytes": 1894, "threshold": 8192, "migrated": false, "bus_ref": null}
 {"ts": "2026-05-01T19:57:24Z", "session_id": "9b545678-83c5-4328-99cb-47f811f79b51", "agent_type": "", "agent_id": "aad1845ca5e3ea0ba", "bytes": 1474, "threshold": 8192, "migrated": false, "bus_ref": null}
 {"ts": "2026-05-01T20:41:56Z", "session_id": "9b545678-83c5-4328-99cb-47f811f79b51", "agent_type": "", "agent_id": "a7f5cdd3cb43ded5e", "bytes": 1642, "threshold": 8192, "migrated": false, "bus_ref": null}
+{"ts": "2026-05-01T21:04:20Z", "session_id": "9b545678-83c5-4328-99cb-47f811f79b51", "agent_type": "", "agent_id": "ad11c62b33cd81b93", "bytes": 2411, "threshold": 8192, "migrated": false, "bus_ref": null}

@@ -1676,6 +1676,16 @@ pub(crate) enum ChannelAction {
         #[arg(long = "mention", value_name = "ID")]
         mentions: Vec<String>,
 
+        /// Auto-create the topic via idempotent `channel.create` before
+        /// posting (G-050 mitigation, T-1443). Opt-in: typo'd topic names
+        /// still surface as -32013 unknown topic for default callers.
+        /// Use this for known-canon topics that may have been lost in a
+        /// hub restart (chat-arc, broadcast streams, scratchpads). Failure
+        /// of channel.create is non-fatal; the post proceeds and the
+        /// underlying -32013 surfaces if the topic genuinely doesn't exist.
+        #[arg(long = "ensure-topic")]
+        ensure_topic: bool,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
