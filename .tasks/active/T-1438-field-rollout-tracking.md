@@ -41,7 +41,7 @@ PVE container), `laptop-141` (.141, WSL on dimitrixpro), and
 - [x] **.107 (local-test) — skill installed** — `~/.claude/commands/agent-handoff.md` (4568 bytes, 2026-05-01T12:03Z). Binary 0.9.1656 already there. Full functionality
 - [x] **.122 (ring20-management) — skill installed** — pushed via `termlink remote exec` + base64 inline (file.send is T-1166 deprecated). Verified `wc -c ~/.claude/commands/agent-handoff.md` = 4568 on the remote. Binary 0.9.1630 — `agent contact` will return "unknown subcommand" until binary upgrade
 - [x] **.141 (laptop-141, WSL) — skill installed** — same path, `/home/dimitri/.claude/commands/agent-handoff.md`, 4568 bytes verified. Binary at `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink` is older (T-1420 deployed 0.9.1591). Same stale-binary caveat as .122
-- [ ] **.122 (ring20-management) — binary upgrade to >= 0.9.1652** — gated on (a) musl rebuild at HEAD (kicked off in background, see Updates), (b) PL-100 dry-run via T-1423 `--probe`. Defer to T-1424 if not green by end of session
+- [x] **.122 (ring20-management) — binary STAGED + PROBED 2026-05-01T12:13Z** — `scripts/fleet-deploy-binary.sh ring20-management --probe` succeeded: musl 0.9.1657 (sha 0ffcac6752…) streamed in 453 chunks, SHA verified on remote, `/tmp/termlink.new --version` returned `termlink 0.9.1657`. PL-100 mitigation T-1423 cleared the foreign-binary load. **NOT swapped** — left at `/tmp/termlink.new` for operator-approved cutover (running binary is still 0.9.1630 at `/usr/local/bin/termlink`). Operator command: `termlink remote exec 192.168.10.122:9100 ring20-management-agent "mv /tmp/termlink.new /usr/local/bin/termlink && systemctl restart termlink-hub" --secret-file /root/.termlink/secrets/ring20-management.hex`. Tier-0 risk per CLAUDE.md "Executing actions with care" — swap is shared-state, hub-restart impacts other clients (TOFU re-pin), NOT autonomous-mode authorized
 - [ ] **.141 (laptop-141) — binary upgrade to >= 0.9.1652** — WSL target. Build pipeline TBD; T-1420 used a Windows-side build path. Defer to T-1420 follow-up
 - [ ] **.143 (ring20-dashboard) — operator auth heal completed** — T-1418 dependency. Once secret is heal-deployed, push skill via same base64 path, then binary
 - [ ] **Cross-host smoke test** — once any TWO field hosts have both skill + binary, run `/agent-handoff` between them (e.g., .107 → .122). Capture offset on shared dm:* topic
@@ -88,6 +88,24 @@ test -f /root/.claude/commands/agent-handoff.md
 - **Action:** Kicked off `cargo build --release --target x86_64-unknown-linux-musl --bin termlink` in background
 - **Why:** Current musl artifact (target/x86_64-unknown-linux-musl/release/termlink) is at 0.9.1640 — predates T-1429 Phase-1 ship at a5fb0ad4. Need fresh build for .122 push
 - **Status:** rebuild in progress; will probe completion before scheduling deploy
+
+### 2026-05-01T12:08Z — thread-flag-shipped [agent autonomous]
+- **Action:** Shipped T-1429 Phase-2 partial — `agent contact --thread <task-id>` (commit b4ed67c0)
+- **Why:** Skill currently embeds task-id as `[T-XXX]` body prefix (hacky). `--thread` puts it in `metadata._thread` per agent-chat-arc canon (T-1430)
+- **Verified live:** offset=5 dm envelope shows `metadata: {"_thread": "T-1429"}`. Older offset=4 metadata-free → additive, no break
+- **Skill stance:** Keep `[T-XXX]` body prefix for portability; callers on >= 0.9.1657 may use --thread directly. Belt-and-suspenders is fine
+- **Chat-arc:** offset 25 announces ship
+
+### 2026-05-01T12:11Z — musl-rebuilt [agent autonomous]
+- **Action:** Musl rebuild complete — fresh artifact at `target/x86_64-unknown-linux-musl/release/termlink`, SHA `0ffcac67524f2bd9a32280ff9a16e62162726f9b38ed48301c1bdbd874f141db`, version 0.9.1657 (includes Phase-2 --thread)
+- **Status:** ready for deploy
+
+### 2026-05-01T12:13Z — staged-probed-122 [fleet-deploy-binary]
+- **Action:** `scripts/fleet-deploy-binary.sh ring20-management --probe` — staged + probed on .122
+- **Result:** 453 chunks streamed (failures=0), SHA matched on remote, `/tmp/termlink.new --version` returned `termlink 0.9.1657`
+- **PL-100 mitigation:** T-1423 `--probe` cleared the foreign-binary load — confirmed musl-static binary is loadable on .122's environment before any swap. The failure mode that broke .122 in T-1422 is now caught by `--probe` rather than at runtime
+- **NOT swapped:** binary sitting at `/tmp/termlink.new` waiting for operator-approved cutover. Tier-0 risk: swap restarts the hub, triggers TOFU re-pin on all clients. Not autonomous-mode authorized
+- **Operator handoff:** see T-1438 AC for the copy-paste swap command. Once swapped, operator runs the cross-host smoke from .107: `termlink agent contact <peer-on-.122> --message "..." --thread T-1438`
 
 ## Updates
 
