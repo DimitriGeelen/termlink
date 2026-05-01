@@ -188,6 +188,129 @@ pub(crate) fn build_audit_line(
     format!("{{{}}}", parts.join(","))
 }
 
+// T-1432: summarize legacy-primitive invocations from the audit log within
+// the given time window. Returns a JSON value shaped for `hub.legacy_usage`
+// callers (fleet doctor cut-readiness telemetry).
+//
+// Schema:
+//   {
+//     "window_seconds": <u64>,
+//     "now_ms": <u128>,
+//     "audit_present": <bool>,
+//     "total_legacy": <u64>,
+//     "last_legacy_ts_ms": <u128 | null>,
+//     "by_method": {
+//       "<method>": { "count": <u64>, "last_ts_ms": <u128>, "callers": [{"from": "<label>", "count": <u64>}, ...] },
+//       ...
+//     }
+//   }
+//
+// "Legacy" = the set defined by `is_legacy_method` (event.broadcast,
+// inbox.{list,status,clear}, file.{send,receive} + chunked variants).
+//
+// Skips malformed lines silently — best-effort parser, mirrors the
+// best-effort write path. Caller decides what to do with the count.
+pub fn summarize_legacy_usage(window_seconds: u64) -> serde_json::Value {
+    use std::io::{BufRead, BufReader};
+
+    let path = current_path();
+    let audit_present = path.is_some_and(|p| p.exists());
+
+    let lines: Vec<String> = if audit_present
+        && let Some(path) = path
+        && let Ok(file) = std::fs::File::open(path)
+    {
+        BufReader::new(file).lines().map_while(Result::ok).collect()
+    } else {
+        Vec::new()
+    };
+
+    summarize_lines(lines.into_iter(), window_seconds, now_ms(), audit_present)
+}
+
+// Pure helper: sums up audit-line iterator within a window. Splitting this
+// out from `summarize_legacy_usage` lets tests drive it without poking
+// AUDIT_PATH (OnceLock-only-once is a unit-test ergonomic hazard).
+pub(crate) fn summarize_lines(
+    lines: impl Iterator<Item = String>,
+    window_seconds: u64,
+    now: u128,
+    audit_present: bool,
+) -> serde_json::Value {
+    use std::collections::BTreeMap;
+
+    let window_ms: u128 = (window_seconds as u128).saturating_mul(1000);
+    let window_start_ms = now.saturating_sub(window_ms);
+
+    let mut total: u64 = 0;
+    let mut last_ts: Option<u128> = None;
+    let mut by_method: BTreeMap<String, (u64, u128, BTreeMap<String, u64>)> = BTreeMap::new();
+
+    for line in lines {
+        let v: serde_json::Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let ts = v.get("ts").and_then(|t| t.as_u64()).unwrap_or(0) as u128;
+        if ts < window_start_ms {
+            continue;
+        }
+        let method = match v.get("method").and_then(|m| m.as_str()) {
+            Some(m) => m,
+            None => continue,
+        };
+        if !is_legacy_method(method) {
+            continue;
+        }
+        total += 1;
+        last_ts = Some(last_ts.map_or(ts, |prev| prev.max(ts)));
+        let from = v
+            .get("from")
+            .and_then(|f| f.as_str())
+            .unwrap_or("(unknown)")
+            .to_string();
+        let entry = by_method
+            .entry(method.to_string())
+            .or_insert_with(|| (0, 0, BTreeMap::new()));
+        entry.0 += 1;
+        entry.1 = entry.1.max(ts);
+        *entry.2.entry(from).or_insert(0) += 1;
+    }
+
+    let by_method_json: serde_json::Map<String, serde_json::Value> = by_method
+        .into_iter()
+        .map(|(method, (count, ts, callers))| {
+            let mut callers_vec: Vec<serde_json::Value> = callers
+                .into_iter()
+                .map(|(from, c)| serde_json::json!({"from": from, "count": c}))
+                .collect();
+            callers_vec.sort_by(|a, b| {
+                b.get("count")
+                    .and_then(|x| x.as_u64())
+                    .unwrap_or(0)
+                    .cmp(&a.get("count").and_then(|x| x.as_u64()).unwrap_or(0))
+            });
+            (
+                method,
+                serde_json::json!({
+                    "count": count,
+                    "last_ts_ms": ts,
+                    "callers": callers_vec,
+                }),
+            )
+        })
+        .collect();
+
+    serde_json::json!({
+        "window_seconds": window_seconds,
+        "now_ms": now,
+        "audit_present": audit_present,
+        "total_legacy": total,
+        "last_legacy_ts_ms": last_ts,
+        "by_method": serde_json::Value::Object(by_method_json),
+    })
+}
+
 fn append_line(path: &Path, line: &str) -> std::io::Result<()> {
     use std::fs::OpenOptions;
     use std::io::Write;
@@ -460,6 +583,64 @@ mod tests {
             t1, t2,
             "second call within rate-limit window must NOT update timestamp"
         );
+    }
+
+    #[test]
+    fn summarize_lines_counts_only_legacy_within_window() {
+        // T-1432: parser correctness — legacy lines inside window count,
+        // non-legacy and out-of-window lines do not.
+        let now: u128 = 1_000_000_000_000;
+        let window_seconds: u64 = 7 * 86400;
+        let in_window = now - 1000;
+        let out_of_window = now - (window_seconds as u128) * 1000 - 1;
+        let lines = vec![
+            // 3 legacy in-window with two distinct callers
+            format!(r#"{{"ts":{},"method":"event.broadcast","from":"agent-a"}}"#, in_window),
+            format!(r#"{{"ts":{},"method":"inbox.list","from":"agent-a"}}"#, in_window - 100),
+            format!(r#"{{"ts":{},"method":"event.broadcast","from":"agent-b"}}"#, in_window - 50),
+            // non-legacy in-window: must be ignored
+            format!(r#"{{"ts":{},"method":"channel.post","from":"agent-a"}}"#, in_window),
+            // legacy but out of window: must be ignored
+            format!(r#"{{"ts":{},"method":"file.send","from":"agent-c"}}"#, out_of_window),
+            // malformed: must be ignored
+            "not-json".to_string(),
+        ];
+        let summary = summarize_lines(lines.into_iter(), window_seconds, now, true);
+        assert_eq!(summary["total_legacy"], 3);
+        assert_eq!(summary["audit_present"], true);
+        assert_eq!(summary["window_seconds"], window_seconds);
+        let by = summary["by_method"].as_object().unwrap();
+        assert_eq!(by["event.broadcast"]["count"], 2);
+        assert_eq!(by["inbox.list"]["count"], 1);
+        assert!(by.get("file.send").is_none());
+        assert!(by.get("channel.post").is_none());
+        // Caller breakdown: event.broadcast had agent-a + agent-b each once
+        let bcast_callers = by["event.broadcast"]["callers"].as_array().unwrap();
+        assert_eq!(bcast_callers.len(), 2);
+    }
+
+    #[test]
+    fn summarize_lines_empty_audit_returns_zero() {
+        // Audit-not-present and empty-audit must both return total_legacy=0.
+        // The verdict logic in fleet doctor distinguishes via audit_present flag.
+        let s = summarize_lines(std::iter::empty(), 7 * 86400, 1_000_000_000_000, false);
+        assert_eq!(s["total_legacy"], 0);
+        assert_eq!(s["audit_present"], false);
+        assert!(s["last_legacy_ts_ms"].is_null());
+    }
+
+    #[test]
+    fn summarize_lines_handles_missing_from_field() {
+        // T-1309: from field is optional. Lines without it must still count
+        // and bucket under "(unknown)".
+        let now: u128 = 1_000_000_000_000;
+        let lines = vec![format!(r#"{{"ts":{},"method":"event.broadcast"}}"#, now - 100)];
+        let s = summarize_lines(lines.into_iter(), 7 * 86400, now, true);
+        assert_eq!(s["total_legacy"], 1);
+        let callers = s["by_method"]["event.broadcast"]["callers"]
+            .as_array()
+            .unwrap();
+        assert_eq!(callers[0]["from"], "(unknown)");
     }
 
     #[test]

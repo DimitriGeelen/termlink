@@ -169,6 +169,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
             crate::artifact::handle_artifact_get(id, &req.params).await
         }
         "hub.version" => handle_hub_version(id),
+        "hub.legacy_usage" => handle_hub_legacy_usage(id, &req.params),
         control::method::HUB_CAPABILITIES => handle_hub_capabilities(id),
         _ => forward_to_target(req, id).await,
     };
@@ -883,6 +884,24 @@ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
     .into()
 }
 
+/// Handle `hub.legacy_usage` — return T-1166 cut-readiness telemetry.
+///
+/// Tier-A (opaque). Optional params `{"window_seconds": <u64>}` (default 7d).
+/// Reads the local rpc-audit.jsonl, filters by window, returns counts +
+/// last-seen + per-caller breakdown for every legacy method.
+///
+/// T-1432: fleet doctor walks each reachable hub and aggregates these into
+/// a fleet-wide cut verdict (CUT-READY iff every hub reports total_legacy=0
+/// for the bake window).
+fn handle_hub_legacy_usage(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let window_seconds = params
+        .get("window_seconds")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(7 * 86400); // default 7d
+    let summary = crate::rpc_audit::summarize_legacy_usage(window_seconds);
+    Response::success(id, summary).into()
+}
+
 /// Handle `hub.capabilities` — return the list of JSON-RPC methods this hub
 /// serves directly (T-1215 / T-1214 GO Option B). Enables federating clients
 /// to detect stranger-lineage peers that lack `channel.*` and fall back to
@@ -924,6 +943,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::ARTIFACT_PUT,
         control::method::ARTIFACT_GET,
         "hub.version",
+        "hub.legacy_usage",
         control::method::HUB_CAPABILITIES,
     ];
     // T-1411: filter retired legacy method names out of the methods array
