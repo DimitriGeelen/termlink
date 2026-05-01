@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:26:39Z
-last_update: 2026-05-01T10:59:25Z
+last_update: 2026-05-01T11:18:55Z
 date_finished: null
 ---
 
@@ -28,7 +28,8 @@ date_finished: null
 
 **CLI surface (Phase-1):**
 - [x] `termlink agent contact <target> --message <m> [--hub <addr>] [--json]` parses correctly via `termlink agent contact --help`. Help text references T-1425 RFC + T-1427 future strict-reject + T-1436 prereq + Phase-2 deferred ACs
-- [ ] **Phase-2 (deferred):** `--file <path>`, `--thread <id>`, `--ack-required`, `--ack-wait <secs>`, `--require-online` flags. Out of scope for Phase-1 ship; track separately if/when needed
+- [x] **Phase-2 partial — `--thread <id>` SHIPPED 2026-05-01T12:08Z:** `termlink agent contact <target> --message <m> --thread <task-id>` sets `metadata._thread=<task-id>` per agent-chat-arc protocol canon (T-1430 topic doc). Implementation: 1-line wire in cli.rs Contact variant, plumbed through main.rs and agent.rs:cmd_agent_contact, extends cmd_channel_dm to accept `&[String] extra_metadata` slot, mentions still go through unchanged. Vendored agents can now route DM messages by thread server-side without parsing the `[T-XXX]` body prefix. The skill keeps `[T-XXX]` body prefix for portability (older binaries lack `--thread`); callers on >= 0.9.1657 may use `--thread` directly for cleaner metadata routing
+- [ ] **Phase-2 (still deferred):** `--file <path>`, `--ack-required`, `--ack-wait <secs>`, `--require-online` flags. Out of scope; track separately when needed
 - [ ] **Phase-2 (deferred):** advanced `<target>` forms — `name@hub:port`, `sender_id:<hex>`. Phase-1 supports bare session-name only (resolved via local registration)
 
 **Discovery + topic resolution (Phase-1):**

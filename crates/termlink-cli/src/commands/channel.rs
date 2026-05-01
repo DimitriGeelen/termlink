@@ -497,6 +497,7 @@ pub(crate) async fn cmd_channel_dm(
     send: Option<&str>,
     reply_to: Option<u64>,
     mentions: &[String],
+    extra_metadata: &[String],
     topic_only: bool,
     hub: Option<&str>,
     json_output: bool,
@@ -546,11 +547,14 @@ pub(crate) async fn cmd_channel_dm(
     match send {
         Some(msg) => {
             // T-1325: pack mentions into metadata if provided
-            let metadata: Vec<String> = if mentions.is_empty() {
+            // T-1429 Phase-2 partial: also append caller-supplied extras
+            // (e.g. `_thread=T-XXX` from `agent contact --thread`).
+            let mut metadata: Vec<String> = if mentions.is_empty() {
                 Vec::new()
             } else {
                 vec![format!("mentions={}", mentions.join(","))]
             };
+            metadata.extend_from_slice(extra_metadata);
             cmd_channel_post(
                 &topic,
                 "chat",
