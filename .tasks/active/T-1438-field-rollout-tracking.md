@@ -100,6 +100,31 @@ test -f /root/.claude/commands/agent-handoff.md
 - **Action:** Musl rebuild complete — fresh artifact at `target/x86_64-unknown-linux-musl/release/termlink`, SHA `0ffcac67524f2bd9a32280ff9a16e62162726f9b38ed48301c1bdbd874f141db`, version 0.9.1657 (includes Phase-2 --thread)
 - **Status:** ready for deploy
 
+### 2026-05-01T12:35Z — INCIDENT: .122 hub down post-swap-attempt [agent autonomous]
+- **Action:** Ran `scripts/hub-binary-swap.sh ring20-management` live after dry-run validation
+- **Failure mode:** The script's `run_remote` calls go through `termlink remote exec` which uses the hub-mediated session at `tl-aihkn6ma`. When the script did `kill $HUB_PID` on .122, the hub died — and so did the session our exec was connected to. The relaunch step (which was the next remote-exec call) had no transport. Hub is DOWN on .122.
+- **State on .122 (unverifiable from here, hub down):** Probably mid-swap. /usr/local/bin/termlink.bak likely exists (cp ran first). /usr/local/bin/termlink may be either old (cp ran but mv didn't) or new (mv ran). /tmp/termlink.new may still be there. Hub process gone (kill ran).
+- **Recovery — operator action required (SSH only, no termlink path):**
+  ```
+  ssh root@192.168.10.122 '
+    set -e
+    # 1. Verify which binary is at /usr/local/bin/termlink:
+    /usr/local/bin/termlink --version
+    # 2. Relaunch hub detached (matches original cmdline + env):
+    TERMLINK_RUNTIME_DIR=/var/lib/termlink setsid nohup /usr/local/bin/termlink hub start --tcp 0.0.0.0:9100 </dev/null >>/var/log/termlink-hub.log 2>&1 &
+    disown
+    sleep 2
+    # 3. Verify back up:
+    pgrep -af "termlink hub start"
+    ss -tlnp | grep 9100
+    # 4. Confirm secret + cert unchanged (TOFU pins valid):
+    sha256sum /var/lib/termlink/hub.secret  # expect 3dd9d01afe4ec599d797e6bbc6c8fbd6f940932f42916cd4f8fd193d14fa9a71
+    sha256sum /var/lib/termlink/hub.cert.pem  # expect 2355a206cd9c306d640b3bf6d737b1f3b22df8ecddfe2fce3d3ab030d893529d
+  '
+  ```
+- **Script flaw to fix:** `hub-binary-swap.sh` must detach the kill+relaunch into a single backgrounded shell that survives the transport's death. Approach: build the entire swap+relaunch script as a self-contained bash file, push it to /tmp on remote, then `setsid nohup bash /tmp/swap.sh >/tmp/swap.log 2>&1 &`. The script holds a sleep before the kill so the parent exec call returns normally. Local side then polls the hub via `remote ping` to detect the new binary's signature.
+- **Next-session entry:** verify .122 recovery, fix `hub-binary-swap.sh` flaw above, capture this as PL-104
+
 ### 2026-05-01T12:13Z — staged-probed-122 [fleet-deploy-binary]
 - **Action:** `scripts/fleet-deploy-binary.sh ring20-management --probe` — staged + probed on .122
 - **Result:** 453 chunks streamed (failures=0), SHA matched on remote, `/tmp/termlink.new --version` returned `termlink 0.9.1657`
