@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1441: remote-list shows identity_fingerprint
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-01T20:31:35Z
+# ============================================================================
+
+task_id: T-1441
+task_name: "remote-list shows identity_fingerprint"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-01T20:07:38Z
+completed: 2026-05-01T20:31:34Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-01T22:23:59+02:00
+last_commit: 2026-05-01T22:23:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface identity_fingerprint in remote list — hub-side JSON + CLI FP column
+
+# Key outcomes
+outcomes:
+  - "Hub `handle_discover` (router.rs:217) includes `identity_fingerprint` in each session JSON entry — sourced from `s.metadata.identity_fingerprint`. Field omitted (not null) when absent for pre-T-1436 sessions to keep JSON shape minimal"
+  - "CLI `cmd_remote_list_inner` (remote.rs:586-615) adds an `FP` column to text output between NAME and STATE; renders the first 16 hex chars (the canonical fingerprint width) or `-` when absent"
+  - "`--json` output unchanged in shape — clients who deserialize the response see the new optional field naturally (it's just an extra key on each session entry)"
+  - "Header alignment preserved — header reads `ID NAME FP STATE PID TAGS` with FP column 17 chars wide; row separator widened from 64 to 80 dashes"
+  - "Live verification on local hub: `termlink remote list local-test` shows the `FP` column header and per-row values; pre-T-1681 hub returns no fp field so all rows show `-` until the .107 hub gets upgraded (header itself proves the CLI side)"
+  - "Workspace builds clean: cargo build for cli + hub exits 0; full hub suite passes 297/297 incl. new test"
+  - "New unit test `discover_includes_identity_fingerprint_when_present` verifies hub-side JSON shape: registers a test session, calls handle_discover, asserts `sessions[0].identity_fingerprint == r.metadata.identity_fingerprint`. Test passes locally."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/cron/2026-05-01-2215.yaml"
+  - ".context/audits/cron/LATEST-CRON.yaml"
+  - ".context/project/concerns.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.fleet-failure-state.json"
+  - ".context/working/focus.yaml"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - ".tasks/active/T-1438-field-rollout-tracking.md"
+  - ".tasks/active/T-1441-remote-list-shows-identityfingerprint.md"
+  - ".termlink-task"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-01T22:23:59"
+    action: "T-1441: surface identity_fingerprint in remote list — hub-side JSON + CLI FP column"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 23 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 23
+  commits: 1
+  files_changed: 16
+  lines_added: 169
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1441-remote-list-shows-identityfingerprint.md
+generated_by: context-agent-hybrid

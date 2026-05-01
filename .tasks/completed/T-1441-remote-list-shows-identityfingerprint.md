@@ -4,16 +4,16 @@ name: "remote-list shows identity_fingerprint"
 description: >
   remote-list shows identity_fingerprint
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-05-01T20:07:38Z
-last_update: 2026-05-01T20:07:38Z
-date_finished: null
+last_update: 2026-05-01T20:31:34Z
+date_finished: 2026-05-01T20:31:34Z
 ---
 
 # T-1441: remote-list shows identity_fingerprint
@@ -65,3 +65,6 @@ cargo build --workspace --release 2>&1 | tail -3 | grep -qv "error"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1441-remote-list-shows-identityfingerprint.md
 - **Context:** Initial task creation
+
+### 2026-05-01T20:31:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
