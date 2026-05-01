@@ -64,7 +64,7 @@ impl GovernanceSubscriber {
                 Ok(data) => {
                     // Convert to string, strip ANSI, then match
                     let text = String::from_utf8_lossy(&data);
-                    let stripped = strip_ansi_codes(&text);
+                    let stripped = crate::ansi::strip_ansi_codes(&text);
 
                     for rule in &config.patterns {
                         if let Some(m) = rule.regex.find(&stripped) {
@@ -114,81 +114,9 @@ fn unix_timestamp() -> u64 {
         .as_secs()
 }
 
-/// Strip ANSI escape sequences and carriage returns from a string.
-///
-/// Handles CSI sequences (\x1b[...), OSC sequences (\x1b]...\x07 or \x1b]...\x1b\\),
-/// and bare escape sequences.
-fn strip_ansi_codes(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            match chars.peek() {
-                Some('[') => {
-                    chars.next();
-                    while let Some(&ch) = chars.peek() {
-                        chars.next();
-                        if ch.is_ascii_alphabetic() || ch == 'K' || ch == 'J' || ch == 'H' {
-                            break;
-                        }
-                    }
-                }
-                Some(']') => {
-                    chars.next();
-                    while let Some(&ch) = chars.peek() {
-                        chars.next();
-                        if ch == '\x07' {
-                            break;
-                        }
-                        if ch == '\x1b' {
-                            if chars.peek() == Some(&'\\') {
-                                chars.next();
-                            }
-                            break;
-                        }
-                    }
-                }
-                _ => {
-                    chars.next();
-                }
-            }
-        } else if c == '\r' {
-            continue;
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // --- strip_ansi_codes tests ---
-
-    #[test]
-    fn strip_plain_text() {
-        assert_eq!(strip_ansi_codes("hello world"), "hello world");
-    }
-
-    #[test]
-    fn strip_csi_color() {
-        assert_eq!(strip_ansi_codes("\x1b[31mred\x1b[0m"), "red");
-    }
-
-    #[test]
-    fn strip_osc_title() {
-        assert_eq!(
-            strip_ansi_codes("\x1b]0;My Title\x07text"),
-            "text"
-        );
-    }
-
-    #[test]
-    fn strip_carriage_return() {
-        assert_eq!(strip_ansi_codes("line\r\n"), "line\n");
-    }
 
     // --- PatternRule + GovernanceSubscriber tests ---
 
