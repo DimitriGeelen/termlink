@@ -36,10 +36,69 @@ worker_dir() {
     echo "$DISPATCH_DIR/$1"
 }
 
+# _resolve_dispatch_model — substrate-side model resolution (U-005 / T-1442).
+#
+# Inputs:  $1 = explicit --model value (may be empty)
+#          $2 = task_type (may be empty)
+# Outputs: prints "<model>|<fallback_used>" on stdout, where:
+#          <model>         = effective model (string, possibly empty)
+#          <fallback_used> = "true" | "false" | "" (empty when no model resolves)
+#
+# Resolution order (mirrors framework's agents/termlink/termlink.sh):
+#   1. Explicit --model wins → fallback_used=false
+#   2. DISPATCH_MODEL_FOR_<TYPE> env var (uppercased)  → fallback_used=false
+#   3. DISPATCH_MODEL_DEFAULT env var → fallback_used=true (no per-type specialist)
+#   4. Nothing → empty model, empty fallback flag (caller emits JSON null)
+#
+# Env vars are read directly. Callers (e.g. the framework adapter) export them
+# from .framework.yaml or wherever their config lives.
+_resolve_dispatch_model() {
+    local explicit="$1" task_type="$2"
+    if [ -n "$explicit" ]; then
+        echo "${explicit}|false"
+        return 0
+    fi
+    if [ -n "$task_type" ]; then
+        local key="DISPATCH_MODEL_FOR_$(echo "$task_type" | tr '[:lower:]' '[:upper:]')"
+        local v="${!key:-}"
+        if [ -n "$v" ]; then
+            echo "${v}|false"
+            return 0
+        fi
+    fi
+    local d="${DISPATCH_MODEL_DEFAULT:-}"
+    if [ -n "$d" ]; then
+        echo "${d}|true"
+        return 0
+    fi
+    echo "|"
+    return 0
+}
+
+# _json_str_or_null — emit a JSON-quoted string, or `null` when empty.
+_json_str_or_null() {
+    local v="$1"
+    if [ -z "$v" ]; then
+        printf 'null'
+    else
+        printf '"%s"' "$v"
+    fi
+}
+
+# _json_bool_or_null — emit `true`/`false` literal, or `null` when empty.
+_json_bool_or_null() {
+    local v="$1"
+    case "$v" in
+        true|false) printf '%s' "$v" ;;
+        *) printf 'null' ;;
+    esac
+}
+
 # --- Commands ---
 
 cmd_spawn() {
     local name="" prompt="" prompt_file="" project_dir="" timeout=600 backend="$SPAWN_BACKEND"
+    local model="" task_type=""
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -49,6 +108,8 @@ cmd_spawn() {
             --project) project_dir="$2"; shift 2 ;;
             --timeout) timeout="$2"; shift 2 ;;
             --backend) backend="$2"; shift 2 ;;
+            --model) model="$2"; shift 2 ;;
+            --task-type) task_type="$2"; shift 2 ;;
             *) die "Unknown option: $1" ;;
         esac
     done
@@ -65,6 +126,13 @@ cmd_spawn() {
     # Default project to current directory
     project_dir="${project_dir:-$(pwd)}"
 
+    # U-005: substrate resolves model + fallback flag from explicit / per-type / default chain.
+    # If nothing resolves, both fields stay null in meta.json (don't lie about state).
+    local resolved model_used fallback_used
+    resolved=$(_resolve_dispatch_model "$model" "$task_type")
+    model_used="${resolved%%|*}"
+    fallback_used="${resolved##*|}"
+
     # Create worker directory
     local wdir
     wdir=$(worker_dir "$name")
@@ -73,13 +141,20 @@ cmd_spawn() {
     # Write prompt to file (avoids shell escaping issues)
     echo "$prompt" > "$wdir/prompt.md"
 
-    # Record metadata
+    # Record metadata. Schema parity with framework's agents/termlink/termlink.sh
+    # (T-1643/W4) — task_type, model, model_used, fallback_used are all present.
+    # model_used / fallback_used are populated here (substrate-side); the framework's
+    # half writes nulls and relies on us. JSON null when no model resolves.
     cat > "$wdir/meta.json" <<METAEOF
 {
   "name": "$name",
   "project": "$project_dir",
   "timeout": $timeout,
   "backend": "$backend",
+  "task_type": "${task_type}",
+  "model": "${model_used}",
+  "model_used": $(_json_str_or_null "$model_used"),
+  "fallback_used": $(_json_bool_or_null "$fallback_used"),
   "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "status": "running"
 }
@@ -92,12 +167,19 @@ WORKER_NAME="$1"
 PROJECT_DIR="$2"
 WDIR="$3"
 TIMEOUT="$4"
+MODEL="$5"
 
 cd "$PROJECT_DIR"
 
+# Build --model flag if a model was resolved at spawn time (U-005).
+MODEL_FLAG=""
+if [ -n "$MODEL" ]; then
+    MODEL_FLAG="--model $MODEL"
+fi
+
 # Run claude with the prompt, capture output
 # Use background process + kill for timeout (macOS has no `timeout` command)
-claude -p "$(cat "$WDIR/prompt.md")" --output-format text > "$WDIR/result.md" 2>"$WDIR/stderr.log" &
+claude -p "$(cat "$WDIR/prompt.md")" $MODEL_FLAG --output-format text > "$WDIR/result.md" 2>"$WDIR/stderr.log" &
 CLAUDE_PID=$!
 
 # Watchdog: kill claude if it exceeds timeout
@@ -141,12 +223,14 @@ RUNEOF
 
     # Inject the worker script (fire-and-forget, don't wait)
     sleep 1
-    termlink pty inject "$name" "bash $wdir/run.sh '$name' '$project_dir' '$wdir' '$timeout'" --enter >/dev/null 2>&1
+    termlink pty inject "$name" "bash $wdir/run.sh '$name' '$project_dir' '$wdir' '$timeout' '$model_used'" --enter >/dev/null 2>&1
 
     echo "Worker spawned: $name (backend: $backend)"
     echo "  Project: $project_dir"
     echo "  Result:  $wdir/result.md"
     echo "  Timeout: ${timeout}s"
+    [ -n "$task_type" ] && echo "  Task-type: $task_type"
+    [ -n "$model_used" ] && echo "  Model: $model_used (fallback: $fallback_used)"
 }
 
 cmd_status() {

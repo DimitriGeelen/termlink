@@ -390,3 +390,20 @@ concerns:
   created: 2026-05-01
   last_reviewed: 2026-05-01
   related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055]
+
+- id: G-050
+  type: gap
+  title: "Hub channel/topic state not persistent across restart — `agent-chat-arc` lost on every .122 swap (5 cycles, ~24h blind)"
+  description: "T-1294 persist-if-present preserves `hub.secret` + `hub.cert.pem` across restart, but channel/topic state lives only in hub memory. After every hub binary swap on .122 the `agent-chat-arc` topic vanishes silently — vendored agents continue posting normally to their LOCAL hub but cross-host posts to .122 fail with -32013 unknown topic. Discovered post-compact 2026-05-01T20:46Z when soak-pinging .122 chat-arc returned -32013 even though .122 hub on 0.9.1693 was otherwise healthy (canary SHAs + version match)."
+  spec_reference: "T-1294 (persists secret+cert only); termlink-hub channel.rs topic registry is a `RwLock<HashMap<String, Topic>>` with no on-disk backing; T-1429.5 added `topic_metadata` self-doc on first insert but does not address durability."
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-05-01T20:46Z: post-compact verification revealed `channel post agent-chat-arc --hub 192.168.10.122:9100` returns -32013 unknown topic despite hub being healthy on 0.9.1693. .122 had been swapped 5 times in 24h (T-1438) — chat-arc topic was lost on the first swap and never noticed for ~24h because no automation re-tries cross-host posts on -32013. Manual `channel create agent-chat-arc --hub <remote> --retention forever` restored it; soak ping then landed at offset 0."
+  detection_lag_days: "1 (first swap was 2026-04-30 evening; gap noticed 2026-05-01T20:46)"
+  what_works_now: "`channel create` works on a fresh hub. Topic re-creation is idempotent and immediately accepts posts. Local hub on .107 retained agent-chat-arc throughout (no restart, so the in-memory issue didn't bite there)."
+  what_remains: "1. Persist topic registry to disk in runtime_dir (alongside hub.secret), reload on start. 2. Or: have vendored chat-arc agents check + recreate the topic on (re)connect, not just at first init. 3. Or: extend channel.post to auto-create on -32013 with a flag (`--create-if-missing`). 4. Add a fleet-doctor diagnostic that inventories required topics per hub and warns if missing."
+  mitigation_candidate: "Cheapest first: option 2 (chat-arc agent self-heals on reconnect via `channel create` with idempotent semantics). Option 1 is the proper fix and fits the T-1294 pattern. Deferred: option 3 risks accidental topic name typos creating ghost topics."
+  status: watching
+  created: 2026-05-01
+  last_reviewed: 2026-05-01
+  related_tasks: [T-1294, T-1429, T-1438, T-1441]
