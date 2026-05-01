@@ -66,4 +66,13 @@ populated in scripts/tl-dispatch.sh; regression in tests/test_tl_dispatch_meta.s
 
 ## Commit
 
-(SHA recorded post-commit in `git log` for T-1442.)
+`143cd870` — bundled with concurrent T-1438 chat-arc work by an auto-commit
+loop. The U-005 deliverables in that commit are scoped to:
+
+- `scripts/tl-dispatch.sh` (10 lines)
+- `tests/test_tl_dispatch_meta.sh` (192 lines, new file)
+- `docs/reports/U-005-meta-populate.md` (this file)
+- `.tasks/active/T-1442-...md` (AC tickboxes)
+
+Pushed to `origin` (OneDev). GitHub mirror picks up via the
+`.onedev-buildspec.yml` `PushRepository` job.

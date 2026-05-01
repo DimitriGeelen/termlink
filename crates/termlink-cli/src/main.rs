@@ -377,6 +377,7 @@ async fn main() -> Result<()> {
                 reply_to,
                 metadata,
                 mentions,
+                ensure_topic,
                 hub,
                 json,
             } => {
@@ -392,6 +393,7 @@ async fn main() -> Result<()> {
                     sender_id.as_deref(),
                     reply_to,
                     &metadata,
+                    ensure_topic,
                     hub.as_deref(),
                     json,
                 )

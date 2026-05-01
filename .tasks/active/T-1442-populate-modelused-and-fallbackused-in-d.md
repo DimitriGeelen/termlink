@@ -4,16 +4,16 @@ name: "Populate model_used and fallback_used in dispatch meta.json"
 description: >
   Populate model_used and fallback_used in dispatch meta.json
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T20:42:49Z
-last_update: 2026-05-01T20:47:29Z
-date_finished: null
+last_update: 2026-05-01T21:03:11Z
+date_finished: 2026-05-01T21:03:11Z
 ---
 
 # T-1442: Populate model_used and fallback_used in dispatch meta.json
@@ -89,3 +89,6 @@ cargo check --workspace
 ### 2026-05-01T20:47:29Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now
+
+### 2026-05-01T21:03:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

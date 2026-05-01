@@ -239,6 +239,7 @@ pub(crate) async fn cmd_channel_post(
     sender_id: Option<&str>,
     reply_to: Option<u64>,
     metadata_kvs: &[String],
+    ensure_topic_flag: bool,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
@@ -290,6 +291,23 @@ pub(crate) async fn cmd_channel_post(
     };
     let sock = hub_socket_soft(hub);
     let queue_path = default_queue_path();
+    // T-1443: opt-in topic auto-creation. Idempotent — re-creates known
+    // topics safely; pre-creates missing ones (heals G-050 post-hub-restart
+    // topic loss). Not default — typo'd topic names still surface as
+    // -32013 unknown topic for callers that don't pass --ensure-topic.
+    // Failure is non-fatal: if channel.create errors we log and let the
+    // post proceed; if the topic genuinely doesn't exist the post itself
+    // will return -32013 with the original error.
+    if ensure_topic_flag
+        && let Err(e) = ensure_topic(&sock, topic).await
+    {
+        if !json_output {
+            eprintln!(
+                "warning: --ensure-topic channel.create failed for {topic}: {e} \
+                 (continuing with post; will surface as unknown topic if missing)"
+            );
+        }
+    }
     // T-1385: TCP cross-hub posts bypass the offline queue (BusClient is
     // Unix-only at the wire level). Direct authed RPC; no queueing on failure.
     let outcome = if sock.is_tcp() {
@@ -584,6 +602,8 @@ pub(crate) async fn cmd_channel_dm(
                 None, // sender_id defaults to identity fingerprint
                 reply_to,
                 &metadata,
+                false, // T-1443 ensure_topic_flag — DM path already
+                       // ensure_topic'd above before we got here
                 hub,
                 json_output,
             )
@@ -898,6 +918,7 @@ pub(crate) async fn cmd_channel_ack(
         sender_id,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -1045,6 +1066,7 @@ pub(crate) async fn cmd_channel_react(
             sender_id,
             Some(parent_offset),
             &[],
+            false, // T-1443 ensure_topic_flag
             hub,
             json_output,
         )
@@ -1928,6 +1950,7 @@ pub(crate) async fn cmd_channel_reply(
         sender_id,
         Some(parent),
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2075,6 +2098,7 @@ pub(crate) async fn cmd_channel_describe(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2162,6 +2186,7 @@ pub(crate) async fn cmd_channel_redact(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2187,6 +2212,7 @@ pub(crate) async fn cmd_channel_edit(
         None, // sender defaults to identity fingerprint
         None, // reply_to not used (replaces carries the reference)
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2216,6 +2242,7 @@ pub(crate) async fn cmd_channel_typing_emit(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2391,6 +2418,7 @@ pub(crate) async fn cmd_channel_forward(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2421,6 +2449,7 @@ pub(crate) async fn cmd_channel_pin(
         None,
         None, // reply_to unused — pin_target carries the reference
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2587,6 +2616,7 @@ pub(crate) async fn cmd_channel_star(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2774,6 +2804,7 @@ pub(crate) async fn cmd_channel_poll_start(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2800,6 +2831,7 @@ pub(crate) async fn cmd_channel_poll_vote(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
@@ -2823,6 +2855,7 @@ pub(crate) async fn cmd_channel_poll_end(
         None,
         None,
         &metadata,
+        false, // T-1443 ensure_topic_flag
         hub,
         json_output,
     )
