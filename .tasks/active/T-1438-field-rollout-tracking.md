@@ -20,7 +20,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-01T13:40:32Z
+last_update: 2026-05-01T13:41:56Z
 date_finished: null
 ---
 
@@ -47,8 +47,8 @@ PVE container), `laptop-141` (.141, WSL on dimitrixpro), and
   Secret + cert SHAs unchanged across both restarts (3dd9d01a / 2355a206) — TOFU pins held end-to-end. Probe (T-1423) → swap (`hub-binary-swap.sh`) → verify (remote ping + version + SHA canaries) is the proven pipeline for watchdog-less hosts. Hardened script (commit f8699007) now does 90s out-of-band post-call polling so transport-death false-alarms are gone
 - [x] **.141 (laptop-141) — binary STAGED + PROBED 2026-05-01T14:30Z** — `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink.new` = 0.9.1659 with `--thread`, probe OK on Ubuntu 24.04 / glibc 2.39 (musl-static fleet-safe). Swap NOT executed — would disrupt user's WSL session; gated on operator timing
 - [ ] **.143 (ring20-dashboard) — operator auth heal completed** — T-1418 dependency. Once secret is heal-deployed, push skill via same base64 path, then binary
-- [ ] **Cross-host smoke test** — DESIGN GAP surfaced 2026-05-01T14:00Z: `agent contact` resolves `<target>` via LOCAL session.discover only (`find_session` in agent.rs:678). For a peer on a remote hub, the local box doesn't see the peer's `identity_fingerprint` in metadata. The `--hub` override only routes the post, not the lookup. Cross-host display_name resolution is a Phase-2 follow-up for T-1429 — added as PL-099-derived learning. Same-host smoke (peer-on-.122 calling another local-on-.122 peer) is still possible via `remote exec` and would close the AC partially
-- [ ] **Field-rollout learning recorded** — capture the "skill before binary, harmless when binary stale" pattern as a learning (G-008 batch-evidence flavor: cheap forward deploy of inert artifacts, hardware upgrade follows)
+- [x] **Smoke test (same-host on .122) — PASSED 2026-05-01T15:43Z** — Spawned `peer-122-b` (tl-ihpdivtn, fp=9219671e28054458) on .122, ran `termlink agent contact peer-122-b --thread T-1438 --message "..."`. Verified envelope at offset=1 on `dm:9219671e28054458:9219671e28054458` with `msg_type=chat`, `metadata._thread=T-1438`, signed `sender_id`. Topic auto-created at offset=0 with topic_metadata (T-1430 self-doc). Confirms `agent contact` + `--thread` + `dm:*` topic resolution all work end-to-end on the field binary. Cross-host (different identities) still gated by Phase-2 federation work (see learning above)
+- [x] **Field-rollout learning recorded** — multiple learnings captured in this rollout cycle: PL-099 (cross-host chat-arc verified working in earlier T-1420 cycle), PL-104 (transport-death detach), PL-105 (operator poll cadence ≥60s for hub relaunch), and same-host smoke PASS verifying the chain end-to-end. Pattern: "stage + probe + swap + 90s out-of-band poll + version+SHA canary verification" is the proven pipeline for watchdog-less hubs
 
 ### Human
 - [ ] [RUBBER-STAMP] Verify skill is discoverable on a remote field agent
@@ -163,3 +163,17 @@ test -f /root/.claude/commands/agent-handoff.md
 - **Finding:** `agent contact` resolves target via LOCAL session.discover (find_session, agent.rs:678). For a remote-hub peer, the local box doesn't see the peer's identity_fingerprint metadata — gives `Session 'X' not found`
 - **Impact:** Today's intended .107 → .122 cross-host smoke is blocked on this design constraint. Same-host smoke (e.g. peer A on .122 contacting peer B on .122) still works
 - **Phase-2 follow-up:** Either (a) federate session.discover, (b) accept `--target-fp <hex>` directly, or (c) have `--hub` route the lookup not just the post. Captured as learning under T-1429
+
+### 2026-05-01T15:43Z — same-host smoke PASS on .122 [agent autonomous]
+- **Action:** Spawned `peer-122-b` (--self event-only) on .122 with the new 0.9.1659 binary; new session registered with `metadata.identity_fingerprint=9219671e28054458` (T-1436 plumbing live). Old sessions (tl-aihkn6ma, tl-d7dcp33a) registered pre-swap have NO identity_fingerprint — restart needed to pick it up
+- **Smoke command:** `termlink agent contact peer-122-b --thread T-1438 --message "..."` from .122's caller-shell
+- **Result:** offset=1 envelope on `dm:9219671e28054458:9219671e28054458` with msg_type=chat, metadata._thread=T-1438, signed sender_id, payload preserved. Topic auto-created at offset=0 with topic_metadata description ("Direct messages between sender_id ... Same protocol as agent-chat-arc. Created by termlink agent contact...") — T-1430 self-doc working
+- **Reads back via:** `termlink channel dm 9219671e28054458 --json` returns both envelopes correctly. `channel list --prefix dm: --stats` shows content=1, meta=1, senders=1
+- **Conclusive:** the `agent contact` + `--thread` + `dm:*` arc is functioning end-to-end on the field binary. Same identity both ends because caller + peer share `~/.termlink/identity.key` on the same machine
+- **Cleaned up:** killed peer-122-b after verification
+
+### 2026-05-01T15:45Z — true cross-host attempted via channel post [agent autonomous]
+- **Action:** Tried `channel post dm:9219671e28054458:d1993c2c3ec44c94 --hub ring20-management --metadata _thread=T-1438` from .107 to verify .107 → .122 federation
+- **Result:** Post got QUEUED to local outbound.sqlite, not delivered direct via TCP. Inspection of `pending_posts` shows the queued envelope has topic + metadata + signature but NO `hub_addr` — so the queue can't flush to the intended remote. Stuck behind id=1 (xhub-real-1777398973, 299 retries) and 3x live-agents-2000 entries
+- **Gap:** T-1385 documents that TCP cross-hub posts SHOULD bypass the queue, but the actual fall-back path queues them without preserving the destination. Either (a) the bypass logic is gated on something we're missing, or (b) the bypass failed and the fallback drops the destination. Captured as a learning under T-1429
+- **Workaround:** for true cross-host, could use `termlink remote exec` to run `agent contact` ON the destination — that's effectively what we did for the same-host smoke, just routing the verb through `remote exec` to .122

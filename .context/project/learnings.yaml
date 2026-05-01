@@ -1008,3 +1008,17 @@ learnings:
   date: 2026-05-01
   context: Added via context agent
   application: TBD
+- id: PL-108
+  learning: "T-1438 same-host smoke PASSED on .122 0.9.1659 binary: agent contact peer-122-b --thread T-1438 produced canonical envelope at offset=1 on dm:9219671e28054458:9219671e28054458 with msg_type=chat, metadata._thread=T-1438, signed sender_id. Topic was auto-created at offset=0 with topic_metadata description (T-1430). Both --thread and dm:* topic-resolution work end-to-end on the freshly-deployed binary. Cross-host (different identities) still gated by local-only session.discover gap."
+  source: PL-099
+  task: T-1438
+  date: 2026-05-01
+  context: Added via context agent
+  application: TBD
+- id: PL-109
+  learning: "Outbound queue serialization gap: channel post --hub <REMOTE> with TCP target queues to outbound.sqlite WITHOUT preserving hub_addr in the post_json envelope. Queue flush retries against local hub, never the intended remote. Verified by inspecting /root/.termlink/outbound.sqlite — post.json has topic + metadata + signature but no hub_addr field. Should either bypass queue for TCP (per T-1385 design intent) or persist destination. Bug not fix for this session — design gap for T-1429 follow-up."
+  source: PL-099
+  task: T-1429
+  date: 2026-05-01
+  context: Added via context agent
+  application: TBD
