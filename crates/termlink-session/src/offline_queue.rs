@@ -167,6 +167,33 @@ impl OfflineQueue {
         }
     }
 
+    /// T-1439: peek_oldest including the current `attempts` count, so the
+    /// flush loop can decide whether the head entry has crossed the poison
+    /// threshold and should be dropped instead of head-of-line blocking.
+    pub fn peek_oldest_with_attempts(&self) -> Result<Option<(QueueId, PendingPost, u64)>> {
+        let conn = self.conn.lock().expect("queue mutex poisoned");
+        let row = conn
+            .query_row(
+                "SELECT id, post_json, attempts FROM pending_posts ORDER BY id ASC LIMIT 1",
+                [],
+                |r| {
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, i64>(2)?,
+                    ))
+                },
+            )
+            .optional()?;
+        match row {
+            None => Ok(None),
+            Some((id, json, attempts)) => {
+                let post: PendingPost = serde_json::from_str(&json)?;
+                Ok(Some((QueueId(id), post, attempts.max(0) as u64)))
+            }
+        }
+    }
+
     /// Remove the entry with the given id. No-op if not present.
     pub fn pop(&self, id: QueueId) -> Result<()> {
         let conn = self.conn.lock().expect("queue mutex poisoned");
@@ -330,5 +357,27 @@ mod tests {
             .query_row("SELECT attempts FROM pending_posts WHERE id = ?1", params![id.0], |r| r.get(0))
             .unwrap();
         assert_eq!(a, 2);
+    }
+
+    #[test]
+    fn peek_oldest_with_attempts_returns_attempts_count() {
+        // T-1439: flush loop reads `attempts` to decide whether the head
+        // entry has crossed the poison-drop threshold.
+        let q = OfflineQueue::open_in_memory().unwrap();
+        let id = q.enqueue(&sample_post("t", &[1])).unwrap();
+        let (_, _, attempts) = q.peek_oldest_with_attempts().unwrap().unwrap();
+        assert_eq!(attempts, 0, "fresh entry has zero attempts");
+        for _ in 0..5 {
+            q.bump_attempts(id).unwrap();
+        }
+        let (peek_id, _, attempts) = q.peek_oldest_with_attempts().unwrap().unwrap();
+        assert_eq!(peek_id, id);
+        assert_eq!(attempts, 5);
+    }
+
+    #[test]
+    fn peek_oldest_with_attempts_empty_returns_none() {
+        let q = OfflineQueue::open_in_memory().unwrap();
+        assert!(q.peek_oldest_with_attempts().unwrap().is_none());
     }
 }

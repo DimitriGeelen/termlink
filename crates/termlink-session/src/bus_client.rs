@@ -42,7 +42,16 @@ pub enum PostOutcome {
 pub struct FlushReport {
     pub sent: u64,
     pub failed: u64,
+    /// Entries dropped as poison after `POISON_THRESHOLD` hub-reject attempts (T-1439).
+    pub dropped_poison: u64,
 }
+
+/// T-1439: After this many hub-reject responses on the same head-of-queue
+/// entry, the entry is treated as poison and popped instead of head-blocking
+/// the rest of the queue forever. Permanent errors (unknown topic, malformed
+/// payload, signature mismatch) are the typical poison source — transient
+/// hub-side issues clear well below this threshold.
+pub const POISON_THRESHOLD: u64 = 10;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BusClientError {
@@ -144,11 +153,14 @@ impl BusClient {
     }
 
     /// Drain the queue. Stops at the first transport failure so FIFO order
-    /// is preserved (the failing entry remains at head).
+    /// is preserved (the failing entry remains at head). Hub-reject (post
+    /// hit the hub but was rejected) bumps attempts; once `POISON_THRESHOLD`
+    /// is crossed the entry is dropped so it cannot head-block subsequent
+    /// posts (T-1439).
     pub async fn flush(&self) -> FlushReport {
         let mut report = FlushReport::default();
         loop {
-            let Ok(Some((id, post))) = self.queue.peek_oldest() else {
+            let Ok(Some((id, post, attempts))) = self.queue.peek_oldest_with_attempts() else {
                 break;
             };
             let params = post_to_params(&post);
@@ -160,8 +172,32 @@ impl BusClient {
                     }
                     Err(e) => {
                         // Hub answered but rejected — not a transport problem.
-                        // Bump attempts and break so we don't busy-loop on a poison message.
-                        tracing::warn!(queue_id = id.0, error = %e, "flush: hub rejected post");
+                        // T-1439: once attempts crosses POISON_THRESHOLD the
+                        // entry is treated as permanent-error poison and popped
+                        // so subsequent entries get a chance. Below threshold,
+                        // bump and break (preserves the no-busy-loop behavior
+                        // for transient errors / restart races).
+                        if attempts + 1 >= POISON_THRESHOLD {
+                            tracing::warn!(
+                                queue_id = id.0,
+                                attempts = attempts + 1,
+                                topic = %post.topic,
+                                msg_type = %post.msg_type,
+                                error = %e,
+                                "flush: dropping poison post after {POISON_THRESHOLD} hub-reject attempts"
+                            );
+                            let _ = self.queue.pop(id);
+                            report.dropped_poison += 1;
+                            // Continue draining — don't let the poison
+                            // permanently block subsequent entries.
+                            continue;
+                        }
+                        tracing::warn!(
+                            queue_id = id.0,
+                            attempts = attempts + 1,
+                            error = %e,
+                            "flush: hub rejected post (will retry)"
+                        );
                         let _ = self.queue.bump_attempts(id);
                         report.failed += 1;
                         break;
