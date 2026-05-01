@@ -20,6 +20,7 @@ use termlink_bus::{ArtifactStore, Bus, Envelope, Retention};
 use termlink_protocol::control::channel::canonical_sign_bytes;
 use termlink_protocol::control::error_code;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
+use termlink_session::agent_identity::fingerprint_of;
 
 static BUS: OnceLock<Bus> = OnceLock::new();
 static ARTIFACT_STORE: OnceLock<ArtifactStore> = OnceLock::new();
@@ -428,6 +429,23 @@ pub(crate) async fn handle_channel_post_with(
             id,
             error_code::CHANNEL_SIGNATURE_INVALID,
             "channel.post signature failed verification",
+        )
+        .into();
+    }
+
+    // T-1427: identity authoritative — the claimed `sender_id` MUST match the
+    // fingerprint derived from `sender_pubkey_hex`. Closes T-1425 RFC §3.2
+    // invariant 2; without this check a client could legally sign with its
+    // own key but claim any sender_id, misattributing envelopes.
+    let expected_fp = fingerprint_of(&verifying_key);
+    if sender_id != expected_fp {
+        return ErrorResponse::new(
+            id,
+            error_code::CHANNEL_IDENTITY_MISMATCH,
+            &format!(
+                "sender_id={sender_id:?} does not match identity fingerprint {prefix}… derived from sender_pubkey_hex (T-1427)",
+                prefix = &expected_fp[..8.min(expected_fp.len())]
+            ),
         )
         .into();
     }
@@ -870,12 +888,15 @@ mod tests {
     ) -> Value {
         let signed = canonical_sign_bytes(topic, msg_type, payload, None, ts);
         let sig = key.sign(&signed);
+        // T-1427: post fixtures must use the fp derived from the signing
+        // key so they pass the strict-reject in handle_channel_post_with.
+        let sender_id = fingerprint_of(&key.verifying_key());
         let mut p = json!({
             "topic": topic,
             "msg_type": msg_type,
             "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
             "ts": ts,
-            "sender_id": "tester",
+            "sender_id": sender_id,
             "sender_pubkey_hex": hex_of(key.verifying_key().as_bytes()),
             "signature_hex": hex_of(&sig.to_bytes()),
         });
@@ -894,12 +915,13 @@ mod tests {
     ) -> Value {
         let signed = canonical_sign_bytes(topic, msg_type, payload, None, ts);
         let sig = key.sign(&signed);
+        let sender_id = fingerprint_of(&key.verifying_key());
         json!({
             "topic": topic,
             "msg_type": msg_type,
             "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
             "ts": ts,
-            "sender_id": "tester",
+            "sender_id": sender_id,
             "sender_pubkey_hex": hex_of(key.verifying_key().as_bytes()),
             "signature_hex": hex_of(&sig.to_bytes()),
         })
@@ -1088,7 +1110,12 @@ mod tests {
         let msgs = v["messages"].as_array().unwrap();
         assert_eq!(msgs.len(), 1);
         assert_eq!(msgs[0]["offset"], 0);
-        assert_eq!(msgs[0]["sender_id"], "tester");
+        // T-1427: sender_id is the fp derived from the test signing key,
+        // not the legacy literal "tester" — strict-reject enforces this.
+        assert_eq!(
+            msgs[0]["sender_id"].as_str().unwrap(),
+            fingerprint_of(&key.verifying_key())
+        );
         assert_eq!(msgs[0]["msg_type"], "note");
         assert_eq!(
             msgs[0]["payload_b64"].as_str().unwrap(),
@@ -1432,34 +1459,46 @@ mod tests {
 
     #[tokio::test]
     async fn dialog_presence_tracks_senders_per_conversation() {
-        // T-1286: post 3 messages on cid=t1286-c1 with sender_ids
-        // alice/bob/alice. dialog.presence("t1286-c1") returns 2 entries
+        // T-1286: post 3 messages on cid=t1286-c1 with two distinct sender
+        // identities. dialog.presence("t1286-c1") returns 2 entries
         // (alice + bob), sorted by agent_id. alice's last_seen_ms is the
         // ts of the LATER alice post (overwrites earlier).
+        //
+        // T-1427: senders use distinct signing keys so the strict-reject
+        // pass (sender_id must match fingerprint_of(pubkey)). Pre-T-1427
+        // this test labelled posts "alice"/"bob" with one shared key —
+        // legitimate clients never do that.
         let (_d, bus) = tmp_bus();
         bus.create_topic("inbox:pres", Retention::Forever).unwrap();
-        let key = signing_key();
+        let alice_key = SigningKey::from_bytes(&[0xA1u8; 32]);
+        let bob_key = SigningKey::from_bytes(&[0xB0u8; 32]);
+        let alice_fp = fingerprint_of(&alice_key.verifying_key());
+        let bob_fp = fingerprint_of(&bob_key.verifying_key());
+        // Sort by fp so we can index assertions stably regardless of which
+        // key happens to come first lexicographically.
+        let (lo_fp, hi_fp) = if alice_fp < bob_fp {
+            (alice_fp.clone(), bob_fp.clone())
+        } else {
+            (bob_fp.clone(), alice_fp.clone())
+        };
 
         // alice's first post — ts 5_001
-        let mut p_a1 = post_params_with_meta(
-            &key, "inbox:pres", "note", b"a1", 5_001,
+        let p_a1 = post_params_with_meta(
+            &alice_key, "inbox:pres", "note", b"a1", 5_001,
             Some(json!({"conversation_id": "t1286-c1"})),
         );
-        p_a1.as_object_mut().unwrap().insert("sender_id".into(), json!("alice"));
         let _ = handle_channel_post_with(&bus, json!(1), &p_a1).await;
         // bob's post — ts 5_002
-        let mut p_b = post_params_with_meta(
-            &key, "inbox:pres", "note", b"b1", 5_002,
+        let p_b = post_params_with_meta(
+            &bob_key, "inbox:pres", "note", b"b1", 5_002,
             Some(json!({"conversation_id": "t1286-c1"})),
         );
-        p_b.as_object_mut().unwrap().insert("sender_id".into(), json!("bob"));
         let _ = handle_channel_post_with(&bus, json!(2), &p_b).await;
         // alice's second post — ts 5_003 (must overwrite the 5_001)
-        let mut p_a2 = post_params_with_meta(
-            &key, "inbox:pres", "note", b"a2", 5_003,
+        let p_a2 = post_params_with_meta(
+            &alice_key, "inbox:pres", "note", b"a2", 5_003,
             Some(json!({"conversation_id": "t1286-c1"})),
         );
-        p_a2.as_object_mut().unwrap().insert("sender_id".into(), json!("alice"));
         let _ = handle_channel_post_with(&bus, json!(3), &p_a2).await;
 
         let resp = handle_dialog_presence(
@@ -1471,11 +1510,13 @@ mod tests {
         let presences = v["presences"].as_array().unwrap();
         assert_eq!(presences.len(), 2, "alice + bob, alice deduped");
 
-        // Sorted by agent_id.
-        assert_eq!(presences[0]["agent_id"], "alice");
-        assert_eq!(presences[0]["last_seen_ms"], 5_003i64); // alice's LATER ts
-        assert_eq!(presences[1]["agent_id"], "bob");
-        assert_eq!(presences[1]["last_seen_ms"], 5_002i64);
+        // Sorted by agent_id (which is sender_id = identity fingerprint).
+        let lo_ts = if lo_fp == alice_fp { 5_003i64 } else { 5_002i64 };
+        let hi_ts = if hi_fp == alice_fp { 5_003i64 } else { 5_002i64 };
+        assert_eq!(presences[0]["agent_id"], lo_fp);
+        assert_eq!(presences[0]["last_seen_ms"], lo_ts);
+        assert_eq!(presences[1]["agent_id"], hi_fp);
+        assert_eq!(presences[1]["last_seen_ms"], hi_ts);
     }
 
     #[tokio::test]
@@ -1691,5 +1732,49 @@ mod tests {
         let resp = handle_channel_receipts_with(&bus, json!(1), &json!({})).await;
         let (code, _msg) = unwrap_error(resp);
         assert_eq!(code, -32602);
+    }
+
+    /// T-1427: hub rejects channel.post when claimed sender_id does not
+    /// match fingerprint_of(sender_pubkey_hex). Closes the
+    /// "identity authoritative" gap from T-1425 RFC §3.2.
+    #[tokio::test]
+    async fn handle_channel_post_with_rejects_mismatched_sender_id() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let key = signing_key();
+        // Build a valid signed envelope but claim a bogus sender_id.
+        let mut params = post_params(&key, "t", "chat", b"hi", 1);
+        params["sender_id"] = json!("imposter");
+        let resp = handle_channel_post_with(&bus, json!(1), &params).await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(
+            code,
+            error_code::CHANNEL_IDENTITY_MISMATCH,
+            "expected -32014, got code={code} msg={msg}"
+        );
+        assert!(
+            msg.contains("imposter"),
+            "error message should echo the bogus sender_id, got: {msg}"
+        );
+        assert!(
+            msg.contains("T-1427"),
+            "error message should cite T-1427 for traceability, got: {msg}"
+        );
+    }
+
+    /// T-1427: hub accepts channel.post when sender_id matches the
+    /// pubkey-derived fingerprint (the legitimate path the CLI default
+    /// already takes via `identity.fingerprint()`).
+    #[tokio::test]
+    async fn handle_channel_post_with_accepts_matching_sender_id() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let key = signing_key();
+        // post_params already sets sender_id = fingerprint_of(key) post-T-1427.
+        let params = post_params(&key, "t", "chat", b"hi", 2);
+        let resp = handle_channel_post_with(&bus, json!(1), &params).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["offset"], 0);
+        assert_eq!(v["ts"], 2);
     }
 }

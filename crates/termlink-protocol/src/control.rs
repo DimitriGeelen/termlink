@@ -224,6 +224,14 @@ pub mod error_code {
     pub const CHANNEL_SIGNATURE_INVALID: i64 = -32012;
     /// T-1160 `channel.post` referenced a topic that has not been created.
     pub const CHANNEL_TOPIC_UNKNOWN: i64 = -32013;
+    /// T-1427 `channel.post` `sender_id` did not match the fingerprint
+    /// derived from the supplied `sender_pubkey_hex`. Closes the
+    /// "identity authoritative" invariant from T-1425 RFC §3.2: a client
+    /// cannot legally claim to be a different identity than its signing
+    /// key proves. Backward compat: clients already follow the convention
+    /// (CLI defaults `sender_id = identity.fingerprint()`); this code
+    /// fires only on impostor-style forgery.
+    pub const CHANNEL_IDENTITY_MISMATCH: i64 = -32014;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
