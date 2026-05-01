@@ -263,6 +263,9 @@ async fn main() -> Result<()> {
             AgentAction::Negotiate { specialist, schema, draft, from, max_rounds, timeout, interval, json } => {
                 commands::agent::cmd_agent_negotiate(commands::agent::NegotiateOpts { specialist: &specialist, schema_str: &schema, draft_str: &draft, from: from.as_deref(), max_rounds, timeout, interval, json }).await
             }
+            AgentAction::Contact { target, message, hub, json } => {
+                commands::agent::cmd_agent_contact(&target, &message, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
