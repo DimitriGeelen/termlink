@@ -82,7 +82,12 @@ impl Bus {
     /// Register a new topic with a retention policy. Idempotent — a second
     /// call with the same name and policy is a no-op; a second call with a
     /// different policy returns `BusError::TopicPolicyMismatch`.
-    pub fn create_topic(&self, name: &str, retention: Retention) -> Result<()> {
+    ///
+    /// Returns `Ok(true)` when the topic was created by this call,
+    /// `Ok(false)` when a matching topic already existed. T-1429.5 added
+    /// the bool so callers can do "describe-on-first-create" without
+    /// re-emitting topic_metadata envelopes on every idempotent re-call.
+    pub fn create_topic(&self, name: &str, retention: Retention) -> Result<bool> {
         self.meta.create_topic(name, retention)
     }
 
