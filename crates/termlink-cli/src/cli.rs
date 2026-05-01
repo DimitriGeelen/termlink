@@ -3287,8 +3287,19 @@ pub(crate) enum AgentAction {
     /// deferred — see T-1429 task. Phase-2 partial (this build): --thread
     /// for canonical task-id routing via `metadata._thread`.
     Contact {
-        /// Target session's display_name (resolved via local session.discover)
-        target: String,
+        /// Target session's display_name (resolved via local
+        /// session.discover). Optional iff `--target-fp` is given.
+        target: Option<String>,
+
+        /// Target identity fingerprint (hex). Use this when the peer is
+        /// on a remote hub and the local box can't resolve them via
+        /// session.discover. Mutually exclusive with the positional
+        /// <TARGET>. Cross-host bypass for the Phase-2 federation gap
+        /// (T-1429): caller computes `dm:<sorted_a>:<sorted_b>` from
+        /// local identity + this fingerprint without needing to
+        /// discover the peer's session metadata locally.
+        #[arg(long = "target-fp")]
+        target_fp: Option<String>,
 
         /// Message body
         #[arg(long)]

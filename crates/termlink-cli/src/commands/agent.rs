@@ -669,40 +669,75 @@ pub(crate) async fn cmd_agent_negotiate(opts: NegotiateOpts<'_>) -> Result<()> {
 /// - peer registered before T-1436 (no identity_fingerprint in metadata) →
 ///   exit 8, message instructs operator to upgrade the peer's binary
 pub(crate) async fn cmd_agent_contact(
-    target: &str,
+    target: Option<&str>,
+    target_fp: Option<&str>,
     message: &str,
     thread: Option<&str>,
     hub: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    let reg = manager::find_session(target).map_err(|e| {
+    // T-1429 Phase-2 (this build): support --target-fp <hex> as a cross-host
+    // bypass for the local-only session.discover gap. Either positional
+    // <TARGET> or --target-fp must be set, but not both.
+    if target.is_some() && target_fp.is_some() {
+        let msg = "specify either <TARGET> or --target-fp, not both";
         if json {
-            super::json_error_exit(serde_json::json!({
-                "ok": false,
-                "target": target,
-                "error": format!("Session '{target}' not found: {e}"),
-            }));
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
         }
-        anyhow::anyhow!("Session '{target}' not found: {e}")
-    })?;
+        anyhow::bail!(msg);
+    }
+    if target.is_none() && target_fp.is_none() {
+        let msg = "must specify either <TARGET> (display name) or --target-fp <hex>";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
 
-    let peer_fp = reg.metadata.identity_fingerprint.as_deref().ok_or_else(|| {
-        let msg = format!(
-            "Peer '{target}' has no identity_fingerprint in metadata — \
-             likely registered before T-1436. Upgrade the peer's termlink \
-             binary and restart the session, then retry."
-        );
-        if json {
-            super::json_error_exit(serde_json::json!({
-                "ok": false,
-                "target": target,
-                "error": msg,
-                "exit_code": 8,
-            }));
+    let peer_fp_owned: String = if let Some(fp) = target_fp {
+        // Trust the operator-supplied fingerprint. Light validation: must be
+        // hex, at least 8 chars (canonical short fp is 16 chars).
+        if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
+            let msg = format!("--target-fp must be hex (got {fp:?})");
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+            }
+            anyhow::bail!(msg);
         }
-        eprintln!("error: {msg}");
-        std::process::exit(8);
-    })?;
+        fp.to_string()
+    } else {
+        let target_name = target.expect("checked above");
+        let reg = manager::find_session(target_name).map_err(|e| {
+            if json {
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "target": target_name,
+                    "error": format!("Session '{target_name}' not found: {e}"),
+                }));
+            }
+            anyhow::anyhow!("Session '{target_name}' not found: {e}")
+        })?;
+
+        reg.metadata.identity_fingerprint.clone().ok_or_else(|| {
+            let msg = format!(
+                "Peer '{target_name}' has no identity_fingerprint in metadata — \
+                 likely registered before T-1436. Upgrade the peer's termlink \
+                 binary and restart the session, then retry. (Or use \
+                 --target-fp <hex> to bypass session.discover for cross-host.)"
+            );
+            if json {
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "target": target_name,
+                    "error": msg,
+                    "exit_code": 8,
+                }));
+            }
+            eprintln!("error: {msg}");
+            std::process::exit(8);
+        })?
+    };
+    let peer_fp = peer_fp_owned.as_str();
 
     // T-1429 Phase-2 partial: --thread routes via `metadata._thread`
     // (agent-chat-arc protocol canon). Other extra metadata is reserved
