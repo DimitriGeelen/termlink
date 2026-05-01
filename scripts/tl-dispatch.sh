@@ -2,8 +2,8 @@
 # tl-dispatch.sh — Spawn claude workers in real terminals via TermLink
 #
 # Usage:
-#   tl-dispatch.sh --name worker-1 --prompt "Explore the codebase" [--project /path] [--timeout 300]
-#   tl-dispatch.sh --name worker-1 --prompt-file /tmp/prompt.md [--project /path] [--timeout 300]
+#   tl-dispatch.sh --name worker-1 --prompt "Explore the codebase" [--project /path] [--timeout 300] [--model haiku] [--task-type build]
+#   tl-dispatch.sh --name worker-1 --prompt-file /tmp/prompt.md [--project /path] [--timeout 300] [--model sonnet] [--task-type test]
 #   tl-dispatch.sh status                    # List active workers
 #   tl-dispatch.sh wait --name worker-1      # Block until worker completes
 #   tl-dispatch.sh wait --all                # Block until all workers complete
@@ -229,8 +229,8 @@ RUNEOF
     echo "  Project: $project_dir"
     echo "  Result:  $wdir/result.md"
     echo "  Timeout: ${timeout}s"
-    [ -n "$task_type" ] && echo "  Task-type: $task_type"
-    [ -n "$model_used" ] && echo "  Model: $model_used (fallback: $fallback_used)"
+    if [ -n "$task_type" ]; then echo "  Task-type: $task_type"; fi
+    if [ -n "$model_used" ]; then echo "  Model: $model_used (fallback: $fallback_used)"; fi
 }
 
 cmd_status() {
@@ -492,7 +492,7 @@ case "${1:-}" in
     --name)   cmd_spawn "$@" ;;
     -h|--help|"")
         echo "Usage:"
-        echo "  tl-dispatch.sh --name <worker> --prompt \"...\" [--project /path] [--timeout 300] [--backend auto]"
+        echo "  tl-dispatch.sh --name <worker> --prompt \"...\" [--project /path] [--timeout 300] [--backend auto] [--model haiku] [--task-type build]"
         echo "  tl-dispatch.sh --name <worker> --prompt-file /path/to/prompt.md"
         echo "  tl-dispatch.sh status"
         echo "  tl-dispatch.sh wait --name <worker>  |  wait --all"

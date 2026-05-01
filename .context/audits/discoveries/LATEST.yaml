@@ -1,5 +1,20 @@
-timestamp: 2026-05-01T20:00:01Z
+timestamp: 2026-05-01T20:51:11Z
 findings:
+  - id: D1
+    level: PASS
+    check: "D1: Episodic quality — 0% [TODO] (8/1178)"
+  - id: D2
+    level: PASS
+    check: "D2: Human review queue — 3 task(s) awaiting human action (normal)"
+  - id: D8
+    level: PASS
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
+  - id: D10
+    level: PASS
+    check: "D10: Decision-without-dialogue — none detected"
+  - id: D11
+    level: PASS
+    check: "D11: Gap register staleness — all gaps fresh"
   - id: D4
     level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
@@ -9,13 +24,13 @@ findings:
     mitigation: "Review flagged tasks for process issues"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — insufficient data"
+    check: "D3: Commit velocity — normal (PASS today=64 avg=180 ratio=0.4x)"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS no_recent_commits)"
+    check: "D7: Commit bunching — none (PASS 68_commits_24h_no_bunching)"
   - id: D6
     level: WARN
-    check: "D6: Completion velocity — sustained drop (drop recent_avg=8.3 vs earlier_avg=36.9)"
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=8.7 vs earlier_avg=36.9)"
     mitigation: "Check for blockers or process issues slowing work"
   - id: D12
     level: PASS
@@ -25,7 +40,7 @@ findings:
     check: "D9: Control drift — normal (PASS 10_audits_checked)"
 
 summary:
-  pass: 5
+  pass: 10
   warn: 2
   fail: 0
-  total: 7
+  total: 12
