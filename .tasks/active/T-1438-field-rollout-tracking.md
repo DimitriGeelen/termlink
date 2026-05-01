@@ -20,7 +20,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-01T19:53:42Z
+last_update: 2026-05-01T20:02:44Z
 date_finished: null
 ---
 
@@ -46,7 +46,7 @@ PVE container), `laptop-141` (.141, WSL on dimitrixpro), and
   - 14:00Z: 0.9.1657 → 0.9.1659 (with `--thread`)
   - 16:40Z: 0.9.1659 → 0.9.1674 (with `--target-fp` + profile-name resolution — Phase-2 complete on field)
   Secret + cert SHAs unchanged across ALL THREE restarts (3dd9d01a / 2355a206) — TOFU pins held. Hardened swap script (f8699007) with 90s OOB polling. Bidirectional cross-host smoke verified — see "Smoke test (cross-host)" AC below
-- [x] **.141 (laptop-141) — binary STAGED 0.9.1682 (latest) 2026-05-01T19:25Z** — `/tmp/termlink-staged-0.9.1682` includes T-1439 (poison-pill auto-drop) + T-1440 (whoami identity FP) + Phase-2 federation (--target-fp, profile-name resolution). 453 chunks streamed, probe OK: `termlink 0.9.1682`. Stale 0.9.1659 / 0.9.1674 / target/release/termlink.new cleaned up. Swap NOT executed — would disrupt user's WSL session; gated on operator timing
+- [x] **.141 (laptop-141) — binary STAGED 0.9.1688 (T-1427 + everything below) 2026-05-01T20:04Z** — superseded the 19:25Z 0.9.1682 stage. `/tmp/termlink-staged-0.9.1688` (musl-static, 20.8MB) includes T-1427 (strict-reject) + T-1439 (poison-pill) + T-1440 (whoami fp) + Phase-2 federation. 453 chunks (sha verified), probe OK on remote: `termlink 0.9.1688`. Swap STILL operator-gated (would disrupt user's WSL session at /mnt/c/ntb-acd-plugin/termlink/target/release/termlink — DrvFs file-busy means rm-then-cp pattern needed; hub-binary-swap.sh handles this). Live binary on .141 still 0.9.1640.
 - [ ] **.143 (ring20-dashboard) — operator auth heal completed** — T-1418 dependency. Once secret is heal-deployed, push skill via same base64 path, then binary
 - [x] **.122 (ring20-management) — binary STAGED 0.9.1688 (T-1427 strict-reject) 2026-05-01T19:53Z** — musl-static target/x86_64-unknown-linux-musl/release/termlink streamed via fleet-deploy-binary.sh --probe. 453 chunks (sha verified), probe OK: `termlink 0.9.1688`. Staged at `/tmp/termlink-staged-0.9.1688`.
 - [x] **.122 (ring20-management) — binary SWAPPED 0.9.1674 → 0.9.1688 + T-1427 LIVE 2026-05-01T20:01Z** — FOURTH swap this cycle. hub-binary-swap.sh executed: kill 582972 → mv staged → relaunch. Persist-if-present held: secret SHA `3dd9d01a…` and cert SHA `2355a206…` UNCHANGED post-restart (T-1294 ground-truth re-verified for the 4th time). New hub PID 1855359, same args `termlink hub start --tcp 0.0.0.0:9100`. **Live T-1427 verification on .122:** forged-sender post (`--sender-id imposter`) rejected with `code=-32014 sender_id="imposter" does not match identity fingerprint d1993c2c… derived from sender_pubkey_hex (T-1427)`. Strict-reject is now enforced at the hub level on the field. Tomorrow's check-in cron updated: `EXPECTED_VERSION=0.9.1688`.
