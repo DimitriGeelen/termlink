@@ -20,7 +20,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-01T14:41:42Z
+last_update: 2026-05-01T16:54:46Z
 date_finished: null
 ---
 
@@ -46,7 +46,7 @@ PVE container), `laptop-141` (.141, WSL on dimitrixpro), and
   - 14:00Z: 0.9.1657 → 0.9.1659 (with `--thread`)
   - 16:40Z: 0.9.1659 → 0.9.1674 (with `--target-fp` + profile-name resolution — Phase-2 complete on field)
   Secret + cert SHAs unchanged across ALL THREE restarts (3dd9d01a / 2355a206) — TOFU pins held. Hardened swap script (f8699007) with 90s OOB polling. Bidirectional cross-host smoke verified — see "Smoke test (cross-host)" AC below
-- [x] **.141 (laptop-141) — binary RE-STAGED + RE-PROBED 2026-05-01T18:42Z** — `/tmp/termlink-staged-0.9.1674` = 0.9.1674 (matches .122 deployed binary, includes `--target-fp` + profile-name resolution). 453 chunks streamed cleanly, SHA `28266633c8b0e7b2f76255b3b1a37843adf5cf0f70add31cf03e100be5bf1018` verified on remote, probe OK: `termlink 0.9.1674`. Supersedes the earlier 0.9.1659 stage (now stale). Swap NOT executed — would disrupt user's WSL session; gated on operator timing
+- [x] **.141 (laptop-141) — binary STAGED 0.9.1682 (latest) 2026-05-01T19:25Z** — `/tmp/termlink-staged-0.9.1682` includes T-1439 (poison-pill auto-drop) + T-1440 (whoami identity FP) + Phase-2 federation (--target-fp, profile-name resolution). 453 chunks streamed, probe OK: `termlink 0.9.1682`. Stale 0.9.1659 / 0.9.1674 / target/release/termlink.new cleaned up. Swap NOT executed — would disrupt user's WSL session; gated on operator timing
 - [ ] **.143 (ring20-dashboard) — operator auth heal completed** — T-1418 dependency. Once secret is heal-deployed, push skill via same base64 path, then binary
 - [x] **Smoke test (same-host on .122) — PASSED 2026-05-01T15:43Z** — Spawned `peer-122-b` (tl-ihpdivtn, fp=9219671e28054458) on .122, ran `termlink agent contact peer-122-b --thread T-1438`. Verified envelope at offset=1 on `dm:9219671e:9219671e` with `msg_type=chat`, `metadata._thread=T-1438`, signed `sender_id`. Topic auto-created with topic_metadata (T-1430 self-doc)
 - [x] **Smoke test (cross-host BIDIRECTIONAL) — PASSED 2026-05-01T16:40Z** — After shipping `--target-fp` (cdb8bbaf) and profile-name resolution (e3f2381f), verified both directions:
@@ -176,6 +176,11 @@ test -f /root/.claude/commands/agent-handoff.md
 - **Reads back via:** `termlink channel dm 9219671e28054458 --json` returns both envelopes correctly. `channel list --prefix dm: --stats` shows content=1, meta=1, senders=1
 - **Conclusive:** the `agent contact` + `--thread` + `dm:*` arc is functioning end-to-end on the field binary. Same identity both ends because caller + peer share `~/.termlink/identity.key` on the same machine
 - **Cleaned up:** killed peer-122-b after verification
+
+### 2026-05-01T19:25Z — .141 stage 0.9.1682 (T-1439 + T-1440 fixes) [agent autonomous]
+- **Action:** `fleet-deploy-binary.sh laptop-141 --probe --dst /tmp/termlink-staged-0.9.1682` after T-1439 + T-1440 ship. Cleaned up stale stages (0.9.1659, 0.9.1674, target/release/termlink.new on /mnt/c)
+- **Result:** 453 chunks, probe OK (termlink 0.9.1682). Latest binary now sitting on .141 ready for operator-gated swap. Includes T-1439 poison-pill auto-drop (closes outbound queue head-block failure mode) + T-1440 whoami identity_fingerprint surface (chat-arc operator visibility)
+- **Why upgrade staging instead of swap:** WSL session would be disrupted by hub kill+restart. Two binaries staged → one binary staged (cleanup). Operator runs `kill <hub-pid> && cp /tmp/termlink-staged-0.9.1682 <hub-binary>` when ready
 
 ### 2026-05-01T18:42Z — .141 re-stage to 0.9.1674 [agent autonomous]
 - **Action:** `fleet-deploy-binary.sh laptop-141 --probe --dst /tmp/termlink-staged-0.9.1674` — re-staged to match what's live on .122
