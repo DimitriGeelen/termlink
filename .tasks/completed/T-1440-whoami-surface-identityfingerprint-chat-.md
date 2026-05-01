@@ -4,16 +4,16 @@ name: "whoami: surface identity_fingerprint (chat-arc sender_id visibility)"
 description: >
   whoami: surface identity_fingerprint (chat-arc sender_id visibility)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/metadata.rs]
 related_tasks: []
 created: 2026-05-01T16:56:13Z
-last_update: 2026-05-01T16:56:13Z
-date_finished: null
+last_update: 2026-05-01T17:12:40Z
+date_finished: 2026-05-01T17:12:40Z
 ---
 
 # T-1440: whoami: surface identity_fingerprint (chat-arc sender_id visibility)
@@ -60,3 +60,6 @@ cargo test --release -p termlink whoami_card 2>&1 | tail -10
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1440-whoami-surface-identityfingerprint-chat-.md
 - **Context:** Initial task creation
+
+### 2026-05-01T17:12:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

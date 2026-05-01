@@ -1,5 +1,5 @@
-# Audit Results - 2026-04-23-1945
-timestamp: 2026-04-23T17:45:01Z
+# Audit Results - 2026-05-01-1945
+timestamp: 2026-05-01T17:45:01Z
 sections: "oe-fast,oe-research"
 summary:
   pass: 7
@@ -15,11 +15,11 @@ findings:
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-1199)"
+    check: "CTL-001: Focus file has active task (T-1438)"
   - level: WARN
-    check: "CTL-003: Budget status file stale (17min old)"
+    check: "CTL-003: Budget status file stale (16min old)"
     mitigation: "Check PreToolUse hook wiring for budget-gate.sh"
   - level: PASS
-    check: "CTL-004: Tool counter at 3 (last commit: 17 minutes ago)"
+    check: "CTL-004: Tool counter at 3 (last commit: 16 minutes ago)"
   - level: PASS
-    check: "CTL-018: Budget status valid JSON (level: ok)"
+    check: "CTL-018: Budget status valid JSON (level: warn)"

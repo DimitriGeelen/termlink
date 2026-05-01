@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1391: Cross-hub Matrix-primitive flow — 6 agents thread/react/edit/redact across 2 hubs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T21:33:42Z
+# ============================================================================
+
+task_id: T-1391
+task_name: "Cross-hub Matrix-primitive flow — 6 agents thread/react/edit/redact across 2 hubs"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T21:30:31Z
+completed: 2026-04-28T21:33:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T23:33:34+02:00
+last_commit: 2026-04-28T23:33:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cross-hub Matrix-primitive 6-agent e2e (post/reply/react/edit/redact)
+
+# Key outcomes
+outcomes:
+  - "`tests/e2e/cross-hub-matrix-flow.sh` exists, executable"
+  - "Test creates a conversation topic on .107 hub"
+  - "6 distinct senders (5 .107 stand-ins + 1 .122 cross-hub) post the conversation: root → reply → reply → reply → reaction → edit → redact"
+  - "At least one reaction posted from .122 cross-hub TCP (proves reactions work over cross-hub)"
+  - "At least one reply chain spanning a .107 root and a .122 cross-hub reply (proves `in_reply_to` resolves cross-hub)"
+  - "At least one edit + one redaction visible in `channel state`"
+  - "`channel thread <topic> 0` from .107 shows the full DFS-rendered conversation tree"
+  - "`channel thread <topic> 0` from .122 (via cross-hub TCP) shows the same tree (byte-identical structure modulo timestamps)"
+  - "All 6 sender_ids attributed in `channel members <topic>` output"
+  - "Script exits 0 with `MATRIX-FLOW E2E PASSED` marker"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1391-cross-hub-matrix-primitive-flow--6-agent.md"
+  - "tests/e2e/cross-hub-matrix-flow.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T23:33:34"
+    action: "T-1391: cross-hub Matrix-primitive 6-agent e2e (post/reply/react/edit/redact)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 279
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1391-cross-hub-matrix-primitive-flow--6-agent.md
+generated_by: context-agent-hybrid

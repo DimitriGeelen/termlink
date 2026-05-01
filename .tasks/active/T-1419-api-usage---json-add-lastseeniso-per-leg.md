@@ -9,16 +9,16 @@ description: >
   "still calling" from "stale rolling-window residue." Tracking max(ts) per
   attribution key adds the missing signal in two additive JSON fields.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [T-1166, observability, metrics, post-deploy-verification]
 components: [.agentic-framework/agents/metrics/api-usage.sh]
 related_tasks: [T-1166, T-1414, T-1416, T-1418, T-1408, T-1409, T-1410]
 created: 2026-04-30T08:32:26Z
-last_update: 2026-04-30T08:32:26Z
-date_finished: null
+last_update: 2026-04-30T08:37:01Z
+date_finished: 2026-04-30T08:37:01Z
 ---
 
 # T-1419: api-usage --json: add last_seen_iso per legacy caller (post-deploy freshness)
@@ -116,3 +116,6 @@ diff -q .agentic-framework/agents/metrics/api-usage.sh /opt/999-Agentic-Engineer
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1419-api-usage---json-add-lastseeniso-per-leg.md
 - **Context:** Initial task creation
+
+### 2026-04-30T08:37:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

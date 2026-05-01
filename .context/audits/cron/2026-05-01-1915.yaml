@@ -1,9 +1,9 @@
-# Audit Results - 2026-04-23-1915
-timestamp: 2026-04-23T17:15:01Z
+# Audit Results - 2026-05-01-1915
+timestamp: 2026-05-01T17:15:01Z
 sections: "oe-fast,oe-research"
 summary:
-  pass: 7
-  warn: 1
+  pass: 8
+  warn: 0
   fail: 0
 findings:
   - level: PASS
@@ -14,12 +14,11 @@ findings:
     check: "C-002: No research warnings logged (clean or first run)"
   - level: PASS
     check: "C-003: Research checkpoint logic present in checkpoint.sh"
-  - level: WARN
-    check: "CTL-001: Focus file empty but 4 commit(s) in last 30min"
-    mitigation: "Check .claude/settings.json hook configuration for check-active-task"
+  - level: PASS
+    check: "CTL-001: Focus file has active task (T-1440)"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 5 (last commit: 4 minutes ago)"
+    check: "CTL-004: Tool counter at 2 (last commit: 2 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: ok)"

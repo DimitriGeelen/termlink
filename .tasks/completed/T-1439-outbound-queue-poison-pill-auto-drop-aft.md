@@ -4,16 +4,16 @@ name: "outbound queue: poison-pill auto-drop after N hub-reject attempts"
 description: >
   outbound queue: poison-pill auto-drop after N hub-reject attempts
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/offline_queue.rs]
 related_tasks: []
 created: 2026-05-01T16:38:34Z
-last_update: 2026-05-01T16:38:34Z
-date_finished: null
+last_update: 2026-05-01T16:46:47Z
+date_finished: 2026-05-01T16:46:47Z
 ---
 
 # T-1439: outbound queue: poison-pill auto-drop after N hub-reject attempts
@@ -78,3 +78,6 @@ cargo build --release --bin termlink 2>&1 | tail -5
 - **Why this matters for chat-arc:** any future `--hub TCP` post that fails after the binary fell back to queue (rare on current binary post-T-1385 but possible) won't permanently brick the queue for the host. Auto-recovery within 10 flush cycles
 - **Tests:** added 2 unit tests on the new query method; all 9 offline_queue + 5 bus_client tests pass
 - **Versions:** built fresh binary 0.9.1678, installed system-wide on .107
+
+### 2026-05-01T16:46:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

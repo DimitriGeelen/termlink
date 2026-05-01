@@ -7,6 +7,13 @@
       "last_class": null,
       "last_failure_at": null
     },
+    "laptop-141": {
+      "concern_registered": false,
+      "consecutive_failures": 0,
+      "first_failure_at": null,
+      "last_class": null,
+      "last_failure_at": null
+    },
     "local-test": {
       "concern_registered": false,
       "consecutive_failures": 0,
@@ -30,10 +37,10 @@
     },
     "ring20-dashboard": {
       "concern_registered": false,
-      "consecutive_failures": 7,
-      "first_failure_at": "2026-04-28T08:34:58Z",
+      "consecutive_failures": 29,
+      "first_failure_at": "2026-04-30T18:25:58Z",
       "last_class": "auth-mismatch",
-      "last_failure_at": "2026-04-28T20:45:10Z"
+      "last_failure_at": "2026-05-01T17:28:08Z"
     },
     "ring20-management": {
       "concern_registered": false,

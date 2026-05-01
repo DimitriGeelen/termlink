@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1434: Deploy 0.9.1640 (T-1432 hub.legacy_usage RPC) to laptop-141
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-01T08:56:56Z
+# ============================================================================
+
+task_id: T-1434
+task_name: "Deploy 0.9.1640 (T-1432 hub.legacy_usage RPC) to laptop-141"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-01T08:54:10Z
+completed: 2026-05-01T08:56:48Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "musl 0.9.1640 built locally with T-1432 baked in (hub.legacy_usage RPC + summarize_lines parser + 3 unit tests passing)"
+  - "fleet-deploy-binary.sh streamed 453 chunks to .141 with --probe + --swap-restart; probe confirmed binary executes on the WSL host before swap"
+  - "Hub on .141 came back UP within 90s (observed 10s in deploy log); fleet doctor confirms PASS post-swap"
+  - "Live fleet doctor --legacy-usage from .107 successfully invokes hub.legacy_usage on .141 and receives a real summary (audit_present=true, total_legacy=0) — proves the RPC plumbing works cross-host"
+  - "Cut-readiness verdict now shows .141 as CLEAN (7d) instead of UNSUPPORTED — same fleet doctor invocation tracks the upgrade in real time"
+  - "No SSH used; all transport via termlink remote exec (PL-015)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1434-deploy-091640-t-1432-hublegacyusage-rpc-.md
+generated_by: context-agent-hybrid

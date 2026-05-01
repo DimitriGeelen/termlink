@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1440: whoami: surface identity_fingerprint (chat-arc sender_id visibility)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-01T17:18:56Z
+# ============================================================================
+
+task_id: T-1440
+task_name: "whoami: surface identity_fingerprint (chat-arc sender_id visibility)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-01T16:56:13Z
+completed: 2026-05-01T17:12:40Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-01T19:12:36+02:00
+last_commit: 2026-05-01T19:12:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  whoami surfaces identity_fingerprint (chat-arc sender_id)
+
+# Key outcomes
+outcomes:
+  - "`print_whoami_card` displays `Identity FP:` line in text mode when `reg.metadata.identity_fingerprint` is `Some` — placed directly under `PID:` line. metadata.rs:687-689"
+  - "When `Some`, JSON mode also includes `identity_fingerprint` under the session object. metadata.rs:651-653"
+  - "When `None` (legacy registration), output stays unchanged — `if let Some(fp)` guards both branches. Verified live: `tl-malcnj2m` (pre-T-1436 registration) shows no `Identity FP` line; `tl-3c6tvea2` (post-T-1436) shows `Identity FP:  d1993c2c3ec44c94`"
+  - "Refactored to expose `whoami_card_json()` helper so tests assert on `Value` shape without capturing stdout — clean test seam"
+  - "Unit tests in metadata.rs: `whoami_card_json_with_identity_fp_emits_field` + `whoami_card_json_without_identity_fp_omits_key`. Both pass: `test result: ok. 2 passed`"
+  - "cargo build --release succeeds (binary 0.9.1681); cargo test green"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/metadata.rs"
+  - ".tasks/active/T-1440-whoami-surface-identityfingerprint-chat-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-01T19:12:36"
+    action: "T-1440: whoami surfaces identity_fingerprint (chat-arc sender_id)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 1
+  files_changed: 2
+  lines_added: 154
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1440-whoami-surface-identityfingerprint-chat-.md
+generated_by: context-agent-hybrid

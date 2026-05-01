@@ -53,3 +53,29 @@
 2026-04-27T11:41:48Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-001 id=PL-089 origin=termlink
 2026-04-28T20:34:27Z channel.post-failed id=PL-092 — falling back to event.broadcast
 2026-04-28T20:34:27Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-007 id=PL-092 origin=termlink
+2026-04-29T18:36:35Z channel.post-failed id=PL-093 — falling back to event.broadcast
+2026-04-29T18:36:35Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-079 id=PL-093 origin=termlink
+2026-04-29T22:21:39Z channel.post-failed id=PL-094 — falling back to event.broadcast
+2026-04-29T22:21:39Z posted via=event.broadcast topic=channel:learnings msg_type=learning-D id=PL-094 origin=termlink
+2026-04-30T16:40:31Z channel.post-failed id=PL-095 — falling back to event.broadcast
+2026-04-30T16:40:31Z posted via=event.broadcast topic=channel:learnings msg_type=learning-P-002 id=PL-095 origin=termlink
+2026-04-30T18:25:25Z channel.post-failed id=PL-096 — falling back to event.broadcast
+2026-04-30T18:25:25Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-095 id=PL-096 origin=termlink
+2026-04-30T19:28:29Z channel.post-failed id=PL-098 — falling back to event.broadcast
+2026-04-30T19:28:29Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-096 id=PL-098 origin=termlink
+2026-04-30T19:30:08Z channel.post-failed id=PL-099 — falling back to event.broadcast
+2026-04-30T19:30:08Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-097 id=PL-099 origin=termlink
+2026-05-01T12:15:05Z channel.post-failed id=PL-103 — falling back to event.broadcast
+2026-05-01T12:15:05Z posted via=event.broadcast topic=channel:learnings msg_type=learning-unknown id=PL-103 origin=termlink
+2026-05-01T13:00:08Z channel.post-failed id=PL-104 — falling back to event.broadcast
+2026-05-01T13:00:08Z posted via=event.broadcast topic=channel:learnings msg_type=learning-unknown id=PL-104 origin=termlink
+2026-05-01T13:34:51Z channel.post-failed id=PL-105 — falling back to event.broadcast
+2026-05-01T13:34:51Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-104 id=PL-105 origin=termlink
+2026-05-01T13:35:22Z channel.post-failed id=PL-106 — falling back to event.broadcast
+2026-05-01T13:35:22Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-104 id=PL-106 origin=termlink
+2026-05-01T13:37:01Z channel.post-failed id=PL-107 — falling back to event.broadcast
+2026-05-01T13:37:01Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-099 id=PL-107 origin=termlink
+2026-05-01T13:46:02Z channel.post-failed id=PL-108 — falling back to event.broadcast
+2026-05-01T13:46:02Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-099 id=PL-108 origin=termlink
+2026-05-01T13:46:05Z channel.post-failed id=PL-109 — falling back to event.broadcast
+2026-05-01T13:46:05Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-099 id=PL-109 origin=termlink

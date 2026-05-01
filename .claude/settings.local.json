@@ -512,7 +512,16 @@
       "Bash(rm .claude/settings.json.bak.test)",
       "mcp__termlink__termlink_overview",
       "mcp__termlink__termlink_batch_run",
-      "mcp__termlink__termlink_remote_ping"
+      "mcp__termlink__termlink_remote_ping",
+      "mcp__playwright__browser_close",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_network_requests",
+      "Bash(mkdir -p /tmp/termlink-xfer)",
+      "Bash(rm -f /tmp/termlink-xfer/*)",
+      "Bash(split -b 500K -d -a 3 target/release/termlink /tmp/termlink-xfer/c.)",
+      "Bash(target/x86_64-unknown-linux-musl/release/termlink fleet *)",
+      "Bash(cp /opt/termlink/.claude/commands/agent-handoff.md ~/.claude/commands/agent-handoff.md)",
+      "Read(//root/.claude/commands/**)"
     ]
   },
   "enabledMcpjsonServers": [

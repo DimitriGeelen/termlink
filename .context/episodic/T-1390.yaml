@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1390: Strengthen agent-conversation arc — true cross-hub 6-agent concurrent live e2e (post-T-1384 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T21:30:24Z
+# ============================================================================
+
+task_id: T-1390
+task_name: "Strengthen agent-conversation arc — true cross-hub 6-agent concurrent live e2e (post-T-1384 GO)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T21:24:49Z
+completed: 2026-04-28T21:30:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T23:28:09+02:00
+last_commit: 2026-04-28T23:28:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bidirectional cross-hub 6-agent e2e + auto-resolve T-1387 remote session. add cross-hub-bidirectional-6agents.sh script + task ACs
+
+# Key outcomes
+outcomes:
+  - "T-1387 script runs to completion exit 0 against the upgraded fleet (REMOTE_SESSION auto-resolved, not hardcoded)"
+  - "New script `tests/e2e/cross-hub-bidirectional-6agents.sh` exists and is executable"
+  - "New script creates ONE topic on .107 hub and ONE topic on .122 hub"
+  - "6 concurrent senders post to .107-hub topic (5 local + 1 from .122 cross-hub TCP)"
+  - "6 concurrent senders post to .122-hub topic (5 from .107 cross-hub TCP + 1 local on .122)"
+  - "Cross-hub READ test: read both topics from BOTH hubs (4 reads), verify each topic's canonical state has all 6 distinct senders regardless of which hub originates the read"
+  - "Script exits 0 with `BIDIRECTIONAL CROSS-HUB E2E PASSED` marker"
+  - "All work committed with task reference"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1390-strengthen-agent-conversation-arc--true-.md"
+  - "tests/e2e/cross-hub-bidirectional-6agents.sh"
+  - "tests/e2e/live-agents-conversation.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T23:28:09"
+    action: "T-1390: bidirectional cross-hub 6-agent e2e + auto-resolve T-1387 remote session"
+  - time: "2026-04-28T23:28:21"
+    action: "T-1390: add cross-hub-bidirectional-6agents.sh script + task ACs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 3
+  lines_added: 295
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1390-strengthen-agent-conversation-arc--true-.md
+generated_by: context-agent-hybrid
