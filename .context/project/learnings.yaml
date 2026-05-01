@@ -1029,3 +1029,11 @@ learnings:
   date: 2026-05-01
   context: fleet-doctor auto-registered
   application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+
+- id: PL-111
+  learning: "Hub-side state that needs to survive restart belongs in runtime_dir alongside T-1294's secret/cert. Topics + retention live only in `RwLock<HashMap<String, Topic>>` and vanish silently on every hub binary swap. Vendored agents posting cross-host get -32013 unknown topic; local subscribers get an empty channel. Detection lag is ~24h because no automation tests cross-host posts on -32013. Mitigation choices: (1) persist topic registry to disk, (2) chat-arc agent self-heal via idempotent channel.create on (re)connect, (3) opt-in `--ensure-topic` flag on `channel post` (T-1443 — cheapest, default-off so typo-detection survives). Don't conflate \"hub running + canary SHAs unchanged\" with \"hub state intact\" — runtime state is a separate axis from binary identity."
+  source: T-1443
+  task: T-1443
+  date: 2026-05-01
+  context: G-050 mitigation cycle — chat-arc topic loss across .122 swap cycle (5 cycles in 24h, blind ~24h). Discovered post-/compact when soak-pinging .122 returned -32013 despite hub healthy on 0.9.1693.
+  application: "Future hub feature work that registers per-hub state — channels, retention rules, ACLs, presence trackers — must answer the durability question explicitly. If state lives only in memory, document the restart-loss behaviour AND provide a self-heal path (T-1443 pattern) so callers can be defensively idempotent without operator action."
