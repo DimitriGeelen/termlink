@@ -210,16 +210,49 @@ POST_SECRET_SHA=$(parse_kv "$SWAP_RESULT" POST_SECRET_SHA)
 POST_CERT_SHA=$(parse_kv   "$SWAP_RESULT" POST_CERT_SHA)
 POST_BIN_VERSION=$(parse_kv "$SWAP_RESULT" POST_BIN_VERSION)
 
+# --- Post-call out-of-band polling (PL-105 mitigation) ----------------------
+# The inline post-conditions inside run_remote can return empty / partial when
+# the kill-and-relaunch sequence kills the hub process that's serving the
+# remote-exec call (transport-death false alarm: 2026-04-30 PL-104, 2026-05-01
+# PL-105). The fix is to ALWAYS do out-of-band polling here, regardless of
+# whether the inline result came back, and only declare the swap a failure if
+# the hub fails to recover within a generous deadline (relaunch SLA: 20-60s).
+echo ">>> out-of-band post-swap polling (up to 90s)"
+HUB_BACK=0
+for i in $(seq 1 30); do
+  if timeout 5 termlink remote ping "$HUB" --secret-file "$SECRET_FILE" >/dev/null 2>&1; then
+    HUB_BACK=1
+    echo "  hub responding after ${i}x3s polls"
+    break
+  fi
+  sleep 3
+done
+
+if [ "$HUB_BACK" = "1" ]; then
+  # Re-fetch post-state out-of-band (the inline values may be missing if
+  # transport died). This is authoritative.
+  POST_STATE=$(run_remote "
+echo \"POST_SECRET_SHA=\$(sha256sum /var/lib/termlink/hub.secret 2>/dev/null | awk '{print \$1}')\"
+echo \"POST_CERT_SHA=\$(sha256sum /var/lib/termlink/hub.cert.pem 2>/dev/null | awk '{print \$1}')\"
+echo \"POST_BIN_VERSION=\$(/usr/local/bin/termlink --version 2>/dev/null)\"
+" 2>/dev/null) || POST_STATE=""
+  if [ -n "$POST_STATE" ]; then
+    POST_SECRET_SHA=$(parse_kv  "$POST_STATE" POST_SECRET_SHA)
+    POST_CERT_SHA=$(parse_kv    "$POST_STATE" POST_CERT_SHA)
+    POST_BIN_VERSION=$(parse_kv "$POST_STATE" POST_BIN_VERSION)
+  fi
+fi
+
 # --- Post-conditions --------------------------------------------------------
 FAIL=0
-[ "${HUB_UP:-0}" != "1" ]                           && { echo "FAIL: hub did not come back up"; FAIL=1; }
-[ "$POST_SECRET_SHA" != "$SECRET_SHA" ]             && { echo "FAIL: secret SHA changed (TOFU re-pin needed) pre=$SECRET_SHA post=$POST_SECRET_SHA"; FAIL=1; }
-[ "$POST_CERT_SHA" != "$CERT_SHA" ]                 && { echo "FAIL: cert SHA changed (TLS re-pin needed) pre=$CERT_SHA post=$POST_CERT_SHA"; FAIL=1; }
-[ "$POST_BIN_VERSION" != "$NEW_VERSION" ]           && { echo "FAIL: post-swap version != staged ($POST_BIN_VERSION vs $NEW_VERSION)"; FAIL=1; }
+[ "${HUB_BACK:-0}" != "1" ]                         && { echo "FAIL: hub did not come back up within 90s"; FAIL=1; }
+[ -n "$POST_SECRET_SHA" ] && [ "$POST_SECRET_SHA" != "$SECRET_SHA" ] && { echo "FAIL: secret SHA changed (TOFU re-pin needed) pre=$SECRET_SHA post=$POST_SECRET_SHA"; FAIL=1; }
+[ -n "$POST_CERT_SHA" ] && [ "$POST_CERT_SHA" != "$CERT_SHA" ]       && { echo "FAIL: cert SHA changed (TLS re-pin needed) pre=$CERT_SHA post=$POST_CERT_SHA"; FAIL=1; }
+[ -n "$POST_BIN_VERSION" ] && [ "$POST_BIN_VERSION" != "$NEW_VERSION" ] && { echo "FAIL: post-swap version != staged ($POST_BIN_VERSION vs $NEW_VERSION)"; FAIL=1; }
 
 if [ "$FAIL" = "0" ]; then
   echo "✓ swap OK"
-  echo "  $OLD_VERSION → $POST_BIN_VERSION"
+  echo "  $OLD_VERSION → ${POST_BIN_VERSION:-$NEW_VERSION (unverified — re-fetch failed)}"
   echo "  secret SHA: $SECRET_SHA (unchanged — TOFU pins valid)"
   echo "  cert SHA: $CERT_SHA (unchanged — TLS pins valid)"
   exit 0

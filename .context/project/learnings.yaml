@@ -987,3 +987,24 @@ learnings:
   date: 2026-05-01
   context: Added via context agent
   application: TBD
+- id: PL-105
+  learning: "Pre-flight rule: never run hub-binary-swap.sh until its post-call polling fix lands. Yesterday's incident (PL-104) was retracted because the swap happened to succeed, but the script itself remained unsafe; running it today produced a real .122 hub-down incident. The known-fix item must gate the next swap attempt."
+  source: PL-104
+  task: T-1438
+  date: 2026-05-01
+  context: Added via context agent
+  application: TBD
+- id: PL-106
+  learning: "Hub-binary-swap relaunch SLAs: setsid+nohup detach works correctly, but new hub takes 20-60s to come up after kill. Operator poll for verification must allow >=60s before declaring failure (not 20s as in PL-104/PL-105 panic moments). Script itself is sound; operator-side post-call polling needs a longer max-wait."
+  source: PL-104
+  task: T-1438
+  date: 2026-05-01
+  context: Added via context agent
+  application: TBD
+- id: PL-107
+  learning: "T-1429 Phase-2 design gap: agent contact resolves <target> via LOCAL session.discover only (find_session in agent.rs:678). Cross-hub display_name resolution is not yet wired — --hub override only routes the post, not the lookup. For cross-host smoke: either federate session.discover, OR have agent contact accept --target-fp directly, OR run the verb on the same host as the target. Phase-2 follow-up for T-1429."
+  source: PL-099
+  task: T-1429
+  date: 2026-05-01
+  context: Added via context agent
+  application: TBD
