@@ -3272,6 +3272,35 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Contact a peer agent on its canonical `dm:<a>:<b>` topic (T-1429 Phase-1).
+    ///
+    /// Resolves <target> via local `session.discover`, reads the peer's
+    /// `identity_fingerprint` from their registration metadata (T-1436),
+    /// computes the canonical `dm:<sorted_a>:<sorted_b>` topic, and posts
+    /// the message there. Replaces the `remote push` improv pattern for
+    /// agent-to-agent contact. See agent-chat-arc topic description for the
+    /// full envelope canon (RFC: T-1425). Strict identity-binding lands in
+    /// T-1427; this Phase-1 build relies on the authoritative `sender_id`
+    /// derived from the local identity key. Phase-2 ACs (--ack-required,
+    /// --require-online, --file, name@hub:port targets) are out of scope
+    /// here — see T-1429 task for the deferred work.
+    Contact {
+        /// Target session's display_name (resolved via local session.discover)
+        target: String,
+
+        /// Message body
+        #[arg(long)]
+        message: String,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Run a 4-phase format negotiation with a specialist session
     Negotiate {
         /// Specialist session ID or display name
